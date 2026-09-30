@@ -37,8 +37,10 @@ fn main() {
 
 ```typescript
 import {
+	getAlwaysOnTop,
 	getCapabilities,
 	getStatus,
+	onAlwaysOnTopChanged,
 	showSystemWindowMenu,
 } from '@liminal-hq/plugin-window-manager';
 
@@ -53,17 +55,24 @@ if (capabilities.systemWindowMenu) {
 }
 ```
 
-Every command acts on the window that invoked it. `showSystemWindowMenu` resolves to `true` if the compositor accepted the request, and to `false` if it is unsupported or was refused; it does not reject for "unsupported". Wayland only honours the request for a recent real button press, because the compositor validates the serial of that press, so call it straight from a pointer event handler. `position` is in CSS pixels from the window's top-left corner; the webview fills the window, so any transparent margin the app draws counts.
+Every command acts on the window that invoked it. Subscribe to `onAlwaysOnTopChanged` first and then read `getAlwaysOnTop()`, so a change between the two cannot be missed.
+
+```typescript
+const unlisten = await onAlwaysOnTopChanged((alwaysOnTop) => pin.setPressed(alwaysOnTop));
+pin.setPressed((await getAlwaysOnTop()) ?? false);
+```
+
+`getAlwaysOnTop()` reads the state from the window manager instead of echoing the last request, which Tauri's `isAlwaysOnTop()` does on Linux. It resolves to `null` where the state cannot be observed (Wayland, and targets without an integration), so fall back to your own record of the last request there. On X11 the window manager's own menu can change it, so `onAlwaysOnTopChanged` reports those changes too; it never fires on other platforms. `showSystemWindowMenu` resolves to `true` if the compositor accepted the request, and to `false` if it is unsupported or was refused; it does not reject for "unsupported". Wayland only honours the request for a recent real button press, because the compositor validates the serial of that press, so call it straight from a pointer event handler. `position` is in CSS pixels from the window's top-left corner; the webview fills the window, so any transparent margin the app draws counts.
 
 ## Platforms
 
 | Platform      | `session`   | `alwaysOnTop` | `systemWindowMenu`                    | Notes                                                                                                                                                                                             |
 | ------------- | ----------- | ------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Linux Wayland | `'wayland'` | `false`       | `true`                                | `set_always_on_top` is a no-op under Wayland, so the compositor's window menu is the way to do it. Uses `xdg_toplevel.show_window_menu` through GDK.                                              |
-| Linux X11     | `'x11'`     | `true`        | `true`                                | Sends `_GTK_SHOW_WINDOW_MENU` through GDK.                                                                                                                                                        |
+| Linux X11     | `'x11'`     | `true`        | `true`                                | Sends `_GTK_SHOW_WINDOW_MENU` through GDK. Reads `_NET_WM_STATE_ABOVE` from the window manager, and reports changes made from its own menu.                                                       |
 | Windows       | `'windows'` | `true`        | `true`                                | Shows the Windows system menu (`GetSystemMenu` and `TrackPopupMenu`) and sends the chosen command back with `WM_SYSCOMMAND`. Type-checked against the Windows target, but not yet run on Windows. |
 | macOS         | `'macos'`   | `true`        | `true` when the app has a Window menu | A frameless window has no system menu on macOS, so this pops up the application's Window menu at the pointer. Type-checked against the macOS target, but not yet run on macOS.                    |
-| Other         | `'unknown'` | `true`        | `false`                               | Targets without an integration, such as Android and iOS, offer nothing, so `getStatus()` reports the plugin unavailable.                                                                          |
+| Other         | `'unknown'` | `false`       | `false`                               | Targets without an integration, such as Android and iOS, offer nothing, so `getStatus()` reports the plugin unavailable.                                                                          |
 
 On Linux the session is whatever GDK opened (`GdkWaylandDisplay` or `GdkX11Display`) when it can be asked on the GTK main thread. Otherwise it comes from the environment: `XDG_SESSION_TYPE` of `wayland` or `x11` decides; failing that a set `WAYLAND_DISPLAY` means Wayland (GTK prefers it even when `DISPLAY` is set for XWayland), then a set `DISPLAY` means X11; anything else is `'unknown'`.
 
@@ -96,7 +105,7 @@ interface PluginStatus {
 
 ## Permissions
 
-The `default` permission set allows all three commands. Registering the plugin is not enough: Tauri denies every command until a capability grants it, so each window that uses the plugin needs the permission in a capability file, for example `src-tauri/capabilities/default.json`:
+The `default` permission set allows all four commands. Registering the plugin is not enough: Tauri denies every command until a capability grants it, so each window that uses the plugin needs the permission in a capability file, for example `src-tauri/capabilities/default.json`:
 
 ```json
 {
@@ -113,10 +122,11 @@ Without it, every JavaScript call rejects with a "not allowed" error. Grant it o
 | `allow-get-status`              | `get_status`              |
 | `allow-get-capabilities`        | `get_capabilities`        |
 | `allow-show-system-window-menu` | `show_system_window_menu` |
+| `allow-get-always-on-top`       | `get_always_on_top`       |
 
 ## Development
 
-Session detection is a pure function in `src/session.rs` with table-driven tests. The per-platform code is in `src/linux.rs`, `src/windows.rs`, `src/macos.rs` and `src/unsupported.rs`. To regenerate the TypeScript bindings, run `cargo test` in the plugin directory; to print the capabilities detected on this machine, run `cargo test live_capabilities -- --ignored --nocapture`. Whether the compositor actually shows the menu can only be checked by hand with a real click. Verified on GNOME (Mutter) under Wayland: choosing an entry in an app-drawn menu shows GNOME's own window menu and its Always on Top works, alongside Always on Visible Workspace and workspace and monitor moves. Other compositors, X11, and a separate check on KDE are still to do.
+Session detection is a pure function in `src/session.rs` with table-driven tests. The per-platform code is in `src/linux.rs`, `src/windows.rs`, `src/macos.rs` and `src/unsupported.rs`. The X11 Always on Top watcher and read are verified under XWayland on GNOME: a change made from outside the app (an `xdotool windowstate` request, the same message a window manager menu sends) produces the event and updates the read. To regenerate the TypeScript bindings, run `cargo test` in the plugin directory; to print the capabilities detected on this machine, run `cargo test live_capabilities -- --ignored --nocapture`. Whether the compositor actually shows the menu can only be checked by hand with a real click. Verified on GNOME (Mutter) under Wayland: choosing an entry in an app-drawn menu shows GNOME's own window menu and its Always on Top works, alongside Always on Visible Workspace and workspace and monitor moves. Other compositors, X11, and a separate check on KDE are still to do.
 
 ## Licence
 

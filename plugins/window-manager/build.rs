@@ -3,7 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-const COMMANDS: &[&str] = &["get_status", "get_capabilities", "show_system_window_menu"];
+const COMMANDS: &[&str] = &[
+    "get_status",
+    "get_capabilities",
+    "show_system_window_menu",
+    "get_always_on_top",
+];
 
 fn main() {
     tauri_plugin::Builder::new(COMMANDS)

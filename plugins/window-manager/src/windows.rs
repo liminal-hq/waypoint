@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use log::{info, warn};
-use tauri::{Runtime, WebviewWindow};
+use tauri::{Runtime, WebviewWindow, Window};
 use windows::Win32::{
     Foundation::{HWND, LPARAM, POINT, WPARAM},
     Graphics::Gdi::ClientToScreen,
@@ -22,6 +22,14 @@ use crate::{
 pub async fn capabilities<R: Runtime>(_window: &WebviewWindow<R>) -> WindowCapabilities {
     WindowCapabilities::windows()
 }
+
+/// Windows keeps the topmost state on the window itself, so Tauri's read is authoritative.
+pub async fn always_on_top<R: Runtime>(window: &WebviewWindow<R>) -> Option<bool> {
+    window.is_always_on_top().ok()
+}
+
+/// Nothing to watch: the Windows system menu has no Always on Top entry, so only the app changes it.
+pub fn watch_always_on_top<R: Runtime>(_window: &Window<R>) {}
 
 /// Shows the window's system menu (Restore, Move, Size, Minimise, Maximise, Close) at `position`
 /// and sends the chosen command back to the window.

@@ -31,3 +31,11 @@ pub async fn show_system_window_menu<R: Runtime>(
 ) -> Result<bool, Error> {
     Ok(platform::show_system_window_menu(&window, position).await)
 }
+
+/// Whether the window manager is keeping the invoking window above others, read from the window manager rather than echoed from the last request. `None` where it cannot be observed, such as under Wayland.
+#[tauri::command]
+pub async fn get_always_on_top<R: Runtime>(
+    window: WebviewWindow<R>,
+) -> Result<Option<bool>, Error> {
+    Ok(platform::always_on_top(&window).await)
+}

@@ -7,11 +7,11 @@ use gdk::glib::translate::{ToGlibPtr, ToGlibPtrMut};
 use gdk::prelude::*;
 use gtk::prelude::*;
 use log::{info, warn};
-use tauri::{Runtime, WebviewWindow};
+use tauri::{Emitter, Runtime, WebviewWindow, Window};
 
 use crate::{
     main_thread,
-    models::{Session, WindowCapabilities, WindowPosition},
+    models::{Session, WindowCapabilities, WindowPosition, ALWAYS_ON_TOP_CHANGED_EVENT},
     session,
 };
 
@@ -43,6 +43,97 @@ pub async fn capabilities<R: Runtime>(window: &WebviewWindow<R>) -> WindowCapabi
         .await
         .unwrap_or_else(session::from_process_env);
     capabilities_for(detected)
+}
+
+/// Whether the X11 window manager lists `_NET_WM_STATE_ABOVE` for the window, read straight from the `_NET_WM_STATE` property.
+///
+/// GDK's own `ABOVE` window state only echoes `gdk_window_set_keep_above` and never follows the window manager, so it cannot see a change made from the window manager's menu. A window with no `_NET_WM_STATE` property has no state set, so a missing property reads as false. Must run on the GTK main thread, on X11.
+fn read_above(gdk_window: &gdk::Window) -> bool {
+    let property = gdk::Atom::intern("_NET_WM_STATE");
+    let atom_type = gdk::Atom::intern("ATOM");
+    let Some((_, format, data)) = gdk::property_get(gdk_window, &property, &atom_type, 0, 1024, 0)
+    else {
+        return false;
+    };
+    if format != 32 {
+        return false;
+    }
+    // Asking for type `ATOM` makes GDK translate each X atom in the list into its own atom value,
+    // delivered as an array of C `long`s, so the state is compared against a GDK atom too.
+    lists_atom(&data, gdk::Atom::intern("_NET_WM_STATE_ABOVE").value())
+}
+
+/// Whether `atom` is among the native-endian machine words in a format-32 property's data.
+fn lists_atom(data: &[u8], atom: usize) -> bool {
+    const WORD: usize = std::mem::size_of::<usize>();
+    data.as_chunks::<WORD>()
+        .0
+        .iter()
+        .any(|word| usize::from_ne_bytes(*word) == atom)
+}
+
+/// X11's window manager is the authority on `_NET_WM_STATE_ABOVE`. Wayland has no such state to read, so this is `None` there.
+pub async fn always_on_top<R: Runtime>(window: &WebviewWindow<R>) -> Option<bool> {
+    let target = window.clone();
+    main_thread::run(window, move || {
+        if detect_session() != Session::X11 {
+            return None;
+        }
+        let gdk_window = target.gtk_window().ok()?.window()?;
+        Some(read_above(&gdk_window))
+    })
+    .await
+    .flatten()
+}
+
+/// Emits `ALWAYS_ON_TOP_CHANGED_EVENT` to the window whenever the X11 window manager changes `_NET_WM_STATE_ABOVE`, whether the request came from the app or from the window manager's own menu.
+pub fn watch_always_on_top<R: Runtime>(window: &Window<R>) {
+    let target = window.clone();
+    let scheduled = window.run_on_main_thread(move || {
+        if detect_session() != Session::X11 {
+            return;
+        }
+        let Ok(gtk_window) = target.gtk_window() else {
+            warn!(
+                "always on top watcher: no GTK window for label={}",
+                target.label()
+            );
+            return;
+        };
+        // GTK only delivers property changes to widgets that ask for them.
+        gtk_window.add_events(gdk::EventMask::PROPERTY_CHANGE_MASK);
+        let state_atom = gdk::Atom::intern("_NET_WM_STATE");
+        let last = std::cell::Cell::new(None::<bool>);
+        let emitter = target.clone();
+        gtk_window.connect_property_notify_event(move |widget, event| {
+            if event.atom() == state_atom {
+                if let Some(gdk_window) = widget.window() {
+                    let above = read_above(&gdk_window);
+                    if last.replace(Some(above)) != Some(above) {
+                        info!(
+                            "always on top changed for label={}: {above}",
+                            emitter.label()
+                        );
+                        if let Err(error) =
+                            emitter.emit_to(emitter.label(), ALWAYS_ON_TOP_CHANGED_EVENT, above)
+                        {
+                            warn!(
+                                "could not emit the always on top change for label={}: {error}",
+                                emitter.label()
+                            );
+                        }
+                    }
+                }
+            }
+            gdk::glib::Propagation::Proceed
+        });
+    });
+    if let Err(error) = scheduled {
+        warn!(
+            "always on top watcher was not installed for label={}: {error}",
+            window.label()
+        );
+    }
 }
 
 pub async fn show_system_window_menu<R: Runtime>(
@@ -128,6 +219,20 @@ mod tests {
             capabilities_for(Session::Unknown),
             WindowCapabilities::new(Session::Unknown, true, false)
         );
+    }
+
+    #[test]
+    fn finds_an_atom_in_property_data() {
+        let words: Vec<u8> = [89usize, 115]
+            .iter()
+            .flat_map(|word| word.to_ne_bytes())
+            .collect();
+        assert!(lists_atom(&words, 89));
+        assert!(lists_atom(&words, 115));
+        assert!(!lists_atom(&words, 271));
+        assert!(!lists_atom(&[], 89));
+        // A trailing partial word is ignored rather than misread.
+        assert!(!lists_atom(&words[..words.len() - 1], 115));
     }
 
     /// Run on a real desktop: `cargo test live_capabilities -- --ignored --nocapture`.

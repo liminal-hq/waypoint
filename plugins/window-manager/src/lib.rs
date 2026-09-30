@@ -43,6 +43,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_status,
             commands::get_capabilities,
             commands::show_system_window_menu,
+            commands::get_always_on_top,
         ])
+        .on_window_ready(|window| platform::watch_always_on_top(&window))
         .build()
 }

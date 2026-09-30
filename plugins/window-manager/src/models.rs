@@ -6,6 +6,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// Emitted to a window, with the new state as a `bool` payload, when the window manager changes whether it is kept above other windows; see `get_always_on_top`.
+pub const ALWAYS_ON_TOP_CHANGED_EVENT: &str = "window-manager://always-on-top-changed";
+
 /// The windowing system the app is running under.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]

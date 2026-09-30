@@ -9,7 +9,7 @@ use log::{info, warn};
 use objc2::MainThreadMarker;
 use objc2_app_kit::{NSApplication, NSView};
 use objc2_foundation::NSPoint;
-use tauri::{Runtime, WebviewWindow};
+use tauri::{Runtime, WebviewWindow, Window};
 
 use crate::{
     main_thread,
@@ -18,6 +18,14 @@ use crate::{
 
 /// A frameless macOS window has no system window menu, so the nearest equivalent is the
 /// application's Window menu; it is offered only when the app has one.
+/// AppKit keeps the window level on the window itself, so Tauri's read is authoritative.
+pub async fn always_on_top<R: Runtime>(window: &WebviewWindow<R>) -> Option<bool> {
+    window.is_always_on_top().ok()
+}
+
+/// Nothing to watch: the Window menu has no Always on Top entry, so only the app changes it.
+pub fn watch_always_on_top<R: Runtime>(_window: &Window<R>) {}
+
 pub async fn capabilities<R: Runtime>(window: &WebviewWindow<R>) -> WindowCapabilities {
     let has_window_menu = main_thread::run(window, has_window_menu)
         .await
