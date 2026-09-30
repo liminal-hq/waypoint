@@ -99,6 +99,10 @@ type TitlebarAction =
 	| 'minimise'
 	| 'lower'
 	| 'toggleRaiseLower' // KDE `Toggle raise and lower`
+	| 'raise' // KDE `Raise`
+	| 'toggleAllDesktops' // KDE `OnAllDesktops`
+	| 'toggleAbove' // XFCE `above`
+	| 'fill' // XFCE `fill`
 	| 'close' // KDE `Close`
 	| 'menu'
 	| 'none';

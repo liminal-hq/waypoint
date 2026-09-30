@@ -5,15 +5,15 @@
 
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{models::Snapshot, parse};
+use crate::{models::Snapshot, parse, service::Readiness};
 
 /// Windows has no user-configurable titlebar, so there is nothing to watch.
 pub struct Watcher;
 
 impl Watcher {
     /// Nothing is listened to here, so there is nothing to wait for.
-    pub fn take_ready(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
-        None
+    pub fn take_readiness(&mut self) -> Readiness {
+        Readiness::Listening
     }
 }
 

@@ -7,15 +7,15 @@ use std::process::Command;
 
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{models::Snapshot, parse};
+use crate::{models::Snapshot, parse, service::Readiness};
 
 /// Changes to the double-click preference are picked up on the next read, not pushed.
 pub struct Watcher;
 
 impl Watcher {
     /// Nothing is listened to here, so there is nothing to wait for.
-    pub fn take_ready(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
-        None
+    pub fn take_readiness(&mut self) -> Readiness {
+        Readiness::Listening
     }
 }
 

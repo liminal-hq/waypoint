@@ -45,6 +45,14 @@ pub enum TitlebarAction {
     Lower,
     /// Raises a window that is behind others and lowers one that is in front (KWin's "Toggle raise and lower").
     ToggleRaiseLower,
+    /// Brings a window in front of others without the lowering half of the toggle (KWin's `Raise`).
+    Raise,
+    /// Toggles whether the window appears on every desktop (KWin's `OnAllDesktops`).
+    ToggleAllDesktops,
+    /// Toggles keeping the window above others (xfwm4's `above`).
+    ToggleAbove,
+    /// Expands the window to fill the free space around it without maximising (xfwm4's `fill`).
+    Fill,
     Close,
     Menu,
     None,

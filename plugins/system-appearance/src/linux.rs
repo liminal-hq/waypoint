@@ -14,18 +14,19 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::{
     models::{DesktopEnvironment, Snapshot, TitlebarPreferences},
     parse,
+    service::Readiness,
 };
 
 /// Keeps the change watchers alive; dropping it stops them and kills any child processes.
 pub struct Watcher {
     _guards: Vec<Box<dyn Send>>,
-    ready: Option<tokio::sync::oneshot::Receiver<()>>,
+    readiness: Option<Readiness>,
 }
 
 impl Watcher {
-    /// Takes the signal that resolves once the watcher is listening; `None` when it listens at once.
-    pub fn take_ready(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
-        self.ready.take()
+    /// Takes how the watcher reports that it is listening.
+    pub fn take_readiness(&mut self) -> Readiness {
+        self.readiness.take().unwrap_or(Readiness::Listening)
     }
 }
 
@@ -69,20 +70,26 @@ pub async fn read() -> Snapshot {
 }
 
 pub fn watch(changed: UnboundedSender<()>) -> Watcher {
-    let (guards, ready): (Vec<Box<dyn Send>>, _) = match current_desktop() {
-        DesktopEnvironment::Kde => (kwin::watch(changed), None),
-        DesktopEnvironment::Cinnamon => {
-            (gsettings::watch(gsettings::CINNAMON_SCHEMA, changed), None)
-        }
-        DesktopEnvironment::Mate => (gsettings::watch(gsettings::MATE_SCHEMA, changed), None),
-        DesktopEnvironment::Xfce => (xfconf::watch(changed), None),
+    let (guards, readiness): (Vec<Box<dyn Send>>, _) = match current_desktop() {
+        // The file watcher is registered before `watch` returns.
+        DesktopEnvironment::Kde => (kwin::watch(changed), Readiness::Listening),
+        // These start a child process whose subscription cannot be observed.
+        DesktopEnvironment::Cinnamon => (
+            gsettings::watch(gsettings::CINNAMON_SCHEMA, changed),
+            Readiness::Unconfirmed,
+        ),
+        DesktopEnvironment::Mate => (
+            gsettings::watch(gsettings::MATE_SCHEMA, changed),
+            Readiness::Unconfirmed,
+        ),
+        DesktopEnvironment::Xfce => (xfconf::watch(changed), Readiness::Unconfirmed),
         _ => {
             let (guards, ready) = portal::watch(changed);
-            (guards, Some(ready))
+            (guards, Readiness::Signal(ready))
         }
     };
     Watcher {
         _guards: guards,
-        ready,
+        readiness: Some(readiness),
     }
 }

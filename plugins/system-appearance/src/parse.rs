@@ -157,6 +157,7 @@ fn kde_common_command(value: &str) -> Option<TitlebarAction> {
         "Minimize" => Some(TitlebarAction::Minimise),
         "Shade" => Some(TitlebarAction::ToggleShade),
         "Close" => Some(TitlebarAction::Close),
+        "OnAllDesktops" => Some(TitlebarAction::ToggleAllDesktops),
         _ => None,
     }
 }
@@ -176,6 +177,7 @@ pub fn kde_titlebar_command(value: &str) -> TitlebarAction {
     kde_common_command(value).unwrap_or(match value {
         "Lower" => TitlebarAction::Lower,
         "Toggle raise and lower" => TitlebarAction::ToggleRaiseLower,
+        "Raise" => TitlebarAction::Raise,
         "Operations menu" => TitlebarAction::Menu,
         _ => TitlebarAction::None,
     })
@@ -249,12 +251,14 @@ pub fn xfce_button_layout(value: &str) -> ButtonLayout {
     layout
 }
 
-/// Parses xfwm4's `double_click_action`; only maximise, shade and hide map to actions.
+/// Parses xfwm4's `double_click_action`; any other value, including `none`, means no action.
 pub fn xfce_double_click(value: &str) -> TitlebarAction {
     match value.trim() {
         "maximize" => TitlebarAction::ToggleMaximise,
         "shade" => TitlebarAction::ToggleShade,
         "hide" => TitlebarAction::Minimise,
+        "fill" => TitlebarAction::Fill,
+        "above" => TitlebarAction::ToggleAbove,
         _ => TitlebarAction::None,
     }
 }
@@ -515,6 +519,7 @@ mod tests {
             ("Lower", A::Lower),
             ("Minimize", A::Minimise),
             ("Close", A::Close),
+            ("OnAllDesktops", A::ToggleAllDesktops),
             ("", A::None),
         ];
         for (input, expected) in cases {
@@ -528,6 +533,7 @@ mod tests {
             ("Nothing", A::None),
             ("Lower", A::Lower),
             ("Toggle raise and lower", A::ToggleRaiseLower),
+            ("Raise", A::Raise),
             ("Minimize", A::Minimise),
             ("Shade", A::ToggleShade),
             ("Operations menu", A::Menu),
@@ -649,7 +655,8 @@ ButtonsOnRight = IAX
             ("maximize", A::ToggleMaximise),
             ("shade", A::ToggleShade),
             ("hide", A::Minimise),
-            ("above", A::None),
+            ("fill", A::Fill),
+            ("above", A::ToggleAbove),
             ("below", A::None),
             ("fullscreen", A::None),
             ("none", A::None),
