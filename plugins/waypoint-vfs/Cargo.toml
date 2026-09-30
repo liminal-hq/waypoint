@@ -12,19 +12,26 @@ build = "build.rs"
 links = "tauri-plugin-waypoint-vfs"
 
 [package.metadata.platforms.support]
-linux = { level = "none", notes = "Commands arrive in a later slice of milestone 2" }
-windows = { level = "none", notes = "Commands arrive in a later slice of milestone 2" }
+linux = { level = "full", notes = "Local listings with inotify watching, places from XDG user directories and GTK bookmarks" }
+windows = { level = "partial", notes = "Builds and is checked for the Windows target in CI; not yet run on Windows 11" }
 
 [lib]
 name = "tauri_plugin_waypoint_vfs"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
+log = { workspace = true }
 serde = { workspace = true }
 tauri = { workspace = true }
 thiserror = { workspace = true }
+waypoint-path = { path = "../../crates/waypoint-path" }
 waypoint-protocol = { path = "../../crates/waypoint-protocol" }
 waypoint-vfs = { path = "../../crates/waypoint-vfs" }
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tauri = { workspace = true, features = ["test"] }
+tempfile = "3"

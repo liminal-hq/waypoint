@@ -24,6 +24,7 @@
 		"@liminal-hq/plugin-window-manager": "workspace:*",
 		"@liminal-hq/waypoint-plugin-session": "workspace:*",
 		"@liminal-hq/waypoint-chrome": "workspace:*",
+		"@liminal-hq/waypoint-plugin-vfs": "workspace:*",
 		"@liminal-hq/waypoint-protocol": "workspace:*",
 		"@tanstack/react-router": "^1.170.33",
 		"@tanstack/react-virtual": "^3.14.13",

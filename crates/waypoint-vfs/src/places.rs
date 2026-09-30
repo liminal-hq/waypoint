@@ -179,7 +179,6 @@ const KINDS: [(PlaceKind, &str, &str, &str); 6] = [
 #[cfg(not(windows))]
 fn user_folder(env: &PlacesEnv, xdg: &HashMap<String, PathBuf>, index: usize) -> PathBuf {
     let (_, _, key, fallback) = KINDS[index];
-    let _ = env;
     xdg.get(key)
         .cloned()
         .unwrap_or_else(|| env.home.join(fallback))
