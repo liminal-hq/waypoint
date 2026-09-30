@@ -8,10 +8,19 @@
 		"plugins/*/guest-js"
 	],
 	"scripts": {
+		"dev": "bun run --cwd apps/waypoint dev",
+		"tauri": "bun run --cwd apps/waypoint tauri",
+		"tauri:dev": "bun run --cwd apps/waypoint tauri:dev",
+		"build": "bun run --cwd apps/waypoint build",
+		"typecheck": "bun run --cwd packages/chrome typecheck && bun run --cwd apps/waypoint typecheck",
+		"test:js": "bun run --cwd packages/chrome test && bun run --cwd apps/waypoint test",
+		"test:js:ci": "bun run --cwd packages/chrome test:ci && bun run --cwd apps/waypoint test:ci",
+		"test:rust": "cargo nextest run --workspace",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"check:headers": "bash scripts/check-headers.sh",
-		"validate": "bun run format:check && bun run check:headers"
+		"bindings": "bash scripts/generate-protocol-bindings.sh",
+		"validate": "bun run format:check && bun run check:headers && bun run typecheck && bun run test:js && bun run build && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && bun run test:rust"
 	},
 	"devDependencies": {
 		"prettier": "^3.3.0"

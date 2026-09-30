@@ -32,3 +32,98 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: bash scripts/check-headers.sh
+
+  frontend-tests:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test:js:ci
+      - run: bun run build
+
+      - name: Upload frontend test artefacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-test-results
+          path: test-results/*.xml
+          if-no-files-found: error
+
+      # Consumed by publish-test-results.yml — the pull_request event's own
+      # GITHUB_TOKEN is read-only for Dependabot and fork PRs, so publishing
+      # the JUnit check run has to happen from a separate `workflow_run`
+      # workflow instead, which runs with this repo's own permissions
+      # regardless of who opened the PR.
+      - name: Upload event file
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: event-file
+          path: ${{ github.event_path }}
+
+  rust-tests:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # The Tauri build script needs the built frontend (`frontendDist`).
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - uses: taiki-e/install-action@nextest
+      - run: cargo nextest run --workspace --profile ci
+
+      - name: Upload Rust test artefacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-test-results
+          path: target/nextest/ci/junit.xml
+          if-no-files-found: error
+
+  protocol-bindings-drift:
+    name: Protocol bindings drift
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Snapshot committed generated files
+        run: cp -r apps/waypoint/src/domain/protocol/generated /tmp/generated-before
+
+      - name: Clear the generated directory
+        # A removed or renamed exported type leaves its old file behind
+        # otherwise — ts-rs only ever writes files for types it currently
+        # exports, it never deletes stale ones — which would make the diff
+        # below silently miss that the committed copy is out of date.
+        run: rm -rf apps/waypoint/src/domain/protocol/generated
+
+      - name: Regenerate protocol bindings
+        run: cargo test -p waypoint-protocol
+
+      - name: Check for uncommitted drift
+        run: diff -rq /tmp/generated-before apps/waypoint/src/domain/protocol/generated
