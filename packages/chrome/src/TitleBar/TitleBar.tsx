@@ -173,13 +173,27 @@ export function TitleBar({
 		if (isEmptySpace(event)) expectMaximised(!maximised);
 	};
 
+	// Tauri's drag script only acts on a click count of 1 or 2, so clicking again and again in one
+	// spot (the count keeps climbing until the pointer moves) would do nothing after the first
+	// double click. Past 2, the chrome does what the script would have: an even count is another
+	// double click, an odd count starts a drag.
+	const continueClickRun = (event: MouseEvent<HTMLElement>) => {
+		if (!windowControls.handlesDoubleClickNatively) return;
+		if (event.button !== 0 || event.detail <= 2 || !isEmptySpace(event)) return;
+		event.preventDefault();
+		if (event.detail % 2 === 0) run(titlebarActions.doubleClick, event);
+		else void windowControls.startDragging?.();
+	};
+
 	const onMouseDown = (event: MouseEvent<HTMLElement>) => {
 		suppressNativeMaximise(event);
 		expectNativeMaximise(event);
+		continueClickRun(event);
 	};
 
 	const onDoubleClick = (event: MouseEvent<HTMLElement>) => {
-		if (!isEmptySpace(event)) return;
+		// Past the second click, `continueClickRun` has already acted.
+		if (event.detail > 2 || !isEmptySpace(event)) return;
 		run(titlebarActions.doubleClick, event, windowControls.handlesDoubleClickNatively);
 	};
 

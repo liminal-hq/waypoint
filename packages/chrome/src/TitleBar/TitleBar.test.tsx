@@ -114,6 +114,56 @@ describe('TitleBar', () => {
 		);
 	});
 
+	describe('repeated clicks in one spot', () => {
+		const press = (target: Element, detail: number) =>
+			fireEvent.mouseDown(target, { button: 0, detail });
+
+		it('treats every even click count past two as another double click', () => {
+			const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+			renderBar(controls);
+			const title = screen.getByTestId('title');
+			for (const detail of [1, 2, 3, 4, 5, 6]) press(title, detail);
+			// The host handles count 2 itself; the chrome handles 4 and 6.
+			expect(controls.toggleMaximize).toHaveBeenCalledTimes(2);
+		});
+
+		it('starts a drag on an odd click count past two', () => {
+			const startDragging = vi.fn();
+			const { controls } = fakeControls({ handlesDoubleClickNatively: true, startDragging });
+			renderBar(controls);
+			const title = screen.getByTestId('title');
+			press(title, 3);
+			press(title, 5);
+			expect(startDragging).toHaveBeenCalledTimes(2);
+			expect(controls.toggleMaximize).not.toHaveBeenCalled();
+		});
+
+		it('runs the configured action once, even if a double-click event follows', () => {
+			const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+			renderBar(controls, {
+				titlebarActions: { ...DEFAULT_TITLEBAR_ACTIONS, doubleClick: 'minimise' },
+			});
+			const title = screen.getByTestId('title');
+			press(title, 4);
+			fireEvent.doubleClick(title, { detail: 4 });
+			expect(controls.minimize).toHaveBeenCalledTimes(1);
+		});
+
+		it('leaves window buttons and hosts that maximise themselves alone', () => {
+			const native = fakeControls({ handlesDoubleClickNatively: true });
+			const first = renderBar(native.controls);
+			press(screen.getByRole('button', { name: 'Minimise' }), 4);
+			expect(native.controls.toggleMaximize).not.toHaveBeenCalled();
+			expect(native.controls.minimize).not.toHaveBeenCalled();
+			first.unmount();
+
+			const plain = fakeControls({ handlesDoubleClickNatively: false });
+			renderBar(plain.controls);
+			press(screen.getByTestId('title'), 4);
+			expect(plain.controls.toggleMaximize).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('showing a maximise before the host reports it', () => {
 		const bar = () => document.querySelector('[data-group="centre"]')!.parentElement!;
 
