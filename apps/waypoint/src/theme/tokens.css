@@ -21,6 +21,14 @@
 	--wp-success: #15803d;
 	--wp-warning: #a16207;
 	--wp-focus-ring: #2563eb;
+
+	/* Window chrome (packages/chrome). Derived from the palette so they follow the scheme. */
+	--wp-bg-chrome: var(--wp-bg-raised);
+	--wp-control-bg: color-mix(in srgb, var(--wp-text-primary) 6%, transparent);
+	--wp-control-bg-hover: color-mix(in srgb, var(--wp-text-primary) 12%, transparent);
+	--wp-title-bar-height: 40px;
+	--wp-title-bar-opacity: 1;
+	--wp-window-radius: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
