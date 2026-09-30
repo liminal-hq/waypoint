@@ -138,7 +138,16 @@ Keep American spellings where an external API, CSS property, crate or protocol r
 
 ### MCP Automation Bridge
 
-Once the app exists, an agent driving the running app (screenshots, DOM snapshots, JS eval, simulated input) uses the `tauri-mcp-server` MCP tool, which talks to `tauri-plugin-mcp-bridge` — a debug-only plugin (`#[cfg(debug_assertions)]`) that never exists in release builds. Start the app with `bun run tauri:dev`, **not** plain `tauri dev`: `tauri:dev` merges `src-tauri/tauri.conf.dev.json`, which sets `"withGlobalTauri": true`, the global the bridge's JS-eval callback needs. Without it, `webview_execute_js`, screenshots, DOM snapshots and `webview_wait_for` silently time out while non-JS calls keep working. Waypoint is multi-window, so target windows by label.
+Once the app exists, an agent driving the running app (screenshots, DOM snapshots, JS eval, simulated input) uses the `tauri-mcp-server` MCP tool, which talks to `tauri-plugin-mcp-bridge` — a debug-only plugin (`#[cfg(debug_assertions)]`) that never exists in release builds. Start the app with `bun run tauri:dev`, **not** plain `tauri dev`: `tauri:dev` merges `src-tauri/tauri.conf.dev.json`, which sets `"withGlobalTauri": true`, the global the bridge's JS-eval callback needs. Without it, `webview_execute_js`, screenshots, DOM snapshots and `webview_wait_for` silently time out while non-JS calls keep working. Waypoint is multi-window, so target windows by label. `tauri:dev` also sets `WEBKIT_DISABLE_DMABUF_RENDERER=1`: on Wayland with WebKitGTK the undocked Web Inspector renders black without it. It is a development-only workaround (the shipped app is unaffected); leave it in the script rather than exporting it in a shell profile, and re-test without it when WebKitGTK is upgraded.
+
+### Logging
+
+Native Rust and webview output share one log stream. `tauri-plugin-log` is configured in `src-tauri/src/lib.rs` (`Trace` in debug builds, `Info` in release; stdout plus the rotating `Waypoint.log`; chatty `tungstenite` crates held at `Warn`), and `src/services/logger.ts` redirects every webview `console.*` call into it, tagged with the call site and prefixed with the window label (for example `[main-1]`). Rules:
+
+- Every window entry calls `initLogger(label)` once at startup; new window kinds must too.
+- Use `log::{trace,debug,info,warn,error}!` in Rust and `console.*` in the front end. Do not add a second logging path, and never log secrets, credentials or full file contents.
+- Each window's capabilities must include `log:default` (`capabilities/logging.json` grants it to every window), or forwarding fails silently.
+- The log file is under the app's log directory (on Linux, `~/.local/share/dev.liminal.waypoint/logs/`).
 
 ## CI and Release
 

@@ -12,6 +12,7 @@ import { PropertiesScreen } from './app/PropertiesScreen';
 import { SettingsScreen } from './app/SettingsScreen';
 import { TearGhostScreen } from './app/TearGhostScreen';
 import { windowKindFromLabel } from './app/windowKind';
+import { initLogger } from './services/logger';
 import type { WindowKind } from './domain/protocol/generated/WindowKind';
 import './theme/tokens.css';
 
@@ -35,6 +36,8 @@ function screenFor(kind: WindowKind | null) {
 }
 
 const label = getCurrentWebviewWindow().label;
+
+initLogger(label);
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>{screenFor(windowKindFromLabel(label))}</StrictMode>,

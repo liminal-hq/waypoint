@@ -32,7 +32,7 @@ bun run format:check # Prettier check
 bun run check:headers # licence-header check
 ```
 
-Also: `bun run tauri:dev` (MCP-drivable desktop shell — use this one for agent automation, not plain `tauri dev`), `bun run test:js`, `bun run test:rust`, `bun run build`. If host Rust tooling is unavailable, use the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container per `AGENTS.md` → Local Tooling.
+Also: `bun run tauri:dev` (MCP-drivable desktop shell — use this one for agent automation, not plain `tauri dev`; it also sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` so the undocked Web Inspector renders on Wayland), `bun run test:js`, `bun run test:rust`, `bun run build`. If host Rust tooling is unavailable, use the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container per `AGENTS.md` → Local Tooling.
 
 ## Architecture — the key things to understand
 
@@ -47,6 +47,8 @@ Read `docs/architecture/README.md` first; the rules that bite:
 **Every plugin reports availability.** Options that don't work on the current system are hidden; the Services status panel explains why (`docs/os-integrations.md`).
 
 **Two meanings of "plugin".** Native plugins are build-time Tauri plugins; **extensions** are the user-installable sandboxed add-ons in `docs/plugins.md`. Say which one you mean.
+
+**One log stream.** `tauri-plugin-log` in `src-tauri` plus `src/services/logger.ts` (webview `console.*` redirected, tagged with the window label) — see `AGENTS.md` → Logging. Call `initLogger(label)` in every window entry.
 
 **The Linux webview is WebKitGTK.** Verify performance, transparency and `backdrop-filter` work there, and on Wayland, not only in Chromium.
 

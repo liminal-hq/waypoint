@@ -19,7 +19,6 @@
 		"core:window:allow-is-always-on-top",
 		"core:window:allow-set-theme",
 		"os:default",
-		"log:default",
 		"window-state:default",
 		"mcp-bridge:default"
 	]
