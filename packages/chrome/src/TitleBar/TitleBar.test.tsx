@@ -452,6 +452,21 @@ describe('TitleBar', () => {
 			});
 		});
 
+		it('closes the window on a double-click or middle-click configured as close', () => {
+			const { controls } = fakeControls();
+			const first = renderBar(controls, { titlebarActions: actions({ doubleClick: 'close' }) });
+			fireEvent.doubleClick(screen.getByTestId('title'));
+			expect(controls.close).toHaveBeenCalledTimes(1);
+			first.unmount();
+
+			renderBar(controls, { titlebarActions: actions({ middleClick: 'close' }) });
+			fireEvent(
+				screen.getByTestId('title'),
+				new MouseEvent('auxclick', { bubbles: true, button: 1 }),
+			);
+			expect(controls.close).toHaveBeenCalledTimes(2);
+		});
+
 		it('ignores middle-click by default', () => {
 			const { controls } = fakeControls();
 			renderBar(controls);
@@ -656,6 +671,7 @@ describe('AppMenuButton', () => {
 		const unperformed = [
 			'toggleShade',
 			'lower',
+			'toggleRaiseLower',
 			'toggleMaximiseHorizontally',
 			'toggleMaximiseVertically',
 		] as const;

@@ -128,11 +128,14 @@ export function TitleBar({
 			case 'minimise':
 				void windowControls.minimize();
 				break;
+			case 'close':
+				void windowControls.close();
+				break;
 			case 'menu':
 				setMenuPosition({ x: event.clientX, y: event.clientY });
 				break;
 			default:
-				// `none`, and the actions the adapter cannot perform (shade, lower, directional maximise).
+				// `none`, and the actions the adapter cannot perform (shade, lower, raise, directional maximise).
 				break;
 		}
 	};

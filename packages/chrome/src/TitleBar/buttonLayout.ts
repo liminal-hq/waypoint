@@ -29,17 +29,20 @@ export type TitlebarAction =
 	| 'toggleShade'
 	| 'minimise'
 	| 'lower'
+	| 'toggleRaiseLower'
+	| 'close'
 	| 'menu'
 	| 'none';
 
 /**
  * The titlebar actions the chrome performs itself. A host can describe more (a desktop can be set
- * to shade or lower a window, or to maximise in one direction), but the window adapter has no way
+ * to shade, lower or raise a window, or to maximise in one direction), but the window adapter has no way
  * to do those, so the chrome treats them as `none` rather than guessing.
  */
 export const PERFORMED_ACTIONS: readonly TitlebarAction[] = [
 	'toggleMaximise',
 	'minimise',
+	'close',
 	'menu',
 	'none',
 ];
