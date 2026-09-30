@@ -9,7 +9,10 @@ use ts_rs::TS;
 /// The kind of window a webview label denotes. Labels are `main-{n}`,
 /// `settings`, `properties-{id}`, `ops` and `tear-ghost`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[ts(export)]
+#[ts(
+    export,
+    export_to = "../../../apps/waypoint/src/domain/protocol/generated/"
+)]
 pub enum WindowKind {
     Main,
     Settings,

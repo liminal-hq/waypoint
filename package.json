@@ -24,6 +24,7 @@
 		"check:boundaries": "bash scripts/check-plugin-boundaries.sh"
 	},
 	"devDependencies": {
+		"@rollup/plugin-typescript": "^12.1.4",
 		"prettier": "^3.3.0"
 	}
 }
