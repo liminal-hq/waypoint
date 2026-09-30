@@ -15,6 +15,15 @@ describe('formatSize', () => {
 		expect(formatSize(12_345_678_901, 'en-CA')).toBe('12 GB');
 	});
 
+	it('promotes a unit when rounding reaches 1000', () => {
+		expect(formatSize(999_499, 'en-CA')).toBe('999 kB');
+		expect(formatSize(999_500, 'en-CA')).toBe('1 MB');
+		expect(formatSize(999_999, 'en-CA')).toBe('1 MB');
+		expect(formatSize(999_999_999, 'en-CA')).toBe('1 GB');
+		expect(formatSize(9_949, 'en-CA')).toBe('9.9 kB');
+		expect(formatSize(9_950, 'en-CA')).toBe('10 kB');
+	});
+
 	it('follows the locale', () => {
 		expect(formatSize(1500, 'fr-CA')).toContain('1,5');
 		expect(formatSize(1500, 'en-CA')).toContain('1.5');

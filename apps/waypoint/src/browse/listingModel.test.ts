@@ -131,6 +131,15 @@ describe('stale replies', () => {
 		expect(model.staleCount).toBe(0);
 	});
 
+	it('refetches a page whose fetch rejected after the revision moved on', async () => {
+		const { client, entries, model, getRange } = await open(10);
+		getRange.mockRejectedValueOnce({ kind: 'io', message: 'late', location: null });
+		model.ensure(0, 5);
+		client.removeEntries(FOLDER, [entries[5]!.id]);
+		await vi.waitFor(() => expect(model.hasFresh(0)).toBe(true));
+		expect(model.error).toBeNull();
+	});
+
 	it('ignores events from older revisions and other listings', async () => {
 		const { model } = await open(10);
 		model.applyEvent({ kind: 'changed', handle: model.handle, revision: 1, count: 99, ops: [] });
@@ -166,6 +175,27 @@ describe('sorting', () => {
 		const truth = await client.getRange(model.handle, 0, 10);
 		expect(Array.from({ length: 10 }, (_, i) => model.entryAt(i))).toEqual(truth);
 		expect(model.entryAt(0)).not.toEqual(before);
+	});
+
+	it('keeps the confirmed sort when an event already moved the revision on', async () => {
+		const { client, model } = await open(10);
+		const real = client.setSort.bind(client);
+		vi.spyOn(client, 'setSort').mockImplementation(async (handle, sort) => {
+			const snapshot = await real(handle, sort);
+			// An event for a later revision lands before the reply is handled.
+			model.applyEvent({
+				kind: 'changed',
+				handle,
+				revision: snapshot.revision + 1,
+				count: 10,
+				ops: [],
+			});
+			return snapshot;
+		});
+		await model.setSort({ key: 'name', descending: true, directoriesFirst: true });
+		expect(model.sort.descending).toBe(true);
+		expect(model.revision).toBe(3);
+		expect(model.hasFresh(0)).toBe(false);
 	});
 
 	it('reports a failed sort as the model error', async () => {

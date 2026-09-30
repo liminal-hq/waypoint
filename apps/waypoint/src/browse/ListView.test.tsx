@@ -140,6 +140,33 @@ describe('listing', () => {
 		expect(photo.querySelector('svg[data-group="image"]')).not.toBeNull();
 	});
 
+	it('measures the row height once the scroller appears after an empty first render', async () => {
+		const real = window.getComputedStyle.bind(window);
+		const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+			const style = real(element, pseudo);
+			return new Proxy(style, {
+				get(target, property) {
+					if (property === 'getPropertyValue') {
+						return (name: string) =>
+							name === '--wp-row-height' ? '40px' : target.getPropertyValue(name);
+					}
+					const value = Reflect.get(target, property, target) as unknown;
+					return typeof value === 'function' ? value.bind(target) : value;
+				},
+			});
+		});
+		try {
+			const { client } = clientWith(0);
+			renderList(client);
+			await screen.findByText('This folder is empty.');
+			act(() => client.addEntries(FOLDER, [makeEntry(1, 'a.txt'), makeEntry(2, 'b.txt')]));
+			await waitFor(() => expect(rows()).toHaveLength(2));
+			expect(rows()[1]!.style.getPropertyValue('--wp-row-y')).toBe('40px');
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
 	it('shows an empty-folder state', async () => {
 		const client = new FakeVfsClient();
 		client.setFolder(FOLDER, []);

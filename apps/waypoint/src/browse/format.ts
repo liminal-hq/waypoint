@@ -34,7 +34,14 @@ export function formatSize(bytes: number, locale?: string): string {
 		value /= 1000;
 		unit += 1;
 	}
-	const digits = unit > 0 && value < 10 ? 1 : 0;
+	let digits = unit > 0 && value < 10 ? 1 : 0;
+	// Rounding can carry a value to 1000 (999_999 bytes): promote it rather than print "1,000 kB".
+	const factor = 10 ** digits;
+	if (Math.round(value * factor) / factor >= 1000 && unit < UNITS.length - 1) {
+		value /= 1000;
+		unit += 1;
+		digits = value < 10 ? 1 : 0;
+	}
 	return sizeFormat(locale, UNITS[unit]!, digits).format(value);
 }
 

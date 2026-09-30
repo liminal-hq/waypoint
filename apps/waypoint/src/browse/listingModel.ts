@@ -196,12 +196,16 @@ export class ListingModel {
 	async setSort(sort: SortSpec): Promise<void> {
 		try {
 			const snapshot = await this.client.setSort(this.handle, sort);
-			if (this.disposed || snapshot.revision < this._revision) return;
+			if (this.disposed) return;
+			// The confirmed sort and filter always apply: the rows Rust now serves are in that order.
+			// Revision, phase and count only move forward, so an event that landed first keeps them.
 			this._sort = snapshot.sort;
 			this._filter = snapshot.filter;
-			this._revision = snapshot.revision;
-			this._phase = snapshot.phase;
-			this._count = snapshot.count;
+			if (snapshot.revision >= this._revision) {
+				this._revision = snapshot.revision;
+				this._phase = snapshot.phase;
+				this._count = snapshot.count;
+			}
 			this.markAllStale();
 			this.dropBeyondCount();
 			this.announce({ ops: [{ kind: 'reset' }], removedIds: [], count: this._count });

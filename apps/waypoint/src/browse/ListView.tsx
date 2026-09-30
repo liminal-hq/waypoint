@@ -111,9 +111,13 @@ function ListingBody({ session }: ListingBodyProps) {
 	const first = items[0]?.index ?? 0;
 	const last = items[items.length - 1]?.index ?? 0;
 
+	// The scroller only exists once there are rows (or a scan under way), so measure when it appears,
+	// not just on mount: a listing that opens empty would otherwise keep the default height.
+	const scanning = model.phase === 'scanning' || model.phase === 'rescanning';
+	const empty = model.count === 0 && !scanning;
 	useLayoutEffect(() => {
 		if (scroller.current) setRowHeight(measureRowHeight(scroller.current));
-	}, []);
+	}, [empty]);
 
 	useEffect(() => {
 		virtualizer.measure();
@@ -132,9 +136,6 @@ function ListingBody({ session }: ListingBodyProps) {
 	};
 
 	if (model.error) return <ErrorState error={model.error} />;
-
-	const scanning = model.phase === 'scanning' || model.phase === 'rescanning';
-	const empty = count === 0 && !scanning;
 
 	return (
 		<div className={styles.view}>
