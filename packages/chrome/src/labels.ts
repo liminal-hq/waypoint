@@ -25,7 +25,7 @@ export const defaultChromeLabels: ChromeLabels = {
 	minimise: 'Minimise',
 	move: 'Move',
 	alwaysOnTop: 'Always on Top',
-	systemWindowMenu: 'More window options…',
+	systemWindowMenu: 'More options…',
 	close: 'Close',
 	windowMenu: 'Window menu',
 	windowControls: 'Window controls',

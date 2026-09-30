@@ -16,7 +16,7 @@ export interface WindowMenuModelOptions {
 	showAlwaysOnTop?: boolean;
 	/** Include Move (needs a host that can start dragging). Defaults to true. */
 	canMove?: boolean;
-	/** Include "More window options…", which hands over to the compositor's own menu. Defaults to false. */
+	/** Include "More options…", which hands over to the compositor's own menu. Defaults to false. */
 	canShowSystemMenu?: boolean;
 	labels?: Pick<
 		ChromeLabels,
@@ -25,7 +25,7 @@ export interface WindowMenuModelOptions {
 }
 
 /**
- * Restore/Maximise and Minimise, then Move, then Always on Top, then More window options,
+ * Restore/Maximise and Minimise, then Move, then Always on Top, then More options,
  * then Close — in that order, each in its own section.
  */
 export function buildWindowMenuModel({

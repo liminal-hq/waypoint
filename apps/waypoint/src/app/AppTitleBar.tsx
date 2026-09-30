@@ -25,7 +25,7 @@ export function AppTitleBar({ title }: AppTitleBarProps) {
 			titlebarActions={config.titlebarActions}
 			titleAlign={config.titleAlign}
 			// Wayland has no protocol for staying on top, so the pin would do nothing there; the
-			// compositor's own menu ("More window options…") has a working one.
+			// compositor's own menu ("More options…") has a working one.
 			showAlwaysOnTop={capabilities?.alwaysOnTop === true}
 			transparent
 		/>

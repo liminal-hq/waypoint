@@ -67,7 +67,7 @@ describe('buildWindowMenuModel', () => {
 		expect(items.at(-1)).toMatchObject({ label: 'Fermer' });
 	});
 
-	it('adds More window options in its own section before Close when the host can show it', () => {
+	it('adds More options in its own section before Close when the host can show it', () => {
 		const items = buildWindowMenuModel({
 			isMaximised: false,
 			alwaysOnTop: false,
@@ -78,7 +78,7 @@ describe('buildWindowMenuModel', () => {
 		);
 	});
 
-	it('omits More window options by default', () => {
+	it('omits More options by default', () => {
 		const items = buildWindowMenuModel({ isMaximised: false, alwaysOnTop: false });
 		expect(items.some((i) => i.id === 'system-menu')).toBe(false);
 	});

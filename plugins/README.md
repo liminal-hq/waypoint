@@ -21,6 +21,15 @@ Tauri plugins: the thin native layer between Waypoint's Rust crates and the fron
 
 More reusable and domain plugins are planned; add one only when a milestone needs it.
 
+## Graduating a plugin
+
+Copy the plugin folder into `tauri-plugins-workspace/plugins/`, add it to that workspace's `members`, run `pnpm install`, and register it in `.changes/config.json` (a Rust and a JavaScript entry). The layout, `workspace = true` metadata and packaging already match that repository, and a dry run of `system-appearance` passed `cargo clippy -D warnings`, `cargo test` and `pnpm build` there. Two things differ on purpose:
+
+- **`prepare` script.** The shared template has `"prepare": "pnpm build"`. It is left out here because `bun install` runs it and CI has no pnpm; the app builds the plugins through its own pre-hooks. Restore it when moving.
+- **Prettier `trailingComma`.** This repository uses `all`, the shared one `es5`; run their `prettier --write` after copying.
+
+Then switch Waypoint from the workspace path dependency to a versioned or tagged one and delete the in-repo copy.
+
 ## Working on the plugins
 
 ```bash

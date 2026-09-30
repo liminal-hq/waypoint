@@ -17,7 +17,7 @@ export interface WindowControls {
 	isAlwaysOnTop?(): MaybePromise<boolean>;
 	/**
 	 * Asks the host's window manager (compositor) to show its own window menu at a point in the
-	 * window, in CSS pixels from the top-left. Enables the "More window options…" entry of the
+	 * window, in CSS pixels from the top-left. Enables the "More options…" entry of the
 	 * window menu when present. Resolves false when the request was refused.
 	 */
 	showSystemMenu?(position: { x: number; y: number }): MaybePromise<boolean | void>;

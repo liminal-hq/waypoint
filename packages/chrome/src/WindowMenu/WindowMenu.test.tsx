@@ -39,7 +39,7 @@ describe('WindowMenu', () => {
 		}
 	});
 
-	it('offers More window options only when the host can show the compositor menu', () => {
+	it('offers More options only when the host can show the compositor menu', () => {
 		const withoutHost = render(
 			<WindowChromeProvider controls={controls}>
 				<WindowMenu
@@ -50,7 +50,7 @@ describe('WindowMenu', () => {
 				/>
 			</WindowChromeProvider>,
 		);
-		expect(screen.queryByRole('menuitem', { name: 'More window options…' })).toBeNull();
+		expect(screen.queryByRole('menuitem', { name: 'More options…' })).toBeNull();
 		withoutHost.unmount();
 	});
 
@@ -66,7 +66,7 @@ describe('WindowMenu', () => {
 				/>
 			</WindowChromeProvider>,
 		);
-		await userEvent.click(screen.getByRole('menuitem', { name: 'More window options…' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'More options…' }));
 		expect(showSystemMenu).toHaveBeenCalledWith({ x: 120, y: 48 });
 	});
 });

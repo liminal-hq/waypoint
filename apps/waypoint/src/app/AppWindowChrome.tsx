@@ -14,7 +14,7 @@ function ChromeWithControls({ children }: { children: ReactNode }) {
 	const capabilities = useWindowCapabilities();
 	const systemWindowMenu = capabilities?.systemWindowMenu === true;
 
-	// The window menu offers "More window options…" only where the compositor has a menu to show.
+	// The window menu offers "More options…" only where the compositor has a menu to show.
 	const controls = useMemo<WindowControls>(
 		() => ({
 			...tauriWindowControls,
