@@ -30,4 +30,3 @@ export interface WindowControls {
 }
 
 export type ControlsStyle = 'gnome' | 'kde' | 'win11' | 'cinnamon';
-export type ControlsSide = 'start' | 'end';

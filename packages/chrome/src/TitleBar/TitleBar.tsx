@@ -7,23 +7,40 @@ import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } fro
 import { CloseIcon, MaximiseIcon, MinimiseIcon, PinIcon, RestoreIcon } from '../icons/icons';
 import { defaultChromeLabels, type ChromeLabels } from '../labels';
 import type { MenuPosition } from '../ContextMenu/types';
+import {
+	useWindowControls,
+	useWindowFocused,
+	useWindowMaximised,
+} from '../WindowChromeProvider/WindowChromeProvider';
 import { WindowMenu } from '../WindowMenu/WindowMenu';
+import {
+	DEFAULT_BUTTON_LAYOUT,
+	DEFAULT_TITLEBAR_ACTIONS,
+	type ButtonLayout,
+	type ChromeButton,
+	type TitlebarAction,
+	type TitlebarActions,
+} from './buttonLayout';
 import { isInteractiveTarget } from './interactive';
 import styles from './TitleBar.module.css';
-import { useFocused } from './useFocused';
-import { useMaximised } from './useMaximised';
-import type { ControlsSide, ControlsStyle, WindowControls } from './windowControls';
+import type { ControlsStyle, WindowControls } from './windowControls';
+
+export type TitleAlign = 'center' | 'start';
 
 export interface TitleBarProps {
-	windowControls: WindowControls;
-	/** Left-hand slot: app mark and menu button. */
+	/** Left-hand slot: app mark and menu button. Sits after any start-side window buttons. */
 	start?: ReactNode;
 	/** Flexible middle slot: title and app content. */
 	center?: ReactNode;
-	/** App actions, next to the window buttons. */
+	/** App actions, next to the end-side window buttons. */
 	end?: ReactNode;
 	controlsStyle?: ControlsStyle;
-	controlsSide?: ControlsSide;
+	/** Which window buttons sit on each side. Tokens the chrome does not support are skipped. */
+	buttonLayout?: ButtonLayout;
+	/** What double, middle and right click on empty bar space do. */
+	titlebarActions?: TitlebarActions;
+	/** `center` keeps the centre slot exactly centred; `start` left-aligns it after the start group. */
+	titleAlign?: TitleAlign;
 	/** Shows the Always on Top toggle (and its window menu entry). */
 	showAlwaysOnTop?: boolean;
 	/** Lets the desktop show through; opacity comes from `--wp-title-bar-opacity`. */
@@ -32,21 +49,36 @@ export interface TitleBarProps {
 	className?: string;
 }
 
+const WINDOW_BUTTONS: ChromeButton[] = ['minimise', 'maximise', 'close'];
+
+/** Places the Always on Top pin: where the layout says, or before the end side's first window button. */
+function resolveSides(layout: ButtonLayout, showAlwaysOnTop: boolean) {
+	const start = [...layout.start];
+	const end = [...layout.end];
+	if (showAlwaysOnTop && !start.includes('keepAbove') && !end.includes('keepAbove')) {
+		const at = end.findIndex((token) => WINDOW_BUTTONS.includes(token));
+		end.splice(at === -1 ? end.length : at, 0, 'keepAbove');
+	}
+	return { start, end };
+}
+
 export function TitleBar({
-	windowControls,
 	start,
 	center,
 	end,
 	controlsStyle = 'gnome',
-	controlsSide = 'end',
+	buttonLayout = DEFAULT_BUTTON_LAYOUT,
+	titlebarActions = DEFAULT_TITLEBAR_ACTIONS,
+	titleAlign = 'center',
 	showAlwaysOnTop = false,
 	transparent = false,
 	labels: labelOverrides,
 	className,
 }: TitleBarProps) {
 	const labels = { ...defaultChromeLabels, ...labelOverrides };
-	const maximised = useMaximised(windowControls);
-	const focused = useFocused(windowControls);
+	const windowControls = useWindowControls();
+	const maximised = useWindowMaximised();
+	const focused = useWindowFocused();
 	const [alwaysOnTop, setAlwaysOnTop] = useState(false);
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
@@ -72,28 +104,50 @@ export function TitleBar({
 		[windowControls],
 	);
 
-	// Only space the bar itself owns opens the menu; portalled menu events also bubble here.
+	// Only space the bar itself owns runs actions; portalled menu events also bubble here.
 	const isEmptySpace = (event: MouseEvent<HTMLElement>) =>
 		event.currentTarget.contains(event.target as Node) && !isInteractiveTarget(event.target);
 
+	const run = (action: TitlebarAction, event: MouseEvent<HTMLElement>, native = false) => {
+		switch (action) {
+			case 'toggleMaximise':
+				if (!native) void windowControls.toggleMaximize();
+				break;
+			case 'minimise':
+				void windowControls.minimize();
+				break;
+			case 'menu':
+				setMenuPosition({ x: event.clientX, y: event.clientY });
+				break;
+			default:
+				break;
+		}
+	};
+
 	const onContextMenu = (event: MouseEvent<HTMLElement>) => {
-		if (!isEmptySpace(event)) return;
+		if (titlebarActions.rightClick !== 'menu' || !isEmptySpace(event)) return;
 		event.preventDefault();
-		setMenuPosition({ x: event.clientX, y: event.clientY });
+		run('menu', event);
 	};
 
 	const onDoubleClick = (event: MouseEvent<HTMLElement>) => {
-		if (windowControls.handlesDoubleClickNatively || !isEmptySpace(event)) return;
-		void windowControls.toggleMaximize();
+		if (!isEmptySpace(event)) return;
+		run(titlebarActions.doubleClick, event, windowControls.handlesDoubleClickNatively);
 	};
 
-	const controls = (
+	const onAuxClick = (event: MouseEvent<HTMLElement>) => {
+		if (event.button !== 1 || !isEmptySpace(event)) return;
+		run(titlebarActions.middleClick, event);
+	};
+
+	const sides = resolveSides(buttonLayout, showAlwaysOnTop);
+	const renderControls = (side: 'start' | 'end') => (
 		<WindowButtons
+			side={side}
+			tokens={sides[side]}
 			windowControls={windowControls}
 			controlsStyle={controlsStyle}
-			controlsSide={controlsSide}
 			maximised={maximised}
-			showAlwaysOnTop={showAlwaysOnTop}
 			alwaysOnTop={alwaysOnTop}
 			onAlwaysOnTopChange={changeAlwaysOnTop}
 			labels={labels}
@@ -113,31 +167,34 @@ export function TitleBar({
 				data-focused={focused}
 				data-transparent={transparent || undefined}
 				data-controls-style={controlsStyle}
-				data-controls-side={controlsSide}
+				data-title-align={titleAlign}
 				onContextMenu={onContextMenu}
 				onDoubleClick={onDoubleClick}
+				onAuxClick={onAuxClick}
 			>
-				{controlsSide === 'start' ? controls : null}
-				{start ? (
-					<div className={styles.start} data-tauri-drag-region="">
-						{start}
-					</div>
-				) : null}
-				<div className={styles.center} data-tauri-drag-region="">
+				<div className={styles.startGroup} data-tauri-drag-region="" data-group="start">
+					{renderControls('start')}
+					{start ? (
+						<div className={styles.start} data-tauri-drag-region="">
+							{start}
+						</div>
+					) : null}
+				</div>
+				<div className={styles.center} data-tauri-drag-region="" data-group="centre">
 					{center}
 				</div>
-				{end ? (
-					<div className={styles.end} data-tauri-drag-region="">
-						{end}
-					</div>
-				) : null}
-				{controlsSide === 'end' ? controls : null}
+				<div className={styles.endGroup} data-tauri-drag-region="" data-group="end">
+					{end ? (
+						<div className={styles.end} data-tauri-drag-region="">
+							{end}
+						</div>
+					) : null}
+					{renderControls('end')}
+				</div>
 			</div>
 			{menuPosition ? (
 				<WindowMenu
-					controls={windowControls}
 					position={menuPosition}
-					isMaximised={maximised}
 					alwaysOnTop={alwaysOnTop}
 					showAlwaysOnTop={showAlwaysOnTop}
 					onAlwaysOnTopChange={changeAlwaysOnTop}
@@ -150,66 +207,90 @@ export function TitleBar({
 }
 
 interface WindowButtonsProps {
+	side: 'start' | 'end';
+	tokens: ChromeButton[];
 	windowControls: WindowControls;
 	controlsStyle: ControlsStyle;
-	controlsSide: ControlsSide;
 	maximised: boolean;
-	showAlwaysOnTop: boolean;
 	alwaysOnTop: boolean;
 	onAlwaysOnTopChange: (value: boolean) => void;
 	labels: ChromeLabels;
 }
 
 function WindowButtons({
+	side,
+	tokens,
 	windowControls,
 	controlsStyle,
-	controlsSide,
 	maximised,
-	showAlwaysOnTop,
 	alwaysOnTop,
 	onAlwaysOnTopChange,
 	labels,
 }: WindowButtonsProps) {
-	const minimise = (
-		<button
-			key="minimise"
-			type="button"
-			className={`${styles.button} ${styles.minimise}`}
-			aria-label={labels.minimise}
-			title={labels.minimise}
-			onClick={() => void windowControls.minimize()}
-		>
-			<MinimiseIcon />
-		</button>
-	);
-	const maximiseLabel = maximised ? labels.restore : labels.maximise;
-	const maximise = (
-		<button
-			key="maximise"
-			type="button"
-			className={`${styles.button} ${styles.maximise}`}
-			aria-label={maximiseLabel}
-			title={maximiseLabel}
-			onClick={() => void windowControls.toggleMaximize()}
-		>
-			{maximised ? <RestoreIcon /> : <MaximiseIcon />}
-		</button>
-	);
-	const close = (
-		<button
-			key="close"
-			type="button"
-			className={`${styles.button} ${styles.close}`}
-			aria-label={labels.close}
-			title={labels.close}
-			onClick={() => void windowControls.close()}
-		>
-			<CloseIcon />
-		</button>
-	);
-	// Close sits on the outer edge of the window, whichever side the buttons are on.
-	const ordered =
-		controlsSide === 'start' ? [close, minimise, maximise] : [minimise, maximise, close];
+	const buttons = tokens.flatMap((token, index) => {
+		const key = `${token}-${index}`;
+		switch (token) {
+			case 'minimise':
+				return [
+					<button
+						key={key}
+						type="button"
+						className={`${styles.button} ${styles.minimise}`}
+						aria-label={labels.minimise}
+						title={labels.minimise}
+						onClick={() => void windowControls.minimize()}
+					>
+						<MinimiseIcon />
+					</button>,
+				];
+			case 'maximise': {
+				const label = maximised ? labels.restore : labels.maximise;
+				return [
+					<button
+						key={key}
+						type="button"
+						className={`${styles.button} ${styles.maximise}`}
+						aria-label={label}
+						title={label}
+						onClick={() => void windowControls.toggleMaximize()}
+					>
+						{maximised ? <RestoreIcon /> : <MaximiseIcon />}
+					</button>,
+				];
+			}
+			case 'close':
+				return [
+					<button
+						key={key}
+						type="button"
+						className={`${styles.button} ${styles.close}`}
+						aria-label={labels.close}
+						title={labels.close}
+						onClick={() => void windowControls.close()}
+					>
+						<CloseIcon />
+					</button>,
+				];
+			case 'keepAbove':
+				return [
+					<button
+						key={key}
+						type="button"
+						className={`${styles.button} ${styles.pin}`}
+						aria-label={labels.alwaysOnTop}
+						title={labels.alwaysOnTop}
+						aria-pressed={alwaysOnTop}
+						onClick={() => onAlwaysOnTopChange(!alwaysOnTop)}
+					>
+						<PinIcon />
+					</button>,
+				];
+			default:
+				// appMenu, windowMenu, keepBelow, shade, stick and help are not chrome buttons.
+				return [];
+		}
+	});
+	if (buttons.length === 0) return null;
 
 	return (
 		<div
@@ -218,20 +299,9 @@ function WindowButtons({
 			aria-label={labels.windowControls}
 			data-wp-controls=""
 			data-controls-style={controlsStyle}
+			data-controls-side={side}
 		>
-			{showAlwaysOnTop ? (
-				<button
-					type="button"
-					className={`${styles.button} ${styles.pin}`}
-					aria-label={labels.alwaysOnTop}
-					title={labels.alwaysOnTop}
-					aria-pressed={alwaysOnTop}
-					onClick={() => onAlwaysOnTopChange(!alwaysOnTop)}
-				>
-					<PinIcon />
-				</button>
-			) : null}
-			{ordered}
+			{buttons}
 		</div>
 	);
 }

@@ -4,16 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ReactNode } from 'react';
-import { useFocused } from '../TitleBar/useFocused';
-import { useMaximised } from '../TitleBar/useMaximised';
-import type { WindowControls } from '../TitleBar/windowControls';
+import { useWindowFocused, useWindowMaximised } from '../WindowChromeProvider/WindowChromeProvider';
 import styles from './WindowFrame.module.css';
 
 export interface WindowFrameProps {
-	windowControls: Pick<
-		WindowControls,
-		'isMaximized' | 'onMaximizedChange' | 'isFocused' | 'onFocusChange'
-	>;
 	children: ReactNode;
 	className?: string;
 }
@@ -26,11 +20,12 @@ export interface WindowFrameProps {
  * back to the focused shadow. The margin and shadow default to none, for platforms where
  * the OS draws its own.
  * When the window is maximised the margin, shadow, rounding and border all drop so
- * it meets the screen edges cleanly. `className` applies to the visible surface.
+ * it meets the screen edges cleanly. `className` applies to the visible surface. Window state comes
+ * from `WindowChromeProvider`, which must be an ancestor.
  */
-export function WindowFrame({ windowControls, children, className }: WindowFrameProps) {
-	const maximised = useMaximised(windowControls);
-	const focused = useFocused(windowControls);
+export function WindowFrame({ children, className }: WindowFrameProps) {
+	const maximised = useWindowMaximised();
+	const focused = useWindowFocused();
 	const surface = [styles.surface, className ?? ''].filter(Boolean).join(' ');
 	return (
 		<div className={styles.frame} data-maximised={maximised} data-focused={focused}>

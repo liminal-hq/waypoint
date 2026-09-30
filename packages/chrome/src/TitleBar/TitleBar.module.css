@@ -1,7 +1,9 @@
 .titleBar {
-	display: flex;
+	display: grid;
+	/* The centre column is auto-sized between two equal flexible columns, so it is centred exactly. */
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	gap: 8px;
+	column-gap: 8px;
 	box-sizing: border-box;
 	flex: none;
 	height: var(--wp-title-bar-height, 40px);
@@ -46,6 +48,23 @@
 	border-radius: 0;
 }
 
+.startGroup,
+.endGroup {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	height: 100%;
+}
+
+.startGroup {
+	justify-content: flex-start;
+}
+
+.endGroup {
+	justify-content: flex-end;
+}
+
 .start,
 .end {
 	display: flex;
@@ -58,10 +77,18 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	flex: 1;
 	min-width: 0;
 	height: 100%;
 	overflow: hidden;
+}
+
+/* Windows convention: the title follows the start group and takes the remaining width. */
+.titleBar[data-title-align='start'] {
+	grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.titleBar[data-title-align='start'] .center {
+	justify-content: flex-start;
 }
 
 .controls {
@@ -140,7 +167,14 @@
 .controls[data-controls-style='win11'] {
 	gap: 0;
 	align-self: stretch;
+}
+
+.controls[data-controls-style='win11'][data-controls-side='end'] {
 	margin-inline-end: -8px;
+}
+
+.controls[data-controls-style='win11'][data-controls-side='start'] {
+	margin-inline-start: -8px;
 }
 
 .controls[data-controls-style='win11'] .button {
@@ -163,9 +197,4 @@
 .controls[data-controls-style='cinnamon'] .close:hover {
 	background: var(--wp-danger, #e5484d);
 	color: #ffffff;
-}
-
-.titleBar[data-controls-side='start'] .controls[data-controls-style='win11'] {
-	margin-inline-end: 0;
-	margin-inline-start: -8px;
 }

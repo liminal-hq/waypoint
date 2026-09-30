@@ -15,7 +15,10 @@ import {
 	RestoreIcon,
 } from '../icons/icons';
 import { defaultChromeLabels, type ChromeLabels } from '../labels';
-import type { WindowControls } from '../TitleBar/windowControls';
+import {
+	useWindowControls,
+	useWindowMaximised,
+} from '../WindowChromeProvider/WindowChromeProvider';
 import { buildWindowMenuModel, type WindowMenuActionId } from './windowMenuModel';
 
 const iconFor: Record<WindowMenuActionId, ReactNode> = {
@@ -28,9 +31,7 @@ const iconFor: Record<WindowMenuActionId, ReactNode> = {
 };
 
 export interface WindowMenuProps {
-	controls: WindowControls;
 	position: MenuPosition;
-	isMaximised: boolean;
 	alwaysOnTop: boolean;
 	showAlwaysOnTop?: boolean;
 	onAlwaysOnTopChange: (value: boolean) => void;
@@ -39,15 +40,15 @@ export interface WindowMenuProps {
 }
 
 export function WindowMenu({
-	controls,
 	position,
-	isMaximised,
 	alwaysOnTop,
 	showAlwaysOnTop = true,
 	onAlwaysOnTopChange,
 	onClose,
 	labels = defaultChromeLabels,
 }: WindowMenuProps) {
+	const controls = useWindowControls();
+	const isMaximised = useWindowMaximised();
 	const canMove = controls.startDragging !== undefined;
 	const items = useMemo(
 		() =>

@@ -3,10 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AppMenuButton } from './AppMenuButton';
+import { WindowChromeProvider } from '../WindowChromeProvider/WindowChromeProvider';
+import { DEFAULT_TITLEBAR_ACTIONS, type ButtonLayout, type TitlebarActions } from './buttonLayout';
 import { TitleBar, type TitleBarProps } from './TitleBar';
 import type { WindowControls } from './windowControls';
 
@@ -32,14 +34,15 @@ function fakeControls(overrides: Partial<WindowControls> = {}) {
 
 function renderBar(controls: WindowControls, props: Partial<TitleBarProps> = {}) {
 	return render(
-		<TitleBar
-			windowControls={controls}
-			start={<AppMenuButton label="Demo" items={[]} onSelect={() => {}} />}
-			center={<span data-testid="title">Title</span>}
-			end={<button type="button">Action</button>}
-			showAlwaysOnTop
-			{...props}
-		/>,
+		<WindowChromeProvider controls={controls}>
+			<TitleBar
+				start={<AppMenuButton label="Demo" items={[]} onSelect={() => {}} />}
+				center={<span data-testid="title">Title</span>}
+				end={<button type="button">Action</button>}
+				showAlwaysOnTop
+				{...props}
+			/>
+		</WindowChromeProvider>,
 	);
 }
 
@@ -117,15 +120,273 @@ describe('TitleBar', () => {
 		expect(screen.queryByRole('button', { name: 'Always on Top' })).not.toBeInTheDocument();
 	});
 
-	it('orders buttons by side and exposes the style', () => {
+	it('exposes the controls style on each group', () => {
 		const { controls } = fakeControls();
-		renderBar(controls, { controlsSide: 'start', controlsStyle: 'win11', showAlwaysOnTop: false });
+		renderBar(controls, { controlsStyle: 'win11', showAlwaysOnTop: false });
 		const group = screen.getByRole('group', { name: 'Window controls' });
 		expect(group).toHaveAttribute('data-controls-style', 'win11');
-		expect(
-			Array.from(group.querySelectorAll('button')).map((b) => b.getAttribute('aria-label')),
-		).toEqual(['Close', 'Minimise', 'Maximise']);
-		expect(bar().firstElementChild).toBe(group);
+		expect(group).toHaveAttribute('data-controls-side', 'end');
+	});
+
+	it('throws a clear error without a provider', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		expect(() => render(<TitleBar />)).toThrow(/WindowChromeProvider/);
+		spy.mockRestore();
+	});
+
+	describe('structure', () => {
+		const groups = () => {
+			const el = bar();
+			return {
+				all: Array.from(el.children) as HTMLElement[],
+				start: el.querySelector('[data-group="start"]') as HTMLElement,
+				centre: el.querySelector('[data-group="centre"]') as HTMLElement,
+				end: el.querySelector('[data-group="end"]') as HTMLElement,
+			};
+		};
+
+		it('lays out start group, centre and end group in order', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, { buttonLayout: { start: ['close'], end: ['minimise', 'maximise'] } });
+			const g = groups();
+			expect(g.all).toEqual([g.start, g.centre, g.end]);
+			expect(g.centre).toContainElement(screen.getByTestId('title'));
+		});
+
+		it('puts start-side buttons before the start slot and end-side buttons after the end slot', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, {
+				buttonLayout: { start: ['close'], end: ['minimise'] },
+				showAlwaysOnTop: false,
+			});
+			const g = groups();
+			const startLabels = Array.from(g.start.querySelectorAll('button')).map(
+				(b) => b.getAttribute('aria-label') ?? b.textContent,
+			);
+			expect(startLabels).toEqual(['Close', 'Demo']);
+			const endLabels = Array.from(g.end.querySelectorAll('button')).map(
+				(b) => b.getAttribute('aria-label') ?? b.textContent,
+			);
+			expect(endLabels).toEqual(['Action', 'Minimise']);
+			expect(g.start.firstElementChild).toHaveAttribute('data-wp-controls');
+			expect(g.end.lastElementChild).toHaveAttribute('data-wp-controls');
+		});
+
+		it('keeps the three groups when everything is empty', () => {
+			const { controls } = fakeControls();
+			render(
+				<WindowChromeProvider controls={controls}>
+					<TitleBar buttonLayout={{ start: [], end: [] }} />
+				</WindowChromeProvider>,
+			);
+			expect(groups().all).toHaveLength(3);
+		});
+
+		it('defaults the title alignment to centre and accepts start', () => {
+			const { controls } = fakeControls();
+			const first = renderBar(controls);
+			expect(bar()).toHaveAttribute('data-title-align', 'center');
+			first.unmount();
+			renderBar(controls, { titleAlign: 'start' });
+			expect(bar()).toHaveAttribute('data-title-align', 'start');
+		});
+	});
+
+	describe('button layout', () => {
+		const labelsOf = (group: HTMLElement) =>
+			Array.from(group.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'));
+		const setup = (layout: ButtonLayout, props: Partial<TitleBarProps> = {}) => {
+			const { controls } = fakeControls();
+			renderBar(controls, { buttonLayout: layout, showAlwaysOnTop: false, ...props });
+			const sideGroups = Array.from(document.querySelectorAll<HTMLElement>('[data-wp-controls]'));
+			return {
+				start: sideGroups.find((g) => g.dataset.controlsSide === 'start'),
+				end: sideGroups.find((g) => g.dataset.controlsSide === 'end'),
+				count: sideGroups.length,
+			};
+		};
+
+		it('renders the default layout on the end side only', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, { showAlwaysOnTop: false });
+			const { start, end } = {
+				start: document.querySelector('[data-controls-side="start"]'),
+				end: document.querySelector<HTMLElement>('[data-controls-side="end"]')!,
+			};
+			expect(start).toBeNull();
+			expect(labelsOf(end)).toEqual(['Minimise', 'Maximise', 'Close']);
+		});
+
+		it('renders a GNOME appmenu:minimize,maximize,close layout on the end side', () => {
+			const { start, end, count } = setup({
+				start: ['appMenu'],
+				end: ['minimise', 'maximise', 'close'],
+			});
+			expect(count).toBe(1);
+			expect(start).toBeUndefined();
+			expect(labelsOf(end!)).toEqual(['Minimise', 'Maximise', 'Close']);
+		});
+
+		it('renders a close-only layout', () => {
+			const { end } = setup({ start: [], end: ['close'] });
+			expect(labelsOf(end!)).toEqual(['Close']);
+		});
+
+		it('renders buttons on both sides', () => {
+			const { start, end } = setup({ start: ['close'], end: ['minimise', 'maximise'] });
+			expect(labelsOf(start!)).toEqual(['Close']);
+			expect(labelsOf(end!)).toEqual(['Minimise', 'Maximise']);
+		});
+
+		it('keeps the order it is given', () => {
+			const { end } = setup({ start: [], end: ['close', 'minimise'] });
+			expect(labelsOf(end!)).toEqual(['Close', 'Minimise']);
+		});
+
+		it('skips tokens the chrome does not support', () => {
+			const { start, end } = setup({
+				start: ['appMenu', 'windowMenu', 'shade'],
+				end: ['help', 'stick', 'keepBelow', 'minimise', 'close'],
+			});
+			expect(start).toBeUndefined();
+			expect(labelsOf(end!)).toEqual(['Minimise', 'Close']);
+		});
+
+		it('renders no controls for an empty layout', () => {
+			const { count } = setup({ start: [], end: [] });
+			expect(count).toBe(0);
+			expect(screen.queryByRole('group', { name: 'Window controls' })).not.toBeInTheDocument();
+		});
+
+		it('places the pin before the first window button on the end side', () => {
+			const { start, end } = setup(
+				{ start: ['close'], end: ['appMenu', 'minimise', 'maximise'] },
+				{ showAlwaysOnTop: true },
+			);
+			expect(labelsOf(start!)).toEqual(['Close']);
+			expect(labelsOf(end!)).toEqual(['Always on Top', 'Minimise', 'Maximise']);
+		});
+
+		it('places the pin where the layout puts keepAbove', () => {
+			const { start, end } = setup(
+				{ start: ['keepAbove', 'close'], end: ['minimise', 'maximise'] },
+				{ showAlwaysOnTop: true },
+			);
+			expect(labelsOf(start!)).toEqual(['Always on Top', 'Close']);
+			expect(labelsOf(end!)).toEqual(['Minimise', 'Maximise']);
+		});
+
+		it('flips maximise to restore on both sides of state', async () => {
+			const { controls } = fakeControls({ isMaximized: vi.fn(async () => true) });
+			renderBar(controls, { buttonLayout: { start: ['maximise'], end: [] } });
+			expect(await screen.findByRole('button', { name: 'Restore' })).toBeInTheDocument();
+		});
+	});
+
+	describe('titlebar actions', () => {
+		const actions = (over: Partial<TitlebarActions>): TitlebarActions => ({
+			...DEFAULT_TITLEBAR_ACTIONS,
+			...over,
+		});
+
+		it('runs minimise on double-click', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, { titlebarActions: actions({ doubleClick: 'minimise' }) });
+			fireEvent.doubleClick(screen.getByTestId('title'));
+			expect(controls.minimize).toHaveBeenCalledTimes(1);
+			expect(controls.toggleMaximize).not.toHaveBeenCalled();
+		});
+
+		it('opens the menu on double-click when asked', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, { titlebarActions: actions({ doubleClick: 'menu' }) });
+			fireEvent.doubleClick(screen.getByTestId('title'));
+			expect(screen.getByRole('menu', { name: 'Window menu' })).toBeInTheDocument();
+		});
+
+		it.each(['toggleShade', 'lower', 'none'] as const)('ignores double-click %s', (action) => {
+			const { controls } = fakeControls();
+			renderBar(controls, { titlebarActions: actions({ doubleClick: action }) });
+			fireEvent.doubleClick(screen.getByTestId('title'));
+			expect(controls.minimize).not.toHaveBeenCalled();
+			expect(controls.toggleMaximize).not.toHaveBeenCalled();
+			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+		});
+
+		it('still runs a non-maximise double-click action when the host handles maximise natively', () => {
+			const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+			renderBar(controls, { titlebarActions: actions({ doubleClick: 'minimise' }) });
+			fireEvent.doubleClick(screen.getByTestId('title'));
+			expect(controls.minimize).toHaveBeenCalledTimes(1);
+		});
+
+		it('ignores middle-click by default', () => {
+			const { controls } = fakeControls();
+			renderBar(controls);
+			fireEvent(
+				screen.getByTestId('title'),
+				new MouseEvent('auxclick', { bubbles: true, button: 1 }),
+			);
+			expect(controls.minimize).not.toHaveBeenCalled();
+			expect(controls.toggleMaximize).not.toHaveBeenCalled();
+			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+		});
+
+		it('maps middle-click to minimise, maximise and menu', () => {
+			const middle = (target: Element) =>
+				fireEvent(target, new MouseEvent('auxclick', { bubbles: true, button: 1 }));
+			const { controls } = fakeControls();
+			const first = renderBar(controls, { titlebarActions: actions({ middleClick: 'minimise' }) });
+			middle(screen.getByTestId('title'));
+			expect(controls.minimize).toHaveBeenCalledTimes(1);
+			first.unmount();
+
+			const second = renderBar(controls, {
+				titlebarActions: actions({ middleClick: 'toggleMaximise' }),
+			});
+			middle(screen.getByTestId('title'));
+			expect(controls.toggleMaximize).toHaveBeenCalledTimes(1);
+			second.unmount();
+
+			renderBar(controls, { titlebarActions: actions({ middleClick: 'menu' }) });
+			middle(screen.getByTestId('title'));
+			expect(screen.getByRole('menu', { name: 'Window menu' })).toBeInTheDocument();
+		});
+
+		it('ignores other mouse buttons on auxclick and interactive targets', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, { titlebarActions: actions({ middleClick: 'minimise' }) });
+			fireEvent(
+				screen.getByTestId('title'),
+				new MouseEvent('auxclick', { bubbles: true, button: 2 }),
+			);
+			fireEvent(
+				screen.getByRole('button', { name: 'Action' }),
+				new MouseEvent('auxclick', { bubbles: true, button: 1 }),
+			);
+			expect(controls.minimize).not.toHaveBeenCalled();
+		});
+
+		it('opens the menu on right-click and prevents the native one', () => {
+			const { controls } = fakeControls();
+			renderBar(controls);
+			const notPrevented = fireEvent.contextMenu(screen.getByTestId('title'));
+			expect(notPrevented).toBe(false);
+			expect(screen.getByRole('menu', { name: 'Window menu' })).toBeInTheDocument();
+		});
+
+		it.each(['none', 'minimise', 'toggleMaximise', 'lower'] as const)(
+			'does nothing and keeps the native menu for right-click %s',
+			(action) => {
+				const { controls } = fakeControls();
+				renderBar(controls, { titlebarActions: actions({ rightClick: action }) });
+				const notPrevented = fireEvent.contextMenu(screen.getByTestId('title'));
+				expect(notPrevented).toBe(true);
+				expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+				expect(controls.minimize).not.toHaveBeenCalled();
+				expect(controls.toggleMaximize).not.toHaveBeenCalled();
+			},
+		);
 	});
 
 	describe('window menu', () => {

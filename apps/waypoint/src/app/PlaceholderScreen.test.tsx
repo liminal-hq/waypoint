@@ -5,6 +5,8 @@
 
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider';
+import { tauriWindowControls } from '@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls';
 import { PlaceholderScreen } from './PlaceholderScreen';
 
 vi.mock('@tauri-apps/api/window', () => ({
@@ -22,15 +24,23 @@ vi.mock('@tauri-apps/api/window', () => ({
 	}),
 }));
 
+function renderScreen() {
+	return render(
+		<WindowChromeProvider controls={tauriWindowControls}>
+			<PlaceholderScreen title="Main window" description="Browser goes here" />
+		</WindowChromeProvider>,
+	);
+}
+
 describe('PlaceholderScreen', () => {
 	it('renders the description and the window controls', () => {
-		render(<PlaceholderScreen title="Main window" description="Browser goes here" />);
+		renderScreen();
 		expect(screen.getByText('Browser goes here')).toBeTruthy();
 		expect(screen.getByRole('button', { name: /close/i })).toBeTruthy();
 	});
 
 	it('marks the static title text as a drag region', () => {
-		render(<PlaceholderScreen title="Main window" description="Browser goes here" />);
+		renderScreen();
 		const titles = screen.getAllByText('Main window');
 		expect(titles.some((el) => el.hasAttribute('data-tauri-drag-region'))).toBe(true);
 	});

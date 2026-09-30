@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider';
+import { tauriWindowControls } from '@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -42,5 +44,9 @@ initLogger(label);
 applyPlatform();
 
 createRoot(document.getElementById('root')!).render(
-	<StrictMode>{screenFor(windowKindFromLabel(label))}</StrictMode>,
+	<StrictMode>
+		<WindowChromeProvider controls={tauriWindowControls}>
+			{screenFor(windowKindFromLabel(label))}
+		</WindowChromeProvider>
+	</StrictMode>,
 );

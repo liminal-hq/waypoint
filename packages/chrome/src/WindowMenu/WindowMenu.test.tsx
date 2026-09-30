@@ -6,6 +6,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { WindowControls } from '../TitleBar/windowControls';
+import { WindowChromeProvider } from '../WindowChromeProvider/WindowChromeProvider';
 import { WindowMenu } from './WindowMenu';
 
 const controls: WindowControls = {
@@ -21,14 +22,14 @@ const controls: WindowControls = {
 describe('WindowMenu', () => {
 	it('shows an icon beside every item', () => {
 		render(
-			<WindowMenu
-				controls={controls}
-				position={{ x: 10, y: 10 }}
-				isMaximised={false}
-				alwaysOnTop={false}
-				onAlwaysOnTopChange={() => {}}
-				onClose={() => {}}
-			/>,
+			<WindowChromeProvider controls={controls}>
+				<WindowMenu
+					position={{ x: 10, y: 10 }}
+					alwaysOnTop={false}
+					onAlwaysOnTopChange={() => {}}
+					onClose={() => {}}
+				/>
+			</WindowChromeProvider>,
 		);
 		const items = [...screen.getAllByRole('menuitem'), ...screen.getAllByRole('menuitemcheckbox')];
 		expect(items.length).toBe(5);

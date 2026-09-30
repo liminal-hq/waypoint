@@ -6,6 +6,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WindowControls } from '../TitleBar/windowControls';
+import { WindowChromeProvider } from '../WindowChromeProvider/WindowChromeProvider';
 import { ContextMenu, SUBMENU_HOVER_DELAY_MS } from './ContextMenu';
 import type { MenuItem } from './types';
 
@@ -217,5 +219,84 @@ describe('ContextMenu', () => {
 		expect(menu.style.left).toBe(`${window.innerWidth - 204}px`);
 		expect(menu.style.top).toBe(`${window.innerHeight - 104}px`);
 		spy.mockRestore();
+	});
+});
+
+describe('ContextMenu dismissal on focus loss', () => {
+	function providerControls(initiallyFocused: boolean) {
+		let emit: (focused: boolean) => void = () => {};
+		const controls: WindowControls = {
+			minimize: vi.fn(),
+			toggleMaximize: vi.fn(),
+			close: vi.fn(),
+			setAlwaysOnTop: vi.fn(),
+			isMaximized: () => false,
+			onMaximizedChange: () => () => {},
+			isFocused: () => initiallyFocused,
+			onFocusChange: (listener) => {
+				emit = listener;
+				return () => {};
+			},
+		};
+		return { controls, emit: (focused: boolean) => act(() => emit(focused)) };
+	}
+
+	function withProvider(controls: WindowControls, onClose: () => void) {
+		return render(
+			<WindowChromeProvider controls={controls}>
+				<ContextMenu
+					items={items}
+					position={{ x: 1, y: 1 }}
+					onSelect={() => {}}
+					onClose={onClose}
+				/>
+			</WindowChromeProvider>,
+		);
+	}
+
+	it('closes on a focused to unfocused transition', async () => {
+		const { controls, emit } = providerControls(true);
+		const onClose = vi.fn();
+		withProvider(controls, onClose);
+		await act(async () => {});
+		expect(onClose).not.toHaveBeenCalled();
+		emit(false);
+		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('stays open when opened while the window is already unfocused', async () => {
+		const { controls, emit } = providerControls(false);
+		const onClose = vi.fn();
+		withProvider(controls, onClose);
+		await act(async () => {});
+		expect(onClose).not.toHaveBeenCalled();
+		emit(false);
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it('ignores DOM blur events while a provider is present', async () => {
+		const { controls } = providerControls(true);
+		const onClose = vi.fn();
+		withProvider(controls, onClose);
+		await act(async () => {});
+		fireEvent.blur(window);
+		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	it('still dismisses on pointerdown outside and resize with a provider', async () => {
+		const { controls } = providerControls(true);
+		const onClose = vi.fn();
+		withProvider(controls, onClose);
+		await act(async () => {});
+		fireEvent.pointerDown(document.body);
+		fireEvent(window, new Event('resize'));
+		expect(onClose).toHaveBeenCalledTimes(2);
+	});
+
+	it('works without a provider and falls back to the DOM blur event', () => {
+		const { onClose } = setup();
+		expect(screen.getByRole('menu')).toBeInTheDocument();
+		fireEvent.blur(window);
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });

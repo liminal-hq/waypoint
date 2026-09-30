@@ -12,6 +12,7 @@ import {
 	type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useOptionalWindowFocus } from '../WindowChromeProvider/WindowChromeProvider';
 import { CheckIcon, ChevronRightIcon } from '../icons/icons';
 import styles from './ContextMenu.module.css';
 import { findByPrefix, firstIndex, isNavigable, lastIndex, stepIndex } from './navigation';
@@ -62,6 +63,19 @@ export function ContextMenu({
 		};
 	}, [trigger]);
 
+	// With a provider, focus loss is a focused-to-unfocused transition; without one the DOM
+	// `blur` event stands in. A menu opened while the window is already unfocused stays open,
+	// and so does one open while the provider is still reading the initial focus state.
+	const windowFocus = useOptionalWindowFocus();
+	const hasProvider = windowFocus !== undefined;
+	const focused = windowFocus?.focused;
+	const settled = windowFocus?.settled ?? false;
+	const previousFocused = useRef<boolean | undefined>(settled ? focused : undefined);
+	useEffect(() => {
+		if (previousFocused.current === true && focused === false) onCloseRef.current();
+		previousFocused.current = settled ? focused : undefined;
+	}, [focused, settled]);
+
 	useEffect(() => {
 		const dismiss = () => onCloseRef.current();
 		const onPointerDown = (event: Event) => {
@@ -70,14 +84,14 @@ export function ContextMenu({
 			dismiss();
 		};
 		document.addEventListener('pointerdown', onPointerDown, true);
-		window.addEventListener('blur', dismiss);
+		if (!hasProvider) window.addEventListener('blur', dismiss);
 		window.addEventListener('resize', dismiss);
 		return () => {
 			document.removeEventListener('pointerdown', onPointerDown, true);
 			window.removeEventListener('blur', dismiss);
 			window.removeEventListener('resize', dismiss);
 		};
-	}, []);
+	}, [hasProvider]);
 
 	const handleSelect = useCallback(
 		(item: SelectableMenuItem) => {
