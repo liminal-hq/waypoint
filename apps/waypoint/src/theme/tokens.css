@@ -115,4 +115,20 @@ body,
 body {
 	font-family: system-ui, sans-serif;
 	font-size: 14px;
+	/* A window is not a web page: labels, file names and chrome are not selectable text. */
+	-webkit-user-select: none;
+	user-select: none;
+	cursor: default;
+}
+
+/* What a person may need to copy or edit stays selectable: editable fields, error messages (role
+   alert), and anything that opts in with `data-selectable`. */
+input,
+textarea,
+select,
+[contenteditable]:not([contenteditable='false']),
+[role='alert'],
+[data-selectable] {
+	-webkit-user-select: text;
+	user-select: text;
 }
