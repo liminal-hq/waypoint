@@ -3,10 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::ffi::c_void;
-
 use log::{info, warn};
-use objc2::MainThreadMarker;
+use objc2::{rc::Retained, MainThreadMarker};
 use objc2_app_kit::{NSApplication, NSView};
 use objc2_foundation::NSPoint;
 use tauri::{Runtime, WebviewWindow, Window};
@@ -56,17 +54,9 @@ pub async fn show_system_window_menu<R: Runtime>(
         position.x, position.y
     );
 
-    let view = match window.ns_view() {
-        // A raw pointer is not `Send`; carry it as an integer and rebuild it on the main thread.
-        Ok(view) => view as usize,
-        Err(error) => {
-            warn!("macos window menu (untested native path): no content view for label={label}: {error}");
-            return false;
-        }
-    };
-
+    let target = window.clone();
     let thread_label = label.clone();
-    let shown = main_thread::run(window, move || show_menu(view, position, &thread_label)).await;
+    let shown = main_thread::run(window, move || show_menu(&target, position, &thread_label)).await;
     let Some(shown) = shown else {
         warn!("macos window menu (untested native path): cannot reach the main thread for label={label}");
         return false;
@@ -76,7 +66,7 @@ pub async fn show_system_window_menu<R: Runtime>(
 }
 
 /// Must run on the main thread.
-fn show_menu(raw_view: usize, position: WindowPosition, label: &str) -> bool {
+fn show_menu<R: Runtime>(window: &WebviewWindow<R>, position: WindowPosition, label: &str) -> bool {
     let Some(mtm) = MainThreadMarker::new() else {
         warn!("macos window menu (untested native path): not on the main thread for label={label}");
         return false;
@@ -88,8 +78,24 @@ fn show_menu(raw_view: usize, position: WindowPosition, label: &str) -> bool {
         return false;
     };
 
-    // SAFETY: Tauri returns the window's live content view, which outlives this main-thread call.
-    let view: &NSView = unsafe { &*(raw_view as *const c_void as *const NSView) };
+    // The view is looked up here, on the main thread, rather than before the job was queued: a
+    // window can close in between, and a pointer taken earlier would then dangle. Retaining it keeps
+    // it alive for the whole (modal) menu call.
+    let raw_view = match window.ns_view() {
+        Ok(raw_view) => raw_view,
+        Err(error) => {
+            warn!("macos window menu (untested native path): no content view for label={label}: {error}");
+            return false;
+        }
+    };
+    // SAFETY: Tauri returns either null or the window's content view, an `NSView`, and this runs on
+    // the main thread that owns it, so nothing can release it between this check and the retain.
+    let Some(view) = (unsafe { Retained::retain(raw_view.cast::<NSView>()) }) else {
+        warn!(
+            "macos window menu (untested native path): the content view is gone for label={label}"
+        );
+        return false;
+    };
 
     // AppKit views put the origin at the bottom-left unless they are flipped, while the page
     // reports coordinates from the top-left.
@@ -104,7 +110,7 @@ fn show_menu(raw_view: usize, position: WindowPosition, label: &str) -> bool {
         "macos window menu (untested native path): calling popUpMenuPositioningItem for label={label} at view ({}, {}); this is modal, so a crash logged after this line happened inside the menu",
         location.x, location.y
     );
-    let shown = menu.popUpMenuPositioningItem_atLocation_inView(None, location, Some(view));
+    let shown = menu.popUpMenuPositioningItem_atLocation_inView(None, location, Some(&view));
     info!("macos window menu (untested native path): popUpMenuPositioningItem returned {shown} for label={label}");
     shown
 }

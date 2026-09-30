@@ -29,12 +29,13 @@ pub fn detect_session() -> Session {
     session::from_process_env()
 }
 
-/// Wayland has no client-side "keep above" (the compositor's window menu offers it), so only X11 reports `always_on_top`.
+/// Wayland has no client-side "keep above" (the compositor's window menu offers it), so only X11 reports `always_on_top`; a backend that is neither reports nothing.
 pub fn capabilities_for(session: Session) -> WindowCapabilities {
     match session {
         Session::Wayland => WindowCapabilities::new(Session::Wayland, false, true),
         Session::X11 => WindowCapabilities::new(Session::X11, true, true),
-        other => WindowCapabilities::new(other, true, false),
+        // A backend GDK opened that is neither (such as Broadway) offers nothing: `getAlwaysOnTop()` can only be answered on X11.
+        other => WindowCapabilities::new(other, false, false),
     }
 }
 
@@ -217,7 +218,7 @@ mod tests {
         );
         assert_eq!(
             capabilities_for(Session::Unknown),
-            WindowCapabilities::new(Session::Unknown, true, false)
+            WindowCapabilities::new(Session::Unknown, false, false)
         );
     }
 
