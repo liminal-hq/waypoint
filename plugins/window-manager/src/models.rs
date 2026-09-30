@@ -58,8 +58,7 @@ impl WindowCapabilities {
         }
     }
 
-    /// No window-manager integration exists on this target (mobile and any other platform without
-    /// a module of its own), so nothing is offered: the plugin then reports itself unavailable.
+    /// No window-manager integration exists on this target (mobile and any other platform without a module of its own), so nothing is offered: the plugin then reports itself unavailable.
     pub fn unsupported() -> Self {
         Self::new(Session::Unknown, false, false)
     }
