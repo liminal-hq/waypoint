@@ -52,6 +52,9 @@ export const enMessages = {
 	'browse.error.notADirectory.detail': '{location} is a file, not a folder.',
 	'browse.error.other.title': 'This folder could not be shown',
 	'browse.error.other.detail': 'Something went wrong while reading the folder.',
+	'browse.selection.none': 'No items selected',
+	'browse.selection.one': '{count} item selected',
+	'browse.selection.other': '{count} items selected',
 
 	'chrome.restore': 'Restore',
 	'chrome.maximise': 'Maximise',
@@ -76,4 +79,21 @@ export function tf(id: MessageId, values: Record<string, string | number>): stri
 	return enMessages[id].replace(/\{(\w+)\}/g, (token, name: string) =>
 		name in values ? String(values[name]) : token,
 	);
+}
+
+/** Message identifiers that have a `.one` and an `.other` form, named by their shared prefix. */
+export type PluralId = MessageId extends infer K
+	? K extends `${infer Base}.other`
+		? Base
+		: never
+	: never;
+
+/**
+ * The message for `count` of something, choosing the plural form the locale's rules give and
+ * replacing `{count}` with the number formatted for that locale.
+ */
+export function tn(id: PluralId, count: number, locale?: string): string {
+	const form = new Intl.PluralRules(locale).select(count);
+	const key = `${id}.${form === 'one' ? 'one' : 'other'}` as MessageId;
+	return tf(key, { count: new Intl.NumberFormat(locale).format(count) });
 }

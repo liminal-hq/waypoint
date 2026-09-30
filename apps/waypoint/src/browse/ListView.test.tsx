@@ -1,8 +1,9 @@
-// Verifies the list view: rows and roles, placeholders, sorting, the loading, scanning and error states, and the scroll cap
+// Verifies the list view: rows and roles, placeholders, sorting, states, the scroll cap, selection and keyboard
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -23,10 +24,10 @@ afterEach(() => {
 	restoreLayout();
 });
 
-function renderList(client: VfsClient) {
+function renderList(client: VfsClient, onOpen?: (entry: Entry) => void) {
 	return render(
 		<VfsClientProvider client={client}>
-			<ListView location={FOLDER} />
+			<ListView location={FOLDER} onOpen={onOpen} />
 		</VfsClientProvider>,
 	);
 }
@@ -337,5 +338,166 @@ describe('the scroll cap', () => {
 		const last = rows().at(-1)!;
 		expect(last).toHaveAttribute('aria-posinset', '1198372');
 		expect(last).not.toHaveAttribute('data-placeholder');
+	});
+});
+
+describe('selection and keyboard', () => {
+	async function ready(count = 100, onOpen?: (entry: Entry) => void) {
+		const { client } = clientWith(count);
+		renderList(client, onOpen);
+		const list = await screen.findByRole('listbox');
+		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
+		return { client, list };
+	}
+	const key = (list: HTMLElement, name: string, init: KeyboardEventInit = {}) =>
+		fireEvent.keyDown(list, { key: name, ...init });
+	const selectedRows = () => rows().filter((row) => row.getAttribute('aria-selected') === 'true');
+	const activeRow = () => rows().find((row) => row.hasAttribute('data-active'));
+	// The row the keyboard is on, whether or not it is drawn (the virtualiser scrolls in a browser,
+	// but happy-dom does no layout).
+	const activePosition = (list: HTMLElement) =>
+		Number(list.getAttribute('aria-activedescendant')?.split('-row-')[1]) + 1;
+
+	it('puts the focus on the first row when the list takes focus, without selecting', async () => {
+		const { list } = await ready();
+		act(() => list.focus());
+		expect(list).toHaveAttribute('aria-activedescendant', rows()[0]!.id);
+		expect(activeRow()).toBe(rows()[0]);
+		expect(selectedRows()).toHaveLength(0);
+	});
+
+	it('moves with the arrow keys, selecting what it lands on', async () => {
+		const { list } = await ready();
+		act(() => list.focus());
+		key(list, 'ArrowDown');
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		expect(selectedRows()[0]).toHaveAttribute('aria-posinset', '2');
+		expect(list).toHaveAttribute('aria-activedescendant', selectedRows()[0]!.id);
+		key(list, 'ArrowUp');
+		await waitFor(() => expect(selectedRows()[0]).toHaveAttribute('aria-posinset', '1'));
+		key(list, 'ArrowUp');
+		expect(activeRow()).toHaveAttribute('aria-posinset', '1');
+	});
+
+	it('jumps with Home, End and the page keys', async () => {
+		const { list } = await ready();
+		act(() => list.focus());
+		key(list, 'End');
+		await waitFor(() => expect(activePosition(list)).toBe(100));
+		key(list, 'Home');
+		await waitFor(() => expect(activePosition(list)).toBe(1));
+		// A page is the ten visible rows less one.
+		key(list, 'PageDown');
+		await waitFor(() => expect(activePosition(list)).toBe(10));
+		key(list, 'PageUp');
+		await waitFor(() => expect(activePosition(list)).toBe(1));
+	});
+
+	it('extends the selection with Shift and the arrows, and announces the count', async () => {
+		const { list } = await ready();
+		act(() => list.focus());
+		key(list, 'ArrowDown');
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		key(list, 'ArrowDown', { shiftKey: true });
+		key(list, 'ArrowDown', { shiftKey: true });
+		await waitFor(() => expect(selectedRows()).toHaveLength(3));
+		expect(screen.getByText('3 items selected')).toHaveAttribute('aria-live', 'polite');
+		key(list, 'ArrowUp', { shiftKey: true });
+		await waitFor(() => expect(selectedRows()).toHaveLength(2));
+		expect(screen.getByText('2 items selected')).toBeInTheDocument();
+	});
+
+	it('moves the focus alone with Ctrl and the arrows, and toggles with Ctrl+Space', async () => {
+		const { list } = await ready();
+		act(() => list.focus());
+		key(list, 'ArrowDown', { ctrlKey: true });
+		key(list, 'ArrowDown', { ctrlKey: true });
+		expect(activeRow()).toHaveAttribute('aria-posinset', '3');
+		expect(selectedRows()).toHaveLength(0);
+		key(list, ' ', { ctrlKey: true });
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		expect(selectedRows()[0]).toHaveAttribute('aria-posinset', '3');
+	});
+
+	it('selects all, inverts and deselects from the keyboard', async () => {
+		const { list } = await ready(100);
+		act(() => list.focus());
+		key(list, 'a', { ctrlKey: true });
+		expect(screen.getByText('100 items selected')).toBeInTheDocument();
+		expect(selectedRows().length).toBe(rows().length);
+		key(list, 'i', { ctrlKey: true });
+		expect(screen.getByText('No items selected')).toBeInTheDocument();
+		expect(selectedRows()).toHaveLength(0);
+		key(list, 'i', { ctrlKey: true });
+		expect(screen.getByText('100 items selected')).toBeInTheDocument();
+		key(list, 'Escape');
+		expect(screen.getByText('No items selected')).toBeInTheDocument();
+	});
+
+	it('announces nothing until the person acts on the selection', async () => {
+		await ready();
+		expect(screen.queryByText(/selected/)).toBeNull();
+	});
+
+	it('announces a single item in the singular', async () => {
+		const { list } = await ready();
+		fireEvent.click(rows()[1]!);
+		expect(screen.getByText('1 item selected')).toBeInTheDocument();
+		expect(list).toHaveAttribute('aria-multiselectable', 'true');
+	});
+
+	it('replaces the selection on click, toggles on Ctrl-click and selects a range on Shift-click', async () => {
+		await ready();
+		fireEvent.click(rows()[1]!);
+		expect(selectedRows()).toEqual([rows()[1]]);
+		fireEvent.click(rows()[3]!, { ctrlKey: true });
+		expect(selectedRows()).toEqual([rows()[1], rows()[3]]);
+		fireEvent.click(rows()[1]!, { ctrlKey: true });
+		expect(selectedRows()).toEqual([rows()[3]]);
+		fireEvent.click(rows()[6]!, { shiftKey: true });
+		await waitFor(() => expect(selectedRows()).toEqual(rows().slice(1, 7)));
+		fireEvent.click(rows()[0]!);
+		expect(selectedRows()).toEqual([rows()[0]]);
+	});
+
+	it('opens the focused entry on Enter and any entry on double-click', async () => {
+		const onOpen = vi.fn();
+		const { list } = await ready(100, onOpen);
+		act(() => list.focus());
+		key(list, 'ArrowDown');
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		key(list, 'Enter');
+		expect(onOpen).toHaveBeenCalledTimes(1);
+		expect(onOpen.mock.calls[0]![0]).toMatchObject({ name: expect.any(String) });
+		fireEvent.doubleClick(rows()[4]!);
+		expect(onOpen).toHaveBeenCalledTimes(2);
+		expect(rows()[4]).toHaveTextContent(onOpen.mock.calls[1]![0].name);
+	});
+
+	it('jumps to a name by typing, including one on a page that is not loaded', async () => {
+		const client = new FakeVfsClient();
+		const names = Array.from(
+			{ length: 900 },
+			(_, i) => `${String.fromCharCode(97 + Math.floor(i / 100))}-${i}.txt`,
+		);
+		client.setFolder(
+			FOLDER,
+			names.map((name, i) => makeEntry(i, name)),
+		);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
+		act(() => list.focus());
+		// "i" names start at view position 800, several pages from what is loaded.
+		key(list, 'i');
+		await waitFor(() => expect(activePosition(list)).toBe(801));
+		await waitFor(() => expect(screen.getByText('1 item selected')).toBeInTheDocument());
+	});
+
+	it('leaves modified keys to the browser', async () => {
+		const { list } = await ready();
+		act(() => list.focus());
+		const notPrevented = fireEvent.keyDown(list, { key: 'r', ctrlKey: true });
+		expect(notPrevented).toBe(true);
 	});
 });

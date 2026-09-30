@@ -1,8 +1,9 @@
-// The virtualised file list: paged rows, a sortable header, and states for loading, scanning and errors
+// The virtualised file list: paged rows, a sortable header, keyboard and pointer selection
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
@@ -15,14 +16,19 @@ import {
 	useState,
 	useSyncExternalStore,
 	type CSSProperties,
+	type KeyboardEvent,
+	type MouseEvent,
 } from 'react';
-import { t, tf, type MessageId } from '../i18n/messages';
+import { useStore } from 'zustand';
+import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { FileIcon } from './FileIcon';
 import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
 import type { ListingSession } from './useListingSession';
 import { useListingSession } from './useListingSession';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
+import { isSelected, selectedCount } from './selection';
+import { findByPrefix, TypeAheadBuffer } from './typeAhead';
 import { useVfsClient } from './VfsClientContext';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
@@ -36,11 +42,13 @@ const COLUMNS: Array<{ key: SortKey; label: MessageId }> = [
 ];
 
 interface ListViewProps {
-	/** The folder to list. Changing it opens a new listing. */
+	/** The folder to list. Changing it opens a new listing and discards the old one's selection. */
 	location: Location;
+	/** Enter and double-click on an entry. Navigation and opening belong to the caller. */
+	onOpen?: (entry: Entry) => void;
 }
 
-export function ListView({ location }: ListViewProps) {
+export function ListView({ location, onOpen }: ListViewProps) {
 	const client = useVfsClient();
 	const state = useListingSession(client, location);
 	if (state.status === 'opening') {
@@ -51,7 +59,7 @@ export function ListView({ location }: ListViewProps) {
 		);
 	}
 	if (state.status === 'error') return <ErrorState error={state.error} />;
-	return <ListingBody key={state.session.model.handle} session={state.session} />;
+	return <ListingBody key={state.session.model.handle} session={state.session} onOpen={onOpen} />;
 }
 
 function errorMessages(error: VfsError): { title: MessageId; detail: MessageId } {
@@ -89,15 +97,21 @@ function ErrorState({ error }: { error: VfsError }) {
 
 interface ListingBodyProps {
 	session: ListingSession;
+	onOpen: ((entry: Entry) => void) | undefined;
 }
 
-function ListingBody({ session }: ListingBodyProps) {
-	const { model } = session;
+function ListingBody({ session, onOpen }: ListingBodyProps) {
+	const { model, store } = session;
 	const version = useSyncExternalStore(model.subscribe, model.getVersion);
+	const selection = useStore(store, (state) => state.selection);
+	const focus = useStore(store, (state) => state.focus);
+	const touched = useStore(store, (state) => state.touched);
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
 	const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
+	const typeAhead = useRef(new TypeAheadBuffer());
+	const typeAheadEpoch = useRef(0);
 
 	const { shown, hidden } = visibleRows(model.count, rowHeight);
 
@@ -130,12 +144,108 @@ function ListingBody({ session }: ListingBodyProps) {
 	}, [model, first, last, items.length, version]);
 
 	const count = model.count;
+	const selectionText = touched
+		? selectedCount(selection, count) === 0
+			? t('browse.selection.none')
+			: tn('browse.selection', selectedCount(selection, count))
+		: '';
+
+	const scrollToRow = (position: number) =>
+		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, position)), { align: 'auto' });
+
+	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+		if (event.nativeEvent.isComposing) return;
+		const state = store.getState();
+		const modifier = event.ctrlKey || event.metaKey;
+		const from = state.focus;
+		const page = Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / rowHeight) - 1);
+		const lastRow = shown - 1;
+
+		const go = (target: number) => {
+			event.preventDefault();
+			const clamped = Math.max(0, Math.min(lastRow, target));
+			if (event.shiftKey) void state.extendTo(clamped, modifier);
+			else state.moveTo(clamped, !modifier);
+			scrollToRow(clamped);
+		};
+
+		switch (event.key) {
+			case 'ArrowDown':
+				return go(from === null ? 0 : from + 1);
+			case 'ArrowUp':
+				return go(from === null ? 0 : from - 1);
+			case 'PageDown':
+				return go(from === null ? 0 : from + page);
+			case 'PageUp':
+				return go(from === null ? 0 : from - page);
+			case 'Home':
+				return go(0);
+			case 'End':
+				return go(lastRow);
+			case 'Enter': {
+				const entry = from === null ? undefined : model.entryAt(from);
+				if (entry && onOpen) {
+					event.preventDefault();
+					onOpen(entry);
+				}
+				return;
+			}
+			case 'Escape':
+				event.preventDefault();
+				return state.deselectAll();
+			case ' ':
+				if (modifier) {
+					event.preventDefault();
+					state.toggleFocused();
+				}
+				return;
+		}
+
+		if (modifier && !event.shiftKey && !event.altKey) {
+			const key = event.key.toLowerCase();
+			if (key === 'a') {
+				event.preventDefault();
+				state.selectAll();
+			} else if (key === 'i') {
+				event.preventDefault();
+				state.invertSelection();
+			}
+			return;
+		}
+
+		if (event.key.length === 1 && !modifier && !event.altKey) {
+			event.preventDefault();
+			const prefix = typeAhead.current.push(event.key);
+			const epoch = ++typeAheadEpoch.current;
+			// A fresh first letter looks past the focused entry; a growing prefix may keep it.
+			const start = from === null ? 0 : prefix.length === 1 ? from + 1 : from;
+			void findByPrefix(model, prefix, start, () => epoch !== typeAheadEpoch.current).then(
+				(position) => {
+					if (position === null) return;
+					store.getState().moveTo(position, true);
+					scrollToRow(position);
+				},
+			);
+		}
+	};
+
+	const onRowClick = (event: MouseEvent, position: number, entry: Entry | undefined) => {
+		const state = store.getState();
+		const modifier = event.ctrlKey || event.metaKey;
+		if (event.shiftKey) void state.extendTo(position, modifier);
+		else if (!entry) return;
+		else if (modifier) state.toggleAt(position, entry.id);
+		else state.click(position, entry.id);
+	};
+
 	const onSort = (key: SortKey) => {
 		const { sort } = model;
 		void model.setSort({ ...sort, key, descending: sort.key === key ? !sort.descending : false });
 	};
 
 	if (model.error) return <ErrorState error={model.error} />;
+
+	const activeId = focus === null ? undefined : `${listId}-row-${focus}`;
 
 	return (
 		<div className={styles.view}>
@@ -198,11 +308,17 @@ function ListingBody({ session }: ListingBodyProps) {
 						aria-label={t('browse.list.label')}
 						aria-multiselectable="true"
 						aria-rowcount={shown}
+						aria-activedescendant={activeId}
 						className={styles.list}
 						style={{ '--wp-list-height': `${virtualizer.getTotalSize()}px` } as CSSProperties}
+						onKeyDown={onKeyDown}
+						onFocus={() => {
+							if (store.getState().focus === null && count > 0) store.getState().moveTo(0, false);
+						}}
 					>
 						{items.map((item) => {
 							const entry = model.entryAt(item.index);
+							const selected = entry ? isSelected(selection, entry.id) : false;
 							return (
 								<div
 									key={item.key}
@@ -210,10 +326,15 @@ function ListingBody({ session }: ListingBodyProps) {
 									role="option"
 									className={`${styles.columns} ${styles.row}`}
 									style={{ '--wp-row-y': `${item.start}px` } as CSSProperties}
+									aria-selected={selected}
 									aria-setsize={shown}
 									aria-posinset={item.index + 1}
 									aria-busy={entry ? undefined : true}
 									data-placeholder={entry ? undefined : ''}
+									data-selected={selected ? '' : undefined}
+									data-active={focus === item.index ? '' : undefined}
+									onClick={(event) => onRowClick(event, item.index, entry)}
+									onDoubleClick={() => entry && onOpen?.(entry)}
 								>
 									{entry ? (
 										<>
@@ -245,6 +366,10 @@ function ListingBody({ session }: ListingBodyProps) {
 					</div>
 				</div>
 			)}
+
+			<div className={styles.srOnly} role="status" aria-live="polite">
+				{selectionText}
+			</div>
 		</div>
 	);
 }

@@ -7,10 +7,12 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import { useEffect, useState } from 'react';
 import type { VfsClient } from '../services/vfsClient';
+import { createBrowseStore, type BrowseStore } from './browseStore';
 import { openListingModel, toVfsError, type ListingModel } from './listingModel';
 
 export interface ListingSession {
 	model: ListingModel;
+	store: BrowseStore;
 }
 
 export type SessionState =
@@ -20,7 +22,8 @@ export type SessionState =
 
 /**
  * Opens the listing of `location` and closes it again when the location changes or the view goes
- * away.
+ * away. The selection store is created with the model, so it is scoped to this listing and starts
+ * empty for the next one.
  */
 export function useListingSession(client: VfsClient, location: Location): SessionState {
 	const [state, setState] = useState<SessionState>({ status: 'opening' });
@@ -37,7 +40,7 @@ export function useListingSession(client: VfsClient, location: Location): Sessio
 					return;
 				}
 				opened = model;
-				setState({ status: 'ready', session: { model } });
+				setState({ status: 'ready', session: { model, store: createBrowseStore(model) } });
 			},
 			(error: unknown) => {
 				if (!cancelled) setState({ status: 'error', error: toVfsError(error) });
