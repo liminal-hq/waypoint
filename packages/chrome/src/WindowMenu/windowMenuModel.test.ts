@@ -59,10 +59,27 @@ describe('buildWindowMenuModel', () => {
 				minimise: 'M',
 				move: 'D',
 				alwaysOnTop: 'T',
+				systemWindowMenu: 'S',
 				close: 'Fermer',
 			},
 		});
 		expect(items[0]).toMatchObject({ label: 'Agrandir' });
 		expect(items.at(-1)).toMatchObject({ label: 'Fermer' });
+	});
+
+	it('adds More window options in its own section before Close when the host can show it', () => {
+		const items = buildWindowMenuModel({
+			isMaximised: false,
+			alwaysOnTop: false,
+			canShowSystemMenu: true,
+		});
+		expect(items.map((i) => (i.type === 'separator' ? '|' : i.id)).join(' ')).toBe(
+			'maximise minimise | move | always-on-top | system-menu | close',
+		);
+	});
+
+	it('omits More window options by default', () => {
+		const items = buildWindowMenuModel({ isMaximised: false, alwaysOnTop: false });
+		expect(items.some((i) => i.id === 'system-menu')).toBe(false);
 	});
 });

@@ -10,6 +10,8 @@ export interface ChromeLabels {
 	minimise: string;
 	move: string;
 	alwaysOnTop: string;
+	/** Entry that opens the compositor's own window menu. */
+	systemWindowMenu: string;
 	close: string;
 	/** Accessible name of the window menu. */
 	windowMenu: string;
@@ -23,6 +25,7 @@ export const defaultChromeLabels: ChromeLabels = {
 	minimise: 'Minimise',
 	move: 'Move',
 	alwaysOnTop: 'Always on Top',
+	systemWindowMenu: 'More window options…',
 	close: 'Close',
 	windowMenu: 'Window menu',
 	windowControls: 'Window controls',

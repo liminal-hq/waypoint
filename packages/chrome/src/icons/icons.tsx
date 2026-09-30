@@ -84,6 +84,16 @@ export function CheckIcon(props: IconProps) {
 	);
 }
 
+export function MoreIcon(props: IconProps) {
+	return (
+		<Icon {...props}>
+			<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none" />
+			<circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none" />
+			<circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none" />
+		</Icon>
+	);
+}
+
 export function MoveIcon(props: IconProps) {
 	return (
 		<Icon {...props}>

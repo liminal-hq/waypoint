@@ -10,6 +10,7 @@ import {
 	CloseIcon,
 	MaximiseIcon,
 	MinimiseIcon,
+	MoreIcon,
 	MoveIcon,
 	PinIcon,
 	RestoreIcon,
@@ -27,6 +28,7 @@ const iconFor: Record<WindowMenuActionId, ReactNode> = {
 	minimise: <MinimiseIcon />,
 	move: <MoveIcon />,
 	'always-on-top': <PinIcon />,
+	'system-menu': <MoreIcon />,
 	close: <CloseIcon />,
 };
 
@@ -50,17 +52,23 @@ export function WindowMenu({
 	const controls = useWindowControls();
 	const isMaximised = useWindowMaximised();
 	const canMove = controls.startDragging !== undefined;
+	const canShowSystemMenu = controls.showSystemMenu !== undefined;
 	const items = useMemo(
 		() =>
-			buildWindowMenuModel({ isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, labels }).map(
-				(item) => {
-					const icon = item.id ? iconFor[item.id as WindowMenuActionId] : undefined;
-					return icon && (item.type === 'action' || item.type === 'checkbox')
-						? { ...item, icon }
-						: item;
-				},
-			),
-		[isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, labels],
+			buildWindowMenuModel({
+				isMaximised,
+				alwaysOnTop,
+				showAlwaysOnTop,
+				canMove,
+				canShowSystemMenu,
+				labels,
+			}).map((item) => {
+				const icon = item.id ? iconFor[item.id as WindowMenuActionId] : undefined;
+				return icon && (item.type === 'action' || item.type === 'checkbox')
+					? { ...item, icon }
+					: item;
+			}),
+		[isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, canShowSystemMenu, labels],
 	);
 
 	const handleSelect = (item: SelectableMenuItem) => {
@@ -77,6 +85,11 @@ export function WindowMenu({
 				break;
 			case 'always-on-top':
 				onAlwaysOnTopChange(!alwaysOnTop);
+				break;
+			case 'system-menu':
+				// The pointer press that chose this entry is the input the compositor validates, so
+				// the request must be made now, at the menu's own position.
+				void controls.showSystemMenu?.({ x: position.x, y: position.y });
 				break;
 			case 'close':
 				void controls.close();

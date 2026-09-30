@@ -36,7 +36,7 @@ export function getTitlebarPreferences(): Promise<TitlebarPreferences> {
 
 /** Subscribes to preference changes and resolves to a function that unsubscribes. */
 export function onTitlebarPreferencesChanged(
-	callback: (preferences: TitlebarPreferences) => void,
+	callback: (_preferences: TitlebarPreferences) => void,
 ): Promise<() => void> {
 	return listen<TitlebarPreferences>(TITLEBAR_PREFERENCES_CHANGED_EVENT, (event) =>
 		callback(event.payload),

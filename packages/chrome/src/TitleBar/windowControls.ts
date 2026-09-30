@@ -15,6 +15,12 @@ export interface WindowControls {
 	setAlwaysOnTop(value: boolean): MaybePromise<void>;
 	/** Initial Always on Top state. Assumed false when omitted. */
 	isAlwaysOnTop?(): MaybePromise<boolean>;
+	/**
+	 * Asks the host's window manager (compositor) to show its own window menu at a point in the
+	 * window, in CSS pixels from the top-left. Enables the "More window options…" entry of the
+	 * window menu when present. Resolves false when the request was refused.
+	 */
+	showSystemMenu?(position: { x: number; y: number }): MaybePromise<boolean | void>;
 	isMaximized(): MaybePromise<boolean>;
 	/** Subscribes to maximised-state changes and returns a synchronous unsubscribe function. */
 	onMaximizedChange(listener: (maximised: boolean) => void): () => void;

@@ -7,7 +7,7 @@ import { defaultChromeLabels, type ChromeLabels } from '../labels';
 import type { MenuItem } from '../ContextMenu/types';
 
 export type WindowMenuActionId =
-	'restore' | 'maximise' | 'minimise' | 'move' | 'always-on-top' | 'close';
+	'restore' | 'maximise' | 'minimise' | 'move' | 'always-on-top' | 'system-menu' | 'close';
 
 export interface WindowMenuModelOptions {
 	isMaximised: boolean;
@@ -16,21 +16,24 @@ export interface WindowMenuModelOptions {
 	showAlwaysOnTop?: boolean;
 	/** Include Move (needs a host that can start dragging). Defaults to true. */
 	canMove?: boolean;
+	/** Include "More window options…", which hands over to the compositor's own menu. Defaults to false. */
+	canShowSystemMenu?: boolean;
 	labels?: Pick<
 		ChromeLabels,
-		'restore' | 'maximise' | 'minimise' | 'move' | 'alwaysOnTop' | 'close'
+		'restore' | 'maximise' | 'minimise' | 'move' | 'alwaysOnTop' | 'systemWindowMenu' | 'close'
 	>;
 }
 
 /**
- * Restore/Maximise and Minimise, then Move, then Always on Top, then Close — in that order,
- * each in its own section.
+ * Restore/Maximise and Minimise, then Move, then Always on Top, then More window options,
+ * then Close — in that order, each in its own section.
  */
 export function buildWindowMenuModel({
 	isMaximised,
 	alwaysOnTop,
 	showAlwaysOnTop = true,
 	canMove = true,
+	canShowSystemMenu = false,
 	labels = defaultChromeLabels,
 }: WindowMenuModelOptions): MenuItem[] {
 	const items: MenuItem[] = [
@@ -51,6 +54,10 @@ export function buildWindowMenuModel({
 			label: labels.alwaysOnTop,
 			checked: alwaysOnTop,
 		});
+	}
+	if (canShowSystemMenu) {
+		items.push({ type: 'separator', id: 'sep-system' });
+		items.push({ type: 'action', id: 'system-menu', label: labels.systemWindowMenu });
 	}
 	items.push({ type: 'separator', id: 'sep-close' });
 	items.push({ type: 'action', id: 'close', label: labels.close });

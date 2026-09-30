@@ -35,6 +35,7 @@ interface WindowControls {
 	startDragging?(): void | Promise<void>; // enables "Move" in the window menu
 	setAlwaysOnTop(value: boolean): void | Promise<void>;
 	isAlwaysOnTop?(): boolean | Promise<boolean>; // initial state, false when omitted
+	showSystemMenu?(position: { x: number; y: number }): boolean | void | Promise<boolean | void>; // opens the compositor's own window menu
 	isMaximized(): boolean | Promise<boolean>;
 	onMaximizedChange(listener: (maximised: boolean) => void): () => void; // returns unsubscribe
 	isFocused?(): boolean | Promise<boolean>; // initial state, true when omitted
