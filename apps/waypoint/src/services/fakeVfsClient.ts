@@ -15,8 +15,11 @@ import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/Li
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
 import type { PatchOp } from '@liminal-hq/waypoint-protocol/generated/PatchOp';
+import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
+import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/SelectionSummary';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
+import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 import type { OpenOptions, Unsubscribe, VfsClient } from './vfsClient';
 
 /** A local `file://` location for a path, the way `waypoint-path` will build one. */
@@ -132,6 +135,8 @@ export interface FakeVfsOptions {
 	latencyMs?: number;
 	/** What `~` means when parsing typed text. Defaults to `/home/demo`. */
 	home?: string;
+	/** The space every volume reports unless `setFreeSpace` says otherwise; `null` for unknown. */
+	freeSpace?: VolumeSpace | null;
 }
 
 /**
@@ -145,6 +150,10 @@ export class FakeVfsClient implements VfsClient {
 	private listeners = new Set<(event: ListingEvent) => void>();
 	private nextHandle = 1;
 	private failures = new Map<string, VfsError>();
+	private space = new Map<string, VolumeSpace | null>();
+	private openFailure: VfsError | null = null;
+	/** The files `openEntry` was asked to open, in order, as `(handle, id)` pairs. */
+	readonly opened: Array<{ handle: ListingHandle; id: EntryId }> = [];
 
 	constructor(private options: FakeVfsOptions = {}) {}
 
@@ -178,6 +187,16 @@ export class FakeVfsClient implements VfsClient {
 	/** Makes opening a location fail with this error, to exercise the error states. */
 	failOpening(location: Location, error: VfsError): void {
 		this.failures.set(location.uri, error);
+	}
+
+	/** Sets the space reported for a location's volume (`null` for unknown). */
+	setFreeSpace(location: Location, space: VolumeSpace | null): void {
+		this.space.set(location.uri, space);
+	}
+
+	/** Makes `openEntry` fail with this error (or work again with `null`). */
+	failOpeningEntries(error: VfsError | null): void {
+		this.openFailure = error;
 	}
 
 	/** Reports a failure on an open listing, as the real watcher does when a folder disappears. */
@@ -327,6 +346,40 @@ export class FakeVfsClient implements VfsClient {
 		const entry = (this.folders.get(listing.location.uri) ?? []).find((e) => e.id === id);
 		if (!entry) throw { kind: 'notFound', location: listing.location } satisfies VfsError;
 		return fileLocation(joinPath(pathOf(listing.location), entry.name));
+	}
+
+	async summariseSelection(
+		handle: ListingHandle,
+		selection: SelectionSpec,
+	): Promise<SelectionSummary> {
+		await this.delay();
+		const ids = new Set(selection.ids);
+		let count = 0;
+		let totalSize = 0;
+		for (const entry of this.get(handle).view) {
+			if (ids.has(entry.id) !== (selection.kind === 'some')) continue;
+			count += 1;
+			totalSize += entry.size ?? 0;
+		}
+		return { count, totalSize };
+	}
+
+	async getFreeSpace(location: Location): Promise<VolumeSpace | null> {
+		await this.delay();
+		if (this.space.has(location.uri)) return this.space.get(location.uri) ?? null;
+		return this.options.freeSpace === undefined
+			? { freeBytes: 120_000_000_000, totalBytes: 500_000_000_000 }
+			: this.options.freeSpace;
+	}
+
+	async openEntry(handle: ListingHandle, id: EntryId): Promise<void> {
+		await this.delay();
+		const listing = this.get(handle);
+		if (this.openFailure) throw this.openFailure;
+		if (!listing.view.some((entry) => entry.id === id)) {
+			throw { kind: 'notFound', location: listing.location } satisfies VfsError;
+		}
+		this.opened.push({ handle, id });
 	}
 
 	async closeListing(handle: ListingHandle): Promise<void> {

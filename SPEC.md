@@ -207,7 +207,11 @@ Tabs: **Preview** (a thumbnail or rendered preview with a short summary: name, k
 
 ### 5.8 Status bar
 
-Shows the selection count and size, free space on the current volume, an ops queue ring (progress and count, click to open), and plugin status items such as the git branch and remote latency.
+Shows the item count, the selection count and size, free space on the current volume, the List and Grid view switcher at the right end (D23), an ops queue ring (progress and count, click to open), and plugin status items such as the git branch and remote latency.
+
+- The selection count is immediate; the size is the sum of the selected files (folders add nothing, it is not recursive) and is worked out in Rust, so it arrives a moment later and dims while a newer one is on its way. Free space is hidden where the volume cannot report it.
+- The bar announces the selection count politely to screen readers, and reports a failure such as a file that would not open.
+- **Open:** Enter or double-click opens a folder in place and a file in its default application. The read-only context menu on an entry offers Open, Open in New Tab (folders) and Copy Path (the path as Rust displays it, which may be lossy for names that are not valid UTF-8). Right-clicking an entry that is not selected selects it first, and the menu acts on the entry under the pointer. The menu key or Shift+F10 opens it for the focused entry.
 
 ## 6. Super drag and drop
 

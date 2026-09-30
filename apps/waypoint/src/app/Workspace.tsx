@@ -1,31 +1,43 @@
-// The browsing area of the Main window: the toolbar over the active tab's file view
+// The browsing area of the Main window: tabs and toolbar over the active tab's file view and status bar
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { EntryContextMenu } from '../browse/EntryContextMenu';
 import { ListingManager } from '../browse/listingManager';
+import { ListingView, type MenuRequest } from '../browse/ListView';
 import type { SessionState } from '../browse/useListingSession';
-import { ListingView } from '../browse/ListView';
 import { useVfsClient } from '../browse/VfsClientContext';
-import { TabStrip } from '../tabs/TabStrip';
-import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
-import { useTabShortcuts } from '../tabs/useTabShortcuts';
-import { t } from '../i18n/messages';
+import { tf, t } from '../i18n/messages';
 import { NavigationBar } from '../nav/NavigationBar';
 import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry } from '../nav/useOpenEntry';
+import { StatusBar } from '../status/StatusBar';
+import { TabStrip } from '../tabs/TabStrip';
+import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
 import { useTabsSnapshot } from '../tabs/TabsContext';
+import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import styles from './Workspace.module.css';
 
 const OPENING: SessionState = { status: 'opening' };
+
+/** How long a failure stays in the status bar. */
+const NOTICE_MS = 6000;
 
 export function Workspace() {
 	const client = useVfsClient();
 	const snapshot = useTabsSnapshot();
 	const [manager] = useState(() => new ListingManager(client));
+	const [notice, setNotice] = useState<string | null>(null);
+	const [menu, setMenu] = useState<MenuRequest | null>(null);
 	const navigation = useNavigation();
-	const { open, openInNewTab } = useOpenEntry(navigation);
+	const onFailure = useCallback(
+		(entry: Entry) => setNotice(tf('status.openFailed', { name: entry.name })),
+		[],
+	);
+	const { open, openInNewTab, copyPath } = useOpenEntry(navigation, onFailure);
 	useTabShortcuts();
 
 	// One listing per tab, kept in step with the session (A9, A20).
@@ -34,10 +46,17 @@ export function Workspace() {
 	}, [manager, snapshot]);
 	useEffect(() => () => manager.dispose(), [manager]);
 
+	useEffect(() => {
+		if (!notice) return;
+		const timer = setTimeout(() => setNotice(null), NOTICE_MS);
+		return () => clearTimeout(timer);
+	}, [notice]);
+
 	useSyncExternalStore(manager.subscribe, manager.getVersion);
 	const tab = navigation.tab;
 	// A tab that has only just become active has no listing until the effect above opens one.
 	const state = tab ? (manager.stateFor(tab.id) ?? OPENING) : undefined;
+	const session = state?.status === 'ready' ? state.session : null;
 
 	return (
 		<div className={styles.workspace}>
@@ -50,8 +69,29 @@ export function Workspace() {
 				aria-label={tab ? undefined : t('tabs.panel.label')}
 				aria-labelledby={tab ? tabDomId(tab.id) : undefined}
 			>
-				{state && <ListingView state={state} onOpen={open} onOpenInNewTab={openInNewTab} />}
+				{state && (
+					<ListingView
+						state={state}
+						onOpen={open}
+						onOpenInNewTab={openInNewTab}
+						onMenu={setMenu}
+						announceSelection={false}
+					/>
+				)}
 			</div>
+			<StatusBar session={session} location={tab?.location} notice={notice} />
+			{menu?.kind === 'entry' && (
+				<EntryContextMenu
+					entry={menu.entry}
+					handle={menu.handle}
+					position={menu.position}
+					keyboard={menu.keyboard}
+					onClose={() => setMenu(null)}
+					onOpen={open}
+					onOpenInNewTab={openInNewTab}
+					onCopyPath={copyPath}
+				/>
+			)}
 		</div>
 	);
 }

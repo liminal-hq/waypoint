@@ -199,6 +199,47 @@ pub struct LocationInfo {
     pub segments: Vec<Breadcrumb>,
 }
 
+/// Which entries of a listing are selected. The selection is a frontend model keyed by `EntryId`
+/// and may be "everything except these ids" over half a million rows, so it crosses the wire in
+/// that shape instead of being expanded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum SelectionSpec {
+    /// Exactly these entries.
+    #[serde(rename = "some")]
+    Chosen { ids: Vec<EntryId> },
+    /// Every entry in the current view except these.
+    #[serde(rename = "allExcept")]
+    AllExcept { ids: Vec<EntryId> },
+}
+
+/// What a selection adds up to, worked out where the listing lives so the frontend never has to
+/// hold or fetch the selected entries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct SelectionSummary {
+    /// Entries of the current view the selection covers (ids the view no longer holds do not count).
+    #[ts(type = "number")]
+    pub count: u64,
+    /// The summed size in bytes of the selected files. Folders and entries of unknown size add
+    /// nothing; it is not a recursive total.
+    #[ts(type = "number")]
+    pub total_size: u64,
+}
+
+/// Space on the volume that holds a location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct VolumeSpace {
+    #[ts(type = "number")]
+    pub free_bytes: u64,
+    #[ts(type = "number")]
+    pub total_bytes: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

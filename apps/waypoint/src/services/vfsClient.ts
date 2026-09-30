@@ -11,8 +11,11 @@ import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/List
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
+import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
+import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/SelectionSummary';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
+import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 
 export type Unsubscribe = () => void;
 
@@ -51,6 +54,18 @@ export interface VfsClient {
 	describeLocation(location: Location): Promise<LocationInfo>;
 	/** Where an entry of an open listing lives, so a folder can be opened and its path copied. */
 	entryLocation(handle: ListingHandle, id: EntryId): Promise<Location>;
+	/**
+	 * The count and total size of a selection. It is computed where the listing lives because the
+	 * selection may be "everything except these ids" over hundreds of thousands of rows.
+	 */
+	summariseSelection(handle: ListingHandle, selection: SelectionSpec): Promise<SelectionSummary>;
+	/** Free and total space on the volume holding `location`, or `null` where it cannot be known. */
+	getFreeSpace(location: Location): Promise<VolumeSpace | null>;
+	/**
+	 * Opens a file in its default application. Rust resolves the path from `(handle, id)` and hands
+	 * it to the opener plugin; folders are opened by navigating, never through this.
+	 */
+	openEntry(handle: ListingHandle, id: EntryId): Promise<void>;
 	/** Follows progress, live patches and failures for every listing this client opened. */
 	onListingEvent(listener: (event: ListingEvent) => void): Unsubscribe;
 }

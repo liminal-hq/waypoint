@@ -59,14 +59,36 @@ export function ListView({ location, onOpen }: ListViewProps) {
 
 type OpenHandler = (entry: Entry, handle: ListingHandle) => void;
 
+/** A request for a context menu: on an entry, or (for the host to decide) on empty space. */
+export type MenuRequest =
+	| {
+			kind: 'entry';
+			entry: Entry;
+			handle: ListingHandle;
+			position: { x: number; y: number };
+			/** Opened from the keyboard, so focus goes into the menu. */
+			keyboard: boolean;
+	  }
+	| { kind: 'background'; position: { x: number; y: number }; keyboard: boolean };
+
 interface ListingViewProps {
 	state: SessionState;
 	onOpen?: OpenHandler | undefined;
 	onOpenInNewTab?: OpenHandler | undefined;
+	/** Right-click, the menu key and Shift+F10. The host renders the menu. */
+	onMenu?: ((request: MenuRequest) => void) | undefined;
+	/** Whether the list announces selection changes itself; a host with a status bar does that. */
+	announceSelection?: boolean | undefined;
 }
 
 /** The list for a listing that is opening, failed or ready. */
-export function ListingView({ state, onOpen, onOpenInNewTab }: ListingViewProps) {
+export function ListingView({
+	state,
+	onOpen,
+	onOpenInNewTab,
+	onMenu,
+	announceSelection = true,
+}: ListingViewProps) {
 	return (
 		<ListingGate state={state}>
 			{(session) => (
@@ -75,6 +97,8 @@ export function ListingView({ state, onOpen, onOpenInNewTab }: ListingViewProps)
 					session={session}
 					onOpen={onOpen}
 					onOpenInNewTab={onOpenInNewTab}
+					onMenu={onMenu}
+					announceSelection={announceSelection}
 				/>
 			)}
 		</ListingGate>
@@ -85,9 +109,17 @@ interface ListingBodyProps {
 	session: ListingSession;
 	onOpen: OpenHandler | undefined;
 	onOpenInNewTab: OpenHandler | undefined;
+	onMenu: ((request: MenuRequest) => void) | undefined;
+	announceSelection: boolean;
 }
 
-function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
+function ListingBody({
+	session,
+	onOpen,
+	onOpenInNewTab,
+	onMenu,
+	announceSelection,
+}: ListingBodyProps) {
 	const { model, store } = session;
 	const version = useSyncExternalStore(model.subscribe, model.getVersion);
 	const selection = useStore(store, (state) => state.selection);
@@ -190,6 +222,19 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 	const scrollToRow = (position: number) =>
 		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, position)), { align: 'auto' });
 
+	// The menu key asks for the focused entry's menu, placed at its row, or the empty-space menu
+	// when nothing is focused.
+	const openMenuFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		const at = store.getState().focus;
+		const entry = at === null ? undefined : model.entryAt(at);
+		const row = at === null ? null : document.getElementById(`${listId}-row-${at}`);
+		const rect = (row ?? event.currentTarget).getBoundingClientRect();
+		const position = { x: rect.left + 24, y: rect.bottom };
+		if (entry) onMenu?.({ kind: 'entry', entry, handle: model.handle, position, keyboard: true });
+		else onMenu?.({ kind: 'background', position, keyboard: true });
+	};
+
 	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
 		if (event.nativeEvent.isComposing) return;
 		const state = store.getState();
@@ -234,6 +279,8 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 				event.preventDefault();
 				typeAheadEpoch.current++;
 				return state.deselectAll();
+			case 'ContextMenu':
+				return openMenuFromKeyboard(event);
 			case ' ':
 				if (modifier) {
 					event.preventDefault();
@@ -249,6 +296,8 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 				}
 				break;
 		}
+
+		if (event.key === 'F10' && event.shiftKey) return openMenuFromKeyboard(event);
 
 		if (modifier && !event.shiftKey && !event.altKey) {
 			const key = event.key.toLowerCase();
@@ -287,6 +336,33 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 		else if (!entry) return;
 		else if (modifier) state.toggleAt(position, entry.id);
 		else state.click(position, entry.id);
+	};
+
+	// Right-click selects the entry first unless it is already part of the selection, as file
+	// managers do, so the menu never acts on something other than what is highlighted.
+	const onRowContextMenu = (event: MouseEvent, position: number, entry: Entry | undefined) => {
+		event.preventDefault();
+		event.stopPropagation();
+		if (!entry) return;
+		const state = store.getState();
+		if (!isSelected(state.selection, entry.id)) state.click(position, entry.id);
+		else state.moveTo(position, false);
+		onMenu?.({
+			kind: 'entry',
+			entry,
+			handle: model.handle,
+			position: { x: event.clientX, y: event.clientY },
+			keyboard: false,
+		});
+	};
+
+	const onBackgroundContextMenu = (event: MouseEvent) => {
+		event.preventDefault();
+		onMenu?.({
+			kind: 'background',
+			position: { x: event.clientX, y: event.clientY },
+			keyboard: false,
+		});
 	};
 
 	const onSort = (key: SortKey) => {
@@ -348,11 +424,18 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 			)}
 
 			{empty ? (
-				<MessageState role="status" data-state="empty">
-					{t('browse.empty')}
-				</MessageState>
+				<div className={styles.emptyArea} onContextMenu={onBackgroundContextMenu}>
+					<MessageState role="status" data-state="empty">
+						{t('browse.empty')}
+					</MessageState>
+				</div>
 			) : (
-				<div ref={scroller} className={styles.scroller} onScroll={recordAnchor}>
+				<div
+					ref={scroller}
+					className={styles.scroller}
+					onScroll={recordAnchor}
+					onContextMenu={onBackgroundContextMenu}
+				>
 					<div
 						role="listbox"
 						tabIndex={0}
@@ -385,6 +468,7 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 									data-selected={selected ? '' : undefined}
 									data-active={focus === item.index ? '' : undefined}
 									onClick={(event) => onRowClick(event, item.index, entry)}
+									onContextMenu={(event) => onRowContextMenu(event, item.index, entry)}
 									onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
 									onMouseDown={(event) => {
 										// Stops middle-click from starting the platform's autoscroll.
@@ -428,9 +512,11 @@ function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 				</div>
 			)}
 
-			<div className={styles.srOnly} role="status" aria-live="polite">
-				{selectionText}
-			</div>
+			{announceSelection && (
+				<div className={styles.srOnly} role="status" aria-live="polite">
+					{selectionText}
+				</div>
+			)}
 		</div>
 	);
 }

@@ -96,6 +96,11 @@
 	scrollbar-gutter: stable;
 }
 
+.emptyArea {
+	flex: 1;
+	min-height: 0;
+}
+
 .list {
 	position: relative;
 	height: var(--wp-list-height);

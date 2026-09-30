@@ -67,6 +67,60 @@ describe('FakeVfsClient locations', () => {
 	});
 });
 
+describe('FakeVfsClient selection, space and opening', () => {
+	it('sums the sizes of selected entries, and the same for everything except some', async () => {
+		const { client } = setup([
+			makeEntry(1, 'a.txt', { size: 100 }),
+			makeEntry(2, 'b.txt', { size: 250 }),
+			makeEntry(3, 'docs', { kind: 'directory', size: null }),
+		]);
+		const { handle } = await client.openListing(home);
+		expect(await client.summariseSelection(handle, { kind: 'some', ids: [1, 2, 99] })).toEqual({
+			count: 2,
+			totalSize: 350,
+		});
+		expect(await client.summariseSelection(handle, { kind: 'allExcept', ids: [1] })).toEqual({
+			count: 2,
+			totalSize: 250,
+		});
+		expect(await client.summariseSelection(handle, { kind: 'some', ids: [] })).toEqual({
+			count: 0,
+			totalSize: 0,
+		});
+	});
+
+	it('counts only what the filter leaves in view', async () => {
+		const { client } = setup([
+			makeEntry(1, 'a', { size: 5 }),
+			makeEntry(2, '.hidden', { size: 7 }),
+		]);
+		const { handle } = await client.openListing(home);
+		expect(await client.summariseSelection(handle, { kind: 'allExcept', ids: [] })).toEqual({
+			count: 1,
+			totalSize: 5,
+		});
+	});
+
+	it('reports free space per location, a default, and unknown', async () => {
+		const { client } = setup();
+		expect((await client.getFreeSpace(home))?.freeBytes).toBeGreaterThan(0);
+		client.setFreeSpace(home, { freeBytes: 5, totalBytes: 10 });
+		expect(await client.getFreeSpace(home)).toEqual({ freeBytes: 5, totalBytes: 10 });
+		client.setFreeSpace(home, null);
+		expect(await client.getFreeSpace(home)).toBeNull();
+	});
+
+	it('records the files it opens, and fails like Rust for an unknown entry or on request', async () => {
+		const { client } = setup();
+		const { handle } = await client.openListing(home);
+		await client.openEntry(handle, 1);
+		expect(client.opened).toEqual([{ handle, id: 1 }]);
+		await expect(client.openEntry(handle, 99)).rejects.toMatchObject({ kind: 'notFound' });
+		client.failOpeningEntries({ kind: 'permissionDenied', location: home });
+		await expect(client.openEntry(handle, 1)).rejects.toMatchObject({ kind: 'permissionDenied' });
+	});
+});
+
 describe('FakeVfsClient', () => {
 	it('opens a listing with folders first and natural name order', async () => {
 		const { client } = setup();

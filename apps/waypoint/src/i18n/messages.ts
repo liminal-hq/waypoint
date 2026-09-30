@@ -77,6 +77,17 @@ export const enMessages = {
 	'tabs.scrollRight': 'Scroll tabs right',
 	'tabs.moved': 'Moved {title} to position {position} of {count}',
 
+	'status.bar.label': 'Status bar',
+	'status.items.one': '{count} item',
+	'status.items.other': '{count} items',
+	'status.free': '{size} free',
+	'status.openFailed': 'Could not open {name}.',
+
+	'menu.entry.label': 'Item actions',
+	'menu.open': 'Open',
+	'menu.openInNewTab': 'Open in New Tab',
+	'menu.copyPath': 'Copy Path',
+
 	'dev.live.label': 'Live update controls (development only)',
 	'dev.live.add': 'Add 5 files',
 	'dev.live.addTop': 'Add 5 at the top',
