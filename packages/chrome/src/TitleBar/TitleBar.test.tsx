@@ -519,4 +519,47 @@ describe('AppMenuButton', () => {
 			expect(labelsIn('end')).toEqual(['Always on Top', 'Minimise', 'Maximise']);
 		});
 	});
+
+	describe('titlebar actions the chrome cannot perform', () => {
+		const unperformed = [
+			'toggleShade',
+			'lower',
+			'toggleMaximiseHorizontally',
+			'toggleMaximiseVertically',
+		] as const;
+
+		it.each(unperformed)('treats %s as no action for every gesture', (action) => {
+			const { controls } = fakeControls();
+			renderBar(controls, {
+				titlebarActions: { doubleClick: action, middleClick: action, rightClick: action },
+			});
+			const target = document.querySelector('[data-group="centre"]') as HTMLElement;
+
+			fireEvent.doubleClick(target);
+			fireEvent(target, new MouseEvent('auxclick', { bubbles: true, button: 1 }));
+			const notPrevented = fireEvent.contextMenu(target);
+
+			expect(controls.toggleMaximize).not.toHaveBeenCalled();
+			expect(controls.minimize).not.toHaveBeenCalled();
+			expect(screen.queryByRole('menu')).toBeNull();
+			// A gesture that does nothing must not swallow the platform's own behaviour.
+			expect(notPrevented).toBe(true);
+		});
+
+		it('still performs the actions it supports', () => {
+			const { controls } = fakeControls({ handlesDoubleClickNatively: false });
+			renderBar(controls, {
+				titlebarActions: {
+					doubleClick: 'toggleMaximise',
+					middleClick: 'minimise',
+					rightClick: 'menu',
+				},
+			});
+			const target = document.querySelector('[data-group="centre"]') as HTMLElement;
+			fireEvent.doubleClick(target);
+			fireEvent(target, new MouseEvent('auxclick', { bubbles: true, button: 1 }));
+			expect(controls.toggleMaximize).toHaveBeenCalledTimes(1);
+			expect(controls.minimize).toHaveBeenCalledTimes(1);
+		});
+	});
 });

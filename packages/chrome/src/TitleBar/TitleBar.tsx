@@ -16,6 +16,7 @@ import { WindowMenu } from '../WindowMenu/WindowMenu';
 import {
 	DEFAULT_BUTTON_LAYOUT,
 	DEFAULT_TITLEBAR_ACTIONS,
+	performedAction,
 	type ButtonLayout,
 	type ChromeButton,
 	type TitlebarAction,
@@ -109,8 +110,8 @@ export function TitleBar({
 	const isEmptySpace = (event: MouseEvent<HTMLElement>) =>
 		event.currentTarget.contains(event.target as Node) && !isInteractiveTarget(event.target);
 
-	const run = (action: TitlebarAction, event: MouseEvent<HTMLElement>, native = false) => {
-		switch (action) {
+	const run = (configured: TitlebarAction, event: MouseEvent<HTMLElement>, native = false) => {
+		switch (performedAction(configured)) {
 			case 'toggleMaximise':
 				if (!native) void windowControls.toggleMaximize();
 				break;
@@ -121,12 +122,13 @@ export function TitleBar({
 				setMenuPosition({ x: event.clientX, y: event.clientY });
 				break;
 			default:
+				// `none`, and the actions the adapter cannot perform (shade, lower, directional maximise).
 				break;
 		}
 	};
 
 	const onContextMenu = (event: MouseEvent<HTMLElement>) => {
-		if (titlebarActions.rightClick !== 'menu' || !isEmptySpace(event)) return;
+		if (performedAction(titlebarActions.rightClick) !== 'menu' || !isEmptySpace(event)) return;
 		event.preventDefault();
 		run('menu', event);
 	};

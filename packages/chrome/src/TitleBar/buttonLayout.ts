@@ -23,7 +23,31 @@ export interface ButtonLayout {
 }
 
 export type TitlebarAction =
-	'toggleMaximise' | 'toggleShade' | 'minimise' | 'lower' | 'menu' | 'none';
+	| 'toggleMaximise'
+	| 'toggleMaximiseHorizontally'
+	| 'toggleMaximiseVertically'
+	| 'toggleShade'
+	| 'minimise'
+	| 'lower'
+	| 'menu'
+	| 'none';
+
+/**
+ * The titlebar actions the chrome performs itself. A host can describe more (a desktop can be set
+ * to shade or lower a window, or to maximise in one direction), but the window adapter has no way
+ * to do those, so the chrome treats them as `none` rather than guessing.
+ */
+export const PERFORMED_ACTIONS: readonly TitlebarAction[] = [
+	'toggleMaximise',
+	'minimise',
+	'menu',
+	'none',
+];
+
+/** The action the chrome will actually run for a configured one: itself, or `none` if it cannot. */
+export function performedAction(action: TitlebarAction): TitlebarAction {
+	return PERFORMED_ACTIONS.includes(action) ? action : 'none';
+}
 
 /** What clicking empty title bar space does. */
 export interface TitlebarActions {
