@@ -17,6 +17,8 @@ vi.mock('@tauri-apps/api/window', () => ({
 		isAlwaysOnTop: vi.fn().mockResolvedValue(false),
 		isMaximized: vi.fn().mockResolvedValue(false),
 		onResized: vi.fn().mockResolvedValue(() => {}),
+		isFocused: vi.fn().mockResolvedValue(true),
+		onFocusChanged: vi.fn().mockResolvedValue(() => {}),
 	}),
 }));
 

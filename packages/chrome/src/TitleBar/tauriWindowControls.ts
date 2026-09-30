@@ -31,6 +31,21 @@ export function createTauriWindowControls(): WindowControls {
 				unlisten?.();
 			};
 		},
+		isFocused: () => getCurrentWindow().isFocused(),
+		onFocusChange(listener) {
+			let disposed = false;
+			let unlisten: (() => void) | undefined;
+			void getCurrentWindow()
+				.onFocusChanged(({ payload }) => listener(payload))
+				.then((off) => {
+					if (disposed) off();
+					else unlisten = off;
+				});
+			return () => {
+				disposed = true;
+				unlisten?.();
+			};
+		},
 		// Tauri's drag-region script already toggles maximise on double-click.
 		handlesDoubleClickNatively: true,
 	};

@@ -91,6 +91,8 @@
 	   keeps it close to the visible edge. The shadow must fit inside the margin to avoid a hard clip. */
 	--wp-window-shadow-margin: 8px;
 	--wp-window-shadow: 0 2px 8px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(0, 0, 0, 0.22);
+	/* No drop shadow while unfocused, only the hairline ring so the edge stays visible. */
+	--wp-window-shadow-unfocused: 0 0 0 1px rgba(0, 0, 0, 0.22);
 }
 
 :root[data-platform='windows'] {

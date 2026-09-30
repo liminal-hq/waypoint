@@ -57,4 +57,37 @@ describe('WindowFrame', () => {
 		act(() => c.emit(false));
 		expect(frame.getAttribute('data-maximised')).toBe('false');
 	});
+
+	it('reports focus and follows focus changes', async () => {
+		let listener: (focused: boolean) => void = () => {};
+		const c = {
+			...controls(false),
+			isFocused: vi.fn().mockResolvedValue(false),
+			onFocusChange: (l: (focused: boolean) => void) => {
+				listener = l;
+				return () => {};
+			},
+		};
+		render(
+			<WindowFrame windowControls={c}>
+				<p>inside</p>
+			</WindowFrame>,
+		);
+		const frame = screen.getByText('inside').parentElement!.parentElement!;
+		await waitFor(() => expect(frame.getAttribute('data-focused')).toBe('false'));
+		act(() => listener(true));
+		expect(frame.getAttribute('data-focused')).toBe('true');
+		act(() => listener(false));
+		expect(frame.getAttribute('data-focused')).toBe('false');
+	});
+
+	it('treats a host that cannot report focus as focused', () => {
+		render(
+			<WindowFrame windowControls={controls(false)}>
+				<p>inside</p>
+			</WindowFrame>,
+		);
+		const frame = screen.getByText('inside').parentElement!.parentElement!;
+		expect(frame.getAttribute('data-focused')).toBe('true');
+	});
 });

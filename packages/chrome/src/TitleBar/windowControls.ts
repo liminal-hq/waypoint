@@ -18,6 +18,10 @@ export interface WindowControls {
 	isMaximized(): MaybePromise<boolean>;
 	/** Subscribes to maximised-state changes and returns a synchronous unsubscribe function. */
 	onMaximizedChange(listener: (maximised: boolean) => void): () => void;
+	/** Initial focus state. The window is assumed focused when omitted. */
+	isFocused?(): MaybePromise<boolean>;
+	/** Subscribes to focus changes and returns a synchronous unsubscribe function. */
+	onFocusChange?(listener: (focused: boolean) => void): () => void;
 	/**
 	 * True when the host already maximises on double-click of a drag region (Tauri does), so the
 	 * title bar must not toggle a second time.
