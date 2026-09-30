@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod spike;
+
 /// The level floor applied to every log line — native Rust and forwarded
 /// webview `console.*` calls alike. Verbose in a debug build, `Info` and up in
 /// a release one, the same split the other Liminal HQ apps use.
@@ -47,7 +49,22 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build());
+        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .manage(spike::Spike::default())
+        .invoke_handler(tauri::generate_handler![
+            spike::spike_create_synthetic,
+            spike::spike_sort,
+            spike::spike_range,
+            spike::spike_range_bin,
+            spike::spike_scan,
+            spike::spike_scan_baseline,
+            spike::spike_make_dir,
+            spike::spike_watch,
+            spike::spike_watch_events,
+            spike::spike_unwatch,
+            spike::spike_churn,
+            spike::spike_remove_dir,
+        ]);
 
     // Lets an agent drive and screenshot the running app during development.
     #[cfg(debug_assertions)]

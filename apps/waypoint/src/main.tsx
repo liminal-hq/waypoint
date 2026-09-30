@@ -12,6 +12,7 @@ import { OpsScreen } from './app/OpsScreen';
 import { PropertiesScreen } from './app/PropertiesScreen';
 import { SettingsScreen } from './app/SettingsScreen';
 import { TearGhostScreen } from './app/TearGhostScreen';
+import { SpikeScreen } from './spike/SpikeScreen';
 import { windowKindFromLabel } from './app/windowKind';
 import { initLogger } from './services/logger';
 import { applyPlatform } from './theme/platform';
@@ -42,8 +43,14 @@ const label = getCurrentWebviewWindow().label;
 initLogger(label);
 applyPlatform();
 
+const spike = location.hash.startsWith('#spike');
+
 createRoot(document.getElementById('root')!).render(
-	<StrictMode>
-		<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
-	</StrictMode>,
+	spike ? (
+		<SpikeScreen />
+	) : (
+		<StrictMode>
+			<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
+		</StrictMode>
+	),
 );
