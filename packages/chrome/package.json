@@ -29,5 +29,25 @@
 		"react-dom": "^19.1.0",
 		"typescript": "~5.8.3",
 		"vitest": "^4.1.9"
+	},
+	"files": [
+		"src",
+		"!src/**/*.test.ts",
+		"!src/**/*.test.tsx",
+		"!src/test"
+	],
+	"exports": {
+		"./ContextMenu": "./src/ContextMenu/ContextMenu.tsx",
+		"./ContextMenu/types": "./src/ContextMenu/types.ts",
+		"./TitleBar": "./src/TitleBar/TitleBar.tsx",
+		"./TitleBar/AppMenuButton": "./src/TitleBar/AppMenuButton.tsx",
+		"./TitleBar/useMaximised": "./src/TitleBar/useMaximised.ts",
+		"./TitleBar/windowControls": "./src/TitleBar/windowControls.ts",
+		"./TitleBar/tauriWindowControls": "./src/TitleBar/tauriWindowControls.ts",
+		"./WindowMenu": "./src/WindowMenu/WindowMenu.tsx",
+		"./WindowMenu/windowMenuModel": "./src/WindowMenu/windowMenuModel.ts",
+		"./labels": "./src/labels.ts",
+		"./icons/icons": "./src/icons/icons.tsx",
+		"./package.json": "./package.json"
 	}
 }

@@ -1,0 +1,152 @@
+.titleBar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	box-sizing: border-box;
+	flex: none;
+	height: var(--wp-title-bar-height, 40px);
+	padding: 0 8px;
+	background: var(--wp-bg-chrome, #1e1f22);
+	color: var(--wp-text-primary, #e6e6e6);
+	border-bottom: 1px solid var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
+	border-radius: var(--wp-window-radius, 12px) var(--wp-window-radius, 12px) 0 0;
+	font-size: 13px;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.titleBar[data-transparent] {
+	background: color-mix(
+		in srgb,
+		var(--wp-bg-chrome, #1e1f22) calc(var(--wp-title-bar-opacity, 0.85) * 100%),
+		transparent
+	);
+}
+
+.maximised {
+	border-radius: 0;
+}
+
+.start,
+.end {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+}
+
+.center {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	overflow: hidden;
+}
+
+.controls {
+	display: flex;
+	align-items: center;
+	flex: none;
+	gap: 2px;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: default;
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring, #78aeed);
+	outline-offset: -2px;
+}
+
+.pin[aria-pressed='true'] {
+	color: var(--wp-accent, #3584e4);
+}
+
+/* GNOME: round, low-contrast buttons */
+.controls[data-controls-style='gnome'] {
+	gap: 6px;
+}
+
+.controls[data-controls-style='gnome'] .button {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--wp-control-bg, rgba(255, 255, 255, 0.08));
+}
+
+.controls[data-controls-style='gnome'] .button:hover {
+	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.16));
+}
+
+/* KDE: small rounded-square buttons, close turns red */
+.controls[data-controls-style='kde'] .button {
+	width: 26px;
+	height: 26px;
+	border-radius: 4px;
+}
+
+.controls[data-controls-style='kde'] .button:hover {
+	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.16));
+}
+
+/* Cinnamon: compact square buttons with a border on hover */
+.controls[data-controls-style='cinnamon'] {
+	gap: 2px;
+}
+
+.controls[data-controls-style='cinnamon'] .button {
+	width: 28px;
+	height: 28px;
+	border: 1px solid transparent;
+	border-radius: 3px;
+}
+
+.controls[data-controls-style='cinnamon'] .button:hover {
+	border-color: var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
+	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.12));
+}
+
+/* Windows 11: full-height caption buttons flush with the window edge */
+.controls[data-controls-style='win11'] {
+	gap: 0;
+	align-self: stretch;
+	margin-inline-end: -8px;
+}
+
+.controls[data-controls-style='win11'] .button {
+	width: 46px;
+	height: 100%;
+	border-radius: 0;
+}
+
+.controls[data-controls-style='win11'] .button:hover {
+	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.1));
+}
+
+.controls[data-controls-style='win11'] .close:hover {
+	background: #c42b1c;
+	color: #ffffff;
+}
+
+.controls[data-controls-style='gnome'] .close:hover,
+.controls[data-controls-style='kde'] .close:hover,
+.controls[data-controls-style='cinnamon'] .close:hover {
+	background: var(--wp-danger, #e5484d);
+	color: #ffffff;
+}
+
+.titleBar[data-controls-side='start'] .controls[data-controls-style='win11'] {
+	margin-inline-end: 0;
+	margin-inline-start: -8px;
+}
