@@ -1,0 +1,18 @@
+[package]
+name = "waypoint-vfs"
+version = "0.1.0"
+description = "Waypoint's virtual file system: providers, listing handles and the wire types the frontend reads them through"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+ts-rs = { workspace = true }
+waypoint-protocol = { path = "../waypoint-protocol" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

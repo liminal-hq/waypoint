@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { WindowKind } from '../domain/protocol/generated/WindowKind';
+import type { WindowKind } from '@liminal-hq/waypoint-protocol/generated/WindowKind';
 
 /** Mirrors `WindowKind::from_label` in `crates/waypoint-protocol`. */
 export function windowKindFromLabel(label: string): WindowKind | null {

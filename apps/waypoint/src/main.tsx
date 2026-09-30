@@ -15,7 +15,7 @@ import { TearGhostScreen } from './app/TearGhostScreen';
 import { windowKindFromLabel } from './app/windowKind';
 import { initLogger } from './services/logger';
 import { applyPlatform } from './theme/platform';
-import type { WindowKind } from './domain/protocol/generated/WindowKind';
+import type { WindowKind } from '@liminal-hq/waypoint-protocol/generated/WindowKind';
 import './theme/tokens.css';
 
 // A plain switch on the window kind: each webview hosts exactly one screen,

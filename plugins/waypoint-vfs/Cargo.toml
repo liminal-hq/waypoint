@@ -1,0 +1,30 @@
+[package]
+name = "tauri-plugin-waypoint-vfs"
+version = "0.1.0"
+description = "Waypoint's file system plugin: listing handles, range fetch and places, over the waypoint-vfs crate"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+publish = false
+build = "build.rs"
+links = "tauri-plugin-waypoint-vfs"
+
+[package.metadata.platforms.support]
+linux = { level = "none", notes = "Commands arrive in a later slice of milestone 2" }
+windows = { level = "none", notes = "Commands arrive in a later slice of milestone 2" }
+
+[lib]
+name = "tauri_plugin_waypoint_vfs"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+waypoint-protocol = { path = "../../crates/waypoint-protocol" }
+waypoint-vfs = { path = "../../crates/waypoint-vfs" }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }

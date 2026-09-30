@@ -1,9 +1,11 @@
 [workspace]
 members = [
   "crates/waypoint-protocol",
+  "crates/waypoint-vfs",
   "apps/waypoint/src-tauri",
   "plugins/system-appearance",
   "plugins/window-manager",
+  "plugins/waypoint-vfs",
 ]
 resolver = "2"
 

@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { PluginStatus } from '../domain/protocol/generated/PluginStatus';
+import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 
 /** A plugin's own guest-js `getStatus`, so command names stay inside the plugin. */
 export type StatusSource = () => Promise<PluginStatus>;
