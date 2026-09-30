@@ -4908,6 +4908,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "waypoint-path"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "waypoint-protocol",
+]
+
+[[package]]
 name = "waypoint-protocol"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,14 @@
+[package]
+name = "waypoint-path"
+version = "0.1.0"
+description = "Waypoint's scheme-shaped path type: local paths on Linux and Windows, and their lossless file URIs"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+thiserror = { workspace = true }
+waypoint-protocol = { path = "../waypoint-protocol" }
