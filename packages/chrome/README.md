@@ -11,6 +11,8 @@ Every export maps to the file that defines it.
 | `@liminal-hq/waypoint-chrome/TitleBar`                     | `TitleBar` and its props: `start`, `center`, `end` slots plus built-in window buttons              |
 | `@liminal-hq/waypoint-chrome/TitleBar/AppMenuButton`       | App mark and menu button, opened by click, `F10` or a lone `Alt` press                             |
 | `@liminal-hq/waypoint-chrome/TitleBar/useMaximised`        | `useMaximised(controls)` hook                                                                      |
+| `@liminal-hq/waypoint-chrome/TitleBar/useFocused`          | `useFocused(controls)` hook                                                                        |
+| `@liminal-hq/waypoint-chrome/WindowFrame`                  | `WindowFrame`: rounded, clipped, shadowed surface for a frameless window                           |
 | `@liminal-hq/waypoint-chrome/TitleBar/windowControls`      | `WindowControls`, `ControlsStyle`, `ControlsSide` types                                            |
 | `@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls` | `createTauriWindowControls()` and a shared `tauriWindowControls` built on `@tauri-apps/api/window` |
 | `@liminal-hq/waypoint-chrome/ContextMenu`                  | Controlled `ContextMenu`                                                                           |
@@ -34,6 +36,8 @@ interface WindowControls {
 	isAlwaysOnTop?(): boolean | Promise<boolean>; // initial state, false when omitted
 	isMaximized(): boolean | Promise<boolean>;
 	onMaximizedChange(listener: (maximised: boolean) => void): () => void; // returns unsubscribe
+	isFocused?(): boolean | Promise<boolean>; // initial state, true when omitted
+	onFocusChange?(listener: (focused: boolean) => void): () => void; // returns unsubscribe
 	handlesDoubleClickNatively?: boolean; // true when the host already maximises on double-click
 }
 ```
@@ -60,13 +64,21 @@ Pass a stable object (create it once at module level or memoise it) because the 
 - `transparent` lets the desktop show through, with opacity from `--wp-title-bar-opacity`.
 - Right-clicking empty bar space opens the window menu — Restore or Maximise, Minimise, Move, Always on Top, Close. Buttons, links, inputs, and anything marked `data-window-menu-exclude` (the app menu button) are excluded.
 
+## Window frame
+
+`WindowFrame` is the outermost element of a frameless, transparent window. It clips its surface to `--wp-window-radius`, draws a hairline border, and draws `--wp-window-shadow` inside a transparent margin of `--wp-window-shadow-margin` for platforms where the OS paints none. While the window is unfocused it switches to `--wp-window-shadow-unfocused`. A maximised window has no margin, shadow, rounding or border. `className` applies to the visible surface, not the margin.
+
+## Focus
+
+The title bar and the frame both follow window focus through the adapter's optional `isFocused` and `onFocusChange`. An unfocused title bar dims its text and controls (`--wp-text-muted`, and `--wp-bg-chrome-unfocused` if set), and an unfocused frame lightens its shadow. A host that cannot report focus is treated as always focused.
+
 ## Context menu
 
 `ContextMenu` is controlled: pass `items`, a viewport `position`, `onSelect` and `onClose`. Item types are `action` (with an optional `danger` flag), `checkbox`, `submenu`, `separator` and `section`. It follows the WAI-ARIA menu pattern — `role="menu"`, `menuitem` and `menuitemcheckbox`, arrow keys, `Home` and `End`, `Enter` and `Space`, `Esc`, type-ahead, submenus opened by `ArrowRight` or after 150 ms of hover — clamps itself to the viewport, and returns focus to the element that was focused when it opened (or to `returnFocusTo`).
 
 ## Tokens
 
-Styling uses CSS custom properties with fallbacks, so the package renders before an app defines them: `--wp-bg-raised`, `--wp-bg-chrome`, `--wp-border-subtle`, `--wp-text-primary`, `--wp-text-muted`, `--wp-accent`, `--wp-accent-contrast`, `--wp-danger`, `--wp-focus-ring`, `--wp-control-bg`, `--wp-control-bg-hover`, `--wp-title-bar-height`, `--wp-title-bar-opacity`, `--wp-window-radius`, `--wp-font-mono`, `--wp-shadow-menu` and `--wp-z-menu`.
+Styling uses CSS custom properties with fallbacks, so the package renders before an app defines them: `--wp-bg-raised`, `--wp-bg-chrome`, `--wp-border-subtle`, `--wp-text-primary`, `--wp-text-muted`, `--wp-accent`, `--wp-accent-contrast`, `--wp-danger`, `--wp-focus-ring`, `--wp-control-bg`, `--wp-control-bg-hover`, `--wp-title-bar-height`, `--wp-title-bar-opacity`, `--wp-window-radius`, `--wp-window-shadow`, `--wp-window-shadow-unfocused`, `--wp-window-shadow-margin`, `--wp-bg-chrome-unfocused`, `--wp-font-mono`, `--wp-shadow-menu` and `--wp-z-menu`.
 
 ## Localisation
 

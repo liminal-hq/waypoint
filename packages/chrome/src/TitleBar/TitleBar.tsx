@@ -10,6 +10,7 @@ import type { MenuPosition } from '../ContextMenu/types';
 import { WindowMenu } from '../WindowMenu/WindowMenu';
 import { isInteractiveTarget } from './interactive';
 import styles from './TitleBar.module.css';
+import { useFocused } from './useFocused';
 import { useMaximised } from './useMaximised';
 import type { ControlsSide, ControlsStyle, WindowControls } from './windowControls';
 
@@ -45,6 +46,7 @@ export function TitleBar({
 }: TitleBarProps) {
 	const labels = { ...defaultChromeLabels, ...labelOverrides };
 	const maximised = useMaximised(windowControls);
+	const focused = useFocused(windowControls);
 	const [alwaysOnTop, setAlwaysOnTop] = useState(false);
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
@@ -108,6 +110,7 @@ export function TitleBar({
 				className={classes}
 				data-tauri-drag-region=""
 				data-maximised={maximised}
+				data-focused={focused}
 				data-transparent={transparent || undefined}
 				data-controls-style={controlsStyle}
 				data-controls-side={controlsSide}

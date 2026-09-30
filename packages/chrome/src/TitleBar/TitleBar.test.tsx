@@ -207,4 +207,24 @@ describe('AppMenuButton', () => {
 		await user.keyboard('{Alt}');
 		expect(screen.getByRole('menu', { name: 'Demo' })).toBeInTheDocument();
 	});
+
+	it('is focused by default and quiets itself while the window is unfocused', async () => {
+		const { controls: plain } = fakeControls();
+		const first = renderBar(plain);
+		expect(bar().getAttribute('data-focused')).toBe('true');
+		first.unmount();
+
+		let emit: (focused: boolean) => void = () => {};
+		const { controls } = fakeControls({
+			isFocused: vi.fn(async () => false),
+			onFocusChange: vi.fn((l) => {
+				emit = l;
+				return () => {};
+			}),
+		});
+		renderBar(controls);
+		await waitFor(() => expect(bar().getAttribute('data-focused')).toBe('false'));
+		act(() => emit(true));
+		expect(bar().getAttribute('data-focused')).toBe('true');
+	});
 });

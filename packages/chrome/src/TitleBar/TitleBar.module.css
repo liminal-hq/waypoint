@@ -13,6 +13,25 @@
 	font-size: 13px;
 	user-select: none;
 	-webkit-user-select: none;
+	transition:
+		color 120ms ease-out,
+		background-color 120ms ease-out;
+}
+
+/* An unfocused window quiets its title bar, as GNOME's own headers do. */
+.titleBar[data-focused='false'] {
+	color: var(--wp-text-muted, #9a9a9a);
+	background: var(--wp-bg-chrome-unfocused, var(--wp-bg-chrome, #1e1f22));
+}
+
+.titleBar[data-focused='false'] .controls {
+	opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.titleBar {
+		transition: none;
+	}
 }
 
 .titleBar[data-transparent] {
