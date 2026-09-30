@@ -31,7 +31,7 @@ function wantsDemo(): boolean {
 
 // The timing harness for re-measuring the list against the budgets: development builds, and any
 // build made with `VITE_WAYPOINT_PERF=1` (a release build to measure has no MCP bridge to drive it).
-if (import.meta.env.DEV || import.meta.env.VITE_WAYPOINT_PERF) {
+if (import.meta.env.DEV || import.meta.env.VITE_WAYPOINT_PERF === '1') {
 	void import('../dev/perfHarness').then((m) => m.installPerfHarness());
 }
 

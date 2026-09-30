@@ -95,6 +95,13 @@ export async function sweep(pxPerFrame: number, maxFrames: number, fromPx = 0) {
 	};
 }
 
+/** Whether the row at `target` is rendered, so the virtualiser has caught up with a scroll to it. */
+export function targetRendered(listbox: HTMLElement, target: number): boolean {
+	return [...listbox.querySelectorAll('[role="option"]')].some(
+		(row) => Number(row.getAttribute('aria-posinset')) === target + 1,
+	);
+}
+
 /** Jumps to random rows and times how long until every row in view has its data. */
 export async function jumps(times: number) {
 	const list = findList();
@@ -108,8 +115,8 @@ export async function jumps(times: number) {
 		list.scroller.scrollTop = target * list.rowHeight;
 		for (let tries = 0; tries < 600; tries++) {
 			await raf();
-			const rows = list.listbox.querySelectorAll('[role="option"]');
-			if (rows.length > 0 && placeholders(list) === 0) break;
+			// Until the virtualiser re-renders, the rows in the DOM are the old ones, with no placeholders.
+			if (targetRendered(list.listbox, target) && placeholders(list) === 0) break;
 		}
 		ms.push(performance.now() - started);
 	}
@@ -176,7 +183,7 @@ export async function runAll() {
 }
 
 /** Opens `path` in the active tab and waits for its listing to fill in. */
-async function openFolder(path: string): Promise<void> {
+export async function openFolder(path: string): Promise<void> {
 	const { tabsApi } = await import('../services/tabsApi');
 	// The window opens its first tab a moment after start-up, so wait for it.
 	let snapshot = await tabsApi.getSnapshot();
@@ -185,13 +192,22 @@ async function openFolder(path: string): Promise<void> {
 		snapshot = await tabsApi.getSnapshot();
 	}
 	if (snapshot.active === null) throw new Error('The window has no active tab.');
-	await tabsApi.navigate(snapshot.active, { display: path, uri: `file://${encodeURI(path)}` });
+	const current = snapshot.tabs.find((tab) => tab.id === snapshot.active)?.location;
+	// Rust parses the path, so `#`, `?` and Windows paths become the URI the provider expects.
+	const { createTauriVfsClient } = await import('../services/tauriVfsClient');
+	const target = await createTauriVfsClient().parseLocation(
+		path,
+		current ?? { display: '/', uri: 'file:///' },
+	);
+	const before = document.querySelector('[role="listbox"]');
+	await tabsApi.navigate(snapshot.active, target);
 	for (let tries = 0; tries < 600; tries++) {
 		await new Promise((resolve) => setTimeout(resolve, 100));
-		const count = Number(
-			document.querySelector('[role="listbox"]')?.getAttribute('aria-rowcount') ?? 0,
-		);
-		if (count > 1000) return;
+		const listbox = document.querySelector('[role="listbox"]');
+		const count = Number(listbox?.getAttribute('aria-rowcount') ?? 0);
+		// A new folder gets a new list element; staying put needs no wait for one.
+		const arrived = current?.uri === target.uri || listbox !== before;
+		if (arrived && count > 1000) return;
 	}
 	throw new Error(`${path} did not open as a large listing.`);
 }
@@ -217,5 +233,10 @@ declare global {
 export function installPerfHarness(): void {
 	window.__waypointPerf = { sweep, jumps, selectAll, sortBy, runAll, stats, autoRun };
 	const requested = /^#perf-auto=(.+)$/.exec(window.location.hash);
-	if (requested) void autoRun(decodeURIComponent(requested[1]!));
+	if (!requested) return;
+	try {
+		void autoRun(decodeURIComponent(requested[1]!));
+	} catch (error) {
+		console.warn('the perf-auto path in the URL hash is not valid', error);
+	}
 }
