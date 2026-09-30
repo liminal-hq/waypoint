@@ -1,3 +1,8 @@
+// Builds the Rollup configuration shared by every plugin's guest-js bundle
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import typescript from '@rollup/plugin-typescript';

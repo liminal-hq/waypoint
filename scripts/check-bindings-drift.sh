@@ -8,7 +8,9 @@
 # Deleting first matters: ts-rs only writes files for types that still exist and never removes a
 # stale one, so a removed or renamed type would otherwise leave its old file behind and the
 # comparison would miss that the committed copy is out of date. Exits 1 and lists the differences
-# on drift; on drift the regenerated files are left in place, so `git diff` shows the change.
+# on drift; on drift the regenerated files are left in place, so `git diff` shows the change. If
+# anything aborts before the comparison finishes (a compile error, a missing toolchain, Ctrl-C),
+# the snapshot is put back, so a failed check never leaves the bindings deleted or half-written.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SOURCE[0]}")")"
@@ -22,7 +24,21 @@ DIRS=(
 CRATES=(waypoint-protocol tauri-plugin-system-appearance tauri-plugin-window-manager)
 
 snapshot="$(mktemp -d)"
-trap 'rm -rf "${snapshot}"' EXIT
+compared=0
+
+cleanup() {
+  if [ "${compared}" -ne 1 ]; then
+    for dir in "${DIRS[@]}"; do
+      rm -rf "${dir}"
+      if [ -d "${snapshot}/${dir}" ]; then
+        mkdir -p "${dir}"
+        cp -r "${snapshot}/${dir}/." "${dir}/"
+      fi
+    done
+  fi
+  rm -rf "${snapshot}"
+}
+trap cleanup EXIT
 
 for dir in "${DIRS[@]}"; do
   mkdir -p "${snapshot}/${dir}"
@@ -40,6 +56,8 @@ for dir in "${DIRS[@]}"; do
     drift=1
   fi
 done
+# The comparison finished, so whatever is on disk now is the regenerated output to keep.
+compared=1
 
 if [ "${drift}" -ne 0 ]; then
   echo

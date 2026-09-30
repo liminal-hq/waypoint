@@ -33,7 +33,7 @@ is_exempt() {
 # Only scan directories that actually exist yet -- this list is the full
 # set of places source lives; missing ones are simply skipped.
 SCAN_DIRS=()
-for d in apps packages plugins crates scripts tools; do
+for d in apps packages plugins crates scripts shared tools; do
   [[ -d "$d" ]] && SCAN_DIRS+=("$d")
 done
 
