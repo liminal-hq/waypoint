@@ -235,6 +235,11 @@ impl Listing {
         let total = entries.len() as u32;
         let event = {
             let mut state = self.write();
+            if state.phase == ListingPhase::Failed {
+                // The watch was lost while the folder was read; stay failed rather than go live
+                // with nothing keeping the view current.
+                return Err(VfsError::StaleHandle);
+            }
             state.index.load(entries);
             state.revision += 1;
             state.phase = ListingPhase::Ready;
@@ -511,6 +516,9 @@ impl Listing {
                     return Err(error);
                 }
             };
+            if self.read().phase == ListingPhase::Failed {
+                return Err(VfsError::StaleHandle);
+            }
             let total = entries.len() as u32;
             let changes = self.read().index.diff(entries);
             self.apply_locked(changes);

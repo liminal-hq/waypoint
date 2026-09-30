@@ -486,6 +486,41 @@ fn a_lost_watch_fails_the_listing_and_later_changes_are_ignored() {
 }
 
 #[test]
+fn a_watch_lost_during_the_scan_keeps_the_listing_failed() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path(), "a", 1);
+    let capture = Capture::new();
+    let location = path_of(dir.path()).to_location();
+    capture
+        .during_scan
+        .lock()
+        .unwrap()
+        .push(WatchEvent::Lost(VfsError::NotFound { location }));
+    let events: Events = Arc::default();
+    let sink = {
+        let events = events.clone();
+        Arc::new(move |event| events.lock().unwrap().push(event))
+    };
+    let opened = Listing::open(
+        ListingHandle(1),
+        path_of(dir.path()),
+        capture.clone(),
+        SortSpec::default(),
+        Filter::default(),
+        ListingOptions::default(),
+        sink,
+    );
+    assert!(opened.is_err());
+    assert!(!events.lock().unwrap().iter().any(|e| matches!(
+        e,
+        ListingEvent::Progress {
+            phase: ListingPhase::Ready,
+            ..
+        }
+    )));
+}
+
+#[test]
 fn changes_that_arrive_during_the_scan_are_applied_after_it() {
     let dir = TempDir::new().unwrap();
     touch(dir.path(), "a", 1);
@@ -578,4 +613,33 @@ fn a_provider_that_cannot_watch_says_so() {
     listing.rescan().unwrap();
     assert_eq!(names(&listing), ["new"]);
     let _ = EntryId(0);
+}
+
+#[test]
+fn dropping_a_watch_does_not_wait_for_a_busy_worker() {
+    let dir = TempDir::new().unwrap();
+    let entered = Arc::new(AtomicBool::new(false));
+    let release = Arc::new(AtomicBool::new(false));
+    let sink: WatchSink = {
+        let (entered, release) = (entered.clone(), release.clone());
+        Arc::new(move |_| {
+            // Stands in for a worker stuck in a long scan.
+            entered.store(true, Ordering::SeqCst);
+            while !release.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        })
+    };
+    let provider = LocalProvider::with_watch_options(fast());
+    let watch = provider.watch(&path_of(dir.path()), sink).unwrap();
+    touch(dir.path(), "a", 1);
+    wait_until("the worker to be busy", || entered.load(Ordering::SeqCst));
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        drop(watch);
+        let _ = done_tx.send(());
+    });
+    let returned = done_rx.recv_timeout(Duration::from_secs(2)).is_ok();
+    release.store(true, Ordering::SeqCst);
+    assert!(returned, "dropping the watch blocked on its worker");
 }

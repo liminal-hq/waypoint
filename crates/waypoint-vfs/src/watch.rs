@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -137,7 +137,7 @@ pub(crate) struct Coalescer {
     seen: HashSet<OsString>,
     renames: Vec<(OsString, OsString)>,
     pending_from: Vec<PendingFrom>,
-    paired: HashSet<usize>,
+    paired: VecDeque<usize>,
     overflow: Option<RescanReason>,
     folder_touched: bool,
     first: Option<Instant>,
@@ -151,6 +151,18 @@ pub(crate) trait Probe {
     fn folder_health(&self) -> io::Result<()>;
 }
 
+/// How many paired rename trackers are remembered for a trailing `RenameBoth`.
+const PAIRED_MEMORY: usize = 64;
+
+/// Whether a failure to read the watched folder means it is gone for good. Anything else
+/// (`EMFILE`, `EINTR`, a permission flap) is transient and the watch carries on.
+fn is_fatal(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+    )
+}
+
 impl Coalescer {
     pub fn new(folder: PathBuf, location: Location) -> Self {
         Self {
@@ -160,7 +172,7 @@ impl Coalescer {
             seen: HashSet::new(),
             renames: Vec::new(),
             pending_from: Vec::new(),
-            paired: HashSet::new(),
+            paired: VecDeque::new(),
             overflow: None,
             folder_touched: false,
             first: None,
@@ -195,9 +207,42 @@ impl Coalescer {
     }
 
     fn add_rename(&mut self, from: OsString, to: OsString) {
-        match self.renames.iter_mut().find(|(_, target)| *target == from) {
-            Some(chain) => chain.1 = to,
-            None => self.renames.push((from, to)),
+        let at = match self.renames.iter().position(|(_, target)| *target == from) {
+            Some(at) => {
+                self.renames[at].1 = to;
+                at
+            }
+            None => {
+                self.renames.push((from, to));
+                self.renames.len() - 1
+            }
+        };
+        let (origin, end) = self.renames[at].clone();
+        if origin == end {
+            // Renamed away and back: nothing moved, but the name may have new contents.
+            self.renames.remove(at);
+            self.touch_name(origin);
+            return;
+        }
+        // A swap or longer cycle (`a` to `tmp`, `b` to `a`, `tmp` to `b`) cannot be replayed by
+        // name, so ask for a rescan instead of guessing.
+        let mut current = end;
+        for _ in 0..=self.renames.len() {
+            match self.renames.iter().find(|(f, _)| *f == current) {
+                Some((_, next)) => current = next.clone(),
+                None => return,
+            }
+            if current == origin {
+                self.overflow
+                    .get_or_insert(RescanReason::Unknown("a rename cycle".to_owned()));
+                return;
+            }
+        }
+    }
+
+    fn touch_name(&mut self, name: OsString) {
+        if self.seen.insert(name.clone()) {
+            self.touched.push(name);
         }
     }
 
@@ -227,7 +272,11 @@ impl Coalescer {
                     Some(at) => {
                         let from = self.pending_from.remove(at);
                         if let Some(tracker) = tracker {
-                            self.paired.insert(tracker);
+                            // Remembered past a flush, for the trailing `RenameBoth`.
+                            self.paired.push_back(tracker);
+                            if self.paired.len() > PAIRED_MEMORY {
+                                self.paired.pop_front();
+                            }
                         }
                         self.add_rename(from.name, to);
                     }
@@ -237,7 +286,8 @@ impl Coalescer {
             Raw::RenameBoth { from, to, tracker } => {
                 // `notify` reports an inotify pair as From, To and then Both; the first two have
                 // already paired it.
-                if tracker.is_some_and(|t| self.paired.contains(&t)) {
+                if let Some(at) = tracker.and_then(|t| self.paired.iter().position(|p| *p == t)) {
+                    self.paired.remove(at);
                     return;
                 }
                 match (self.child_name(&from), self.child_name(&to)) {
@@ -278,13 +328,14 @@ impl Coalescer {
         let overflow = self.overflow.take();
         let folder_touched = std::mem::take(&mut self.folder_touched);
         self.seen.clear();
-        self.paired.clear();
         self.first = None;
         self.last = None;
 
         if folder_touched {
             if let Err(error) = probe.folder_health() {
-                return vec![WatchEvent::Lost(from_io(&error, &self.location))];
+                if is_fatal(&error) {
+                    return vec![WatchEvent::Lost(from_io(&error, &self.location))];
+                }
             }
         }
         if let Some(reason) = overflow {
@@ -392,14 +443,11 @@ impl Drop for LocalWatch {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
         self.watcher.take();
-        if let Some(thread) = self.thread.take() {
-            // The worker can hold the last reference to its listing, so this drop can run on the
-            // worker itself; it is about to return, so there is nothing to wait for.
-            if thread.thread().id() != thread::current().id() {
-                // The worker wakes at least every `TICK`, so this returns promptly.
-                let _ = thread.join();
-            }
-        }
+        // The worker is detached, not joined: it may be inside an uncancellable scan of a huge
+        // folder, and closing a listing must not wait for that. It checks `stop` at least every
+        // `TICK`, and its sink is gated on `stop`, so it delivers nothing after this and exits
+        // as soon as its current step finishes.
+        drop(self.thread.take());
     }
 }
 
@@ -418,6 +466,14 @@ pub(crate) fn start(
     sink: WatchSink,
 ) -> Result<Box<dyn Watch>, VfsError> {
     let stop = Arc::new(AtomicBool::new(false));
+    let sink: WatchSink = {
+        let (stop, sink) = (stop.clone(), sink);
+        Arc::new(move |event| {
+            if !stop.load(Ordering::Relaxed) {
+                sink(event);
+            }
+        })
+    };
     let mut fallback_reason = None;
 
     if options.mode != WatchMode::Poll {
@@ -505,7 +561,9 @@ fn run_native(
         if now.duration_since(last_health) >= HEALTH_EVERY {
             last_health = now;
             if let Err(error) = probe.folder_health() {
-                return sink(WatchEvent::Lost(from_io(&error, &coalescer.location)));
+                if is_fatal(&error) {
+                    return sink(WatchEvent::Lost(from_io(&error, &coalescer.location)));
+                }
             }
         }
         let wait = match coalescer.due_at(&options) {
@@ -589,7 +647,11 @@ fn run_poll(
             continue;
         }
         next = now + options.poll_interval;
-        match snapshot(&folder, &location) {
+        let taken = snapshot(&folder, &location);
+        if stop.load(Ordering::Relaxed) {
+            return;
+        }
+        match taken {
             Ok(after) => {
                 let changes = diff_snapshots(&before, &after);
                 before = after;
@@ -597,7 +659,11 @@ fn run_poll(
                     sink(WatchEvent::Changes(changes));
                 }
             }
-            Err(error) => return sink(WatchEvent::Lost(error)),
+            Err(error @ (VfsError::NotFound { .. } | VfsError::PermissionDenied { .. })) => {
+                return sink(WatchEvent::Lost(error));
+            }
+            // A transient failure (`EMFILE`, `EINTR`): try again at the next interval.
+            Err(_) => {}
         }
     }
 }
@@ -887,6 +953,79 @@ mod tests {
         *fake.health.borrow_mut() = None;
         c.push(Raw::Modified(PathBuf::from("/d")), now);
         assert!(c.flush(&fake).is_empty());
+    }
+
+    #[test]
+    fn a_transient_folder_read_failure_is_not_a_loss() {
+        let now = Instant::now();
+        let fake = Fake::with(&[]);
+        *fake.health.borrow_mut() = Some(io::ErrorKind::Interrupted);
+        let mut c = coalescer();
+        c.push(Raw::Modified(PathBuf::from("/d")), now);
+        assert!(c.flush(&fake).is_empty());
+        assert!(is_fatal(&io::ErrorKind::NotFound.into()));
+        assert!(!is_fatal(&io::Error::from_raw_os_error(24)));
+    }
+
+    fn rename(c: &mut Coalescer, from: &str, to: &str, tracker: usize, now: Instant) {
+        c.push(
+            Raw::RenameFrom {
+                path: p(from),
+                tracker: Some(tracker),
+            },
+            now,
+        );
+        c.push(
+            Raw::RenameTo {
+                path: p(to),
+                tracker: Some(tracker),
+            },
+            now,
+        );
+    }
+
+    #[test]
+    fn a_swap_through_a_temporary_name_asks_for_a_rescan() {
+        let now = Instant::now();
+        let mut c = coalescer();
+        rename(&mut c, "a", "tmp", 1, now);
+        rename(&mut c, "b", "a", 2, now);
+        rename(&mut c, "tmp", "b", 3, now);
+        assert_eq!(
+            c.flush(&Fake::with(&["a", "b"])),
+            [WatchEvent::Rescan(RescanReason::Unknown(
+                "a rename cycle".to_owned()
+            ))]
+        );
+    }
+
+    #[test]
+    fn a_rename_away_and_back_is_a_refresh_not_a_rename() {
+        let now = Instant::now();
+        let mut c = coalescer();
+        rename(&mut c, "a", "tmp", 1, now);
+        rename(&mut c, "tmp", "a", 2, now);
+        assert_eq!(
+            changes(c.flush(&Fake::with(&["a"]))),
+            [Change::Upsert(entry("a"))]
+        );
+    }
+
+    #[test]
+    fn a_trailing_both_after_a_flush_is_still_a_duplicate() {
+        let now = Instant::now();
+        let mut c = coalescer();
+        rename(&mut c, "a", "b", 7, now);
+        assert_eq!(changes(c.flush(&Fake::with(&["b"]))).len(), 1);
+        c.push(
+            Raw::RenameBoth {
+                from: p("a"),
+                to: p("b"),
+                tracker: Some(7),
+            },
+            now,
+        );
+        assert!(changes(c.flush(&Fake::with(&["b"]))).is_empty());
     }
 
     #[test]
