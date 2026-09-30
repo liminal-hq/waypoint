@@ -35,6 +35,7 @@ Waypoint's documentation lives here and is maintained alongside the code: a chan
 | [`architecture/frontend.md`](architecture/frontend.md)                     | The front-end framework evaluation, the chosen stack and the front-end structure   |
 | [`architecture/ci-cd.md`](architecture/ci-cd.md)                           | The CI/CD pipeline and release process                                             |
 | [`architecture/decisions.md`](architecture/decisions.md)                   | The architecture decision log (A1 onwards)                                         |
+| [`architecture/milestone-0-spikes.md`](architecture/milestone-0-spikes.md) | The measured results of the listing render and scan spikes                         |
 
 ## Keeping the docs current
 
