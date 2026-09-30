@@ -16,7 +16,11 @@ var __TAURI_PLUGIN_SYSTEM_APPEARANCE__ = (function (exports, core, event) {
     function getStatus() {
         return cmd('get_status');
     }
-    /** Reads the current titlebar preferences; falls back to a default with source `default`. */
+    /**
+     * Reads the current titlebar preferences, stamped with a revision; falls back to a default with
+     * source `default`. Keep the highest revision seen and ignore anything older, because a change
+     * event and a read can arrive in either order.
+     */
     function getTitlebarPreferences() {
         return cmd('get_titlebar_preferences');
     }

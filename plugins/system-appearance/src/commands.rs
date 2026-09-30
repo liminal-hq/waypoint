@@ -7,7 +7,7 @@ use tauri::{AppHandle, Runtime, State};
 
 use crate::{
     error::Error,
-    models::{PluginStatus, TitlebarPreferences},
+    models::{PluginStatus, TitlebarSnapshot},
     service::Service,
 };
 
@@ -16,13 +16,13 @@ pub async fn get_status<R: Runtime>(
     app: AppHandle<R>,
     service: State<'_, Service>,
 ) -> Result<PluginStatus, Error> {
-    Ok(service.refresh(&app).await.status)
+    Ok(service.refresh(&app).await.snapshot.status)
 }
 
 #[tauri::command]
 pub async fn get_titlebar_preferences<R: Runtime>(
     app: AppHandle<R>,
     service: State<'_, Service>,
-) -> Result<TitlebarPreferences, Error> {
-    Ok(service.refresh(&app).await.preferences)
+) -> Result<TitlebarSnapshot, Error> {
+    Ok(service.refresh(&app).await.titlebar())
 }

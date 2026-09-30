@@ -52,6 +52,8 @@ const unlisten = await onTitlebarPreferencesChanged((next) => {
 
 `getTitlebarPreferences()` never rejects because a source is unavailable: it returns the default preferences with `source: 'default'` instead. The plugin remembers the last preferences it read and emits `system-appearance://titlebar-preferences-changed` only when the value actually changes.
 
+Both the read and the event carry a `revision`, a counter that starts at 1 and increases exactly when the preferences change. A change event and a read can arrive in either order, so keep the highest revision you have seen and ignore anything older. To avoid missing a change made while starting up, subscribe first and read second.
+
 ## Sources
 
 | Platform | Desktop environment                                       | Source                                                                                                  | Watched by                             |
@@ -101,6 +103,12 @@ type DesktopEnvironment =
 	'gnome' | 'kde' | 'cinnamon' | 'mate' | 'xfce' | 'windows' | 'macos' | 'unknown';
 
 type LayoutSource = 'portal' | 'kwinConfig' | 'gsettings' | 'xfconf' | 'platform' | 'default';
+
+// What `getTitlebarPreferences` resolves to and the change event carries: the preferences below
+// plus a revision.
+interface TitlebarSnapshot extends TitlebarPreferences {
+	revision: number;
+}
 
 interface TitlebarPreferences {
 	buttonLayout: ButtonLayout;

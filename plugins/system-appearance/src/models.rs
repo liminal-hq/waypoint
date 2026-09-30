@@ -132,6 +132,19 @@ impl TitlebarPreferences {
     }
 }
 
+/// The preferences stamped with a revision, so a consumer can discard a reading that is older
+/// than one it already has. The revision starts at 1 and increases whenever the preferences
+/// change; the JSON is the preferences object with a `revision` field added.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct TitlebarSnapshot {
+    pub revision: u32,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub preferences: TitlebarPreferences,
+}
+
 /// One reading of the platform: the preferences plus how it went.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Snapshot {

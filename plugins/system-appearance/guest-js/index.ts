@@ -12,6 +12,7 @@ import type { PluginStatus } from './bindings/PluginStatus';
 import type { TitlebarAction } from './bindings/TitlebarAction';
 import type { TitlebarActions } from './bindings/TitlebarActions';
 import type { TitlebarPreferences } from './bindings/TitlebarPreferences';
+import type { TitlebarSnapshot } from './bindings/TitlebarSnapshot';
 import type { WindowButton } from './bindings/WindowButton';
 
 const PREFIX = 'plugin:system-appearance|';
@@ -29,16 +30,20 @@ export function getStatus(): Promise<PluginStatus> {
 	return cmd<PluginStatus>('get_status');
 }
 
-/** Reads the current titlebar preferences; falls back to a default with source `default`. */
-export function getTitlebarPreferences(): Promise<TitlebarPreferences> {
-	return cmd<TitlebarPreferences>('get_titlebar_preferences');
+/**
+ * Reads the current titlebar preferences, stamped with a revision; falls back to a default with
+ * source `default`. Keep the highest revision seen and ignore anything older, because a change
+ * event and a read can arrive in either order.
+ */
+export function getTitlebarPreferences(): Promise<TitlebarSnapshot> {
+	return cmd<TitlebarSnapshot>('get_titlebar_preferences');
 }
 
 /** Subscribes to preference changes and resolves to a function that unsubscribes. */
 export function onTitlebarPreferencesChanged(
-	callback: (_preferences: TitlebarPreferences) => void,
+	callback: (_snapshot: TitlebarSnapshot) => void,
 ): Promise<() => void> {
-	return listen<TitlebarPreferences>(TITLEBAR_PREFERENCES_CHANGED_EVENT, (event) =>
+	return listen<TitlebarSnapshot>(TITLEBAR_PREFERENCES_CHANGED_EVENT, (event) =>
 		callback(event.payload),
 	);
 }
@@ -51,5 +56,6 @@ export type {
 	TitlebarAction,
 	TitlebarActions,
 	TitlebarPreferences,
+	TitlebarSnapshot,
 	WindowButton,
 };
