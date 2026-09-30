@@ -92,17 +92,28 @@ pub enum Readiness {
     Unconfirmed,
 }
 
-/// Waits until a watcher reports that it is listening. A watcher that fails to start drops its
-/// signal and one that never answers times out, so the baseline read is never held up for long.
-/// Returns whether the preferences should be read again once things have settled.
-async fn wait_until_ready(readiness: Readiness, timeout: Duration) -> bool {
+/// What to do after the baseline read, given how far a watcher got before it.
+enum FollowUp {
+    /// The watcher was already listening, so the baseline is complete.
+    Nothing,
+    /// Read again after `SETTLE`, to catch a change made while a child process was starting.
+    Settle,
+    /// The watcher had not said it was listening when the wait ran out. Its signal is kept, so
+    /// the preferences are read again once it does, and a change between the two reads is caught.
+    AwaitListening(tokio::sync::oneshot::Receiver<()>),
+}
+
+/// Waits (for at most `timeout`) until a watcher reports that it is listening, and says what the
+/// baseline read needs after it. A watcher that fails to start drops its signal, which ends the
+/// wait as well, so startup is never held up for long.
+async fn wait_until_ready(readiness: Readiness, timeout: Duration) -> FollowUp {
     match readiness {
-        Readiness::Listening => false,
-        Readiness::Signal(ready) => {
-            let _ = tokio::time::timeout(timeout, ready).await;
-            false
-        }
-        Readiness::Unconfirmed => true,
+        Readiness::Listening => FollowUp::Nothing,
+        Readiness::Signal(mut ready) => match tokio::time::timeout(timeout, &mut ready).await {
+            Ok(_) => FollowUp::Nothing,
+            Err(_) => FollowUp::AwaitListening(ready),
+        },
+        Readiness::Unconfirmed => FollowUp::Settle,
     }
 }
 
@@ -147,11 +158,19 @@ impl Service {
         tauri::async_runtime::spawn(async move {
             // Read the baseline only once the watcher is listening, so a change between the two
             // cannot be missed.
-            let settle = wait_until_ready(readiness, READY_TIMEOUT).await;
+            let follow_up = wait_until_ready(readiness, READY_TIMEOUT).await;
             app.state::<Service>().refresh(&app).await;
-            if settle {
-                tokio::time::sleep(SETTLE).await;
-                app.state::<Service>().refresh(&app).await;
+            match follow_up {
+                FollowUp::Nothing => {}
+                FollowUp::Settle => {
+                    tokio::time::sleep(SETTLE).await;
+                    app.state::<Service>().refresh(&app).await;
+                }
+                FollowUp::AwaitListening(ready) => {
+                    // Resolves, or is dropped, once the watcher is listening or has given up.
+                    let _ = ready.await;
+                    app.state::<Service>().refresh(&app).await;
+                }
             }
             while rx.recv().await.is_some() {
                 tokio::time::sleep(DEBOUNCE).await;
@@ -186,11 +205,16 @@ mod tests {
         Snapshot::from_source(preferences, "portal")
     }
 
+    fn is_nothing(follow_up: &FollowUp) -> bool {
+        matches!(follow_up, FollowUp::Nothing)
+    }
+
     #[test]
     fn a_watcher_that_is_already_listening_needs_no_wait_or_second_read() {
         block_on(async {
             let started = std::time::Instant::now();
-            assert!(!wait_until_ready(Readiness::Listening, Duration::from_secs(30)).await);
+            let follow_up = wait_until_ready(Readiness::Listening, Duration::from_secs(30)).await;
+            assert!(is_nothing(&follow_up));
             assert!(started.elapsed() < Duration::from_secs(5));
         });
     }
@@ -201,29 +225,39 @@ mod tests {
             let (tx, rx) = tokio::sync::oneshot::channel();
             tx.send(()).unwrap();
             let started = std::time::Instant::now();
-            assert!(!wait_until_ready(Readiness::Signal(rx), Duration::from_secs(30)).await);
+            let arrived = wait_until_ready(Readiness::Signal(rx), Duration::from_secs(30)).await;
+            assert!(is_nothing(&arrived));
 
             let (tx, rx) = tokio::sync::oneshot::channel::<()>();
             drop(tx);
-            assert!(!wait_until_ready(Readiness::Signal(rx), Duration::from_secs(30)).await);
+            let dropped = wait_until_ready(Readiness::Signal(rx), Duration::from_secs(30)).await;
+            assert!(is_nothing(&dropped));
             assert!(started.elapsed() < Duration::from_secs(5));
         });
     }
 
     #[test]
-    fn waiting_for_a_silent_signal_gives_up_at_the_timeout() {
+    fn a_slow_signal_is_kept_so_the_baseline_can_be_read_again_when_it_arrives() {
         block_on(async {
-            let (_tx, rx) = tokio::sync::oneshot::channel::<()>();
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
             let started = std::time::Instant::now();
-            assert!(!wait_until_ready(Readiness::Signal(rx), Duration::from_millis(50)).await);
+            let follow_up =
+                wait_until_ready(Readiness::Signal(rx), Duration::from_millis(50)).await;
             assert!(started.elapsed() >= Duration::from_millis(50));
+            let FollowUp::AwaitListening(kept) = follow_up else {
+                panic!("a signal that has not arrived must be kept");
+            };
+            // The watcher finally starts listening after the timeout: the kept signal resolves.
+            tx.send(()).unwrap();
+            assert!(kept.await.is_ok());
         });
     }
 
     #[test]
     fn an_unconfirmed_watcher_asks_for_a_second_read() {
         block_on(async {
-            assert!(wait_until_ready(Readiness::Unconfirmed, Duration::from_secs(30)).await);
+            let follow_up = wait_until_ready(Readiness::Unconfirmed, Duration::from_secs(30)).await;
+            assert!(matches!(follow_up, FollowUp::Settle));
         });
     }
 
