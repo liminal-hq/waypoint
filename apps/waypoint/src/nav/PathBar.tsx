@@ -60,7 +60,7 @@ interface BreadcrumbsProps {
 
 function Breadcrumbs({ location, onEdit, onNavigate }: BreadcrumbsProps) {
 	const client = useVfsClient();
-	const info = useLocationInfo(client, location);
+	const info = useLocationInfo(client, location, { keepPrevious: true });
 	const scroller = useRef<HTMLOListElement | null>(null);
 
 	// A long path shows its tail: the folder you are in matters more than the root.

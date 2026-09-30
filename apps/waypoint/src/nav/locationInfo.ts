@@ -32,12 +32,15 @@ export function describeLocation(client: VfsClient, location: Location): Promise
 }
 
 /**
- * `location`'s info once Rust has answered, `null` until then and for no location. While the next
- * location's answer is on its way the previous one is returned, so the path bar does not flash.
+ * `location`'s info once Rust has answered, `null` until then and for no location. Only an answer
+ * for this very location is returned, so Up never follows the previous folder's parent. A display
+ * that would rather not flash (the path bar) can pass `keepPrevious` to show the last answer
+ * while the next one is on its way.
  */
 export function useLocationInfo(
 	client: VfsClient,
 	location: Location | undefined,
+	options: { keepPrevious?: boolean } = {},
 ): LocationInfo | null {
 	const [loaded, setLoaded] = useState<{ uri: string; info: LocationInfo } | null>(null);
 	const uri = location?.uri;
@@ -57,5 +60,6 @@ export function useLocationInfo(
 		// A new object for the same folder must not ask again.
 	}, [client, uri]);
 
-	return location ? (loaded?.info ?? null) : null;
+	if (!location || !loaded) return null;
+	return loaded.uri === location.uri || options.keepPrevious ? loaded.info : null;
 }

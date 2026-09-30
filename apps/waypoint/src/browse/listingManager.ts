@@ -24,6 +24,8 @@ interface Slot {
 	state: SessionState;
 	evictTimer: ReturnType<typeof setTimeout> | null;
 	evicted: boolean;
+	/** Set while the tab is not the active one, so a listing that finishes opening in the background still evicts. */
+	background: boolean;
 }
 
 /**
@@ -69,9 +71,11 @@ export class ListingManager {
 			const slot = this.slots.get(tab.id);
 			if (tab.id === active) {
 				this.stopEvicting(slot);
+				if (slot) slot.background = false;
 				if (!slot || slot.uri !== tab.location.uri) this.open(tab);
 				else if (slot.evicted) slot.evicted = false;
 			} else if (slot) {
+				slot.background = true;
 				if (slot.uri !== tab.location.uri) this.release(tab.id);
 				else this.scheduleEviction(slot);
 			}
@@ -99,6 +103,7 @@ export class ListingManager {
 			state: { status: 'opening' },
 			evictTimer: null,
 			evicted: false,
+			background: false,
 		};
 		this.slots.set(tab.id, slot);
 		this.changed();
@@ -113,6 +118,7 @@ export class ListingManager {
 					return;
 				}
 				slot.state = { status: 'ready', session: createListingSession(model) };
+				if (slot.background) this.scheduleEviction(slot);
 				this.changed();
 			},
 			(error: unknown) => {

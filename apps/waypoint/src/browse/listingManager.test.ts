@@ -123,6 +123,20 @@ describe('ListingManager', () => {
 		expect(model.hasFresh(410)).toBe(true);
 	});
 
+	it('schedules eviction when a listing finishes opening after its tab went to the background', async () => {
+		vi.useFakeTimers();
+		const { manager } = setup({ evictDelayMs: 1000 });
+		manager.sync([tab(1), tab(2, B)], 1);
+		manager.sync([tab(1), tab(2, B)], 2);
+		await vi.advanceTimersByTimeAsync(0);
+		const state = manager.stateFor(1);
+		if (state?.status !== 'ready') throw new Error('not ready');
+		state.session.model.ensure(0, 10);
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(1100);
+		expect(state.session.model.staleCount).toBeGreaterThan(0);
+	});
+
 	it('cancels the eviction when the tab returns in time, and closes a listing left for another folder', async () => {
 		vi.useFakeTimers();
 		const { client, manager } = setup({ evictDelayMs: 1000 });
