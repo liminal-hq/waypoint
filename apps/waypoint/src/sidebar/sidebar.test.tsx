@@ -404,6 +404,45 @@ describe('favourites', () => {
 		expect(order()).toEqual(['One', 'Two', 'Three']);
 	});
 
+	it('keeps a newer list when an older focus read resolves late', async () => {
+		const places = makePlaces([]);
+		await setup(places);
+		const stale = await places.list();
+		let release: (value: typeof stale) => void = () => {};
+		vi.spyOn(places, 'list').mockImplementation(
+			() => new Promise((resolve) => (release = resolve)),
+		);
+		act(() => {
+			window.dispatchEvent(new Event('focus'));
+		});
+		await places.addFavourite(fileLocation('/srv/fresh'));
+		await within(favouritesGroup()).findByRole('button', { name: 'fresh' });
+		await act(async () => release(stale));
+		expect(within(favouritesGroup()).getByRole('button', { name: 'fresh' })).toBeInTheDocument();
+	});
+
+	it('does not pin the folder on Ctrl+D typed in a text field', async () => {
+		const h = await setup(makePlaces([]));
+		const field = document.body.appendChild(document.createElement('input'));
+		press(field, 'd', { ctrlKey: true });
+		field.remove();
+		expect(h.places.calls.filter((call) => call.startsWith('add'))).toEqual([]);
+	});
+
+	it('says the favourites failed, not that the folder could not open, from the file menu', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const places = makePlaces([]);
+		await setup(places);
+		fireEvent.contextMenu(await screen.findByRole('option', { name: /^docs/ }), {
+			clientX: 10,
+			clientY: 10,
+		});
+		places.failNext({ kind: 'io', message: 'read-only', location: null });
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Add to Favourites' }));
+		expect(await screen.findByText('Could not change the favourites.')).toBeInTheDocument();
+		expect(screen.queryByText(/Could not open/)).toBeNull();
+	});
+
 	it('picks up a change made elsewhere when the window regains focus', async () => {
 		const places = makePlaces([]);
 		await setup(places);

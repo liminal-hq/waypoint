@@ -17,15 +17,22 @@ export function usePlaces(client: PlacesClient): Places | null {
 	const [places, setPlaces] = useState<Places | null>(null);
 	useEffect(() => {
 		let live = true;
-		const read = () =>
-			client.list().then(
+		// Counts the results that arrived from edits, so a read that began before one is stale.
+		let generation = 0;
+		const read = () => {
+			const started = generation;
+			return client.list().then(
 				(next) => {
-					if (live) setPlaces(next);
+					if (live && started === generation) setPlaces(next);
 				},
 				(error) => console.warn('could not read the places', error),
 			);
+		};
 		void read();
-		const stop = client.onChange((next) => setPlaces(next));
+		const stop = client.onChange((next) => {
+			generation += 1;
+			setPlaces(next);
+		});
 		window.addEventListener('focus', read);
 		return () => {
 			live = false;

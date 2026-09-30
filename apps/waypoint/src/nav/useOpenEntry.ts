@@ -17,7 +17,14 @@ export function isFolder(entry: Entry): boolean {
 }
 
 /** What was being attempted when `onFailure` is called, so each action can say so in its own words. */
-export type EntryAction = 'open' | 'copyPath';
+export type EntryAction = 'open' | 'copyPath' | 'favourite';
+
+/** What each action was doing, for the log line of a failure. */
+const ACTION_TEXT: Record<EntryAction, string> = {
+	open: 'open',
+	copyPath: 'copy the path of',
+	favourite: 'add to the favourites',
+};
 
 /** Stable, so omitting `onFailure` does not rebuild the openers every render. */
 const ignoreFailure = (): void => {};
@@ -49,7 +56,7 @@ export function useOpenEntry(
 	const { openInBackground } = tabs;
 	return useMemo(() => {
 		const fail = (entry: Entry, action: EntryAction) => (error: unknown) => {
-			console.warn(`could not ${action === 'open' ? 'open' : 'copy the path of'} the entry`, error);
+			console.warn(`could not ${ACTION_TEXT[action]} the entry`, error);
 			onFailure(entry, action);
 		};
 		return {
@@ -76,7 +83,7 @@ export function useOpenEntry(
 				client
 					.entryLocation(handle, entry.id)
 					.then((location) => places.addFavourite(location))
-					.catch(fail(entry));
+					.catch(fail(entry, 'favourite'));
 			},
 		};
 	}, [client, places, goTo, openInBackground, onFailure]);

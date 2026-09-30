@@ -19,6 +19,8 @@ export function useSidebarShortcuts(
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.defaultPrevented || event.isComposing) return;
+			// Ctrl+D in the path bar or a rename field is the field's, not a request to pin the folder.
+			if (isTextField(event.target)) return;
 			if (
 				event.key === 'F9' &&
 				!event.ctrlKey &&
@@ -42,4 +44,11 @@ export function useSidebarShortcuts(
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
 	}, [store, current, addFavourite]);
+}
+
+function isTextField(target: EventTarget | null): boolean {
+	return (
+		target instanceof HTMLElement &&
+		(target.isContentEditable || target.closest('input, textarea, select') !== null)
+	);
 }

@@ -89,22 +89,27 @@ function WorkspaceBody({
 		(entry: Entry, action: EntryAction) =>
 			setNotice({
 				id: ++noticeCount.current,
-				text: tf(action === 'copyPath' ? 'status.copyPathFailed' : 'status.openFailed', {
-					name: entry.name,
-				}),
+				text:
+					action === 'favourite'
+						? t('sidebar.favourites.failed')
+						: tf(action === 'copyPath' ? 'status.copyPathFailed' : 'status.openFailed', {
+								name: entry.name,
+							}),
 			}),
 		[],
 	);
 	const { open, openInNewTab, copyPath, addToFavourites } = useOpenEntry(navigation, onFailure);
 	const places = usePlacesClient();
+	// A message from the sidebar, numbered like the others so a repeat restarts the timer.
+	const notify = useCallback((text: string) => setNotice({ id: ++noticeCount.current, text }), []);
 	const pinCurrent = useCallback(
 		(location: Location) => {
 			places.addFavourite(location).catch((error: unknown) => {
 				console.warn('could not add the favourite', error);
-				setNotice(t('sidebar.favourites.failed'));
+				notify(t('sidebar.favourites.failed'));
 			});
 		},
-		[places],
+		[places, notify],
 	);
 	useSidebarShortcuts(sidebarStore, navigation.tab?.location, pinCurrent);
 	const sidebarOpen = useSidebarState((state) => state.open);
@@ -143,7 +148,7 @@ function WorkspaceBody({
 			<TabStrip />
 			<NavigationBar leading={<SidebarToggle />} />
 			<div className={styles.middle}>
-				{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={setNotice} />}
+				{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
 				<div
 					className={styles.files}
 					role="tabpanel"
