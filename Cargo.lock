@@ -4941,7 +4941,9 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "tempfile",
  "ts-rs",
+ "waypoint-path",
  "waypoint-protocol",
 ]
 

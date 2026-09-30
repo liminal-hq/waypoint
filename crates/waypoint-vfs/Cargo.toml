@@ -12,7 +12,9 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 ts-rs = { workspace = true }
+waypoint-path = { path = "../waypoint-path" }
 waypoint-protocol = { path = "../waypoint-protocol" }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tempfile = "3"

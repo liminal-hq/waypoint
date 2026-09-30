@@ -88,12 +88,25 @@ impl Default for SortSpec {
     }
 }
 
+/// Restricts a listing to one kind of entry. A symlink to a folder counts as a folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum KindFilter {
+    Directories,
+    Files,
+}
+
 /// What a listing leaves out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct Filter {
     pub show_hidden: bool,
+    /// Keep only folders (the Folders tree) or only files; everything when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub only: Option<KindFilter>,
 }
 
 /// Names one open listing. Handles belong to the window that opened them and close with it.

@@ -1,9 +1,24 @@
-// Waypoint's virtual file system. This slice holds only the wire types; the provider trait, the
-// local provider and listing handles arrive in later slices of milestone 2.
+// Waypoint's virtual file system: the `Provider` trait, the local provider, and listings that hold
+// the sorted, filtered index in Rust and serve ranges of it to the frontend.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod cancel;
+mod error;
+mod icon;
+mod index;
+mod listing;
+mod local;
 mod model;
+mod order;
+mod provider;
 
+pub use cancel::CancelToken;
+pub use error::from_io;
+pub use icon::group_for;
+pub use listing::{EventSink, Listing, ListingOptions};
+pub use local::LocalProvider;
 pub use model::*;
+pub use order::natural_key;
+pub use provider::*;
