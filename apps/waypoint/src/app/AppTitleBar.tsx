@@ -5,6 +5,7 @@
 
 import { TitleBar } from '@liminal-hq/waypoint-chrome/TitleBar';
 import { TitleBarTitle } from '@liminal-hq/waypoint-chrome/TitleBar/TitleBarTitle';
+import { chromeLabels } from '../i18n/chromeLabels';
 import { useTitlebarPreferences } from '../services/titlebarPreferences';
 import { titlebarConfigFor } from './titlebarConfig';
 import { useWindowCapabilities } from './windowCapabilities';
@@ -26,6 +27,7 @@ export function AppTitleBar({ title }: AppTitleBarProps) {
 			titleAlign={config.titleAlign}
 			// Wayland has no protocol for staying on top, so the pin would do nothing there; the
 			// compositor's own menu ("More options…") has a working one.
+			labels={chromeLabels()}
 			showAlwaysOnTop={capabilities?.alwaysOnTop === true}
 			transparent
 		/>
