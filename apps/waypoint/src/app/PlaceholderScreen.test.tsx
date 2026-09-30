@@ -28,4 +28,10 @@ describe('PlaceholderScreen', () => {
 		expect(screen.getByText('Browser goes here')).toBeTruthy();
 		expect(screen.getByRole('button', { name: /close/i })).toBeTruthy();
 	});
+
+	it('marks the static title text as a drag region', () => {
+		render(<PlaceholderScreen title="Main window" description="Browser goes here" />);
+		const titles = screen.getAllByText('Main window');
+		expect(titles.some((el) => el.hasAttribute('data-tauri-drag-region'))).toBe(true);
+	});
 });

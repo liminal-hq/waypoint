@@ -18,7 +18,13 @@ export function PlaceholderScreen({ title, description }: PlaceholderScreenProps
 		<WindowFrame windowControls={tauriWindowControls} className={styles.screen}>
 			<TitleBar
 				windowControls={tauriWindowControls}
-				center={<span className={styles.title}>{title}</span>}
+				center={
+					// Tauri's drag handler only checks the pressed element, not its ancestors, so
+					// static text inside a slot needs the attribute itself.
+					<span className={styles.title} data-tauri-drag-region="">
+						{title}
+					</span>
+				}
 				showAlwaysOnTop
 				transparent
 			/>

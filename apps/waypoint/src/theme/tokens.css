@@ -81,8 +81,9 @@
  * Window frame per platform. Windows and macOS draw the window shadow themselves
  * (`shadow: true` in tauri.conf.json), so the CSS adds no margin or shadow there.
  * Linux draws no shadow for a frameless window (GNOME paints none), so the frame
- * keeps a transparent margin and draws the shadow in CSS. On Windows the OS also
- * rounds the corners (Windows 11), so the CSS radius is dropped there to avoid two
+ * keeps a transparent margin and draws the shadow in CSS. On Windows 11 the OS also
+ * rounds the corners, so the CSS radius is dropped there (Windows 10 has no native rounding,
+ * so it keeps the CSS radius) to avoid two
  * mismatched radii; macOS does not round frameless windows, so its radius stays.
  * With no platform set (a plain browser), the frame uses no margin and no shadow.
  */
@@ -95,7 +96,7 @@
 	--wp-window-shadow-unfocused: 0 0 0 1px rgba(0, 0, 0, 0.22);
 }
 
-:root[data-platform='windows'] {
+:root[data-platform='windows'][data-windows11='true'] {
 	--wp-window-radius: 0px;
 }
 
