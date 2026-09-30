@@ -15,6 +15,11 @@ import { createBrowseStore } from './browseStore';
 import { isReset, mapPosition } from './patch';
 import { isSelected, selectedCount } from './selection';
 
+// Each sequence applies dozens of edits to a listing of up to 700 entries. They take under a second
+// locally but several on a slow CI runner, well inside this limit and past the 5 second default's
+// comfort zone.
+const SEQUENCE_TIMEOUT_MS = 30_000;
+
 const SORTS: SortSpec[] = [
 	{ key: 'name', descending: false, directoriesFirst: true },
 	{ key: 'name', descending: true, directoriesFirst: false },
@@ -161,6 +166,7 @@ describe('patch sequences against the fake client', () => {
 			}
 			run.model.dispose();
 		},
+		SEQUENCE_TIMEOUT_MS,
 	);
 
 	it('refetches only the page an insert landed in, not the pages it shifted', async () => {
@@ -239,24 +245,29 @@ describe('patch sequences against the fake client', () => {
 describe('following the top visible entry through patches', () => {
 	const seeds = Array.from({ length: 12 }, (_, i) => i + 100);
 
-	it.each(seeds)('maps a tracked position to where its entry went (seed %i)', async (seed) => {
-		const run = await start(seed, 400, SORTS[seed % 2]!);
-		const random = seededRandom(seed * 31);
-		for (let step = 0; step < 25; step++) {
-			const before = await run.truth();
-			const tracked = Math.floor(random() * before.length);
-			const id = before[tracked]!.id;
-			run.mutate();
-			const events = run.events();
-			const ops = events.flatMap((event) => event.ops);
-			if (isReset(ops)) continue;
-			const after = await run.truth();
-			const now = after.findIndex((entry) => entry.id === id);
-			const mapped = mapPosition(tracked, ops);
-			if (now === -1) expect(mapped.removed, `seed ${seed}, step ${step}`).toBe(true);
-			else expect(mapped, `seed ${seed}, step ${step}`).toEqual({ position: now, removed: false });
-		}
-	});
+	it.each(seeds)(
+		'maps a tracked position to where its entry went (seed %i)',
+		async (seed) => {
+			const run = await start(seed, 400, SORTS[seed % 2]!);
+			const random = seededRandom(seed * 31);
+			for (let step = 0; step < 25; step++) {
+				const before = await run.truth();
+				const tracked = Math.floor(random() * before.length);
+				const id = before[tracked]!.id;
+				run.mutate();
+				const events = run.events();
+				const ops = events.flatMap((event) => event.ops);
+				if (isReset(ops)) continue;
+				const after = await run.truth();
+				const now = after.findIndex((entry) => entry.id === id);
+				const mapped = mapPosition(tracked, ops);
+				if (now === -1) expect(mapped.removed, `seed ${seed}, step ${step}`).toBe(true);
+				else
+					expect(mapped, `seed ${seed}, step ${step}`).toEqual({ position: now, removed: false });
+			}
+		},
+		SEQUENCE_TIMEOUT_MS,
+	);
 });
 
 describe('selection through patches', () => {
