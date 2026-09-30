@@ -488,4 +488,35 @@ describe('AppMenuButton', () => {
 		act(() => emit(true));
 		expect(bar().getAttribute('data-focused')).toBe('true');
 	});
+
+	describe('Always on Top pin placement', () => {
+		const labelsIn = (side: 'start' | 'end') =>
+			[...document.querySelectorAll(`[data-wp-controls][data-controls-side="${side}"] button`)].map(
+				(button) => button.getAttribute('aria-label'),
+			);
+
+		it('sits before the ordered controls on the end side, keeping Close outermost', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, {
+				buttonLayout: { start: [], end: ['minimise', 'maximise', 'close'] },
+			});
+			expect(labelsIn('end')).toEqual(['Always on Top', 'Minimise', 'Maximise', 'Close']);
+		});
+
+		it('stays off the start side, so Close stays outermost on a start-side layout', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, {
+				buttonLayout: { start: ['close', 'minimise', 'maximise'], end: [] },
+			});
+			expect(labelsIn('start')).toEqual(['Close', 'Minimise', 'Maximise']);
+			expect(labelsIn('end')).toEqual(['Always on Top']);
+		});
+
+		it('never reorders the layout the user configured', () => {
+			const { controls } = fakeControls();
+			renderBar(controls, { buttonLayout: { start: ['close'], end: ['minimise', 'maximise'] } });
+			expect(labelsIn('start')).toEqual(['Close']);
+			expect(labelsIn('end')).toEqual(['Always on Top', 'Minimise', 'Maximise']);
+		});
+	});
 });
