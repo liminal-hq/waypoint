@@ -5,16 +5,18 @@
 
 use std::ffi::OsStr;
 use std::fs::{self, FileType, Metadata};
+use std::io;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use waypoint_path::{CaseRule, FilePath, VfsPath};
-use waypoint_protocol::VfsError;
+use waypoint_protocol::{Location, VfsError};
 
 use crate::error::from_io;
 use crate::icon::group_for;
 use crate::model::EntryKind;
-use crate::provider::{Capabilities, Provider, ScannedEntry};
+use crate::provider::{Capabilities, Provider, ScannedEntry, Watch, WatchSink};
+use crate::watch::{self, WatchOptions};
 use crate::CancelToken;
 
 /// How often a scan reports how far it has got. The listing throttles what it forwards.
@@ -22,7 +24,20 @@ const PROGRESS_EVERY: u32 = 1024;
 
 /// Serves `file://` paths from the local file system.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct LocalProvider;
+pub struct LocalProvider {
+    watch: WatchOptions,
+}
+
+impl LocalProvider {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// A provider whose watches use the given mechanism and timings.
+    pub fn with_watch_options(watch: WatchOptions) -> Self {
+        Self { watch }
+    }
+}
 
 fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
     match path {
@@ -144,31 +159,13 @@ impl Provider for LocalProvider {
         progress: &mut dyn FnMut(u32),
     ) -> Result<Vec<ScannedEntry>, VfsError> {
         let folder = file_path(path)?;
-        let location = path.to_location();
-        let read = fs::read_dir(folder.as_path()).map_err(|e| from_io(&e, &location))?;
-        let mut budget = inline_link_budget;
-        let mut entries = Vec::new();
-        for item in read {
-            if cancel.is_cancelled() {
-                return Err(VfsError::Cancelled);
-            }
-            // An entry that vanishes or cannot be read mid-scan is skipped, not fatal.
-            let Ok(item) = item else { continue };
-            let name = item.file_name();
-            let file_type = item.file_type().ok();
-            let meta = item.metadata().ok();
-            let is_link = file_type.as_ref().is_some_and(FileType::is_symlink);
-            let resolve = is_link && budget > 0;
-            if resolve {
-                budget -= 1;
-            }
-            entries.push(build(&name, file_type, meta, &item.path(), resolve));
-            if (entries.len() as u32).is_multiple_of(PROGRESS_EVERY) {
-                progress(entries.len() as u32);
-            }
-        }
-        progress(entries.len() as u32);
-        Ok(entries)
+        list_folder(
+            folder.as_path(),
+            &path.to_location(),
+            cancel,
+            inline_link_budget,
+            progress,
+        )
     }
 
     fn resolve_link(
@@ -194,4 +191,55 @@ impl Provider for LocalProvider {
             true,
         ))
     }
+
+    fn watch(&self, path: &VfsPath, sink: WatchSink) -> Result<Box<dyn Watch>, VfsError> {
+        let folder = file_path(path)?;
+        watch::start(
+            folder.as_path().to_path_buf(),
+            path.to_location(),
+            self.watch,
+            sink,
+        )
+    }
+}
+
+/// Reads a folder into entries, resolving up to `inline_link_budget` symlinks on the way.
+pub(crate) fn list_folder(
+    folder: &Path,
+    location: &Location,
+    cancel: &CancelToken,
+    inline_link_budget: usize,
+    progress: &mut dyn FnMut(u32),
+) -> Result<Vec<ScannedEntry>, VfsError> {
+    let read = fs::read_dir(folder).map_err(|e| from_io(&e, location))?;
+    let mut budget = inline_link_budget;
+    let mut entries = Vec::new();
+    for item in read {
+        if cancel.is_cancelled() {
+            return Err(VfsError::Cancelled);
+        }
+        // An entry that vanishes or cannot be read mid-scan is skipped, not fatal.
+        let Ok(item) = item else { continue };
+        let name = item.file_name();
+        let file_type = item.file_type().ok();
+        let meta = item.metadata().ok();
+        let is_link = file_type.as_ref().is_some_and(FileType::is_symlink);
+        let resolve = is_link && budget > 0;
+        if resolve {
+            budget -= 1;
+        }
+        entries.push(build(&name, file_type, meta, &item.path(), resolve));
+        if (entries.len() as u32).is_multiple_of(PROGRESS_EVERY) {
+            progress(entries.len() as u32);
+        }
+    }
+    progress(entries.len() as u32);
+    Ok(entries)
+}
+
+/// Describes one child of `folder`, resolving it if it is a symlink.
+pub(crate) fn stat_child(folder: &Path, name: &OsStr) -> io::Result<ScannedEntry> {
+    let full = folder.join(name);
+    let meta = fs::symlink_metadata(&full)?;
+    Ok(build(name, Some(meta.file_type()), Some(meta), &full, true))
 }

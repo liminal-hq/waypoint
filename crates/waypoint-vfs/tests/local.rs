@@ -21,6 +21,14 @@ use waypoint_vfs::{
 
 type Events = Arc<Mutex<Vec<ListingEvent>>>;
 
+/// Options with watching off, so these tests see only what they cause.
+fn quiet() -> ListingOptions {
+    ListingOptions {
+        watch: false,
+        ..ListingOptions::default()
+    }
+}
+
 fn folder(dir: &TempDir) -> VfsPath {
     VfsPath::File(FilePath::from_path(dir.path()).unwrap())
 }
@@ -39,7 +47,7 @@ fn open_with(
     let listing = Listing::open(
         ListingHandle(1),
         path,
-        Arc::new(LocalProvider),
+        Arc::new(LocalProvider::new()),
         sort,
         filter,
         options,
@@ -49,14 +57,9 @@ fn open_with(
 }
 
 fn open(dir: &TempDir) -> Arc<Listing> {
-    open_with(
-        folder(dir),
-        SortSpec::default(),
-        Filter::default(),
-        ListingOptions::default(),
-    )
-    .0
-    .unwrap()
+    open_with(folder(dir), SortSpec::default(), Filter::default(), quiet())
+        .0
+        .unwrap()
 }
 
 fn all(listing: &Listing) -> Vec<Entry> {
@@ -259,7 +262,7 @@ fn revisions_only_ever_increase_and_no_op_changes_keep_them() {
         folder(&dir),
         SortSpec::default(),
         Filter::default(),
-        ListingOptions::default(),
+        quiet(),
     );
     let listing = listing.unwrap();
     let scanned = listing.snapshot().revision;
@@ -312,7 +315,7 @@ fn a_scan_ends_with_one_ready_event_that_carries_the_final_count() {
         folder(&dir),
         SortSpec::default(),
         Filter::default(),
-        ListingOptions::default(),
+        quiet(),
     );
     let snapshot = listing.unwrap().snapshot();
     let seen = events.lock().unwrap().clone();
@@ -347,22 +350,12 @@ fn a_scan_ends_with_one_ready_event_that_carries_the_final_count() {
 fn a_missing_folder_a_file_and_a_denied_folder_are_typed_errors() {
     let dir = TempDir::new().unwrap();
     let missing = VfsPath::File(FilePath::from_path(dir.path().join("nope")).unwrap());
-    let (result, _) = open_with(
-        missing,
-        SortSpec::default(),
-        Filter::default(),
-        ListingOptions::default(),
-    );
+    let (result, _) = open_with(missing, SortSpec::default(), Filter::default(), quiet());
     assert!(matches!(result, Err(VfsError::NotFound { .. })));
 
     touch(dir.path(), "plain", 1);
     let file = VfsPath::File(FilePath::from_path(dir.path().join("plain")).unwrap());
-    let (result, _) = open_with(
-        file,
-        SortSpec::default(),
-        Filter::default(),
-        ListingOptions::default(),
-    );
+    let (result, _) = open_with(file, SortSpec::default(), Filter::default(), quiet());
     assert!(matches!(result, Err(VfsError::NotADirectory { .. })));
 }
 
@@ -380,7 +373,7 @@ fn a_folder_that_may_not_be_read_is_permission_denied() {
         VfsPath::File(FilePath::from_path(&locked).unwrap()),
         SortSpec::default(),
         Filter::default(),
-        ListingOptions::default(),
+        quiet(),
     );
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
     if !root {
@@ -492,7 +485,7 @@ mod symlinks {
             Filter::default(),
             ListingOptions {
                 inline_link_budget: 0,
-                ..ListingOptions::default()
+                ..quiet()
             },
         );
         let listing = listing.unwrap();
@@ -535,10 +528,10 @@ fn cancelling_before_the_scan_returns_cancelled() {
     let listing = Listing::new(
         ListingHandle(1),
         folder(&dir),
-        Arc::new(LocalProvider),
+        Arc::new(LocalProvider::new()),
         SortSpec::default(),
         Filter::default(),
-        ListingOptions::default(),
+        quiet(),
         Arc::new(|_| {}),
     );
     listing.close();
@@ -567,12 +560,12 @@ fn cancelling_an_in_flight_scan_stops_it() {
     let listing = Listing::new(
         ListingHandle(1),
         folder(&dir),
-        Arc::new(LocalProvider),
+        Arc::new(LocalProvider::new()),
         SortSpec::default(),
         Filter::default(),
         ListingOptions {
             progress_interval: Duration::ZERO,
-            ..ListingOptions::default()
+            ..quiet()
         },
         sink,
     );
@@ -591,13 +584,13 @@ fn stat_describes_one_entry() {
     let dir = TempDir::new().unwrap();
     touch(dir.path(), "a.zip", 7);
     let path = VfsPath::File(FilePath::from_path(dir.path().join("a.zip")).unwrap());
-    let entry = LocalProvider.stat(&path).unwrap();
+    let entry = LocalProvider::new().stat(&path).unwrap();
     assert_eq!(entry.name, "a.zip");
     assert_eq!(entry.size, Some(7));
     assert_eq!(entry.group, IconGroup::Archive);
     let missing = VfsPath::File(FilePath::from_path(dir.path().join("x")).unwrap());
     assert!(matches!(
-        LocalProvider.stat(&missing),
+        LocalProvider::new().stat(&missing),
         Err(VfsError::NotFound { .. })
     ));
 }

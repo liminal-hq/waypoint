@@ -325,6 +325,36 @@ impl Index {
         }
     }
 
+    /// What changed between this index and a fresh scan of the same folder, by name.
+    ///
+    /// A symlink the scan left unresolved (past its budget) does not undo a target this index has
+    /// already resolved.
+    pub fn diff(&self, fresh: Vec<ScannedEntry>) -> Vec<Change> {
+        let mut fresh: HashMap<OsString, ScannedEntry> =
+            fresh.into_iter().map(|e| (e.name.clone(), e)).collect();
+        let mut changes = Vec::new();
+        for record in self.records.iter().flatten() {
+            match fresh.remove(&record.name) {
+                None => changes.push(Change::Remove(record.name.clone())),
+                Some(mut now) => {
+                    let before = record.to_scanned();
+                    if now.link_pending && !before.link_pending {
+                        now.link_pending = false;
+                        now.link_target = before.link_target;
+                        now.size = before.size;
+                        now.modified_ms = before.modified_ms;
+                        now.group = before.group;
+                    }
+                    if now != before {
+                        changes.push(Change::Upsert(now));
+                    }
+                }
+            }
+        }
+        changes.extend(fresh.into_values().map(Change::Upsert));
+        changes
+    }
+
     /// Entries whose symlink target has not been resolved yet.
     pub fn pending_links(&self) -> Vec<ScannedEntry> {
         self.records
@@ -765,6 +795,33 @@ mod tests {
             .collect();
         assert_eq!(index.apply(changes), [PatchOp::Reset]);
         assert_eq!(index.count() as usize, REBUILD_THRESHOLD + 2);
+    }
+
+    #[test]
+    fn diffing_a_fresh_scan_yields_additions_removals_and_changes_only() {
+        let index = loaded(&[file("keep", 1), file("gone", 1), file("grown", 1)]);
+        let mut changes = index.diff(vec![file("keep", 1), file("grown", 9), file("new", 1)]);
+        changes.sort_by_key(|c| format!("{c:?}"));
+        assert_eq!(changes.len(), 3);
+        assert!(changes.contains(&Change::Remove("gone".into())));
+        assert!(changes.contains(&Change::Upsert(file("grown", 9))));
+        assert!(changes.contains(&Change::Upsert(file("new", 1))));
+    }
+
+    #[test]
+    fn an_unresolved_link_in_a_fresh_scan_keeps_the_resolved_target() {
+        let resolved = ScannedEntry {
+            kind: EntryKind::Symlink,
+            link_target: Some(EntryKind::Directory),
+            ..file("link", 0)
+        };
+        let index = loaded(std::slice::from_ref(&resolved));
+        let pending = ScannedEntry {
+            link_target: None,
+            link_pending: true,
+            ..resolved
+        };
+        assert!(index.diff(vec![pending]).is_empty());
     }
 
     #[test]

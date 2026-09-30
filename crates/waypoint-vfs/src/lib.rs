@@ -13,12 +13,14 @@ mod local;
 mod model;
 mod order;
 mod provider;
+mod watch;
 
 pub use cancel::CancelToken;
 pub use error::from_io;
 pub use icon::group_for;
-pub use listing::{EventSink, Listing, ListingOptions};
+pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
 pub use model::*;
 pub use order::natural_key;
 pub use provider::*;
+pub use watch::{WatchMode, WatchOptions};

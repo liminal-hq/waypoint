@@ -102,7 +102,7 @@ impl Provider for Synthetic {
         "file"
     }
     fn capabilities(&self) -> Capabilities {
-        LocalProvider.capabilities()
+        LocalProvider::new().capabilities()
     }
     fn stat(&self, _: &VfsPath) -> Result<ScannedEntry, VfsError> {
         unimplemented!()
@@ -280,10 +280,13 @@ fn scanning_a_real_500_000_entry_directory_stays_inside_the_budget() {
     let listing = Listing::open(
         ListingHandle(1),
         VfsPath::File(FilePath::from_path(dir.path()).unwrap()),
-        Arc::new(LocalProvider),
+        Arc::new(LocalProvider::new()),
         SortSpec::default(),
         Filter::default(),
-        ListingOptions::default(),
+        ListingOptions {
+            watch: false,
+            ..ListingOptions::default()
+        },
         Arc::new(|_| {}),
     )
     .unwrap();
