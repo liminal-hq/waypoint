@@ -43,6 +43,7 @@
 		"./ContextMenu/types": "./src/ContextMenu/types.ts",
 		"./TitleBar": "./src/TitleBar/TitleBar.tsx",
 		"./TitleBar/AppMenuButton": "./src/TitleBar/AppMenuButton.tsx",
+		"./TitleBar/subscription": "./src/TitleBar/subscription.ts",
 		"./TitleBar/tauriWindowControls": "./src/TitleBar/tauriWindowControls.ts",
 		"./TitleBar/TitleBarTitle": "./src/TitleBar/TitleBarTitle.tsx",
 		"./TitleBar/buttonLayout": "./src/TitleBar/buttonLayout.ts",

@@ -114,6 +114,73 @@ describe('TitleBar', () => {
 		);
 	});
 
+	describe('Always on Top follows the window manager', () => {
+		const pin = () => screen.getByRole('button', { name: 'Always on Top' });
+
+		function watchedControls(initial: boolean) {
+			let listener: ((value: boolean) => void) | undefined;
+			const unsubscribe = vi.fn();
+			const { controls } = fakeControls({
+				isAlwaysOnTop: vi.fn(async () => initial),
+				onAlwaysOnTopChange: vi.fn((l) => {
+					listener = l;
+					return unsubscribe;
+				}),
+			});
+			return { controls, unsubscribe, emit: (value: boolean) => act(() => listener?.(value)) };
+		}
+
+		it('updates the pin when the window manager changes the state', async () => {
+			const { controls, emit } = watchedControls(false);
+			renderBar(controls);
+			await waitFor(() => expect(pin()).toHaveAttribute('aria-pressed', 'false'));
+			emit(true);
+			expect(pin()).toHaveAttribute('aria-pressed', 'true');
+			emit(false);
+			expect(pin()).toHaveAttribute('aria-pressed', 'false');
+		});
+
+		it('reads the current state only after subscribing', async () => {
+			const order: string[] = [];
+			const { controls } = fakeControls({
+				isAlwaysOnTop: vi.fn(async () => {
+					order.push('read');
+					return true;
+				}),
+				onAlwaysOnTopChange: vi.fn(() => {
+					order.push('subscribe');
+					return () => {};
+				}),
+			});
+			renderBar(controls);
+			await waitFor(() => expect(pin()).toHaveAttribute('aria-pressed', 'true'));
+			expect(order).toEqual(['subscribe', 'read']);
+		});
+
+		it('keeps a change that arrives while the initial read is in flight', async () => {
+			let resolveRead: (value: boolean) => void = () => {};
+			let listener: ((value: boolean) => void) | undefined;
+			const { controls } = fakeControls({
+				isAlwaysOnTop: vi.fn(() => new Promise<boolean>((resolve) => (resolveRead = resolve))),
+				onAlwaysOnTopChange: vi.fn((l) => {
+					listener = l;
+					return () => {};
+				}),
+			});
+			renderBar(controls);
+			await waitFor(() => expect(controls.isAlwaysOnTop).toHaveBeenCalled());
+			act(() => listener?.(true));
+			await act(async () => resolveRead(false));
+			expect(pin()).toHaveAttribute('aria-pressed', 'true');
+		});
+
+		it('stops listening when unmounted', () => {
+			const { controls, unsubscribe } = watchedControls(false);
+			renderBar(controls).unmount();
+			expect(unsubscribe).toHaveBeenCalledTimes(1);
+		});
+	});
+
 	it('hides the Always on Top button unless enabled', () => {
 		const { controls } = fakeControls();
 		renderBar(controls, { showAlwaysOnTop: false });

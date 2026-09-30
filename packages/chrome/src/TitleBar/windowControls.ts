@@ -23,6 +23,11 @@ export interface WindowControls {
 	/** Initial Always on Top state. Assumed false when omitted. */
 	isAlwaysOnTop?(): MaybePromise<boolean>;
 	/**
+	 * Subscribes to Always on Top changes the app did not make itself, such as the window manager's
+	 * own menu changing it, and returns a synchronous unsubscribe function.
+	 */
+	onAlwaysOnTopChange?(listener: (alwaysOnTop: boolean) => void): Unsubscribe;
+	/**
 	 * Asks the host's window manager (compositor) to show its own window menu at a point in the
 	 * window, in CSS pixels from the top-left. Enables the "More options…" entry of the
 	 * window menu when present. Resolves false when the request was refused.

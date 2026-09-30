@@ -86,15 +86,25 @@ export function TitleBar({
 
 	useEffect(() => {
 		let active = true;
-		if (windowControls.isAlwaysOnTop) {
+		// A change event is newer than a read still in flight when it arrives, so that read is dropped.
+		let changed = false;
+		const unsubscribe = windowControls.onAlwaysOnTopChange?.((value) => {
+			if (!active) return;
+			changed = true;
+			setAlwaysOnTop(value);
+		});
+		// Subscribe first, read second, so a change cannot slip between the two.
+		void Promise.resolve(unsubscribe?.ready).then(() => {
+			if (!active || !windowControls.isAlwaysOnTop) return;
 			Promise.resolve(windowControls.isAlwaysOnTop())
 				.then((value) => {
-					if (active) setAlwaysOnTop(value);
+					if (active && !changed) setAlwaysOnTop(value);
 				})
 				.catch(() => {});
-		}
+		});
 		return () => {
 			active = false;
+			unsubscribe?.();
 		};
 	}, [windowControls]);
 

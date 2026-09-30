@@ -4,28 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import type { Unsubscribe, WindowControls } from './windowControls';
-
-/**
- * Wraps Tauri's asynchronous listener registration as an `Unsubscribe` whose `ready` resolves once
- * the listener is live, and which still cleans up if it is cancelled before that happens.
- */
-function subscription(register: () => Promise<() => void>): Unsubscribe {
-	let disposed = false;
-	let unlisten: (() => void) | undefined;
-	const ready = register()
-		.then((off) => {
-			if (disposed) off();
-			else unlisten = off;
-		})
-		.catch(() => {});
-	const unsubscribe: Unsubscribe = () => {
-		disposed = true;
-		unlisten?.();
-	};
-	unsubscribe.ready = ready;
-	return unsubscribe;
-}
+import { subscription } from './subscription';
+import type { WindowControls } from './windowControls';
 
 /** Creates an adapter bound to the current Tauri window. Resolves the window lazily on each call. */
 export function createTauriWindowControls(): WindowControls {
