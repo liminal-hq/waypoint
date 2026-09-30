@@ -133,3 +133,111 @@ describe('WindowChromeProvider', () => {
 		spy.mockRestore();
 	});
 });
+
+describe('WindowChromeProvider initial state and change events', () => {
+	function StateProbe() {
+		return (
+			<p data-testid="state">
+				{String(useWindowMaximised())}/{String(useWindowFocused())}
+			</p>
+		);
+	}
+
+	function deferredControls() {
+		const events = {
+			maximised: (_value: boolean) => {},
+			focus: (_value: boolean) => {},
+			finishMaximised: (_value: boolean) => {},
+			finishFocused: (_value: boolean) => {},
+		};
+		const log: string[] = [];
+		const controls: WindowControls = {
+			minimize: () => {},
+			toggleMaximize: () => {},
+			close: () => {},
+			setAlwaysOnTop: () => {},
+			isMaximized: () => {
+				log.push('read maximised');
+				return new Promise<boolean>((resolve) => (events.finishMaximised = resolve));
+			},
+			onMaximizedChange: (listener) => {
+				log.push('subscribe maximised');
+				events.maximised = listener;
+				return Object.assign(() => {}, { ready: Promise.resolve() });
+			},
+			isFocused: () => {
+				log.push('read focused');
+				return new Promise<boolean>((resolve) => (events.finishFocused = resolve));
+			},
+			onFocusChange: (listener) => {
+				log.push('subscribe focus');
+				events.focus = listener;
+				return Object.assign(() => {}, { ready: Promise.resolve() });
+			},
+		};
+		return { controls, events, log };
+	}
+
+	it('does not let an older initial read overwrite a newer change event', async () => {
+		const { controls, events } = deferredControls();
+		render(
+			<WindowChromeProvider controls={controls}>
+				<StateProbe />
+			</WindowChromeProvider>,
+		);
+		await act(async () => {});
+		act(() => {
+			events.maximised(true); // newer: maximised
+			events.focus(false); // newer: lost focus
+		});
+		await act(async () => {
+			events.finishMaximised(false); // older snapshots land last
+			events.finishFocused(true);
+		});
+		expect(screen.getByTestId('state').textContent).toBe('true/false');
+	});
+
+	it('takes the initial read when no change event arrived first', async () => {
+		const { controls, events } = deferredControls();
+		render(
+			<WindowChromeProvider controls={controls}>
+				<StateProbe />
+			</WindowChromeProvider>,
+		);
+		await act(async () => {});
+		await act(async () => {
+			events.finishMaximised(true);
+			events.finishFocused(false);
+		});
+		expect(screen.getByTestId('state').textContent).toBe('true/false');
+	});
+
+	it('reads only after the listeners are live, so a change cannot slip between them', async () => {
+		const log: string[] = [];
+		let goLive: () => void = () => {};
+		const live = new Promise<void>((resolve) => (goLive = resolve));
+		const controls: WindowControls = {
+			minimize: () => {},
+			toggleMaximize: () => {},
+			close: () => {},
+			setAlwaysOnTop: () => {},
+			isMaximized: () => {
+				log.push('read');
+				return false;
+			},
+			onMaximizedChange: () => {
+				log.push('subscribe');
+				return Object.assign(() => {}, { ready: live });
+			},
+		};
+		render(
+			<WindowChromeProvider controls={controls}>
+				<StateProbe />
+			</WindowChromeProvider>,
+		);
+		await act(async () => {});
+		expect(log).toEqual(['subscribe']);
+		await act(async () => goLive());
+		expect(log).toEqual(['subscribe', 'read']);
+	});
+});

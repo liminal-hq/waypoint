@@ -23,7 +23,7 @@ export interface WindowChromeProviderProps {
 }
 
 /**
- * Reads the initial maximised and focus state from the adapter, follows changes, and shares
+ * Follows the host window's maximised and focus state and shares
  * `{ controls, maximised, focused }` with every chrome component below it. A host that cannot
  * report focus is treated as always focused.
  */
@@ -34,30 +34,44 @@ export function WindowChromeProvider({ controls, children }: WindowChromeProvide
 
 	useEffect(() => {
 		let active = true;
-		Promise.resolve(controls.isMaximized())
-			.then((value) => {
-				if (active) setMaximised(value);
-			})
-			.catch(() => {});
-		if (controls.isFocused) {
-			Promise.resolve(controls.isFocused())
-				.then((value) => {
-					if (active) setFocused(value);
-				})
-				.catch(() => {})
-				.finally(() => {
-					if (active) setFocusSettled(true);
-				});
-		}
+		// A change event is newer than any read that was still in flight when it arrived, so a read
+		// that resolves after its event is discarded rather than allowed to overwrite it.
+		let maximisedChanged = false;
+		let focusChanged = false;
+
 		const unsubscribeMaximised = controls.onMaximizedChange((value) => {
-			if (active) setMaximised(value);
+			if (!active) return;
+			maximisedChanged = true;
+			setMaximised(value);
 		});
 		const unsubscribeFocus = controls.onFocusChange?.((value) => {
-			if (active) {
-				setFocused(value);
-				setFocusSettled(true);
+			if (!active) return;
+			focusChanged = true;
+			setFocused(value);
+			setFocusSettled(true);
+		});
+
+		// Subscribe first, read second: only once the listeners are live can a change no longer slip
+		// between the read and the subscription.
+		void Promise.all([unsubscribeMaximised.ready, unsubscribeFocus?.ready]).then(() => {
+			if (!active) return;
+			Promise.resolve(controls.isMaximized())
+				.then((value) => {
+					if (active && !maximisedChanged) setMaximised(value);
+				})
+				.catch(() => {});
+			if (controls.isFocused) {
+				Promise.resolve(controls.isFocused())
+					.then((value) => {
+						if (active && !focusChanged) setFocused(value);
+					})
+					.catch(() => {})
+					.finally(() => {
+						if (active) setFocusSettled(true);
+					});
 			}
 		});
+
 		return () => {
 			active = false;
 			unsubscribeMaximised();

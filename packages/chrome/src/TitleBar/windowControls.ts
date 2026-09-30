@@ -5,6 +5,13 @@
 
 type MaybePromise<T> = T | Promise<T>;
 
+/**
+ * Stops a subscription. A host whose listeners register asynchronously also sets `ready`, which
+ * resolves once the listener is live, so a consumer can read the current state only after a
+ * change can no longer slip past it (subscribe, then read).
+ */
+export type Unsubscribe = (() => void) & { ready?: Promise<void> };
+
 /** Everything the chrome needs from the host window. Tauri, tests and other shells can implement it. */
 export interface WindowControls {
 	minimize(): MaybePromise<void>;
@@ -23,11 +30,11 @@ export interface WindowControls {
 	showSystemMenu?(position: { x: number; y: number }): MaybePromise<boolean | void>;
 	isMaximized(): MaybePromise<boolean>;
 	/** Subscribes to maximised-state changes and returns a synchronous unsubscribe function. */
-	onMaximizedChange(listener: (maximised: boolean) => void): () => void;
+	onMaximizedChange(listener: (maximised: boolean) => void): Unsubscribe;
 	/** Initial focus state. The window is assumed focused when omitted. */
 	isFocused?(): MaybePromise<boolean>;
 	/** Subscribes to focus changes and returns a synchronous unsubscribe function. */
-	onFocusChange?(listener: (focused: boolean) => void): () => void;
+	onFocusChange?(listener: (focused: boolean) => void): Unsubscribe;
 	/**
 	 * True when the host already maximises on double-click of a drag region (Tauri does), so the
 	 * title bar must not toggle a second time.

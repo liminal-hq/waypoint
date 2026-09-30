@@ -37,12 +37,14 @@ interface WindowControls {
 	isAlwaysOnTop?(): boolean | Promise<boolean>; // initial state, false when omitted
 	showSystemMenu?(position: { x: number; y: number }): boolean | void | Promise<boolean | void>; // opens the compositor's own window menu
 	isMaximized(): boolean | Promise<boolean>;
-	onMaximizedChange(listener: (maximised: boolean) => void): () => void; // returns unsubscribe
+	onMaximizedChange(listener: (maximised: boolean) => void): Unsubscribe;
 	isFocused?(): boolean | Promise<boolean>; // initial state, true when omitted
-	onFocusChange?(listener: (focused: boolean) => void): () => void; // returns unsubscribe
+	onFocusChange?(listener: (focused: boolean) => void): Unsubscribe;
 	handlesDoubleClickNatively?: boolean; // true when the host already maximises on double-click
 }
 ```
+
+`Unsubscribe` is `(() => void) & { ready?: Promise<void> }`. A host whose listeners register asynchronously (Tauri's do) sets `ready`, which resolves once the listener is live. `WindowChromeProvider` subscribes first and reads the current state only after `ready`, and it discards a read that resolves after a change event already arrived, so a maximise or focus change can neither slip between the read and the subscription nor be overwritten by an older read.
 
 Pass a stable object (create it once at module level or memoise it) because `WindowChromeProvider` subscribes per identity. Tauri's drag-region script already maximises on double-click, so `tauriWindowControls` sets `handlesDoubleClickNatively` and the title bar avoids toggling twice.
 
