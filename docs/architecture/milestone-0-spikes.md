@@ -63,3 +63,21 @@ The `Channel` adds about 15 to 20 per cent over the bare scan. **When the comman
 ## Reproducing
 
 Build the release binary on the `spike/listing` branch and run `target/release/waypoint` with the window's URL set to `index.html#spike-auto` (the branch's `tauri.conf.json` does this); read the `SPIKE_RESULT` lines from its output. Run with `GDK_BACKEND=x11` (and `XAUTHORITY` set for XWayland) for the X11 figures.
+
+## Milestone 2 re-measurement
+
+The spike measured throwaway code. Milestone 2 re-ran the same measurements against the real components: the real `waypoint-vfs` provider and plugin, the real list, a real 500 000-file folder on tmpfs made by `scripts/perf-fixture.sh`, in a release build with `VITE_WAYPOINT_PERF=1` so the dev-only harness in `apps/waypoint/src/dev/perfHarness.ts` (installed as `window.__waypointPerf`) is present. The window was 944 × 601 CSS pixels at a device pixel ratio of 2, on GNOME under Wayland and again with `GDK_BACKEND=x11` (XWayland). To repeat it, run `VITE_WAYPOINT_PERF=1 bun run --cwd apps/waypoint build`, a release build with `--features tauri/custom-protocol` and a window URL of `index.html#perf-auto=/tmp/waypoint-perf`, and read the `PERF_RESULT` line from the log; in a development build, open the folder and call `await __waypointPerf.runAll()` from the Tauri MCP bridge or the console.
+
+| Budget (plan for milestone 2)                              | Wayland                                                                   | XWayland                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| No frame over 33 ms at wheel speed (32 rows a frame)       | Frame time p50 17 ms, p95 17 ms, worst 19 ms; no blank rows in 400 frames | Frame time p50 7 ms, p95 9 ms, worst 16 ms; no blank rows in 400 frames |
+| No frame over 33 ms in an extreme fling (714 rows a frame) | p50 17 ms, worst 20 ms                                                    | p50 8 ms, worst 29 ms (two frames over 20 ms)                           |
+| A jump to any row shows data within two frames             | 34 to 35 ms (two 17 ms frames)                                            | 16 to 21 ms (two 8 ms frames)                                           |
+| Select-all paints within two frames                        | 33 ms                                                                     | 12 ms                                                                   |
+| Sort by name within 200 ms in Rust                         | 43 to 68 ms (`waypoint-vfs` ignored benchmark, 500 000 entries, release)  | the same code                                                           |
+
+**All budgets hold.** The real list matches the spike within noise: the same frame times, the same zero blank rows at wheel speed, and jumps and select-all one or two frames.
+
+**Two honest caveats.** First, the harness's re-sort measurement (4 to 18 ms to a full set of rows) does not measure a sort: the list keeps the old rows on screen until the new page arrives, so no placeholder ever appears. The Rust figure above is the sort cost, and the time to repaint after one is not separately measured. Second, in a development build (debug Rust and the development frontend) 27 of 400 wheel-speed frames showed placeholder rows, where the release build showed none, so the budgets are only claimed for release builds.
+
+**Not measured:** WebView2 on Windows 11 (the VM run only checked that the app builds and lists folders), a maximised window, a cold cache, the grid view, memory per open listing, and the sidebar's folders tree.
