@@ -12,3 +12,8 @@
 	min-height: 0;
 	background: var(--wp-bg-content);
 }
+
+.failure {
+	margin: 24px;
+	color: var(--wp-text-secondary);
+}

@@ -13,6 +13,7 @@
 export const enMessages = {
 	'window.main.title': 'Waypoint — Main',
 	'window.main.description': 'The tabbed file browser — coming soon.',
+	'window.main.startFailed': 'Waypoint could not start the file browser.',
 	'window.settings.title': 'Waypoint — Settings',
 	'window.settings.description': 'Application settings — coming soon.',
 	'window.properties.title': 'Waypoint — Properties',
