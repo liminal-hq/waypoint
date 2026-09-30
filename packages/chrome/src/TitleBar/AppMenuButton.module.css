@@ -15,11 +15,11 @@
 
 .button:hover,
 .button[aria-expanded='true'] {
-	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.12));
+	background: var(--wp-control-bg-hover);
 }
 
 .button:focus-visible {
-	outline: 2px solid var(--wp-focus-ring, #78aeed);
+	outline: 2px solid var(--wp-focus-ring);
 	outline-offset: -2px;
 }
 

@@ -216,8 +216,8 @@ describe('ContextMenu', () => {
 			.mockReturnValue({ width: 200, height: 100 } as DOMRect);
 		setup({ position: { x: window.innerWidth - 5, y: window.innerHeight - 5 } });
 		const menu = screen.getByRole('menu');
-		expect(menu.style.left).toBe(`${window.innerWidth - 204}px`);
-		expect(menu.style.top).toBe(`${window.innerHeight - 104}px`);
+		expect(menu.style.getPropertyValue('--wp-menu-x')).toBe(`${window.innerWidth - 204}px`);
+		expect(menu.style.getPropertyValue('--wp-menu-y')).toBe(`${window.innerHeight - 104}px`);
 		spy.mockRestore();
 	});
 });
@@ -298,5 +298,21 @@ describe('ContextMenu dismissal on focus loss', () => {
 		expect(screen.getByRole('menu')).toBeInTheDocument();
 		fireEvent.blur(window);
 		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	it('places itself through custom properties, not inline layout styles', () => {
+		render(
+			<ContextMenu
+				items={[{ type: 'action', id: 'a', label: 'One' }]}
+				position={{ x: 40, y: 30 }}
+				onSelect={() => {}}
+				onClose={() => {}}
+			/>,
+		);
+		const menu = screen.getByRole('menu');
+		expect(menu.style.getPropertyValue('--wp-menu-x')).not.toBe('');
+		expect(menu.style.getPropertyValue('--wp-menu-y')).not.toBe('');
+		expect(menu.style.left).toBe('');
+		expect(menu.style.top).toBe('');
 	});
 });

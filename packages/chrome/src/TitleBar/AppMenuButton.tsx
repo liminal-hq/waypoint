@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ContextMenu } from '../ContextMenu/ContextMenu';
 import type { MenuItem, MenuPosition, SelectableMenuItem } from '../ContextMenu/types';
+import '../tokens.css';
 import styles from './AppMenuButton.module.css';
 
 export interface AppMenuButtonProps {

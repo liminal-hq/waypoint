@@ -9,11 +9,13 @@ import {
 	useLayoutEffect,
 	useRef,
 	useState,
+	type CSSProperties,
 	type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useOptionalWindowFocus } from '../WindowChromeProvider/WindowChromeProvider';
 import { CheckIcon, ChevronRightIcon } from '../icons/icons';
+import '../tokens.css';
 import styles from './ContextMenu.module.css';
 import { findByPrefix, firstIndex, isNavigable, lastIndex, stepIndex } from './navigation';
 import { clampToViewport, placeSubmenu, type Rect } from './placement';
@@ -39,6 +41,14 @@ export interface ContextMenuProps {
 
 type Placement = { kind: 'point'; position: MenuPosition } | { kind: 'anchor'; rect: Rect };
 type FocusTarget = 'panel' | 'first' | 'none';
+
+/**
+ * The measured menu position, handed to the stylesheet as custom properties. The layout rules stay
+ * in `ContextMenu.module.css`; only the two numbers the browser measures are set from script.
+ */
+function menuPlacement(placed: MenuPosition): CSSProperties {
+	return { '--wp-menu-x': `${placed.x}px`, '--wp-menu-y': `${placed.y}px` } as CSSProperties;
+}
 
 export function ContextMenu({
 	items,
@@ -321,7 +331,7 @@ function MenuPanel({
 			role="menu"
 			aria-label={ariaLabel}
 			tabIndex={-1}
-			style={{ left: placed.x, top: placed.y }}
+			style={menuPlacement(placed)}
 			onKeyDown={onKeyDown}
 			onContextMenu={(event) => event.preventDefault()}
 		>

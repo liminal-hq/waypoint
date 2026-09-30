@@ -22,6 +22,7 @@ import {
 	type TitlebarActions,
 } from './buttonLayout';
 import { isInteractiveTarget } from './interactive';
+import '../tokens.css';
 import styles from './TitleBar.module.css';
 import type { ControlsStyle, WindowControls } from './windowControls';
 

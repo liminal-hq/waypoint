@@ -16,6 +16,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SO
 EXEMPT_FILES=(
   "apps/*/vite.config.ts"                # build-tool config
   "apps/*/src/vite-env.d.ts"             # Vite-scaffolded ambient types
+  "packages/*/src/vite-env.d.ts"          # Vite ambient types reference
   "*/generated/*.ts"                     # ts-rs output, regenerated from Rust structs
   "plugins/*/guest-js/bindings/*.ts"     # ts-rs output, regenerated from Rust structs
 )

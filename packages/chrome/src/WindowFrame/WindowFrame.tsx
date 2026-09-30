@@ -5,6 +5,7 @@
 
 import type { ReactNode } from 'react';
 import { useWindowFocused, useWindowMaximised } from '../WindowChromeProvider/WindowChromeProvider';
+import '../tokens.css';
 import styles from './WindowFrame.module.css';
 
 export interface WindowFrameProps {

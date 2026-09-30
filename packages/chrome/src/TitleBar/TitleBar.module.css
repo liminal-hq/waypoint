@@ -6,12 +6,12 @@
 	column-gap: 8px;
 	box-sizing: border-box;
 	flex: none;
-	height: var(--wp-title-bar-height, 40px);
+	height: var(--wp-title-bar-height);
 	padding: 0 8px;
-	background: var(--wp-bg-chrome, #1e1f22);
-	color: var(--wp-text-primary, #e6e6e6);
-	border-bottom: 1px solid var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
-	border-radius: var(--wp-window-radius, 12px) var(--wp-window-radius, 12px) 0 0;
+	background: var(--wp-bg-chrome);
+	color: var(--wp-text-primary);
+	border-bottom: 1px solid var(--wp-border-subtle);
+	border-radius: var(--wp-window-radius) var(--wp-window-radius) 0 0;
 	font-size: 13px;
 	user-select: none;
 	-webkit-user-select: none;
@@ -22,8 +22,8 @@
 
 /* An unfocused window quiets its title bar, as GNOME's own headers do. */
 .titleBar[data-focused='false'] {
-	color: var(--wp-text-muted, #9a9a9a);
-	background: var(--wp-bg-chrome-unfocused, var(--wp-bg-chrome, #1e1f22));
+	color: var(--wp-text-muted);
+	background: var(--wp-bg-chrome-unfocused);
 }
 
 .titleBar[data-focused='false'] .controls {
@@ -39,7 +39,7 @@
 .titleBar[data-transparent] {
 	background: color-mix(
 		in srgb,
-		var(--wp-bg-chrome, #1e1f22) calc(var(--wp-title-bar-opacity, 0.85) * 100%),
+		var(--wp-bg-chrome) calc(var(--wp-title-bar-opacity) * 100%),
 		transparent
 	);
 }
@@ -111,12 +111,12 @@
 }
 
 .button:focus-visible {
-	outline: 2px solid var(--wp-focus-ring, #78aeed);
+	outline: 2px solid var(--wp-focus-ring);
 	outline-offset: -2px;
 }
 
 .pin[aria-pressed='true'] {
-	color: var(--wp-accent, #3584e4);
+	color: var(--wp-accent);
 }
 
 /* GNOME: round, low-contrast buttons */
@@ -128,11 +128,11 @@
 	width: 24px;
 	height: 24px;
 	border-radius: 50%;
-	background: var(--wp-control-bg, rgba(255, 255, 255, 0.08));
+	background: var(--wp-control-bg);
 }
 
 .controls[data-controls-style='gnome'] .button:hover {
-	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.16));
+	background: var(--wp-control-bg-hover);
 }
 
 /* KDE: small rounded-square buttons, close turns red */
@@ -143,7 +143,7 @@
 }
 
 .controls[data-controls-style='kde'] .button:hover {
-	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.16));
+	background: var(--wp-control-bg-hover);
 }
 
 /* Cinnamon: compact square buttons with a border on hover */
@@ -159,8 +159,8 @@
 }
 
 .controls[data-controls-style='cinnamon'] .button:hover {
-	border-color: var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
-	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.12));
+	border-color: var(--wp-border-subtle);
+	background: var(--wp-control-bg-hover);
 }
 
 /* Windows 11: full-height caption buttons flush with the window edge */
@@ -184,17 +184,17 @@
 }
 
 .controls[data-controls-style='win11'] .button:hover {
-	background: var(--wp-control-bg-hover, rgba(255, 255, 255, 0.1));
+	background: var(--wp-control-bg-hover);
 }
 
 .controls[data-controls-style='win11'] .close:hover {
-	background: #c42b1c;
-	color: #ffffff;
+	background: var(--wp-window-close-hover-bg);
+	color: var(--wp-window-close-hover-fg);
 }
 
 .controls[data-controls-style='gnome'] .close:hover,
 .controls[data-controls-style='kde'] .close:hover,
 .controls[data-controls-style='cinnamon'] .close:hover {
-	background: var(--wp-danger, #e5484d);
-	color: #ffffff;
+	background: var(--wp-danger);
+	color: var(--wp-danger-fg);
 }

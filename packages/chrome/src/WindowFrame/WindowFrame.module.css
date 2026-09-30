@@ -2,7 +2,7 @@
 .frame {
 	box-sizing: border-box;
 	height: 100%;
-	padding: var(--wp-window-shadow-margin, 0);
+	padding: var(--wp-window-shadow-margin);
 }
 
 /* Inner layer: the visible window surface. */
@@ -10,15 +10,15 @@
 	box-sizing: border-box;
 	height: 100%;
 	overflow: hidden;
-	border: 1px solid var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
-	border-radius: var(--wp-window-radius, 12px);
-	box-shadow: var(--wp-window-shadow, none);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: var(--wp-window-radius);
+	box-shadow: var(--wp-window-shadow);
 	transition: box-shadow 120ms ease-out;
 }
 
 /* An unfocused window can take a lighter (or no) shadow, as GNOME's own windows do. */
 .frame[data-focused='false'] .surface {
-	box-shadow: var(--wp-window-shadow-unfocused, var(--wp-window-shadow, none));
+	box-shadow: var(--wp-window-shadow-unfocused);
 }
 
 @media (prefers-reduced-motion: reduce) {
