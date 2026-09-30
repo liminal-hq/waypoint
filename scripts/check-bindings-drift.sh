@@ -21,7 +21,7 @@ DIRS=(
   "plugins/system-appearance/guest-js/bindings"
   "plugins/window-manager/guest-js/bindings"
 )
-CRATES=(waypoint-protocol waypoint-vfs tauri-plugin-system-appearance tauri-plugin-window-manager)
+CRATES=(waypoint-protocol waypoint-session waypoint-vfs tauri-plugin-system-appearance tauri-plugin-window-manager)
 
 snapshot="$(mktemp -d)"
 compared=0

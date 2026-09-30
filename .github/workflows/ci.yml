@@ -241,7 +241,7 @@ jobs:
 
       - name: Test the pure crates
         id: tests
-        run: cargo test -p waypoint-protocol -p waypoint-vfs
+        run: cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs
 
       - name: Job summary
         if: always()
@@ -252,5 +252,5 @@ jobs:
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
             echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo test -p waypoint-protocol -p waypoint-vfs\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs\` |"
           } >> "${GITHUB_STEP_SUMMARY}"
