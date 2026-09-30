@@ -10,6 +10,13 @@ use crate::{models::Snapshot, parse};
 /// Windows has no user-configurable titlebar, so there is nothing to watch.
 pub struct Watcher;
 
+impl Watcher {
+    /// Nothing is listened to here, so there is nothing to wait for.
+    pub fn take_ready(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        None
+    }
+}
+
 pub async fn read() -> Snapshot {
     Snapshot::from_source(parse::windows_preferences(), "platform")
 }

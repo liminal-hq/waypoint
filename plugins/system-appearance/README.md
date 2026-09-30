@@ -98,6 +98,8 @@ type TitlebarAction =
 	| 'toggleShade'
 	| 'minimise'
 	| 'lower'
+	| 'toggleRaiseLower' // KDE `Toggle raise and lower`
+	| 'close' // KDE `Close`
 	| 'menu'
 	| 'none';
 

@@ -8,7 +8,7 @@ use ashpd::{
     zvariant::{OwnedValue, Value},
 };
 use futures_util::StreamExt;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{mpsc::UnboundedSender, oneshot};
 
 use crate::{
     models::{DesktopEnvironment, LayoutSource, TitlebarPreferences},
@@ -63,7 +63,12 @@ impl Drop for TaskGuard {
 }
 
 /// Notifies on every portal `SettingChanged` signal in the window-manager namespace.
-pub fn watch(changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
+///
+/// The second value resolves once the signal stream is installed, so the caller can read the
+/// baseline only after a change can no longer slip past it. It resolves with an error, rather
+/// than hanging, if the portal cannot be reached.
+pub fn watch(changed: UnboundedSender<()>) -> (Vec<Box<dyn Send>>, oneshot::Receiver<()>) {
+    let (ready_tx, ready_rx) = oneshot::channel();
     let task = tauri::async_runtime::spawn(async move {
         let stream = async {
             let settings = Settings::new().await?;
@@ -76,13 +81,14 @@ pub fn watch(changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
                 return;
             }
         };
+        let _ = ready_tx.send(());
         while let Some(setting) = stream.next().await {
             if setting.namespace() == NAMESPACE && changed.send(()).is_err() {
                 break;
             }
         }
     });
-    vec![Box::new(TaskGuard(task))]
+    (vec![Box::new(TaskGuard(task))], ready_rx)
 }
 
 #[cfg(test)]

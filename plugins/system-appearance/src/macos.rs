@@ -12,6 +12,13 @@ use crate::{models::Snapshot, parse};
 /// Changes to the double-click preference are picked up on the next read, not pushed.
 pub struct Watcher;
 
+impl Watcher {
+    /// Nothing is listened to here, so there is nothing to wait for.
+    pub fn take_ready(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        None
+    }
+}
+
 /// Reads `AppleActionOnDoubleClick` from the global domain; absent when never set.
 fn double_click_setting() -> Option<String> {
     let output = Command::new("defaults")

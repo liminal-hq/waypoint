@@ -43,6 +43,9 @@ pub enum TitlebarAction {
     ToggleShade,
     Minimise,
     Lower,
+    /// Raises a window that is behind others and lowers one that is in front (KWin's "Toggle raise and lower").
+    ToggleRaiseLower,
+    Close,
     Menu,
     None,
 }

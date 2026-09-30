@@ -72,6 +72,17 @@ pub fn advance(previous: Option<&Reading>, next: Snapshot) -> (Reading, bool) {
     }
 }
 
+/// How long startup waits for a watcher to begin listening before it reads the baseline anyway.
+const READY_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Waits until a watcher reports that it is listening. A watcher that fails to start drops its
+/// signal and one that never answers times out, so the baseline read is never held up for long.
+async fn wait_until_ready(ready: Option<tokio::sync::oneshot::Receiver<()>>, timeout: Duration) {
+    if let Some(ready) = ready {
+        let _ = tokio::time::timeout(timeout, ready).await;
+    }
+}
+
 /// Plugin state: the last reading and the platform's change watcher.
 #[derive(Default)]
 pub struct Service {
@@ -105,10 +116,15 @@ impl Service {
     /// Starts watching the platform and re-reads whenever it reports a change.
     pub fn start<R: Runtime>(&self, app: &AppHandle<R>) {
         let (tx, mut rx) = mpsc::unbounded_channel();
-        *lock(&self.watcher) = Some(platform::watch(tx));
+        let mut watcher = platform::watch(tx);
+        let ready = watcher.take_ready();
+        *lock(&self.watcher) = Some(watcher);
 
         let app = app.clone();
         tauri::async_runtime::spawn(async move {
+            // Read the baseline only once the watcher is listening, so a change between the two
+            // cannot be missed.
+            wait_until_ready(ready, READY_TIMEOUT).await;
             app.state::<Service>().refresh(&app).await;
             while rx.recv().await.is_some() {
                 tokio::time::sleep(DEBOUNCE).await;
@@ -129,10 +145,51 @@ mod tests {
     use super::*;
     use crate::models::{DesktopEnvironment, TitlebarAction, TitlebarPreferences};
 
+    fn block_on<T>(future: impl std::future::Future<Output = T>) -> T {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(future)
+    }
+
     fn snapshot(double_click: TitlebarAction) -> Snapshot {
         let mut preferences = TitlebarPreferences::fallback(DesktopEnvironment::Gnome);
         preferences.actions.double_click = double_click;
         Snapshot::from_source(preferences, "portal")
+    }
+
+    #[test]
+    fn waiting_for_a_watcher_ends_when_it_reports_ready() {
+        block_on(async {
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            tx.send(()).unwrap();
+            let started = std::time::Instant::now();
+            wait_until_ready(Some(rx), Duration::from_secs(30)).await;
+            assert!(started.elapsed() < Duration::from_secs(5));
+        });
+    }
+
+    #[test]
+    fn waiting_for_a_watcher_ends_when_it_fails_to_start() {
+        block_on(async {
+            let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+            drop(tx);
+            let started = std::time::Instant::now();
+            wait_until_ready(Some(rx), Duration::from_secs(30)).await;
+            assert!(started.elapsed() < Duration::from_secs(5));
+        });
+    }
+
+    #[test]
+    fn waiting_for_a_silent_watcher_gives_up_at_the_timeout() {
+        block_on(async {
+            let (_tx, rx) = tokio::sync::oneshot::channel::<()>();
+            let started = std::time::Instant::now();
+            wait_until_ready(Some(rx), Duration::from_millis(50)).await;
+            assert!(started.elapsed() >= Duration::from_millis(50));
+            wait_until_ready(None, Duration::from_secs(30)).await;
+        });
     }
 
     #[test]

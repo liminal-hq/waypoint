@@ -70,7 +70,8 @@ pub fn gnome_button_layout(value: &str) -> ButtonLayout {
                 "minimize" => WindowButton::Minimise,
                 "maximize" => WindowButton::Maximise,
                 "close" => WindowButton::Close,
-                "icon" => WindowButton::WindowMenu,
+                // GNOME writes the window menu as `icon`; Metacity-compatible desktops such as MATE write `menu`.
+                "icon" | "menu" => WindowButton::WindowMenu,
                 _ => continue,
             };
             push_unique(&mut layout, side_is_start, button);
@@ -155,6 +156,7 @@ fn kde_common_command(value: &str) -> Option<TitlebarAction> {
         "Maximize (vertical only)" => Some(TitlebarAction::ToggleMaximiseVertically),
         "Minimize" => Some(TitlebarAction::Minimise),
         "Shade" => Some(TitlebarAction::ToggleShade),
+        "Close" => Some(TitlebarAction::Close),
         _ => None,
     }
 }
@@ -172,7 +174,8 @@ pub fn kde_double_click(value: &str) -> TitlebarAction {
 pub fn kde_titlebar_command(value: &str) -> TitlebarAction {
     let value = value.trim();
     kde_common_command(value).unwrap_or(match value {
-        "Lower" | "Toggle raise and lower" => TitlebarAction::Lower,
+        "Lower" => TitlebarAction::Lower,
+        "Toggle raise and lower" => TitlebarAction::ToggleRaiseLower,
         "Operations menu" => TitlebarAction::Menu,
         _ => TitlebarAction::None,
     })
@@ -370,6 +373,10 @@ mod tests {
             ),
             ("close:appmenu", layout(&[B::Close], &[B::AppMenu])),
             ("icon:close", layout(&[B::WindowMenu], &[B::Close])),
+            (
+                "menu:minimize,maximize,close",
+                layout(&[B::WindowMenu], &[B::Minimise, B::Maximise, B::Close]),
+            ),
             (":", layout(&[], &[])),
             ("", layout(&[], &[])),
             // No colon puts everything at the start.
@@ -507,7 +514,7 @@ mod tests {
             ("Shade", A::ToggleShade),
             ("Lower", A::Lower),
             ("Minimize", A::Minimise),
-            ("Close", A::None),
+            ("Close", A::Close),
             ("", A::None),
         ];
         for (input, expected) in cases {
@@ -520,14 +527,14 @@ mod tests {
         let cases = [
             ("Nothing", A::None),
             ("Lower", A::Lower),
-            ("Toggle raise and lower", A::Lower),
+            ("Toggle raise and lower", A::ToggleRaiseLower),
             ("Minimize", A::Minimise),
             ("Shade", A::ToggleShade),
             ("Operations menu", A::Menu),
             ("Maximize", A::ToggleMaximise),
             ("Maximize (horizontal only)", A::ToggleMaximiseHorizontally),
             ("Maximize (vertical only)", A::ToggleMaximiseVertically),
-            ("Close", A::None),
+            ("Close", A::Close),
             ("", A::None),
         ];
         for (input, expected) in cases {

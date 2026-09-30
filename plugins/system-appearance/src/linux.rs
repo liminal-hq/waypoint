@@ -19,6 +19,14 @@ use crate::{
 /// Keeps the change watchers alive; dropping it stops them and kills any child processes.
 pub struct Watcher {
     _guards: Vec<Box<dyn Send>>,
+    ready: Option<tokio::sync::oneshot::Receiver<()>>,
+}
+
+impl Watcher {
+    /// Takes the signal that resolves once the watcher is listening; `None` when it listens at once.
+    pub fn take_ready(&mut self) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        self.ready.take()
+    }
 }
 
 fn current_desktop() -> DesktopEnvironment {
@@ -61,12 +69,20 @@ pub async fn read() -> Snapshot {
 }
 
 pub fn watch(changed: UnboundedSender<()>) -> Watcher {
-    let guards: Vec<Box<dyn Send>> = match current_desktop() {
-        DesktopEnvironment::Kde => kwin::watch(changed),
-        DesktopEnvironment::Cinnamon => gsettings::watch(gsettings::CINNAMON_SCHEMA, changed),
-        DesktopEnvironment::Mate => gsettings::watch(gsettings::MATE_SCHEMA, changed),
-        DesktopEnvironment::Xfce => xfconf::watch(changed),
-        _ => portal::watch(changed),
+    let (guards, ready): (Vec<Box<dyn Send>>, _) = match current_desktop() {
+        DesktopEnvironment::Kde => (kwin::watch(changed), None),
+        DesktopEnvironment::Cinnamon => {
+            (gsettings::watch(gsettings::CINNAMON_SCHEMA, changed), None)
+        }
+        DesktopEnvironment::Mate => (gsettings::watch(gsettings::MATE_SCHEMA, changed), None),
+        DesktopEnvironment::Xfce => (xfconf::watch(changed), None),
+        _ => {
+            let (guards, ready) = portal::watch(changed);
+            (guards, Some(ready))
+        }
     };
-    Watcher { _guards: guards }
+    Watcher {
+        _guards: guards,
+        ready,
+    }
 }

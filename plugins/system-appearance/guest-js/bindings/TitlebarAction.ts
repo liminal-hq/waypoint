@@ -3,4 +3,4 @@
 /**
  * An action the desktop runs for a titlebar gesture.
  */
-export type TitlebarAction = "toggleMaximise" | "toggleMaximiseHorizontally" | "toggleMaximiseVertically" | "toggleShade" | "minimise" | "lower" | "menu" | "none";
+export type TitlebarAction = "toggleMaximise" | "toggleMaximiseHorizontally" | "toggleMaximiseVertically" | "toggleShade" | "minimise" | "lower" | "toggleRaiseLower" | "close" | "menu" | "none";
