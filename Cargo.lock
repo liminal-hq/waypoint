@@ -4099,6 +4099,7 @@ dependencies = [
 name = "tauri-plugin-waypoint-session"
 version = "0.1.0"
 dependencies = [
+ "log",
  "serde",
  "tauri",
  "tauri-plugin",

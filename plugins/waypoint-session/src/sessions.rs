@@ -62,6 +62,21 @@ impl Sessions {
         Ok(self.session_for(&mut windows, label).dispatch(command)?)
     }
 
+    /// Like `dispatch`, but calls `deliver` with the produced events while the registry is still
+    /// locked, so events from concurrent commands reach the window in revision order. `deliver`
+    /// must be quick and must not call back into the session commands.
+    pub fn dispatch_then<F: FnOnce(&[SessionEvent])>(
+        &self,
+        label: &str,
+        command: Command,
+        deliver: F,
+    ) -> Result<Vec<SessionEvent>, Error> {
+        let mut windows = locked(&self.windows);
+        let events = self.session_for(&mut windows, label).dispatch(command)?;
+        deliver(&events);
+        Ok(events)
+    }
+
     /// Drops a window's session, reporting its remaining tabs as closed.
     pub fn end(&self, label: &str) {
         let session = locked(&self.windows).remove(label);
@@ -113,6 +128,35 @@ mod tests {
             ]
         );
         assert!(sessions.snapshot("main-1").tabs.is_empty());
+    }
+
+    #[test]
+    fn events_are_delivered_in_revision_order_under_concurrency() {
+        let sessions = Arc::new(Sessions::default());
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let threads: Vec<_> = (0..8)
+            .map(|_| {
+                let sessions = Arc::clone(&sessions);
+                let seen = Arc::clone(&seen);
+                std::thread::spawn(move || {
+                    for _ in 0..50 {
+                        sessions
+                            .dispatch_then("main-1", open(), |events| {
+                                std::thread::yield_now();
+                                for event in events {
+                                    seen.lock().unwrap().push(event.revision());
+                                }
+                            })
+                            .unwrap();
+                    }
+                })
+            })
+            .collect();
+        for t in threads {
+            t.join().unwrap();
+        }
+        let seen = seen.lock().unwrap();
+        assert!(seen.windows(2).all(|w| w[0] < w[1]), "out of order");
     }
 
     #[test]

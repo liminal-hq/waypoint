@@ -12,19 +12,24 @@ use crate::sessions::Sessions;
 use crate::EVENT;
 
 /// Applies a command to the calling window's session and emits each event it produced to that
-/// window only. The lock is released before emitting.
+/// window only. Events are emitted while the session is still locked so concurrent commands
+/// cannot deliver them out of revision order. A failed emit is logged and never fails the
+/// command: the state has already changed, so the caller must still see the result.
 fn run<R: Runtime>(
     window: &WebviewWindow<R>,
     sessions: &Sessions,
     command: Command,
 ) -> Result<Vec<SessionEvent>, Error> {
-    let events = sessions.dispatch(window.label(), command)?;
-    for event in &events {
-        window
-            .emit_to(window.label(), EVENT, event)
-            .map_err(|e| Error::Internal(e.to_string()))?;
-    }
-    Ok(events)
+    sessions.dispatch_then(window.label(), command, |events| {
+        for event in events {
+            if let Err(e) = window.emit_to(window.label(), EVENT, event) {
+                log::warn!(
+                    "failed to emit a session event to `{}`: {e}",
+                    window.label()
+                );
+            }
+        }
+    })
 }
 
 /// The calling window's whole session at its current revision.

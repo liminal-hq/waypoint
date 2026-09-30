@@ -20,6 +20,7 @@ name = "tauri_plugin_waypoint_session"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
+log = { workspace = true }
 serde = { workspace = true }
 tauri = { workspace = true }
 thiserror = { workspace = true }
