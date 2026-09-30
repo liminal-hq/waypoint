@@ -48,7 +48,9 @@ export function getAlwaysOnTop(): Promise<boolean | null> {
  * Listens for the window manager changing whether the calling window is kept above others, including through its own window menu.
  * Only X11 reports these changes. Subscribe first and then call `getAlwaysOnTop()`, so a change between the two cannot be missed.
  */
-export function onAlwaysOnTopChanged(handler: (alwaysOnTop: boolean) => void): Promise<UnlistenFn> {
+export function onAlwaysOnTopChanged(
+	handler: (_alwaysOnTop: boolean) => void,
+): Promise<UnlistenFn> {
 	return getCurrentWebviewWindow().listen<boolean>(ALWAYS_ON_TOP_CHANGED_EVENT, (event) =>
 		handler(event.payload),
 	);
