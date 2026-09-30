@@ -1,4 +1,4 @@
-// The virtualised file list: paged rows, a sortable header, keyboard and pointer selection
+// The virtualised file list: paged rows, a sortable header, keyboard and pointer selection, live updates
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -26,6 +26,7 @@ import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
 import type { ListingSession } from './useListingSession';
 import { useListingSession } from './useListingSession';
+import { mapPosition, isReset } from './patch';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
 import { isSelected, selectedCount } from './selection';
 import { findByPrefix, TypeAheadBuffer } from './typeAhead';
@@ -113,6 +114,11 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 	const typeAhead = useRef(new TypeAheadBuffer());
 	const typeAheadEpoch = useRef(0);
 
+	// The scroll position as the top of the viewport and the row under it. It is the anchor patches
+	// keep steady: see `followPatches` below.
+	const anchor = useRef({ top: 0, position: 0 });
+	const reanchor = useRef(false);
+
 	const { shown, hidden } = visibleRows(model.count, rowHeight);
 
 	const virtualizer = useVirtualizer({
@@ -142,6 +148,42 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 	useEffect(() => {
 		if (items.length > 0) model.ensure(first, last);
 	}, [model, first, last, items.length, version]);
+
+	// Scroll anchoring. The model tells this, synchronously and before React renders, how a patch
+	// moved entries. The row at the top of the viewport is followed through the patch, and the
+	// scroll offset moves by the same number of rows, so entries inserted or removed above the
+	// viewport do not shift what the person is looking at. A list scrolled to the very top stays
+	// there, because new entries at the top should be seen.
+	useEffect(
+		() =>
+			model.onPatch((report) => {
+				const current = anchor.current;
+				if (current.top === 0 || isReset(report.ops)) return;
+				const { position } = mapPosition(current.position, report.ops);
+				if (position === current.position) return;
+				anchor.current = {
+					top: Math.max(0, current.top + (position - current.position) * rowHeight),
+					position,
+				};
+				reanchor.current = true;
+			}),
+		[model, rowHeight],
+	);
+
+	useLayoutEffect(() => {
+		const element = scroller.current;
+		if (!reanchor.current || !element) return;
+		reanchor.current = false;
+		element.scrollTop = anchor.current.top;
+		// The virtualiser learns the new offset from a scroll event, which would arrive after this
+		// frame has painted the old window of rows against the new offset. Deliver it now.
+		element.dispatchEvent(new Event('scroll'));
+	}, [version]);
+
+	const recordAnchor = () => {
+		const top = scroller.current?.scrollTop ?? 0;
+		anchor.current = { top, position: Math.floor(top / rowHeight) };
+	};
 
 	const count = model.count;
 	const selectionText = touched
@@ -315,7 +357,7 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 					{t('browse.empty')}
 				</div>
 			) : (
-				<div ref={scroller} className={styles.scroller}>
+				<div ref={scroller} className={styles.scroller} onScroll={recordAnchor}>
 					<div
 						role="listbox"
 						tabIndex={0}

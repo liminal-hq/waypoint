@@ -56,6 +56,13 @@ export const enMessages = {
 	'browse.selection.one': '{count} item selected',
 	'browse.selection.other': '{count} items selected',
 
+	'dev.live.label': 'Live update controls (development only)',
+	'dev.live.add': 'Add 5 files',
+	'dev.live.addTop': 'Add 5 at the top',
+	'dev.live.remove': 'Remove 5 files',
+	'dev.live.touch': 'Touch 5 files',
+	'dev.live.auto': 'Change continuously',
+
 	'chrome.restore': 'Restore',
 	'chrome.maximise': 'Maximise',
 	'chrome.minimise': 'Minimise',

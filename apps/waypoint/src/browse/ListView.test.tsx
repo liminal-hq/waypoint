@@ -560,3 +560,102 @@ describe('selection and keyboard', () => {
 		expect(notPrevented).toBe(true);
 	});
 });
+
+describe('live updates', () => {
+	async function scrolledTo(position: number) {
+		const { client } = clientWith(2000);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		const scroller = list.parentElement!;
+		act(() => {
+			scroller.scrollTop = position * 28;
+			fireEvent.scroll(scroller);
+		});
+		const top = await waitFor(() => {
+			const row = rows().find((r) => r.getAttribute('aria-posinset') === String(position + 1));
+			expect(row).toBeDefined();
+			expect(row).not.toHaveAttribute('data-placeholder');
+			return row!;
+		});
+		return { client, list, scroller, name: top.textContent! };
+	}
+	const folderNamed = (id: number, name: string) => makeEntry(id, name, { kind: 'directory' });
+
+	it('keeps the top visible entry in place when entries are inserted above it', async () => {
+		const { client, scroller, name } = await scrolledTo(60);
+		act(() =>
+			client.addEntries(FOLDER, [
+				folderNamed(900_001, '0-new-a'),
+				folderNamed(900_002, '0-new-b'),
+				folderNamed(900_003, '0-new-c'),
+			]),
+		);
+		await waitFor(() => expect(scroller.scrollTop).toBe(63 * 28));
+		await waitFor(() => {
+			const row = rows().find((r) => r.getAttribute('aria-posinset') === '64');
+			expect(row).toHaveTextContent(name);
+			expect(row).not.toHaveAttribute('data-placeholder');
+		});
+	});
+
+	it('keeps the top visible entry in place when entries above it are removed', async () => {
+		const { client, scroller, name } = await scrolledTo(60);
+		const probe = await client.openListing(FOLDER);
+		const firstThree = (await client.getRange(probe.handle, 0, 3)).map((entry) => entry.id);
+		act(() => client.removeEntries(FOLDER, firstThree));
+		await waitFor(() => expect(scroller.scrollTop).toBe(57 * 28));
+		await waitFor(() => {
+			const row = rows().find((r) => r.getAttribute('aria-posinset') === '58');
+			expect(row).toHaveTextContent(name);
+		});
+	});
+
+	it('leaves the scroll position alone for changes below the viewport', async () => {
+		const { client, scroller } = await scrolledTo(60);
+		act(() => client.addEntries(FOLDER, [makeEntry(900_010, 'zzz-last.txt')]));
+		await waitFor(() =>
+			expect(screen.getByRole('listbox')).toHaveAttribute('aria-rowcount', '2001'),
+		);
+		expect(scroller.scrollTop).toBe(60 * 28);
+	});
+
+	it('stays at the top when scrolled to the top, so new entries are seen', async () => {
+		const { client, list } = await ready2();
+		const scroller = list.parentElement!;
+		act(() => client.addEntries(FOLDER, [folderNamed(900_020, '0-new-top')]));
+		await waitFor(() => expect(list).toHaveAttribute('aria-rowcount', '201'));
+		expect(scroller.scrollTop).toBe(0);
+		await waitFor(() => expect(rows()[0]).toHaveTextContent('0-new-top'));
+	});
+
+	it('never shows a blank row for entries that were already loaded', async () => {
+		const { client, list } = await ready2();
+		const before = rows().map((row) => row.textContent);
+		act(() => client.updateEntries(FOLDER, new Map([[17, { modifiedMs: 1 }]])));
+		expect(rows().map((row) => row.getAttribute('data-placeholder'))).toEqual(
+			before.map(() => null),
+		);
+		expect(list).toHaveAttribute('aria-rowcount', '200');
+	});
+
+	it('keeps the selection on the same entries when others are inserted above', async () => {
+		const { client } = await ready2();
+		fireEvent.click(rows()[2]!);
+		const name = rows()[2]!.textContent!;
+		act(() => client.addEntries(FOLDER, [folderNamed(900_030, '0-new-top')]));
+		await waitFor(() => {
+			const selected = rows().filter((row) => row.getAttribute('aria-selected') === 'true');
+			expect(selected).toHaveLength(1);
+			expect(selected[0]).toHaveTextContent(name);
+			expect(selected[0]).toHaveAttribute('aria-posinset', '4');
+		});
+	});
+
+	async function ready2() {
+		const { client } = clientWith(200);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
+		return { client, list };
+	}
+});
