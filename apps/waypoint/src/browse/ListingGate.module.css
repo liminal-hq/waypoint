@@ -1,0 +1,19 @@
+.message {
+	padding: 24px 16px;
+	text-align: center;
+	color: var(--wp-text-secondary);
+}
+
+.messageTitle {
+	margin: 0 0 4px;
+	font-size: 15px;
+	color: var(--wp-text-primary);
+}
+
+.messageDetail {
+	margin: 0;
+}
+
+.message[data-error] .messageTitle {
+	color: var(--wp-danger);
+}

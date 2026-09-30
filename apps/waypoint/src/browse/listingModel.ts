@@ -192,6 +192,26 @@ export class ListingModel {
 		return (await this.readRange(position, position + 1))[0]?.id;
 	}
 
+	/**
+	 * Releases the cache of a listing nobody is looking at. Only the pages the view last asked for
+	 * stay, marked stale, so the view paints them at once when it returns and replaces them as
+	 * fresh ones arrive (no blank flash); everything else is dropped.
+	 */
+	evictCache(): void {
+		const keep = this.wanted
+			? [
+					Math.floor(this.wanted[0] / PAGE_SIZE) * PAGE_SIZE,
+					(Math.floor(this.wanted[1] / PAGE_SIZE) + 1) * PAGE_SIZE,
+				]
+			: [0, 0];
+		for (const position of [...this.entries.keys()]) {
+			if (position >= keep[0]! && position < keep[1]!) continue;
+			this.entries.delete(position);
+			this.stale.delete(position);
+		}
+		this.markAllStale();
+	}
+
 	/** Re-sorts the listing. Cached entries stay on screen, stale, until the new order arrives. */
 	async setSort(sort: SortSpec): Promise<void> {
 		try {

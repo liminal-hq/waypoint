@@ -10,9 +10,19 @@ import type { VfsClient } from '../services/vfsClient';
 import { createBrowseStore, type BrowseStore } from './browseStore';
 import { openListingModel, toVfsError, type ListingModel } from './listingModel';
 
+/** What a view keeps about how it was left, so a tab that returns finds its scroll position. */
+export interface ViewMemory {
+	scrollTop: number;
+}
+
 export interface ListingSession {
 	model: ListingModel;
 	store: BrowseStore;
+	view: ViewMemory;
+}
+
+export function createListingSession(model: ListingModel): ListingSession {
+	return { model, store: createBrowseStore(model), view: { scrollTop: 0 } };
 }
 
 export type SessionState =
@@ -40,7 +50,7 @@ export function useListingSession(client: VfsClient, location: Location): Sessio
 					return;
 				}
 				opened = model;
-				setState({ status: 'ready', session: { model, store: createBrowseStore(model) } });
+				setState({ status: 'ready', session: createListingSession(model) });
 			},
 			(error: unknown) => {
 				if (!cancelled) setState({ status: 'error', error: toVfsError(error) });

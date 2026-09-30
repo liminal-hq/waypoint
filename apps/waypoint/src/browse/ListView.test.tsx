@@ -10,7 +10,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { VfsClient } from '../services/vfsClient';
-import { clientWith, FOLDER, stubLayout } from '../test/browseHarness';
+import { clientWith, FOLDER, stubLayout, withOverrides } from '../test/browseHarness';
 import { ListView } from './ListView';
 import { VfsClientProvider } from './VfsClientContext';
 
@@ -69,7 +69,7 @@ function hugeClient(count: number): VfsClient {
 		sort: { key: 'name', descending: false, directoriesFirst: true },
 		filter: { showHidden: false },
 	};
-	return {
+	return withOverrides(new FakeVfsClient(), {
 		openListing: async () => snapshot,
 		getRange: async (_handle, start, length) =>
 			Array.from({ length: Math.min(length, count - start) }, (_, i) =>
@@ -79,7 +79,7 @@ function hugeClient(count: number): VfsClient {
 		setFilter: async () => snapshot,
 		closeListing: async () => {},
 		onListingEvent: () => () => {},
-	};
+	});
 }
 
 describe('listing', () => {
@@ -224,21 +224,17 @@ describe('scanning', () => {
 	it('shows progress while a scan runs, then the final list', async () => {
 		const { client } = clientWith(300);
 		let emit: (event: ListingEvent) => void = () => {};
-		const scanning: VfsClient = {
+		const scanning = withOverrides(client, {
 			openListing: async (location, options) => ({
 				...(await client.openListing(location, options)),
 				phase: 'scanning',
 				count: 120,
 			}),
-			getRange: (handle, start, count) => client.getRange(handle, start, count),
-			setSort: (handle, sort) => client.setSort(handle, sort),
-			setFilter: (handle, filter) => client.setFilter(handle, filter),
-			closeListing: (handle) => client.closeListing(handle),
 			onListingEvent: (listener) => {
 				emit = listener;
 				return () => {};
 			},
-		};
+		});
 		renderList(scanning);
 		const notice = await screen.findByText(/Scanning…/);
 		expect(notice).toHaveAttribute('role', 'status');

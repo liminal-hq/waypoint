@@ -24,6 +24,49 @@ function setup(
 	return { client, events };
 }
 
+describe('FakeVfsClient locations', () => {
+	const base = fileLocation('/home/scott/docs');
+
+	it('parses absolute, relative, home and file:// text', async () => {
+		const { client } = setup();
+		expect((await client.parseLocation('/etc/ssh', base)).display).toBe('/etc/ssh');
+		expect((await client.parseLocation('../music/', base)).display).toBe('/home/scott/music');
+		expect((await client.parseLocation('~/notes', base)).display).toBe('/home/demo/notes');
+		const uri = await client.parseLocation('file:///tmp/a%20b', base);
+		expect(uri).toEqual(fileLocation('/tmp/a b'));
+	});
+
+	it('rejects empty text and reports other schemes as unsupported', async () => {
+		const { client } = setup();
+		await expect(client.parseLocation('   ', base)).rejects.toMatchObject({
+			kind: 'invalidLocation',
+		});
+		await expect(client.parseLocation('sftp://host/x', base)).rejects.toMatchObject({
+			kind: 'unsupported',
+		});
+	});
+
+	it('describes a location as breadcrumbs with a parent, and the root has none', async () => {
+		const { client } = setup();
+		const info = await client.describeLocation(base);
+		expect(info.segments.map((s) => s.label)).toEqual(['/', 'home', 'scott', 'docs']);
+		expect(info.parent).toEqual(fileLocation('/home/scott'));
+		expect((await client.describeLocation(fileLocation('/'))).parent).toBeNull();
+	});
+
+	it('names an entry by its location, and rejects an unknown entry', async () => {
+		const { client } = setup();
+		const snapshot = await client.openListing(home);
+		expect(await client.entryLocation(snapshot.handle, 3)).toEqual(
+			fileLocation('/home/scott/docs'),
+		);
+		await expect(client.entryLocation(snapshot.handle, 99)).rejects.toMatchObject({
+			kind: 'notFound',
+		});
+		await expect(client.entryLocation(999, 3)).rejects.toMatchObject({ kind: 'staleHandle' });
+	});
+});
+
 describe('FakeVfsClient', () => {
 	it('opens a listing with folders first and natural name order', async () => {
 		const { client } = setup();

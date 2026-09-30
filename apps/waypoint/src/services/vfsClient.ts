@@ -4,11 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 
@@ -38,6 +40,17 @@ export interface VfsClient {
 	setFilter(handle: ListingHandle, filter: Filter): Promise<ListingSnapshot>;
 	/** Closes a listing and releases its memory. Closing an unknown handle is not an error. */
 	closeListing(handle: ListingHandle): Promise<void>;
+	/**
+	 * Turns text the person typed (an absolute or relative path, `~`, a `file://` URI) into a
+	 * `Location`, resolving relative text against `base`. Rejects with `invalidLocation` when the
+	 * text names nothing parseable; it does not check that the location exists, so a missing folder
+	 * is found (and shown as its own state) when the listing opens.
+	 */
+	parseLocation(input: string, base: Location): Promise<Location>;
+	/** The parent and the breadcrumb segments of a location; Rust splits the path, never the UI. */
+	describeLocation(location: Location): Promise<LocationInfo>;
+	/** Where an entry of an open listing lives, so a folder can be opened and its path copied. */
+	entryLocation(handle: ListingHandle, id: EntryId): Promise<Location>;
 	/** Follows progress, live patches and failures for every listing this client opened. */
 	onListingEvent(listener: (event: ListingEvent) => void): Unsubscribe;
 }

@@ -176,6 +176,29 @@ pub enum ListingEvent {
     },
 }
 
+/// One step of the path to a location, for the path bar's breadcrumbs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct Breadcrumb {
+    /// The segment's display name (a volume root reads as its own name, for example `/`).
+    pub label: String,
+    /// Where choosing this segment goes.
+    pub location: Location,
+}
+
+/// What the path bar and the Up button need to know about a location, decided in Rust so the
+/// frontend never splits or joins a path itself.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct LocationInfo {
+    /// The containing folder; `None` at a root, where Up is disabled.
+    pub parent: Option<Location>,
+    /// From the root to the location itself, the last being the location.
+    pub segments: Vec<Breadcrumb>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -3,7 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Breadcrumb } from '@liminal-hq/waypoint-protocol/generated/Breadcrumb';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { EntryKind } from '@liminal-hq/waypoint-protocol/generated/EntryKind';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
@@ -11,6 +13,7 @@ import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/Listi
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
 import type { PatchOp } from '@liminal-hq/waypoint-protocol/generated/PatchOp';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
@@ -19,6 +22,27 @@ import type { OpenOptions, Unsubscribe, VfsClient } from './vfsClient';
 /** A local `file://` location for a path, the way `waypoint-path` will build one. */
 export function fileLocation(path: string): Location {
 	return { display: path, uri: `file://${path.split('/').map(encodeURIComponent).join('/')}` };
+}
+
+/** The path a local `file://` location names (what `waypoint-path` parses the `uri` to). */
+export function pathOf(location: Location): string {
+	const raw = location.uri.startsWith('file://') ? location.uri.slice('file://'.length) : '';
+	return raw.split('/').map(decodeURIComponent).join('/') || '/';
+}
+
+/** Resolves `.`, `..` and repeated slashes; the result is absolute and has no trailing slash. */
+function normalisePath(path: string): string {
+	const parts: string[] = [];
+	for (const part of path.split('/')) {
+		if (part === '' || part === '.') continue;
+		if (part === '..') parts.pop();
+		else parts.push(part);
+	}
+	return `/${parts.join('/')}`;
+}
+
+function joinPath(folder: string, name: string): string {
+	return folder === '/' ? `/${name}` : `${folder}/${name}`;
 }
 
 const EXTENSION_GROUPS: Record<string, IconGroup> = {
@@ -106,6 +130,8 @@ interface OpenListing {
 export interface FakeVfsOptions {
 	/** Delays every reply, to exercise placeholder and loading states. */
 	latencyMs?: number;
+	/** What `~` means when parsing typed text. Defaults to `/home/demo`. */
+	home?: string;
 }
 
 /**
@@ -259,6 +285,48 @@ export class FakeVfsClient implements VfsClient {
 		listing.view = this.build(listing);
 		listing.revision += 1;
 		return this.snapshot(listing);
+	}
+
+	async parseLocation(input: string, base: Location): Promise<Location> {
+		const text = input.trim();
+		if (text === '' || text.includes('\0'))
+			throw { kind: 'invalidLocation', input } satisfies VfsError;
+		const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text);
+		if (scheme && scheme[1]!.toLowerCase() !== 'file') {
+			throw { kind: 'unsupported', what: scheme[1]!.toLowerCase() } satisfies VfsError;
+		}
+		let path: string;
+		if (scheme) {
+			path = pathOf({ display: text, uri: text });
+		} else if (text === '~' || text.startsWith('~/')) {
+			path = `${this.options.home ?? '/home/demo'}${text.slice(1)}`;
+		} else if (text.startsWith('/')) {
+			path = text;
+		} else {
+			path = `${pathOf(base)}/${text}`;
+		}
+		return fileLocation(normalisePath(path));
+	}
+
+	async describeLocation(location: Location): Promise<LocationInfo> {
+		const path = pathOf(location);
+		const names = path.split('/').filter((part) => part !== '');
+		const segments: Breadcrumb[] = [{ label: '/', location: fileLocation('/') }];
+		names.forEach((name, index) => {
+			segments.push({
+				label: name,
+				location: fileLocation(`/${names.slice(0, index + 1).join('/')}`),
+			});
+		});
+		const parent = segments.length > 1 ? segments[segments.length - 2]!.location : null;
+		return { parent, segments };
+	}
+
+	async entryLocation(handle: ListingHandle, id: EntryId): Promise<Location> {
+		const listing = this.get(handle);
+		const entry = (this.folders.get(listing.location.uri) ?? []).find((e) => e.id === id);
+		if (!entry) throw { kind: 'notFound', location: listing.location } satisfies VfsError;
+		return fileLocation(joinPath(pathOf(listing.location), entry.name));
 	}
 
 	async closeListing(handle: ListingHandle): Promise<void> {

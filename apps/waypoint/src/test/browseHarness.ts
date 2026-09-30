@@ -5,6 +5,7 @@
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { VfsClient } from '../services/vfsClient';
 import { FakeVfsClient, fileLocation, syntheticEntries } from '../services/fakeVfsClient';
 
 export const FOLDER: Location = fileLocation('/home/test');
@@ -51,4 +52,12 @@ export function stubLayout(viewportHeight: number): () => void {
 		if (descriptor) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', descriptor);
 		if (client) Object.defineProperty(HTMLElement.prototype, 'clientHeight', client);
 	};
+}
+
+/**
+ * A client that answers with `overrides` and falls back to `base` for everything else, so a test
+ * stubs one or two methods without restating the whole interface.
+ */
+export function withOverrides(base: VfsClient, overrides: Partial<VfsClient>): VfsClient {
+	return Object.assign(Object.create(base) as VfsClient, overrides);
 }

@@ -8,11 +8,14 @@ import { describe, expect, it } from 'vitest';
 import { chromeLabels } from './chromeLabels';
 import { enMessages, t, tf, tn } from './messages';
 
-const screens = import.meta.glob<string>(['../app/*.tsx', '../browse/*.tsx'], {
-	query: '?raw',
-	import: 'default',
-	eager: true,
-});
+const screens = import.meta.glob<string>(
+	['../app/*.tsx', '../browse/*.tsx', '../nav/*.tsx', '../tabs/*.tsx', '../status/*.tsx'],
+	{
+		query: '?raw',
+		import: 'default',
+		eager: true,
+	},
+);
 
 describe('the message catalogue', () => {
 	it('has no empty messages', () => {

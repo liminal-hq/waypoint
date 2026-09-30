@@ -131,16 +131,16 @@ Clicking or focusing the search box (or pressing / or Ctrl+F) opens a search bar
 
 ### 5.3 Toolbar & path bar
 
-- Back, forward and up, each with a long-press history menu.
-- **Path bar:** breadcrumbs by default. Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Breadcrumb segments are drop targets and have sibling dropdowns.
+- Back, forward and up, each with a long-press history menu. Up is disabled where the location has no parent. **Alt+Left, Alt+Right and Alt+Up** do the same from the keyboard.
+- **Path bar:** breadcrumbs by default, each one navigates. Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Enter goes, Escape (or clicking away) cancels, and text that is not a location shows a message under the field and keeps it open. Typed text is parsed by Rust (`~`, relative paths and `file://` are understood), never split or joined in the UI. Autocomplete and sibling dropdowns on the breadcrumbs come later. Breadcrumb segments are drop targets and have sibling dropdowns.
 - Search: filter-as-you-type in the current folder, with Enter for recursive search and saved-search chips.
 - View switcher: Grid, List, Columns (Miller), Compact, and Disk usage.
 - Toggles: sidebar, inspector, split, terminal drawer, shelf.
 
 ### 5.3b Navigation and selection
 
-- **History menus:** right-click or long-press Back and Forward to see the folders behind and ahead, and jump to any of them.
-- **Go to…** (Ctrl+Shift+G): type a location, with recent, saved and matching folders below. A missing location shows an error, not a blank view.
+- **History menus:** right-click, long-press or press the menu key on Back and Forward to see the folders behind and ahead (nearest first), and jump to any of them. The history belongs to the tab and is kept by the session.
+- **Go to…** (Ctrl+Shift+G): type a location, with recent, saved and matching folders below. Until those lists exist it opens the path bar's text editor, the same as Ctrl+L. A missing, unreadable or not-a-folder location shows its own error state, not a blank view, and leaves the tab's history intact so Back returns to where you were.
 - **Copy To… / Move To…:** in the file menu; pick a destination from places, favourites, open tabs, drives and servers, or type one.
 - **Open With…:** the file menu lists recommended apps, and _Other Application…_ opens a chooser with an “always use for .ext” option, which then shows in Properties.
 - **Select tools:** Select by Pattern (Ctrl+S, with * and ? wildcards, select/add/deselect and a live match count), Invert Selection (Ctrl+I), Select Similar, Deselect All.

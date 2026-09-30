@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
-import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
 	useEffect,
@@ -24,7 +24,8 @@ import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { FileIcon } from './FileIcon';
 import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
-import type { ListingSession } from './useListingSession';
+import { ErrorState, ListingGate, MessageState } from './ListingGate';
+import type { ListingSession, SessionState } from './useListingSession';
 import { useListingSession } from './useListingSession';
 import { mapPosition, isReset } from './patch';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
@@ -46,59 +47,33 @@ interface ListViewProps {
 	/** The folder to list. Changing it opens a new listing and discards the old one's selection. */
 	location: Location;
 	/** Enter and double-click on an entry. Navigation and opening belong to the caller. */
-	onOpen?: (entry: Entry) => void;
+	onOpen?: (entry: Entry, handle: ListingHandle) => void;
 }
 
+/** Opens the listing of `location` itself; a host that manages listings uses `ListingView`. */
 export function ListView({ location, onOpen }: ListViewProps) {
 	const client = useVfsClient();
 	const state = useListingSession(client, location);
-	if (state.status === 'opening') {
-		return (
-			<div className={styles.message} role="status">
-				{t('browse.opening')}
-			</div>
-		);
-	}
-	if (state.status === 'error') return <ErrorState error={state.error} />;
-	return <ListingBody key={state.session.model.handle} session={state.session} onOpen={onOpen} />;
+	return <ListingView state={state} onOpen={onOpen} />;
 }
 
-function errorMessages(error: VfsError): { title: MessageId; detail: MessageId } {
-	switch (error.kind) {
-		case 'notFound':
-			return { title: 'browse.error.notFound.title', detail: 'browse.error.notFound.detail' };
-		case 'permissionDenied':
-			return {
-				title: 'browse.error.permissionDenied.title',
-				detail: 'browse.error.permissionDenied.detail',
-			};
-		case 'notADirectory':
-			return {
-				title: 'browse.error.notADirectory.title',
-				detail: 'browse.error.notADirectory.detail',
-			};
-		default:
-			return { title: 'browse.error.other.title', detail: 'browse.error.other.detail' };
-	}
+interface ListingViewProps {
+	state: SessionState;
+	onOpen?: ((entry: Entry, handle: ListingHandle) => void) | undefined;
 }
 
-function ErrorState({ error }: { error: VfsError }) {
-	const { title, detail } = errorMessages(error);
-	const location =
-		error.kind === 'notFound' || error.kind === 'permissionDenied' || error.kind === 'notADirectory'
-			? error.location.display
-			: '';
+/** The list for a listing that is opening, failed or ready. */
+export function ListingView({ state, onOpen }: ListingViewProps) {
 	return (
-		<div className={styles.message} role="alert" data-error={error.kind}>
-			<h2 className={styles.messageTitle}>{t(title)}</h2>
-			<p className={styles.messageDetail}>{tf(detail, { location })}</p>
-		</div>
+		<ListingGate state={state}>
+			{(session) => <ListingBody key={session.model.handle} session={session} onOpen={onOpen} />}
+		</ListingGate>
 	);
 }
 
 interface ListingBodyProps {
 	session: ListingSession;
-	onOpen: ((entry: Entry) => void) | undefined;
+	onOpen: ((entry: Entry, handle: ListingHandle) => void) | undefined;
 }
 
 function ListingBody({ session, onOpen }: ListingBodyProps) {
@@ -180,8 +155,17 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 		element.dispatchEvent(new Event('scroll'));
 	}, [version]);
 
+	// A tab that returns to this listing finds the scroll position it left.
+	useLayoutEffect(() => {
+		const element = scroller.current;
+		if (!element || session.view.scrollTop <= 0) return;
+		element.scrollTop = session.view.scrollTop;
+		element.dispatchEvent(new Event('scroll'));
+	}, [session]);
+
 	const recordAnchor = () => {
 		const top = scroller.current?.scrollTop ?? 0;
+		session.view.scrollTop = top;
 		anchor.current = { top, position: Math.floor(top / rowHeight) };
 	};
 
@@ -231,7 +215,7 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 				const entry = from === null ? undefined : model.entryAt(from);
 				if (entry && onOpen) {
 					event.preventDefault();
-					onOpen(entry);
+					onOpen(entry, model.handle);
 				}
 				return;
 			}
@@ -353,9 +337,9 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 			)}
 
 			{empty ? (
-				<div className={styles.message} role="status" data-state="empty">
+				<MessageState role="status" data-state="empty">
 					{t('browse.empty')}
-				</div>
+				</MessageState>
 			) : (
 				<div ref={scroller} className={styles.scroller} onScroll={recordAnchor}>
 					<div
@@ -390,7 +374,7 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 									data-selected={selected ? '' : undefined}
 									data-active={focus === item.index ? '' : undefined}
 									onClick={(event) => onRowClick(event, item.index, entry)}
-									onDoubleClick={() => entry && onOpen?.(entry)}
+									onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
 								>
 									{entry ? (
 										<>

@@ -1,0 +1,116 @@
+.bar {
+	position: relative;
+	display: flex;
+	flex: 1;
+	align-items: center;
+	min-width: 0;
+	height: 28px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	background: var(--wp-bg-raised);
+}
+
+.bar:focus-within {
+	border-color: var(--wp-focus-ring);
+}
+
+.crumbsNav {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.crumbs {
+	display: flex;
+	align-items: center;
+	margin: 0;
+	padding: 0 4px;
+	overflow-x: auto;
+	list-style: none;
+	scrollbar-width: none;
+	white-space: nowrap;
+}
+
+.crumbItem {
+	display: flex;
+	flex: none;
+	align-items: center;
+}
+
+.separator {
+	color: var(--wp-text-muted);
+}
+
+.crumb {
+	height: 22px;
+	padding: 0 6px;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+	font: inherit;
+	font-size: 13px;
+	cursor: default;
+}
+
+.crumb:hover {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.crumb[aria-current='page'] {
+	color: var(--wp-text-primary);
+	font-weight: 600;
+}
+
+.crumb:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+/* The empty space after the last breadcrumb: a click there edits the path. */
+.editTarget {
+	flex: 1;
+	align-self: stretch;
+	min-width: 16px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: text;
+}
+
+.editTarget:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 13px;
+	outline: none;
+}
+
+.input[aria-invalid='true'] {
+	color: var(--wp-danger);
+}
+
+.problem {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	z-index: 10;
+	margin: 0;
+	padding: 4px 8px;
+	border: 1px solid var(--wp-danger);
+	border-radius: 6px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-danger);
+	font-size: 12px;
+}
