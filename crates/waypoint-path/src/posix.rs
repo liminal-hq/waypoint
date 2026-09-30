@@ -104,6 +104,10 @@ pub fn from_uri(rest: &str) -> Result<Vec<u8>, PathError> {
             "a query or fragment is not part of a path",
         ));
     }
+    if path.is_empty() {
+        // `file://` and `file://localhost` name the root.
+        return Ok(b"/".to_vec());
+    }
     normalise(&encoding::decode(path)?)
 }
 
@@ -167,6 +171,7 @@ mod tests {
             Err(PathError::RemoteHost("server".to_owned()))
         );
         assert!(from_uri("/a?b").is_err());
-        assert!(from_uri("").is_err());
+        assert_eq!(from_uri("localhost").unwrap(), b"/");
+        assert_eq!(from_uri("").unwrap(), b"/");
     }
 }

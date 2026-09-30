@@ -240,6 +240,9 @@ impl WinPath {
 
     /// Joins `child` (another parsed path) onto this one.
     ///
+    /// A child is always an already-parsed, non-verbatim path, so its `..` means the parent even
+    /// onto a verbatim base (Windows would not resolve it, so waypoint does, lexically).
+    ///
     /// An absolute child replaces this path; a child rooted with no prefix (`\a`) keeps this path's
     /// prefix; a drive-relative child on the same drive is appended; anything else is appended.
     pub fn join(&self, child: &WinPath) -> WinPath {
@@ -250,12 +253,7 @@ impl WinPath {
             (None, true) => WinPath {
                 prefix: self.prefix.clone(),
                 rooted: true,
-                components: components(
-                    &child.components.join("\\"),
-                    self.is_verbatim(),
-                    true,
-                    Vec::new(),
-                ),
+                components: components(&child.components.join("\\"), false, true, Vec::new()),
             },
             (Some(Prefix::Drive(other)), _) if self.prefix != Some(Prefix::Drive(*other)) => {
                 child.clone()
@@ -265,7 +263,7 @@ impl WinPath {
                 rooted: self.rooted,
                 components: components(
                     &child.components.join("\\"),
-                    self.is_verbatim(),
+                    false,
                     self.rooted,
                     self.components.clone(),
                 ),
@@ -415,7 +413,10 @@ pub fn from_uri(rest: &str) -> Result<WinPath, PathError> {
             "a query or fragment is not part of a path",
         ));
     }
-    let native = if host.is_empty() || host.eq_ignore_ascii_case("localhost") {
+    let native = if host.len() == 2 && drive_letter(host).is_some() {
+        // `file://C:/x`: a drive letter written as the authority.
+        parse(&format!("{host}{}", decode_str(path)?.replace('/', "\\")))?.to_native_string()
+    } else if host.is_empty() || host.eq_ignore_ascii_case("localhost") {
         if path.starts_with("//") {
             decode_str(path)?.replace('/', "\\")
         } else {
@@ -523,6 +524,20 @@ mod tests {
     fn joins_onto_a_verbatim_path_without_resolving_dots() {
         let base = p(r"\\?\C:\a");
         assert_eq!(base.join(&p("b")).to_native_string(), r"\\?\C:\a\b");
+    }
+
+    #[test]
+    fn joins_parent_onto_a_verbatim_path_lexically() {
+        let base = p(r"\\?\C:\a\b");
+        assert_eq!(base.join(&p("..")).to_native_string(), r"\\?\C:\a");
+        assert_eq!(base.join(&p("../c")).to_native_string(), r"\\?\C:\a\c");
+        assert_eq!(base.join(&p("../../..")).to_native_string(), r"\\?\C:\");
+    }
+
+    #[test]
+    fn reads_a_drive_letter_written_as_the_uri_host() {
+        assert_eq!(from_uri("C:/x/y").unwrap().to_native_string(), r"C:\x\y");
+        assert_eq!(from_uri("c:/").unwrap().to_native_string(), r"C:\");
     }
 
     #[test]
