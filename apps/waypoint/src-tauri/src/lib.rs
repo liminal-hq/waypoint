@@ -45,6 +45,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_state::Builder::default().build());
 
     // Lets an agent drive and screenshot the running app during development.

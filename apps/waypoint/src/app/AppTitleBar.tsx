@@ -1,18 +1,20 @@
-// The app's title bar: the shared chrome configured for the current platform
+// The app's title bar: the shared chrome configured from the OS's own preferences
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { TitleBar } from '@liminal-hq/waypoint-chrome/TitleBar';
 import { TitleBarTitle } from '@liminal-hq/waypoint-chrome/TitleBar/TitleBarTitle';
-import { fallbackTitlebarConfig } from './titlebarConfig';
+import { useTitlebarPreferences } from '../services/titlebarPreferences';
+import { titlebarConfigFor } from './titlebarConfig';
 
 interface AppTitleBarProps {
 	title: string;
 }
 
 export function AppTitleBar({ title }: AppTitleBarProps) {
-	const config = fallbackTitlebarConfig(document.documentElement.dataset.platform);
+	const preferences = useTitlebarPreferences();
+	const config = titlebarConfigFor(preferences, document.documentElement.dataset.platform);
 	return (
 		<TitleBar
 			center={<TitleBarTitle>{title}</TitleBarTitle>}

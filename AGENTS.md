@@ -200,7 +200,7 @@ Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`,
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.
 - `crates/*` — pure Rust, no `tauri` dependency: `waypoint-protocol` (shared types and `ts-rs` generation), `waypoint-vfs`, `waypoint-ops`, `waypoint-session`, `waypoint-search`, `waypoint-ext`, and per-protocol provider crates.
-- `plugins/*` — Tauri plugins, each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
+- `plugins/*` — Tauri plugins (see `plugins/README.md`; `system-appearance` is built), each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
 - `docs/` — product design docs (`decisions.md`, `interactions.md`, …), `architecture/` (structure, plugins, frontend, CI/CD, ADRs) and `ui-mockups/` (prototype pointer, reference only).
 - `scripts/` — repo tooling (`check-headers.sh`, later `check-release-versions.sh`).
 - `.github/` — workflows, `dependabot.yml`, `release.yml` (changelog categories).

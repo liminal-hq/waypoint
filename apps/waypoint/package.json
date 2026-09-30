@@ -12,9 +12,15 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"test:ci": "mkdir -p ../../test-results && vitest run --reporter=default --reporter=junit --outputFile.junit=../../test-results/junit.xml"
+		"test:ci": "mkdir -p ../../test-results && vitest run --reporter=default --reporter=junit --outputFile.junit=../../test-results/junit.xml",
+		"predev": "bun run --cwd ../../plugins/system-appearance build",
+		"prebuild": "bun run --cwd ../../plugins/system-appearance build",
+		"pretypecheck": "bun run --cwd ../../plugins/system-appearance build",
+		"pretest": "bun run --cwd ../../plugins/system-appearance build",
+		"pretest:ci": "bun run --cwd ../../plugins/system-appearance build"
 	},
 	"dependencies": {
+		"@liminal-hq/plugin-system-appearance": "workspace:*",
 		"@liminal-hq/waypoint-chrome": "workspace:*",
 		"@tanstack/react-router": "^1.170.33",
 		"@tauri-apps/api": "^2.10.1",

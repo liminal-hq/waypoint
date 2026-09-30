@@ -13,6 +13,7 @@
       "name": "@liminal-hq/waypoint",
       "version": "0.0.0",
       "dependencies": {
+        "@liminal-hq/plugin-system-appearance": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
         "@tanstack/react-router": "^1.170.33",
         "@tauri-apps/api": "^2.10.1",
