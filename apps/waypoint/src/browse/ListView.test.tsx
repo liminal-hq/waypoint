@@ -232,6 +232,17 @@ describe('scanning', () => {
 	});
 });
 
+describe('Alt+arrow keys', () => {
+	it('are left to the window so history and up still work', async () => {
+		const { client } = clientWith(30);
+		renderList(client);
+		await screen.findByRole('listbox');
+		for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
+			expect(fireEvent.keyDown(screen.getByRole('listbox'), { key, altKey: true })).toBe(true);
+		}
+	});
+});
+
 describe('sort header', () => {
 	it('sorts by a column, toggles direction on a second click, and reflects it', async () => {
 		const { client } = clientWith(500);

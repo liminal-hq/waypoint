@@ -13,6 +13,8 @@ import { openListingModel, toVfsError, type ListingModel } from './listingModel'
 /** What a view keeps about how it was left, so a tab that returns finds its scroll position. */
 export interface ViewMemory {
 	scrollTop: number;
+	/** The grid's own offset: a pixel offset means something different in each layout. */
+	gridScrollTop: number;
 }
 
 export interface ListingSession {
@@ -22,7 +24,7 @@ export interface ListingSession {
 }
 
 export function createListingSession(model: ListingModel): ListingSession {
-	return { model, store: createBrowseStore(model), view: { scrollTop: 0 } };
+	return { model, store: createBrowseStore(model), view: { scrollTop: 0, gridScrollTop: 0 } };
 }
 
 export type SessionState =

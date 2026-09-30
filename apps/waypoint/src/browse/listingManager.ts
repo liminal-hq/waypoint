@@ -26,6 +26,8 @@ interface Slot {
 	evicted: boolean;
 	/** Set while the tab is not the active one, so a listing that finishes opening in the background still evicts. */
 	background: boolean;
+	/** The hidden-files choice last sent to this listing, which its confirmed filter may not reflect yet. */
+	requestedHidden?: boolean;
 }
 
 /**
@@ -41,6 +43,8 @@ export class ListingManager {
 	private slots = new Map<TabId, Slot>();
 	private listeners = new Set<() => void>();
 	private version = 0;
+	/** The latest hidden-files choice, applied to listings that become ready after it was made. */
+	private wantedHidden: boolean | null = null;
 
 	constructor(
 		private client: VfsClient,
@@ -84,11 +88,18 @@ export class ListingManager {
 
 	/** Applies the hidden-files choice to every open listing; listings opened later take it from `openOptions`. */
 	setShowHidden(showHidden: boolean): void {
-		for (const slot of this.slots.values()) {
-			if (slot.state.status !== 'ready') continue;
-			const { model } = slot.state.session;
-			if (model.filter.showHidden !== showHidden) void model.setFilter({ showHidden });
-		}
+		this.wantedHidden = showHidden;
+		for (const slot of this.slots.values()) this.applyHidden(slot);
+	}
+
+	// Compares with the last request, not the confirmed filter, so the last choice always wins.
+	private applyHidden(slot: Slot): void {
+		if (this.wantedHidden === null || slot.state.status !== 'ready') return;
+		const { model } = slot.state.session;
+		const current = slot.requestedHidden ?? model.filter.showHidden;
+		if (current === this.wantedHidden) return;
+		slot.requestedHidden = this.wantedHidden;
+		void model.setFilter({ showHidden: this.wantedHidden });
 	}
 
 	/** Closes every listing. The manager can be used again: the next `sync` reopens what is shown. */
@@ -128,6 +139,8 @@ export class ListingManager {
 				}
 				slot.state = { status: 'ready', session: createListingSession(model) };
 				if (slot.background) this.scheduleEviction(slot);
+				// A toggle made while this listing was opening has not reached it yet.
+				this.applyHidden(slot);
 				this.changed();
 			},
 			(error: unknown) => {

@@ -80,7 +80,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		// whole-listing action and still takes every entry, as the capped banner says.
 		const last = shown - 1;
 
-		const target = move(event.key, from, last);
+		// Alt + arrow is history and up-a-folder, which belong to the window, not to the view.
+		const target = event.altKey ? null : move(event.key, from, last);
 		if (target !== null) {
 			event.preventDefault();
 			typeAheadEpoch.current++;

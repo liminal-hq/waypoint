@@ -10,7 +10,7 @@ import { FakeVfsClient } from '../services/fakeVfsClient';
 import type { VfsClient } from '../services/vfsClient';
 import { clientWith, FOLDER, hugeClient, stubLayout } from '../test/browseHarness';
 import { GridView } from './GridView';
-import { useListingSession } from './useListingSession';
+import { useListingSession, type ListingSession } from './useListingSession';
 import { VfsClientProvider } from './VfsClientContext';
 import { useVfsClient } from './VfsClientContext';
 import type { MenuRequest } from './useListInteractions';
@@ -214,6 +214,39 @@ describe('selection and opening', () => {
 		expect(options()[2]).toHaveAttribute('aria-selected', 'true');
 		fireEvent.contextMenu(list().parentElement!, { clientX: 5, clientY: 6 });
 		expect(onMenu).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'background' }));
+	});
+
+	it('leaves Alt+arrow keys to the window so history and up still work', async () => {
+		const { client } = clientWith(30);
+		renderGrid(client);
+		await screen.findByRole('listbox');
+		await waitFor(() => expect(options()[0]).toHaveTextContent(/\w/));
+		for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
+			expect(fireEvent.keyDown(list(), { key, altKey: true })).toBe(true);
+		}
+	});
+
+	it('keeps its own scroll offset apart from the list', async () => {
+		const { client } = clientWith(1000);
+		let captured: ListingSession | undefined;
+		function Capture() {
+			const c = useVfsClient();
+			const state = useListingSession(c, FOLDER);
+			if (state.status === 'ready') captured = state.session;
+			return <GridView state={state} size={96} />;
+		}
+		const { container } = render(
+			<VfsClientProvider client={client}>
+				<Capture />
+			</VfsClientProvider>,
+		);
+		await screen.findByRole('listbox');
+		const scroller = list().parentElement!;
+		scroller.scrollTop = 300;
+		fireEvent.scroll(scroller);
+		expect(captured?.view.gridScrollTop).toBe(300);
+		expect(captured?.view.scrollTop).toBe(0);
+		expect(container).toBeTruthy();
 	});
 
 	it('announces the selection itself unless the host does', async () => {

@@ -89,7 +89,8 @@ export function BackgroundContextMenu({
 				const current = model.sort;
 				if (item.id.startsWith('sort:')) {
 					const key = item.id.slice('sort:'.length) as SortKey;
-					void model.setSort({ ...current, key, descending: false });
+					// The active key stays as it is (Descending is its own item); a new key starts ascending.
+					if (key !== current.key) void model.setSort({ ...current, key, descending: false });
 				} else if (item.id === 'descending') {
 					void model.setSort({ ...current, descending: !current.descending });
 				} else if (item.id === 'foldersFirst') {

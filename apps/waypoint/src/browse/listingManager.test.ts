@@ -169,4 +169,25 @@ describe('ListingManager', () => {
 		await settle();
 		expect(client.openCount).toBe(1);
 	});
+
+	it('lets the last hidden-files choice win when toggled twice quickly', async () => {
+		const { manager } = setup();
+		manager.sync([tab(1)], 1);
+		await settle();
+		manager.setShowHidden(true);
+		manager.setShowHidden(false);
+		await settle();
+		const state = manager.stateFor(1);
+		expect(state?.status === 'ready' && state.session.model.filter.showHidden).toBe(false);
+	});
+
+	it('applies a hidden-files choice made while a listing was still opening', async () => {
+		const { manager } = setup();
+		manager.sync([tab(1)], 1);
+		manager.setShowHidden(true);
+		await settle();
+		await settle();
+		const state = manager.stateFor(1);
+		expect(state?.status === 'ready' && state.session.model.filter.showHidden).toBe(true);
+	});
 });

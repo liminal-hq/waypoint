@@ -156,14 +156,14 @@ function GridBody({
 	// A tab that returns to this listing finds the scroll position it left.
 	useLayoutEffect(() => {
 		const element = scroller.current;
-		if (!element || session.view.scrollTop <= 0) return;
-		element.scrollTop = session.view.scrollTop;
+		if (!element || session.view.gridScrollTop <= 0) return;
+		element.scrollTop = session.view.gridScrollTop;
 		element.dispatchEvent(new Event('scroll'));
 	}, [session]);
 
 	const recordAnchor = () => {
 		const top = scroller.current?.scrollTop ?? 0;
-		session.view.scrollTop = top;
+		session.view.gridScrollTop = top;
 		anchor.current = { top, position: Math.floor(top / cell.height) * columns };
 	};
 
