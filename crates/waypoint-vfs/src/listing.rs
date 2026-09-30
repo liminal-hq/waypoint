@@ -305,9 +305,12 @@ impl Listing {
                 if self.cancel.is_cancelled() {
                     return Err(VfsError::Cancelled);
                 }
-                changes.push(Change::Upsert(
-                    self.provider.resolve_link(&self.path, entry)?,
-                ));
+                match self.provider.resolve_link(&self.path, entry) {
+                    Ok(entry) => changes.push(Change::Upsert(entry)),
+                    // Gone since the snapshot: the watcher reports the removal or rename.
+                    Err(VfsError::NotFound { .. }) => {}
+                    Err(e) => return Err(e),
+                }
             }
             resolved += changes.len();
             self.apply_changes(changes);

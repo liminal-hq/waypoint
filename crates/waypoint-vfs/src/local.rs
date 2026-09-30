@@ -176,17 +176,20 @@ impl Provider for LocalProvider {
         folder: &VfsPath,
         entry: &ScannedEntry,
     ) -> Result<ScannedEntry, VfsError> {
+        let location = folder.to_location();
         let folder = file_path(folder)?;
         let full = folder
             .join(&entry.name)
             .map_err(|_| VfsError::InvalidLocation {
                 input: entry.name.to_string_lossy().into_owned(),
             })?;
-        let meta = fs::symlink_metadata(full.as_path()).ok();
+        // A link that can no longer be read (removed or renamed since the scan) is an error, so
+        // the caller drops the update instead of resurrecting the entry.
+        let meta = fs::symlink_metadata(full.as_path()).map_err(|e| from_io(&e, &location))?;
         Ok(build(
             &entry.name,
-            meta.as_ref().map(Metadata::file_type),
-            meta,
+            Some(meta.file_type()),
+            Some(meta),
             full.as_path(),
             true,
         ))

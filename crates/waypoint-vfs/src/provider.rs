@@ -108,7 +108,8 @@ pub trait Provider: Send + Sync {
 
     /// Resolves a symlink left `link_pending` by `list`: returns the entry with its target's kind
     /// (and size and modified time, for a file) filled in and `link_pending` cleared. A broken link
-    /// comes back with `link_target` `None`.
+    /// comes back with `link_target` `None`. A link that no longer exists is `VfsError::NotFound`,
+    /// and the caller drops the update.
     fn resolve_link(
         &self,
         folder: &VfsPath,

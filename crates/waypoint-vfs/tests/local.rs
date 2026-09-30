@@ -465,6 +465,25 @@ mod symlinks {
     }
 
     #[test]
+    fn a_link_removed_before_the_background_pass_is_not_resurrected() {
+        let dir = fixture();
+        let (listing, _events) = open_with(
+            folder(&dir),
+            SortSpec::default(),
+            Filter::default(),
+            ListingOptions {
+                inline_link_budget: 0,
+                ..ListingOptions::default()
+            },
+        );
+        let listing = listing.unwrap();
+        let kind = entry(&listing, "broken").kind;
+        fs::remove_file(dir.path().join("broken")).unwrap();
+        assert_eq!(listing.resolve_pending_links().unwrap(), 4);
+        assert_eq!(entry(&listing, "broken").kind, kind);
+    }
+
+    #[test]
     fn past_the_inline_budget_links_resolve_in_a_background_pass_that_patches_the_view() {
         let dir = fixture();
         let (listing, events) = open_with(

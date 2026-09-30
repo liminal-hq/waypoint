@@ -257,7 +257,14 @@ impl Index {
             if sort.directories_first && a.folder != b.folder {
                 return b.folder.cmp(&a.folder);
             }
-            a.rank.cmp(&b.rank).then(a.tie.cmp(&b.tie)).then_with(|| {
+            // The name prefix is only a valid tie-break when the rank already covers the whole
+            // sort column; a Kind rank sees just the first bytes of the extension.
+            let tie = if sort.key == SortKey::Kind {
+                Ordering::Equal
+            } else {
+                a.tie.cmp(&b.tie)
+            };
+            a.rank.cmp(&b.rank).then(tie).then_with(|| {
                 let (a, b) = (
                     records[a.id as usize].as_ref().expect("live"),
                     records[b.id as usize].as_ref().expect("live"),
@@ -561,6 +568,44 @@ mod tests {
             .enumerate()
             .map(|(i, slot)| slot.unwrap_or_else(|| after[i].clone()))
             .collect()
+    }
+
+    #[test]
+    fn a_kind_sort_with_long_shared_extension_prefixes_stays_searchable() {
+        let mut index = Index::new(
+            SortSpec {
+                key: SortKey::Kind,
+                descending: false,
+                directories_first: true,
+            },
+            Filter::default(),
+        );
+        index.load(vec![
+            file("zzz.abcdefghY", 1),
+            file("aaa.abcdefghX", 1),
+            file("mmm.abcdefghZ", 1),
+            file("bbb.abcdefghX", 1),
+        ]);
+        assert_eq!(
+            names(&index),
+            [
+                "aaa.abcdefghX",
+                "bbb.abcdefghX",
+                "zzz.abcdefghY",
+                "mmm.abcdefghZ"
+            ]
+        );
+        for id in 0..4 {
+            assert_eq!(
+                index.position_of(id).map(|at| index.view[at as usize]),
+                Some(id)
+            );
+        }
+        let before = names(&index);
+        let ops = index.apply(vec![Change::Upsert(file("ccc.abcdefghX", 2))]);
+        let after = names(&index);
+        assert_eq!(after[2], "ccc.abcdefghX");
+        assert_eq!(replay(&before, &ops, &after), after);
     }
 
     #[test]
