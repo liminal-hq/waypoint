@@ -54,9 +54,18 @@ export function TabStrip() {
 	const scroller = useRef<HTMLDivElement | null>(null);
 	const [overflow, setOverflow] = useState({ left: false, right: false });
 	const [focused, setFocused] = useState<TabId | null>(null);
-	const [drag, setDrag] = useState<DragState | null>(null);
+	const [drag, setDragState] = useState<DragState | null>(null);
+	// The latest drag, for handlers that can run before React has rendered the last update.
+	const dragRef = useRef<DragState | null>(null);
+	const setDrag = (next: DragState | null) => {
+		dragRef.current = next;
+		setDragState(next);
+	};
 	const [announcement, setAnnouncement] = useState('');
 	const suppressClick = useRef(false);
+
+	// A tab made active by any other route (Ctrl+Tab, Alt+digit, a click) takes the focus stop back.
+	useEffect(() => setFocused(null), [active]);
 
 	// Roving focus follows the active tab unless the person has moved it with the arrow keys.
 	const tabStop = tabs.some((tab) => tab.id === focused) ? focused : active;
@@ -157,6 +166,7 @@ export function TabStrip() {
 	};
 
 	const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+		const drag = dragRef.current;
 		if (!drag) return;
 		const dx = event.clientX - drag.startX;
 		const dragging = drag.dragging || Math.abs(dx) >= DRAG_THRESHOLD_PX;
@@ -167,6 +177,7 @@ export function TabStrip() {
 	};
 
 	const endDrag = (commit: boolean) => {
+		const drag = dragRef.current;
 		if (drag?.dragging) {
 			suppressClick.current = true;
 			if (commit && drag.to !== drag.from) actions.move(drag.id, drag.to);
@@ -201,7 +212,8 @@ export function TabStrip() {
 	};
 
 	const onAuxClick = (event: MouseEvent, id: TabId) => {
-		if (event.button !== 1) return;
+		// The close button handles its own middle-click, so a later confirm-on-close cannot be bypassed.
+		if (event.button !== 1 || (event.target as HTMLElement).closest('button')) return;
 		event.preventDefault();
 		actions.close(id);
 	};
@@ -357,6 +369,12 @@ function CloseButton({ tab, onClose }: { tab: TabSnapshot; onClose: () => void }
 				onClose();
 			}}
 			onPointerDown={(event) => event.stopPropagation()}
+			onAuxClick={(event) => {
+				if (event.button !== 1) return;
+				event.preventDefault();
+				event.stopPropagation();
+				onClose();
+			}}
 		>
 			<CloseSmallIcon width={12} height={12} />
 		</button>

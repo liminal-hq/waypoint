@@ -32,6 +32,20 @@ function report(error: unknown): void {
 	console.warn('tab command failed', error);
 }
 
+/** Closes run one at a time per session, so a burst of them never decides from a stale view. */
+const closeQueues = new WeakMap<TabsApi, Promise<void>>();
+
+async function closeOne(api: TabsApi, tab: TabId, home: Location): Promise<void> {
+	// Read the session now, not when the actions were built: an earlier close may have changed it.
+	const current = await api.getSnapshot();
+	if (!current.tabs.some((candidate) => candidate.id === tab)) return;
+	if (current.tabs.length === 1) {
+		// Replace rather than empty the window, so it never shows nothing.
+		await api.openTab(home);
+	}
+	await api.closeTab(tab);
+}
+
 /** Builds the commands over `api` for the session state in `snapshot` and a `home` location. */
 export function createTabActions(
 	api: TabsApi,
@@ -51,12 +65,10 @@ export function createTabActions(
 			run(api.openTab(location, { activate: false, ...(active ? { after: active.id } : {}) })),
 		activate,
 		close: (tab) => {
-			if (tabs.length === 1 && tabs[0]?.id === tab) {
-				// Replace rather than empty the window, so it never shows nothing.
-				run(api.openTab(home).then(() => api.closeTab(tab)));
-			} else {
-				run(api.closeTab(tab));
-			}
+			const queued = (closeQueues.get(api) ?? Promise.resolve())
+				.then(() => closeOne(api, tab, home))
+				.catch(report);
+			closeQueues.set(api, queued);
 		},
 		move: (tab, index) => run(api.moveTab(tab, index)),
 		cycle: (delta) => {

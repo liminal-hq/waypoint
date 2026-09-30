@@ -206,6 +206,33 @@ describe('keyboard', () => {
 	});
 });
 
+describe('the focus stop', () => {
+	it('returns to the active tab when another route changes it', async () => {
+		const h = await renderWorkspace();
+		await openTwo(h);
+		await waitFor(() => expect(tabs()).toHaveLength(3));
+		act(() => tabs()[2]!.focus());
+		fireEvent.keyDown(tabs()[2]!, { key: 'Home' });
+		expect(tabs().map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
+		fireEvent.keyDown(window, { key: '2', altKey: true });
+		await waitFor(() => expect(tabs()[1]).toHaveAttribute('aria-selected', 'true'));
+		expect(tabs().map((tab) => tab.tabIndex)).toEqual([-1, 0, -1]);
+	});
+
+	it('closes once on a middle-click of the close button', async () => {
+		const h = await renderWorkspace();
+		await openTwo(h);
+		await waitFor(() => expect(tabs()).toHaveLength(3));
+		const close = vi.spyOn(h.tabs, 'closeTab');
+		fireEvent(
+			screen.getByRole('button', { name: 'Close docs' }),
+			new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }),
+		);
+		await waitFor(() => expect(tabs()).toHaveLength(2));
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe('dragging to reorder', () => {
 	function stubSpans() {
 		return vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
@@ -231,6 +258,21 @@ describe('dragging to reorder', () => {
 		fireEvent.pointerUp(slot(0), { clientX: 260, pointerId: 1 });
 		await waitFor(() => expect(titles()).toEqual(['docs', 'music', 'test']));
 		// The click that follows a drag does not activate anything.
+		fireEvent.click(slot(2));
+		expect(tabs()[0]).toHaveAttribute('aria-selected', 'false');
+	});
+
+	it('commits a drop whose pointerup arrives before React has rendered the last move', async () => {
+		stubSpans();
+		const h = await renderWorkspace();
+		await openTwo(h);
+		await waitFor(() => expect(tabs()).toHaveLength(3));
+		act(() => {
+			fireEvent.pointerDown(slot(0), { button: 0, clientX: 50, pointerId: 1 });
+			fireEvent.pointerMove(slot(0), { clientX: 260, pointerId: 1 });
+			fireEvent.pointerUp(slot(0), { clientX: 260, pointerId: 1 });
+		});
+		await waitFor(() => expect(titles()).toEqual(['docs', 'music', 'test']));
 		fireEvent.click(slot(2));
 		expect(tabs()[0]).toHaveAttribute('aria-selected', 'false');
 	});
