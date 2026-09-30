@@ -6,9 +6,9 @@
 import { defaultChromeLabels } from '@liminal-hq/waypoint-chrome/labels';
 import { describe, expect, it } from 'vitest';
 import { chromeLabels } from './chromeLabels';
-import { enMessages, t } from './messages';
+import { enMessages, t, tf } from './messages';
 
-const screens = import.meta.glob<string>('../app/*.tsx', {
+const screens = import.meta.glob<string>(['../app/*.tsx', '../browse/*.tsx'], {
 	query: '?raw',
 	import: 'default',
 	eager: true,
@@ -23,6 +23,15 @@ describe('the message catalogue', () => {
 
 	it('looks a message up by identifier', () => {
 		expect(t('window.main.title')).toBe(enMessages['window.main.title']);
+	});
+});
+
+describe('tf', () => {
+	it('fills each token and leaves an unknown one as written', () => {
+		expect(tf('browse.capped', { shown: '10', total: '20' })).toBe(
+			'Showing the first 10 of 20 items',
+		);
+		expect(tf('browse.capped', { shown: '10' })).toBe('Showing the first 10 of {total} items');
 	});
 });
 

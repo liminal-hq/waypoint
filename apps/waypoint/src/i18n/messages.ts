@@ -22,6 +22,37 @@ export const enMessages = {
 	'window.tearGhost.title': 'Waypoint — Tab preview',
 	'window.tearGhost.description': 'Tab tear-off preview — coming soon.',
 
+	'browse.list.label': 'Files',
+	'browse.column.name': 'Name',
+	'browse.column.size': 'Size',
+	'browse.column.modified': 'Modified',
+	'browse.column.kind': 'Kind',
+	'browse.columns.label': 'Sort the list',
+	'browse.sort.ascending': 'sorted ascending',
+	'browse.sort.descending': 'sorted descending',
+	'browse.value.none': '—',
+	'browse.row.loading': 'Loading',
+	'browse.group.folder': 'Folder',
+	'browse.group.image': 'Image',
+	'browse.group.audio': 'Audio',
+	'browse.group.video': 'Video',
+	'browse.group.archive': 'Archive',
+	'browse.group.code': 'Code',
+	'browse.group.document': 'Document',
+	'browse.group.other': 'File',
+	'browse.opening': 'Opening folder…',
+	'browse.scanning': 'Scanning… {count} items found so far',
+	'browse.empty': 'This folder is empty.',
+	'browse.capped': 'Showing the first {shown} of {total} items',
+	'browse.error.notFound.title': 'Folder not found',
+	'browse.error.notFound.detail': '{location} does not exist, or it was moved or deleted.',
+	'browse.error.permissionDenied.title': 'Permission denied',
+	'browse.error.permissionDenied.detail': 'You do not have permission to open {location}.',
+	'browse.error.notADirectory.title': 'Not a folder',
+	'browse.error.notADirectory.detail': '{location} is a file, not a folder.',
+	'browse.error.other.title': 'This folder could not be shown',
+	'browse.error.other.detail': 'Something went wrong while reading the folder.',
+
 	'chrome.restore': 'Restore',
 	'chrome.maximise': 'Maximise',
 	'chrome.minimise': 'Minimise',
@@ -38,4 +69,11 @@ export type MessageId = keyof typeof enMessages;
 /** The message for `id` in the active catalogue. */
 export function t(id: MessageId): string {
 	return enMessages[id];
+}
+
+/** The message for `id` with each `{name}` token replaced by its value. */
+export function tf(id: MessageId, values: Record<string, string | number>): string {
+	return enMessages[id].replace(/\{(\w+)\}/g, (token, name: string) =>
+		name in values ? String(values[name]) : token,
+	);
 }

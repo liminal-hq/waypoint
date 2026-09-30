@@ -29,6 +29,9 @@
 	--wp-title-bar-height: 40px;
 	--wp-title-bar-opacity: 1;
 	--wp-window-radius: 12px;
+
+	/* File list geometry. Script reads the row height back to size the virtualised list. */
+	--wp-row-height: 28px;
 }
 
 @media (prefers-color-scheme: dark) {

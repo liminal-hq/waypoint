@@ -26,6 +26,7 @@
 		"@liminal-hq/waypoint-chrome": "workspace:*",
 		"@liminal-hq/waypoint-protocol": "workspace:*",
 		"@tanstack/react-router": "^1.170.33",
+		"@tanstack/react-virtual": "^3.14.13",
 		"@tauri-apps/api": "^2.10.1",
 		"@tauri-apps/plugin-log": "^2.8.0",
 		"@tauri-apps/plugin-os": "^2.3.2",
