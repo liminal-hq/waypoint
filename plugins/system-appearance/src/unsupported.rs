@@ -5,10 +5,20 @@
 
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::models::{DesktopEnvironment, Snapshot};
+use crate::{
+    models::{DesktopEnvironment, Snapshot},
+    service::Readiness,
+};
 
 /// There is nothing to watch on an unsupported platform.
 pub struct Watcher;
+
+impl Watcher {
+    /// Nothing is listened to here, so there is nothing to wait for.
+    pub fn take_readiness(&mut self) -> Readiness {
+        Readiness::Listening
+    }
+}
 
 pub async fn read() -> Snapshot {
     Snapshot::unavailable(
