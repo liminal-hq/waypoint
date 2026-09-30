@@ -181,6 +181,10 @@ pub enum ListingEvent {
         revision: u32,
         count: u32,
         ops: Vec<PatchOp>,
+        /// Entries the `ops` removed and inserted again because their place in the order changed
+        /// (a rename, or a new size under a size sort). They keep their `EntryId`, so a consumer
+        /// keeps what it holds by id (a selection) instead of forgetting it with the removal.
+        moved: Vec<EntryId>,
     },
     /// The listing cannot continue.
     Failed {

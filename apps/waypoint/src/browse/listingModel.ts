@@ -276,7 +276,7 @@ export class ListingModel {
 				const contiguous = event.revision === this._revision + 1;
 				this._revision = event.revision;
 				const report = contiguous
-					? this.applyOps(event.ops, event.count)
+					? this.applyOps(event.ops, event.count, event.moved)
 					: this.resetTo(event.count);
 				this.announce(report);
 				this.reensure();
@@ -397,7 +397,7 @@ export class ListingModel {
 	 * coordinates the ops before it left. Inserted positions are simply absent (fetched next);
 	 * updated ones stay in place, stale; a removal or insertion shifts the entries after it.
 	 */
-	private applyOps(ops: PatchOp[], count: number): PatchReport {
+	private applyOps(ops: PatchOp[], count: number, moved: readonly EntryId[]): PatchReport {
 		let length = this._count;
 		const removedIds: EntryId[] = [];
 		for (const op of ops) {
@@ -433,7 +433,10 @@ export class ListingModel {
 		// to refetching rather than showing a view that disagrees with Rust.
 		if (length !== count) this.markAllStale();
 		this.dropBeyondCount();
-		return { ops, removedIds, count };
+		// A moved entry was removed and inserted again under the same id: it is not gone, so whatever
+		// the view holds by id (the selection) stays.
+		const gone = moved.length === 0 ? removedIds : removedIds.filter((id) => !moved.includes(id));
+		return { ops, removedIds: gone, count };
 	}
 
 	private fail(error: unknown): void {

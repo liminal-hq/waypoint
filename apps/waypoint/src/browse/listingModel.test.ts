@@ -140,11 +140,41 @@ describe('stale replies', () => {
 		expect(model.error).toBeNull();
 	});
 
+	it('does not report a moved entry as removed, so what is held by its id stays', async () => {
+		const { model } = await open(10);
+		model.ensure(0, 10);
+		await vi.waitFor(() => expect(model.hasFresh(9)).toBe(true));
+		const moved = model.entryAt(0)!.id;
+		const gone = model.entryAt(1)!.id;
+		const removed: number[][] = [];
+		model.onPatch((report) => removed.push(report.removedIds));
+		model.applyEvent({
+			kind: 'changed',
+			handle: model.handle,
+			revision: model.revision + 1,
+			count: 9,
+			moved: [moved],
+			ops: [
+				{ kind: 'remove', at: 1, count: 1 },
+				{ kind: 'remove', at: 0, count: 1 },
+				{ kind: 'insert', at: 8, count: 1 },
+			],
+		});
+		expect(removed).toEqual([[gone]]);
+	});
+
 	it('ignores events from older revisions and other listings', async () => {
 		const { model } = await open(10);
-		model.applyEvent({ kind: 'changed', handle: model.handle, revision: 1, count: 99, ops: [] });
+		model.applyEvent({
+			kind: 'changed',
+			handle: model.handle,
+			revision: 1,
+			count: 99,
+			moved: [],
+			ops: [],
+		});
 		expect(model.count).toBe(10);
-		model.applyEvent({ kind: 'changed', handle: 999, revision: 50, count: 99, ops: [] });
+		model.applyEvent({ kind: 'changed', handle: 999, revision: 50, count: 99, moved: [], ops: [] });
 		expect(model.count).toBe(10);
 		model.applyEvent({
 			kind: 'progress',

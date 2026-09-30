@@ -258,6 +258,7 @@ export class FakeVfsClient implements VfsClient {
 				revision: listing.revision,
 				count: next.length,
 				ops,
+				moved: [],
 			});
 		}
 	}

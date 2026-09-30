@@ -229,6 +229,7 @@ describe('FakeVfsClient', () => {
 			revision: 2,
 			count: 4,
 			ops: [{ kind: 'insert', at: 3, count: 1 }],
+			moved: [],
 		});
 
 		client.removeEntries(home, [2]);

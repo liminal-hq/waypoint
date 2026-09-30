@@ -221,6 +221,7 @@ describe('patch sequences against the fake client', () => {
 			handle: run.model.handle,
 			revision: run.model.revision + 2,
 			count: 301,
+			moved: [],
 			ops: [{ kind: 'insert', at: 0, count: 1 }],
 		};
 		run.model.applyEvent(skipped);
@@ -235,6 +236,7 @@ describe('patch sequences against the fake client', () => {
 			handle: run.model.handle,
 			revision: run.model.revision + 1,
 			count: 90,
+			moved: [],
 			ops: [{ kind: 'remove', at: 0, count: 3 }],
 		});
 		expect(run.model.count).toBe(90);

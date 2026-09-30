@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use waypoint_path::VfsPath;
-use waypoint_protocol::{Location, VfsError};
+use waypoint_protocol::{EntryId, Location, VfsError};
 
 use crate::index::Index;
 use crate::model::{
@@ -366,7 +366,8 @@ impl Listing {
             if state.phase == ListingPhase::Failed {
                 return Vec::new();
             }
-            let ops = state.index.apply(changes);
+            let mut moved = Vec::new();
+            let ops = state.index.apply_tracking(changes, &mut moved);
             if ops.is_empty() {
                 return ops;
             }
@@ -376,6 +377,7 @@ impl Listing {
                 revision: state.revision,
                 count: state.index.count(),
                 ops: ops.clone(),
+                moved: moved.into_iter().map(EntryId).collect(),
             };
             (ops, event)
         };

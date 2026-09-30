@@ -418,7 +418,16 @@ impl Index {
     /// final positions). An entry whose place in the order changes (a rename, or a new size under a
     /// size sort) is a removal plus an insertion with the same `EntryId`, so a cache keyed by id
     /// keeps it without a `Reset`.
+    #[cfg(test)]
     pub fn apply(&mut self, changes: Vec<Change>) -> Vec<PatchOp> {
+        self.apply_tracking(changes, &mut Vec::new())
+    }
+
+    /// `apply`, also reporting in `moved` the ids of entries that were removed and inserted again
+    /// by this patch because their place in the order changed, so a consumer can tell "this entry
+    /// moved" from "this entry is gone" and keep, for example, its selection. A `Reset` moves none.
+    pub fn apply_tracking(&mut self, changes: Vec<Change>, moved: &mut Vec<u32>) -> Vec<PatchOp> {
+        moved.clear();
         if changes.is_empty() {
             return Vec::new();
         }
@@ -502,6 +511,7 @@ impl Index {
                             Some(at) => remove_at.push(at as u32),
                             None => consistent = false,
                         }
+                        moved.push(id);
                         insert_ids.push(id);
                     }
                 }
@@ -512,6 +522,7 @@ impl Index {
         }
 
         if !consistent || total > REBUILD_THRESHOLD {
+            moved.clear();
             self.rebuild();
             return vec![PatchOp::Reset];
         }
@@ -556,6 +567,7 @@ impl Index {
             match self.find(self.rec(id)) {
                 Some(at) => updated.push(at as u32),
                 None => {
+                    moved.clear();
                     self.rebuild();
                     return vec![PatchOp::Reset];
                 }
@@ -788,6 +800,31 @@ mod tests {
         assert_eq!(index.id_of(OsStr::new("a")), None);
         assert_eq!(index.position_of(id), Some(2));
         assert_eq!(replay(&before, &ops, &names(&index)), names(&index));
+    }
+
+    #[test]
+    fn a_move_in_the_order_is_reported_but_a_removal_an_arrival_and_an_update_are_not() {
+        let mut index = loaded(&[file("a", 1), file("b", 1), file("c", 1)]);
+        let a = index.id_of(OsStr::new("a")).unwrap();
+        let mut moved = Vec::new();
+        index.apply_tracking(
+            vec![Change::Rename {
+                from: "a".into(),
+                to: file("z", 1),
+            }],
+            &mut moved,
+        );
+        assert_eq!(moved, [a]);
+        // Gone, new, and changed in place: none of them moved.
+        index.apply_tracking(
+            vec![
+                Change::Remove("b".into()),
+                Change::Upsert(file("d", 1)),
+                Change::Upsert(file("c", 99)),
+            ],
+            &mut moved,
+        );
+        assert!(moved.is_empty());
     }
 
     #[test]

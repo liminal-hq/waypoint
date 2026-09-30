@@ -172,6 +172,11 @@ fn a_renamed_file_keeps_its_entry_id() {
             PatchOp::Insert { at: 2, count: 1 },
         ]
     );
+    // The event says the entry moved, so a selection keyed by its id survives.
+    assert!(events.lock().unwrap().iter().any(|e| matches!(
+        e,
+        ListingEvent::Changed { moved, .. } if moved == &[before]
+    )));
     let entry = &listing.get_range(2, 1)[0];
     assert_eq!((entry.id, entry.name.as_str()), (before, "z"));
 }
