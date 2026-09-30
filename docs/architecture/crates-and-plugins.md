@@ -8,7 +8,7 @@ Work is split by concern. The more generic a concern, the more reusable its plug
 
 | Kind            | Rust crate                     | npm package                                               | Lives in                                                               |
 | --------------- | ------------------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Pure crate      | `waypoint-{name}`              | none (types generated into the app)                       | `crates/`                                                              |
+| Pure crate      | `waypoint-{name}`              | none (types generated into `packages/protocol`)           | `crates/`                                                              |
 | Domain plugin   | `tauri-plugin-waypoint-{name}` | `@liminal-hq/waypoint-plugin-{name}` (private, workspace) | `plugins/`                                                             |
 | Reusable plugin | `tauri-plugin-{name}`          | `@liminal-hq/plugin-{name}`                               | `plugins/` while incubating, then `liminal-hq/tauri-plugins-workspace` |
 

@@ -195,10 +195,11 @@ The rules below are the enforceable core of `docs/architecture/`. Change the arc
 
 ## Repository Layout
 
-Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome` and `crates/waypoint-protocol` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
+Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome`, `packages/protocol`, `crates/waypoint-protocol`, `crates/waypoint-vfs` (wire types so far) and a `plugins/waypoint-vfs` skeleton exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
 
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.
+- `packages/protocol` — the TypeScript types `ts-rs` generates from the domain crates' wire types (types only, never hand-edited); the app and each domain plugin's `guest-js` import from it by package name.
 - `crates/*` — pure Rust, no `tauri` dependency: `waypoint-protocol` (shared types and `ts-rs` generation), `waypoint-vfs`, `waypoint-ops`, `waypoint-session`, `waypoint-search`, `waypoint-ext`, and per-protocol provider crates.
 - `plugins/*` — Tauri plugins (see `plugins/README.md`; `system-appearance` is built), each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
 - `docs/` — product design docs (`decisions.md`, `interactions.md`, …), `architecture/` (structure, plugins, frontend, CI/CD, ADRs) and `ui-mockups/` (prototype pointer, reference only).
