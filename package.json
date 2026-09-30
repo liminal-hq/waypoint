@@ -20,9 +20,10 @@
 		"format:check": "prettier --check .",
 		"check:headers": "bash scripts/check-headers.sh",
 		"bindings": "bash scripts/generate-protocol-bindings.sh",
-		"validate": "bun run format:check && bun run check:headers && bun run check:boundaries && bun run typecheck && bun run test:js && bun run build && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && bun run test:rust",
+		"validate": "bun run format:check && bun run check:headers && bun run check:boundaries && bun run check:bindings && bun run typecheck && bun run test:js && bun run build && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && bun run test:rust",
 		"check:boundaries": "bash scripts/check-plugin-boundaries.sh",
-		"build:plugins": "bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build"
+		"build:plugins": "bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build",
+		"check:bindings": "bash scripts/check-bindings-drift.sh"
 	},
 	"devDependencies": {
 		"@rollup/plugin-typescript": "^12.1.4",

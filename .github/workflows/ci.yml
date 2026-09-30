@@ -189,8 +189,8 @@ jobs:
           path: target/nextest/ci/junit.xml
           if-no-files-found: error
 
-  protocol-bindings-drift:
-    name: Protocol bindings drift
+  bindings-drift:
+    name: Bindings drift
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
@@ -203,30 +203,19 @@ jobs:
         run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
       - uses: Swatinem/rust-cache@v2
 
-      - name: Snapshot committed generated files
-        run: cp -r apps/waypoint/src/domain/protocol/generated /tmp/generated-before
-
-      - name: Clear the generated directory
-        # A removed or renamed exported type leaves its old file behind
-        # otherwise — ts-rs only ever writes files for types it currently
-        # exports, it never deletes stale ones — which would make the diff
-        # below silently miss that the committed copy is out of date.
-        run: rm -rf apps/waypoint/src/domain/protocol/generated
-
-      - name: Regenerate protocol bindings
-        id: regenerate
-        run: cargo test -p waypoint-protocol
-
-      - name: Check for uncommitted drift
+      # Snapshots every generated directory (the protocol crate and both plugins), deletes them so a
+      # removed type cannot leave a stale file behind, regenerates with `cargo test`, and diffs.
+      - name: Check generated bindings for drift
         id: drift
-        run: diff -rq /tmp/generated-before apps/waypoint/src/domain/protocol/generated
+        run: bash scripts/check-bindings-drift.sh
 
       - name: Job summary
         if: always()
         run: |
           {
-            echo "## Protocol bindings drift"
-            echo "- Regenerate: \`${{ steps.regenerate.outcome }}\` (\`cargo test -p waypoint-protocol\`)"
-            echo "- Drift check: \`${{ steps.drift.outcome }}\`"
+            echo "## Bindings drift"
+            echo "- Result: \`${{ steps.drift.outcome }}\`"
+            echo "- Command: \`bash scripts/check-bindings-drift.sh\`"
+            echo "- Directories: the protocol \`generated\` folder and each plugin's \`guest-js/bindings\`"
             echo "- Fix a failure with \`bun run bindings\` and commit the regenerated files"
           } >> "${GITHUB_STEP_SUMMARY}"
