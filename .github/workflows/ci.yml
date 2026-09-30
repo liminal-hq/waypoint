@@ -56,3 +56,166 @@ jobs:
             echo "- Result: \`${{ steps.headers.outcome }}\`"
             echo "- Command: \`bash scripts/check-headers.sh\`"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  plugin-boundaries:
+    name: Plugin boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check plugin boundaries
+        id: boundaries
+        run: bash scripts/check-plugin-boundaries.sh
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Plugin boundaries"
+            echo "- Result: \`${{ steps.boundaries.outcome }}\`"
+            echo "- Command: \`bash scripts/check-plugin-boundaries.sh\`"
+            echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  frontend-tests:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      - name: Type-check
+        id: typecheck
+        run: bun run typecheck
+
+      - name: Run tests
+        id: tests
+        run: bun run test:js:ci
+
+      - name: Build
+        id: build
+        run: bun run build
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Frontend tests"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| Type-check | \`${{ steps.typecheck.outcome }}\` | \`bun run typecheck\` |"
+            echo "| Tests | \`${{ steps.tests.outcome }}\` | \`bun run test:js:ci\` |"
+            echo "| Build | \`${{ steps.build.outcome }}\` | \`bun run build\` |"
+            echo
+            bash scripts/junit-summary.sh test-results/chrome-junit.xml test-results/junit.xml
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload frontend test artefacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-test-results
+          path: test-results/*.xml
+          if-no-files-found: error
+
+      # Consumed by publish-test-results.yml — the pull_request event's own
+      # GITHUB_TOKEN is read-only for Dependabot and fork PRs, so publishing
+      # the JUnit check run has to happen from a separate `workflow_run`
+      # workflow instead, which runs with this repo's own permissions
+      # regardless of who opened the PR.
+      - name: Upload event file
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: event-file
+          path: ${{ github.event_path }}
+
+  rust-tests:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # The Tauri build script needs the built frontend (`frontendDist`).
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        id: fmt
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        id: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - uses: taiki-e/install-action@nextest
+
+      - name: Run tests
+        id: nextest
+        run: cargo nextest run --workspace --profile ci
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Rust tests"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| Format | \`${{ steps.fmt.outcome }}\` | \`cargo fmt --all -- --check\` |"
+            echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
+            echo "| Tests | \`${{ steps.nextest.outcome }}\` | \`cargo nextest run --workspace --profile ci\` |"
+            echo
+            bash scripts/junit-summary.sh target/nextest/ci/junit.xml
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Rust test artefacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-test-results
+          path: target/nextest/ci/junit.xml
+          if-no-files-found: error
+
+  bindings-drift:
+    name: Bindings drift
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - uses: Swatinem/rust-cache@v2
+
+      # Snapshots every generated directory (the protocol crate and both plugins), deletes them so a
+      # removed type cannot leave a stale file behind, regenerates with `cargo test`, and diffs.
+      - name: Check generated bindings for drift
+        id: drift
+        run: bash scripts/check-bindings-drift.sh
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Bindings drift"
+            echo "- Result: \`${{ steps.drift.outcome }}\`"
+            echo "- Command: \`bash scripts/check-bindings-drift.sh\`"
+            echo "- Directories: the protocol \`generated\` folder and each plugin's \`guest-js/bindings\`"
+            echo "- Fix a failure with \`bun run bindings\` and commit the regenerated files"
+          } >> "${GITHUB_STEP_SUMMARY}"

@@ -1,0 +1,109 @@
+// Window menu: the shared Liminal menu opened from empty title bar space
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import { useMemo, type ReactNode } from 'react';
+import { ContextMenu } from '../ContextMenu/ContextMenu';
+import type { MenuPosition, SelectableMenuItem } from '../ContextMenu/types';
+import {
+	CloseIcon,
+	MaximiseIcon,
+	MinimiseIcon,
+	MoreIcon,
+	MoveIcon,
+	PinIcon,
+	RestoreIcon,
+} from '../icons/icons';
+import { defaultChromeLabels, type ChromeLabels } from '../labels';
+import {
+	useWindowControls,
+	useWindowMaximised,
+} from '../WindowChromeProvider/WindowChromeProvider';
+import { buildWindowMenuModel, type WindowMenuActionId } from './windowMenuModel';
+
+const iconFor: Record<WindowMenuActionId, ReactNode> = {
+	restore: <RestoreIcon />,
+	maximise: <MaximiseIcon />,
+	minimise: <MinimiseIcon />,
+	move: <MoveIcon />,
+	'always-on-top': <PinIcon />,
+	'system-menu': <MoreIcon />,
+	close: <CloseIcon />,
+};
+
+export interface WindowMenuProps {
+	position: MenuPosition;
+	alwaysOnTop: boolean;
+	showAlwaysOnTop?: boolean;
+	onAlwaysOnTopChange: (value: boolean) => void;
+	onClose: () => void;
+	labels?: ChromeLabels;
+}
+
+export function WindowMenu({
+	position,
+	alwaysOnTop,
+	showAlwaysOnTop = true,
+	onAlwaysOnTopChange,
+	onClose,
+	labels = defaultChromeLabels,
+}: WindowMenuProps) {
+	const controls = useWindowControls();
+	const isMaximised = useWindowMaximised();
+	const canMove = controls.startDragging !== undefined;
+	const canShowSystemMenu = controls.showSystemMenu !== undefined;
+	const items = useMemo(
+		() =>
+			buildWindowMenuModel({
+				isMaximised,
+				alwaysOnTop,
+				showAlwaysOnTop,
+				canMove,
+				canShowSystemMenu,
+				labels,
+			}).map((item) => {
+				const icon = item.id ? iconFor[item.id as WindowMenuActionId] : undefined;
+				return icon && (item.type === 'action' || item.type === 'checkbox')
+					? { ...item, icon }
+					: item;
+			}),
+		[isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, canShowSystemMenu, labels],
+	);
+
+	const handleSelect = (item: SelectableMenuItem) => {
+		switch (item.id as WindowMenuActionId) {
+			case 'restore':
+			case 'maximise':
+				void controls.toggleMaximize();
+				break;
+			case 'minimise':
+				void controls.minimize();
+				break;
+			case 'move':
+				void controls.startDragging?.();
+				break;
+			case 'always-on-top':
+				onAlwaysOnTopChange(!alwaysOnTop);
+				break;
+			case 'system-menu':
+				// The pointer press that chose this entry is the input the compositor validates, so
+				// the request must be made now, at the menu's own position.
+				void controls.showSystemMenu?.({ x: position.x, y: position.y });
+				break;
+			case 'close':
+				void controls.close();
+				break;
+		}
+	};
+
+	return (
+		<ContextMenu
+			items={items}
+			position={position}
+			onSelect={handleSelect}
+			onClose={onClose}
+			ariaLabel={labels.windowMenu}
+		/>
+	);
+}

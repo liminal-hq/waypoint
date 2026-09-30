@@ -1,0 +1,48 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Waypoint",
+	"version": "0.0.0",
+	"identifier": "dev.liminal.waypoint",
+	"build": {
+		"beforeDevCommand": "bun run dev",
+		"beforeBuildCommand": "bun run build",
+		"devUrl": "http://localhost:1420",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"label": "main-1",
+				"title": "Waypoint",
+				"width": 1100,
+				"height": 720,
+				"minWidth": 640,
+				"minHeight": 400,
+				"resizable": true,
+				"decorations": false,
+				"transparent": true,
+				"shadow": true
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"publisher": "Liminal HQ",
+		"homepage": "https://github.com/liminal-hq/waypoint",
+		"copyright": "Copyright 2026 Liminal HQ, Scott Morris",
+		"license": "Apache-2.0 OR MIT",
+		"category": "Utility",
+		"shortDescription": "A tabbed, extensible file manager"
+	}
+}

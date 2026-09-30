@@ -8,7 +8,7 @@ Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11
 
 ## Status
 
-**Preparation phase.** The product design, the proposed architecture (`docs/architecture/`), repo conventions and the first CI jobs exist. No application code is scaffolded yet. Milestone 1 (skeleton) is next, with the Milestone 0 risk spikes run alongside it (A14); scaffold only what the current milestone needs, not the whole tree speculatively.
+**Preparation phase.** The product design, the proposed architecture (`docs/architecture/`), repo conventions and the first CI jobs exist. Milestone 1 (skeleton) is in progress (A14): the workspaces, `waypoint-protocol`, `packages/chrome` and a placeholder app shell exist. Feature work, reusable plugins and the Milestone 0 risk spikes are still ahead; scaffold only what the current milestone needs, not the whole tree speculatively.
 
 `docs/ui-mockups/` points at the original Claude Design prototype. It is **reference only** — its code is not to be ported, adapted or structurally mirrored. Only the behaviour it demonstrates is authoritative, and only via `SPEC.md` and the docs.
 
@@ -26,13 +26,13 @@ Bun workspace monorepo + Cargo workspace (planned shape, see `AGENTS.md` → Rep
 
 ```bash
 bun install          # install workspace dependencies
-bun run validate     # the local CI gate — must pass before opening/updating a PR (today: format check + licence headers; grows with the codebase)
+bun run validate     # the local CI gate — must pass before opening/updating a PR (format, headers, tsc, vitest, build, cargo fmt/clippy/nextest)
 bun run format       # Prettier write
 bun run format:check # Prettier check
 bun run check:headers # licence-header check
 ```
 
-Once the app exists: `bun run tauri:dev` (MCP-drivable desktop shell — use this one for agent automation, not plain `tauri dev`), `bun run test:js`, `bun run test:rust`, `bun run build`. If host Rust tooling is unavailable, use the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container per `AGENTS.md` → Local Tooling.
+Also: `bun run tauri:dev` (MCP-drivable desktop shell — use this one for agent automation, not plain `tauri dev`; it also sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` so the undocked Web Inspector renders on Wayland), `bun run test:js`, `bun run test:rust`, `bun run build`. If host Rust tooling is unavailable, use the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container per `AGENTS.md` → Local Tooling.
 
 ## Architecture — the key things to understand
 
@@ -47,6 +47,8 @@ Read `docs/architecture/README.md` first; the rules that bite:
 **Every plugin reports availability.** Options that don't work on the current system are hidden; the Services status panel explains why (`docs/os-integrations.md`).
 
 **Two meanings of "plugin".** Native plugins are build-time Tauri plugins; **extensions** are the user-installable sandboxed add-ons in `docs/plugins.md`. Say which one you mean.
+
+**One log stream.** `tauri-plugin-log` in `src-tauri` plus `src/services/logger.ts` (webview `console.*` redirected, tagged with the window label) — see `AGENTS.md` → Logging. Call `initLogger(label)` in every window entry.
 
 **The Linux webview is WebKitGTK.** Verify performance, transparency and `backdrop-filter` work there, and on Wayland, not only in Chromium.
 

@@ -16,8 +16,9 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SO
 EXEMPT_FILES=(
   "apps/*/vite.config.ts"                # build-tool config
   "apps/*/src/vite-env.d.ts"             # Vite-scaffolded ambient types
+  "packages/*/src/vite-env.d.ts"          # Vite ambient types reference
   "*/generated/*.ts"                     # ts-rs output, regenerated from Rust structs
-  "plugins/*/guest-js/rollup.config.js"  # build-tool config
+  "plugins/*/guest-js/bindings/*.ts"     # ts-rs output, regenerated from Rust structs
 )
 
 is_exempt() {
@@ -32,7 +33,7 @@ is_exempt() {
 # Only scan directories that actually exist yet -- this list is the full
 # set of places source lives; missing ones are simply skipped.
 SCAN_DIRS=()
-for d in apps packages plugins crates scripts tools; do
+for d in apps packages plugins crates scripts shared tools; do
   [[ -d "$d" ]] && SCAN_DIRS+=("$d")
 done
 

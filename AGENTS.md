@@ -22,7 +22,7 @@
 
 ## Project Status
 
-Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in its **preparation phase**: product design (`SPEC.md` and the design docs under `docs/`), the proposed structural architecture (`docs/architecture/`), repository conventions and the first CI jobs exist. **No application code has been scaffolded yet.** The architecture is accepted for scaffolding (A14): Milestone 1 (skeleton) is next, with the Milestone 0 risk spikes run alongside it, and only what the current milestone needs gets scaffolded. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
+Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in its **preparation phase**: product design (`SPEC.md` and the design docs under `docs/`), the proposed structural architecture (`docs/architecture/`), repository conventions and the first CI jobs exist. **Milestone 1 (skeleton) is in progress** (A14): the Cargo and Bun workspaces, `crates/waypoint-protocol`, `packages/chrome` and a placeholder `apps/waypoint` shell exist and are covered by CI. Feature work, the reusable plugins and the Milestone 0 risk spikes are still ahead; scaffold only what the current milestone needs. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
 
 The prototype that the product design came from lives in a Claude Design project and is **reference only**; see `docs/ui-mockups/README.md`. Only the _behaviour_ it demonstrates is authoritative, and only via `SPEC.md` and the docs. Do not port, adapt or structurally mirror its code.
 
@@ -116,7 +116,7 @@ Keep American spellings where an external API, CSS property, crate or protocol r
 
 - Add at least one primary category label to every PR: `enhancement`, `bug`, `documentation`, `testing`, `ci`, `build`, or `chore`.
 - Add shared operational labels where they help clarify handling: `infrastructure`, `internal`, `release`, `blocked`, `epic`, or `skip-changelog`.
-- Add scope labels where helpful: `frontend`, `backend`, `rust`, `plugin`, `windows`, `linux`, `accessibility`, `design-system`.
+- Add scope labels where helpful. Technology: `frontend`, `backend`, `rust`, `plugin`, `data-model`. Platform: `linux`, `windows`, `wayland`. Product area: `tabs`, `drag-and-drop`, `remote`, `extensions`, `operations`, `search`, `os-integration`, `theming`, `accessibility`, `localisation`, `design-system`, `performance`, `security`. Structure and process: `architecture`, `spike` (a Milestone 0 risk spike), `experimental`, `developer-experience`.
 - Prefer the broader Liminal HQ label style over Conventional Commit terms. Use `enhancement` and `bug`, not `feat` or `fix`.
 - Use `skip-changelog` only when a change should be excluded from generated release notes (the categories are defined in `.github/release.yml`).
 - Keep labels accurate as scope changes during review.
@@ -133,12 +133,21 @@ Keep American spellings where an external API, CSS property, crate or protocol r
 
 - **JS runtime and package manager:** **Bun workspaces** (not pnpm/npm), with the Node version pinned in `.node-version` for tooling that needs it. Formatting is Prettier (`.prettierrc`: tabs, single quotes, 100 columns).
 - **Rust:** the toolchain is pinned in `rust-toolchain.toml`. If `cargo` is not available on the host, run Rust/Tauri commands in the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container against the checked-out workspace.
-- **Validation gate:** `bun run validate` is the single local gate that mirrors CI and must pass before opening or updating a PR. Today it runs the format check and the licence-header check; it grows to include vitest, `tsc`, `cargo fmt`, `cargo clippy -D warnings` and `cargo nextest` as those parts are scaffolded.
+- **Validation gate:** `bun run validate` is the single local gate that mirrors CI and must pass before opening or updating a PR. It runs the format check, the licence-header check, `tsc`, Vitest, the app build, `cargo fmt`, `cargo clippy -D warnings` and `cargo nextest`.
 - **Editor settings:** `.editorconfig` is authoritative (tabs, LF, UTF-8).
 
 ### MCP Automation Bridge
 
-Once the app exists, an agent driving the running app (screenshots, DOM snapshots, JS eval, simulated input) uses the `tauri-mcp-server` MCP tool, which talks to `tauri-plugin-mcp-bridge` — a debug-only plugin (`#[cfg(debug_assertions)]`) that never exists in release builds. Start the app with `bun run tauri:dev`, **not** plain `tauri dev`: `tauri:dev` merges `src-tauri/tauri.conf.dev.json`, which sets `"withGlobalTauri": true`, the global the bridge's JS-eval callback needs. Without it, `webview_execute_js`, screenshots, DOM snapshots and `webview_wait_for` silently time out while non-JS calls keep working. Waypoint is multi-window, so target windows by label.
+Once the app exists, an agent driving the running app (screenshots, DOM snapshots, JS eval, simulated input) uses the `tauri-mcp-server` MCP tool, which talks to `tauri-plugin-mcp-bridge` — a debug-only plugin (`#[cfg(debug_assertions)]`) that never exists in release builds. Start the app with `bun run tauri:dev`, **not** plain `tauri dev`: `tauri:dev` merges `src-tauri/tauri.conf.dev.json`, which sets `"withGlobalTauri": true`, the global the bridge's JS-eval callback needs. Without it, `webview_execute_js`, screenshots, DOM snapshots and `webview_wait_for` silently time out while non-JS calls keep working. Waypoint is multi-window, so target windows by label. `tauri:dev` also sets `WEBKIT_DISABLE_DMABUF_RENDERER=1`: on Wayland with WebKitGTK the undocked Web Inspector renders black without it. It is a development-only workaround (the shipped app is unaffected); leave it in the script rather than exporting it in a shell profile, and re-test without it when WebKitGTK is upgraded.
+
+### Logging
+
+Native Rust and webview output share one log stream. `tauri-plugin-log` is configured in `src-tauri/src/lib.rs` (`Trace` in debug builds, `Info` in release; stdout plus the rotating `Waypoint.log`; chatty `tungstenite` crates held at `Warn`), and `src/services/logger.ts` redirects every webview `console.*` call into it, tagged with the call site and prefixed with the window label (for example `[main-1]`). Rules:
+
+- Every window entry calls `initLogger(label)` once at startup; new window kinds must too.
+- Use `log::{trace,debug,info,warn,error}!` in Rust and `console.*` in the front end. Do not add a second logging path, and never log secrets, credentials or full file contents.
+- Each window's capabilities must include `log:default` (`capabilities/logging.json` grants it to every window), or forwarding fails silently.
+- The log file is under the app's log directory (on Linux, `~/.local/share/dev.liminal.waypoint/logs/`).
 
 ## CI and Release
 
@@ -157,10 +166,10 @@ CI and release follow the Liminal HQ house pipeline (Jar and Cadence are the ref
 - **No barrel files.** Don't create an `index.ts`/`index.tsx` that only re-exports from sibling files. Import directly from the file that defines the thing (e.g. `import { TabStrip } from '../tabs/TabStrip'`). Barrels obscure the real dependency graph and slow down tree-shaking and IDE "go to definition."
 - **React 19 + TypeScript (strict) + Vite.** Function components only. Feature-folder layout under `src/features/`; see `docs/architecture/frontend.md` for the stack and the reasoning.
 - **The frontend renders; Rust decides.** Filesystem, operations, session and permission logic lives in Rust. Frontend code reacts to commands and events and never re-derives domain rules. Ephemeral UI state (hover, drag pointer state, focus) stays in the frontend.
-- **Styling:** CSS Modules plus CSS custom properties for the semantic tokens in `docs/theming-and-platforms.md`. No inline-style styling (the prototype's approach) and no colour literals outside the token files.
+- **Styling:** CSS Modules plus CSS custom properties for the semantic tokens in `docs/theming-and-platforms.md`. No inline-style styling (the prototype's approach): a value that must be measured in script, such as a menu's position, is passed to the stylesheet as a CSS custom property (`style={{ '--wp-menu-x': '12px' }}`) and consumed by a rule in the module, never as `left`, `top` or a colour on the element. **Colour literals live only in token files** (`apps/waypoint/src/theme/tokens.css` and the chrome's `packages/chrome/src/tokens.css` defaults); component CSS uses `var(--wp-*)` with no inline fallback, and every property a component reads needs a default in the chrome's `tokens.css`. `packages/chrome/src/tokens.test.ts` enforces all three.
 - **Accessibility is a build requirement, not a polish pass:** roles, names, focus order and keyboard paths follow `docs/accessibility.md`. A component that is not keyboard-operable is not done.
-- **All user-visible strings go through the message catalogue** (RTL and localisation are in scope, D80) — no string literals in JSX.
-- **Wrap plugin calls in the plugin's own guest-js API.** Do not scatter raw `invoke('plugin:...|...')` strings through feature code.
+- **All user-visible strings go through the message catalogue** (RTL and localisation are in scope, D80) — no string literals in JSX. The milestone-one catalogue is `apps/waypoint/src/i18n/messages.ts` (`t('area.thing')`), and the chrome's labels are supplied from it by `i18n/chromeLabels.ts`; add a key there, never a literal in a component. `i18n/messages.test.ts` fails if a screen holds literal `title`, `description` or `label` copy.
+- **JavaScript reaches a native plugin only through its `guest-js` package.** Every plugin ships typed `guest-js` functions (and typed event subscriptions) that own the command and event names. Application and package code imports those functions and never calls `invoke('plugin:...|...')` or listens for a plugin's event by string. A plugin is not done until its `guest-js` covers every command and event the front end uses. `scripts/check-plugin-boundaries.sh` enforces the invoke half in CI.
 
 ## Architecture Rules
 
@@ -186,12 +195,12 @@ The rules below are the enforceable core of `docs/architecture/`. Change the arc
 
 ## Repository Layout
 
-Cargo workspace + **Bun workspaces**, matching Jar and Cadence. Everything below is **planned** until it is scaffolded; the authoritative design is `docs/architecture/`.
+Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome` and `crates/waypoint-protocol` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
 
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.
 - `crates/*` — pure Rust, no `tauri` dependency: `waypoint-protocol` (shared types and `ts-rs` generation), `waypoint-vfs`, `waypoint-ops`, `waypoint-session`, `waypoint-search`, `waypoint-ext`, and per-protocol provider crates.
-- `plugins/*` — Tauri plugins, each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
+- `plugins/*` — Tauri plugins (see `plugins/README.md`; `system-appearance` is built), each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
 - `docs/` — product design docs (`decisions.md`, `interactions.md`, …), `architecture/` (structure, plugins, frontend, CI/CD, ADRs) and `ui-mockups/` (prototype pointer, reference only).
 - `scripts/` — repo tooling (`check-headers.sh`, later `check-release-versions.sh`).
 - `.github/` — workflows, `dependabot.yml`, `release.yml` (changelog categories).
@@ -265,5 +274,6 @@ Because many online resources refer to Tauri v1, older patterns may inadvertentl
 - **Multiple webviews, one bundle.** Each window is a separate webview with its own JS heap; keep the entry bundle small and route by window label. Never assume state is shared across windows — it goes through Rust.
 - **Native file drop vs in-page drag and drop.** Tauri's native drag-drop handler and HTML5 drag events conflict on some platforms (notably Windows). Waypoint runs its own pointer-event drag engine and gets native in/out drag through a dedicated plugin; set `dragDropEnabled` deliberately per window, and re-test on every platform after touching it.
 - **Linux webview is WebKitGTK.** Performance, `backdrop-filter`, transparency and Wayland behaviour differ from Chromium and from WebView2. Verify visual and performance work on WebKitGTK (GNOME and KDE, Wayland and X11), not only in a browser.
+- **Window frame and shadows differ per platform.** The OS draws the shadow on Windows and macOS (`shadow: true`); on Linux the frame draws it in CSS inside a transparent margin. `data-platform` on the root element selects the tokens, and Windows drops the CSS radius so only its native rounding applies. See `docs/theming-and-platforms.md` (D89).
 - **Logical vs physical pixels.** Cursor and window positions from Rust are physical; `screenX`/`screenY` are logical. Convert with the monitor scale factor (see `docs/tauri-tear-off.md`).
 - **Background work and window visibility.** Webview timers are throttled when a window is hidden; long-running work (jobs, watchers, search) runs in Rust and pushes events.

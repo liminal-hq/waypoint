@@ -1,0 +1,115 @@
+/*
+ * Semantic theme tokens (docs/theming-and-platforms.md). Components use these,
+ * never raw colours. The scheme follows the OS by default; `data-theme="light"`
+ * or `data-theme="dark"` on the root element overrides it.
+ */
+:root {
+	color-scheme: light dark;
+	--wp-bg-window: #f4f1ee;
+	--wp-bg-sidebar: #ebe7e3;
+	--wp-bg-content: #fbf9f7;
+	--wp-bg-raised: #ffffff;
+	--wp-bg-hover: #e3ded9;
+	--wp-bg-selected: #f6d9c8;
+	--wp-border-subtle: #d9d3cd;
+	--wp-text-primary: #211d1a;
+	--wp-text-secondary: #57504a;
+	--wp-text-muted: #7d756e;
+	--wp-accent: #c2410c;
+	--wp-accent-fg: #ffffff;
+	--wp-danger: #b91c1c;
+	--wp-success: #15803d;
+	--wp-warning: #a16207;
+	--wp-focus-ring: #2563eb;
+
+	/* Window chrome (packages/chrome). Derived from the palette so they follow the scheme. */
+	--wp-bg-chrome: var(--wp-bg-raised);
+	--wp-control-bg: color-mix(in srgb, var(--wp-text-primary) 6%, transparent);
+	--wp-control-bg-hover: color-mix(in srgb, var(--wp-text-primary) 12%, transparent);
+	--wp-title-bar-height: 40px;
+	--wp-title-bar-opacity: 1;
+	--wp-window-radius: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		color-scheme: dark;
+		--wp-bg-window: #1c1917;
+		--wp-bg-sidebar: #211e1b;
+		--wp-bg-content: #171412;
+		--wp-bg-raised: #292524;
+		--wp-bg-hover: #332e2b;
+		--wp-bg-selected: #4a2a1a;
+		--wp-border-subtle: #3a3531;
+		--wp-text-primary: #f5f1ed;
+		--wp-text-secondary: #c9c1ba;
+		--wp-text-muted: #9a918a;
+		--wp-accent: #f97316;
+		--wp-accent-fg: #1c1917;
+		--wp-danger: #f87171;
+		--wp-success: #4ade80;
+		--wp-warning: #facc15;
+		--wp-focus-ring: #60a5fa;
+	}
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--wp-bg-window: #1c1917;
+	--wp-bg-sidebar: #211e1b;
+	--wp-bg-content: #171412;
+	--wp-bg-raised: #292524;
+	--wp-bg-hover: #332e2b;
+	--wp-bg-selected: #4a2a1a;
+	--wp-border-subtle: #3a3531;
+	--wp-text-primary: #f5f1ed;
+	--wp-text-secondary: #c9c1ba;
+	--wp-text-muted: #9a918a;
+	--wp-accent: #f97316;
+	--wp-accent-fg: #1c1917;
+	--wp-danger: #f87171;
+	--wp-success: #4ade80;
+	--wp-warning: #facc15;
+	--wp-focus-ring: #60a5fa;
+}
+
+/*
+ * Window frame per platform. Windows and macOS draw the window shadow themselves
+ * (`shadow: true` in tauri.conf.json), so the CSS adds no margin or shadow there.
+ * Linux draws no shadow for a frameless window (GNOME paints none), so the frame
+ * keeps a transparent margin and draws the shadow in CSS. On Windows 11 the OS also
+ * rounds the corners, so the CSS radius is dropped there (Windows 10 has no native rounding,
+ * so it keeps the CSS radius) to avoid two
+ * mismatched radii; macOS does not round frameless windows, so its radius stays.
+ * With no platform set (a plain browser), the frame uses no margin and no shadow.
+ */
+:root[data-platform='linux'] {
+	/* The resize hit area is a fixed 5px strip at the window's outer edge, so a small margin
+	   keeps it close to the visible edge. The shadow must fit inside the margin to avoid a hard clip. */
+	--wp-window-shadow-margin: 8px;
+	--wp-window-shadow: 0 2px 8px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(0, 0, 0, 0.22);
+	/* No drop shadow while unfocused, only the hairline ring so the edge stays visible. */
+	--wp-window-shadow-unfocused: 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-platform='windows'][data-windows11='true'] {
+	--wp-window-radius: 0px;
+}
+
+html,
+body,
+#root {
+	margin: 0;
+	height: 100%;
+	/* The window is transparent so the frame can round its own corners. */
+	background: transparent;
+}
+
+body {
+	font-family: system-ui, sans-serif;
+	font-size: 14px;
+}

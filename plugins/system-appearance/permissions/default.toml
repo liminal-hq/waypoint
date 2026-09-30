@@ -1,0 +1,6 @@
+[default]
+description = "Default permissions for the system-appearance plugin"
+permissions = [
+  "allow-get-status",
+  "allow-get-titlebar-preferences",
+]

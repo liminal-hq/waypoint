@@ -1,0 +1,17 @@
+[package]
+name = "waypoint-protocol"
+version = "0.1.0"
+description = "Shared wire-format types for Waypoint's frontend/backend boundary, with generated TypeScript bindings"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+ts-rs = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

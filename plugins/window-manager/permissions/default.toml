@@ -1,0 +1,8 @@
+[default]
+description = "Default permissions for the window-manager plugin"
+permissions = [
+  "allow-get-status",
+  "allow-get-capabilities",
+  "allow-show-system-window-menu",
+  "allow-get-always-on-top",
+]

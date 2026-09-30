@@ -1,0 +1,60 @@
+/*
+ * Default values for every custom property the chrome reads, so it renders sensibly in a host that
+ * defines none. This is the one place the chrome's colour literals live: component CSS uses only
+ * `var(--wp-*)`. The defaults sit in `:where(:root)`, which has no specificity, so a host's own
+ * `:root` tokens always win regardless of stylesheet order. Dark first, light under
+ * `prefers-color-scheme: light`; a host that sets `data-theme` on the root overrides both.
+ */
+:where(:root) {
+	color-scheme: dark light;
+
+	/* Surfaces and text */
+	--wp-bg-raised: #2b2d31;
+	--wp-bg-chrome: #1e1f22;
+	--wp-bg-chrome-unfocused: var(--wp-bg-chrome);
+	--wp-text-primary: #e6e6e6;
+	--wp-text-muted: #9a9a9a;
+	--wp-border-subtle: rgb(255 255 255 / 12%);
+
+	/* Accent, danger and focus */
+	--wp-accent: #3584e4;
+	--wp-accent-contrast: #ffffff;
+	--wp-danger: #e5484d;
+	--wp-danger-fg: #ffffff;
+	--wp-focus-ring: #78aeed;
+	--wp-focus-ring-on-accent: #ffffff;
+
+	/* Title bar controls */
+	--wp-control-bg: rgb(255 255 255 / 8%);
+	--wp-control-bg-hover: rgb(255 255 255 / 14%);
+	--wp-window-close-hover-bg: #c42b1c;
+	--wp-window-close-hover-fg: #ffffff;
+	--wp-title-bar-height: 40px;
+	--wp-title-bar-opacity: 0.85;
+
+	/* Window frame: no margin and no shadow unless the host draws its own */
+	--wp-window-radius: 12px;
+	--wp-window-shadow: none;
+	--wp-window-shadow-unfocused: var(--wp-window-shadow);
+	--wp-window-shadow-margin: 0px;
+
+	/* Menus */
+	--wp-shadow-menu: 0 8px 24px rgb(0 0 0 / 35%);
+	--wp-z-menu: 1000;
+	--wp-menu-viewport-margin: 4px;
+	--wp-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+	:where(:root:not([data-theme='dark'])) {
+		--wp-bg-raised: #ffffff;
+		--wp-bg-chrome: #ebebed;
+		--wp-text-primary: #1e1f22;
+		--wp-text-muted: #6b6b70;
+		--wp-border-subtle: rgb(0 0 0 / 12%);
+		--wp-focus-ring: #1c71d8;
+		--wp-control-bg: rgb(0 0 0 / 6%);
+		--wp-control-bg-hover: rgb(0 0 0 / 12%);
+		--wp-shadow-menu: 0 8px 24px rgb(0 0 0 / 20%);
+	}
+}
