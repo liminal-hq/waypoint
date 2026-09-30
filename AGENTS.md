@@ -22,7 +22,7 @@
 
 ## Project Status
 
-Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in its **preparation phase**: product design (`SPEC.md` and the design docs under `docs/`), the proposed structural architecture (`docs/architecture/`), repository conventions and the first CI jobs exist. **No application code has been scaffolded yet.** The architecture is accepted for scaffolding (A14): Milestone 1 (skeleton) is next, with the Milestone 0 risk spikes run alongside it, and only what the current milestone needs gets scaffolded. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
+Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in its **preparation phase**: product design (`SPEC.md` and the design docs under `docs/`), the proposed structural architecture (`docs/architecture/`), repository conventions and the first CI jobs exist. **Milestone 1 (skeleton) is in progress** (A14): the Cargo and Bun workspaces, `crates/waypoint-protocol`, `packages/chrome` and a placeholder `apps/waypoint` shell exist and are covered by CI. Feature work, the reusable plugins and the Milestone 0 risk spikes are still ahead; scaffold only what the current milestone needs. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
 
 The prototype that the product design came from lives in a Claude Design project and is **reference only**; see `docs/ui-mockups/README.md`. Only the _behaviour_ it demonstrates is authoritative, and only via `SPEC.md` and the docs. Do not port, adapt or structurally mirror its code.
 
@@ -133,7 +133,7 @@ Keep American spellings where an external API, CSS property, crate or protocol r
 
 - **JS runtime and package manager:** **Bun workspaces** (not pnpm/npm), with the Node version pinned in `.node-version` for tooling that needs it. Formatting is Prettier (`.prettierrc`: tabs, single quotes, 100 columns).
 - **Rust:** the toolchain is pinned in `rust-toolchain.toml`. If `cargo` is not available on the host, run Rust/Tauri commands in the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container against the checked-out workspace.
-- **Validation gate:** `bun run validate` is the single local gate that mirrors CI and must pass before opening or updating a PR. Today it runs the format check and the licence-header check; it grows to include vitest, `tsc`, `cargo fmt`, `cargo clippy -D warnings` and `cargo nextest` as those parts are scaffolded.
+- **Validation gate:** `bun run validate` is the single local gate that mirrors CI and must pass before opening or updating a PR. It runs the format check, the licence-header check, `tsc`, Vitest, the app build, `cargo fmt`, `cargo clippy -D warnings` and `cargo nextest`.
 - **Editor settings:** `.editorconfig` is authoritative (tabs, LF, UTF-8).
 
 ### MCP Automation Bridge
@@ -186,7 +186,7 @@ The rules below are the enforceable core of `docs/architecture/`. Change the arc
 
 ## Repository Layout
 
-Cargo workspace + **Bun workspaces**, matching Jar and Cadence. Everything below is **planned** until it is scaffolded; the authoritative design is `docs/architecture/`.
+Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome` and `crates/waypoint-protocol` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
 
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.

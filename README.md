@@ -8,7 +8,7 @@ Built with Tauri v2, React/TypeScript and Rust.
 
 ## Status
 
-Preparation phase. The product design and the proposed structural architecture are written; application code has not been scaffolded yet. Start with `docs/architecture/README.md`.
+Early scaffolding (Milestone 1). The product design and structural architecture are written; the workspaces, the shared protocol crate, the window chrome package and a placeholder app shell exist. No file-manager features yet. Start with `docs/architecture/README.md`.
 
 ## Documentation
 
