@@ -69,6 +69,14 @@ export const enMessages = {
 	'nav.path.unsupported': 'Waypoint cannot open {what} locations yet.',
 	'nav.path.failed': 'That location could not be checked.',
 
+	'tabs.strip.label': 'Tabs',
+	'tabs.panel.label': 'Files',
+	'tabs.new': 'New tab',
+	'tabs.close': 'Close {title}',
+	'tabs.scrollLeft': 'Scroll tabs left',
+	'tabs.scrollRight': 'Scroll tabs right',
+	'tabs.moved': 'Moved {title} to position {position} of {count}',
+
 	'dev.live.label': 'Live update controls (development only)',
 	'dev.live.add': 'Add 5 files',
 	'dev.live.addTop': 'Add 5 at the top',

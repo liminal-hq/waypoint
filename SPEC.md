@@ -86,7 +86,9 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 - **Tear off:** drag a tab out of the strip to spawn a new window under the cursor. A ghost follows the pointer, even outside the app. Native pattern in `docs/tauri-tear-off.md`.
 - **Merge:** drop a tab onto another window's strip. Drop it onto a tab's body to put it next to that tab.
 - **Spring-load:** while you hover a file drag over a tab for 600 ms, that tab activates.
-- Middle-click a folder to open it in a new tab. **Ctrl+middle-click** opens it in a new window.
+- Middle-click a folder to open it in a new tab beside the current one, without leaving the current tab. **Ctrl+middle-click** opens it in a new window. Middle-click a tab to close it.
+- **Keyboard:** the strip is a tablist with roving focus. Left and Right move focus along the tabs (Home and End jump), Enter or Space activates the focused tab, Ctrl+Shift+Left or Right moves it, and Delete closes it. Ctrl+T opens a tab at the current folder, Ctrl+W closes the active tab, Ctrl+Tab and Ctrl+Shift+Tab step through the tabs in strip order, and Alt+1 to Alt+9 go to that tab. Dragging a tab along the strip reorders it, and Escape abandons the drag.
+- Closing the last tab leaves a new tab at Home (until window closing and session restore arrive). Each tab keeps its selection and scroll position while it is open; a background tab gives up its cached rows after a short while and refreshes them when you return.
 
 #### The + button
 

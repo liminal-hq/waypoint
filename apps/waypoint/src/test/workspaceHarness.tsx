@@ -38,7 +38,7 @@ export async function renderWorkspace(
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
 	const view = render(
 		<VfsClientProvider client={client}>
-			<TabsProvider api={tabs}>
+			<TabsProvider api={tabs} home={HOME}>
 				<Workspace />
 			</TabsProvider>
 		</VfsClientProvider>,

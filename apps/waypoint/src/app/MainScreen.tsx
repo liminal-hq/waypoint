@@ -33,7 +33,7 @@ export function MainScreen() {
 		<WindowFrame className={styles.screen}>
 			<AppTitleBar title={t('window.main.title')} />
 			<VfsClientProvider client={client}>
-				<TabsProvider api={tabsApi}>
+				<TabsProvider api={tabsApi} home={DEMO_HOME}>
 					<main className={styles.content}>
 						{DevLiveControls && (
 							<Suspense fallback={null}>

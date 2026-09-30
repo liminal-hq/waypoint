@@ -57,26 +57,37 @@ export function ListView({ location, onOpen }: ListViewProps) {
 	return <ListingView state={state} onOpen={onOpen} />;
 }
 
+type OpenHandler = (entry: Entry, handle: ListingHandle) => void;
+
 interface ListingViewProps {
 	state: SessionState;
-	onOpen?: ((entry: Entry, handle: ListingHandle) => void) | undefined;
+	onOpen?: OpenHandler | undefined;
+	onOpenInNewTab?: OpenHandler | undefined;
 }
 
 /** The list for a listing that is opening, failed or ready. */
-export function ListingView({ state, onOpen }: ListingViewProps) {
+export function ListingView({ state, onOpen, onOpenInNewTab }: ListingViewProps) {
 	return (
 		<ListingGate state={state}>
-			{(session) => <ListingBody key={session.model.handle} session={session} onOpen={onOpen} />}
+			{(session) => (
+				<ListingBody
+					key={session.model.handle}
+					session={session}
+					onOpen={onOpen}
+					onOpenInNewTab={onOpenInNewTab}
+				/>
+			)}
 		</ListingGate>
 	);
 }
 
 interface ListingBodyProps {
 	session: ListingSession;
-	onOpen: ((entry: Entry, handle: ListingHandle) => void) | undefined;
+	onOpen: OpenHandler | undefined;
+	onOpenInNewTab: OpenHandler | undefined;
 }
 
-function ListingBody({ session, onOpen }: ListingBodyProps) {
+function ListingBody({ session, onOpen, onOpenInNewTab }: ListingBodyProps) {
 	const { model, store } = session;
 	const version = useSyncExternalStore(model.subscribe, model.getVersion);
 	const selection = useStore(store, (state) => state.selection);
@@ -375,6 +386,16 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 									data-active={focus === item.index ? '' : undefined}
 									onClick={(event) => onRowClick(event, item.index, entry)}
 									onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
+									onMouseDown={(event) => {
+										// Stops middle-click from starting the platform's autoscroll.
+										if (event.button === 1) event.preventDefault();
+									}}
+									onAuxClick={(event) => {
+										if (event.button === 1 && entry) {
+											event.preventDefault();
+											onOpenInNewTab?.(entry, model.handle);
+										}
+									}}
 								>
 									{entry ? (
 										<>
