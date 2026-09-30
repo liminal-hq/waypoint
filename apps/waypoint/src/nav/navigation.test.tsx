@@ -80,6 +80,38 @@ describe('the toolbar', () => {
 	});
 });
 
+describe('the mouse back and forward buttons', () => {
+	it('step through history from anywhere in the window', async () => {
+		await renderWorkspace();
+		await openFolder('docs');
+		await option('report.pdf');
+		fireEvent.mouseUp(window, { button: 3 });
+		await option('notes.txt');
+		fireEvent.mouseUp(window, { button: 4 });
+		await option('report.pdf');
+	});
+
+	it('cancel the press and the click the webview would turn into its own history navigation', async () => {
+		await renderWorkspace();
+		for (const type of ['mousedown', 'auxclick']) {
+			for (const button of [3, 4]) {
+				const event = new MouseEvent(type, { button, cancelable: true, bubbles: true });
+				expect(fireEvent(window, event)).toBe(false);
+			}
+		}
+	});
+
+	it('leave the primary, middle and right buttons alone', async () => {
+		await renderWorkspace();
+		await openFolder('docs');
+		await option('report.pdf');
+		for (const button of [0, 1, 2]) {
+			expect(fireEvent.mouseUp(window, { button, cancelable: true })).toBe(true);
+		}
+		await option('report.pdf');
+	});
+});
+
 describe('history menus', () => {
 	it('lists the folders behind on right-click and jumps to the one chosen', async () => {
 		const { tabs } = await renderWorkspace();

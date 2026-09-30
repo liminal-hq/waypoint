@@ -14,7 +14,8 @@ import { useNavigation, type Navigation } from './useNavigation';
 /**
  * Keyboard paths for what the pointer does with the buttons (docs/accessibility.md item 9):
  * Alt+Left and Alt+Right for history, Alt+Up for the parent, Ctrl+L and Ctrl+Shift+G to type a
- * location. They live on the window because the file list, not the toolbar, usually has focus.
+ * location, and the mouse's back and forward buttons. They live on the window because the file
+ * list, not the toolbar, usually has focus.
  */
 function useNavigationShortcuts(navigation: Navigation, editPath: () => void): void {
 	useEffect(() => {
@@ -42,8 +43,30 @@ function useNavigationShortcuts(navigation: Navigation, editPath: () => void): v
 				editPath();
 			}
 		};
+		// The mouse's side buttons (docs/interactions.md: "Back/forward buttons, anywhere"). They report
+		// as buttons 3 and 4. The history step runs on release; the press and the click the browser
+		// sends with it are cancelled too, so the webview never does its own history navigation.
+		const sideButton = (event: MouseEvent) =>
+			event.button === 3 ? navigation.back : event.button === 4 ? navigation.forward : null;
+		const onMouseUp = (event: MouseEvent) => {
+			const action = sideButton(event);
+			if (!action) return;
+			event.preventDefault();
+			action();
+		};
+		const cancel = (event: MouseEvent) => {
+			if (sideButton(event)) event.preventDefault();
+		};
 		window.addEventListener('keydown', onKeyDown);
-		return () => window.removeEventListener('keydown', onKeyDown);
+		window.addEventListener('mouseup', onMouseUp, true);
+		window.addEventListener('mousedown', cancel, true);
+		window.addEventListener('auxclick', cancel, true);
+		return () => {
+			window.removeEventListener('keydown', onKeyDown);
+			window.removeEventListener('mouseup', onMouseUp, true);
+			window.removeEventListener('mousedown', cancel, true);
+			window.removeEventListener('auxclick', cancel, true);
+		};
 	}, [navigation, editPath]);
 }
 
