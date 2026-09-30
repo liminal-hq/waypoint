@@ -16,8 +16,6 @@ import {
 	useState,
 	useSyncExternalStore,
 	type CSSProperties,
-	type KeyboardEvent,
-	type MouseEvent,
 } from 'react';
 import { useStore } from 'zustand';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
@@ -30,8 +28,8 @@ import { useListingSession } from './useListingSession';
 import { mapPosition, isReset } from './patch';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
 import { isSelected, selectedCount } from './selection';
-import { findByPrefix, TypeAheadBuffer } from './typeAhead';
 import { useVfsClient } from './VfsClientContext';
+import { useListInteractions, type MenuRequest, type OpenHandler } from './useListInteractions';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
@@ -56,20 +54,6 @@ export function ListView({ location, onOpen }: ListViewProps) {
 	const state = useListingSession(client, location);
 	return <ListingView state={state} onOpen={onOpen} />;
 }
-
-type OpenHandler = (entry: Entry, handle: ListingHandle) => void;
-
-/** A request for a context menu: on an entry, or (for the host to decide) on empty space. */
-export type MenuRequest =
-	| {
-			kind: 'entry';
-			entry: Entry;
-			handle: ListingHandle;
-			position: { x: number; y: number };
-			/** Opened from the keyboard, so focus goes into the menu. */
-			keyboard: boolean;
-	  }
-	| { kind: 'background'; position: { x: number; y: number }; keyboard: boolean };
 
 interface ListingViewProps {
 	state: SessionState;
@@ -129,8 +113,6 @@ function ListingBody({
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
 	const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
-	const typeAhead = useRef(new TypeAheadBuffer());
-	const typeAheadEpoch = useRef(0);
 
 	// The scroll position as the top of the viewport and the row under it. It is the anchor patches
 	// keep steady: see `followPatches` below.
@@ -222,148 +204,34 @@ function ListingBody({
 	const scrollToRow = (position: number) =>
 		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, position)), { align: 'auto' });
 
-	// The menu key asks for the focused entry's menu, placed at its row, or the empty-space menu
-	// when nothing is focused.
-	const openMenuFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
-		event.preventDefault();
-		const at = store.getState().focus;
-		const entry = at === null ? undefined : model.entryAt(at);
-		const row = at === null ? null : document.getElementById(`${listId}-row-${at}`);
-		const rect = (row ?? event.currentTarget).getBoundingClientRect();
-		const position = { x: rect.left + 24, y: rect.bottom };
-		if (entry) onMenu?.({ kind: 'entry', entry, handle: model.handle, position, keyboard: true });
-		else onMenu?.({ kind: 'background', position, keyboard: true });
-	};
-
-	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		if (event.nativeEvent.isComposing) return;
-		const state = store.getState();
-		const modifier = event.ctrlKey || event.metaKey;
-		const from = state.focus;
-		const page = Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / rowHeight) - 1);
-		// Rows past the scroll cap are never drawn, so the keyboard cannot reach them; Ctrl+A is a
-		// whole-listing action and still takes every entry, as the capped banner says.
-		const lastRow = shown - 1;
-
-		const go = (target: number) => {
-			event.preventDefault();
-			typeAheadEpoch.current++;
-			const clamped = Math.max(0, Math.min(lastRow, target));
-			if (event.shiftKey) void state.extendTo(clamped, modifier);
-			else state.moveTo(clamped, !modifier);
-			scrollToRow(clamped);
-		};
-
-		switch (event.key) {
-			case 'ArrowDown':
-				return go(from === null ? 0 : from + 1);
-			case 'ArrowUp':
-				return go(from === null ? 0 : from - 1);
-			case 'PageDown':
-				return go(from === null ? 0 : from + page);
-			case 'PageUp':
-				return go(from === null ? 0 : from - page);
-			case 'Home':
-				return go(0);
-			case 'End':
-				return go(lastRow);
-			case 'Enter': {
-				const entry = from === null ? undefined : model.entryAt(from);
-				if (entry && onOpen) {
-					event.preventDefault();
-					onOpen(entry, model.handle);
-				}
-				return;
+	const page = () => Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / rowHeight) - 1);
+	const interactions = useListInteractions({
+		session,
+		itemId: (position) => `${listId}-row-${position}`,
+		shown,
+		scrollTo: scrollToRow,
+		onOpen,
+		onMenu,
+		move: (key, from, last) => {
+			switch (key) {
+				case 'ArrowDown':
+					return from === null ? 0 : from + 1;
+				case 'ArrowUp':
+					return from === null ? 0 : from - 1;
+				case 'PageDown':
+					return from === null ? 0 : from + page();
+				case 'PageUp':
+					return from === null ? 0 : from - page();
+				case 'Home':
+					return 0;
+				case 'End':
+					return last;
+				default:
+					return null;
 			}
-			case 'Escape':
-				event.preventDefault();
-				typeAheadEpoch.current++;
-				return state.deselectAll();
-			case 'ContextMenu':
-				return openMenuFromKeyboard(event);
-			case ' ':
-				if (modifier) {
-					event.preventDefault();
-					typeAheadEpoch.current++;
-					state.toggleFocused();
-					return;
-				}
-				// Mid-prefix, a space is part of the name being typed; otherwise it does nothing, and
-				// must not scroll the list.
-				if (!typeAhead.current.active) {
-					event.preventDefault();
-					return;
-				}
-				break;
-		}
-
-		if (event.key === 'F10' && event.shiftKey) return openMenuFromKeyboard(event);
-
-		if (modifier && !event.shiftKey && !event.altKey) {
-			const key = event.key.toLowerCase();
-			typeAheadEpoch.current++;
-			if (key === 'a') {
-				event.preventDefault();
-				state.selectAll();
-			} else if (key === 'i') {
-				event.preventDefault();
-				state.invertSelection();
-			}
-			return;
-		}
-
-		if (event.key.length === 1 && !modifier && !event.altKey) {
-			event.preventDefault();
-			const prefix = typeAhead.current.push(event.key);
-			const epoch = ++typeAheadEpoch.current;
-			// A fresh first letter looks past the focused entry; a growing prefix may keep it.
-			const start = from === null ? 0 : prefix.length === 1 ? from + 1 : from;
-			void findByPrefix(model, prefix, start, () => epoch !== typeAheadEpoch.current).then(
-				(position) => {
-					if (position === null) return;
-					store.getState().moveTo(position, true);
-					scrollToRow(position);
-				},
-			);
-		}
-	};
-
-	const onRowClick = (event: MouseEvent, position: number, entry: Entry | undefined) => {
-		const state = store.getState();
-		const modifier = event.ctrlKey || event.metaKey;
-		typeAheadEpoch.current++;
-		if (event.shiftKey) void state.extendTo(position, modifier);
-		else if (!entry) return;
-		else if (modifier) state.toggleAt(position, entry.id);
-		else state.click(position, entry.id);
-	};
-
-	// Right-click selects the entry first unless it is already part of the selection, as file
-	// managers do, so the menu never acts on something other than what is highlighted.
-	const onRowContextMenu = (event: MouseEvent, position: number, entry: Entry | undefined) => {
-		event.preventDefault();
-		event.stopPropagation();
-		if (!entry) return;
-		const state = store.getState();
-		if (!isSelected(state.selection, entry.id)) state.click(position, entry.id);
-		else state.moveTo(position, false);
-		onMenu?.({
-			kind: 'entry',
-			entry,
-			handle: model.handle,
-			position: { x: event.clientX, y: event.clientY },
-			keyboard: false,
-		});
-	};
-
-	const onBackgroundContextMenu = (event: MouseEvent) => {
-		event.preventDefault();
-		onMenu?.({
-			kind: 'background',
-			position: { x: event.clientX, y: event.clientY },
-			keyboard: false,
-		});
-	};
+		},
+	});
+	const { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu } = interactions;
 
 	const onSort = (key: SortKey) => {
 		const { sort } = model;
@@ -467,8 +335,8 @@ function ListingBody({
 									data-placeholder={entry ? undefined : ''}
 									data-selected={selected ? '' : undefined}
 									data-active={focus === item.index ? '' : undefined}
-									onClick={(event) => onRowClick(event, item.index, entry)}
-									onContextMenu={(event) => onRowContextMenu(event, item.index, entry)}
+									onClick={(event) => onItemClick(event, item.index, entry)}
+									onContextMenu={(event) => onItemContextMenu(event, item.index, entry)}
 									onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
 									onMouseDown={(event) => {
 										// Stops middle-click from starting the platform's autoscroll.
