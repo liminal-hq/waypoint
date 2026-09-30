@@ -1,0 +1,6 @@
+# Points every `#[ts(export)]` type in `waypoint-protocol` at the frontend's
+# generated-types directory, so `cargo test -p waypoint-protocol` regenerates
+# real TypeScript bindings in place rather than a scratch `bindings/` folder.
+# Never hand-edit anything under `apps/waypoint/src/domain/protocol/generated/`.
+[env]
+TS_RS_EXPORT_DIR = { value = "apps/waypoint/src/domain/protocol/generated", relative = true }
