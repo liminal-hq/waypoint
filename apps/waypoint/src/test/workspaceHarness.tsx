@@ -3,11 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { Workspace } from '../app/Workspace';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { FakeTabsApi } from '../services/fakeTabsApi';
+import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
+import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { TabsProvider } from '../tabs/TabsContext';
 
 export const HOME = fileLocation('/home/test');
@@ -30,18 +32,25 @@ export function createTree(): FakeVfsClient {
 	return client;
 }
 
-/** Renders the browsing area over `client` with one tab open at `HOME`. */
+/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`). */
 export async function renderWorkspace(
 	client: FakeVfsClient = createTree(),
 	tabs: FakeTabsApi = new FakeTabsApi(),
+	places: FakePlacesClient = new FakePlacesClient({ places: fakePlaces('/home/test') }),
+	options: { sidebar?: boolean } = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
 	const view = render(
 		<VfsClientProvider client={client}>
-			<TabsProvider api={tabs} home={HOME}>
-				<Workspace />
-			</TabsProvider>
+			<PlacesClientProvider client={places}>
+				<TabsProvider api={tabs} home={HOME}>
+					<Workspace />
+				</TabsProvider>
+			</PlacesClientProvider>
 		</VfsClientProvider>,
 	);
-	return { client, tabs, ...view };
+	// The sidebar's folder tree holds listings of its own, which tests of the tabs' listings would
+	// have to count around, so it starts hidden unless a test asks for it.
+	if (!options.sidebar) fireEvent.keyDown(window, { key: 'F9' });
+	return { client, tabs, places, ...view };
 }

@@ -218,6 +218,11 @@ export class FakeVfsClient implements VfsClient {
 		const all = this.folders.get(listing.location.uri) ?? [];
 		return all
 			.filter((entry) => listing.filter.showHidden || !entry.hidden)
+			.filter((entry) => {
+				if (listing.filter.only === undefined) return true;
+				const folder = entry.kind === 'directory' || entry.linkTarget === 'directory';
+				return listing.filter.only === 'directories' ? folder : !folder;
+			})
 			.sort(compare(listing.sort));
 	}
 

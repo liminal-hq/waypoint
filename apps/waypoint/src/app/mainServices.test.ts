@@ -5,6 +5,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { FakeTabsApi } from '../services/fakeTabsApi';
+import { FakePlacesClient } from '../services/fakePlacesClient';
 import { fileLocation, FakeVfsClient } from '../services/fakeVfsClient';
 import { startMainServices } from './mainServices';
 
@@ -12,11 +13,14 @@ const home = fileLocation('/home/scott');
 
 function deps(overrides: Partial<Parameters<typeof startMainServices>[0]> = {}) {
 	const client = new FakeVfsClient();
+	const placesClient = new FakePlacesClient();
 	return {
 		client,
+		placesClient,
 		tabsApi: new FakeTabsApi(),
 		getHome: vi.fn(async () => home),
 		createClient: vi.fn(() => client),
+		createPlacesClient: vi.fn(() => placesClient),
 		...overrides,
 	};
 }
@@ -27,6 +31,7 @@ describe('startMainServices', () => {
 		const services = await startMainServices(d);
 		expect(services.home).toEqual(home);
 		expect(services.client).toBe(d.client);
+		expect(services.placesClient).toBe(d.placesClient);
 		const snapshot = await d.tabsApi.getSnapshot();
 		expect(snapshot.tabs).toHaveLength(1);
 		expect(snapshot.tabs[0]!.location).toEqual(home);

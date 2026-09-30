@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { EntryContextMenu } from '../browse/EntryContextMenu';
 import { ListingManager } from '../browse/listingManager';
@@ -20,6 +21,16 @@ import {
 	type ViewStore,
 } from '../browse/viewStore';
 import { tf, t } from '../i18n/messages';
+import { Sidebar } from '../sidebar/Sidebar';
+import { SidebarToggle } from '../sidebar/SidebarToggle';
+import {
+	createSidebarStore,
+	SidebarStoreContext,
+	useSidebarState,
+	type SidebarStore,
+} from '../sidebar/sidebarStore';
+import { usePlacesClient } from '../sidebar/PlacesClientContext';
+import { useSidebarShortcuts } from '../sidebar/useSidebarShortcuts';
 import { NavigationBar } from '../nav/NavigationBar';
 import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry, type EntryAction } from '../nav/useOpenEntry';
@@ -39,14 +50,23 @@ const NOTICE_MS = 6000;
 /** The browsing area. It owns the window's view choices (list or grid, icon size, hidden files). */
 export function Workspace() {
 	const [viewStore] = useState(() => createViewStore());
+	const [sidebarStore] = useState(() => createSidebarStore());
 	return (
 		<ViewStoreContext.Provider value={viewStore}>
-			<WorkspaceBody viewStore={viewStore} />
+			<SidebarStoreContext.Provider value={sidebarStore}>
+				<WorkspaceBody viewStore={viewStore} sidebarStore={sidebarStore} />
+			</SidebarStoreContext.Provider>
 		</ViewStoreContext.Provider>
 	);
 }
 
-function WorkspaceBody({ viewStore }: { viewStore: ViewStore }) {
+function WorkspaceBody({
+	viewStore,
+	sidebarStore,
+}: {
+	viewStore: ViewStore;
+	sidebarStore: SidebarStore;
+}) {
 	const client = useVfsClient();
 	const snapshot = useTabsSnapshot();
 	const [manager] = useState(
@@ -75,7 +95,19 @@ function WorkspaceBody({ viewStore }: { viewStore: ViewStore }) {
 			}),
 		[],
 	);
-	const { open, openInNewTab, copyPath } = useOpenEntry(navigation, onFailure);
+	const { open, openInNewTab, copyPath, addToFavourites } = useOpenEntry(navigation, onFailure);
+	const places = usePlacesClient();
+	const pinCurrent = useCallback(
+		(location: Location) => {
+			places.addFavourite(location).catch((error: unknown) => {
+				console.warn('could not add the favourite', error);
+				setNotice(t('sidebar.favourites.failed'));
+			});
+		},
+		[places],
+	);
+	useSidebarShortcuts(sidebarStore, navigation.tab?.location, pinCurrent);
+	const sidebarOpen = useSidebarState((state) => state.open);
 	useTabShortcuts();
 	useViewShortcuts(viewStore);
 	const mode = useViewState((view) => view.mode);
@@ -109,24 +141,27 @@ function WorkspaceBody({ viewStore }: { viewStore: ViewStore }) {
 	return (
 		<div className={styles.workspace}>
 			<TabStrip />
-			<NavigationBar />
-			<div
-				className={styles.files}
-				role="tabpanel"
-				id={TAB_PANEL_ID}
-				aria-label={tab ? undefined : t('tabs.panel.label')}
-				aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-			>
-				{state && (
-					<FileView
-						state={state}
-						mode={mode}
-						gridSize={gridSize}
-						onOpen={open}
-						onOpenInNewTab={openInNewTab}
-						onMenu={setMenu}
-					/>
-				)}
+			<NavigationBar leading={<SidebarToggle />} />
+			<div className={styles.middle}>
+				{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={setNotice} />}
+				<div
+					className={styles.files}
+					role="tabpanel"
+					id={TAB_PANEL_ID}
+					aria-label={tab ? undefined : t('tabs.panel.label')}
+					aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+				>
+					{state && (
+						<FileView
+							state={state}
+							mode={mode}
+							gridSize={gridSize}
+							onOpen={open}
+							onOpenInNewTab={openInNewTab}
+							onMenu={setMenu}
+						/>
+					)}
+				</div>
 			</div>
 			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
 				<ViewSwitcher />
@@ -151,6 +186,7 @@ function WorkspaceBody({ viewStore }: { viewStore: ViewStore }) {
 					onOpen={open}
 					onOpenInNewTab={openInNewTab}
 					onCopyPath={copyPath}
+					onAddToFavourites={addToFavourites}
 				/>
 			)}
 		</div>

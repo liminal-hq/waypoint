@@ -89,3 +89,22 @@ export const ListViewIcon = (props: IconProps) => (
 		<path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01" />
 	</Glyph>
 );
+
+export const HomeIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 8L8 2.5 14 8M3.5 7v6.5h3.5V10h2v3.5h3.5V7" />
+	</Glyph>
+);
+
+export const SidebarIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="2" y="3" width="12" height="10" rx="1.5" />
+		<path d="M6 3v10" />
+	</Glyph>
+);
+
+export const StarIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.2 4.4 13.1l.7-4L2.2 6.3l4-.6z" />
+	</Glyph>
+);

@@ -23,6 +23,10 @@ const MAX_MENU_ITEMS = 25;
 
 interface NavButtonProps {
 	label: string;
+	/** The tooltip; defaults to the label (use it to add the shortcut). */
+	title?: string;
+	/** Makes the button a toggle, pressed while true. */
+	pressed?: boolean;
 	icon: ReactNode;
 	disabled: boolean;
 	onPress: () => void;
@@ -40,6 +44,8 @@ interface OpenMenu {
 
 export function NavButton({
 	label,
+	title,
+	pressed,
 	icon,
 	disabled,
 	onPress,
@@ -115,7 +121,8 @@ export function NavButton({
 				type="button"
 				className={styles.button}
 				aria-label={label}
-				title={label}
+				title={title ?? label}
+				aria-pressed={pressed}
 				disabled={disabled}
 				aria-haspopup={history.length > 0 ? 'menu' : undefined}
 				onClick={onClick}

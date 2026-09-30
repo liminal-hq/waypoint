@@ -7,6 +7,7 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useMemo } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { usePlacesClient } from '../sidebar/PlacesClientContext';
 import { useTabActions } from '../tabs/tabActions';
 import type { Navigation } from './useNavigation';
 
@@ -28,6 +29,8 @@ export interface EntryOpeners {
 	openInNewTab: (entry: Entry, handle: ListingHandle) => void;
 	/** Puts the entry's path, as Rust displays it, on the clipboard. */
 	copyPath: (entry: Entry, handle: ListingHandle) => void;
+	/** Pins a folder to the Favourites; anything else does nothing. */
+	addToFavourites: (entry: Entry, handle: ListingHandle) => void;
 }
 
 /**
@@ -40,6 +43,7 @@ export function useOpenEntry(
 	onFailure: (entry: Entry, action: EntryAction) => void = ignoreFailure,
 ): EntryOpeners {
 	const client = useVfsClient();
+	const places = usePlacesClient();
 	const tabs = useTabActions();
 	const { goTo } = navigation;
 	const { openInBackground } = tabs;
@@ -67,6 +71,13 @@ export function useOpenEntry(
 					.then((location) => navigator.clipboard.writeText(location.display))
 					.catch(fail(entry, 'copyPath'));
 			},
+			addToFavourites: (entry, handle) => {
+				if (!isFolder(entry)) return;
+				client
+					.entryLocation(handle, entry.id)
+					.then((location) => places.addFavourite(location))
+					.catch(fail(entry));
+			},
 		};
-	}, [client, goTo, openInBackground, onFailure]);
+	}, [client, places, goTo, openInBackground, onFailure]);
 }

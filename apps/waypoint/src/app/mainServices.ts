@@ -5,11 +5,13 @@
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
+import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { VfsClient } from '../services/vfsClient';
 
 export interface MainServices {
 	client: VfsClient;
+	placesClient: PlacesClient;
 	tabsApi: TabsApi;
 	/** Where a new tab opens when nothing says otherwise. */
 	home: Location;
@@ -21,6 +23,7 @@ export interface MainServicesDeps {
 	getHome(): Promise<Location>;
 	tabsApi: TabsApi;
 	createClient(): VfsClient;
+	createPlacesClient(): PlacesClient;
 }
 
 /**
@@ -32,5 +35,10 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 	const home = await deps.getHome();
 	const snapshot = await deps.tabsApi.getSnapshot();
 	if (snapshot.tabs.length === 0) await deps.tabsApi.openTab(home);
-	return { client: deps.createClient(), tabsApi: deps.tabsApi, home };
+	return {
+		client: deps.createClient(),
+		placesClient: deps.createPlacesClient(),
+		tabsApi: deps.tabsApi,
+		home,
+	};
 }

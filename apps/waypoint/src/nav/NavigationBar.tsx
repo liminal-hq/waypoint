@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { BackIcon, ForwardIcon, UpIcon } from '../icons/AppIcons';
 import { t } from '../i18n/messages';
 import { NavButton } from './NavButton';
@@ -70,7 +70,12 @@ function useNavigationShortcuts(navigation: Navigation, editPath: () => void): v
 	}, [navigation, editPath]);
 }
 
-export function NavigationBar() {
+interface NavigationBarProps {
+	/** Controls that come before back and forward, such as the sidebar toggle. */
+	leading?: ReactNode;
+}
+
+export function NavigationBar({ leading }: NavigationBarProps) {
 	const navigation = useNavigation();
 	const [editing, setEditing] = useState(false);
 	const editPath = useCallback(() => setEditing(true), []);
@@ -83,6 +88,7 @@ export function NavigationBar() {
 
 	return (
 		<div className={styles.bar} role="toolbar" aria-label={t('nav.toolbar.label')}>
+			{leading}
 			<NavButton
 				label={t('nav.back')}
 				icon={<BackIcon />}

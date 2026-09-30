@@ -167,6 +167,13 @@ Sections can be reordered and collapsed:
 
 Every item is a drop target. Hovering an item during a drag springs it open after 600 ms.
 
+**What milestone 2 ships of the sidebar:** a collapsible left panel (toggle button in the toolbar, **F9**) with the **Places / Folders** switch at its top, showing either **Places** with **Favourites**, or the **Folders** tree on its own; the other sections, drag and drop into the sidebar and the Recent list arrive with the features they depend on. The sidebar is a navigation landmark, and each section is a labelled group whose heading collapses it, and the switch is a pair of tabs (Left and Right move between them); the view and the collapsed sections last for the window (nothing is saved between runs yet).
+
+- **Places** shows Home and the user folders that exist (the XDG user directories on Linux, Known Folders on Windows). **Favourites** are the freedesktop bookmarks file (`~/.config/gtk-3.0/bookmarks`), shared with other file managers, and **Ctrl+D** pins the current folder. A favourite whose folder is gone stays listed, and opening it shows the usual Folder not found state.
+- A click opens the item in the active tab; a middle-click opens it in a background tab; the item of the current folder is marked. Right-click (or the menu key) shows Open and Open in New Tab, plus Rename, Move Up, Move Down and Remove from Favourites on a favourite and Add to Favourites on a folder. A folder in the file list has Add to Favourites in its menu too.
+- **Favourites** are renamed in place (**F2**; an empty name restores the folder's own) and reordered by dragging a favourite onto another, with **Alt+Up** and **Alt+Down**, or from the menu. Up and Down move between the items of Places and Favourites.
+- **Folders** (its own view, so choosing a place never moves it) is a tree that opens down to the current folder and follows the active tab. A folder's children are read only when it is expanded, and the tree lists hidden folders only while the tab shows hidden files. It follows the tree keyboard pattern: Up and Down move, Right expands (then enters), Left collapses (then goes to the parent), Home and End jump, Enter opens the folder in the tab, and typing the first letters of a name jumps to it. A folder with more than 2000 sub-folders shows the first 2000 and says so.
+
 ### 5.5 File view
 
 - **View switcher:** List and Grid buttons at the right end of the status bar (Ctrl+2 and Ctrl+1; Columns, Compact and Disk usage take Ctrl+3 to Ctrl+5 when they exist). The choice is for the window's session and every folder shows it; a folder remembering its own view is deferred with the other per-folder settings (§5.3b).

@@ -9,7 +9,14 @@ import { chromeLabels } from './chromeLabels';
 import { enMessages, t, tf, tn } from './messages';
 
 const screens = import.meta.glob<string>(
-	['../app/*.tsx', '../browse/*.tsx', '../nav/*.tsx', '../tabs/*.tsx', '../status/*.tsx'],
+	[
+		'../app/*.tsx',
+		'../browse/*.tsx',
+		'../nav/*.tsx',
+		'../tabs/*.tsx',
+		'../status/*.tsx',
+		'../sidebar/*.tsx',
+	],
 	{
 		query: '?raw',
 		import: 'default',

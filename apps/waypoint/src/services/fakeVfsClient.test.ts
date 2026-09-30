@@ -101,6 +101,23 @@ describe('FakeVfsClient selection, space and opening', () => {
 		});
 	});
 
+	it('keeps only folders or only files when the filter says so, links to folders counting as folders', async () => {
+		const { client } = setup([
+			makeEntry(1, 'dir', { kind: 'directory' }),
+			makeEntry(2, 'link', { kind: 'symlink', linkTarget: 'directory' }),
+			makeEntry(3, 'file.txt'),
+		]);
+		const folders = await client.openListing(home, {
+			filter: { showHidden: false, only: 'directories' },
+		});
+		expect((await client.getRange(folders.handle, 0, 10)).map((e) => e.name)).toEqual([
+			'dir',
+			'link',
+		]);
+		const files = await client.setFilter(folders.handle, { showHidden: false, only: 'files' });
+		expect((await client.getRange(files.handle, 0, 10)).map((e) => e.name)).toEqual(['file.txt']);
+	});
+
 	it('reports free space per location, a default, and unknown', async () => {
 		const { client } = setup();
 		expect((await client.getFreeSpace(home))?.freeBytes).toBeGreaterThan(0);

@@ -1,4 +1,4 @@
-// The read-only context menu of an entry: Open, Open in New Tab for folders, Copy Path
+// The context menu of an entry: Open, Open in New Tab and Add to Favourites for folders, Copy Path
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -19,10 +19,11 @@ interface EntryContextMenuProps {
 	onOpen: (entry: Entry, handle: ListingHandle) => void;
 	onOpenInNewTab: (entry: Entry, handle: ListingHandle) => void;
 	onCopyPath: (entry: Entry, handle: ListingHandle) => void;
+	onAddToFavourites: (entry: Entry, handle: ListingHandle) => void;
 }
 
 /**
- * The entry's actions while nothing writes to disk yet. Open in New Tab appears for folders only,
+ * The entry's actions while nothing writes to disk yet. Open in New Tab and Add to Favourites appear for folders only,
  * and the menu acts on the entry that was right-clicked, which the list has just selected.
  */
 export function EntryContextMenu({
@@ -34,6 +35,7 @@ export function EntryContextMenu({
 	onOpen,
 	onOpenInNewTab,
 	onCopyPath,
+	onAddToFavourites,
 }: EntryContextMenuProps) {
 	const items: MenuItem[] = [
 		{ type: 'action', id: 'open', label: t('menu.open'), shortcut: 'Enter' },
@@ -41,6 +43,9 @@ export function EntryContextMenu({
 			? [{ type: 'action', id: 'openInNewTab', label: t('menu.openInNewTab') } as const]
 			: []),
 		{ type: 'separator' },
+		...(isFolder(entry)
+			? [{ type: 'action', id: 'addToFavourites', label: t('menu.addToFavourites') } as const]
+			: []),
 		{ type: 'action', id: 'copyPath', label: t('menu.copyPath') },
 	];
 	return (
@@ -55,6 +60,7 @@ export function EntryContextMenu({
 				if (item.id === 'open') onOpen(entry, handle);
 				else if (item.id === 'openInNewTab') onOpenInNewTab(entry, handle);
 				else if (item.id === 'copyPath') onCopyPath(entry, handle);
+				else if (item.id === 'addToFavourites') onAddToFavourites(entry, handle);
 			}}
 		/>
 	);

@@ -9,6 +9,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { tabsApi } from '../services/tabsApi';
+import { createTauriPlacesClient } from '../services/tauriPlacesClient';
+import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
 import { TabsProvider } from '../tabs/TabsContext';
 import { AppTitleBar } from './AppTitleBar';
@@ -29,7 +31,12 @@ function wantsDemo(): boolean {
 
 function start(): Promise<MainServices> {
 	if (wantsDemo()) return import('./demoServices').then((m) => m.startDemoServices());
-	return startMainServices({ getHome, tabsApi, createClient: createTauriVfsClient });
+	return startMainServices({
+		getHome,
+		tabsApi,
+		createClient: createTauriVfsClient,
+		createPlacesClient: createTauriPlacesClient,
+	});
 }
 
 type Startup =
@@ -65,19 +72,21 @@ export function MainScreen() {
 				</main>
 			) : startup.state === 'ready' ? (
 				<VfsClientProvider client={startup.services.client}>
-					<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
-						<main className={styles.content}>
-							{DevLiveControls && startup.services.demo && (
-								<Suspense fallback={null}>
-									<DevLiveControls
-										client={startup.services.demo.client}
-										location={startup.services.home}
-									/>
-								</Suspense>
-							)}
-							<Workspace />
-						</main>
-					</TabsProvider>
+					<PlacesClientProvider client={startup.services.placesClient}>
+						<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
+							<main className={styles.content}>
+								{DevLiveControls && startup.services.demo && (
+									<Suspense fallback={null}>
+										<DevLiveControls
+											client={startup.services.demo.client}
+											location={startup.services.home}
+										/>
+									</Suspense>
+								)}
+								<Workspace />
+							</main>
+						</TabsProvider>
+					</PlacesClientProvider>
 				</VfsClientProvider>
 			) : null}
 		</WindowFrame>
