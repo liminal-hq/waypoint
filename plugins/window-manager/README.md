@@ -106,7 +106,7 @@ The `default` permission set allows all three commands.
 
 ## Development
 
-Session detection is a pure function in `src/session.rs` with table-driven tests. The per-platform code is in `src/linux.rs`, `src/windows.rs`, `src/macos.rs` and `src/unsupported.rs`. To regenerate the TypeScript bindings, run `cargo test` in the plugin directory; to print the capabilities detected on this machine, run `cargo test live_capabilities -- --ignored --nocapture`. Whether the compositor actually shows the menu can only be checked by hand with a real click. Verified on GNOME (Mutter) under Wayland: choosing an entry in an app-drawn menu shows GNOME's own window menu with Always on Top, Always on Visible Workspace, workspace and monitor moves. Other compositors, X11, and a separate check on KDE are still to do.
+Session detection is a pure function in `src/session.rs` with table-driven tests. The per-platform code is in `src/linux.rs`, `src/windows.rs`, `src/macos.rs` and `src/unsupported.rs`. To regenerate the TypeScript bindings, run `cargo test` in the plugin directory; to print the capabilities detected on this machine, run `cargo test live_capabilities -- --ignored --nocapture`. Whether the compositor actually shows the menu can only be checked by hand with a real click. Verified on GNOME (Mutter) under Wayland: choosing an entry in an app-drawn menu shows GNOME's own window menu and its Always on Top works, alongside Always on Visible Workspace and workspace and monitor moves. Other compositors, X11, and a separate check on KDE are still to do.
 
 ## Licence
 
