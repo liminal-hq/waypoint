@@ -24,21 +24,58 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run format:check
+
+      - name: Check formatting
+        id: format
+        run: bun run format:check
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Format"
+            echo "- Result: \`${{ steps.format.outcome }}\`"
+            echo "- Command: \`bun run format:check\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   licence-headers:
     name: Licence headers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: bash scripts/check-headers.sh
+
+      - name: Check licence headers
+        id: headers
+        run: bash scripts/check-headers.sh
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Licence headers"
+            echo "- Result: \`${{ steps.headers.outcome }}\`"
+            echo "- Command: \`bash scripts/check-headers.sh\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   plugin-boundaries:
     name: Plugin boundaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: bash scripts/check-plugin-boundaries.sh
+
+      - name: Check plugin boundaries
+        id: boundaries
+        run: bash scripts/check-plugin-boundaries.sh
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Plugin boundaries"
+            echo "- Result: \`${{ steps.boundaries.outcome }}\`"
+            echo "- Command: \`bash scripts/check-plugin-boundaries.sh\`"
+            echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   frontend-tests:
     name: Frontend tests
@@ -49,9 +86,32 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run test:js:ci
-      - run: bun run build
+
+      - name: Type-check
+        id: typecheck
+        run: bun run typecheck
+
+      - name: Run tests
+        id: tests
+        run: bun run test:js:ci
+
+      - name: Build
+        id: build
+        run: bun run build
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Frontend tests"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| Type-check | \`${{ steps.typecheck.outcome }}\` | \`bun run typecheck\` |"
+            echo "| Tests | \`${{ steps.tests.outcome }}\` | \`bun run test:js:ci\` |"
+            echo "| Build | \`${{ steps.build.outcome }}\` | \`bun run build\` |"
+            echo
+            bash scripts/junit-summary.sh test-results/chrome-junit.xml test-results/junit.xml
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload frontend test artefacts
         if: always()
@@ -92,10 +152,34 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check formatting
+        id: fmt
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        id: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
       - uses: taiki-e/install-action@nextest
-      - run: cargo nextest run --workspace --profile ci
+
+      - name: Run tests
+        id: nextest
+        run: cargo nextest run --workspace --profile ci
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Rust tests"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| Format | \`${{ steps.fmt.outcome }}\` | \`cargo fmt --all -- --check\` |"
+            echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
+            echo "| Tests | \`${{ steps.nextest.outcome }}\` | \`cargo nextest run --workspace --profile ci\` |"
+            echo
+            bash scripts/junit-summary.sh target/nextest/ci/junit.xml
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload Rust test artefacts
         if: always()
@@ -130,7 +214,19 @@ jobs:
         run: rm -rf apps/waypoint/src/domain/protocol/generated
 
       - name: Regenerate protocol bindings
+        id: regenerate
         run: cargo test -p waypoint-protocol
 
       - name: Check for uncommitted drift
+        id: drift
         run: diff -rq /tmp/generated-before apps/waypoint/src/domain/protocol/generated
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Protocol bindings drift"
+            echo "- Regenerate: \`${{ steps.regenerate.outcome }}\` (\`cargo test -p waypoint-protocol\`)"
+            echo "- Drift check: \`${{ steps.drift.outcome }}\`"
+            echo "- Fix a failure with \`bun run bindings\` and commit the regenerated files"
+          } >> "${GITHUB_STEP_SUMMARY}"
