@@ -31,6 +31,7 @@ describe('installPerfHarness', () => {
 			'autoRun',
 			'jumps',
 			'runAll',
+			'runGrid',
 			'selectAll',
 			'sortBy',
 			'stats',

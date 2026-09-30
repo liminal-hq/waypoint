@@ -13,7 +13,8 @@
  *
  * A release build has no bridge, so it can also run itself: load the window with the URL hash
  * `#perf-auto=/path/to/folder` and it opens that folder in the active tab, runs everything and logs
- * one `PERF_RESULT {json}` line through the log plugin.
+ * one `PERF_RESULT {json}` line through the log plugin. Add `&max` to maximise the window first and
+ * `&grid` to measure the grid view as well (`#perf-auto=/path&max&grid`).
  */
 
 const raf = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
@@ -92,6 +93,8 @@ export async function sweep(pxPerFrame: number, maxFrames: number, fromPx = 0) {
 		blankFrames,
 		scrolledPx: scroller.scrollTop - fromPx,
 		scrollHeight: scroller.scrollHeight,
+		// The view replaced its scroller while the sweep ran: the measurement above is then void.
+		scrollerReplaced: !document.contains(scroller),
 	};
 }
 
@@ -182,6 +185,26 @@ export async function runAll() {
 	return out;
 }
 
+/** Switches the open folder to the grid view, through the status bar's view switcher. */
+export async function showGrid() {
+	const button = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+		(b) => (b.getAttribute('aria-label') ?? '').trim() === 'Grid',
+	);
+	if (!button) throw new Error('No Grid view button');
+	button.click();
+	await new Promise((resolve) => setTimeout(resolve, 1500));
+}
+
+/** The grid's share of the budgets: scrolling at wheel and fling speed, then select-all. */
+export async function runGrid() {
+	await showGrid();
+	const out: Record<string, unknown> = {};
+	out.gridSweepFast = await sweep(20000, 2000);
+	out.gridSweepWheel = await sweep(900, 400);
+	out.gridSelectAll = await selectAll();
+	return out;
+}
+
 /** Opens `path` in the active tab and waits for its listing to fill in. */
 export async function openFolder(path: string): Promise<void> {
 	const { tabsApi } = await import('../services/tabsApi');
@@ -212,12 +235,25 @@ export async function openFolder(path: string): Promise<void> {
 	throw new Error(`${path} did not open as a large listing.`);
 }
 
+/** Extra passes `autoRun` can add: maximise the window first, and measure the grid view as well. */
+export interface AutoOptions {
+	maximise?: boolean;
+	grid?: boolean;
+}
+
 /** Opens a folder, runs everything and logs the result as one line. */
-export async function autoRun(path: string): Promise<void> {
+export async function autoRun(path: string, options: AutoOptions = {}): Promise<void> {
 	try {
+		if (options.maximise) {
+			const { getCurrentWindow } = await import('@tauri-apps/api/window');
+			await getCurrentWindow().maximize();
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+		}
 		await openFolder(path);
 		await new Promise((resolve) => setTimeout(resolve, 1500));
-		console.log(`PERF_RESULT ${JSON.stringify(await runAll())}`);
+		const result = await runAll();
+		if (options.grid) Object.assign(result, await runGrid());
+		console.log(`PERF_RESULT ${JSON.stringify(result)}`);
 	} catch (error) {
 		console.log(`PERF_RESULT ${JSON.stringify({ error: String(error) })}`);
 	}
@@ -231,11 +267,16 @@ declare global {
 
 /** Makes the harness callable from the webview console and the Tauri MCP bridge. */
 export function installPerfHarness(): void {
-	window.__waypointPerf = { sweep, jumps, selectAll, sortBy, runAll, stats, autoRun };
-	const requested = /^#perf-auto=(.+)$/.exec(window.location.hash);
+	window.__waypointPerf = { sweep, jumps, selectAll, sortBy, runAll, runGrid, stats, autoRun };
+	// `#perf-auto=/path`, optionally followed by `&max` (maximise first) and `&grid` (measure the grid too).
+	const requested = /^#perf-auto=([^&]+)((?:&[a-z]+)*)$/.exec(window.location.hash);
 	if (!requested) return;
 	try {
-		void autoRun(decodeURIComponent(requested[1]!));
+		const flags = requested[2]!.split('&');
+		void autoRun(decodeURIComponent(requested[1]!), {
+			maximise: flags.includes('max'),
+			grid: flags.includes('grid'),
+		});
 	} catch (error) {
 		console.warn('the perf-auto path in the URL hash is not valid', error);
 	}
