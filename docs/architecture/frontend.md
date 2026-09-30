@@ -1,6 +1,6 @@
 # Front-end framework evaluation and stack
 
-Status: **proposed** · decision A2 in `decisions.md` · to be confirmed by Milestone 0 spike 1
+Status: **accepted** · decision A2 in `decisions.md` · confirmed on WebKitGTK by Milestone 0 spike 1 (`milestone-0-spikes.md`); WebView2 and the React Compiler are still to measure
 
 The question: which front-end approach keeps Waypoint's code clean and maintainable over years, for an app that is a dense, keyboard-first, multi-window file manager rendered in a Tauri webview.
 

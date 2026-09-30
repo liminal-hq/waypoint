@@ -104,11 +104,11 @@ Windows modules are written alongside each Linux module from milestone 2 onward,
 
 Run alongside milestone 1 (A14), not before it. Throwaway experiments, each with a written result appended to `decisions.md`:
 
-1. **Big-listing render.** A virtualised list of 100 000–500 000 rows fed by a Rust listing handle with range fetch, measured for scroll and selection latency on **WebKitGTK (Wayland and X11)** and **WebView2**. Confirms React + TanStack Virtual, or triggers the Solid/Svelte fallback in `frontend.md`.
+1. **Big-listing render (done; see [`milestone-0-spikes.md`](milestone-0-spikes.md)).** A virtualised list of 100 000–500 000 rows fed by a Rust listing handle with range fetch, measured for scroll and selection latency on **WebKitGTK (Wayland and X11)** and **WebView2**. Confirms React + TanStack Virtual, or triggers the Solid/Svelte fallback in `frontend.md`.
 2. **Transparency and blur.** `transparent: true` plus `backdrop-filter` and compositor blur on GNOME/Mutter, KDE/KWin, Cinnamon and Windows 11 Mica.
 3. **Tear-off.** Ghost window follow, multi-monitor scale conversion, and the Wayland fallback path; cross-window hit-testing for merge.
 4. **Native drag and drop in and out.** Inbound file drops with positions, outbound drag to other apps and a terminal, and the `dragDropEnabled` interaction with an in-page pointer drag engine on Windows.
-5. **Listing throughput.** `read_dir` + metadata streaming over a `Channel` on a 500 000-entry directory, local and over SFTP, with the watcher active.
+5. **Listing throughput (done on local files; see [`milestone-0-spikes.md`](milestone-0-spikes.md)).** `read_dir` + metadata streaming over a `Channel` on a 500 000-entry directory, local and over SFTP, with the watcher active.
 
 ## 8. Risks
 
