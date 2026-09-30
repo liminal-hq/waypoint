@@ -89,6 +89,23 @@ export const enMessages = {
 	'menu.openInNewTab': 'Open in New Tab',
 	'menu.copyPath': 'Copy Path',
 
+	'view.switcher.label': 'View',
+	'view.list': 'List',
+	'view.grid': 'Grid',
+	'view.withShortcut': '{name} ({keys})',
+	'view.gridSize': 'Icon size',
+	'view.gridSize.value': '{size} pixels',
+
+	'menu.background.label': 'Folder actions',
+	'menu.sortBy': 'Sort by',
+	'menu.sort.name': 'Name',
+	'menu.sort.size': 'Size',
+	'menu.sort.modified': 'Modified',
+	'menu.sort.kind': 'Kind',
+	'menu.sort.descending': 'Descending',
+	'menu.sort.foldersFirst': 'Folders first',
+	'menu.showHidden': 'Show hidden files',
+
 	'dev.live.label': 'Live update controls (development only)',
 	'dev.live.add': 'Add 5 files',
 	'dev.live.addTop': 'Add 5 at the top',

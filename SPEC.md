@@ -136,7 +136,7 @@ Clicking or focusing the search box (or pressing / or Ctrl+F) opens a search bar
 - Back, forward and up, each with a long-press history menu. Up is disabled where the location has no parent. **Alt+Left, Alt+Right and Alt+Up** do the same from the keyboard.
 - **Path bar:** breadcrumbs by default, each one navigates. Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Enter goes, Escape (or clicking away) cancels, and text that is not a location shows a message under the field and keeps it open. Typed text is parsed by Rust (`~`, relative paths and `file://` are understood), never split or joined in the UI. Autocomplete and sibling dropdowns on the breadcrumbs come later. Breadcrumb segments are drop targets and have sibling dropdowns.
 - Search: filter-as-you-type in the current folder, with Enter for recursive search and saved-search chips.
-- View switcher: Grid, List, Columns (Miller), Compact, and Disk usage.
+- The view switcher is not in the toolbar: per D23 the view icons live in the status bar footer (§5.8), and sort and group live in the empty-space context menu (§5.5).
 - Toggles: sidebar, inspector, split, terminal drawer, shelf.
 
 ### 5.3b Navigation and selection
@@ -169,7 +169,9 @@ Every item is a drop target. Hovering an item during a drag springs it open afte
 
 ### 5.5 File view
 
-- **Grid:** thumbnails with a size slider (48–256 px) and folder peeks (a 2×2 mosaic of contents).
+- **View switcher:** List and Grid buttons at the right end of the status bar (Ctrl+2 and Ctrl+1; Columns, Compact and Disk usage take Ctrl+3 to Ctrl+5 when they exist). The choice is for the window's session and every folder shows it; a folder remembering its own view is deferred with the other per-folder settings (§5.3b).
+- **Grid:** icons with a size slider (48–256 px, in the status bar beside the switcher while the grid is shown), names under them, and later thumbnails and folder peeks (a 2×2 mosaic of contents). The grid fits as many columns as the width allows and is virtualised by row. Arrow keys move one item sideways or one row up and down, Page Up and Page Down move by the visible rows, Home and End go to the ends; selection, type-ahead, Enter and the context menus are the list's. A folder too large for the webview's scroll height shows the same "Showing the first N of M" banner, counted in rows of columns.
+- **Empty-space menu:** right-click the file area (or press the menu key with nothing focused) for Sort by (Name, Size, Modified, Kind), Descending, Folders first and Show hidden files (Ctrl+H). The sort applies to the open folder and carries to folders the tab opens next; Show hidden files applies to every open tab.
 - **List:** sortable, resizable, reorderable columns. Plugin columns (git status, media info) sit beside built-ins.
 - **Columns (Miller):** hierarchical navigation with a preview column at the end.
 - **Disk usage:** a treemap or sunburst of the current folder, with list parity.

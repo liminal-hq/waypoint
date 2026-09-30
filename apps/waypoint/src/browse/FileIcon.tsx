@@ -56,13 +56,15 @@ const GLYPHS: Record<IconGroup, ReactNode> = {
 
 interface FileIconProps {
 	group: IconGroup;
+	/** An extra class, for a view that draws the glyph larger than the list does. */
+	className?: string;
 }
 
 /** The glyph for an entry's icon group. Decorative: the row's name carries the meaning. */
-export function FileIcon({ group }: FileIconProps) {
+export function FileIcon({ group, className }: FileIconProps) {
 	return (
 		<svg
-			className={styles.icon}
+			className={className ? `${styles.icon} ${className}` : styles.icon}
 			data-group={group}
 			viewBox="0 0 16 16"
 			aria-hidden="true"

@@ -1,0 +1,40 @@
+.switcher {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+	cursor: default;
+}
+
+.button:hover {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.button[aria-pressed='true'] {
+	background: var(--wp-bg-selected);
+	color: var(--wp-text-primary);
+}
+
+.button:focus-visible,
+.slider:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+}
+
+.slider {
+	width: 110px;
+	margin: 0 8px 0 0;
+	accent-color: var(--wp-accent);
+}

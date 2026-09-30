@@ -4,9 +4,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { VfsClient } from '../services/vfsClient';
-import { FakeVfsClient, fileLocation, syntheticEntries } from '../services/fakeVfsClient';
+import {
+	FakeVfsClient,
+	fileLocation,
+	makeEntry,
+	syntheticEntries,
+} from '../services/fakeVfsClient';
 
 export const FOLDER: Location = fileLocation('/home/test');
 
@@ -35,9 +41,10 @@ export function clientWith(
 
 /**
  * happy-dom does no layout, so the virtualiser would see a zero-height viewport and render no
- * rows. This gives every element a height (and the row height through `getComputedStyle`).
+ * rows. This gives every element a height (and the row height through `getComputedStyle`), and a
+ * width when one is given, for the grid's column count.
  */
-export function stubLayout(viewportHeight: number): () => void {
+export function stubLayout(viewportHeight: number, viewportWidth = 0): () => void {
 	const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
 	const client = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
 	Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
@@ -48,7 +55,16 @@ export function stubLayout(viewportHeight: number): () => void {
 		configurable: true,
 		get: () => viewportHeight,
 	});
+	const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+	if (viewportWidth > 0) {
+		Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+			configurable: true,
+			get: () => viewportWidth,
+		});
+	}
 	return () => {
+		if (width) Object.defineProperty(HTMLElement.prototype, 'clientWidth', width);
+		else if (viewportWidth > 0) Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
 		if (descriptor) Object.defineProperty(HTMLElement.prototype, 'offsetHeight', descriptor);
 		if (client) Object.defineProperty(HTMLElement.prototype, 'clientHeight', client);
 	};
@@ -60,4 +76,28 @@ export function stubLayout(viewportHeight: number): () => void {
  */
 export function withOverrides(base: VfsClient, overrides: Partial<VfsClient>): VfsClient {
 	return Object.assign(Object.create(base) as VfsClient, overrides);
+}
+
+/** A client that reports a huge folder without holding it, to test the scroll cap. */
+export function hugeClient(count: number): VfsClient {
+	const snapshot: ListingSnapshot = {
+		handle: 1,
+		location: FOLDER,
+		revision: 1,
+		count,
+		phase: 'ready',
+		sort: { key: 'name', descending: false, directoriesFirst: true },
+		filter: { showHidden: false },
+	};
+	return withOverrides(new FakeVfsClient(), {
+		openListing: async () => snapshot,
+		getRange: async (_handle, start, length) =>
+			Array.from({ length: Math.min(length, count - start) }, (_, i) =>
+				makeEntry(start + i, `entry-${start + i}.txt`),
+			),
+		setSort: async () => snapshot,
+		setFilter: async () => snapshot,
+		closeListing: async () => {},
+		onListingEvent: () => () => {},
+	});
 }

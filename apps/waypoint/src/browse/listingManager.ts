@@ -82,6 +82,15 @@ export class ListingManager {
 		}
 	}
 
+	/** Applies the hidden-files choice to every open listing; listings opened later take it from `openOptions`. */
+	setShowHidden(showHidden: boolean): void {
+		for (const slot of this.slots.values()) {
+			if (slot.state.status !== 'ready') continue;
+			const { model } = slot.state.session;
+			if (model.filter.showHidden !== showHidden) void model.setFilter({ showHidden });
+		}
+	}
+
 	/** Closes every listing. The manager can be used again: the next `sync` reopens what is shown. */
 	dispose(): void {
 		for (const id of [...this.slots.keys()]) this.release(id);

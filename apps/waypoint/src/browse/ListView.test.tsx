@@ -5,12 +5,11 @@
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
-import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { VfsClient } from '../services/vfsClient';
-import { clientWith, FOLDER, stubLayout, withOverrides } from '../test/browseHarness';
+import { clientWith, FOLDER, hugeClient, stubLayout, withOverrides } from '../test/browseHarness';
 import { ListView } from './ListView';
 import { VfsClientProvider } from './VfsClientContext';
 
@@ -57,31 +56,6 @@ function holdRanges(client: VfsClient): { held: VfsClient; release: () => void }
 	});
 	return { held, release };
 }
-
-/** A client that reports a huge folder without holding it, to test the scroll cap. */
-function hugeClient(count: number): VfsClient {
-	const snapshot: ListingSnapshot = {
-		handle: 1,
-		location: FOLDER,
-		revision: 1,
-		count,
-		phase: 'ready',
-		sort: { key: 'name', descending: false, directoriesFirst: true },
-		filter: { showHidden: false },
-	};
-	return withOverrides(new FakeVfsClient(), {
-		openListing: async () => snapshot,
-		getRange: async (_handle, start, length) =>
-			Array.from({ length: Math.min(length, count - start) }, (_, i) =>
-				makeEntry(start + i, `entry-${start + i}.txt`),
-			),
-		setSort: async () => snapshot,
-		setFilter: async () => snapshot,
-		closeListing: async () => {},
-		onListingEvent: () => () => {},
-	});
-}
-
 describe('listing', () => {
 	it('opens the folder and shows its rows as listbox options', async () => {
 		const { client } = clientWith(1000);

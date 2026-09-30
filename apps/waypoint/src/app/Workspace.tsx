@@ -7,15 +7,24 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { EntryContextMenu } from '../browse/EntryContextMenu';
 import { ListingManager } from '../browse/listingManager';
-import { ListingView } from '../browse/ListView';
+import { BackgroundContextMenu } from '../browse/BackgroundContextMenu';
+import { FileView } from '../browse/FileView';
 import type { MenuRequest } from '../browse/useListInteractions';
 import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { useViewShortcuts } from '../browse/useViewShortcuts';
+import {
+	createViewStore,
+	useViewState,
+	ViewStoreContext,
+	type ViewStore,
+} from '../browse/viewStore';
 import { tf, t } from '../i18n/messages';
 import { NavigationBar } from '../nav/NavigationBar';
 import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry, type EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
+import { ViewSwitcher } from '../status/ViewSwitcher';
 import { TabStrip } from '../tabs/TabStrip';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
 import { useTabsSnapshot } from '../tabs/TabsContext';
@@ -27,10 +36,30 @@ const OPENING: SessionState = { status: 'opening' };
 /** How long a failure stays in the status bar. */
 const NOTICE_MS = 6000;
 
+/** The browsing area. It owns the window's view choices (list or grid, icon size, hidden files). */
 export function Workspace() {
+	const [viewStore] = useState(() => createViewStore());
+	return (
+		<ViewStoreContext.Provider value={viewStore}>
+			<WorkspaceBody viewStore={viewStore} />
+		</ViewStoreContext.Provider>
+	);
+}
+
+function WorkspaceBody({ viewStore }: { viewStore: ViewStore }) {
 	const client = useVfsClient();
 	const snapshot = useTabsSnapshot();
-	const [manager] = useState(() => new ListingManager(client));
+	const [manager] = useState(
+		() =>
+			new ListingManager(client, {
+				// A new listing keeps the hidden-files choice; the sort is inherited from the
+				// listing the tab had before.
+				openOptions: (inherited) => ({
+					...(inherited ? { sort: inherited } : {}),
+					filter: { showHidden: viewStore.getState().showHidden },
+				}),
+			}),
+	);
 	// Numbered, so the same message arriving again restarts its timer.
 	const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
 	const noticeCount = useRef(0);
@@ -48,12 +77,18 @@ export function Workspace() {
 	);
 	const { open, openInNewTab, copyPath } = useOpenEntry(navigation, onFailure);
 	useTabShortcuts();
+	useViewShortcuts(viewStore);
+	const mode = useViewState((view) => view.mode);
+	const gridSize = useViewState((view) => view.gridSize);
+	const showHidden = useViewState((view) => view.showHidden);
 
 	// One listing per tab, kept in step with the session (A9, A20).
 	useEffect(() => {
 		if (snapshot) manager.sync(snapshot.tabs, snapshot.active);
 	}, [manager, snapshot]);
 	useEffect(() => () => manager.dispose(), [manager]);
+
+	useEffect(() => manager.setShowHidden(showHidden), [manager, showHidden]);
 
 	useEffect(() => {
 		if (!notice) return;
@@ -83,16 +118,29 @@ export function Workspace() {
 				aria-labelledby={tab ? tabDomId(tab.id) : undefined}
 			>
 				{state && (
-					<ListingView
+					<FileView
 						state={state}
+						mode={mode}
+						gridSize={gridSize}
 						onOpen={open}
 						onOpenInNewTab={openInNewTab}
 						onMenu={setMenu}
-						announceSelection={false}
 					/>
 				)}
 			</div>
-			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null} />
+			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
+				<ViewSwitcher />
+			</StatusBar>
+			{menu?.kind === 'background' && (
+				<BackgroundContextMenu
+					session={session}
+					showHidden={showHidden}
+					position={menu.position}
+					keyboard={menu.keyboard}
+					onToggleHidden={() => viewStore.getState().toggleHidden()}
+					onClose={() => setMenu(null)}
+				/>
+			)}
 			{menu?.kind === 'entry' && (
 				<EntryContextMenu
 					entry={menu.entry}

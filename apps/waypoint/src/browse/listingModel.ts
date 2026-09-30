@@ -234,6 +234,24 @@ export class ListingModel {
 		}
 	}
 
+	/** Changes what the listing hides. Like a re-sort, the cached entries stay on screen, stale, until the new view arrives. */
+	async setFilter(filter: Filter): Promise<void> {
+		try {
+			const snapshot = await this.client.setFilter(this.handle, filter);
+			if (this.disposed || snapshot.revision < this._revision) return;
+			this._sort = snapshot.sort;
+			this._filter = snapshot.filter;
+			this._revision = snapshot.revision;
+			this._phase = snapshot.phase;
+			this._count = snapshot.count;
+			this.markAllStale();
+			this.dropBeyondCount();
+			this.announce({ ops: [{ kind: 'reset' }], removedIds: [], count: this._count });
+		} catch (error) {
+			this.fail(error);
+		}
+	}
+
 	/** Feeds one client event in. Events for other listings, and stale ones, are ignored. */
 	applyEvent(event: ListingEvent): void {
 		if (this.disposed || event.handle !== this.handle) return;

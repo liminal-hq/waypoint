@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { FakeVfsClient, fileLocation } from '../services/fakeVfsClient';
+import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import { clientWith, FOLDER } from '../test/browseHarness';
 import { ListingModel, openListingModel, PAGE_SIZE, toVfsError } from './listingModel';
 
@@ -202,6 +202,49 @@ describe('sorting', () => {
 		const { client, model } = await open(10);
 		vi.spyOn(client, 'setSort').mockRejectedValue({ kind: 'io', message: 'no', location: null });
 		await model.setSort({ key: 'size', descending: false, directoriesFirst: true });
+		expect(model.error).toEqual({ kind: 'io', message: 'no', location: null });
+	});
+});
+
+describe('filtering', () => {
+	async function openWithHidden() {
+		const client = new FakeVfsClient();
+		client.setFolder(FOLDER, [
+			makeEntry(1, 'a.txt'),
+			makeEntry(2, '.secret'),
+			makeEntry(3, 'b.txt'),
+		]);
+		return { client, model: await openListingModel(client, FOLDER) };
+	}
+
+	it('shows hidden entries when asked, keeping old rows stale until the new view is fetched', async () => {
+		const { model } = await openWithHidden();
+		expect(model.count).toBe(2);
+		model.ensure(0, 2);
+		await settle();
+		const reports: number[] = [];
+		model.onPatch((report) => reports.push(report.count));
+
+		await model.setFilter({ showHidden: true });
+		expect(model.count).toBe(3);
+		expect(model.filter.showHidden).toBe(true);
+		expect(model.revision).toBe(2);
+		expect(reports).toEqual([3]);
+		expect(model.entryAt(0)?.name).toBe('a.txt');
+		expect(model.hasFresh(0)).toBe(false);
+		model.ensure(0, 2);
+		await settle();
+		expect(Array.from({ length: 3 }, (_, i) => model.entryAt(i)?.name)).toEqual([
+			'.secret',
+			'a.txt',
+			'b.txt',
+		]);
+	});
+
+	it('reports a failed filter as the model error', async () => {
+		const { client, model } = await openWithHidden();
+		vi.spyOn(client, 'setFilter').mockRejectedValue({ kind: 'io', message: 'no', location: null });
+		await model.setFilter({ showHidden: true });
 		expect(model.error).toEqual({ kind: 'io', message: 'no', location: null });
 	});
 });
