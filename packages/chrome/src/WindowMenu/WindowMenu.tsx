@@ -3,12 +3,29 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ContextMenu } from '../ContextMenu/ContextMenu';
 import type { MenuPosition, SelectableMenuItem } from '../ContextMenu/types';
+import {
+	CloseIcon,
+	MaximiseIcon,
+	MinimiseIcon,
+	MoveIcon,
+	PinIcon,
+	RestoreIcon,
+} from '../icons/icons';
 import { defaultChromeLabels, type ChromeLabels } from '../labels';
 import type { WindowControls } from '../TitleBar/windowControls';
 import { buildWindowMenuModel, type WindowMenuActionId } from './windowMenuModel';
+
+const iconFor: Record<WindowMenuActionId, ReactNode> = {
+	restore: <RestoreIcon />,
+	maximise: <MaximiseIcon />,
+	minimise: <MinimiseIcon />,
+	move: <MoveIcon />,
+	'always-on-top': <PinIcon />,
+	close: <CloseIcon />,
+};
 
 export interface WindowMenuProps {
 	controls: WindowControls;
@@ -33,7 +50,15 @@ export function WindowMenu({
 }: WindowMenuProps) {
 	const canMove = controls.startDragging !== undefined;
 	const items = useMemo(
-		() => buildWindowMenuModel({ isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, labels }),
+		() =>
+			buildWindowMenuModel({ isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, labels }).map(
+				(item) => {
+					const icon = item.id ? iconFor[item.id as WindowMenuActionId] : undefined;
+					return icon && (item.type === 'action' || item.type === 'checkbox')
+						? { ...item, icon }
+						: item;
+				},
+			),
 		[isMaximised, alwaysOnTop, showAlwaysOnTop, canMove, labels],
 	);
 

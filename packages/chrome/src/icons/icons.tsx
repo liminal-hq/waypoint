@@ -83,3 +83,11 @@ export function CheckIcon(props: IconProps) {
 		</Icon>
 	);
 }
+
+export function MoveIcon(props: IconProps) {
+	return (
+		<Icon {...props}>
+			<path d="M8 2v12M2 8h12M8 2L6.5 3.5M8 2l1.5 1.5M8 14l-1.5-1.5M8 14l1.5-1.5M2 8l1.5-1.5M2 8l1.5 1.5M14 8l-1.5-1.5M14 8l-1.5 1.5" />
+		</Icon>
+	);
+}
