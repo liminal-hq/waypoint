@@ -379,6 +379,65 @@ describe('selection and keyboard', () => {
 		expect(activeRow()).toHaveAttribute('aria-posinset', '1');
 	});
 
+	it('lets a space continue a type-ahead prefix, and keeps Space from scrolling otherwise', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(
+			FOLDER,
+			['alpha', 'my file.txt', 'my other.txt', 'zebra'].map((name, i) => makeEntry(i + 1, name)),
+		);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
+		act(() => list.focus());
+		// With nothing typed, Space does nothing but no longer scrolls the list.
+		expect(fireEvent.keyDown(list, { key: ' ' })).toBe(false);
+		for (const character of ['m', 'y', ' ', 'o']) key(list, character);
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		expect(selectedRows()[0]).toHaveTextContent('my other.txt');
+	});
+
+	it('abandons a pending type-ahead scan when another navigation key is pressed', async () => {
+		const client = new FakeVfsClient();
+		const names = Array.from({ length: 700 }, (_, i) => `a-${String(i).padStart(4, '0')}`);
+		names[699] = 'z-last';
+		client.setFolder(
+			FOLDER,
+			names.map((name, i) => makeEntry(i + 1, name)),
+		);
+		let armed = false;
+		let release: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const slow = new Proxy(client, {
+			get(target, property) {
+				const value = Reflect.get(target, property, target) as unknown;
+				if (property === 'getRange') {
+					return async (...args: Parameters<VfsClient['getRange']>) => {
+						if (armed) await gate;
+						return target.getRange(...args);
+					};
+				}
+				return typeof value === 'function' ? value.bind(target) : value;
+			},
+		});
+		renderList(slow);
+		const list = await screen.findByRole('listbox');
+		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
+		act(() => list.focus());
+		armed = true;
+		key(list, 'z');
+		key(list, 'ArrowDown');
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		await act(async () => {
+			release();
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		});
+		expect(selectedRows()).toHaveLength(1);
+		expect(selectedRows()[0]).toHaveAttribute('aria-posinset', '2');
+		expect(activePosition(list)).toBe(2);
+	});
+
 	it('jumps with Home, End and the page keys', async () => {
 		const { list } = await ready();
 		act(() => list.focus());

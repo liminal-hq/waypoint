@@ -55,11 +55,30 @@ export type BrowseStore = StoreApi<BrowseState & BrowseActions>;
  * carried through each patch with `mapPosition`.
  */
 export function createBrowseStore(model: ListingModel): BrowseStore {
-	// Bumped by every change to the selection, so an older asynchronous range read that finishes
+	// Bumped by every action of the person's, so an older asynchronous range read that finishes
 	// after a newer action cannot overwrite it.
 	let epoch = 0;
+	// Bumped by every listing patch. A read that a patch landed in the middle of is out of date
+	// against the new view, but the person's intent stands: it is re-issued, not dropped.
+	let patches = 0;
+	const MAX_REISSUES = 5;
 
 	const store: BrowseStore = createStore<BrowseState & BrowseActions>()((set, get) => {
+		// The id at a position that tracks patches (the anchor, which `follow` keeps current): if one
+		// lands during the lookup, the position has moved, so ask again at its new place.
+		const idFollowingPatches = async (
+			position: () => number | null,
+		): Promise<EntryId | undefined> => {
+			for (let attempt = 0; attempt <= MAX_REISSUES; attempt++) {
+				const at = position();
+				if (at === null) return undefined;
+				const seen = patches;
+				const id = await model.idAt(at);
+				if (seen === patches) return id;
+			}
+			return undefined;
+		};
+
 		const commit = (selection: Selection) =>
 			set({ selection: normalise(selection, model.count), touched: true });
 
@@ -87,14 +106,23 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				const anchor = get().anchor ?? get().focus ?? target;
 				const mine = ++epoch;
 				set({ anchor, focus: target });
-				const [start, end] = rangeBetween(anchor, target);
-				if (start === 0 && end >= model.count && !additive) {
-					commit(everything);
+				for (let attempt = 0; attempt <= MAX_REISSUES; attempt++) {
+					// The anchor and focus follow each patch, so each pass reads the current view.
+					const from = get().anchor;
+					const to = get().focus;
+					if (from === null || to === null) return;
+					const [start, end] = rangeBetween(from, to);
+					if (start === 0 && end >= model.count && !additive) {
+						commit(everything);
+						return;
+					}
+					const seen = patches;
+					const ids = (await model.readRange(start, end)).map((entry) => entry.id);
+					if (mine !== epoch) return;
+					if (seen !== patches) continue;
+					commit(additive ? addIds(get().selection, ids) : selectIds(ids));
 					return;
 				}
-				const ids = (await model.readRange(start, end)).map((entry) => entry.id);
-				if (mine !== epoch) return;
-				commit(additive ? addIds(get().selection, ids) : selectIds(ids));
 			},
 
 			moveTo(position, select) {
@@ -108,7 +136,7 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				if (cached) {
 					commit(selectOnly(cached.id));
 				} else {
-					void model.idAt(target).then((id) => {
+					void idFollowingPatches(() => get().anchor).then((id) => {
 						if (mine === epoch && id !== undefined) commit(selectOnly(id));
 					});
 				}
@@ -120,7 +148,7 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				if (focus === null) return;
 				const mine = ++epoch;
 				set({ anchor: focus });
-				void model.idAt(focus).then((id) => {
+				void idFollowingPatches(() => get().anchor).then((id) => {
 					if (mine === epoch && id !== undefined) commit(toggle(get().selection, id));
 				});
 			},
@@ -143,7 +171,7 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 	});
 
 	const follow = (report: PatchReport) => {
-		epoch++;
+		patches++;
 		const { selection, anchor, focus } = store.getState();
 		const reset = isReset(report.ops);
 		const move = (position: number | null): number | null => {

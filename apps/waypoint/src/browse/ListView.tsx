@@ -159,10 +159,13 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 		const modifier = event.ctrlKey || event.metaKey;
 		const from = state.focus;
 		const page = Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / rowHeight) - 1);
+		// Rows past the scroll cap are never drawn, so the keyboard cannot reach them; Ctrl+A is a
+		// whole-listing action and still takes every entry, as the capped banner says.
 		const lastRow = shown - 1;
 
 		const go = (target: number) => {
 			event.preventDefault();
+			typeAheadEpoch.current++;
 			const clamped = Math.max(0, Math.min(lastRow, target));
 			if (event.shiftKey) void state.extendTo(clamped, modifier);
 			else state.moveTo(clamped, !modifier);
@@ -192,17 +195,27 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 			}
 			case 'Escape':
 				event.preventDefault();
+				typeAheadEpoch.current++;
 				return state.deselectAll();
 			case ' ':
 				if (modifier) {
 					event.preventDefault();
+					typeAheadEpoch.current++;
 					state.toggleFocused();
+					return;
 				}
-				return;
+				// Mid-prefix, a space is part of the name being typed; otherwise it does nothing, and
+				// must not scroll the list.
+				if (!typeAhead.current.active) {
+					event.preventDefault();
+					return;
+				}
+				break;
 		}
 
 		if (modifier && !event.shiftKey && !event.altKey) {
 			const key = event.key.toLowerCase();
+			typeAheadEpoch.current++;
 			if (key === 'a') {
 				event.preventDefault();
 				state.selectAll();
@@ -232,6 +245,7 @@ function ListingBody({ session, onOpen }: ListingBodyProps) {
 	const onRowClick = (event: MouseEvent, position: number, entry: Entry | undefined) => {
 		const state = store.getState();
 		const modifier = event.ctrlKey || event.metaKey;
+		typeAheadEpoch.current++;
 		if (event.shiftKey) void state.extendTo(position, modifier);
 		else if (!entry) return;
 		else if (modifier) state.toggleAt(position, entry.id);

@@ -27,6 +27,11 @@ export class TypeAheadBuffer {
 		return this.text;
 	}
 
+	/** Whether a prefix is being typed now, so a space belongs to it rather than meaning Space. */
+	get active(): boolean {
+		return this.text !== '' && this.now() - this.last <= this.resetMs;
+	}
+
 	reset(): void {
 		this.text = '';
 	}

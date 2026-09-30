@@ -111,6 +111,36 @@ describe('ranges', () => {
 	});
 });
 
+describe('patches during asynchronous selection work', () => {
+	const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
+	const prepend = [makeEntry(5000, '0000-first.txt'), makeEntry(5001, '0000-second.txt')];
+
+	it('keeps a range read that a patch landed in the middle of, re-mapped to the new view', async () => {
+		const { client, store, ids, selected } = await setup(100);
+		const original = await ids(10, 16);
+		store.getState().click(10, original[0]!);
+		const pending = store.getState().extendTo(15);
+		client.addEntries(FOLDER, prepend);
+		await pending;
+		expect(selected()).toBe(6);
+		for (const id of original) expect(isSelected(store.getState().selection, id)).toBe(true);
+		expect(store.getState().anchor).toBe(12);
+		expect(store.getState().focus).toBe(17);
+	});
+
+	it('keeps a focus move whose id lookup a patch landed in the middle of', async () => {
+		// The target is named from a second model, so this one has not cached its page.
+		const [target] = await (await setup(100)).ids(50, 51);
+		const { client, store, selected } = await setup(100);
+		store.getState().moveTo(50, true);
+		client.addEntries(FOLDER, prepend);
+		await settle();
+		expect(selected()).toBe(1);
+		expect(isSelected(store.getState().selection, target!)).toBe(true);
+		expect(store.getState().focus).toBe(52);
+	});
+});
+
 describe('focus', () => {
 	it('moves the focus and selects the entry there', async () => {
 		const { store, ids, selected } = await setup();

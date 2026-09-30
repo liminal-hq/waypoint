@@ -28,6 +28,16 @@ describe('TypeAheadBuffer', () => {
 		expect(buffer.push('s')).toBe('s');
 	});
 
+	it('is active only while a prefix is fresh', () => {
+		let now = 0;
+		const buffer = new TypeAheadBuffer(800, () => now);
+		expect(buffer.active).toBe(false);
+		buffer.push('m');
+		expect(buffer.active).toBe(true);
+		now += 801;
+		expect(buffer.active).toBe(false);
+	});
+
 	it('resets on request', () => {
 		const buffer = new TypeAheadBuffer(800, () => 0);
 		buffer.push('a');
