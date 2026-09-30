@@ -22,3 +22,6 @@ plugins/*/permissions/schemas/
 
 # Claude Code agent worktrees (`.claude/worktrees/`) are nested git worktrees
 .claude/worktrees/
+
+# Playwright MCP scratch output
+.playwright-mcp/

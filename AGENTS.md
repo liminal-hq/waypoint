@@ -116,7 +116,7 @@ Keep American spellings where an external API, CSS property, crate or protocol r
 
 - Add at least one primary category label to every PR: `enhancement`, `bug`, `documentation`, `testing`, `ci`, `build`, or `chore`.
 - Add shared operational labels where they help clarify handling: `infrastructure`, `internal`, `release`, `blocked`, `epic`, or `skip-changelog`.
-- Add scope labels where helpful: `frontend`, `backend`, `rust`, `plugin`, `windows`, `linux`, `accessibility`, `design-system`.
+- Add scope labels where helpful. Technology: `frontend`, `backend`, `rust`, `plugin`, `data-model`. Platform: `linux`, `windows`, `wayland`. Product area: `tabs`, `drag-and-drop`, `remote`, `extensions`, `operations`, `search`, `os-integration`, `theming`, `accessibility`, `localisation`, `design-system`, `performance`, `security`. Structure and process: `architecture`, `spike` (a Milestone 0 risk spike), `experimental`, `developer-experience`.
 - Prefer the broader Liminal HQ label style over Conventional Commit terms. Use `enhancement` and `bug`, not `feat` or `fix`.
 - Use `skip-changelog` only when a change should be excluded from generated release notes (the categories are defined in `.github/release.yml`).
 - Keep labels accurate as scope changes during review.
