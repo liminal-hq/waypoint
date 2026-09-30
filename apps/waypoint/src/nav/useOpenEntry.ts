@@ -15,6 +15,12 @@ export function isFolder(entry: Entry): boolean {
 	return entry.kind === 'directory' || entry.linkTarget === 'directory';
 }
 
+/** What was being attempted when `onFailure` is called, so each action can say so in its own words. */
+export type EntryAction = 'open' | 'copyPath';
+
+/** Stable, so omitting `onFailure` does not rebuild the openers every render. */
+const ignoreFailure = (): void => {};
+
 export interface EntryOpeners {
 	/** Enter and double-click: a folder navigates the tab, a file opens in its default application. */
 	open: (entry: Entry, handle: ListingHandle) => void;
@@ -31,35 +37,35 @@ export interface EntryOpeners {
  */
 export function useOpenEntry(
 	navigation: Navigation,
-	onFailure: (entry: Entry) => void = () => {},
+	onFailure: (entry: Entry, action: EntryAction) => void = ignoreFailure,
 ): EntryOpeners {
 	const client = useVfsClient();
 	const tabs = useTabActions();
 	const { goTo } = navigation;
 	const { openInBackground } = tabs;
 	return useMemo(() => {
-		const fail = (entry: Entry) => (error: unknown) => {
-			console.warn('could not open the entry', error);
-			onFailure(entry);
+		const fail = (entry: Entry, action: EntryAction) => (error: unknown) => {
+			console.warn(`could not ${action === 'open' ? 'open' : 'copy the path of'} the entry`, error);
+			onFailure(entry, action);
 		};
 		return {
 			open: (entry, handle) => {
 				if (isFolder(entry)) {
-					client.entryLocation(handle, entry.id).then(goTo, fail(entry));
+					client.entryLocation(handle, entry.id).then(goTo, fail(entry, 'open'));
 				} else {
-					client.openEntry(handle, entry.id).catch(fail(entry));
+					client.openEntry(handle, entry.id).catch(fail(entry, 'open'));
 				}
 			},
 			openInNewTab: (entry, handle) => {
 				if (isFolder(entry)) {
-					client.entryLocation(handle, entry.id).then(openInBackground, fail(entry));
+					client.entryLocation(handle, entry.id).then(openInBackground, fail(entry, 'open'));
 				}
 			},
 			copyPath: (entry, handle) => {
 				client
 					.entryLocation(handle, entry.id)
 					.then((location) => navigator.clipboard.writeText(location.display))
-					.catch(fail(entry));
+					.catch(fail(entry, 'copyPath'));
 			},
 		};
 	}, [client, goTo, openInBackground, onFailure]);

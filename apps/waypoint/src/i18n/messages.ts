@@ -82,6 +82,7 @@ export const enMessages = {
 	'status.items.other': '{count} items',
 	'status.free': '{size} free',
 	'status.openFailed': 'Could not open {name}.',
+	'status.copyPathFailed': 'Could not copy the path of {name}.',
 
 	'menu.entry.label': 'Item actions',
 	'menu.open': 'Open',

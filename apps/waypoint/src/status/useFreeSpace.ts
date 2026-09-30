@@ -5,10 +5,10 @@
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { VfsClient } from '../services/vfsClient';
 
-/** Changes in a folder can change free space; re-read it at most this often while they keep coming. */
+/** Changes in a folder can change free space; re-read it at most this often while they keep coming (a throttle, so a long burst still refreshes). */
 export const FREE_SPACE_REFRESH_MS = 2000;
 
 /**
@@ -23,32 +23,56 @@ export function useFreeSpace(
 ): VolumeSpace | null {
 	const [state, setState] = useState<{ uri: string; space: VolumeSpace | null } | null>(null);
 	const uri = location?.uri;
+	const latest = useRef({ location, revision });
+	latest.current = { location, revision };
+	const read = useRef<(() => void) | null>(null);
+	const lastReadAt = useRef(0);
+	const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const seenRevision = useRef(revision);
 
+	// A new location is read at once.
 	useEffect(() => {
-		if (!location) return;
+		const target = latest.current.location;
+		if (!target) return;
 		let cancelled = false;
-		// The first read is immediate; a revision change after it waits, so a burst of live patches
-		// asks once.
-		const first = state?.uri !== location.uri;
-		const timer = setTimeout(
-			() => {
-				client.getFreeSpace(location).then(
-					(space) => {
-						if (!cancelled) setState({ uri: location.uri, space });
-					},
-					() => {
-						if (!cancelled) setState({ uri: location.uri, space: null });
-					},
-				);
-			},
-			first ? 0 : FREE_SPACE_REFRESH_MS,
-		);
+		seenRevision.current = latest.current.revision;
+		const run = () => {
+			lastReadAt.current = Date.now();
+			client.getFreeSpace(target).then(
+				(space) => {
+					if (!cancelled) setState({ uri: target.uri, space });
+				},
+				() => {
+					if (!cancelled) setState({ uri: target.uri, space: null });
+				},
+			);
+		};
+		read.current = run;
+		run();
 		return () => {
 			cancelled = true;
-			clearTimeout(timer);
+			read.current = null;
+			if (pending.current) clearTimeout(pending.current);
+			pending.current = null;
 		};
-		// Reading `state` here only decides how long to wait; it must not retrigger the effect.
-	}, [client, uri, revision]);
+	}, [client, uri]);
+
+	// A revision change reads at once if the last read was long enough ago (leading edge), and
+	// otherwise once when the interval is up (trailing edge), however many more changes arrive.
+	useEffect(() => {
+		if (seenRevision.current === revision) return;
+		seenRevision.current = revision;
+		if (!read.current || pending.current) return;
+		const wait = FREE_SPACE_REFRESH_MS - (Date.now() - lastReadAt.current);
+		if (wait <= 0) {
+			read.current();
+			return;
+		}
+		pending.current = setTimeout(() => {
+			pending.current = null;
+			read.current?.();
+		}, wait);
+	}, [revision]);
 
 	return location && state?.uri === location.uri ? state.space : null;
 }

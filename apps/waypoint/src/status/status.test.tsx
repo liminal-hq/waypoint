@@ -130,7 +130,52 @@ describe('Open', () => {
 	});
 });
 
+describe('failure notices', () => {
+	it('says a copy failed, not that the entry could not be opened', async () => {
+		const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+		Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		await renderWorkspace();
+		fireEvent.contextMenu(await option('notes.txt'));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy Path' }));
+		expect(await within(bar()).findByRole('alert')).toHaveTextContent(
+			'Could not copy the path of notes.txt.',
+		);
+	});
+
+	it('keeps a repeated notice for its full time', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			const client = createTree();
+			client.failOpeningEntries({ kind: 'permissionDenied', location: HOME });
+			vi.spyOn(console, 'warn').mockImplementation(() => {});
+			await renderWorkspace(client);
+			fireEvent.doubleClick(await option('notes.txt'));
+			await within(bar()).findByRole('alert');
+			await act(() => vi.advanceTimersByTimeAsync(5000));
+			fireEvent.doubleClick(await option('notes.txt'));
+			await act(() => vi.advanceTimersByTimeAsync(10));
+			await act(() => vi.advanceTimersByTimeAsync(2000));
+			expect(within(bar()).queryByRole('alert')).not.toBeNull();
+			await act(() => vi.advanceTimersByTimeAsync(5000));
+			expect(within(bar()).queryByRole('alert')).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+});
+
 describe('the context menu', () => {
+	it('closes when the active tab changes while it is open', async () => {
+		const h = await renderWorkspace();
+		fireEvent.contextMenu(await option('notes.txt'));
+		await screen.findByRole('menu');
+		await act(async () => {
+			await h.tabs.openTab(DOCS);
+		});
+		await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+	});
+
 	it('offers Open and Copy Path on a file, selects it, and opens it', async () => {
 		const client = createTree();
 		await renderWorkspace(client);

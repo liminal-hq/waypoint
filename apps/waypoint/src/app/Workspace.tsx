@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { EntryContextMenu } from '../browse/EntryContextMenu';
 import { ListingManager } from '../browse/listingManager';
 import { ListingView, type MenuRequest } from '../browse/ListView';
@@ -13,7 +13,7 @@ import { useVfsClient } from '../browse/VfsClientContext';
 import { tf, t } from '../i18n/messages';
 import { NavigationBar } from '../nav/NavigationBar';
 import { useNavigation } from '../nav/useNavigation';
-import { useOpenEntry } from '../nav/useOpenEntry';
+import { useOpenEntry, type EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { TabStrip } from '../tabs/TabStrip';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
@@ -30,11 +30,19 @@ export function Workspace() {
 	const client = useVfsClient();
 	const snapshot = useTabsSnapshot();
 	const [manager] = useState(() => new ListingManager(client));
-	const [notice, setNotice] = useState<string | null>(null);
+	// Numbered, so the same message arriving again restarts its timer.
+	const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+	const noticeCount = useRef(0);
 	const [menu, setMenu] = useState<MenuRequest | null>(null);
 	const navigation = useNavigation();
 	const onFailure = useCallback(
-		(entry: Entry) => setNotice(tf('status.openFailed', { name: entry.name })),
+		(entry: Entry, action: EntryAction) =>
+			setNotice({
+				id: ++noticeCount.current,
+				text: tf(action === 'copyPath' ? 'status.copyPathFailed' : 'status.openFailed', {
+					name: entry.name,
+				}),
+			}),
 		[],
 	);
 	const { open, openInNewTab, copyPath } = useOpenEntry(navigation, onFailure);
@@ -58,6 +66,10 @@ export function Workspace() {
 	const state = tab ? (manager.stateFor(tab.id) ?? OPENING) : undefined;
 	const session = state?.status === 'ready' ? state.session : null;
 
+	// A menu belongs to the entry and listing it was opened on; it must not outlive either.
+	const handle = session?.model.handle;
+	useEffect(() => setMenu(null), [tab?.id, handle]);
+
 	return (
 		<div className={styles.workspace}>
 			<TabStrip />
@@ -79,7 +91,7 @@ export function Workspace() {
 					/>
 				)}
 			</div>
-			<StatusBar session={session} location={tab?.location} notice={notice} />
+			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null} />
 			{menu?.kind === 'entry' && (
 				<EntryContextMenu
 					entry={menu.entry}
