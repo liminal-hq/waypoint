@@ -58,6 +58,12 @@ impl WindowCapabilities {
         }
     }
 
+    /// No window-manager integration exists on this target (mobile and any other platform without
+    /// a module of its own), so nothing is offered: the plugin then reports itself unavailable.
+    pub fn unsupported() -> Self {
+        Self::new(Session::Unknown, false, false)
+    }
+
     /// Summarises the capabilities as a status: available when any feature works.
     pub fn status(&self) -> PluginStatus {
         let mut features = Vec::new();
@@ -101,5 +107,16 @@ mod tests {
         let none = WindowCapabilities::new(Session::Unknown, false, false).status();
         assert!(!none.available);
         assert!(none.reason.is_some());
+    }
+
+    #[test]
+    fn an_unsupported_target_offers_nothing_and_reports_unavailable() {
+        let capabilities = WindowCapabilities::unsupported();
+        assert!(!capabilities.always_on_top);
+        assert!(!capabilities.system_window_menu);
+        let status = capabilities.status();
+        assert!(!status.available);
+        assert!(status.features.is_empty());
+        assert!(status.reason.is_some());
     }
 }

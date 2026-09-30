@@ -96,7 +96,17 @@ interface PluginStatus {
 
 ## Permissions
 
-The `default` permission set allows all three commands.
+The `default` permission set allows all three commands. Registering the plugin is not enough: Tauri denies every command until a capability grants it, so each window that uses the plugin needs the permission in a capability file, for example `src-tauri/capabilities/default.json`:
+
+```json
+{
+	"identifier": "default",
+	"windows": ["main"],
+	"permissions": ["window-manager:default"]
+}
+```
+
+Without it, every JavaScript call rejects with a "not allowed" error. Grant it only to the windows that need it; a wildcard scope also covers windows you add later.
 
 | Permission                      | Command                   |
 | ------------------------------- | ------------------------- |
