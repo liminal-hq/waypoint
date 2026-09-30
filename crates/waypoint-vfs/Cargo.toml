@@ -11,6 +11,7 @@ publish = false
 
 [dependencies]
 serde = { workspace = true }
+dirs = "6"
 notify = "8"
 ts-rs = { workspace = true }
 waypoint-path = { path = "../waypoint-path" }

@@ -12,6 +12,7 @@ mod listing;
 mod local;
 mod model;
 mod order;
+mod places;
 mod provider;
 mod watch;
 
@@ -22,5 +23,6 @@ pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
 pub use model::*;
 pub use order::natural_key;
+pub use places::*;
 pub use provider::*;
 pub use watch::{WatchMode, WatchOptions};
