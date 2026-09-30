@@ -43,7 +43,9 @@ impl Reading {
     }
 }
 
-/// Assigns `next` its revision given the previous reading, and says whether the preferences changed since a baseline existed. The first reading is revision 1 and only sets the baseline; the revision increases exactly when the preferences differ from the previous reading.
+/// Assigns `next` its revision given the previous reading, and says whether the preferences
+/// changed since a baseline existed. The first reading is revision 1 and only sets the baseline;
+/// the revision increases exactly when the preferences differ from the previous reading.
 pub fn advance(previous: Option<&Reading>, next: Snapshot) -> (Reading, bool) {
     match previous {
         None => (
@@ -80,7 +82,9 @@ pub struct Service {
 }
 
 impl Service {
-    /// Reads the platform now, remembers the result and emits the change event, stamped with the new revision, if the preferences differ from the previous reading. The first reading only sets the baseline.
+    /// Reads the platform now, remembers the result and emits the change event, stamped with the
+    /// new revision, if the preferences differ from the previous reading. The first reading only
+    /// sets the baseline.
     pub async fn refresh<R: Runtime>(&self, app: &AppHandle<R>) -> Reading {
         let _turn = self.gate.lock().await;
         let next = platform::read().await;
