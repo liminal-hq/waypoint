@@ -17,13 +17,11 @@ use crate::{
 
 /// Detects the session, preferring the backend GDK actually opened over the environment.
 ///
-/// GDK objects may only be touched on the GTK main thread after GTK is initialised; anywhere else this falls back to the environment rule.
+/// GDK objects may only be touched on the GTK main thread after GTK is initialised; anywhere else, or before GTK has a display, this falls back to the environment rule. A live display of an unrecognised type stays `Unknown` whatever the environment says.
 pub fn detect_session() -> Session {
     if gtk::is_initialized_main_thread() {
-        if let Some(found) = gdk::Display::default()
-            .and_then(|display| session::from_gdk_display_type(display.type_().name()))
-        {
-            return found;
+        if let Some(display) = gdk::Display::default() {
+            return session::from_live_display_type(display.type_().name());
         }
     }
     session::from_process_env()

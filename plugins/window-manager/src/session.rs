@@ -41,6 +41,13 @@ pub fn from_gdk_display_type(type_name: &str) -> Option<Session> {
     }
 }
 
+/// Maps the type of the display GDK actually opened to a session. A live backend that is neither
+/// Wayland nor X11 (such as Broadway) is `Unknown`: the environment must not override what GDK is
+/// really using, or X11-only features would be attempted against a non-X11 window.
+pub fn from_live_display_type(type_name: &str) -> Session {
+    from_gdk_display_type(type_name).unwrap_or(Session::Unknown)
+}
+
 /// Reads the three variables from the process environment.
 pub fn from_process_env() -> Session {
     let get = |name: &str| std::env::var(name).ok();
@@ -101,5 +108,21 @@ mod tests {
         );
         assert_eq!(from_gdk_display_type("GdkX11Display"), Some(Session::X11));
         assert_eq!(from_gdk_display_type("GdkBroadwayDisplay"), None);
+    }
+
+    #[test]
+    fn a_live_backend_that_is_neither_stays_unknown() {
+        assert_eq!(
+            from_live_display_type("GdkWaylandDisplay"),
+            Session::Wayland
+        );
+        assert_eq!(from_live_display_type("GdkX11Display"), Session::X11);
+        // The environment may still say X11 (`DISPLAY` set, `XDG_SESSION_TYPE=x11`), but the live
+        // backend decides.
+        assert_eq!(
+            from_live_display_type("GdkBroadwayDisplay"),
+            Session::Unknown
+        );
+        assert_eq!(from_live_display_type(""), Session::Unknown);
     }
 }

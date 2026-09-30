@@ -47,22 +47,20 @@ pub async fn show_system_window_menu<R: Runtime>(
         position.x, position.y
     );
 
-    let hwnd = match window.hwnd() {
-        Ok(hwnd) => hwnd,
-        Err(error) => {
-            warn!("windows system menu (untested native path): no window handle for label={label}: {error}");
-            return false;
-        }
-    };
-    let scale = window.scale_factor().unwrap_or(1.0);
-    // A raw window handle is a pointer and so is not `Send`; carry it as an integer and rebuild it
-    // on the main thread, which owns the window.
-    let raw_hwnd = hwnd.0 as isize;
-
-    // `TrackPopupMenu` runs a modal loop and must run on the thread that owns the window.
+    // `TrackPopupMenu` runs a modal loop and must run on the thread that owns the window. The
+    // handle is resolved inside that job, not before it is queued: a window can close in between,
+    // and Windows reuses handle values, so an earlier handle could name an unrelated new window.
+    let target = window.clone();
     let thread_label = label.clone();
     let shown = main_thread::run(window, move || {
-        let hwnd = HWND(raw_hwnd as *mut core::ffi::c_void);
+        let hwnd = match target.hwnd() {
+            Ok(hwnd) => hwnd,
+            Err(error) => {
+                warn!("windows system menu (untested native path): no window handle for label={thread_label}: {error}");
+                return false;
+            }
+        };
+        let scale = target.scale_factor().unwrap_or(1.0);
         show_menu(hwnd, position, scale, &thread_label)
     })
     .await;
