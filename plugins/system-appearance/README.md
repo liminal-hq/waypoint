@@ -91,7 +91,15 @@ interface ButtonLayout {
 	end: WindowButton[];
 }
 
-type TitlebarAction = 'toggleMaximise' | 'toggleShade' | 'minimise' | 'lower' | 'menu' | 'none';
+type TitlebarAction =
+	| 'toggleMaximise'
+	| 'toggleMaximiseHorizontally' // GNOME `toggle-maximize-horizontally`, KDE `Maximize (horizontal only)`
+	| 'toggleMaximiseVertically' // GNOME `toggle-maximize-vertically`, KDE `Maximize (vertical only)`
+	| 'toggleShade'
+	| 'minimise'
+	| 'lower'
+	| 'menu'
+	| 'none';
 
 interface TitlebarActions {
 	doubleClick: TitlebarAction;
@@ -127,7 +135,17 @@ interface PluginStatus {
 
 ## Permissions
 
-The `default` permission set allows both commands.
+The `default` permission set allows both commands. Registering the plugin is not enough: Tauri denies every command until a capability grants it, so each window that uses the plugin needs the permission in a capability file, for example `src-tauri/capabilities/default.json`:
+
+```json
+{
+	"identifier": "default",
+	"windows": ["main"],
+	"permissions": ["system-appearance:default", "core:default"]
+}
+```
+
+`core:default` includes the event permissions that `onTitlebarPreferencesChanged` needs to listen for the change event. Without these, every JavaScript call rejects with a "not allowed" error. Grant them only to the windows that need them; a wildcard scope also covers windows you add later.
 
 | Permission                       | Command                    |
 | -------------------------------- | -------------------------- |

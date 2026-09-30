@@ -38,6 +38,8 @@ pub struct ButtonLayout {
 #[ts(export, export_to = "../guest-js/bindings/")]
 pub enum TitlebarAction {
     ToggleMaximise,
+    ToggleMaximiseHorizontally,
+    ToggleMaximiseVertically,
     ToggleShade,
     Minimise,
     Lower,
@@ -132,9 +134,7 @@ impl TitlebarPreferences {
     }
 }
 
-/// The preferences stamped with a revision, so a consumer can discard a reading that is older
-/// than one it already has. The revision starts at 1 and increases whenever the preferences
-/// change; the JSON is the preferences object with a `revision` field added.
+/// The preferences stamped with a revision, so a consumer can discard a reading that is older than one it already has. The revision starts at 1 and increases whenever the preferences change; the JSON is the preferences object with a `revision` field added.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
