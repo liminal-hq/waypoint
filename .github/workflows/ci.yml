@@ -219,3 +219,38 @@ jobs:
             echo "- Directories: the protocol \`generated\` folder and each plugin's \`guest-js/bindings\`"
             echo "- Fix a failure with \`bun run bindings\` and commit the regenerated files"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  # Windows 11 is a real target (A11): the whole workspace must keep compiling and linting there, and
+  # the pure crates' tests, including path rules, run on Windows.
+  windows-check:
+    name: Windows check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # The Tauri build script needs the built frontend (`frontendDist`).
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Lint
+        id: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test the pure crates
+        id: tests
+        run: cargo test -p waypoint-protocol -p waypoint-vfs
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Windows check"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo test -p waypoint-protocol -p waypoint-vfs\` |"
+          } >> "${GITHUB_STEP_SUMMARY}"
