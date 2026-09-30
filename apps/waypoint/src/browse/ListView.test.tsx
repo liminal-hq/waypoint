@@ -33,6 +33,30 @@ function renderList(client: VfsClient) {
 
 const rows = () => screen.queryAllByRole('option');
 
+/**
+ * Wraps a client so `getRange` waits until `release()` is called. A proxy, so a method added to the
+ * client later is forwarded without this helper knowing about it.
+ */
+function holdRanges(client: VfsClient): { held: VfsClient; release: () => void } {
+	let release: () => void = () => {};
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	const held = new Proxy(client, {
+		get(target, property) {
+			const value = Reflect.get(target, property, target) as unknown;
+			if (property === 'getRange') {
+				return async (...args: Parameters<VfsClient['getRange']>) => {
+					await gate;
+					return target.getRange(...args);
+				};
+			}
+			return typeof value === 'function' ? value.bind(target) : value;
+		},
+	});
+	return { held, release };
+}
+
 /** A client that reports a huge folder without holding it, to test the scroll cap. */
 function hugeClient(count: number): VfsClient {
 	const snapshot: ListingSnapshot = {
@@ -84,12 +108,16 @@ describe('listing', () => {
 	});
 
 	it('shows placeholder rows while a page loads, then the entries', async () => {
-		const { client } = clientWith(1000, 30);
-		renderList(client);
+		// The page is held until the test lets it go, so the placeholder state is there to see however
+		// slow the runner is. (A simulated latency would race the assertion.)
+		const { client } = clientWith(1000);
+		const { held, release } = holdRanges(client);
+		renderList(held);
 		await screen.findByRole('listbox');
 		await waitFor(() => expect(rows().length).toBeGreaterThan(0));
 		expect(rows()[0]).toHaveAttribute('data-placeholder');
 		expect(rows()[0]).toHaveAttribute('aria-busy', 'true');
+		release();
 		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
 		expect(rows()[0]).not.toHaveAttribute('aria-busy');
 	});
