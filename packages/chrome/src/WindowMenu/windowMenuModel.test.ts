@@ -22,6 +22,13 @@ describe('buildWindowMenuModel', () => {
 		expect(items[0]).toMatchObject({ label: 'Restore' });
 	});
 
+	it('puts Move, Always on Top and Close each in their own section', () => {
+		const items = buildWindowMenuModel({ isMaximised: false, alwaysOnTop: false });
+		expect(items.map((i) => (i.type === 'separator' ? '|' : i.id)).join(' ')).toBe(
+			'maximise minimise | move | always-on-top | close',
+		);
+	});
+
 	it('reflects the Always on Top state on the checkbox', () => {
 		const on = buildWindowMenuModel({ isMaximised: false, alwaysOnTop: true });
 		const off = buildWindowMenuModel({ isMaximised: false, alwaysOnTop: false });

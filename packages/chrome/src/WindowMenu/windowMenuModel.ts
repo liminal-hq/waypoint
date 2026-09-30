@@ -22,7 +22,10 @@ export interface WindowMenuModelOptions {
 	>;
 }
 
-/** Restore/Maximise, Minimise, Move, Always on Top, Close — in that order. */
+/**
+ * Restore/Maximise and Minimise, then Move, then Always on Top, then Close — in that order,
+ * each in its own section.
+ */
 export function buildWindowMenuModel({
 	isMaximised,
 	alwaysOnTop,
@@ -36,7 +39,10 @@ export function buildWindowMenuModel({
 			: { type: 'action', id: 'maximise', label: labels.maximise },
 		{ type: 'action', id: 'minimise', label: labels.minimise },
 	];
-	if (canMove) items.push({ type: 'action', id: 'move', label: labels.move });
+	if (canMove) {
+		items.push({ type: 'separator', id: 'sep-move' });
+		items.push({ type: 'action', id: 'move', label: labels.move });
+	}
 	if (showAlwaysOnTop) {
 		items.push({ type: 'separator', id: 'sep-top' });
 		items.push({
