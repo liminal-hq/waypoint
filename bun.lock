@@ -75,6 +75,19 @@
         "typescript": "^5.9.3",
       },
     },
+    "plugins/window-manager": {
+      "name": "@liminal-hq/plugin-window-manager",
+      "version": "0.2.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
@@ -182,6 +195,8 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@liminal-hq/plugin-system-appearance": ["@liminal-hq/plugin-system-appearance@workspace:plugins/system-appearance"],
+
+    "@liminal-hq/plugin-window-manager": ["@liminal-hq/plugin-window-manager@workspace:plugins/window-manager"],
 
     "@liminal-hq/waypoint": ["@liminal-hq/waypoint@workspace:apps/waypoint"],
 

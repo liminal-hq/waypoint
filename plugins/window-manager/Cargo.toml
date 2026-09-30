@@ -1,0 +1,38 @@
+[package]
+name = "tauri-plugin-window-manager"
+version = "0.1.0"
+description = "Tauri plugin that reaches window manager features a webview cannot, such as the compositor's own window menu"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-window-manager"
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Reports capabilities; the system window menu is not implemented yet" }
+linux = { level = "full", notes = "Asks the compositor to show its window menu on Wayland and X11 through GDK" }
+macos = { level = "partial", notes = "Reports capabilities; there is no system window menu to show" }
+android = { level = "none", notes = "Desktop window managers only" }
+ios = { level = "none", notes = "Desktop window managers only" }
+
+[lib]
+name = "tauri_plugin_window_manager"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+log = { workspace = true }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gdk = "0.18"
+gtk = "0.18"
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }

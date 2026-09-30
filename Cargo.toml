@@ -3,6 +3,7 @@ members = [
   "crates/waypoint-protocol",
   "apps/waypoint/src-tauri",
   "plugins/system-appearance",
+  "plugins/window-manager",
 ]
 resolver = "2"
 

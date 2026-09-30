@@ -4096,6 +4096,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-window-manager"
+version = "0.1.0"
+dependencies = [
+ "gdk",
+ "gtk",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+]
+
+[[package]]
 name = "tauri-plugin-window-state"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
