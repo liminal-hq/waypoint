@@ -1,0 +1,12 @@
+.frame {
+	box-sizing: border-box;
+	height: 100%;
+	overflow: hidden;
+	border: 1px solid var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
+	border-radius: var(--wp-window-radius, 12px);
+}
+
+.frame[data-maximised='true'] {
+	border: 0;
+	border-radius: 0;
+}

@@ -82,6 +82,8 @@ body,
 #root {
 	margin: 0;
 	height: 100%;
+	/* The window is transparent so the frame can round its own corners. */
+	background: transparent;
 }
 
 body {

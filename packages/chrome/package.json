@@ -41,13 +41,14 @@
 		"./ContextMenu/types": "./src/ContextMenu/types.ts",
 		"./TitleBar": "./src/TitleBar/TitleBar.tsx",
 		"./TitleBar/AppMenuButton": "./src/TitleBar/AppMenuButton.tsx",
+		"./TitleBar/tauriWindowControls": "./src/TitleBar/tauriWindowControls.ts",
 		"./TitleBar/useMaximised": "./src/TitleBar/useMaximised.ts",
 		"./TitleBar/windowControls": "./src/TitleBar/windowControls.ts",
-		"./TitleBar/tauriWindowControls": "./src/TitleBar/tauriWindowControls.ts",
+		"./WindowFrame": "./src/WindowFrame/WindowFrame.tsx",
 		"./WindowMenu": "./src/WindowMenu/WindowMenu.tsx",
 		"./WindowMenu/windowMenuModel": "./src/WindowMenu/windowMenuModel.ts",
-		"./labels": "./src/labels.ts",
 		"./icons/icons": "./src/icons/icons.tsx",
+		"./labels": "./src/labels.ts",
 		"./package.json": "./package.json"
 	}
 }

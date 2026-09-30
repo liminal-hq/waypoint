@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { TitleBar } from '@liminal-hq/waypoint-chrome/TitleBar';
+import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { tauriWindowControls } from '@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls';
 import styles from './PlaceholderScreen.module.css';
 
@@ -14,7 +15,7 @@ interface PlaceholderScreenProps {
 
 export function PlaceholderScreen({ title, description }: PlaceholderScreenProps) {
 	return (
-		<div className={styles.screen}>
+		<WindowFrame windowControls={tauriWindowControls} className={styles.screen}>
 			<TitleBar
 				windowControls={tauriWindowControls}
 				center={<span className={styles.title}>{title}</span>}
@@ -25,6 +26,6 @@ export function PlaceholderScreen({ title, description }: PlaceholderScreenProps
 				<h1 className={styles.heading}>{title}</h1>
 				<p className={styles.description}>{description}</p>
 			</main>
-		</div>
+		</WindowFrame>
 	);
 }
