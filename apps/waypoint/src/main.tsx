@@ -3,11 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider';
-import { tauriWindowControls } from '@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AppWindowChrome } from './app/AppWindowChrome';
 import { MainScreen } from './app/MainScreen';
 import { OpsScreen } from './app/OpsScreen';
 import { PropertiesScreen } from './app/PropertiesScreen';
@@ -45,8 +44,6 @@ applyPlatform();
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
-		<WindowChromeProvider controls={tauriWindowControls}>
-			{screenFor(windowKindFromLabel(label))}
-		</WindowChromeProvider>
+		<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
 	</StrictMode>,
 );

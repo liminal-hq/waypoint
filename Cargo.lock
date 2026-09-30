@@ -4871,6 +4871,7 @@ dependencies = [
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-os",
  "tauri-plugin-system-appearance",
+ "tauri-plugin-window-manager",
  "tauri-plugin-window-state",
  "waypoint-protocol",
 ]

@@ -14,6 +14,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@liminal-hq/plugin-system-appearance": "workspace:*",
+        "@liminal-hq/plugin-window-manager": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
         "@tanstack/react-router": "^1.170.33",
         "@tauri-apps/api": "^2.10.1",

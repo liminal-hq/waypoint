@@ -22,6 +22,7 @@ tauri-plugin-log = "2"
 tauri-plugin-os = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-system-appearance = { path = "../../../plugins/system-appearance" }
+tauri-plugin-window-manager = { path = "../../../plugins/window-manager" }
 # Debug-only automation bridge, registered under `#[cfg(debug_assertions)]` in
 # `src/lib.rs`. It must be a normal dependency (dev-dependencies are not
 # available to the lib target) even though release builds never activate it.
