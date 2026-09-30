@@ -794,6 +794,10 @@ describe('AppMenuButton', () => {
 			'toggleShade',
 			'lower',
 			'toggleRaiseLower',
+			'raise',
+			'toggleAllDesktops',
+			'toggleAbove',
+			'fill',
 			'toggleMaximiseHorizontally',
 			'toggleMaximiseVertically',
 		] as const;
