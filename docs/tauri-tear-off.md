@@ -1,0 +1,64 @@
+# Tauri Tab Tear-Off (implementation reference)
+
+Reference: [romenkova/doska](https://github.com/romenkova/doska), by way of a Reddit post in r/tauri. It shows a clean way to drag something out of a Tauri window and turn it into a new window. Waypoint's tab tear-off should use the same pattern if we build on Tauri v2.
+
+Check the repo's licence before copying any code. This doc describes the pattern in our own words and does not reproduce their source.
+
+## Why this pattern
+
+A webview can only track the pointer while it is inside the window. Once a drag leaves the window, the page stops getting move events. The pattern fixes this with a small always-on-top "ghost" window that follows the cursor from the native side, so the drag still looks continuous outside the app.
+
+## The three parts
+
+### 1. Drag handle, in the web UI
+
+- Mouse down on a marked handle starts a _pending_ drag. Ignore buttons, links and inputs inside the handle.
+- Wait for a small movement threshold (about 4 px) before it counts as a drag. Below that it is still a click.
+- Once it counts as a drag: clear any text selection, set `user-select: none` and a grabbing cursor on `body`, and ask the backend to show the ghost.
+- While dragging, check whether the pointer is outside the window's viewport. If it is, fade the source (in Doska, opacity to about 40%).
+- On mouse up: restore the body styles, tell the backend to hide the ghost, and if the pointer is outside the viewport, open the new window at the drop point.
+- Remember where inside the handle the user grabbed (the offset). Subtract it from the screen coordinates on drop so the new window lands where the ghost was, not with its corner under the cursor.
+
+### 2. Ghost window, in Rust
+
+- A pre-created, hidden, small window (label like `tear-ghost`) that shows a thumbnail of the thing being dragged.
+- `start_tear_off` command: guard with an atomic flag so it can't start twice, position the ghost under the cursor, apply the current theme, show it, and set it to ignore cursor events (so it never steals the pointer or blocks drop targets).
+- A background thread nudges the ghost to the cursor about every 16 ms using the app's cursor position, run on the main thread. Centre the ghost on the cursor using its outer size.
+- A hard timeout (about 30 s) ends the drag if the mouse-up is ever lost.
+- `end_tear_off` command: clear the flag and hide the ghost.
+
+### 3. New window, in the web UI
+
+- On drop outside the viewport, create a new webview window with a stable label, its own route/URL, and the drop coordinates as its position.
+- If a window for the same item already exists, show and focus it instead of making another.
+- Set the window's background colour and theme from the current theme so it doesn't flash white.
+- Turn off native drag-drop on the new window if the app handles file drops itself.
+- Cap how many hidden windows linger and destroy the oldest. Doska hides on close (destroying a webview can crash WebKit on macOS), so this cap matters.
+
+## How it maps to Waypoint
+
+| Waypoint behaviour                           | Prototype                                                                   | Tauri build                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Tear a tab off                               | Drag more than 26 px away from the tab row; a ghost card follows the cursor | The handle logic above on the tab; ghost window follows the native cursor                  |
+| Ghost content                                | A mini window card with the tab title                                       | The ghost window renders the same card; send the title and theme through the start command |
+| Release outside                              | New floating window at the drop point                                       | New `WebviewWindow` at the drop point, loading the tab's location                          |
+| Release on another Waypoint window's tab row | "Merge into that window"                                                    | Needs cross-window hit-testing (see below)                                                 |
+| Drop files from the tab onto other windows   | Not covered                                                                 | Same ghost, plus an OS-level drop target on the other window                               |
+| Esc cancels                                  | Yes                                                                         | End the drag and hide the ghost on Esc                                                     |
+
+## Things Waypoint needs that Doska doesn't show
+
+- **Merging into another window.** The pattern only tears off. To merge, each window needs to know where the other windows' tab rows are on screen. The backend can hold each window's frame plus tab-strip rect, hit-test the cursor on release, and emit a "receive tab" event to the target window.
+- **Moving live state.** A torn-off tab carries its history, selection, split state and scroll position. Serialise it and hand it over through an event or a shared session store, then remove it from the source window.
+- **Multi-monitor and scaling.** Positions from `screenX` and `screenY` are in logical pixels; the cursor position and window positions from Rust are physical. Convert with the monitor's scale factor.
+- **Wayland.** Client-set window positions and always-on-top ghosts are restricted on some Wayland compositors. Test on GNOME (Mutter) and KDE (KWin). Fall back to opening the new window centred on the source and skip the floating ghost if positioning isn't allowed.
+- **Windows 11 and X11.** Click-through ghosts work well on both, but test transparency on the ghost because it must respect the user's transparency setting.
+- **Tab drags that also carry files.** If files are dragged, the ghost shows the file stack (see `interactions.md` §3.6) instead of a tab card.
+
+## Suggested build order
+
+1. Ghost window with cursor follow and an end command, plus the timeout.
+2. Tear-off from the tab strip, opening a new window at the drop point.
+3. Session hand-off so the tab's state moves with it.
+4. Merge-by-drop across windows.
+5. Wayland fallback.

@@ -1,0 +1,19 @@
+{
+	"name": "waypoint",
+	"private": true,
+	"version": "0.0.0",
+	"workspaces": [
+		"apps/*",
+		"packages/*",
+		"plugins/*/guest-js"
+	],
+	"scripts": {
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"check:headers": "bash scripts/check-headers.sh",
+		"validate": "bun run format:check && bun run check:headers"
+	},
+	"devDependencies": {
+		"prettier": "^3.3.0"
+	}
+}

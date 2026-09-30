@@ -1,0 +1,107 @@
+# OS Integrations
+
+Status: draft v0.1 · decisions D42–D47 in `decisions.md`.
+
+## Principles
+
+1. **Portals first.** Anything with an XDG desktop portal uses it, so the same code works in a Flatpak. Direct access is the fallback.
+2. **Share state with other apps.** Use the freedesktop standards (Trash, thumbnails, bookmarks, recent files, tags), so a file trashed in Waypoint appears in Nemo's trash, and vice versa.
+3. **Hide what isn't available.** Settings only shows options that work on the current system. One place, the _Services status_ panel, lists everything and why something is off.
+4. **Windows is a real target.** Each Linux integration has a Windows counterpart, or is explicitly dropped.
+5. **Nothing is silent.** Anything that reaches outside Waypoint (notifications, global shortcut, default file manager, sleep inhibit) is off until enabled, and listed under Settings → Integrations.
+
+## Linux
+
+### File-system standards
+
+| Feature             | Standard                                                                                                                                     | Notes                                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Trash               | freedesktop Trash spec (`~/.local/share/Trash`, per-volume `.Trash-$uid`, `.trashinfo`)                                                      | Shared with Nemo, Nautilus, Dolphin. Flatpak: `org.freedesktop.portal.Trash`.                                                       |
+| Thumbnails          | Thumbnail Managing Standard (`~/.cache/thumbnails/{normal,large,x-large,xx-large}`), thumbnailers in `/usr/share/thumbnailers/*.thumbnailer` | Reads and writes the shared cache. Plugin thumbnailers register in the same format.                                                 |
+| Recent files        | `~/.local/share/recently-used.xbel`                                                                                                          | Also add to KDE's recent documents where present.                                                                                   |
+| Bookmarks           | `~/.config/gtk-3.0/bookmarks` (and KDE `user-places.xbel`)                                                                                   | Waypoint's _workspaces_ are its own layer on top.                                                                                   |
+| Open With           | `.desktop` files, `mimeapps.list`, MIME database                                                                                             | Flatpak: OpenURI portal with the “ask” flag.                                                                                        |
+| Extended attributes | `user.xdg.tags`, `user.xdg.comment`                                                                                                          | Waypoint tags use `user.xdg.tags`, so other managers can read them. Fall back to a sidecar database on file systems without xattrs. |
+| Icons and MIME      | Icon Theme Spec, shared MIME-info                                                                                                            | Follows the desktop icon theme, with Waypoint's icons as fallback.                                                                  |
+
+### Mounts and network
+
+| Feature                           | API                                                                               | Notes                                                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Drives: mount, eject, unlock LUKS | udisks2 over D-Bus                                                                | Passphrases in the keyring if the user opts in.                                                                  |
+| Network locations                 | GVFS (`gio`): sftp, smb, dav, ftp, mtp                                            | Shared with other apps. Waypoint also ships its own SFTP/S3/WebDAV providers, so it works where GVFS is missing. |
+| SSH                               | `SSH_AUTH_SOCK` agent; hosts from `~/.ssh/config`                                 | Config hosts appear as suggested servers.                                                                        |
+| Server passwords                  | Secret Service (`org.freedesktop.secrets`), KWallet via its Secret Service bridge | Never stored in Waypoint's own files.                                                                            |
+| Online accounts                   | GNOME Online Accounts (Nextcloud, WebDAV)                                         | Experimental; KDE has no equivalent for files.                                                                   |
+| Drive health                      | udisks2 `Drive.Ata` SMART status                                                  | Shown in the drive's Properties.                                                                                 |
+| Snapshots                         | Btrfs (snapper `.snapshots`), ZFS (`.zfs/snapshot`), Timeshift                    | A “Previous versions” panel in Properties.                                                                       |
+
+### Sharing and disks
+
+| Feature          | API                                                                              | Notes                                                           |
+| ---------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Share a folder   | Samba usershares (`net usershare`) or an NFS export                              | Needs the sharing service installed; hidden when it is missing. |
+| Nearby devices   | Avahi (mDNS) discovery plus a small transfer protocol; Bluetooth where available | The receiving device must accept.                               |
+| Format a drive   | udisks2 `Block.Format`                                                           | The name confirmation is a design rule, not an API feature.     |
+| Mount an ISO     | udisks2 loop device (`LoopSetup`) then mount                                     | Read-only.                                                      |
+| Encrypted vaults | gocryptfs or CryFS through a helper                                              | Passphrase can go in the keyring.                               |
+
+### Desktop
+
+| Feature                          | API                                                                                    | Notes                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Colour scheme, accent, contrast  | `org.freedesktop.portal.Settings`                                                      | Already in the design.                                                             |
+| Default file manager             | `inode/directory` in `mimeapps.list` (`xdg-mime default`)                              | Opt-in toggle.                                                                     |
+| “Show in folder” from other apps | `org.freedesktop.FileManager1` (`ShowFolders`, `ShowItems`, `ShowItemProperties`)      | Waypoint owns the bus name via a D-Bus activation file, and opens a tab or window. |
+| System file chooser              | A `xdg-desktop-portal` FileChooser backend (`org.freedesktop.impl.portal.FileChooser`) | Large piece of work; plan for a later phase.                                       |
+| Notifications                    | `org.freedesktop.portal.Notification`                                                  | Copy finished, errors, needs attention.                                            |
+| Dock / taskbar progress          | `com.canonical.Unity.LauncherEntry`                                                    | Works on GNOME (dash-to-dock, Ubuntu dock) and KDE.                                |
+| Global shortcut                  | `org.freedesktop.portal.GlobalShortcuts`; X11 key grab as fallback                     | Opens a new Waypoint window.                                                       |
+| Prevent sleep                    | `org.freedesktop.portal.Inhibit`                                                       | Only while transfers run.                                                          |
+| Drag and drop with other apps    | `text/uri-list`; `x-special/gnome-copied-files` for the clipboard                      | Wayland: handled by the toolkit, so test on GNOME and KDE.                         |
+| Open in Terminal                 | `xdg-terminal-exec` where present, then the desktop's default terminal setting         | The built-in terminal tab is separate.                                             |
+| Run as administrator             | polkit action `dev.liminal.waypoint.admin` with a small helper                         | Never elevates the whole app.                                                      |
+
+### Reusing extensions people already have
+
+| Source            | Format                                                                                                                                      | Waypoint behaviour                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Nemo actions      | `~/.local/share/nemo/actions/*.nemo_action` (INI: `Name`, `Exec` with `%F` `%U` `%P`, `Selection`, `Extensions`, `Mimetypes`, `Conditions`) | Shown as context-menu items under the _Actions_ section. |
+| KDE service menus | `.desktop` with `[Desktop Action …]`                                                                                                        | Same.                                                    |
+| Nautilus scripts  | Executables in `~/.local/share/nautilus/scripts` with the `NAUTILUS_SCRIPT_*` environment                                                   | Listed under _Scripts_.                                  |
+| Waypoint actions  | TOML in `~/.config/waypoint/actions/` (the same schema as a plugin `action`)                                                                | First-class; can be shared.                              |
+
+A source is only read if the folder exists. Each item shows where it came from, and the user can turn a source off.
+
+### Packaging
+
+Design for **Flatpak too**. Portals first, with fallbacks when the sandbox is tighter (no `--filesystem=host`, no GVFS D-Bus access): the sidebar hides unmounted drives, Nemo/KDE/Nautilus actions are unavailable (the folders aren't visible), and the _Services status_ panel says why.
+
+## Windows 11
+
+| Feature                                    | Approach                                                                                                                        | Notes                                                                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recycle Bin                                | `IFileOperation` with undo (`FOFX_RECYCLEONDELETE`)                                                                             | Replaces freedesktop Trash. Restore uses the Shell namespace.                                                                               |
+| Light or dark, accent                      | `UISettings` (`Windows.UI.ViewManagement`)                                                                                      | Equivalent of the settings portal.                                                                                                          |
+| Taskbar progress, jump lists               | `ITaskbarList3::SetProgressValue`, `ICustomDestinationList`                                                                     | Recent folders and pinned tasks.                                                                                                            |
+| Explorer context menu (“Open in Waypoint”) | `IExplorerCommand` in a sparse MSIX package for the modern menu; registry verb under `HKCR\Directory\shell` for the classic one | The classic verb appears under “Show more options”.                                                                                         |
+| Default folder handler, Open With          | Registered ProgID and Default Apps entry                                                                                        | Windows 11 doesn't let an app silently become the default. Waypoint opens the Default apps page instead. Explorer itself can't be replaced. |
+| Notifications                              | WinRT toast with an AppUserModelID                                                                                              | Same events as Linux.                                                                                                                       |
+| Quick Access, pinned folders               | Shell namespace (`shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}`); `pintohome` verb                                            | Appear in the sidebar's Favourites.                                                                                                         |
+| OneDrive and cloud files                   | Cloud Files API attributes (`RECALL_ON_DATA_ACCESS`, `PINNED`, `UNPINNED`)                                                      | Show status emblems. **Never trigger a download** from thumbnails, previews, folder sizes or search.                                        |
+| SMB and mapped drives                      | `WNetEnumResource`; UNC `\\server\share`                                                                                        | Drive letters shown in Devices.                                                                                                             |
+| Terminal                                   | `wt.exe -d <path>`, then `pwsh`, `powershell`, `cmd`                                                                            |                                                                                                                                             |
+| Server passwords                           | Windows Credential Manager                                                                                                      |                                                                                                                                             |
+
+### Paths and keys
+
+- **Paths:** show native Windows paths (`C:\Users\scott\…`) and drive letters in the sidebar. Internally use a common path type; long paths use the `\\?\` prefix; file names are case-insensitive and some names are reserved.
+- **Keys:** follow the platform's conventions. On Windows: F2 rename, Del to Recycle Bin, Shift+Del permanent, F5 refresh, Alt+Left/Right/Up, Alt+D or Ctrl+L for the address bar, Alt+Enter Properties. Keymap presets: Waypoint, Nemo, Dolphin, Explorer.
+- Not carried over: xattr tags (use NTFS alternate data streams sparingly, or a sidecar database), udisks2, GVFS, polkit (uses UAC), snapshots (Volume Shadow Copy is a later idea).
+
+## Where it appears in the UI
+
+- **Settings → Integrations:** default file manager, notifications, dock or taskbar progress, global shortcut, prevent sleep, terminal choice, actions from other file managers, and (Windows) Explorer menu, default folder handler, jump lists. Unavailable options are **hidden**.
+- **Settings → Integrations → Services:** the status panel listing every portal and service, available or not, with what is missing.
+- **Settings → Integrations → Access:** a per-feature list of what Waypoint can reach (folders, network, D-Bus names, devices, secrets) so the user can see it at a glance.
+- **Developer options:** a toggle to log portal and D-Bus calls.

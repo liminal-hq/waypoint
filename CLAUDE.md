@@ -1,0 +1,65 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11, built with Tauri v2, React/TypeScript and Rust. Tabs, drag and drop, and remote/virtual locations (SFTP, SMB, WebDAV, S3, Git, archives, cloud drives) are one connected system, with sandboxed extensions and native-feeling theming. See `AGENTS.md` for the authoritative contributor conventions — most importantly: **Canadian English** spelling everywhere; **Conventional Commits** for commit messages but **never in PR titles**; the licence/copyright header on new source files; **no barrel files**; and **no pushes unless explicitly asked**. `SPEC.md` and `README.md` describe product behaviour; `docs/` holds the design decisions and the architecture.
+
+## Status
+
+**Preparation phase.** The product design, the proposed architecture (`docs/architecture/`), repo conventions and the first CI jobs exist. No application code is scaffolded yet. Milestone 1 (skeleton) is next, with the Milestone 0 risk spikes run alongside it (A14); scaffold only what the current milestone needs, not the whole tree speculatively.
+
+`docs/ui-mockups/` points at the original Claude Design prototype. It is **reference only** — its code is not to be ported, adapted or structurally mirrored. Only the behaviour it demonstrates is authoritative, and only via `SPEC.md` and the docs.
+
+## Layout
+
+Bun workspace monorepo + Cargo workspace (planned shape, see `AGENTS.md` → Repository Layout):
+
+- `apps/waypoint` — the Tauri app: React frontend in `src/`, thin Rust composition root in `src-tauri/`
+- `packages/chrome` — shared title bar, window menu, context menu and settings shell (no Waypoint domain imports)
+- `crates/*` — pure Rust, no `tauri` dependency (`waypoint-protocol`, `-vfs`, `-ops`, `-session`, `-search`, `-ext`, provider crates)
+- `plugins/*` — Tauri plugins: domain (`tauri-plugin-waypoint-*`) and reusable (`tauri-plugin-{name}`, destined for `liminal-hq/tauri-plugins-workspace`)
+- `docs/` — design docs, `architecture/`, `ui-mockups/`
+
+## Commands
+
+```bash
+bun install          # install workspace dependencies
+bun run validate     # the local CI gate — must pass before opening/updating a PR (today: format check + licence headers; grows with the codebase)
+bun run format       # Prettier write
+bun run format:check # Prettier check
+bun run check:headers # licence-header check
+```
+
+Once the app exists: `bun run tauri:dev` (MCP-drivable desktop shell — use this one for agent automation, not plain `tauri dev`), `bun run test:js`, `bun run test:rust`, `bun run build`. If host Rust tooling is unavailable, use the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container per `AGENTS.md` → Local Tooling.
+
+## Architecture — the key things to understand
+
+Read `docs/architecture/README.md` first; the rules that bite:
+
+**Split by concern, compose in the app.** Each concern is its own crate or Tauri plugin; `src-tauri` only wires them together through traits from the pure crates. Plugins never call each other's Tauri APIs.
+
+**Reusable first.** Anything generic (Trash, thumbnails, volumes, secrets, PTY, window tear-off, native drag and drop, window effects, system appearance) is written as a reusable plugin with zero Waypoint imports, so it can graduate to the shared `tauri-plugins-workspace`. Extend an existing shared plugin (`xdg-portal`, `desktop-integration`) before adding a new one.
+
+**Rust owns state; the frontend renders.** One writer per piece of state, a monotonic revision, granular events after each mutation, and `Channel`s for streams (directory listings, job progress). Wire types are generated from Rust by `ts-rs` — never hand-edit generated files.
+
+**Every plugin reports availability.** Options that don't work on the current system are hidden; the Services status panel explains why (`docs/os-integrations.md`).
+
+**Two meanings of "plugin".** Native plugins are build-time Tauri plugins; **extensions** are the user-installable sandboxed add-ons in `docs/plugins.md`. Say which one you mean.
+
+**The Linux webview is WebKitGTK.** Verify performance, transparency and `backdrop-filter` work there, and on Wayland, not only in Chromium.
+
+## Conventions (from AGENTS.md)
+
+- **PR titles**: human-readable, imperative, sentence case, ~70 chars, **no Conventional Commit prefix**. Descriptions use `## Summary` + `## Test plan` (checklists, concrete commands). Every PR gets a category label (`enhancement`, `bug`, `documentation`, …) plus scope labels (`frontend`, `rust`, `plugin`, …). PRs open ready for review, not as drafts.
+- **Commits**: Conventional Commits with markdown bodies (what/why, `test:` for test-only changes); backtick every code-level reference; write bodies to a file and `git commit -F` when they contain backticks.
+- **Licence headers** on new `.rs`/`.ts`/`.tsx`/`.js`/`.sh` source files (one-line summary + `(c) Copyright 2026 Liminal HQ, Scott Morris` + `SPDX-License-Identifier: Apache-2.0 OR MIT`); `scripts/check-headers.sh` enforces it.
+- **Docs sync**: docs are maintained alongside the code. User-facing changes update `SPEC.md`; design decisions add a `docs/decisions.md` entry; structural changes update `docs/architecture/` (and its ADR log) in the same PR.
+- **No hard wrapping**: write each markdown paragraph or list item as a single line and let viewers soft-wrap; deliberate short lines, one-liners, and bullets stay as-is. Commit bodies are the exception.
+- **Em dashes**: use a real `—`, never `--` as a substitute (not for CLI flags).
+- **Authoring voice**: write comments, identifiers, docs and PR descriptions as the author of the artifact, for its future reader — no "this PR", reviewer names or commit SHAs. Commit messages are the exception.
+- **CI/CD**: follows the house pipeline (`docs/architecture/ci-cd.md`): quality gate in `ci.yml`, JUnit publishing via `workflow_run`, tag-driven `release.yml`, synchronised versions. Never push tags or dispatch workflows unless asked.
+- **Git**: never push (especially force-push) unless explicitly asked; prefer the `gh` CLI for GitHub work.
+
+Keep this file and `AGENTS.md` in sync: when a convention changes there, update the summary here in the same PR.

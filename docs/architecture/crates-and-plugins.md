@@ -1,0 +1,93 @@
+# Crates and plugins
+
+Status: **proposed** · see `README.md` for the model and `decisions.md` for the reasoning (A1–A6)
+
+Work is split by concern. The more generic a concern, the more reusable its plugin should be; Waypoint-specific behaviour is composed on top in the app.
+
+## 1. Naming and packaging
+
+| Kind            | Rust crate                     | npm package                                               | Lives in                                                               |
+| --------------- | ------------------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Pure crate      | `waypoint-{name}`              | none (types generated into the app)                       | `crates/`                                                              |
+| Domain plugin   | `tauri-plugin-waypoint-{name}` | `@liminal-hq/waypoint-plugin-{name}` (private, workspace) | `plugins/`                                                             |
+| Reusable plugin | `tauri-plugin-{name}`          | `@liminal-hq/plugin-{name}`                               | `plugins/` while incubating, then `liminal-hq/tauri-plugins-workspace` |
+
+Every plugin follows the `tauri-plugins-workspace` `PLUGIN_TEMPLATE.md`: `src/{lib,commands,error,models}.rs` plus `desktop.rs` / `mobile.rs`-style platform modules (here `linux.rs`, `windows.rs`, `unsupported.rs`), `build.rs` with the `COMMANDS` list, `permissions/default.toml`, `guest-js/index.ts` built by the shared Rollup config, and a README. Command names, `COMMANDS` scope and permission identifiers follow Threshold's `docs/plugins/command-conventions.md`.
+
+Every plugin also exposes `get_status() -> { available, reason?, features }` (A6).
+
+## 2. Reusable plugins (generic, no Waypoint imports)
+
+These are the concerns any Liminal HQ app could want. Each is written to graduate unchanged.
+
+| Plugin                             | Concern                                                                                                                                                                                                | Linux                                                                                 | Windows                          | Notes                                                                                                                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `window-tearoff`                   | Drag something out of a window: click-through ghost window that follows the native cursor, drop-point new window, cross-window hit-testing for merge, multi-monitor scale conversion, Wayland fallback | GTK/X11/Wayland                                                                       | Win32                            | Pattern in `docs/tauri-tear-off.md`; confirm the licence of the reference project before reuse (open question 9). The plugin moves an opaque payload; Waypoint defines what a tab is. |
+| `native-dnd`                       | OS-level drag in and out: inbound file drops with positions, outbound drag sources (`text/uri-list`, `x-special/gnome-copied-files`), drop-target hit reporting                                        | Wayland/X11                                                                           | OLE                              | Resolves the `dragDropEnabled` conflict with an in-page pointer drag engine.                                                                                                          |
+| `window-effects`                   | Window transparency, background blur / vibrancy / Mica / Acrylic, per-window opacity, reduced-transparency detection                                                                                   | compositor-dependent                                                                  | DWM                              | The headline setting (D20). Reports which effects the compositor supports.                                                                                                            |
+| `system-appearance`                | Colour scheme, accent, contrast, reduced motion and transparency preferences, icon-theme name and lookup, window-button layout (GNOME/KDE), change events                                              | portal, GSettings, KDE config                                                         | `UISettings`                     | Builds on and extends `xdg-portal`'s theme support; consolidates Threshold's `os-prefs` / `theme-utils` ideas.                                                                        |
+| `trash`                            | Trash list, trash, restore, empty, expiry, per-volume trash                                                                                                                                            | freedesktop Trash spec (shared with Nemo, Nautilus, Dolphin); Trash portal in Flatpak | Recycle Bin via `IFileOperation` | D42 shared-state requirement.                                                                                                                                                         |
+| `thumbnails`                       | Thumbnail Managing Standard cache read/write, thumbnailer discovery and execution, built-in image/video/PDF/font/3D generators, cloud-safe (never triggers a download)                                 | freedesktop cache                                                                     | Shell thumbnail cache            | Extension thumbnailers register through the same interface.                                                                                                                           |
+| `volumes`                          | Drives, mounts, eject, unlock LUKS, format, loop-mount, SMART status; Windows drive letters and mapped drives                                                                                          | udisks2 (D-Bus)                                                                       | Win32 volume APIs                | Format confirmation-by-name is a UI rule, not part of the plugin.                                                                                                                     |
+| `secrets`                          | Store and fetch credentials                                                                                                                                                                            | Secret Service / KWallet bridge                                                       | Credential Manager               | Waypoint never writes server passwords to its own files (D44).                                                                                                                        |
+| `pty`                              | Terminal sessions: spawn, resize, write, stream output, cwd tracking, title                                                                                                                            | `portable-pty`                                                                        | ConPTY                           | Backs the terminal drawer, terminal tabs and drop-to-terminal.                                                                                                                        |
+| `mime-apps`                        | MIME database, `.desktop` entries, Open With list, default handler read and write                                                                                                                      | `mimeapps.list`, portals                                                              | ProgID / Default Apps            | Windows cannot silently become the default; the plugin opens the Default Apps page.                                                                                                   |
+| `xdg-portal` _(existing)_          | Extend with Notification, Inhibit, Trash, OpenURI, FileChooser                                                                                                                                         | portal                                                                                | n/a                              | Extend rather than duplicate.                                                                                                                                                         |
+| `desktop-integration` _(existing)_ | Extend with FileManager1 D-Bus service, dock/taskbar progress (`Unity.LauncherEntry`, `ITaskbarList3`), jump lists                                                                                     | D-Bus                                                                                 | Win32                            | Extend rather than duplicate; global shortcut binding is already here.                                                                                                                |
+
+Not in this list on purpose: notifications and global shortcuts use the shared plugins; the title bar is a React concern (`packages/chrome`).
+
+## 3. Domain plugins and pure crates (Waypoint-specific)
+
+| Crate                                                | Plugin                          | Concern                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `waypoint-protocol`                                  | none                            | Shared wire types, `ts-rs` generation, error codes, the `Status` shape                                                                                                                                                                                                                                                                    |
+| `waypoint-path`                                      | none                            | The common path/URI type: local paths (with Windows drive letters and `\\?\` long paths), `sftp://`, `smb://`, `davs://`, `s3://`, `git+file://`, archive URIs; case rules and reserved names                                                                                                                                             |
+| `waypoint-vfs`                                       | `tauri-plugin-waypoint-vfs`     | The `Provider` trait (list, stat, read, write, rename, delete, watch, capabilities), the provider registry, the local provider, listing handles with sorted/filtered indexes and range fetch, watcher fan-in, extended attributes and tags/comment storage (xattr with a sidecar-database fallback)                                       |
+| `waypoint-provider-{sftp,smb,webdav,s3,archive,git}` | registered into `waypoint-vfs`  | One crate per protocol behind Cargo features, so heavy dependencies stay optional and a provider can be developed and tested alone                                                                                                                                                                                                        |
+| `waypoint-ops`                                       | `tauri-plugin-waypoint-ops`     | The job engine: plan, queue, priority, pause/resume, speed limit, scheduling, conflict detection, checksum verification (BLAKE3 default, open question 7), resumable remote jobs, and the undo/redo journal. Depends on traits (`Vfs`, `Trash`, `SecretStore`), not on other plugins.                                                     |
+| `waypoint-session`                                   | `tauri-plugin-waypoint-session` | Windows, tabs, groups, pairs, split layouts, pinned/colour state, history stacks, closed-tab list, saved layouts, workspaces, session restore, and the tab hand-off used by tear-off and merge. Pure reducer + persistence.                                                                                                               |
+| `waypoint-search`                                    | `tauri-plugin-waypoint-search`  | Scoped search (folder, subfolders, Home, workspace, open tabs), filters, content and regex search, streamed results with cancel, smart folders                                                                                                                                                                                            |
+| `waypoint-ext`                                       | `tauri-plugin-waypoint-ext`     | The extension host: manifest (`waypoint-plugin.toml`) parsing, permission model, lifecycle, extension-point registry (`column`, `action`, `dropAction`, `provider`, `thumbnailer`, `previewer`, `panel`, `statusItem`, `renameToken`, `emblem`), importers for Nemo actions, KDE service menus and Nautilus scripts, and the runtime (A7) |
+
+**Bundled features** (Find Duplicates, Compare and Sync, Previous Versions, Network Sharing, Nearby Devices, Disk Tools, Encrypted Vaults) are implemented as first-party extensions against the same extension-point registry. That proves the extension API, gives them the on/off switch and permission listing the design asks for (D85), and keeps them out of the core. They may call reusable plugins (`volumes`, `secrets`) through the host API with declared permissions.
+
+## 4. Incubate, then graduate
+
+Reusable plugins are developed **in this repo** under `plugins/` so they evolve with a real consumer, then move to `liminal-hq/tauri-plugins-workspace` (as Cadence did with `material-you`). A plugin may graduate when:
+
+- it imports no Waypoint crate and its docs mention no Waypoint concepts
+- it has a README, `permissions/default.toml`, a `get_status` command and per-platform modules (`unsupported` at minimum)
+- it has headless tests for its logic and a smoke test in the example app
+- its public Rust and TypeScript API has survived one milestone without a breaking change
+- a second Liminal HQ app has a plausible use for it
+
+Graduation replaces the workspace path dependency with a versioned (or tagged git) dependency and adds a `covector` change file in the shared repo.
+
+## 5. How the app composes them
+
+`apps/waypoint/src-tauri` is the only place where concerns meet:
+
+```rust
+// Illustrative shape, not final code.
+tauri::Builder::default()
+    .plugin(tauri_plugin_trash::init())
+    .plugin(tauri_plugin_secrets::init())
+    .plugin(tauri_plugin_waypoint_vfs::init(provider_registry))
+    .plugin(tauri_plugin_waypoint_ops::init(OpsDeps { vfs, trash, secrets }))
+    .plugin(tauri_plugin_waypoint_session::init())
+    // ...
+```
+
+Dependencies are passed as trait objects (`Arc<dyn Trash>`, `Arc<dyn SecretStore>`) built from the reusable plugins' Rust APIs. Tests substitute fakes. Cross-concern _events_ (a job finishing updates the dock progress and a notification) are handled by small subscribers in `src-tauri`, not by one plugin calling another.
+
+## 6. Dependency direction (enforced in review and, later, a CI script)
+
+```
+apps/waypoint ──► plugins/* ──► crates/*
+      │                │
+      └────────────────┴──► (reusable plugins import nothing from Waypoint)
+crates/* ──► other crates only through traits or waypoint-protocol / waypoint-path
+```
+
+A domain crate never depends on a plugin; a plugin never depends on another plugin; a reusable plugin never depends on a `waypoint-*` crate.
