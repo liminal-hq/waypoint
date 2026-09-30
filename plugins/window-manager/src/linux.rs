@@ -6,10 +6,11 @@
 use gdk::glib::translate::{ToGlibPtr, ToGlibPtrMut};
 use gdk::prelude::*;
 use gtk::prelude::*;
+use log::{info, warn};
 use tauri::{Runtime, WebviewWindow};
-use tokio::sync::oneshot;
 
 use crate::{
+    main_thread,
     models::{Session, WindowCapabilities, WindowPosition},
     session,
 };
@@ -37,22 +38,8 @@ pub fn capabilities_for(session: Session) -> WindowCapabilities {
     }
 }
 
-/// Runs `job` on the GTK main thread and awaits its result; `None` if the event loop is gone.
-async fn on_main_thread<R: Runtime, T: Send + 'static>(
-    window: &WebviewWindow<R>,
-    job: impl FnOnce() -> T + Send + 'static,
-) -> Option<T> {
-    let (tx, rx) = oneshot::channel();
-    window
-        .run_on_main_thread(move || {
-            let _ = tx.send(job());
-        })
-        .ok()?;
-    rx.await.ok()
-}
-
 pub async fn capabilities<R: Runtime>(window: &WebviewWindow<R>) -> WindowCapabilities {
-    let detected = on_main_thread(window, detect_session)
+    let detected = main_thread::run(window, detect_session)
         .await
         .unwrap_or_else(session::from_process_env);
     capabilities_for(detected)
@@ -63,21 +50,24 @@ pub async fn show_system_window_menu<R: Runtime>(
     position: WindowPosition,
 ) -> bool {
     let target = window.clone();
-    let shown = on_main_thread(window, move || show_menu(&target, position))
+    let shown = main_thread::run(window, move || show_menu(&target, position))
         .await
         .unwrap_or(false);
-    log::debug!("window-manager: show_system_window_menu -> {shown}");
+    info!(
+        "system window menu for label={}: shown={shown}",
+        window.label()
+    );
     shown
 }
 
 /// Must run on the GTK main thread.
 fn show_menu<R: Runtime>(window: &WebviewWindow<R>, position: WindowPosition) -> bool {
     let Ok(gtk_window) = window.gtk_window() else {
-        log::warn!("window-manager: the GTK window is unavailable");
+        warn!("the GTK window is unavailable");
         return false;
     };
     let Some(gdk_window) = gtk_window.window() else {
-        log::warn!("window-manager: the window is not realised yet");
+        warn!("the window is not realised yet");
         return false;
     };
     let Some(pointer) = gdk_window
@@ -85,7 +75,7 @@ fn show_menu<R: Runtime>(window: &WebviewWindow<R>, position: WindowPosition) ->
         .default_seat()
         .and_then(|seat| seat.pointer())
     else {
-        log::warn!("window-manager: no default seat pointer");
+        warn!("no default seat pointer");
         return false;
     };
 
@@ -115,7 +105,7 @@ fn show_menu<R: Runtime>(window: &WebviewWindow<R>, position: WindowPosition) ->
 
     let accepted = gdk_window.show_window_menu(&mut event);
     if !accepted {
-        log::debug!("window-manager: the compositor refused the window menu request");
+        warn!("the compositor refused the window menu request");
     }
     accepted
 }

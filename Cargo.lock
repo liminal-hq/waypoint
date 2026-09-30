@@ -4102,6 +4102,9 @@ dependencies = [
  "gdk",
  "gtk",
  "log",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
  "serde",
  "serde_json",
  "tauri",
@@ -4109,6 +4112,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "ts-rs",
+ "windows 0.62.2",
 ]
 
 [[package]]

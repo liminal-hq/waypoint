@@ -57,13 +57,13 @@ Every command acts on the window that invoked it. `showSystemWindowMenu` resolve
 
 ## Platforms
 
-| Platform      | `session`   | `alwaysOnTop` | `systemWindowMenu` | Notes                                                                                                                                                |
-| ------------- | ----------- | ------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Linux Wayland | `'wayland'` | `false`       | `true`             | `set_always_on_top` is a no-op under Wayland, so the compositor's window menu is the way to do it. Uses `xdg_toplevel.show_window_menu` through GDK. |
-| Linux X11     | `'x11'`     | `true`        | `true`             | Sends `_GTK_SHOW_WINDOW_MENU` through GDK.                                                                                                           |
-| Windows       | `'windows'` | `true`        | `false`            | The system menu is a follow-up using `GetSystemMenu` and `TrackPopupMenu`.                                                                           |
-| macOS         | `'macos'`   | `true`        | `false`            | There is no system window menu to show.                                                                                                              |
-| Other         | `'unknown'` | `true`        | `false`            |                                                                                                                                                      |
+| Platform      | `session`   | `alwaysOnTop` | `systemWindowMenu`                    | Notes                                                                                                                                                                                             |
+| ------------- | ----------- | ------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linux Wayland | `'wayland'` | `false`       | `true`                                | `set_always_on_top` is a no-op under Wayland, so the compositor's window menu is the way to do it. Uses `xdg_toplevel.show_window_menu` through GDK.                                              |
+| Linux X11     | `'x11'`     | `true`        | `true`                                | Sends `_GTK_SHOW_WINDOW_MENU` through GDK.                                                                                                                                                        |
+| Windows       | `'windows'` | `true`        | `true`                                | Shows the Windows system menu (`GetSystemMenu` and `TrackPopupMenu`) and sends the chosen command back with `WM_SYSCOMMAND`. Type-checked against the Windows target, but not yet run on Windows. |
+| macOS         | `'macos'`   | `true`        | `true` when the app has a Window menu | A frameless window has no system menu on macOS, so this pops up the application's Window menu at the pointer. Type-checked against the macOS target, but not yet run on macOS.                    |
+| Other         | `'unknown'` | `true`        | `false`                               | Targets without an integration, such as Android and iOS, offer nothing, so `getStatus()` reports the plugin unavailable.                                                                          |
 
 On Linux the session is whatever GDK opened (`GdkWaylandDisplay` or `GdkX11Display`) when it can be asked on the GTK main thread. Otherwise it comes from the environment: `XDG_SESSION_TYPE` of `wayland` or `x11` decides; failing that a set `WAYLAND_DISPLAY` means Wayland (GTK prefers it even when `DISPLAY` is set for XWayland), then a set `DISPLAY` means X11; anything else is `'unknown'`.
 
@@ -121,3 +121,7 @@ Session detection is a pure function in `src/session.rs` with table-driven tests
 ## Licence
 
 Licensed under either of Apache License 2.0 or MIT licence at your option.
+
+## Logging
+
+The plugin logs through the `log` crate, so `tauri-plugin-log` captures it with the rest of the app's output. The Windows and macOS menu paths call into Win32 and AppKit and have only been type-checked, so each native step logs at `info` before it runs, with the window's `label=`. A line containing `untested native path` marks them. If the process crashes inside one of those calls, the last such line in the log names the step that was running. Failures that are not crashes log at `warn`.

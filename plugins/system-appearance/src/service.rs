@@ -96,7 +96,7 @@ impl Service {
         };
         if changed {
             if let Err(error) = app.emit(CHANGED_EVENT, &reading.titlebar()) {
-                log::warn!("system-appearance: failed to emit change event: {error}");
+                log::warn!("failed to emit change event: {error}");
             }
         }
         reading

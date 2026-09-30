@@ -11,9 +11,9 @@ build = "build.rs"
 links = "tauri-plugin-window-manager"
 
 [package.metadata.platforms.support]
-windows = { level = "partial", notes = "Reports capabilities; the system window menu is not implemented yet" }
+windows = { level = "partial", notes = "Shows the Windows system menu through GetSystemMenu and TrackPopupMenu; type-checked but not yet run on Windows" }
 linux = { level = "full", notes = "Asks the compositor to show its window menu on Wayland and X11 through GDK" }
-macos = { level = "partial", notes = "Reports capabilities; there is no system window menu to show" }
+macos = { level = "partial", notes = "Pops up the application's Window menu at the pointer; type-checked but not yet run on macOS" }
 android = { level = "none", notes = "Desktop window managers only" }
 ios = { level = "none", notes = "Desktop window managers only" }
 
@@ -33,6 +33,27 @@ ts-rs = "12"
 [target.'cfg(target_os = "linux")'.dependencies]
 gdk = "0.18"
 gtk = "0.18"
+
+# Matches the version Tauri resolves, so the window handle types line up.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+# The same versions Tauri resolves.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSMenu",
+  "NSMenuItem",
+  "NSResponder",
+  "NSView",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry"] }
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }

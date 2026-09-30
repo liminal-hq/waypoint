@@ -58,6 +58,17 @@ impl WindowCapabilities {
         }
     }
 
+    /// Windows: Always on Top works natively, and the system menu comes from `GetSystemMenu`.
+    pub fn windows() -> Self {
+        Self::new(Session::Windows, true, true)
+    }
+
+    /// macOS: Always on Top works natively. The system menu here is the app's Window menu, so
+    /// `system_window_menu` says whether that menu exists rather than assuming it does.
+    pub fn macos(has_window_menu: bool) -> Self {
+        Self::new(Session::Macos, true, has_window_menu)
+    }
+
     /// No window-manager integration exists on this target (mobile and any other platform without
     /// a module of its own), so nothing is offered: the plugin then reports itself unavailable.
     pub fn unsupported() -> Self {
@@ -118,5 +129,23 @@ mod tests {
         assert!(!status.available);
         assert!(status.features.is_empty());
         assert!(status.reason.is_some());
+    }
+
+    #[test]
+    fn windows_offers_always_on_top_and_the_system_menu() {
+        let capabilities = WindowCapabilities::windows();
+        assert_eq!(capabilities.session, Session::Windows);
+        assert!(capabilities.always_on_top);
+        assert!(capabilities.system_window_menu);
+        assert!(capabilities.status().available);
+    }
+
+    #[test]
+    fn macos_offers_the_system_menu_only_when_a_window_menu_exists() {
+        assert!(WindowCapabilities::macos(true).system_window_menu);
+        let without = WindowCapabilities::macos(false);
+        assert!(!without.system_window_menu);
+        assert!(without.always_on_top);
+        assert_eq!(without.session, Session::Macos);
     }
 }

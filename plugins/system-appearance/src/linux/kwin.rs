@@ -81,7 +81,7 @@ pub fn watch(changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
     match watcher {
         Ok(watcher) => vec![Box::new(watcher)],
         Err(error) => {
-            log::warn!("system-appearance: cannot watch {}: {error}", dir.display());
+            log::warn!("cannot watch {}: {error}", dir.display());
             Vec::new()
         }
     }

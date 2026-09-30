@@ -73,7 +73,7 @@ pub fn monitor_guard(
     match Monitor::spawn(program, args, changed) {
         Ok(monitor) => vec![Box::new(monitor)],
         Err(error) => {
-            log::warn!("system-appearance: cannot start {program}: {error}");
+            log::warn!("cannot start {program}: {error}");
             Vec::new()
         }
     }

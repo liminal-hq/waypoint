@@ -54,7 +54,7 @@ pub async fn read() -> Snapshot {
     match result {
         Ok(preferences) => Snapshot::from_source(preferences, feature),
         Err(reason) => {
-            log::warn!("system-appearance: {feature} read failed: {reason}");
+            log::warn!("{feature} read failed: {reason}");
             Snapshot::unavailable(desktop, format!("{feature}: {reason}"))
         }
     }

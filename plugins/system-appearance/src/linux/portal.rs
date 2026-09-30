@@ -72,7 +72,7 @@ pub fn watch(changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
         let mut stream = match stream.await {
             Ok(stream) => Box::pin(stream),
             Err(error) => {
-                log::warn!("system-appearance: cannot listen to the portal: {error}");
+                log::warn!("cannot listen to the portal: {error}");
                 return;
             }
         };

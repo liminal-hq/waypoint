@@ -5,6 +5,8 @@
 
 mod commands;
 mod error;
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+mod main_thread;
 pub mod models;
 pub mod session;
 
