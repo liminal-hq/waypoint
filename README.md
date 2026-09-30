@@ -63,6 +63,8 @@ The reasoning, the crate and plugin split, the front-end framework evaluation an
 
 ## Documentation
 
+The full index, with what each document covers and how the docs are kept current, is in [`docs/README.md`](docs/README.md). The essentials:
+
 | File                                                             | What it covers                                                             |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | [`SPEC.md`](SPEC.md)                                             | The product and design spec — start here for behaviour                     |
