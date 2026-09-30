@@ -1,0 +1,31 @@
+[package]
+name = "waypoint"
+version = "0.0.0"
+description = "A tabbed, extensible file manager"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "waypoint_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+tauri = { workspace = true }
+tauri-plugin-log = "2"
+tauri-plugin-os = "2"
+tauri-plugin-window-state = "2"
+# Debug-only automation bridge, registered under `#[cfg(debug_assertions)]` in
+# `src/lib.rs`. It must be a normal dependency (dev-dependencies are not
+# available to the lib target) even though release builds never activate it.
+tauri-plugin-mcp-bridge = "0.13"
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = "0.4"
+waypoint-protocol = { path = "../../../crates/waypoint-protocol" }

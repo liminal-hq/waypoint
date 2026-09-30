@@ -1,0 +1,26 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "main",
+	"description": "Capabilities for the main file-browser windows, which draw their own title bar.",
+	"windows": ["main-*"],
+	"permissions": [
+		"core:default",
+		"core:window:allow-start-dragging",
+		"core:window:allow-minimize",
+		"core:window:allow-maximize",
+		"core:window:allow-unmaximize",
+		"core:window:allow-toggle-maximize",
+		"core:window:allow-close",
+		"core:window:allow-set-always-on-top",
+		"core:window:allow-is-maximized",
+		"core:window:allow-is-maximizable",
+		"core:window:allow-is-minimizable",
+		"core:window:allow-is-resizable",
+		"core:window:allow-is-always-on-top",
+		"core:window:allow-set-theme",
+		"os:default",
+		"log:default",
+		"window-state:default",
+		"mcp-bridge:default"
+	]
+}

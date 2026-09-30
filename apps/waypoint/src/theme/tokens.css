@@ -1,0 +1,82 @@
+/*
+ * Semantic theme tokens (docs/theming-and-platforms.md). Components use these,
+ * never raw colours. The scheme follows the OS by default; `data-theme="light"`
+ * or `data-theme="dark"` on the root element overrides it.
+ */
+:root {
+	color-scheme: light dark;
+	--wp-bg-window: #f4f1ee;
+	--wp-bg-sidebar: #ebe7e3;
+	--wp-bg-content: #fbf9f7;
+	--wp-bg-raised: #ffffff;
+	--wp-bg-hover: #e3ded9;
+	--wp-bg-selected: #f6d9c8;
+	--wp-border-subtle: #d9d3cd;
+	--wp-text-primary: #211d1a;
+	--wp-text-secondary: #57504a;
+	--wp-text-muted: #7d756e;
+	--wp-accent: #c2410c;
+	--wp-accent-fg: #ffffff;
+	--wp-danger: #b91c1c;
+	--wp-success: #15803d;
+	--wp-warning: #a16207;
+	--wp-focus-ring: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		color-scheme: dark;
+		--wp-bg-window: #1c1917;
+		--wp-bg-sidebar: #211e1b;
+		--wp-bg-content: #171412;
+		--wp-bg-raised: #292524;
+		--wp-bg-hover: #332e2b;
+		--wp-bg-selected: #4a2a1a;
+		--wp-border-subtle: #3a3531;
+		--wp-text-primary: #f5f1ed;
+		--wp-text-secondary: #c9c1ba;
+		--wp-text-muted: #9a918a;
+		--wp-accent: #f97316;
+		--wp-accent-fg: #1c1917;
+		--wp-danger: #f87171;
+		--wp-success: #4ade80;
+		--wp-warning: #facc15;
+		--wp-focus-ring: #60a5fa;
+	}
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--wp-bg-window: #1c1917;
+	--wp-bg-sidebar: #211e1b;
+	--wp-bg-content: #171412;
+	--wp-bg-raised: #292524;
+	--wp-bg-hover: #332e2b;
+	--wp-bg-selected: #4a2a1a;
+	--wp-border-subtle: #3a3531;
+	--wp-text-primary: #f5f1ed;
+	--wp-text-secondary: #c9c1ba;
+	--wp-text-muted: #9a918a;
+	--wp-accent: #f97316;
+	--wp-accent-fg: #1c1917;
+	--wp-danger: #f87171;
+	--wp-success: #4ade80;
+	--wp-warning: #facc15;
+	--wp-focus-ring: #60a5fa;
+}
+
+html,
+body,
+#root {
+	margin: 0;
+	height: 100%;
+}
+
+body {
+	font-family: system-ui, sans-serif;
+	font-size: 14px;
+}

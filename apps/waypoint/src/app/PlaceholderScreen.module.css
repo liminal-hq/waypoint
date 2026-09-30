@@ -1,0 +1,30 @@
+.screen {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	background: var(--wp-bg-window);
+	color: var(--wp-text-primary);
+}
+
+.header {
+	padding: 8px 16px;
+	background: var(--wp-bg-raised);
+	border-bottom: 1px solid var(--wp-border-subtle);
+}
+
+.title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.content {
+	flex: 1;
+	padding: 16px;
+	background: var(--wp-bg-content);
+}
+
+.description {
+	margin: 0;
+	color: var(--wp-text-secondary);
+}
