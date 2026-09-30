@@ -320,6 +320,71 @@ describe('TitleBar', () => {
 			expect(controls.minimize).toHaveBeenCalledTimes(1);
 		});
 
+		describe('native double-click maximise', () => {
+			// Stands in for Tauri's drag script, which listens on `document` and maximises on the
+			// second press of a double click.
+			function watchDocument() {
+				const seen: string[] = [];
+				const listener = (event: Event) =>
+					seen.push(`${event.type}:${(event as MouseEvent).detail}`);
+				document.addEventListener('mousedown', listener);
+				document.addEventListener('mouseup', listener);
+				return {
+					seen,
+					stop: () => {
+						document.removeEventListener('mousedown', listener);
+						document.removeEventListener('mouseup', listener);
+					},
+				};
+			}
+
+			function doubleClickPresses(target: Element) {
+				for (const detail of [1, 2]) {
+					fireEvent.mouseDown(target, { button: 0, detail });
+					fireEvent.mouseUp(target, { button: 0, detail });
+				}
+			}
+
+			it.each(['minimise', 'menu', 'none', 'toggleShade', 'lower'] as const)(
+				'keeps the second press from reaching the host when the action is %s',
+				(action) => {
+					const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+					renderBar(controls, { titlebarActions: actions({ doubleClick: action }) });
+					const document_ = watchDocument();
+					doubleClickPresses(screen.getByTestId('title'));
+					document_.stop();
+					expect(document_.seen).toEqual(['mousedown:1', 'mouseup:1']);
+				},
+			);
+
+			it('lets the host see the second press when the action is toggleMaximise', () => {
+				const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+				renderBar(controls, { titlebarActions: actions({ doubleClick: 'toggleMaximise' }) });
+				const document_ = watchDocument();
+				doubleClickPresses(screen.getByTestId('title'));
+				document_.stop();
+				expect(document_.seen).toEqual(['mousedown:1', 'mouseup:1', 'mousedown:2', 'mouseup:2']);
+			});
+
+			it('leaves presses alone when the host does not handle maximise natively', () => {
+				const { controls } = fakeControls({ handlesDoubleClickNatively: false });
+				renderBar(controls, { titlebarActions: actions({ doubleClick: 'minimise' }) });
+				const document_ = watchDocument();
+				doubleClickPresses(screen.getByTestId('title'));
+				document_.stop();
+				expect(document_.seen).toHaveLength(4);
+			});
+
+			it('does not suppress presses on window buttons', () => {
+				const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+				renderBar(controls, { titlebarActions: actions({ doubleClick: 'none' }) });
+				const document_ = watchDocument();
+				doubleClickPresses(screen.getByRole('button', { name: 'Minimise' }));
+				document_.stop();
+				expect(document_.seen).toHaveLength(4);
+			});
+		});
+
 		it('ignores middle-click by default', () => {
 			const { controls } = fakeControls();
 			renderBar(controls);

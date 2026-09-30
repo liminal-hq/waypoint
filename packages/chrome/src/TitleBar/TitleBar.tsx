@@ -133,6 +133,18 @@ export function TitleBar({
 		run('menu', event);
 	};
 
+	// Tauri's drag script maximises on the second press of a double click (`mousedown`, or `mouseup`
+	// on macOS) before React sees `dblclick`. When the configured action is anything else, keep that
+	// press from reaching the script so the window is not maximised as a side effect.
+	const suppressNativeMaximise = (event: MouseEvent<HTMLElement>) => {
+		if (!windowControls.handlesDoubleClickNatively) return;
+		if (event.button !== 0 || event.detail !== 2) return;
+		if (performedAction(titlebarActions.doubleClick) === 'toggleMaximise') return;
+		if (!isEmptySpace(event)) return;
+		event.preventDefault();
+		event.stopPropagation();
+	};
+
 	const onDoubleClick = (event: MouseEvent<HTMLElement>) => {
 		if (!isEmptySpace(event)) return;
 		run(titlebarActions.doubleClick, event, windowControls.handlesDoubleClickNatively);
@@ -172,6 +184,8 @@ export function TitleBar({
 				data-controls-style={controlsStyle}
 				data-title-align={titleAlign}
 				onContextMenu={onContextMenu}
+				onMouseDown={suppressNativeMaximise}
+				onMouseUp={suppressNativeMaximise}
 				onDoubleClick={onDoubleClick}
 				onAuxClick={onAuxClick}
 			>
