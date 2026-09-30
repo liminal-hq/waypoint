@@ -195,7 +195,7 @@ The rules below are the enforceable core of `docs/architecture/`. Change the arc
 
 ## Repository Layout
 
-Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome`, `packages/protocol`, `crates/waypoint-protocol`, `crates/waypoint-vfs` (wire types so far) and a `plugins/waypoint-vfs` skeleton exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
+Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome`, `packages/protocol`, `crates/waypoint-protocol`, `crates/waypoint-vfs` (wire types so far), `crates/waypoint-session` (the tab reducer), a `plugins/waypoint-vfs` skeleton and `plugins/waypoint-session` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
 
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.
