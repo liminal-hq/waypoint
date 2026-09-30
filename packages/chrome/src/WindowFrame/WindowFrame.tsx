@@ -15,16 +15,19 @@ export interface WindowFrameProps {
 }
 
 /**
- * The outermost element of a frameless, transparent window. It rounds and clips
- * everything inside it to `--wp-window-radius`, draws a hairline border, and drops
- * both when the window is maximised so it meets the screen edges cleanly.
+ * The outermost element of a frameless, transparent window. Its surface is rounded
+ * and clipped to `--wp-window-radius`, given a hairline border, and shadowed with
+ * `--wp-window-shadow` inside a transparent margin of `--wp-window-shadow-margin`.
+ * The margin and shadow default to none, for platforms where the OS draws its own.
+ * When the window is maximised the margin, shadow, rounding and border all drop so
+ * it meets the screen edges cleanly. `className` applies to the visible surface.
  */
 export function WindowFrame({ windowControls, children, className }: WindowFrameProps) {
 	const maximised = useMaximised(windowControls);
-	const classes = [styles.frame, className ?? ''].filter(Boolean).join(' ');
+	const surface = [styles.surface, className ?? ''].filter(Boolean).join(' ');
 	return (
-		<div className={classes} data-maximised={maximised}>
-			{children}
+		<div className={styles.frame} data-maximised={maximised}>
+			<div className={surface}>{children}</div>
 		</div>
 	);
 }

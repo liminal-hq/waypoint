@@ -1,12 +1,27 @@
+/* Outer layer: a transparent margin that holds the drop shadow on platforms where the OS draws none. */
 .frame {
+	box-sizing: border-box;
+	height: 100%;
+	padding: var(--wp-window-shadow-margin, 0);
+}
+
+/* Inner layer: the visible window surface. */
+.surface {
 	box-sizing: border-box;
 	height: 100%;
 	overflow: hidden;
 	border: 1px solid var(--wp-border-subtle, rgba(255, 255, 255, 0.12));
 	border-radius: var(--wp-window-radius, 12px);
+	box-shadow: var(--wp-window-shadow, none);
 }
 
+/* A maximised window meets the screen edges: no margin, no shadow, no rounding, no border. */
 .frame[data-maximised='true'] {
+	padding: 0;
+}
+
+.frame[data-maximised='true'] .surface {
 	border: 0;
 	border-radius: 0;
+	box-shadow: none;
 }

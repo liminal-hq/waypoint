@@ -26,8 +26,9 @@ describe('WindowFrame', () => {
 				<p>inside</p>
 			</WindowFrame>,
 		);
-		const frame = screen.getByText('inside').parentElement!;
-		expect(frame.classList.contains('extra')).toBe(true);
+		const surface = screen.getByText('inside').parentElement!;
+		const frame = surface.parentElement!;
+		expect(surface.classList.contains('extra')).toBe(true);
 		expect(frame.getAttribute('data-maximised')).toBe('false');
 	});
 
@@ -37,7 +38,7 @@ describe('WindowFrame', () => {
 				<p>inside</p>
 			</WindowFrame>,
 		);
-		const frame = screen.getByText('inside').parentElement!;
+		const frame = screen.getByText('inside').parentElement!.parentElement!;
 		await waitFor(() => expect(frame.getAttribute('data-maximised')).toBe('true'));
 	});
 
@@ -48,7 +49,7 @@ describe('WindowFrame', () => {
 				<p>inside</p>
 			</WindowFrame>,
 		);
-		const frame = screen.getByText('inside').parentElement!;
+		const frame = screen.getByText('inside').parentElement!.parentElement!;
 		// Let the initial read settle so it cannot land after the event below.
 		await act(async () => {});
 		act(() => c.emit(true));
