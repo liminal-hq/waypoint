@@ -87,9 +87,10 @@
  * With no platform set (a plain browser), the frame uses no margin and no shadow.
  */
 :root[data-platform='linux'] {
-	--wp-window-shadow-margin: 24px;
-	--wp-window-shadow:
-		0 10px 28px rgba(0, 0, 0, 0.38), 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.18);
+	/* The resize hit area is a fixed 5px strip at the window's outer edge, so a small margin
+	   keeps it close to the visible edge. The shadow must fit inside the margin to avoid a hard clip. */
+	--wp-window-shadow-margin: 8px;
+	--wp-window-shadow: 0 2px 8px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(0, 0, 0, 0.22);
 }
 
 :root[data-platform='windows'] {
