@@ -22,6 +22,7 @@
 	"dependencies": {
 		"@liminal-hq/plugin-system-appearance": "workspace:*",
 		"@liminal-hq/plugin-window-manager": "workspace:*",
+		"@liminal-hq/waypoint-plugin-session": "workspace:*",
 		"@liminal-hq/waypoint-chrome": "workspace:*",
 		"@liminal-hq/waypoint-protocol": "workspace:*",
 		"@tanstack/react-router": "^1.170.33",

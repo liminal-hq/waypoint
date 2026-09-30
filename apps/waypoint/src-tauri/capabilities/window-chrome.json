@@ -20,6 +20,7 @@
 		"core:window:allow-is-always-on-top",
 		"core:window:allow-set-theme",
 		"system-appearance:default",
+		"waypoint-session:default",
 		"waypoint-vfs:default",
 		"window-manager:default"
 	]

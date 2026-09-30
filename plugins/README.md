@@ -18,6 +18,7 @@ Tauri plugins: the thin native layer between Waypoint's Rust crates and the fron
 | ---------------------------------------- | -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`system-appearance`](system-appearance) | Reusable | Built  | Reads the OS's titlebar preferences (which window buttons appear, where, and what double-click, middle-click and right-click do) on GNOME, KDE, Cinnamon, MATE, Xfce, Windows and macOS, and pushes changes. See its [README](system-appearance/README.md). |
 | [`window-manager`](window-manager)       | Reusable | Built  | Reports which window manager features work (such as always-on-top) and asks the compositor to show its own window menu, which on Wayland is the only way to reach "Always on Top". See its [README](window-manager/README.md).                              |
+| [`waypoint-session`](waypoint-session)   | Domain   | Built  | Each window's tabs, their order, the active tab and per-tab history, with granular events and a tab-close hook, over the `waypoint-session` crate. See its [README](waypoint-session/README.md).                                                            |
 
 More reusable and domain plugins are planned; add one only when a milestone needs it.
 

@@ -16,6 +16,7 @@
         "@liminal-hq/plugin-system-appearance": "workspace:*",
         "@liminal-hq/plugin-window-manager": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
+        "@liminal-hq/waypoint-plugin-session": "workspace:*",
         "@liminal-hq/waypoint-protocol": "workspace:*",
         "@tanstack/react-router": "^1.170.33",
         "@tauri-apps/api": "^2.10.1",
@@ -74,6 +75,20 @@
       "name": "@liminal-hq/plugin-system-appearance",
       "version": "0.2.0",
       "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/waypoint-session": {
+      "name": "@liminal-hq/waypoint-plugin-session",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liminal-hq/waypoint-protocol": "workspace:*",
         "@tauri-apps/api": "^2.10.0",
       },
       "devDependencies": {
@@ -223,6 +238,8 @@
     "@liminal-hq/waypoint": ["@liminal-hq/waypoint@workspace:apps/waypoint"],
 
     "@liminal-hq/waypoint-chrome": ["@liminal-hq/waypoint-chrome@workspace:packages/chrome"],
+
+    "@liminal-hq/waypoint-plugin-session": ["@liminal-hq/waypoint-plugin-session@workspace:plugins/waypoint-session"],
 
     "@liminal-hq/waypoint-plugin-vfs": ["@liminal-hq/waypoint-plugin-vfs@workspace:plugins/waypoint-vfs"],
 
