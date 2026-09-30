@@ -8,6 +8,7 @@ import { CloseIcon, MaximiseIcon, MinimiseIcon, PinIcon, RestoreIcon } from '../
 import { defaultChromeLabels, type ChromeLabels } from '../labels';
 import type { MenuPosition } from '../ContextMenu/types';
 import {
+	useExpectMaximised,
 	useWindowControls,
 	useWindowFocused,
 	useWindowMaximised,
@@ -81,6 +82,7 @@ export function TitleBar({
 	const windowControls = useWindowControls();
 	const maximised = useWindowMaximised();
 	const focused = useWindowFocused();
+	const expectMaximised = useExpectMaximised();
 	const [alwaysOnTop, setAlwaysOnTop] = useState(false);
 	const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
@@ -108,6 +110,11 @@ export function TitleBar({
 		};
 	}, [windowControls]);
 
+	const toggleMaximise = useCallback(() => {
+		expectMaximised(!maximised);
+		void windowControls.toggleMaximize();
+	}, [expectMaximised, maximised, windowControls]);
+
 	const changeAlwaysOnTop = useCallback(
 		(value: boolean) => {
 			setAlwaysOnTop(value);
@@ -123,7 +130,7 @@ export function TitleBar({
 	const run = (configured: TitlebarAction, event: MouseEvent<HTMLElement>, native = false) => {
 		switch (performedAction(configured)) {
 			case 'toggleMaximise':
-				if (!native) void windowControls.toggleMaximize();
+				if (!native) toggleMaximise();
 				break;
 			case 'minimise':
 				void windowControls.minimize();
@@ -158,6 +165,19 @@ export function TitleBar({
 		event.stopPropagation();
 	};
 
+	// The host maximises natively on the second press, so the chrome only shows what is coming.
+	const expectNativeMaximise = (event: MouseEvent<HTMLElement>) => {
+		if (!windowControls.handlesDoubleClickNatively) return;
+		if (event.button !== 0 || event.detail !== 2) return;
+		if (performedAction(titlebarActions.doubleClick) !== 'toggleMaximise') return;
+		if (isEmptySpace(event)) expectMaximised(!maximised);
+	};
+
+	const onMouseDown = (event: MouseEvent<HTMLElement>) => {
+		suppressNativeMaximise(event);
+		expectNativeMaximise(event);
+	};
+
 	const onDoubleClick = (event: MouseEvent<HTMLElement>) => {
 		if (!isEmptySpace(event)) return;
 		run(titlebarActions.doubleClick, event, windowControls.handlesDoubleClickNatively);
@@ -174,6 +194,7 @@ export function TitleBar({
 			side={side}
 			tokens={sides[side]}
 			windowControls={windowControls}
+			onToggleMaximise={toggleMaximise}
 			controlsStyle={controlsStyle}
 			maximised={maximised}
 			alwaysOnTop={alwaysOnTop}
@@ -197,7 +218,7 @@ export function TitleBar({
 				data-controls-style={controlsStyle}
 				data-title-align={titleAlign}
 				onContextMenu={onContextMenu}
-				onMouseDown={suppressNativeMaximise}
+				onMouseDown={onMouseDown}
 				onMouseUp={suppressNativeMaximise}
 				onDoubleClick={onDoubleClick}
 				onAuxClick={onAuxClick}
@@ -240,6 +261,7 @@ interface WindowButtonsProps {
 	side: 'start' | 'end';
 	tokens: ChromeButton[];
 	windowControls: WindowControls;
+	onToggleMaximise: () => void;
 	controlsStyle: ControlsStyle;
 	maximised: boolean;
 	alwaysOnTop: boolean;
@@ -251,6 +273,7 @@ function WindowButtons({
 	side,
 	tokens,
 	windowControls,
+	onToggleMaximise,
 	controlsStyle,
 	maximised,
 	alwaysOnTop,
@@ -282,7 +305,7 @@ function WindowButtons({
 						className={`${styles.button} ${styles.maximise}`}
 						aria-label={label}
 						title={label}
-						onClick={() => void windowControls.toggleMaximize()}
+						onClick={onToggleMaximise}
 					>
 						{maximised ? <RestoreIcon /> : <MaximiseIcon />}
 					</button>,

@@ -3,16 +3,33 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ReactNode,
+} from 'react';
 import type { WindowControls } from '../TitleBar/windowControls';
 
 interface WindowChromeState {
 	controls: WindowControls;
 	maximised: boolean;
+	/** Shows the expected maximised state at once and confirms it against the window shortly after. */
+	expectMaximised: (value: boolean) => void;
 	focused: boolean;
 	/** False until the adapter's initial focus read has settled. */
 	focusSettled: boolean;
 }
+
+/**
+ * How long an expected maximised state stands before it is checked against the window. The host's
+ * own resize event normally corrects it sooner; this covers a toggle that changed nothing.
+ */
+const EXPECTATION_CHECK_MS = 400;
 
 const WindowChromeContext = createContext<WindowChromeState | null>(null);
 
@@ -31,6 +48,7 @@ export function WindowChromeProvider({ controls, children }: WindowChromeProvide
 	const [maximised, setMaximised] = useState(false);
 	const [focused, setFocused] = useState(true);
 	const [focusSettled, setFocusSettled] = useState(!controls.isFocused);
+	const checkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
 	useEffect(() => {
 		let active = true;
@@ -74,14 +92,31 @@ export function WindowChromeProvider({ controls, children }: WindowChromeProvide
 
 		return () => {
 			active = false;
+			clearTimeout(checkTimer.current);
 			unsubscribeMaximised();
 			unsubscribeFocus?.();
 		};
 	}, [controls]);
 
+	// The host reports a maximise only after the window has already resized, which leaves a moment
+	// where a full-screen window still draws its shadow margin. A toggle the chrome itself asks for
+	// is shown straight away, then checked against the window so a toggle that did nothing is undone.
+	const expectMaximised = useCallback(
+		(value: boolean) => {
+			setMaximised(value);
+			clearTimeout(checkTimer.current);
+			checkTimer.current = setTimeout(() => {
+				Promise.resolve(controls.isMaximized())
+					.then(setMaximised)
+					.catch(() => {});
+			}, EXPECTATION_CHECK_MS);
+		},
+		[controls],
+	);
+
 	const value = useMemo(
-		() => ({ controls, maximised, focused, focusSettled }),
-		[controls, maximised, focused, focusSettled],
+		() => ({ controls, maximised, expectMaximised, focused, focusSettled }),
+		[controls, maximised, expectMaximised, focused, focusSettled],
 	);
 	return <WindowChromeContext.Provider value={value}>{children}</WindowChromeContext.Provider>;
 }
@@ -104,6 +139,14 @@ export function useWindowControls(): WindowControls {
 /** Whether the window is maximised. Throws outside a `WindowChromeProvider`. */
 export function useWindowMaximised(): boolean {
 	return useRequiredChrome().maximised;
+}
+
+/**
+ * Shows a maximised state the chrome has just asked for before the host reports it. Throws
+ * outside a `WindowChromeProvider`.
+ */
+export function useExpectMaximised(): (value: boolean) => void {
+	return useRequiredChrome().expectMaximised;
 }
 
 /** Whether the window is focused. Throws outside a `WindowChromeProvider`. */

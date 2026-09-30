@@ -114,6 +114,78 @@ describe('TitleBar', () => {
 		);
 	});
 
+	describe('showing a maximise before the host reports it', () => {
+		const bar = () => document.querySelector('[data-group="centre"]')!.parentElement!;
+
+		it('shows the maximised state as soon as the maximise button is clicked', async () => {
+			const user = userEvent.setup();
+			const { controls } = fakeControls();
+			renderBar(controls);
+			await waitFor(() => expect(controls.isMaximized).toHaveBeenCalled());
+			expect(bar()).toHaveAttribute('data-maximised', 'false');
+			await user.click(screen.getByRole('button', { name: 'Maximise' }));
+			expect(controls.toggleMaximize).toHaveBeenCalledTimes(1);
+			expect(bar()).toHaveAttribute('data-maximised', 'true');
+		});
+
+		it('shows it when the host maximises natively on the second press of a double click', () => {
+			const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+			renderBar(controls);
+			fireEvent.mouseDown(screen.getByTestId('title'), { button: 0, detail: 1 });
+			expect(bar()).toHaveAttribute('data-maximised', 'false');
+			fireEvent.mouseDown(screen.getByTestId('title'), { button: 0, detail: 2 });
+			expect(bar()).toHaveAttribute('data-maximised', 'true');
+			expect(controls.toggleMaximize).not.toHaveBeenCalled();
+		});
+
+		it('does not predict a maximise when the double-click action is something else', () => {
+			const { controls } = fakeControls({ handlesDoubleClickNatively: true });
+			renderBar(controls, {
+				titlebarActions: { ...DEFAULT_TITLEBAR_ACTIONS, doubleClick: 'minimise' },
+			});
+			fireEvent.mouseDown(screen.getByTestId('title'), { button: 0, detail: 2 });
+			expect(bar()).toHaveAttribute('data-maximised', 'false');
+		});
+
+		it('undoes the expectation when the window turns out not to have changed', async () => {
+			vi.useFakeTimers();
+			try {
+				const { controls } = fakeControls({ isMaximized: vi.fn(async () => false) });
+				renderBar(controls);
+				await act(async () => {
+					await vi.advanceTimersByTimeAsync(0);
+				});
+				fireEvent.click(screen.getByRole('button', { name: 'Maximise' }));
+				expect(bar()).toHaveAttribute('data-maximised', 'true');
+				await act(async () => {
+					await vi.advanceTimersByTimeAsync(500);
+				});
+				expect(bar()).toHaveAttribute('data-maximised', 'false');
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it('keeps the expectation when the window confirms it', async () => {
+			vi.useFakeTimers();
+			try {
+				const { controls } = fakeControls();
+				renderBar(controls);
+				await act(async () => {
+					await vi.advanceTimersByTimeAsync(0);
+				});
+				fireEvent.click(screen.getByRole('button', { name: 'Maximise' }));
+				(controls.isMaximized as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+				await act(async () => {
+					await vi.advanceTimersByTimeAsync(500);
+				});
+				expect(bar()).toHaveAttribute('data-maximised', 'true');
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
+
 	describe('Always on Top follows the window manager', () => {
 		const pin = () => screen.getByRole('button', { name: 'Always on Top' });
 
