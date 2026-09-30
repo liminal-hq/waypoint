@@ -261,8 +261,9 @@ describe('the scroll cap', () => {
 	});
 
 	it('shows no banner below the cap', async () => {
-		const { client } = clientWith(500_000);
-		renderList(client);
+		// `hugeClient` serves rows on demand; `clientWith` would build 500 000 real entries first,
+		// which takes seconds on a slow CI runner.
+		renderList(hugeClient(500_000));
 		await screen.findByRole('listbox');
 		expect(screen.queryByText(/Showing the first/)).toBeNull();
 	});
