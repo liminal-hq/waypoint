@@ -17,7 +17,7 @@ EXEMPT_FILES=(
   "apps/*/vite.config.ts"                # build-tool config
   "apps/*/src/vite-env.d.ts"             # Vite-scaffolded ambient types
   "*/generated/*.ts"                     # ts-rs output, regenerated from Rust structs
-  "plugins/*/guest-js/rollup.config.js"  # build-tool config
+  "plugins/*/guest-js/bindings/*.ts"     # ts-rs output, regenerated from Rust structs
 )
 
 is_exempt() {

@@ -169,7 +169,7 @@ CI and release follow the Liminal HQ house pipeline (Jar and Cadence are the ref
 - **Styling:** CSS Modules plus CSS custom properties for the semantic tokens in `docs/theming-and-platforms.md`. No inline-style styling (the prototype's approach) and no colour literals outside the token files.
 - **Accessibility is a build requirement, not a polish pass:** roles, names, focus order and keyboard paths follow `docs/accessibility.md`. A component that is not keyboard-operable is not done.
 - **All user-visible strings go through the message catalogue** (RTL and localisation are in scope, D80) — no string literals in JSX.
-- **Wrap plugin calls in the plugin's own guest-js API.** Do not scatter raw `invoke('plugin:...|...')` strings through feature code.
+- **JavaScript reaches a native plugin only through its `guest-js` package.** Every plugin ships typed `guest-js` functions (and typed event subscriptions) that own the command and event names. Application and package code imports those functions and never calls `invoke('plugin:...|...')` or listens for a plugin's event by string. A plugin is not done until its `guest-js` covers every command and event the front end uses. `scripts/check-plugin-boundaries.sh` enforces the invoke half in CI.
 
 ## Architecture Rules
 

@@ -14,6 +14,8 @@ Work is split by concern. The more generic a concern, the more reusable its plug
 
 Every plugin follows the `tauri-plugins-workspace` `PLUGIN_TEMPLATE.md`: `src/{lib,commands,error,models}.rs` plus `desktop.rs` / `mobile.rs`-style platform modules (here `linux.rs`, `windows.rs`, `unsupported.rs`), `build.rs` with the `COMMANDS` list, `permissions/default.toml`, `guest-js/index.ts` built by the shared Rollup config, and a README. Command names, `COMMANDS` scope and permission identifiers follow Threshold's `docs/plugins/command-conventions.md`.
 
+Every plugin's JavaScript integration is its `guest-js` package: typed functions and event subscriptions that own the command and event names, so nothing outside the plugin calls `invoke('plugin:…')` directly (enforced by `scripts/check-plugin-boundaries.sh`).
+
 Every plugin also exposes `get_status() -> { available, reason?, features }` (A6).
 
 ## 2. Reusable plugins (generic, no Waypoint imports)
