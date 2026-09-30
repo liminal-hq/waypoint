@@ -23,6 +23,7 @@ tauri-plugin-os = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-system-appearance = { path = "../../../plugins/system-appearance" }
 tauri-plugin-window-manager = { path = "../../../plugins/window-manager" }
+tauri-plugin-opener = "2"
 tauri-plugin-waypoint-vfs = { path = "../../../plugins/waypoint-vfs" }
 tauri-plugin-waypoint-session = { path = "../../../plugins/waypoint-session" }
 serde = { workspace = true }

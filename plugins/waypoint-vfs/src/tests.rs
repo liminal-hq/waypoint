@@ -334,3 +334,131 @@ fn status_reports_the_features() {
     assert!(status.features.iter().any(|f| f == "watch"));
     assert!(!status.features.iter().any(|f| f == "polling-fallback"));
 }
+
+fn ready_listing(
+    app: &tauri::App<MockRuntime>,
+    dir: &tempfile::TempDir,
+) -> (ListingSnapshot, Vec<waypoint_vfs::Entry>) {
+    let received = events(&window(app, "main"));
+    let snapshot = open(app, "main", location(dir.path())).unwrap();
+    wait_for(&received, is_ready);
+    let entries = range(app, "main", snapshot.handle, 0, 100).unwrap();
+    (snapshot, entries)
+}
+
+#[test]
+fn typed_text_becomes_a_location_and_junk_is_rejected() {
+    let app = app();
+    let base = location(Path::new("/srv/data"));
+    let parse = |input: &str| {
+        tauri::async_runtime::block_on(commands::parse_location(input.to_owned(), base.clone()))
+    };
+    assert_eq!(parse("logs").unwrap().display, "/srv/data/logs");
+    assert_eq!(parse("/etc").unwrap().uri, "file:///etc");
+    assert!(parse("~").unwrap().display.starts_with('/'));
+    assert!(matches!(
+        parse("").unwrap_err(),
+        Error::Vfs(VfsError::InvalidLocation { .. })
+    ));
+    assert!(matches!(
+        parse("smb://host/share").unwrap_err(),
+        Error::Vfs(VfsError::Unsupported { .. })
+    ));
+    drop(app);
+}
+
+#[test]
+fn a_location_is_described_with_its_breadcrumbs() {
+    let info = tauri::async_runtime::block_on(commands::describe_location(location(Path::new(
+        "/home/a/Music",
+    ))))
+    .unwrap();
+    assert_eq!(info.segments.len(), 4);
+    assert_eq!(info.parent.unwrap().display, "/home/a");
+}
+
+#[test]
+fn an_entry_resolves_to_its_location_and_selections_add_up() {
+    let dir = folder_with(&["a.txt", "bb.txt"]);
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let b = entries.iter().find(|e| e.name == "bb.txt").unwrap();
+
+    let there = tauri::async_runtime::block_on(commands::entry_location(
+        window(&app, "main"),
+        app.state::<Vfs>(),
+        snapshot.handle,
+        b.id,
+    ))
+    .unwrap();
+    assert!(there.display.ends_with("/bb.txt"));
+    assert!(there.uri.starts_with("file://"));
+
+    let summarise = |selection| {
+        tauri::async_runtime::block_on(commands::summarise_selection(
+            window(&app, "main"),
+            app.state::<Vfs>(),
+            snapshot.handle,
+            selection,
+        ))
+        .unwrap()
+    };
+    let chosen = summarise(waypoint_vfs::SelectionSpec::Chosen { ids: vec![b.id] });
+    assert_eq!((chosen.count, chosen.total_size), (1, 1));
+    let rest = summarise(waypoint_vfs::SelectionSpec::AllExcept { ids: vec![b.id] });
+    assert_eq!((rest.count, rest.total_size), (1, 1));
+}
+
+#[test]
+fn entry_commands_are_scoped_to_the_owning_window() {
+    let dir = folder_with(&["a.txt"]);
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let id = entries[0].id;
+    let foreign = tauri::async_runtime::block_on(commands::open_entry(
+        window(&app, "other"),
+        app.state::<Vfs>(),
+        snapshot.handle,
+        id,
+    ))
+    .unwrap_err();
+    assert!(matches!(foreign, Error::Vfs(VfsError::StaleHandle)));
+    let unknown = tauri::async_runtime::block_on(commands::open_entry(
+        window(&app, "main"),
+        app.state::<Vfs>(),
+        snapshot.handle,
+        waypoint_protocol::EntryId(999),
+    ))
+    .unwrap_err();
+    assert!(matches!(unknown, Error::Vfs(VfsError::NotFound { .. })));
+}
+
+#[test]
+fn opening_a_folder_as_a_file_is_refused() {
+    let dir = folder_with(&[]);
+    fs::create_dir(dir.path().join("sub")).unwrap();
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let error = tauri::async_runtime::block_on(commands::open_entry(
+        window(&app, "main"),
+        app.state::<Vfs>(),
+        snapshot.handle,
+        entries[0].id,
+    ))
+    .unwrap_err();
+    assert!(matches!(error, Error::Vfs(VfsError::Unsupported { .. })));
+}
+
+#[test]
+fn free_space_is_reported_for_a_real_folder_and_null_for_a_missing_one() {
+    let dir = folder_with(&[]);
+    let space = tauri::async_runtime::block_on(commands::get_free_space(location(dir.path())))
+        .unwrap()
+        .expect("space");
+    assert!(space.total_bytes >= space.free_bytes);
+    let missing = tauri::async_runtime::block_on(commands::get_free_space(location(
+        &dir.path().join("gone"),
+    )))
+    .unwrap();
+    assert!(missing.is_none());
+}

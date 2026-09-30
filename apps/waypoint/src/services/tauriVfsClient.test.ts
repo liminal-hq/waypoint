@@ -6,6 +6,7 @@
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTauriVfsClient } from './tauriVfsClient';
@@ -17,6 +18,12 @@ const plugin = vi.hoisted(() => ({
 	setSort: vi.fn(),
 	setFilter: vi.fn(),
 	closeListing: vi.fn(),
+	parseLocation: vi.fn(),
+	describeLocation: vi.fn(),
+	entryLocation: vi.fn(),
+	summariseSelection: vi.fn(),
+	getFreeSpace: vi.fn(),
+	openEntry: vi.fn(),
 	onListingEvent: vi.fn(),
 }));
 vi.mock('@liminal-hq/waypoint-plugin-vfs', () => plugin);
@@ -56,6 +63,46 @@ describe('createTauriVfsClient', () => {
 		expect(plugin.setFilter).toHaveBeenCalledWith(1, { showHidden: true });
 		await client.closeListing(1);
 		expect(plugin.closeListing).toHaveBeenCalledWith(1);
+	});
+
+	it('passes the navigation and status bar calls through', async () => {
+		const client = createTauriVfsClient();
+		const info = { parent: null, segments: [{ label: '/', location: home }] };
+		const summary = { count: 2, totalSize: 30 };
+		const space = { freeBytes: 1, totalBytes: 2 };
+		plugin.parseLocation.mockResolvedValue(home);
+		plugin.describeLocation.mockResolvedValue(info);
+		plugin.entryLocation.mockResolvedValue(home);
+		plugin.summariseSelection.mockResolvedValue(summary);
+		plugin.getFreeSpace.mockResolvedValue(space);
+		plugin.openEntry.mockResolvedValue(undefined);
+
+		expect(await client.parseLocation('~', home)).toBe(home);
+		expect(plugin.parseLocation).toHaveBeenCalledWith('~', home);
+		expect(await client.describeLocation(home)).toBe(info);
+		expect(plugin.describeLocation).toHaveBeenCalledWith(home);
+		expect(await client.entryLocation(1, 7)).toBe(home);
+		expect(plugin.entryLocation).toHaveBeenCalledWith(1, 7);
+		const selection: SelectionSpec = { kind: 'allExcept', ids: [3] };
+		expect(await client.summariseSelection(1, selection)).toBe(summary);
+		expect(plugin.summariseSelection).toHaveBeenCalledWith(1, selection);
+		expect(await client.getFreeSpace(home)).toBe(space);
+		plugin.getFreeSpace.mockResolvedValue(null);
+		expect(await client.getFreeSpace(home)).toBeNull();
+		await client.openEntry(1, 7);
+		expect(plugin.openEntry).toHaveBeenCalledWith(1, 7);
+	});
+
+	it('rejects navigation failures with the typed error', async () => {
+		const client = createTauriVfsClient();
+		plugin.parseLocation.mockRejectedValue({ kind: 'unsupported', what: 'sftp' });
+		plugin.openEntry.mockRejectedValue('not allowed');
+		await expect(client.parseLocation('sftp://x', home)).rejects.toEqual({
+			kind: 'unsupported',
+			what: 'sftp',
+		});
+		const denied = await client.openEntry(1, 1).catch((e: unknown) => e);
+		expect(isVfsError(denied) && denied.kind).toBe('io');
 	});
 
 	it('rejects with the plugin VfsError untouched', async () => {

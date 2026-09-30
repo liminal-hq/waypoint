@@ -7,14 +7,20 @@ import { invoke } from '@tauri-apps/api/core';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import type { Places } from '@liminal-hq/waypoint-protocol/generated/Places';
+import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
+import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/SelectionSummary';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
+
+import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 
 const PREFIX = 'plugin:waypoint-vfs|';
 const LISTING_EVENT = 'waypoint-vfs://listing';
@@ -73,6 +79,46 @@ export function getHome(): Promise<Location> {
 	return cmd<Location>('get_home');
 }
 
+/**
+ * Turns text the person typed (an absolute or relative path, `~`, a `file://` URI) into a
+ * `Location`, resolving relative text against `base`. Rejects with `invalidLocation` or
+ * `unsupported` (another scheme); it does not check that the location exists.
+ */
+export function parseLocation(input: string, base: Location): Promise<Location> {
+	return cmd<Location>('parse_location', { input, base });
+}
+
+/** The parent and the breadcrumb segments of a location. */
+export function describeLocation(location: Location): Promise<LocationInfo> {
+	return cmd<LocationInfo>('describe_location', { location });
+}
+
+/** Where an entry of an open listing lives; `.display` is what Copy Path uses. */
+export function entryLocation(handle: ListingHandle, id: EntryId): Promise<Location> {
+	return cmd<Location>('entry_location', { handle, id });
+}
+
+/** The count and total file size of a selection over a listing's current view. */
+export function summariseSelection(
+	handle: ListingHandle,
+	selection: SelectionSpec,
+): Promise<SelectionSummary> {
+	return cmd<SelectionSummary>('summarise_selection', { handle, selection });
+}
+
+/** Free and total space on the volume holding `location`, or `null` where it cannot be known. */
+export function getFreeSpace(location: Location): Promise<VolumeSpace | null> {
+	return cmd<VolumeSpace | null>('get_free_space', { location });
+}
+
+/**
+ * Opens a file of an open listing in its default application. Rust resolves the path from
+ * `(handle, id)`; a folder is rejected with `unsupported`.
+ */
+export function openEntry(handle: ListingHandle, id: EntryId): Promise<void> {
+	return cmd<void>('open_entry', { handle, id });
+}
+
 /** Home, the user folders that exist, and the favourites. */
 export function listPlaces(): Promise<Places> {
 	return cmd<Places>('list_places');
@@ -111,12 +157,17 @@ export function onListingEvent(handler: (_event: ListingEvent) => void): Promise
 
 export type {
 	Entry,
+	EntryId,
 	Filter,
 	ListingEvent,
 	ListingHandle,
 	ListingSnapshot,
 	Location,
+	LocationInfo,
 	Places,
 	PluginStatus,
+	SelectionSpec,
+	SelectionSummary,
 	SortSpec,
+	VolumeSpace,
 };

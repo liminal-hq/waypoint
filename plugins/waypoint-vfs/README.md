@@ -50,7 +50,7 @@ Commands reject with a `waypoint_protocol::VfsError` serialised as its tagged ob
 
 ## Permissions
 
-`waypoint-vfs:default` grants every command above. The main window and the window-chrome capability already include it.
+`waypoint-vfs:default` grants every command above. Opening goes through the opener plugin's Rust API, so the webview needs no `opener:` permission. The main window and the window-chrome capability already include it.
 
 ## Adding a command
 

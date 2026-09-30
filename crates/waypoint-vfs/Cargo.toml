@@ -17,6 +17,12 @@ ts-rs = { workspace = true }
 waypoint-path = { path = "../waypoint-path" }
 waypoint-protocol = { path = "../waypoint-protocol" }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+
 [dev-dependencies]
 serde_json = { workspace = true }
 tempfile = "3"

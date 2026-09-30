@@ -45,6 +45,37 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     function getHome() {
         return cmd('get_home');
     }
+    /**
+     * Turns text the person typed (an absolute or relative path, `~`, a `file://` URI) into a
+     * `Location`, resolving relative text against `base`. Rejects with `invalidLocation` or
+     * `unsupported` (another scheme); it does not check that the location exists.
+     */
+    function parseLocation(input, base) {
+        return cmd('parse_location', { input, base });
+    }
+    /** The parent and the breadcrumb segments of a location. */
+    function describeLocation(location) {
+        return cmd('describe_location', { location });
+    }
+    /** Where an entry of an open listing lives; `.display` is what Copy Path uses. */
+    function entryLocation(handle, id) {
+        return cmd('entry_location', { handle, id });
+    }
+    /** The count and total file size of a selection over a listing's current view. */
+    function summariseSelection(handle, selection) {
+        return cmd('summarise_selection', { handle, selection });
+    }
+    /** Free and total space on the volume holding `location`, or `null` where it cannot be known. */
+    function getFreeSpace(location) {
+        return cmd('get_free_space', { location });
+    }
+    /**
+     * Opens a file of an open listing in its default application. Rust resolves the path from
+     * `(handle, id)`; a folder is rejected with `unsupported`.
+     */
+    function openEntry(handle, id) {
+        return cmd('open_entry', { handle, id });
+    }
     /** Home, the user folders that exist, and the favourites. */
     function listPlaces() {
         return cmd('list_places');
@@ -76,17 +107,23 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
 
     exports.addFavourite = addFavourite;
     exports.closeListing = closeListing;
+    exports.describeLocation = describeLocation;
+    exports.entryLocation = entryLocation;
+    exports.getFreeSpace = getFreeSpace;
     exports.getHome = getHome;
     exports.getRange = getRange;
     exports.getStatus = getStatus;
     exports.listPlaces = listPlaces;
     exports.moveFavourite = moveFavourite;
     exports.onListingEvent = onListingEvent;
+    exports.openEntry = openEntry;
     exports.openListing = openListing;
+    exports.parseLocation = parseLocation;
     exports.removeFavourite = removeFavourite;
     exports.renameFavourite = renameFavourite;
     exports.setFilter = setFilter;
     exports.setSort = setSort;
+    exports.summariseSelection = summariseSelection;
 
     return exports;
 

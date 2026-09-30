@@ -10,7 +10,10 @@ use std::ffi::{OsStr, OsString};
 use waypoint_protocol::EntryId;
 
 use crate::icon::extension;
-use crate::model::{Entry, EntryKind, Filter, IconGroup, KindFilter, PatchOp, SortKey, SortSpec};
+use crate::model::{
+    Entry, EntryKind, Filter, IconGroup, KindFilter, PatchOp, SelectionSpec, SelectionSummary,
+    SortKey, SortSpec,
+};
 use crate::order::{compare, natural_key, Sortable};
 use crate::provider::{Change, ScannedEntry};
 
@@ -283,6 +286,50 @@ impl Index {
             .iter()
             .map(|&id| self.rec(id).to_entry(id))
             .collect()
+    }
+
+    /// What a selection adds up to over the current view. Ids the view does not hold (gone, or
+    /// filtered out) do not count. O(n) over the view for "all except", O(chosen) otherwise, and it
+    /// allocates nothing per row.
+    pub fn summarise(&self, selection: &SelectionSpec) -> SelectionSummary {
+        let in_view = |id: EntryId| {
+            self.records
+                .get(id.0 as usize)
+                .and_then(Option::as_ref)
+                .filter(|r| r.visible(&self.filter))
+        };
+        let distinct = |ids: &[EntryId]| -> Vec<EntryId> {
+            let mut ids = ids.to_vec();
+            ids.sort_unstable();
+            ids.dedup();
+            ids
+        };
+        match selection {
+            SelectionSpec::Chosen { ids } => {
+                let (mut count, mut total_size) = (0u64, 0u64);
+                for id in distinct(ids) {
+                    if let Some(record) = in_view(id) {
+                        count += 1;
+                        total_size = total_size.saturating_add(record.size.unwrap_or(0));
+                    }
+                }
+                SelectionSummary { count, total_size }
+            }
+            SelectionSpec::AllExcept { ids } => {
+                let mut count = self.view.len() as u64;
+                let mut total_size = 0u64;
+                for &id in &self.view {
+                    total_size = total_size.saturating_add(self.rec(id).size.unwrap_or(0));
+                }
+                for id in distinct(ids) {
+                    if let Some(record) = in_view(id) {
+                        count -= 1;
+                        total_size -= record.size.unwrap_or(0).min(total_size);
+                    }
+                }
+                SelectionSummary { count, total_size }
+            }
+        }
     }
 
     /// The real name of a live entry.

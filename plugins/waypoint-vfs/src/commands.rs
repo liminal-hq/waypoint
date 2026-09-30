@@ -6,12 +6,14 @@
 use std::sync::Arc;
 
 use serde::Deserialize;
-use tauri::{Emitter, Runtime, State, Window};
+use tauri::{Emitter, Manager, Runtime, State, Window};
+use tauri_plugin_opener::OpenerExt;
 use waypoint_path::VfsPath;
-use waypoint_protocol::{Location, PluginStatus, VfsError};
+use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
     Entry, EntryKind, Filter, Listing, ListingEvent, ListingHandle, ListingOptions,
-    ListingSnapshot, LocalProvider, Places, PlacesEnv, Provider, SortSpec,
+    ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider, SelectionSpec,
+    SelectionSummary, SortSpec, VolumeSpace,
 };
 
 use crate::error::Error;
@@ -209,6 +211,91 @@ pub async fn close_listing<R: Runtime>(
 ) -> Result<(), Error> {
     state.registry.close(window.label(), handle);
     Ok(())
+}
+
+/// Turns typed text into a `Location`, resolving relative text against `base` and `~` against the
+/// home folder. It does not check that the location exists.
+#[tauri::command]
+pub async fn parse_location(input: String, base: Location) -> Result<Location, Error> {
+    blocking(move || {
+        let env = PlacesEnv::detect()?;
+        waypoint_vfs::parse_location(&input, &base, &env.home)
+    })
+    .await?
+    .map_err(Error::from)
+}
+
+/// The parent and breadcrumb segments of a location.
+#[tauri::command]
+pub async fn describe_location(location: Location) -> Result<LocationInfo, Error> {
+    Ok(waypoint_vfs::describe_location(&location)?)
+}
+
+/// Where an entry of an open listing lives.
+#[tauri::command]
+pub async fn entry_location<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    id: EntryId,
+) -> Result<Location, Error> {
+    Ok(listing_of(&window, &state, handle)?
+        .path_of(id)?
+        .to_location())
+}
+
+/// The count and total file size of a selection over a listing's current view.
+#[tauri::command]
+pub async fn summarise_selection<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    selection: SelectionSpec,
+) -> Result<SelectionSummary, Error> {
+    let listing = listing_of(&window, &state, handle)?;
+    blocking(move || listing.summarise_selection(&selection)).await
+}
+
+/// Free and total space on the volume holding a location; `null` when it cannot be determined.
+#[tauri::command]
+pub async fn get_free_space(location: Location) -> Result<Option<VolumeSpace>, Error> {
+    blocking(move || waypoint_vfs::free_space(&location)).await
+}
+
+/// Opens a file of an open listing in its default application. Only the window that owns the
+/// listing can open its entries, and only entries that are there: the path is always resolved
+/// from `(handle, id)`, never taken from the caller. A folder is rejected; the frontend opens
+/// folders by navigating.
+#[tauri::command]
+pub async fn open_entry<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    id: EntryId,
+) -> Result<(), Error> {
+    let listing = listing_of(&window, &state, handle)?;
+    let path = listing.path_of(id)?;
+    let provider = listing.provider().clone();
+    let probe = path.clone();
+    let entry = blocking(move || provider.stat(&probe)).await??;
+    if entry.kind == EntryKind::Directory || entry.link_target == Some(EntryKind::Directory) {
+        return Err(VfsError::Unsupported {
+            what: "opening a folder as a file".to_owned(),
+        }
+        .into());
+    }
+    let app = window.app_handle().clone();
+    let target = path.display();
+    blocking(move || {
+        app.opener()
+            .open_path(target.clone(), None::<&str>)
+            .map_err(|error| VfsError::Io {
+                message: error.to_string(),
+                location: Some(path.to_location()),
+            })
+    })
+    .await?
+    .map_err(Error::from)
 }
 
 /// The folder a window opens at first.

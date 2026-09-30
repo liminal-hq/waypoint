@@ -337,6 +337,11 @@ impl Listing {
 
     /// The path an entry names, for operations on it (opening it, for one). Rust resolves this
     /// from the `EntryId`; the frontend never holds a raw path.
+    /// The count and total file size of a selection over the current view.
+    pub fn summarise_selection(&self, selection: &crate::SelectionSpec) -> crate::SelectionSummary {
+        self.read().index.summarise(selection)
+    }
+
     pub fn path_of(&self, id: waypoint_protocol::EntryId) -> Result<VfsPath, VfsError> {
         let state = self.read();
         let name = state.index.name_of(id.0).ok_or(VfsError::NotFound {

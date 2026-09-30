@@ -612,3 +612,102 @@ fn a_file_with_the_hidden_attribute_is_hidden_and_a_dotfile_is_not() {
     let listing = open(&dir);
     assert_eq!(names(&listing), [".dotfile", "visible.txt"]);
 }
+
+#[cfg(unix)]
+mod selection {
+    use super::*;
+    use waypoint_vfs::{SelectionSpec, SelectionSummary};
+
+    /// `a` (1 byte), `bb` (2), `ccc` (3), a hidden `.d` (4) and a folder `dir`.
+    fn sized() -> (TempDir, Arc<Listing>, Vec<Entry>) {
+        let dir = TempDir::new().unwrap();
+        for (name, size) in [("a", 1), ("bb", 2), ("ccc", 3), (".d", 4)] {
+            fs::write(dir.path().join(name), vec![0u8; size]).unwrap();
+        }
+        fs::create_dir(dir.path().join("dir")).unwrap();
+        let listing = open(&dir);
+        let entries = listing.get_range(0, 100);
+        (dir, listing, entries)
+    }
+
+    fn id(entries: &[Entry], name: &str) -> EntryId {
+        entries.iter().find(|e| e.name == name).unwrap().id
+    }
+
+    #[test]
+    fn chosen_entries_add_up_and_folders_add_nothing() {
+        let (_dir, listing, entries) = sized();
+        let summary = listing.summarise_selection(&SelectionSpec::Chosen {
+            ids: vec![id(&entries, "bb"), id(&entries, "ccc"), id(&entries, "dir")],
+        });
+        assert_eq!(
+            summary,
+            SelectionSummary {
+                count: 3,
+                total_size: 5
+            }
+        );
+    }
+
+    #[test]
+    fn all_except_covers_the_rest_of_the_view() {
+        let (_dir, listing, entries) = sized();
+        // The hidden file is not in the view, so it is neither counted nor summed.
+        let summary = listing.summarise_selection(&SelectionSpec::AllExcept {
+            ids: vec![id(&entries, "a")],
+        });
+        assert_eq!(
+            summary,
+            SelectionSummary {
+                count: 3,
+                total_size: 5
+            }
+        );
+        let all = listing.summarise_selection(&SelectionSpec::AllExcept { ids: vec![] });
+        assert_eq!(
+            all,
+            SelectionSummary {
+                count: 4,
+                total_size: 6
+            }
+        );
+    }
+
+    #[test]
+    fn unknown_filtered_and_repeated_ids_do_not_count_twice_or_at_all() {
+        let (_dir, listing, entries) = sized();
+        let a = id(&entries, "a");
+        let hidden = listing.get_range(0, 100).len();
+        assert_eq!(hidden, 4);
+        let hidden_id = {
+            listing.set_filter(Filter {
+                show_hidden: true,
+                only: None,
+            });
+            let all = listing.get_range(0, 100);
+            let id = all.iter().find(|e| e.name == ".d").unwrap().id;
+            listing.set_filter(Filter::default());
+            id
+        };
+        let chosen = listing.summarise_selection(&SelectionSpec::Chosen {
+            ids: vec![a, a, hidden_id, EntryId(9999)],
+        });
+        assert_eq!(
+            chosen,
+            SelectionSummary {
+                count: 1,
+                total_size: 1
+            }
+        );
+        let except = listing.summarise_selection(&SelectionSpec::AllExcept {
+            ids: vec![a, a, hidden_id, EntryId(9999)],
+        });
+        assert_eq!(
+            except,
+            SelectionSummary {
+                count: 3,
+                total_size: 5
+            }
+        );
+    }
+}
