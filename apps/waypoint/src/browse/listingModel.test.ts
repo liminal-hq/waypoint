@@ -218,6 +218,7 @@ describe('sorting', () => {
 				handle,
 				revision: snapshot.revision + 1,
 				count: 10,
+				moved: [],
 				ops: [],
 			});
 			return snapshot;
