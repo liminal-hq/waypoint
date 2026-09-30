@@ -15,6 +15,11 @@
 	font-size: 13px;
 	outline: none;
 	user-select: none;
+	/* A menu taller or wider than the viewport scrolls inside itself instead of being clipped. */
+	max-width: calc(100vw - 2 * var(--wp-menu-viewport-margin));
+	max-height: calc(100vh - 2 * var(--wp-menu-viewport-margin));
+	overflow: auto;
+	overscroll-behavior: contain;
 }
 
 .item {

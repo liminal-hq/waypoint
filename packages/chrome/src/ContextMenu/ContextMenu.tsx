@@ -188,7 +188,7 @@ function MenuPanel({
 		if (focusTarget === 'panel') panelRef.current?.focus({ preventScroll: true });
 		if (focusTarget === 'first') {
 			const first = firstIndex(items);
-			if (first >= 0) itemRefs.current[first]?.focus({ preventScroll: true });
+			if (first >= 0) focusItem(first);
 			else panelRef.current?.focus({ preventScroll: true });
 		}
 		// Only on mount: later item changes must not steal focus.
@@ -203,8 +203,13 @@ function MenuPanel({
 		};
 	}, []);
 
+	// A menu taller than the viewport scrolls inside itself, so the focused item is scrolled into
+	// view by hand: `preventScroll` keeps the browser from also scrolling the page behind it.
 	const focusItem = (index: number) => {
-		if (index >= 0) itemRefs.current[index]?.focus({ preventScroll: true });
+		const item = index >= 0 ? itemRefs.current[index] : null;
+		if (!item) return;
+		item.focus({ preventScroll: true });
+		item.scrollIntoView?.({ block: 'nearest' });
 	};
 
 	const currentIndex = () => {

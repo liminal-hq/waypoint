@@ -41,6 +41,7 @@
 	/* Menus */
 	--wp-shadow-menu: 0 8px 24px rgb(0 0 0 / 35%);
 	--wp-z-menu: 1000;
+	--wp-menu-viewport-margin: 4px;
 	--wp-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
 
