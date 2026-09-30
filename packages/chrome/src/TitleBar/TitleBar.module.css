@@ -119,30 +119,55 @@
 	color: var(--wp-accent);
 }
 
+/*
+ * GNOME and KDE draw a button smaller than the 28 px minimum hit target (SPEC.md). The button box
+ * is the full 28 px and the visible shape is a pseudo-element inset inside it, so the clickable
+ * area meets the minimum while the look stays compact. The gap is reduced by the inset on both
+ * neighbours so the visible spacing is unchanged.
+ */
+
 /* GNOME: round, low-contrast buttons */
 .controls[data-controls-style='gnome'] {
-	gap: 6px;
+	gap: 2px;
 }
 
-.controls[data-controls-style='gnome'] .button {
-	width: 24px;
-	height: 24px;
+.controls[data-controls-style='gnome'] .button,
+.controls[data-controls-style='kde'] .button {
+	position: relative;
+	isolation: isolate;
+	width: 28px;
+	height: 28px;
+}
+
+.controls[data-controls-style='gnome'] .button::before,
+.controls[data-controls-style='kde'] .button::before {
+	content: '';
+	position: absolute;
+	z-index: -1;
+	background: transparent;
+}
+
+.controls[data-controls-style='gnome'] .button::before {
+	inset: 2px;
 	border-radius: 50%;
 	background: var(--wp-control-bg);
 }
 
-.controls[data-controls-style='gnome'] .button:hover {
+.controls[data-controls-style='gnome'] .button:hover::before {
 	background: var(--wp-control-bg-hover);
 }
 
 /* KDE: small rounded-square buttons, close turns red */
-.controls[data-controls-style='kde'] .button {
-	width: 26px;
-	height: 26px;
+.controls[data-controls-style='kde'] {
+	gap: 0;
+}
+
+.controls[data-controls-style='kde'] .button::before {
+	inset: 1px;
 	border-radius: 4px;
 }
 
-.controls[data-controls-style='kde'] .button:hover {
+.controls[data-controls-style='kde'] .button:hover::before {
 	background: var(--wp-control-bg-hover);
 }
 
@@ -193,7 +218,15 @@
 }
 
 .controls[data-controls-style='gnome'] .close:hover,
-.controls[data-controls-style='kde'] .close:hover,
+.controls[data-controls-style='kde'] .close:hover {
+	color: var(--wp-danger-fg);
+}
+
+.controls[data-controls-style='gnome'] .close:hover::before,
+.controls[data-controls-style='kde'] .close:hover::before {
+	background: var(--wp-danger);
+}
+
 .controls[data-controls-style='cinnamon'] .close:hover {
 	background: var(--wp-danger);
 	color: var(--wp-danger-fg);
