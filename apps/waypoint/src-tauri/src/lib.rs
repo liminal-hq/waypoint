@@ -45,12 +45,16 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
+        .plugin(tauri_plugin_waypoint_vfs::init())
+        .plugin(tauri_plugin_waypoint_session::init())
         .plugin(tauri_plugin_window_state::Builder::default().build());
 
-    // Lets an agent drive and screenshot the running app during development.
-    #[cfg(debug_assertions)]
+    // Lets an agent drive and screenshot the running app during development. Not on Windows, where
+    // the bridge does not yet compile against Tauri's `windows` crate (see `Cargo.toml`).
+    #[cfg(all(debug_assertions, not(windows)))]
     {
         builder = builder.plugin(tauri_plugin_mcp_bridge::init());
     }

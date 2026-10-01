@@ -10,10 +10,7 @@ use ts_rs::TS;
 /// hide options that do not work on the current system and the Services panel
 /// can explain why.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../../apps/waypoint/src/domain/protocol/generated/"
-)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct PluginStatus {
     /// Whether the plugin's concern works on this system.
     pub available: bool,

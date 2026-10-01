@@ -6,13 +6,23 @@
 import { defaultChromeLabels } from '@liminal-hq/waypoint-chrome/labels';
 import { describe, expect, it } from 'vitest';
 import { chromeLabels } from './chromeLabels';
-import { enMessages, t } from './messages';
+import { enMessages, t, tf, tn } from './messages';
 
-const screens = import.meta.glob<string>('../app/*.tsx', {
-	query: '?raw',
-	import: 'default',
-	eager: true,
-});
+const screens = import.meta.glob<string>(
+	[
+		'../app/*.tsx',
+		'../browse/*.tsx',
+		'../nav/*.tsx',
+		'../tabs/*.tsx',
+		'../status/*.tsx',
+		'../sidebar/*.tsx',
+	],
+	{
+		query: '?raw',
+		import: 'default',
+		eager: true,
+	},
+);
 
 describe('the message catalogue', () => {
 	it('has no empty messages', () => {
@@ -23,6 +33,24 @@ describe('the message catalogue', () => {
 
 	it('looks a message up by identifier', () => {
 		expect(t('window.main.title')).toBe(enMessages['window.main.title']);
+	});
+});
+
+describe('tf', () => {
+	it('fills each token and leaves an unknown one as written', () => {
+		expect(tf('browse.capped', { shown: '10', total: '20' })).toBe(
+			'Showing the first 10 of 20 items',
+		);
+		expect(tf('browse.capped', { shown: '10' })).toBe('Showing the first 10 of {total} items');
+	});
+});
+
+describe('tn', () => {
+	it('chooses the plural form and formats the number for the locale', () => {
+		expect(tn('browse.selection', 1, 'en-CA')).toBe('1 item selected');
+		expect(tn('browse.selection', 3, 'en-CA')).toBe('3 items selected');
+		expect(tn('browse.selection', 1200, 'en-CA')).toBe('1,200 items selected');
+		expect(tn('browse.selection', 0, 'en-CA')).toBe('0 items selected');
 	});
 });
 

@@ -1,0 +1,22 @@
+[default]
+description = "Default permissions for the waypoint-vfs plugin"
+permissions = [
+  "allow-get-status",
+  "allow-open-listing",
+  "allow-get-range",
+  "allow-set-sort",
+  "allow-set-filter",
+  "allow-close-listing",
+  "allow-get-home",
+  "allow-parse-location",
+  "allow-describe-location",
+  "allow-entry-location",
+  "allow-summarise-selection",
+  "allow-get-free-space",
+  "allow-open-entry",
+  "allow-list-places",
+  "allow-add-favourite",
+  "allow-remove-favourite",
+  "allow-rename-favourite",
+  "allow-move-favourite",
+]

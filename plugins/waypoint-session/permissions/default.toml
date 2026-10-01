@@ -1,0 +1,13 @@
+[default]
+description = "Default permissions for the waypoint-session plugin"
+permissions = [
+  "allow-get-snapshot",
+  "allow-open-tab",
+  "allow-close-tab",
+  "allow-activate-tab",
+  "allow-move-tab",
+  "allow-navigate",
+  "allow-back",
+  "allow-forward",
+  "allow-get-status",
+]

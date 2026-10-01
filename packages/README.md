@@ -12,9 +12,10 @@ Shared TypeScript packages, consumed through Bun workspaces. Anything here is wr
 
 ## Packages
 
-| Package                                 | Status | What it is                                                                                                      |
-| --------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------- |
-| [`@liminal-hq/waypoint-chrome`](chrome) | Built  | The unified Liminal title bar, the shared window menu and the context menu. See its [README](chrome/README.md). |
+| Package                                     | Status | What it is                                                                                                                |
+| ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| [`@liminal-hq/waypoint-chrome`](chrome)     | Built  | The unified Liminal title bar, the shared window menu and the context menu. See its [README](chrome/README.md).           |
+| [`@liminal-hq/waypoint-protocol`](protocol) | Built  | The TypeScript types `ts-rs` generates from Waypoint's Rust wire types. Types only. See its [README](protocol/README.md). |
 
 ## Working on the packages
 

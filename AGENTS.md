@@ -22,7 +22,7 @@
 
 ## Project Status
 
-Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in its **preparation phase**: product design (`SPEC.md` and the design docs under `docs/`), the proposed structural architecture (`docs/architecture/`), repository conventions and the first CI jobs exist. **Milestone 1 (skeleton) is in progress** (A14): the Cargo and Bun workspaces, `crates/waypoint-protocol`, `packages/chrome` and a placeholder `apps/waypoint` shell exist and are covered by CI. Feature work, the reusable plugins and the Milestone 0 risk spikes are still ahead; scaffold only what the current milestone needs. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
+Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in **early development**: the skeleton (milestone 1) and the listing spikes (milestone 0) are merged, and the reusable window plugins have graduated to the shared `tauri-plugins-workspace`. **Milestone 2 (Browse, local)** is built as a stack of pull requests under review (epic #21): `waypoint-path`, `waypoint-vfs` with watching, the vfs and session plugins, the list and grid views, selection, tabs, navigation, the sidebar and the status bar, with the performance budgets re-measured on the real list. Nothing writes to disk yet (operations are milestone 4); scaffold only what the current milestone needs. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
 
 The prototype that the product design came from lives in a Claude Design project and is **reference only**; see `docs/ui-mockups/README.md`. Only the _behaviour_ it demonstrates is authoritative, and only via `SPEC.md` and the docs. Do not port, adapt or structurally mirror its code.
 
@@ -195,10 +195,11 @@ The rules below are the enforceable core of `docs/architecture/`. Change the arc
 
 ## Repository Layout
 
-Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome` and `crates/waypoint-protocol` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
+Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome`, `packages/protocol`, `crates/waypoint-protocol`, `crates/waypoint-vfs` (wire types so far), `crates/waypoint-session` (the tab reducer), a `plugins/waypoint-vfs` skeleton and `plugins/waypoint-session` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
 
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.
+- `packages/protocol` — the TypeScript types `ts-rs` generates from the domain crates' wire types (types only, never hand-edited); the app and each domain plugin's `guest-js` import from it by package name.
 - `crates/*` — pure Rust, no `tauri` dependency: `waypoint-protocol` (shared types and `ts-rs` generation), `waypoint-vfs`, `waypoint-ops`, `waypoint-session`, `waypoint-search`, `waypoint-ext`, and per-protocol provider crates.
 - `plugins/*` — Tauri plugins (see `plugins/README.md`; `system-appearance` is built), each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
 - `docs/` — product design docs (`decisions.md`, `interactions.md`, …), `architecture/` (structure, plugins, frontend, CI/CD, ADRs) and `ui-mockups/` (prototype pointer, reference only).

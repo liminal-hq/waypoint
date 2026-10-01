@@ -63,3 +63,45 @@ The `Channel` adds about 15 to 20 per cent over the bare scan. **When the comman
 ## Reproducing
 
 Build the release binary on the `spike/listing` branch and run `target/release/waypoint` with the window's URL set to `index.html#spike-auto` (the branch's `tauri.conf.json` does this); read the `SPIKE_RESULT` lines from its output. Run with `GDK_BACKEND=x11` (and `XAUTHORITY` set for XWayland) for the X11 figures.
+
+## Milestone 2 re-measurement
+
+The spike measured throwaway code. Milestone 2 re-ran the same measurements against the real components: the real `waypoint-vfs` provider and plugin, the real list, a real 500 000-file folder on tmpfs made by `scripts/perf-fixture.sh`, in a release build with `VITE_WAYPOINT_PERF=1` so the dev-only harness in `apps/waypoint/src/dev/perfHarness.ts` (installed as `window.__waypointPerf`) is present. The window was 944 × 601 CSS pixels at a device pixel ratio of 2, on GNOME under Wayland and again with `GDK_BACKEND=x11` (XWayland). To repeat it, run `VITE_WAYPOINT_PERF=1 bun run --cwd apps/waypoint build`, a release build with `--features tauri/custom-protocol` and a window URL of `index.html#perf-auto=/tmp/waypoint-perf`, and read the `PERF_RESULT` line from the log; in a development build, open the folder and call `await __waypointPerf.runAll()` from the Tauri MCP bridge or the console.
+
+| Budget (plan for milestone 2)                              | Wayland                                                                   | XWayland                                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| No frame over 33 ms at wheel speed (32 rows a frame)       | Frame time p50 17 ms, p95 17 ms, worst 19 ms; no blank rows in 400 frames | Frame time p50 7 ms, p95 9 ms, worst 16 ms; no blank rows in 400 frames |
+| No frame over 33 ms in an extreme fling (714 rows a frame) | p50 17 ms, worst 20 ms                                                    | p50 8 ms, worst 29 ms (two frames over 20 ms)                           |
+| A jump to any row shows data within two frames             | 34 to 35 ms (two 17 ms frames)                                            | 16 to 21 ms (two 8 ms frames)                                           |
+| Select-all paints within two frames                        | 33 ms                                                                     | 12 ms                                                                   |
+| Sort by name within 200 ms in Rust                         | 43 to 68 ms (`waypoint-vfs` ignored benchmark, 500 000 entries, release)  | the same code                                                           |
+
+**All budgets hold.** The real list matches the spike within noise: the same frame times, the same zero blank rows at wheel speed, and jumps and select-all one or two frames.
+
+**Two honest caveats.** First, the harness's re-sort measurement (4 to 18 ms to a full set of rows) does not measure a sort: the list keeps the old rows on screen until the new page arrives, so no placeholder ever appears. The Rust figure above is the sort cost, and the time to repaint after one is not separately measured. Second, in a development build (debug Rust and the development frontend) 27 of 400 wheel-speed frames showed placeholder rows, where the release build showed none, so the budgets are only claimed for release builds.
+
+**Not measured:** cold-cache scans (dropping the page cache needs root), WebView2 on Windows 11 (the VM run only checked that the app builds and lists folders), and the Folders tree at scale.
+
+#### The grid, a maximised window and memory
+
+Re-run later with `#perf-auto=/tmp/waypoint-perf&max&grid` (maximise first, and measure the grid as well), on GNOME under Wayland, the same 500 000 files, release build.
+
+| Budget                                     | 944 × 601 window at 2×              | Maximised, 2560 × 1392 at 2×                              |
+| ------------------------------------------ | ----------------------------------- | --------------------------------------------------------- |
+| List at wheel speed (32 rows a frame)      | p50 14 ms, worst 14; no blank rows  | p50 17 ms, worst 18; no blank rows                        |
+| Grid at wheel speed                        | p50 14 ms, worst 14; no blank rows  | p50 17 ms, worst 25; no blank rows                        |
+| Fling (714 rows a frame), list and grid    | worst 15 ms (list) and 16 ms (grid) | worst 41 ms (list, one frame) and 34 ms (grid, one frame) |
+| Jump to a row shows data within two frames | p50 23 ms                           | p50 34 ms (two 17 ms frames)                              |
+| Select-all paints within two frames        | 20 ms (list and grid)               | 31 ms (list) and 30 ms (grid)                             |
+
+**All budgets hold in both sizes.** Two things to know. First, `WEBKIT_DISABLE_DMABUF_RENDERER=1` (which `bun run tauri:dev` sets so the Web Inspector renders on Wayland) forces software compositing: maximised, it took every frame over 33 ms (p50 38 ms at wheel speed) where the default took 17 ms. The budgets are for a normal launch; a development build on a big window feels slower than the product will. Second, one early run at the small size showed a single 84 ms frame and a grid wheel sweep whose scroller had been replaced; the harness now reports `scrollerReplaced`, and two further runs showed neither, so it is recorded as seen once and not reproduced.
+
+**Memory** (resident set, release build, sampled while the harness ran): with a 200-file folder open the app's Rust process held 263 MB and the WebKit web process 333 MB; with the 500 000-entry listing open and scrolled the Rust process held 346 to 397 MB (about 80 to 130 MB more, matching the plan's coarse 130 MB figure) and the web process 480 to 860 MB (330 to 530 MB more, dominated by the rendered surface and the cached pages, and larger when maximised). Closing a listing and the tab eviction were not measured separately.
+
+### Windows 11 and accessibility passes
+
+**Windows 11** (a VirtualBox VM, WebView2 154): the stack tip builds and runs. It lists `C:\Users\User`, shows the `C:\ > Users > User` breadcrumbs, 64 GB free, the Known Folders in Places, the empty Favourites state (there is no bookmarks file on Windows) and the Places / Folders switch. The pass found one real defect that Linux could not: `folderTree.ts` beside `FolderTree.tsx` resolves to the wrong file on a case-insensitive file system and fails `tsc`, so the module was renamed `treeRows.ts`. A second pass drove real mouse button events (the VM pins its pointer at the screen centre, so a script moves the window under it): clicking a place navigates, an empty folder shows "This folder is empty.", the mouse back and forward side buttons move through history, a middle-click on a folder opens it in a background tab without switching, and the grid switcher with its size slider works. Drag reordering (the pointer cannot be moved) and the Folders view on other drives are unchecked.
+
+**Keyboard and roles**, audited in the running Linux app: the landmarks are a `main`, a `nav` for the location bar, a `nav` for the sidebar and polite status regions; the file list is a `listbox` named Files with `aria-multiselectable` and `aria-rowcount`; every button, tab and option has an accessible name; and the tab order follows `docs/accessibility.md` item 6 (window buttons, tab strip, toolbar, sidebar, files, status bar). Every Places and Favourites item is its own tab stop rather than a roving one, which suits a short list of buttons but is an open question for a screen-reader pass. The AT-SPI tree, which is what Orca reads, was dumped from the running app: a `Sidebar` landmark, a `Sidebar view` tab list, a `Tabs` tab list, a `Navigation` toolbar, the file list as a multi-select list box whose items are named like "name, size, date, kind" with their selected state, and the Folders tree with `level`, `posinset`, `setsize` and expanded state on every item. **Not done:** listening to Orca itself.
+
+**Checks on the running Linux app** (development build): files created, renamed and deleted from a shell appear in an open folder within the second; Favourites against the real `~/.config/gtk-3.0/bookmarks` (Ctrl+D appends one line and leaves the others alone, F2 rewrites the label, Alt+Up reorders among the shown favourites without disturbing the remote bookmarks the sidebar does not show, Remove restores the file byte for byte); and a double-click on a file launches the system default application with its path. The first of these found that renaming a selected file dropped its selection, fixed by the `moved` field of the `Changed` event (A33). Real-pointer drag reordering is unchecked.

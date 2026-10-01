@@ -86,7 +86,9 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 - **Tear off:** drag a tab out of the strip to spawn a new window under the cursor. A ghost follows the pointer, even outside the app. Native pattern in `docs/tauri-tear-off.md`.
 - **Merge:** drop a tab onto another window's strip. Drop it onto a tab's body to put it next to that tab.
 - **Spring-load:** while you hover a file drag over a tab for 600 ms, that tab activates.
-- Middle-click a folder to open it in a new tab. **Ctrl+middle-click** opens it in a new window.
+- Middle-click a folder to open it in a new tab beside the current one, without leaving the current tab. **Ctrl+middle-click** opens it in a new window. Middle-click a tab to close it.
+- **Keyboard:** the strip is a tablist with roving focus. Left and Right move focus along the tabs (Home and End jump), Enter or Space activates the focused tab, Ctrl+Shift+Left or Right moves it, and Delete closes it. Ctrl+T opens a tab at the current folder, Ctrl+W closes the active tab, Ctrl+Tab and Ctrl+Shift+Tab step through the tabs in strip order, and Alt+1 to Alt+9 go to that tab. Dragging a tab along the strip reorders it, and Escape abandons the drag.
+- Closing the last tab leaves a new tab at Home (until window closing and session restore arrive). Each tab keeps its selection and scroll position while it is open; a background tab gives up its cached rows after a short while and refreshes them when you return.
 
 #### The + button
 
@@ -131,16 +133,16 @@ Clicking or focusing the search box (or pressing / or Ctrl+F) opens a search bar
 
 ### 5.3 Toolbar & path bar
 
-- Back, forward and up, each with a long-press history menu.
-- **Path bar:** breadcrumbs by default. Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Breadcrumb segments are drop targets and have sibling dropdowns.
+- Back, forward and up, each with a long-press history menu. Up is disabled where the location has no parent. **Alt+Left, Alt+Right and Alt+Up** do the same from the keyboard.
+- **Path bar:** breadcrumbs by default, each one navigates. Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Enter goes, Escape (or clicking away) cancels, and text that is not a location shows a message under the field and keeps it open. Typed text is parsed by Rust (`~`, relative paths and `file://` are understood), never split or joined in the UI. Autocomplete and sibling dropdowns on the breadcrumbs come later. Breadcrumb segments are drop targets and have sibling dropdowns.
 - Search: filter-as-you-type in the current folder, with Enter for recursive search and saved-search chips.
-- View switcher: Grid, List, Columns (Miller), Compact, and Disk usage.
+- The view switcher is not in the toolbar: per D23 the view icons live in the status bar footer (§5.8), and sort and group live in the empty-space context menu (§5.5).
 - Toggles: sidebar, inspector, split, terminal drawer, shelf.
 
 ### 5.3b Navigation and selection
 
-- **History menus:** right-click or long-press Back and Forward to see the folders behind and ahead, and jump to any of them.
-- **Go to…** (Ctrl+Shift+G): type a location, with recent, saved and matching folders below. A missing location shows an error, not a blank view.
+- **History menus:** right-click, long-press or press the menu key on Back and Forward to see the folders behind and ahead (nearest first), and jump to any of them. The history belongs to the tab and is kept by the session.
+- **Go to…** (Ctrl+Shift+G): type a location, with recent, saved and matching folders below. Until those lists exist it opens the path bar's text editor, the same as Ctrl+L. A missing, unreadable or not-a-folder location shows its own error state, not a blank view, and leaves the tab's history intact so Back returns to where you were.
 - **Copy To… / Move To…:** in the file menu; pick a destination from places, favourites, open tabs, drives and servers, or type one.
 - **Open With…:** the file menu lists recommended apps, and _Other Application…_ opens a chooser with an “always use for .ext” option, which then shows in Properties.
 - **Select tools:** Select by Pattern (Ctrl+S, with * and ? wildcards, select/add/deselect and a live match count), Invert Selection (Ctrl+I), Select Similar, Deselect All.
@@ -165,9 +167,18 @@ Sections can be reordered and collapsed:
 
 Every item is a drop target. Hovering an item during a drag springs it open after 600 ms.
 
+**What milestone 2 ships of the sidebar:** a collapsible left panel (toggle button in the toolbar, **F9**) with the **Places / Folders** switch at its top, showing either **Places** with **Favourites**, or the **Folders** tree on its own; the other sections, drag and drop into the sidebar and the Recent list arrive with the features they depend on. The sidebar is a navigation landmark, and each section is a labelled group whose heading collapses it, and the switch is a pair of tabs (Left and Right move between them); the view and the collapsed sections last for the window (nothing is saved between runs yet).
+
+- **Places** shows Home and the user folders that exist (the XDG user directories on Linux, Known Folders on Windows). **Favourites** are the freedesktop bookmarks file (`~/.config/gtk-3.0/bookmarks`), shared with other file managers, and **Ctrl+D** pins the current folder. A favourite whose folder is gone stays listed, and opening it shows the usual Folder not found state.
+- A click opens the item in the active tab; a middle-click opens it in a background tab; the item of the current folder is marked. Right-click (or the menu key) shows Open and Open in New Tab, plus Rename, Move Up, Move Down and Remove from Favourites on a favourite and Add to Favourites on a folder. A folder in the file list has Add to Favourites in its menu too.
+- **Favourites** are renamed in place (**F2**; an empty name restores the folder's own) and reordered by dragging a favourite onto another, with **Alt+Up** and **Alt+Down**, or from the menu. Up and Down move between the items of Places and Favourites.
+- **Folders** (its own view, so choosing a place never moves it) is a tree that opens down to the current folder and follows the active tab. A folder's children are read only when it is expanded, and the tree lists hidden folders only while the tab shows hidden files. It follows the tree keyboard pattern: Up and Down move, Right expands (then enters), Left collapses (then goes to the parent), Home and End jump, Enter opens the folder in the tab, and typing the first letters of a name jumps to it. A folder with more than 2000 sub-folders shows the first 2000 and says so.
+
 ### 5.5 File view
 
-- **Grid:** thumbnails with a size slider (48–256 px) and folder peeks (a 2×2 mosaic of contents).
+- **View switcher:** List and Grid buttons at the right end of the status bar (Ctrl+2 and Ctrl+1; Columns, Compact and Disk usage take Ctrl+3 to Ctrl+5 when they exist). The choice is for the window's session and every folder shows it; a folder remembering its own view is deferred with the other per-folder settings (§5.3b).
+- **Grid:** icons with a size slider (48–256 px, in the status bar beside the switcher while the grid is shown), names under them, and later thumbnails and folder peeks (a 2×2 mosaic of contents). The grid fits as many columns as the width allows and is virtualised by row. Arrow keys move one item sideways or one row up and down, Page Up and Page Down move by the visible rows, Home and End go to the ends; selection, type-ahead, Enter and the context menus are the list's. A folder too large for the webview's scroll height shows the same "Showing the first N of M" banner, counted in rows of columns.
+- **Empty-space menu:** right-click the file area (or press the menu key with nothing focused) for Sort by (Name, Size, Modified, Kind), Descending, Folders first and Show hidden files (Ctrl+H). The sort applies to the open folder and carries to folders the tab opens next; Show hidden files applies to every open tab.
 - **List:** sortable, resizable, reorderable columns. Plugin columns (git status, media info) sit beside built-ins.
 - **Columns (Miller):** hierarchical navigation with a preview column at the end.
 - **Disk usage:** a treemap or sunburst of the current folder, with list parity.
@@ -205,7 +216,11 @@ Tabs: **Preview** (a thumbnail or rendered preview with a short summary: name, k
 
 ### 5.8 Status bar
 
-Shows the selection count and size, free space on the current volume, an ops queue ring (progress and count, click to open), and plugin status items such as the git branch and remote latency.
+Shows the item count, the selection count and size, free space on the current volume, the List and Grid view switcher at the right end (D23), an ops queue ring (progress and count, click to open), and plugin status items such as the git branch and remote latency.
+
+- The selection count is immediate; the size is the sum of the selected files (folders add nothing, it is not recursive) and is worked out in Rust, so it arrives a moment later and dims while a newer one is on its way. Free space is hidden where the volume cannot report it.
+- The bar announces the selection count politely to screen readers, and reports a failure such as a file that would not open.
+- **Open:** Enter or double-click opens a folder in place and a file in its default application. The read-only context menu on an entry offers Open, Open in New Tab (folders) and Copy Path (the path as Rust displays it, which may be lossy for names that are not valid UTF-8). Right-clicking an entry that is not selected selects it first, and the menu acts on the entry under the pointer. The menu key or Shift+F10 opens it for the focused entry.
 
 ## 6. Super drag and drop
 

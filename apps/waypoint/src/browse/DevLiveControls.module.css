@@ -1,0 +1,12 @@
+.bar {
+	display: flex;
+	flex: none;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 12px;
+	border-bottom: 1px dashed var(--wp-warning);
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}

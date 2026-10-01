@@ -1,0 +1,126 @@
+/*
+ * One cell is the icon plus 12 px of padding each side, and a two-line name under it. The numbers
+ * repeat `cellFor` in `gridLayout.ts`, which the virtualiser uses, so change them together.
+ */
+.view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	background: var(--wp-bg-content);
+	color: var(--wp-text-primary);
+}
+
+.notice {
+	flex: none;
+	padding: 4px 12px;
+	border-bottom: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.notice[data-notice='capped'] {
+	color: var(--wp-warning);
+}
+
+.scroller {
+	flex: 1;
+	min-height: 0;
+	overflow-y: scroll;
+	scrollbar-gutter: stable;
+}
+
+.emptyArea {
+	flex: 1;
+	min-height: 0;
+}
+
+.grid {
+	position: relative;
+	height: var(--wp-grid-height);
+	outline: none;
+}
+
+.row {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: grid;
+	grid-template-columns: repeat(var(--wp-grid-columns), calc(var(--wp-grid-size) + 24px));
+	justify-content: center;
+	width: 100%;
+	height: calc(var(--wp-grid-size) + 64px);
+	box-sizing: border-box;
+	transform: translateY(var(--wp-row-y));
+}
+
+.cell {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	padding: 12px 12px 0;
+	border-radius: 8px;
+	cursor: default;
+	user-select: none;
+}
+
+.cell:hover {
+	background: var(--wp-bg-hover);
+}
+
+.cell[data-selected] {
+	background: var(--wp-bg-selected);
+}
+
+/* The keyboard focus stays visible whether or not the item is selected. */
+.grid:focus .cell[data-active] {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.cell .glyph {
+	width: var(--wp-grid-size);
+	height: var(--wp-grid-size);
+	stroke-width: 1.4px;
+}
+
+/* Strokes keep their weight as the icon grows, so large icons are not drawn with thick lines. */
+.cell .glyph * {
+	vector-effect: non-scaling-stroke;
+}
+
+.label {
+	display: -webkit-box;
+	max-width: 100%;
+	overflow: hidden;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	font-size: 12px;
+	line-height: 16px;
+	text-align: center;
+	overflow-wrap: anywhere;
+}
+
+.skeleton {
+	display: block;
+	width: var(--wp-grid-size);
+	height: var(--wp-grid-size);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--wp-text-primary) 8%, transparent);
+}
+
+.srOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}

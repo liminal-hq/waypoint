@@ -1,0 +1,28 @@
+[package]
+name = "waypoint-vfs"
+version = "0.1.0"
+description = "Waypoint's virtual file system: providers, listing handles and the wire types the frontend reads them through"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+dirs = "6"
+notify = "8"
+ts-rs = { workspace = true }
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = "3"

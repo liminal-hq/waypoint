@@ -1,0 +1,225 @@
+.sidebar {
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	gap: 4px;
+	box-sizing: border-box;
+	width: var(--wp-sidebar-width, 220px);
+	padding: 4px 0 0;
+	overflow: hidden;
+	border-right: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-sidebar);
+	color: var(--wp-text-primary);
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+}
+
+.heading {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.headingButton {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	width: 100%;
+	padding: 4px 8px;
+	border: 0;
+	background: transparent;
+	color: var(--wp-text-muted);
+	font: inherit;
+	text-align: start;
+	cursor: default;
+}
+
+.headingButton:hover {
+	color: var(--wp-text-primary);
+}
+
+.headingButton:focus-visible,
+.item:focus-visible,
+.treeItem:focus-visible,
+.renameField:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.headingChevron {
+	transition: transform 120ms ease;
+}
+
+.headingButton[aria-expanded='true'] .headingChevron {
+	transform: rotate(90deg);
+}
+
+.list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.item,
+.treeItem {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: var(--wp-row-height);
+	padding: 0 8px 0 12px;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: default;
+	user-select: none;
+}
+
+.item {
+	/* The icon lines up under the heading's label, not its chevron. */
+	padding-inline-start: 28px;
+}
+
+.item:hover,
+.treeItem:hover {
+	background: var(--wp-bg-hover);
+}
+
+.item[aria-current='page'],
+.treeItem[aria-current='page'] {
+	background: var(--wp-bg-selected);
+}
+
+.item[data-dragging] {
+	opacity: 0.5;
+}
+
+.item[data-drop-target] {
+	box-shadow: inset 0 2px 0 var(--wp-accent);
+}
+
+.itemIcon {
+	flex: none;
+	color: var(--wp-text-secondary);
+}
+
+.label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.empty {
+	margin: 0;
+	padding: 4px 12px;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}
+
+.renameField {
+	box-sizing: border-box;
+	width: calc(100% - 16px);
+	margin: 2px 8px;
+	padding: 3px 6px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 4px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-primary);
+	font: inherit;
+}
+
+.tree {
+	display: flex;
+	flex-direction: column;
+}
+
+.treeItem {
+	/* Each level indents by one step; `--wp-tree-level` is set per row from its `aria-level`. */
+	padding-inline-start: calc(4px + var(--wp-tree-level, 0) * 14px);
+}
+
+.twisty {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--wp-text-muted);
+	transition: transform 120ms ease;
+}
+
+.twisty[data-expanded] {
+	transform: rotate(90deg);
+}
+
+.twisty[data-leaf] {
+	visibility: hidden;
+}
+
+.note {
+	padding: 2px 8px;
+	padding-inline-start: calc(26px + var(--wp-tree-level, 0) * 14px);
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}
+
+.srOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+[dir='rtl'] .headingChevron,
+[dir='rtl'] .twisty {
+	scale: -1 1;
+}
+
+.viewSwitch {
+	display: flex;
+	flex: none;
+	gap: 2px;
+	margin: 2px 8px 4px;
+	padding: 2px;
+	border-radius: 6px;
+	background: var(--wp-bg-hover);
+}
+
+.viewTab {
+	flex: 1;
+	padding: 3px 8px;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-muted);
+	font: inherit;
+	font-size: 12px;
+}
+
+.viewTab[aria-selected='true'] {
+	background: var(--wp-bg-sidebar);
+	color: var(--wp-text-primary);
+}
+
+.panel {
+	flex: 1;
+	min-height: 0;
+	padding-bottom: 8px;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}

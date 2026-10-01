@@ -16,7 +16,11 @@
         "@liminal-hq/plugin-system-appearance": "workspace:*",
         "@liminal-hq/plugin-window-manager": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
+        "@liminal-hq/waypoint-plugin-session": "workspace:*",
+        "@liminal-hq/waypoint-plugin-vfs": "workspace:*",
+        "@liminal-hq/waypoint-protocol": "workspace:*",
         "@tanstack/react-router": "^1.170.33",
+        "@tanstack/react-virtual": "^3.14.13",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-log": "^2.8.0",
         "@tauri-apps/plugin-os": "^2.3.2",
@@ -65,10 +69,42 @@
         "react-dom": "^19.1.0",
       },
     },
+    "packages/protocol": {
+      "name": "@liminal-hq/waypoint-protocol",
+      "version": "0.0.0",
+    },
     "plugins/system-appearance": {
       "name": "@liminal-hq/plugin-system-appearance",
       "version": "0.2.0",
       "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/waypoint-session": {
+      "name": "@liminal-hq/waypoint-plugin-session",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liminal-hq/waypoint-protocol": "workspace:*",
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/waypoint-vfs": {
+      "name": "@liminal-hq/waypoint-plugin-vfs",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liminal-hq/waypoint-protocol": "workspace:*",
         "@tauri-apps/api": "^2.10.0",
       },
       "devDependencies": {
@@ -205,6 +241,12 @@
 
     "@liminal-hq/waypoint-chrome": ["@liminal-hq/waypoint-chrome@workspace:packages/chrome"],
 
+    "@liminal-hq/waypoint-plugin-session": ["@liminal-hq/waypoint-plugin-session@workspace:plugins/waypoint-session"],
+
+    "@liminal-hq/waypoint-plugin-vfs": ["@liminal-hq/waypoint-plugin-vfs@workspace:plugins/waypoint-vfs"],
+
+    "@liminal-hq/waypoint-protocol": ["@liminal-hq/waypoint-protocol@workspace:packages/protocol"],
+
     "@napi-rs/lzma-linux-x64-gnu": ["@napi-rs/lzma-linux-x64-gnu@1.5.1", "", { "os": "linux", "cpu": "x64" }, "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-beta.27", "", {}, "sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA=="],
@@ -271,9 +313,13 @@
 
     "@tanstack/react-store": ["@tanstack/react-store@0.11.2", "", { "dependencies": { "@tanstack/store": "0.11.2", "use-sync-external-store": "^1.6.0" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-oj5O5DmiMWE+ih+SioX2ayC1kbK7d3fpLx0B75fPJr9nY3zU+hoW010yr64qXsY/9fyiLVE2bn5mGNV3owm8RQ=="],
 
+    "@tanstack/react-virtual": ["@tanstack/react-virtual@3.14.13", "", { "dependencies": { "@tanstack/virtual-core": "3.17.11" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-JbDTAwtzZ99aOeCrAfW5EsE5KSq5RWh6Af2dtFwyLIIk48Ja7vm6n4axu/43T3vfjFnEGJalxJ1wyYjSQD6bSg=="],
+
     "@tanstack/router-core": ["@tanstack/router-core@1.171.33", "", { "dependencies": { "@tanstack/history": "1.162.4", "cookie-es": "^3.0.0", "seroval": "^1.6.7", "seroval-plugins": "^1.6.7" } }, "sha512-TK31LyRZuVwwmWrv3oSCBN7OuM4R1qQZePRTiexFyqQUuCo3ERHZgzArosynwZKtYlEf4qbFCvbW7UUfvGiiZw=="],
 
     "@tanstack/store": ["@tanstack/store@0.11.2", "", {}, "sha512-sJ4mjol8uQsHV0gOJzzjwXfh2Fwm+Sz0+8deqiTm4jGbMdjzNSW+xZCFm0kUa870uhd8yi+DpKnZb5Kc4apa0Q=="],
+
+    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.17.11", "", {}, "sha512-+ILjvtHup6Y2hzQ6YzwMgX1Q+oQpxEGOXCEsCNaPoIP0VxMbizIBTmYTDtkerkIQS8/CbP1BRuyt8V/8BCsy1g=="],
 
     "@tauri-apps/api": ["@tauri-apps/api@2.12.0", "", {}, "sha512-fUSxFX8VABYe9W9K5ROdEaKVkNUFRcMSRofjruvaxztXA+I0XnQHcYHF8m/a6iExRUxsUf0HsFWhPBuH9IgzJw=="],
 

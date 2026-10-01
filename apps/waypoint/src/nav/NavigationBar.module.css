@@ -1,0 +1,9 @@
+.bar {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-window);
+}
