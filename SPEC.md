@@ -88,8 +88,8 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 - **Spring-load:** while you hover a file drag over a tab for 600 ms, that tab activates.
 - Middle-click a folder to open it in a new tab beside the current one, without leaving the current tab. **Ctrl+middle-click** opens it in a new window. Middle-click a tab to close it.
 - **Keyboard:** the strip is a tablist with roving focus. Left and Right move focus along the tabs (Home and End jump), Enter or Space activates the focused tab, Ctrl+Shift+Left or Right moves it, and Delete closes it. Ctrl+T opens a tab at the current folder, Ctrl+W closes the active tab, Ctrl+Tab and Ctrl+Shift+Tab step through the tabs in most-recently-used order, committed when Ctrl is released, and Alt+1 to Alt+9 go to that tab. Dragging a tab along the strip reorders it, and Escape abandons the drag.
-- **Last tab and last window (milestone 3):** closing the last tab of a window closes the window, and closing the last window quits Waypoint. Closed tabs, including the tabs of a closed window, go to Recently Closed (the last 10, kept with the session).
-- Closing the last tab leaves a new tab at Home until milestone 3 introduces the rule below. Each tab keeps its selection and scroll position while it is open; a background tab gives up its cached rows after a short while and refreshes them when you return.
+- **Last tab and last window:** closing the last tab of a window closes the window, and closing the last window quits Waypoint. Closed tabs, including the tabs of a closed window, go to Recently Closed (the last 10, kept with the session).
+- Each tab keeps its selection and scroll position while it is open; a background tab gives up its cached rows after a short while and refreshes them when you return.
 
 #### The + button
 
@@ -302,7 +302,7 @@ Settings open in a separate window using the same side-nav pattern as Emoji Nook
 
 - **Terminal drawer:** a bottom drawer running the user's shell that follows the active pane's cwd (an optional setting). You can drop files into it and pop it out to an external terminal.
 - **Flow:** logs your working context (current workspace, recently touched folders) to Liminal Flow. Opt-in.
-- **Session restore:** windows, tabs, groups, splits, scroll position and selection.
+- **Session restore:** the next start brings back each window with its size (and position, where the platform lets an app place its windows: not on Wayland), its tabs in order with the active tab and each tab's back and forward history, the list or grid view with its icon size and hidden-files choice, each tab's scroll position and focused entry, and Recently Closed. A folder that no longer exists opens as the usual "Folder not found" page with its history intact. A session file that cannot be read is kept aside, the previous run's copy is tried, and the status bar says "Your last session could not be restored" if neither works. Closing the last window by its own close button keeps that window's tabs for the next start; closing its last tab instead (or closing other windows) sends the tabs to Recently Closed. Groups, splits and selection are restored with their own features.
 - **Devices:** mount, unmount, eject and unlock LUKS volumes (passphrase dialog, remember in keyring).
 
 ## 13a. OS integration

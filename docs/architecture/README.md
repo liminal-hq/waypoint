@@ -59,7 +59,7 @@ Three tiers, one direction of dependency:
 
 ## 4. Windows
 
-One frontend bundle; the entry point routes on the webview label. There is no static main window: no browser window is declared in `tauri.conf.json`, and the composition root creates each `main-{n}` from the restored session (a new session opens one window at Home), through a `WindowFactory` injected into the session plugin. Labels are never reused within a process (A40).
+One frontend bundle; the entry point routes on the webview label. There is no static main window: no browser window is declared in `tauri.conf.json`, and the composition root creates each `main-{n}` from the restored session (a new session opens one window at Home), through a `WindowFactory` injected into the session plugin. Labels are never reused within a process (A40). Geometry is captured from `Moved` and `Resized` events (throttled to 250 ms; on Wayland size and maximised only) and fitted to a visible monitor on restore, so `tauri-plugin-window-state` is gone. Closing a window's last tab closes the window, and closing the last window quits after a final save of `session.json` in the app data directory (D91).
 
 | Label             | Purpose                                                                |
 | ----------------- | ---------------------------------------------------------------------- |
