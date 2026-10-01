@@ -140,6 +140,11 @@ impl Tearoff {
             }
         };
         if report.state != ToplevelBeginState::Started {
+            warn!(
+                "window-tearoff: the toplevel drag of `{window}` did not start: {:?}: {}",
+                report.state,
+                report.reason.as_deref().unwrap_or("no reason")
+            );
             // The caller may already have made the window it meant to drag, and only that window's page can put its contents back, so it is told the drag failed.
             let ended = self.toplevel.fail_unstarted(
                 source.label(),

@@ -193,13 +193,10 @@ impl Tracker {
             toplevel_drag_manager: globals.bind(&qh, 1..=1, ()).map_err(bind_failed)?,
             drag: None,
         };
-        // The seat reports its capabilities, and the pointer is made when it has one.
+        // The seat reports its capabilities, and the pointer is made when it has one, now or when one is plugged in (a headless compositor has none until a remote desktop session adds a virtual one). A drag cannot start until it exists: `start` reports no button held.
         queue
             .roundtrip(&mut state)
             .map_err(|error| Unavailable::Connection(error.to_string()))?;
-        if state.pointer.is_none() {
-            return Err(Unavailable::NoSeatOrDataDevice);
-        }
         Ok(Self { conn, queue, state })
     }
 
@@ -357,6 +354,14 @@ impl Dispatch<WlSeat, ()> for State {
             let has_pointer = capabilities.contains(wl_seat::Capability::Pointer);
             if has_pointer && state.pointer.is_none() {
                 state.pointer = Some(seat.get_pointer(qh, ()));
+            } else if !has_pointer {
+                // The pointer went away (unplugged, or a remote desktop session ended): its object is dead, and a new one is made when a pointer comes back.
+                if let Some(pointer) = state.pointer.take() {
+                    if pointer.version() >= 3 {
+                        pointer.release();
+                    }
+                }
+                state.pressed = None;
             }
         }
     }
