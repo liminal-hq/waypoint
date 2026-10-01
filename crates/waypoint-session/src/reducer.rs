@@ -311,6 +311,7 @@ pub fn apply(
     snapshot: &SessionSnapshot,
     command: Command,
 ) -> Result<(SessionSnapshot, Vec<SessionEvent>), SessionError> {
+    reject_multi_window(&command)?;
     let mut store = store_from_snapshot(snapshot);
     let outcome = store.dispatch(COMPAT_WINDOW, command)?;
     let events = outcome
@@ -321,6 +322,19 @@ pub fn apply(
         .snapshot(COMPAT_WINDOW)
         .ok_or_else(|| SessionError::UnknownWindow(COMPAT_WINDOW.to_string()))?;
     Ok((next, events))
+}
+
+/// The one-window view cannot express the window commands: closing its window would leave no
+/// snapshot to read, and moving tabs away (or opening another window) changes state the view never
+/// shows, with no close events for the tabs that left. They belong to `Store`, so the view rejects
+/// them before anything changes.
+pub(crate) fn reject_multi_window(command: &Command) -> Result<(), SessionError> {
+    match command {
+        Command::CloseWindow | Command::OpenWindow { .. } | Command::MoveTabs { .. } => Err(
+            SessionError::Invalid("a single-window session cannot change its windows"),
+        ),
+        _ => Ok(()),
+    }
 }
 
 /// The label of the single window behind `apply` and `Session`.

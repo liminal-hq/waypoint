@@ -569,3 +569,37 @@ fn random_store_sequences_hold_every_invariant() {
         );
     }
 }
+
+#[test]
+fn the_one_window_view_rejects_window_commands() {
+    use waypoint_session::{MoveTo, MoveWhat, SessionError};
+
+    let mut session = Session::new();
+    let tab = open(&mut session, "a", true);
+    let before = session.snapshot();
+    let commands = [
+        Command::CloseWindow,
+        Command::OpenWindow {
+            location: None,
+            geometry: None,
+        },
+        Command::MoveTabs {
+            what: MoveWhat::Tabs(vec![tab]),
+            to: MoveTo::NewWindow {
+                label: None,
+                geometry: None,
+            },
+        },
+    ];
+    for command in commands {
+        let err = session.dispatch(command.clone()).unwrap_err();
+        assert!(matches!(err, SessionError::Invalid(_)), "{err:?}");
+        assert_eq!(
+            session.snapshot(),
+            before,
+            "a rejected command changes nothing"
+        );
+        let err = apply(&before, command).unwrap_err();
+        assert!(matches!(err, SessionError::Invalid(_)), "{err:?}");
+    }
+}

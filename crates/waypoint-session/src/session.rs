@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::model::{SessionEvent, SessionSnapshot, TabId, WindowState};
-use crate::reducer::{Command, SessionError, COMPAT_WINDOW};
+use crate::reducer::{reject_multi_window, Command, SessionError, COMPAT_WINDOW};
 use crate::store::{Store, StorePolicy};
 
 type TabClosedHook = Box<dyn Fn(TabId) + Send + Sync>;
@@ -52,8 +52,10 @@ impl Session {
     }
 
     /// Applies a command and returns the events it produced for this window. On an error the
-    /// session is unchanged.
+    /// session is unchanged. The window commands (`OpenWindow`, `CloseWindow`, `MoveTabs`) are
+    /// rejected with `SessionError::Invalid`: this session's one window is never lost.
     pub fn dispatch(&mut self, command: Command) -> Result<Vec<SessionEvent>, SessionError> {
+        reject_multi_window(&command)?;
         let outcome = self.store.dispatch(COMPAT_WINDOW, command)?;
         let events: Vec<SessionEvent> = outcome.events_for(COMPAT_WINDOW).cloned().collect();
         for event in &events {
