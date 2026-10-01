@@ -115,6 +115,7 @@ export class FakeOpsClient implements OpsClient {
 		verifyAlgorithm: 'blake3',
 		confirmTrash: true,
 		undoDepth: 50,
+		trashExpiryDays: null,
 	};
 	private recovery: RecoveryReport | null = null;
 	private mute = 0;

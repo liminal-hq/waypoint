@@ -29,7 +29,6 @@
 		"@liminal-hq/waypoint-plugin-ops": "workspace:*",
 		"@liminal-hq/waypoint-plugin-session": "workspace:*",
 		"@liminal-hq/waypoint-chrome": "workspace:*",
-		"@liminal-hq/waypoint-plugin-ops": "workspace:*",
 		"@liminal-hq/waypoint-plugin-vfs": "workspace:*",
 		"@liminal-hq/waypoint-protocol": "workspace:*",
 		"@tanstack/react-router": "^1.170.33",

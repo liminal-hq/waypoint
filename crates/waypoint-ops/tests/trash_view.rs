@@ -30,6 +30,7 @@ fn trashed_request<P: Provider + 'static>(
         destination: None,
         name: None,
         options: JobOptions::default(),
+        rename: None,
         origin_window: "main-1".to_owned(),
     }
 }
@@ -41,6 +42,7 @@ fn empty_request(older_than_days: Option<u32>) -> JobRequest {
         destination: None,
         name: None,
         options: JobOptions::default(),
+        rename: None,
         origin_window: "app".to_owned(),
     }
 }
