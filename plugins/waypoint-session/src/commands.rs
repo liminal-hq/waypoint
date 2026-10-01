@@ -7,15 +7,18 @@
 // `target`, `move_tabs`' `to`). Each is one `Command` on the store, so it is atomic and its events
 // reach the windows they belong to in revision order (see `Sessions::run`).
 
-use tauri::{Manager, Runtime, State, WebviewWindow};
+use serde::Serialize;
+use tauri::{Emitter, Manager, Runtime, State, WebviewWindow};
 use waypoint_protocol::{Location, PluginStatus};
 use waypoint_session::{
     Command, Geometry, GroupId, GroupSort, MoveTo, MoveWhat, Outcome, PairId, PairLayout,
     SessionError, SessionEvent, SessionSnapshot, TabColour, TabHints, TabId, ViewPrefs,
+    WindowSummary,
 };
 
 use crate::error::Error;
 use crate::sessions::{move_target, Sessions};
+use crate::HANDOFF_EVENT;
 
 fn run<R: Runtime>(
     window: &WebviewWindow<R>,
@@ -459,9 +462,19 @@ pub async fn set_view<R: Runtime>(
     run(&window, &sessions, Command::SetView { view }).map(drop)
 }
 
+/// What a window that tabs were handed to is told, so it can announce them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Handoff {
+    pub tabs: Vec<TabId>,
+    /// The window they came from.
+    pub from: String,
+}
+
 /// Moves tabs, a group or a pair out of the calling window into an existing window or a new one
 /// and returns the label of the window they went to. A new window is created by the window
-/// factory, and when that fails nothing moves.
+/// factory, and when that fails nothing moves. The window they went to is brought to the front
+/// and an existing one is told (`HANDOFF_EVENT`); a refused window (`TooManyWindows`) moves nothing.
 #[tauri::command]
 pub async fn move_tabs<R: Runtime>(
     window: WebviewWindow<R>,
@@ -478,6 +491,15 @@ pub async fn move_tabs<R: Runtime>(
             "a new window cannot be given the label `{label}`"
         )));
     }
+    let moved: Vec<TabId> = sessions.with_store(|s| {
+        s.window(window.label())
+            .map(|w| match &what {
+                MoveWhat::Tabs(tabs) => tabs.clone(),
+                MoveWhat::Group(g) => w.group_tabs(*g),
+                MoveWhat::Pair(p) => w.pair(*p).map(|p| p.panes.clone()).unwrap_or_default(),
+            })
+            .unwrap_or_default()
+    });
     let outcome = run(
         &window,
         &sessions,
@@ -486,8 +508,34 @@ pub async fn move_tabs<R: Runtime>(
             to: to.clone(),
         },
     )?;
-    move_target(&to, &outcome)
-        .ok_or_else(|| Error::Internal("moving tabs produced no target window".into()))
+    let target = move_target(&to, &outcome)
+        .ok_or_else(|| Error::Internal("moving tabs produced no target window".into()))?;
+    let app = window.app_handle();
+    if let Some(webview) = app.get_webview_window(&target) {
+        if matches!(to, MoveTo::ExistingWindow { .. }) {
+            let handoff = Handoff {
+                tabs: moved,
+                from: window.label().to_string(),
+            };
+            if let Err(e) = app.emit_to(target.as_str(), HANDOFF_EVENT, handoff) {
+                log::warn!("could not tell `{target}` about the hand-off: {e}");
+            }
+        }
+        // Not every platform lets a window take focus; the hand-off has still happened.
+        if let Err(e) = webview.set_focus() {
+            log::debug!("could not focus `{target}`: {e}");
+        }
+    }
+    Ok(target)
+}
+
+/// Every window of the session as a menu lists it (the calling window is marked `active`).
+#[tauri::command]
+pub async fn list_windows<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+) -> Result<Vec<WindowSummary>, Error> {
+    Ok(sessions.window_summaries(window.label()))
 }
 
 /// Session state is in memory and platform-independent, so the plugin is always available.

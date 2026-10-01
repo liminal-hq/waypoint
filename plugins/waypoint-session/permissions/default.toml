@@ -36,5 +36,6 @@ permissions = [
   "allow-set-geometry",
   "allow-set-view",
   "allow-move-tabs",
+  "allow-list-windows",
   "allow-get-status",
 ]

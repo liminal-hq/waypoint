@@ -17,7 +17,10 @@ use waypoint_session::{
 };
 
 use crate::commands;
-use crate::{init, Error, MemoryStorage, SessionDeps, Sessions, WindowError, WindowFactory, EVENT};
+use crate::{
+    init, Error, MemoryStorage, SessionDeps, Sessions, WindowError, WindowFactory, EVENT,
+    MAX_WINDOWS, WARN_WINDOWS,
+};
 
 type App = tauri::App<MockRuntime>;
 
@@ -34,6 +37,7 @@ impl WindowFactory<MockRuntime> for Factory {
         app: &AppHandle<MockRuntime>,
         label: &str,
         geometry: Option<&Geometry>,
+        _opener: Option<&str>,
     ) -> Result<(), WindowError> {
         if let Some(e) = self.fail.lock().unwrap().clone() {
             return Err(e);
@@ -657,4 +661,110 @@ fn run_existing_does_not_register_a_window_the_store_closed() {
         sessions(&t.app).with_store(|s| s.window("main-1").and_then(|w| w.geometry)),
         Some(geometry)
     );
+}
+
+fn open_window(app: &App, from: &str) -> Result<String, Error> {
+    tauri::async_runtime::block_on(commands::open_window(
+        window(app, from),
+        sessions(app),
+        Some(loc("w")),
+        None,
+    ))
+}
+
+#[test]
+fn the_thirteenth_window_is_refused_with_a_typed_error_and_nothing_changes() {
+    let t = setup(&["main-1"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    for _ in 1..crate::MAX_WINDOWS {
+        open_window(&t.app, "main-1").unwrap();
+    }
+    assert_eq!(sessions(&t.app).with_store(|s| s.windows().len()), 12);
+    let before = sessions(&t.app).with_store(|s| s.clone());
+    let created = t.factory.created.lock().unwrap().len();
+
+    let refused = open_window(&t.app, "main-1");
+    assert!(matches!(refused, Err(Error::TooManyWindows { limit: 12 })));
+    assert_eq!(sessions(&t.app).with_store(|s| s.clone()), before);
+    assert_eq!(t.factory.created.lock().unwrap().len(), created);
+
+    // Moving a tab to yet another new window is refused the same way, and so is nothing else.
+    let b = open_tab(&t.app, "main-1", "b").unwrap();
+    let moved = tauri::async_runtime::block_on(commands::move_tabs(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        MoveWhat::Tabs(vec![b]),
+        MoveTo::NewWindow {
+            label: None,
+            geometry: None,
+        },
+    ));
+    assert!(matches!(moved, Err(Error::TooManyWindows { .. })));
+    assert_eq!(tab_count(&t.app, "main-1"), 2);
+
+    // The refusal reaches the page as an object it can tell apart from a failure.
+    let json = serde_json::to_value(refused.unwrap_err()).unwrap();
+    assert_eq!(json["kind"], "tooManyWindows");
+    assert_eq!(json["limit"], 12);
+
+    // Closing a window makes room again, and moving into an existing window is never refused.
+    tauri::async_runtime::block_on(commands::close_window(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        Some("main-12".into()),
+    ))
+    .unwrap();
+    assert!(open_window(&t.app, "main-1").is_ok());
+    const { assert!(WARN_WINDOWS < MAX_WINDOWS) };
+}
+
+#[test]
+fn list_windows_names_each_window_by_its_active_tab_and_marks_the_caller() {
+    let t = setup(&["main-1", "main-2"]);
+    open_tab(&t.app, "main-1", "Documents").unwrap();
+    open_tab(&t.app, "main-1", "Music").unwrap();
+    open_tab(&t.app, "main-2", "Pictures").unwrap();
+    let listed = tauri::async_runtime::block_on(commands::list_windows(
+        window(&t.app, "main-2"),
+        sessions(&t.app),
+    ))
+    .unwrap();
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0].label, "main-1");
+    // `open_tab` activates the new tab, so the window shows its newest.
+    assert_eq!(listed[0].title, "Music");
+    assert_eq!(listed[0].tab_count, 2);
+    assert!(!listed[0].active);
+    assert_eq!(listed[1].title, "Pictures");
+    assert!(listed[1].active);
+}
+
+#[test]
+fn an_existing_target_window_is_told_about_the_hand_off() {
+    let t = setup(&["main-1", "main-2"]);
+    let a = open_tab(&t.app, "main-1", "a").unwrap();
+    open_tab(&t.app, "main-1", "b").unwrap();
+    open_tab(&t.app, "main-2", "c").unwrap();
+    let (sender, receiver) = channel::<serde_json::Value>();
+    window(&t.app, "main-2").listen(crate::HANDOFF_EVENT, move |event| {
+        let _ = sender.send(serde_json::from_str(event.payload()).unwrap());
+    });
+    let label = tauri::async_runtime::block_on(commands::move_tabs(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        MoveWhat::Tabs(vec![a]),
+        MoveTo::ExistingWindow {
+            label: "main-2".into(),
+            index: 0,
+        },
+    ))
+    .unwrap();
+    assert_eq!(label, "main-2");
+    wait_until("the hand-off event", || {
+        receiver.try_recv().is_ok_and(|p| {
+            assert_eq!(p["from"], "main-1");
+            assert_eq!(p["tabs"], serde_json::json!([a.0]));
+            true
+        })
+    });
 }

@@ -11,11 +11,19 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use waypoint_protocol::WindowKind;
 use waypoint_session::{
     Command, MoveTo, Outcome, SessionEvent, SessionSnapshot, SessionStorage, Store, TabId,
+    WindowSummary,
 };
 
 use crate::deps::SessionDeps;
 use crate::error::Error;
 use crate::EVENT;
+
+/// How many windows may be open at once. Each costs about 160 ms to open and 330 MB of memory
+/// (the milestone 3 multi-window spike), so a thirteenth is refused rather than left to swamp the machine.
+pub const MAX_WINDOWS: usize = 12;
+
+/// The number of windows from which opening one more logs a warning and the page tells the person.
+pub const WARN_WINDOWS: usize = 8;
 
 type Hook = Arc<dyn Fn(&str, TabId) + Send + Sync>;
 
@@ -85,6 +93,11 @@ impl<R: Runtime> Sessions<R> {
         }
     }
 
+    /// Every window as a menu lists it, with `caller` marked.
+    pub fn window_summaries(&self, caller: &str) -> Vec<WindowSummary> {
+        locked(&self.store).window_summaries(caller)
+    }
+
     /// Reads the store under its lock.
     pub fn with_store<T>(&self, read: impl FnOnce(&Store) -> T) -> T {
         read(&locked(&self.store))
@@ -132,16 +145,20 @@ impl<R: Runtime> Sessions<R> {
         if register {
             self.ensure_window(app, &mut store, label)?;
         }
+        if opens_window(&command) && store.windows().len() >= MAX_WINDOWS {
+            log::warn!("refusing to open a window: {MAX_WINDOWS} are open");
+            return Err(Error::TooManyWindows { limit: MAX_WINDOWS });
+        }
         let before = store.clone();
         // Geometry has no event but is still worth saving.
         let silent_change = matches!(command, Command::SetGeometry { .. });
         let outcome = store.dispatch(label, command)?;
         for opened in outcome.windows_opened() {
             let geometry = store.window(&opened).and_then(|w| w.geometry);
-            if let Err(e) = self
-                .deps
-                .create_window
-                .create(app, &opened, geometry.as_ref())
+            if let Err(e) =
+                self.deps
+                    .create_window
+                    .create(app, &opened, geometry.as_ref(), Some(label))
             {
                 log::warn!("could not create window `{opened}`: {e}; undoing the change");
                 *store = before;
@@ -149,6 +166,9 @@ impl<R: Runtime> Sessions<R> {
             }
         }
         self.publish(app, &outcome);
+        if !outcome.windows_opened().is_empty() && store.windows().len() >= WARN_WINDOWS {
+            log::warn!("{} windows are open", store.windows().len());
+        }
         drop(store);
         if silent_change {
             self.schedule_change();
@@ -277,6 +297,18 @@ impl<R: Runtime> Sessions<R> {
             (*hook)(&copy);
         });
     }
+}
+
+/// Whether a command makes a window, which the window cap counts.
+fn opens_window(command: &Command) -> bool {
+    matches!(
+        command,
+        Command::OpenWindow { .. }
+            | Command::MoveTabs {
+                to: MoveTo::NewWindow { .. },
+                ..
+            }
+    )
 }
 
 /// The window a `MoveTabs` hands the tabs to: the label of an existing window, or the window the

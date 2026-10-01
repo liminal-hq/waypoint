@@ -20,10 +20,14 @@ pub use deps::{
     CHANGE_DELAY,
 };
 pub use error::Error;
-pub use sessions::Sessions;
+pub use sessions::{Sessions, MAX_WINDOWS, WARN_WINDOWS};
 
 /// The event every window's session changes arrive on; the payload is a `SessionEvent`.
 pub const EVENT: &str = "waypoint-session://event";
+
+/// Sent to a window that tabs were handed to by a command from another window, with a `Handoff`
+/// payload, so it can say so. A window made by the hand-off is not sent one: it is not listening yet.
+pub const HANDOFF_EVENT: &str = "waypoint-session://handoff";
 
 pub fn init<R: Runtime>(deps: SessionDeps<R>) -> TauriPlugin<R> {
     // `setup` takes an `FnOnce`, so the deps wait here until it runs.
@@ -65,6 +69,7 @@ pub fn init<R: Runtime>(deps: SessionDeps<R>) -> TauriPlugin<R> {
             commands::set_geometry,
             commands::set_view,
             commands::move_tabs,
+            commands::list_windows,
             commands::get_status,
         ])
         .setup(move |app, _api| {

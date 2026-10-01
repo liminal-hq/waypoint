@@ -8,6 +8,7 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, event) {
     // SPDX-License-Identifier: Apache-2.0 OR MIT
     const PREFIX = 'plugin:waypoint-session|';
     const EVENT = 'waypoint-session://event';
+    const HANDOFF_EVENT = 'waypoint-session://handoff';
     function cmd(name, args) {
         return core.invoke(`${PREFIX}${name}`, args);
     }
@@ -138,6 +139,14 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, event) {
     function moveTabs(what, to) {
         return cmd('move_tabs', { what, to });
     }
+    /** Every window of the session, the calling one marked `active`. */
+    function listWindows() {
+        return cmd('list_windows');
+    }
+    /** Follows the tabs other windows hand to the calling window. */
+    function onHandoff(listener) {
+        return event.listen(HANDOFF_EVENT, (e) => listener(e.payload));
+    }
     /** Follows every change to the calling window's session. */
     function onTabsEvent(listener) {
         return event.listen(EVENT, (e) => listener(e.payload));
@@ -156,10 +165,12 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, event) {
     exports.getSnapshot = getSnapshot;
     exports.getStatus = getStatus;
     exports.joinPair = joinPair;
+    exports.listWindows = listWindows;
     exports.moveGroup = moveGroup;
     exports.moveTab = moveTab;
     exports.moveTabs = moveTabs;
     exports.navigate = navigate;
+    exports.onHandoff = onHandoff;
     exports.onTabsEvent = onTabsEvent;
     exports.openTab = openTab;
     exports.openWindow = openWindow;

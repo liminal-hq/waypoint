@@ -20,9 +20,28 @@ import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColou
 import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 
 const PREFIX = 'plugin:waypoint-session|';
 const EVENT = 'waypoint-session://event';
+const HANDOFF_EVENT = 'waypoint-session://handoff';
+
+/** What a window is told when tabs were handed to it from another window. */
+export interface Handoff {
+	tabs: TabId[];
+	/** The label of the window they came from. */
+	from: string;
+}
+
+/**
+ * What a rejected command carries. `tooManyWindows` is the refusal to open a window past the cap
+ * (`limit`); anything else is a failure with a `message`.
+ */
+export interface SessionCommandError {
+	kind: 'internal' | 'session' | 'window' | 'tooManyWindows';
+	message: string;
+	limit?: number;
+}
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -193,6 +212,16 @@ export function setView(view: ViewPrefs): Promise<void> {
 /** Moves tabs, a group or a pair out of the calling window and returns the label of the window they went to. */
 export function moveTabs(what: MoveWhat, to: MoveTo): Promise<string> {
 	return cmd<string>('move_tabs', { what, to });
+}
+
+/** Every window of the session, the calling one marked `active`. */
+export function listWindows(): Promise<WindowSummary[]> {
+	return cmd<WindowSummary[]>('list_windows');
+}
+
+/** Follows the tabs other windows hand to the calling window. */
+export function onHandoff(listener: (handoff: Handoff) => void): Promise<UnlistenFn> {
+	return listen<Handoff>(HANDOFF_EVENT, (e) => listener(e.payload));
 }
 
 /** Follows every change to the calling window's session. */

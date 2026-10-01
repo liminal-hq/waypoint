@@ -39,6 +39,7 @@ const COMMANDS: &[&str] = &[
     "set_geometry",
     "set_view",
     "move_tabs",
+    "list_windows",
     "get_status",
 ];
 

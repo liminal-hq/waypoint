@@ -25,6 +25,8 @@ pub enum WindowError {
 
 /// Creates the webview for a window the store has just made. The plugin calls it after the store
 /// change is made and before any event is sent, with the store locked; an error undoes the change.
+/// `opener` is the window the command came from, which the new window is placed relative to
+/// (`None` when the app creates the window itself, from a restored session).
 /// Implementations must not call back into the session commands, and should return once the
 /// window exists, not once its page has loaded (the page reads its own state with `get_snapshot`).
 pub trait WindowFactory<R: Runtime = Wry>: Send + Sync {
@@ -33,6 +35,7 @@ pub trait WindowFactory<R: Runtime = Wry>: Send + Sync {
         app: &AppHandle<R>,
         label: &str,
         geometry: Option<&Geometry>,
+        opener: Option<&str>,
     ) -> Result<(), WindowError>;
 }
 
