@@ -125,6 +125,17 @@ describe('the tab strip', () => {
 		expect(store.closed().map((closed) => closed.tab.location.uri)).toEqual([DOCS.uri]);
 	});
 
+	it('closes the window from Ctrl+W on the last tab too, and opens no Home tab', async () => {
+		const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
+		const other = new FakeTabsApi(store, 'main-2');
+		await renderWorkspace(undefined, new FakeTabsApi(store, 'main-1'));
+		await other.openTab(DOCS);
+		fireEvent.keyDown(window, { key: 'w', ctrlKey: true });
+		await waitFor(() => expect(store.windowLabels()).toEqual(['main-2']));
+		expect(store.window('main-2')!.tabs).toHaveLength(1);
+		expect(store.closed()).toHaveLength(1);
+	});
+
 	it('opens a folder in a background tab on middle-click, and leaves files alone', async () => {
 		const h = await renderWorkspace();
 		const notes = await option('notes.txt');
