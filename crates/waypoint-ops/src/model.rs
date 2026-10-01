@@ -194,7 +194,8 @@ pub struct Resolution {
 pub enum Decision {
     Retry,
     Skip,
-    /// Skip this item and every later one that fails.
+    /// Skip this item and every later one that fails the same kind of way (the same `OpsError`
+    /// variant); a different kind of failure asks again.
     SkipAll,
     Cancel,
 }
@@ -242,6 +243,19 @@ pub enum OpsError {
     /// An entry is no longer what the plan saw.
     #[error("{} changed since it was planned", .location.display)]
     ChangedSince { location: Location },
+    /// A copy did not read back as it was read: the partial file was removed (A51).
+    #[error("{} did not verify: expected {expected}, found {actual}", .location.display)]
+    VerifyFailed {
+        location: Location,
+        /// The digest of what was read from the source, in hex.
+        expected: String,
+        /// The digest of what was read back, in hex.
+        actual: String,
+    },
+    /// `Replace` was chosen for a clash it cannot resolve: a file and a folder share the name, and
+    /// replacing one with the other would delete a tree (or bury a file) without being asked.
+    #[error("{} cannot be replaced by an entry of another kind", .location.display)]
+    CannotReplace { location: Location },
     #[error("{message}")]
     Io { message: String },
 }
@@ -413,6 +427,9 @@ pub struct JobSnapshot {
     /// Whether the journal can undo this job. The journal arrives with a later slice; until then
     /// this is always false.
     pub undoable: bool,
+    /// What verification recorded, once a verified copy or move has checked at least one file
+    /// (A51); `None` when the job did not verify.
+    pub verified: Option<Verification>,
 }
 
 /// The whole queue at one revision, in queue order.
@@ -513,6 +530,20 @@ impl OpsSnapshot {
 pub enum VerifyAlgorithm {
     Blake3,
     Sha256,
+}
+
+/// What a verified job recorded (A51): how many files read back as they were read, and one digest
+/// over all of them, so two runs over the same bytes record the same value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct Verification {
+    pub algorithm: VerifyAlgorithm,
+    /// The hex digest, in the job's algorithm, of the files' own digests concatenated in the order
+    /// they were verified.
+    pub digest: String,
+    #[ts(type = "number")]
+    pub files: u64,
 }
 
 /// The settings the engine reads (read through a `SettingsReader`; the Settings window owns them).

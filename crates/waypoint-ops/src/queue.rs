@@ -28,9 +28,10 @@ use thiserror::Error;
 use waypoint_protocol::Location;
 use waypoint_vfs::CancelToken;
 
+use crate::exec::Resolutions;
 use crate::model::{
     Counts, JobId, JobKind, JobRequest, JobSnapshot, JobState, OpsError, OpsEvent, OpsSnapshot,
-    PlanTotals, Progress, Sources, SourcesSummary, WaitReason,
+    PlanTotals, Progress, Resolution, Sources, SourcesSummary, Verification, WaitReason,
 };
 use crate::traits::{Clock, SettingsReader};
 
@@ -124,6 +125,9 @@ struct Job {
     touches: Vec<Location>,
     /// Entries the job removes or moves, which cover everything below them.
     trees: Vec<Location>,
+    /// The answers the user has given to its conflicts (A48), kept so a run that is retried or
+    /// resumed does not ask twice.
+    resolutions: Resolutions,
 }
 
 /// The title a job shows until the frontend words its own.
@@ -266,9 +270,11 @@ impl OpsStore {
             started_ms: None,
             finished_ms: None,
             undoable: false,
+            verified: None,
         };
         let mut touches = Vec::new();
         touches.extend(request.destination.clone());
+        let request_policy = request.options.conflict;
         let job = Job {
             snapshot: snapshot.clone(),
             request,
@@ -276,6 +282,7 @@ impl OpsStore {
             gate: ProgressGate::new(),
             touches,
             trees: Vec::new(),
+            resolutions: Resolutions::new(request_policy),
         };
         self.jobs.push(job);
         let revision = self.bump();
@@ -408,6 +415,70 @@ impl OpsStore {
     /// A running job stops for the user (conflicts, or an error on one item).
     pub fn wait(&mut self, id: JobId, reason: WaitReason) -> Result<Vec<OpsEvent>, QueueError> {
         self.go(id, JobState::Waiting { reason }, "wait")
+    }
+
+    /// The user answered a job that waits on conflicts (A48). Each answer is kept on the job: one
+    /// with a source settles that source's clash, one without is the policy for every later clash
+    /// and is stored in the job's options. The conflicts still unanswered stay in the waiting
+    /// state (and the job keeps waiting); once none are left the job runs again. An answer for a
+    /// source that is not waiting is kept too, since a clash found later may be that source's.
+    pub fn resolve(
+        &mut self,
+        id: JobId,
+        answers: &[Resolution],
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        let JobState::Waiting {
+            reason: WaitReason::Conflicts { conflicts },
+        } = self.jobs[index].snapshot.state.clone()
+        else {
+            let from = self.jobs[index].snapshot.state.name();
+            return Err(QueueError::Illegal {
+                id,
+                from,
+                action: "take conflict answers",
+            });
+        };
+        let job = &mut self.jobs[index];
+        for answer in answers {
+            job.resolutions.apply(answer);
+            if answer.source.is_none() {
+                job.snapshot.options.conflict = Some(answer.policy);
+            }
+        }
+        let remaining = job.resolutions.unresolved(&conflicts);
+        if remaining.is_empty() {
+            return self.go(id, JobState::Running, "take an answer");
+        }
+        if remaining.len() == conflicts.len() {
+            return Ok(Vec::new());
+        }
+        job.snapshot.state = JobState::Waiting {
+            reason: WaitReason::Conflicts {
+                conflicts: remaining,
+            },
+        };
+        Ok(vec![self.changed(index)])
+    }
+
+    /// The answers the user has given a job, for its executor.
+    pub fn resolutions(&self, id: JobId) -> Option<&Resolutions> {
+        self.find(id).map(|j| &j.resolutions)
+    }
+
+    /// Records what verification has checked so far. The worker calls it from the executor's report
+    /// just before it ends the job.
+    pub fn set_verified(
+        &mut self,
+        id: JobId,
+        verified: Option<Verification>,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        if self.jobs[index].snapshot.verified == verified {
+            return Ok(Vec::new());
+        }
+        self.jobs[index].snapshot.verified = verified;
+        Ok(vec![self.changed(index)])
     }
 
     /// The user answered: a waiting job runs again.

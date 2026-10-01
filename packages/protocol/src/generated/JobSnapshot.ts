@@ -7,6 +7,7 @@ import type { JobState } from "./JobState";
 import type { Location } from "./Location";
 import type { Progress } from "./Progress";
 import type { SourcesSummary } from "./SourcesSummary";
+import type { Verification } from "./Verification";
 
 /**
  * One job as the frontend sees it.
@@ -21,4 +22,9 @@ title: string, sources: SourcesSummary, destination: Location | null, options: J
  * Whether the journal can undo this job. The journal arrives with a later slice; until then
  * this is always false.
  */
-undoable: boolean, };
+undoable: boolean, 
+/**
+ * What verification recorded, once a verified copy or move has checked at least one file
+ * (A51); `None` when the job did not verify.
+ */
+verified: Verification | null, };

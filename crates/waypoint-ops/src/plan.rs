@@ -133,6 +133,17 @@ impl Plan {
 
 type Resolved = Vec<(VfsPath, Arc<dyn Provider>)>;
 
+/// The path to ask for the volume an entry is on. A symlink is on the volume of the folder that
+/// holds it, not of what it points at (which `volume_id` would follow, and which may be elsewhere
+/// or nowhere), so a link is asked about by its folder.
+pub(crate) fn volume_probe(path: &VfsPath, entry: &ScannedEntry) -> VfsPath {
+    if entry.kind == EntryKind::Symlink {
+        path.parent().unwrap_or_else(|| path.clone())
+    } else {
+        path.clone()
+    }
+}
+
 fn failure(message: impl Into<String>) -> OpsError {
     OpsError::Io {
         message: message.into(),
@@ -440,7 +451,7 @@ impl Planner<'_, '_> {
             let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry, false)?;
             let free = Self::enough_space(provider.as_ref(), &folder, bytes);
             free?;
-            same_volume &= provider.volume_id(&source).is_some();
+            same_volume &= provider.volume_id(&volume_probe(&source, &entry)).is_some();
             items.push(PlanItem {
                 source: Some(source),
                 target: Some(target),
@@ -632,7 +643,10 @@ impl Planner<'_, '_> {
             } else {
                 claimed.insert(key, target.clone());
             }
-            let known_same = match (provider.volume_id(&source), dest_volume) {
+            let known_same = match (
+                provider.volume_id(&volume_probe(&source, &entry)),
+                dest_volume,
+            ) {
                 (Some(a), Some(b)) => provider.scheme() == dest_provider.scheme() && a == b,
                 _ => false,
             };

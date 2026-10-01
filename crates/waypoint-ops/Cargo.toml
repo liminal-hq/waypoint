@@ -15,7 +15,9 @@ publish = false
 testing = ["waypoint-vfs/testing"]
 
 [dependencies]
+blake3 = "1"
 serde = { workspace = true }
+sha2 = "0.10"
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 waypoint-path = { path = "../waypoint-path" }

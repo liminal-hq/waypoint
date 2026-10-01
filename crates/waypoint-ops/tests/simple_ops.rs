@@ -588,8 +588,6 @@ fn kinds_without_an_executor_report_unsupported_and_write_nothing() {
         let _ = (rule, links);
         build(&h, &tree(&[("a", "x"), ("d/", "")]));
         for request in [
-            h.request(JobKind::Copy, &["a"], Some("d"), None),
-            h.request(JobKind::Move, &["a"], Some("d"), None),
             h.request(JobKind::BatchRename, &["a"], None, None),
             h.request(JobKind::Undo { of: JobId(1) }, &[], None, None),
             h.request(JobKind::Redo { of: JobId(1) }, &[], None, None),

@@ -11,6 +11,9 @@
 // tree, so it removes children before their folder and a failure leaves a smaller valid tree.
 
 mod copy;
+mod copy_engine;
+mod copy_job;
+mod copy_resolve;
 mod remove;
 
 use std::ffi::OsStr;
@@ -22,8 +25,11 @@ use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{child_path, CancelToken, EntryKind, FileTimes, Provider};
 
 pub use copy::{CopyFile, CopyRequest, SimpleCopy};
+pub use copy_engine::CHUNK_BYTES;
+pub use copy_job::{RunOptions, TransferReport};
+pub use copy_resolve::{action_for, Action, Resolutions};
 
-use crate::model::{Counts, Decision, JobId, JobKind, OpsError, Progress};
+use crate::model::{Conflict, Counts, Decision, JobId, JobKind, OpsError, Progress, Resolution};
 use crate::names::file_name_of;
 use crate::plan::{Plan, PlanItem};
 use crate::traits::{IdSource, Protected, Providers, Trash, TrashReceipt};
@@ -49,6 +55,15 @@ pub trait ExecSink {
     /// An item failed. `Some` answers (the worker asked the user); `None` fails the job there.
     fn on_error(&mut self, item: &Location, error: &OpsError) -> Option<Decision> {
         let _ = (item, error);
+        None
+    }
+
+    /// A copy or move met a name that is taken and no answer covers it (a clash below a merged
+    /// folder, or a choice that cannot settle this kind of clash). `Some` answers, and an answer
+    /// with no source is kept as the policy for every later clash; `None` fails the job there:
+    /// nothing is overwritten without a decision.
+    fn on_conflict(&mut self, conflict: &Conflict) -> Option<Resolution> {
+        let _ = conflict;
         None
     }
 
@@ -78,6 +93,8 @@ pub struct ExecReport {
     pub skipped: Vec<(Location, OpsError)>,
     pub progress: Progress,
     pub counts: Counts,
+    /// What a copy or move did beyond the lists above.
+    pub transfer: TransferReport,
 }
 
 /// Why a job stopped before the end. `error` is `Cancelled` for a cancel.
@@ -114,6 +131,22 @@ impl Executor {
         cancel: &CancelToken,
         sink: &mut dyn ExecSink,
     ) -> Result<ExecReport, Box<ExecFailure>> {
+        self.run_with(job, plan, cancel, sink, RunOptions::default())
+    }
+
+    /// Runs a plan with the answers, verification and chunk size a copy or move takes; the simple
+    /// operations ignore them.
+    pub fn run_with(
+        &self,
+        job: JobId,
+        plan: &Plan,
+        cancel: &CancelToken,
+        sink: &mut dyn ExecSink,
+        options: RunOptions,
+    ) -> Result<ExecReport, Box<ExecFailure>> {
+        if matches!(plan.kind, JobKind::Copy | JobKind::Move) {
+            return copy_job::run(&self.env, job, plan, cancel, sink, options);
+        }
         let mut run = Run {
             env: &self.env,
             job,
@@ -130,11 +163,7 @@ impl Executor {
         let mut done = 0u64;
         if matches!(
             plan.kind,
-            JobKind::Copy
-                | JobKind::Move
-                | JobKind::BatchRename
-                | JobKind::Undo { .. }
-                | JobKind::Redo { .. }
+            JobKind::BatchRename | JobKind::Undo { .. } | JobKind::Redo { .. }
         ) {
             return Err(run.fail(
                 OpsError::Unsupported {

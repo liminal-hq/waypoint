@@ -11,13 +11,15 @@ mod model;
 mod names;
 mod plan;
 mod queue;
+mod speed;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 mod traits;
+mod verify;
 
 pub use exec::{
-    remove_all, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport, ExecSink, Executor,
-    NullSink, SimpleCopy,
+    action_for, remove_all, Action, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport,
+    ExecSink, Executor, NullSink, Resolutions, RunOptions, SimpleCopy, TransferReport, CHUNK_BYTES,
 };
 pub use model::*;
 pub use names::{
@@ -26,7 +28,9 @@ pub use names::{
 };
 pub use plan::{plan, plan_with_progress, Plan, PlanCtx, PlanItem, PlanProgress, PlanWarning};
 pub use queue::{is_legal, OpsStore, ProgressGate, QueueError};
+pub use speed::SpeedEstimator;
 pub use traits::{
     Clock, CounterIds, IdSource, Protected, Providers, SelectionResolver, SettingsReader,
     StaticSettings, SystemClock, Trash, TrashReceipt,
 };
+pub use verify::{digest_of, hex, Hasher, Manifest};
