@@ -94,7 +94,7 @@ export const enMessages = {
 		'Many windows are open. Each one uses memory, so close the ones you are done with.',
 	'window.notice.limit': 'Waypoint cannot open more than {limit} windows. Close one first.',
 	'window.notice.openFailed': 'Could not open a new window.',
-	'window.notice.moveFailed': 'Could not move the tab.',
+	'window.notice.moveFailed': 'Could not move it to another window.',
 
 	'status.bar.label': 'Status bar',
 	'status.items.one': '{count} item',
