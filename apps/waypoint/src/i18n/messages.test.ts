@@ -13,6 +13,7 @@ const screens = import.meta.glob<string>(
 		'../app/*.tsx',
 		'../browse/*.tsx',
 		'../nav/*.tsx',
+		'../ops/*.tsx',
 		'../tabs/*.tsx',
 		'../status/*.tsx',
 		'../sidebar/*.tsx',

@@ -1,0 +1,169 @@
+.panel {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	color: var(--wp-text-primary);
+	font-size: 12px;
+	outline: none;
+}
+
+.panel[data-layout='window'] {
+	flex: 1;
+	padding: 8px 12px 12px;
+	overflow: auto;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 0 8px;
+}
+
+.heading {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.headerActions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.textButton,
+.iconButton {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	min-height: 28px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 6px;
+	background: var(--wp-control-bg);
+	color: var(--wp-text-primary);
+	font: inherit;
+	cursor: default;
+}
+
+.iconButton {
+	min-width: 28px;
+	padding: 0;
+}
+
+.textButton:hover:not(:disabled),
+.iconButton:hover:not(:disabled) {
+	background: var(--wp-control-bg-hover);
+}
+
+.textButton:disabled,
+.iconButton:disabled {
+	color: var(--wp-text-muted);
+	opacity: 0.6;
+}
+
+.textButton:focus-visible,
+.iconButton:focus-visible,
+.row:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.empty {
+	margin: 0;
+	padding: 16px 4px;
+	color: var(--wp-text-secondary);
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	overflow: auto;
+}
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	background: var(--wp-bg-content);
+}
+
+.row[data-attention='waiting'] {
+	border-color: var(--wp-ops-attention);
+}
+
+.row[data-attention='failed'] {
+	border-color: var(--wp-ops-failed);
+}
+
+.rowMain {
+	display: flex;
+	flex: 1 1 180px;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+}
+
+.title {
+	overflow: hidden;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.route,
+.detail {
+	overflow: hidden;
+	color: var(--wp-text-secondary);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.state {
+	color: var(--wp-text-primary);
+}
+
+.row[data-attention='waiting'] .state {
+	color: var(--wp-ops-attention);
+}
+
+.row[data-attention='failed'] .state {
+	color: var(--wp-ops-failed);
+}
+
+.bar {
+	height: 4px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: var(--wp-ops-bar-track);
+}
+
+.barFill {
+	height: 100%;
+	background: var(--wp-ops-ring-progress);
+	transition: width var(--wp-ops-motion) linear;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+
+.hint {
+	margin: 8px 0 0;
+	color: var(--wp-text-muted);
+}

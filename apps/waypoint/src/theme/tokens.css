@@ -58,6 +58,20 @@
 
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
 	--wp-row-height: 28px;
+
+	/* The operations ring, its popover and the job rows. Built from the base tokens, so every theme
+	   (light, dark, high contrast) follows without redefining them. */
+	--wp-ops-ring-track: color-mix(in srgb, var(--wp-text-primary) 22%, transparent);
+	--wp-ops-ring-progress: var(--wp-accent);
+	--wp-ops-attention: var(--wp-warning);
+	--wp-ops-failed: var(--wp-danger);
+	--wp-ops-done: var(--wp-success);
+	--wp-ops-bar-track: color-mix(in srgb, var(--wp-text-primary) 14%, transparent);
+	--wp-ops-popover-bg: var(--wp-bg-raised);
+	--wp-ops-popover-border: var(--wp-border-subtle);
+	--wp-ops-popover-shadow: 0 8px 24px color-mix(in srgb, var(--wp-text-primary) 28%, transparent);
+	--wp-ops-popover-width: 380px;
+	--wp-ops-motion: 120ms;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -188,5 +202,6 @@ select,
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--wp-drag-motion: 0ms;
+		--wp-ops-motion: 0ms;
 	}
 }
