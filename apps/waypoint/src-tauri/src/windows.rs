@@ -81,6 +81,109 @@ pub fn fit_geometry(geometry: &Geometry, monitors: &[Area], position_applies: bo
     }
 }
 
+/// How far a window landed from where it was asked to go: the shift between the size and the inner
+/// origin that were requested and the ones read back.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Correction {
+    /// The size to ask for instead, or `None` when the window landed at the size it was given.
+    pub size: Option<(u32, u32)>,
+    /// The position to ask for instead, or `None` when the window landed where it was put.
+    pub position: Option<(i32, i32)>,
+}
+
+/// Works out how to correct a window that did not land where it was asked to.
+///
+/// A frameless window with a shadow can be given a different inner size than the one `set_size`
+/// asked for (Windows adds its caption height to it) and an inner origin that is not the one
+/// `set_position` was given (the position is the outer origin, an invisible border above and to the
+/// left of the content). The geometry the store keeps is the inner size and origin, so without a
+/// correction a restored window grows and shifts by that much on every run. Asking for the wanted
+/// value minus the error lands it right, once.
+pub fn correction(
+    wanted_size: (u32, u32),
+    wanted_position: Option<(i32, i32)>,
+    landed_size: Option<(u32, u32)>,
+    landed_position: Option<(i32, i32)>,
+) -> Correction {
+    let shifted = |wanted: i64, landed: i64| wanted + (wanted - landed);
+    let size = landed_size
+        .filter(|landed| *landed != wanted_size)
+        .map(|landed| {
+            let axis = |w: u32, l: u32| {
+                shifted(i64::from(w), i64::from(l)).clamp(1, i64::from(u32::MAX)) as u32
+            };
+            (axis(wanted_size.0, landed.0), axis(wanted_size.1, landed.1))
+        });
+    let position = match (wanted_position, landed_position) {
+        (Some(wanted), Some(landed)) if wanted != landed => {
+            let axis = |w: i32, l: i32| {
+                shifted(i64::from(w), i64::from(l)).clamp(i64::from(i32::MIN), i64::from(i32::MAX))
+                    as i32
+            };
+            Some((axis(wanted.0, landed.0), axis(wanted.1, landed.1)))
+        }
+        _ => None,
+    };
+    Correction { size, position }
+}
+
+/// What `place` needs of a window, so a test can stand in for the real one.
+pub trait Placeable {
+    fn set_size(&self, size: (u32, u32));
+    fn set_position(&self, position: (i32, i32));
+    fn inner_size(&self) -> Option<(u32, u32)>;
+    fn inner_position(&self) -> Option<(i32, i32)>;
+}
+
+impl<R: Runtime> Placeable for WebviewWindow<R> {
+    fn set_size(&self, size: (u32, u32)) {
+        let _ = WebviewWindow::set_size(self, PhysicalSize::new(size.0, size.1));
+    }
+    fn set_position(&self, position: (i32, i32)) {
+        let _ = WebviewWindow::set_position(self, PhysicalPosition::new(position.0, position.1));
+    }
+    fn inner_size(&self) -> Option<(u32, u32)> {
+        WebviewWindow::inner_size(self)
+            .ok()
+            .map(|s| (s.width, s.height))
+    }
+    fn inner_position(&self) -> Option<(i32, i32)> {
+        WebviewWindow::inner_position(self).ok().map(|p| (p.x, p.y))
+    }
+}
+
+/// Gives `window` the inner `size` and, when there is one, the inner origin `position`. With
+/// `correct` set it then reads both back and asks again for the difference, once. Only Windows
+/// sets it: elsewhere a read straight after a resize can still be the old value (X11 and Wayland
+/// apply a resize asynchronously), and the correction would then be wrong.
+pub fn place(
+    window: &impl Placeable,
+    size: (u32, u32),
+    position: Option<(i32, i32)>,
+    correct: bool,
+) {
+    window.set_size(size);
+    if let Some(at) = position {
+        window.set_position(at);
+    }
+    if !correct {
+        return;
+    }
+    let fix = correction(size, position, window.inner_size(), window.inner_position());
+    if let Some(corrected) = fix.size {
+        window.set_size(corrected);
+    }
+    // Resizing can move the origin, so the position is read again before it is corrected.
+    let fix = if fix.size.is_some() {
+        correction(size, position, window.inner_size(), window.inner_position())
+    } else {
+        fix
+    };
+    if let Some(corrected) = fix.position {
+        window.set_position(corrected);
+    }
+}
+
 /// Wayland compositors place windows themselves, so a window's position can be neither read nor set.
 pub fn position_applies() -> bool {
     !(cfg!(target_os = "linux")
@@ -124,14 +227,9 @@ pub fn build_main_window<R: Runtime>(
     match geometry {
         Some(g) => {
             let fit = fit_geometry(g, &monitors(app), position_applies());
-            let _ = window.set_size(PhysicalSize::new(fit.size.0, fit.size.1));
-            match fit.position {
-                Some((x, y)) => {
-                    let _ = window.set_position(PhysicalPosition::new(x, y));
-                }
-                None => {
-                    let _ = window.center();
-                }
+            place(&window, fit.size, fit.position, cfg!(windows));
+            if fit.position.is_none() {
+                let _ = window.center();
             }
             if fit.maximised {
                 let _ = window.maximize();
@@ -283,6 +381,104 @@ mod tests {
             height,
             maximised: false,
         }
+    }
+
+    /// A frameless, shadowed window as Windows 11 makes it: `set_size` adds a caption height to the
+    /// inner size and `set_position` puts the outer origin, so the inner origin lands a border away.
+    struct Framed {
+        extra_height: u32,
+        border: (i32, i32),
+        inner_size: std::cell::Cell<(u32, u32)>,
+        inner_position: std::cell::Cell<(i32, i32)>,
+    }
+
+    impl Framed {
+        fn windows_11() -> Self {
+            Self {
+                extra_height: 50,
+                border: (12, 2),
+                inner_size: std::cell::Cell::new((1100, 720)),
+                inner_position: std::cell::Cell::new((0, 0)),
+            }
+        }
+        /// What the store would keep for this window.
+        fn saved(&self) -> Geometry {
+            let (width, height) = self.inner_size.get();
+            let (x, y) = self.inner_position.get();
+            geometry(Some(x), Some(y), width, height)
+        }
+    }
+
+    impl Placeable for Framed {
+        fn set_size(&self, size: (u32, u32)) {
+            self.inner_size.set((size.0, size.1 + self.extra_height));
+        }
+        fn set_position(&self, position: (i32, i32)) {
+            self.inner_position
+                .set((position.0 + self.border.0, position.1 + self.border.1));
+        }
+        fn inner_size(&self) -> Option<(u32, u32)> {
+            Some(self.inner_size.get())
+        }
+        fn inner_position(&self) -> Option<(i32, i32)> {
+            Some(self.inner_position.get())
+        }
+    }
+
+    /// Restores `saved` into a fresh window the way `build_main_window` does.
+    fn restore(saved: &Geometry, correct: bool) -> Framed {
+        let window = Framed::windows_11();
+        let fit = fit_geometry(saved, &[LEFT], true);
+        place(&window, fit.size, fit.position, correct);
+        window
+    }
+
+    #[test]
+    fn a_corrected_restore_is_a_fixed_point_through_save_and_restore() {
+        let first = geometry(Some(300), Some(200), 1000, 686);
+        let mut saved = first;
+        for run in 0..4 {
+            saved = restore(&saved, true).saved();
+            assert_eq!(saved, first, "run {run} moved or resized the window");
+        }
+    }
+
+    #[test]
+    fn without_the_correction_every_restart_grows_and_shifts_the_window() {
+        let mut saved = geometry(Some(300), Some(200), 1000, 686);
+        for _ in 0..3 {
+            saved = restore(&saved, false).saved();
+        }
+        // The Windows 11 evidence: +50 physical px of height and the origin a border away, per run.
+        assert_eq!(saved.height, 686 + 3 * 50);
+        assert_eq!((saved.x, saved.y), (Some(336), Some(206)));
+    }
+
+    #[test]
+    fn a_window_that_lands_exactly_needs_no_correction() {
+        assert_eq!(
+            correction((900, 600), Some((10, 20)), Some((900, 600)), Some((10, 20))),
+            Correction::default()
+        );
+        assert_eq!(
+            correction((900, 600), None, None, None),
+            Correction::default()
+        );
+    }
+
+    #[test]
+    fn the_correction_asks_for_the_wanted_value_minus_the_error() {
+        let fix = correction(
+            (900, 600),
+            Some((100, 50)),
+            Some((900, 650)),
+            Some((112, 52)),
+        );
+        assert_eq!(fix.size, Some((900, 550)));
+        assert_eq!(fix.position, Some((88, 48)));
+        // A size error never asks for an empty window.
+        let tiny = correction((10, 10), None, Some((10, 40)), None);
+        assert_eq!(tiny.size, Some((10, 1)));
     }
 
     #[test]
