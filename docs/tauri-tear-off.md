@@ -46,6 +46,16 @@ A webview can only track the pointer while it is inside the window. Once a drag 
 | Drop files from the tab onto other windows   | Not covered                                                                 | Same ghost, plus an OS-level drop target on the other window                               |
 | Esc cancels                                  | Yes                                                                         | End the drag and hide the ghost on Esc                                                     |
 
+## How Waypoint wires it (milestone 3, slice 10)
+
+The pieces above are `plugins/window-tearoff` (ghost, follow thread, regions, `hit_test`) and Waypoint's `apps/waypoint/src/tabs/tearOff.ts` (the new-window phase of the drag engine). What was run on this design:
+
+- **Verified on X11 (XWayland under a private headless Mutter, a button held through the compositor's remote-desktop API):** `get_status` reports all four features; the ghost sits at `cursor − grab offset` and follows the cursor; `hit_test` finds another window's strip and its label changes to "Release to merge into …"; a release on that strip merges the tab (the source window closes when it was the last tab); a release elsewhere opens a window whose top edge is at the cursor less the grab point (a left edge that would run off the screen is held back by the window manager); the ghost is hidden again afterwards.
+- **Verified on Wayland (the same headless compositor):** `get_status` reports every feature off with its reason, the ghost exists hidden and never shows, the in-page card and pill follow the pointer, a release opens a window the compositor places, Esc cancels, and Move to Window ▸ merges.
+- **Not verified:** a real hardware pointer, KDE, Windows 11, a second monitor or mixed scale factors, Esc while a ghost is following (the injected key never reached an unfocused window), and the 30 s timeout path end to end (the hook handles `window-tearoff://timeout` in tests only).
+- **Two traps found by running it.** The ghost cannot be built inside the plugin's `RunEvent::Ready` hook (Tauri holds its plugin store locked there, the same deadlock as `setup`); the plugin asks the main thread for it from the async runtime. And once the pointer leaves the page, the page gets no `pointermove` events (a `pointerup` still arrives), so anything that must change while the ghost follows (the merge label) runs on a timer against `hit_test`, not on pointer events. The `cursor-stale` event also fires for a pointer held still, so it is not treated as an error; only the drop report's `cursorStale` stops a window being placed.
+- **Placement.** The new window's geometry is the source window's inner size and an inner origin of `cursor − (grab + frame margin) × scale` in physical pixels, so the visible window's corner sits at the grab point; `fit_geometry` on the Rust side drops a position no monitor holds.
+
 ## Things Waypoint needs that Doska doesn't show
 
 - **Merging into another window.** The pattern only tears off. To merge, each window needs to know where the other windows' tab rows are on screen. The backend can hold each window's frame plus tab-strip rect, hit-test the cursor on release, and emit a "receive tab" event to the target window.
