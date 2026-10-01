@@ -312,6 +312,7 @@ export const enMessages = {
 	'sidebar.workspaces.noFolders': 'Workspace {name} has no folders',
 	'sidebar.workspaces.openedAll.one': 'Opened {count} folder from {name}',
 	'sidebar.workspaces.openedAll.other': 'Opened {count} folders from {name}',
+	'sidebar.workspaces.openedSome': 'Opened {opened} of {total} folders from {name}',
 	'sidebar.menu.workspace': 'Workspace actions',
 	'sidebar.menu.place': 'Place actions',
 	'sidebar.menu.favourite': 'Favourite actions',

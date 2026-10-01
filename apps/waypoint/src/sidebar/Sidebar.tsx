@@ -256,25 +256,40 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 					return;
 				}
 				void (async () => {
-					let after = snapshot?.active ?? undefined;
-					let first = true;
-					for (const location of workspace.locations) {
-						after = await api.openTab(location, { after, activate: first });
-						first = false;
+					// The active tab is read once, now (not as it was at render), and each folder opens
+					// after the tab the one before it made, so a change of tab midway does not scatter them.
+					let after = (await api.getSnapshot()).active ?? undefined;
+					const total = workspace.locations.length;
+					let opened = 0;
+					try {
+						for (const location of workspace.locations) {
+							after = await api.openTab(location, { after, activate: opened === 0 });
+							opened++;
+						}
+					} catch (error) {
+						if (opened === 0) throw error;
+						console.warn('could not open every folder of the workspace', error);
+						const text = tf('sidebar.workspaces.openedSome', {
+							opened,
+							total,
+							name: workspace.name,
+						});
+						setAnnouncement(text);
+						onNotice(text);
+						return;
 					}
-					const count = workspace.locations.length;
 					setAnnouncement(
 						tf(
-							count === 1
+							total === 1
 								? 'sidebar.workspaces.openedAll.one'
 								: 'sidebar.workspaces.openedAll.other',
-							{ count, name: workspace.name },
+							{ count: total, name: workspace.name },
 						),
 					);
 				})().catch(failWorkspace);
 			},
 		}),
-		[api, activeId, workspaces, snapshot?.active, failWorkspace],
+		[api, activeId, workspaces, failWorkspace, onNotice],
 	);
 
 	const menuIndex = menu

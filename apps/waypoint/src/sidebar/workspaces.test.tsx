@@ -214,6 +214,22 @@ describe('a workspace item', () => {
 		expect(await screen.findByText('Opened 2 folders from Site')).toBeInTheDocument();
 	});
 
+	it('says exactly how far it got when a folder fails to open, keeping the tabs already open', async () => {
+		const h = await withWorkspace();
+		const real = h.tabs.openTab.bind(h.tabs);
+		let calls = 0;
+		vi.spyOn(h.tabs, 'openTab').mockImplementation(async (location, options) => {
+			if (++calls === 2) throw new Error('boom');
+			return real(location, options);
+		});
+		fireEvent.contextMenu(workspaceItem('Site'), { clientX: 5, clientY: 5 });
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Open All in Tabs' }));
+		expect((await screen.findAllByText('Opened 1 of 2 folders from Site')).length).toBeGreaterThan(
+			0,
+		);
+		expect((await h.tabs.getSnapshot()).tabs).toHaveLength(4);
+	});
+
 	it('renames with F2 and asks again for a name that is taken', async () => {
 		const h = await withWorkspace();
 		await h.tabs.saveGroupAsWorkspace(1, 'Other');

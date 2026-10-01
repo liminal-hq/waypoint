@@ -53,29 +53,58 @@ export function workspaceFavourites(workspace: Workspace): Favourite[] {
 	return workspace.locations.map((location) => ({ label: locationLabel(location), location }));
 }
 
-/** A workspace's folders, edited as one replaced list through the session. */
+/** The edits in flight for each session API, so two quick ones run in turn rather than over each other. */
+const queues = new WeakMap<TabsApi, Promise<unknown>>();
+
+/**
+ * A workspace's folders, edited as one replaced list through the session. `SetWorkspaceLocations`
+ * replaces the whole list, so each edit reads the workspace as it is when the edit runs (not as it
+ * was at render) and edits run one after another: two quick edits, such as adding two folders, both
+ * land. `workspace` only supplies the rows to draw.
+ */
 export function workspaceSource(api: TabsApi, workspace: Workspace): FavouritesSource {
-	const save = (locations: Location[]) => api.setWorkspaceLocations(workspace.id, locations);
-	const without = (location: Location) =>
-		workspace.locations.filter((candidate) => candidate.uri !== location.uri);
+	const edit = <T>(change: (current: Location[]) => { next: Location[] | null; result: T }) => {
+		const run = async (): Promise<T> => {
+			const latest = (await api.getSnapshot()).workspaces.find(
+				(candidate) => candidate.id === workspace.id,
+			);
+			// The workspace was deleted meanwhile: nothing to edit.
+			if (!latest) return change([]).result;
+			const { next, result } = change([...latest.locations]);
+			if (next) await api.setWorkspaceLocations(workspace.id, next);
+			return result;
+		};
+		const turn = (queues.get(api) ?? Promise.resolve()).then(run, run);
+		queues.set(
+			api,
+			turn.catch(() => undefined),
+		);
+		return turn;
+	};
+	const without = (current: Location[], location: Location) =>
+		current.filter((candidate) => candidate.uri !== location.uri);
 	return {
 		kind: 'workspace',
 		favourites: workspaceFavourites(workspace),
 		canRename: false,
 		add: (location) =>
-			workspace.locations.some((candidate) => candidate.uri === location.uri)
-				? Promise.resolve()
-				: save([...workspace.locations, location]),
-		remove: (location) => save(without(location)),
+			edit((current) => ({
+				next: current.some((candidate) => candidate.uri === location.uri)
+					? null
+					: [...current, location],
+				result: undefined,
+			})),
+		remove: (location) =>
+			edit((current) => ({ next: without(current, location), result: undefined })),
 		rename: () => Promise.resolve(),
-		move: async (location, to) => {
-			const rest = without(location);
-			// Not one of the workspace's folders: nothing to move.
-			if (rest.length === workspace.locations.length) return rest.length;
-			const at = Math.max(0, Math.min(to, rest.length));
-			rest.splice(at, 0, location);
-			await save(rest);
-			return rest.length;
-		},
+		move: (location, to) =>
+			edit((current) => {
+				const rest = without(current, location);
+				// Not one of the workspace's folders: nothing to move.
+				if (rest.length === current.length) return { next: null, result: rest.length };
+				const at = Math.max(0, Math.min(to, rest.length));
+				rest.splice(at, 0, location);
+				return { next: rest, result: rest.length };
+			}),
 	};
 }
