@@ -38,9 +38,7 @@ impl Resolutions {
     }
 
     /// Records an answer. One without a source is the "apply to all" answer and is kept as the
-    /// job's current policy; one with a source applies to that source's clash only. `fallback` is
-    /// the source to credit when the answer names none and `all` is not what is meant (the engine
-    /// passes the conflict it asked about when the user answered just that one).
+    /// job's current policy; one with a source applies to that source's clash only.
     pub fn apply(&mut self, resolution: &Resolution) {
         match &resolution.source {
             None => self.all = Some(resolution.policy),

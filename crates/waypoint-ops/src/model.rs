@@ -15,8 +15,8 @@ use waypoint_vfs::{ListingHandle, SelectionSpec};
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct JobId(#[ts(type = "number")] pub u64);
 
-/// What a job does. The kinds from `Copy` on have no executor yet; running one reports a typed
-/// `Unsupported`.
+/// What a job does. `BatchRename`, `Undo` and `Redo` have no executor yet; running one reports a
+/// typed `Unsupported`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
