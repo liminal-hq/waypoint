@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "main",
-	"description": "Capabilities specific to the main file-browser windows: platform information and the system's 12/24-hour clock setting.",
+	"description": "Capabilities specific to the main file-browser windows: platform information, the system's 12/24-hour clock setting and the trash.",
 	"windows": ["main-*"],
-	"permissions": ["os:default", "os-prefs:default"]
+	"permissions": ["os:default", "os-prefs:default", "trash:default"]
 }

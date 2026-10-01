@@ -23,7 +23,7 @@
 		"validate": "bun run format:check && bun run check:headers && bun run check:boundaries && bun run check:case && bun run check:bindings && bun run typecheck && bun run test:js && bun run build && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && bun run test:rust",
 		"check:boundaries": "bash scripts/check-plugin-boundaries.sh",
 		"check:case": "bash scripts/check-case-collisions.test.sh && bash scripts/check-case-collisions.sh",
-		"build:plugins": "bun run --cwd plugins/os-prefs build && bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build",
+		"build:plugins": "bun run --cwd plugins/os-prefs build && bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/trash build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build",
 		"check:bindings": "bash scripts/check-bindings-drift.sh",
 		"build:windows": "bash scripts/build-windows-remote-dev.sh"
 	},
