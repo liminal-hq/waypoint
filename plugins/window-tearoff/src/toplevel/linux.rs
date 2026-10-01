@@ -234,8 +234,24 @@ pub fn cancel() {
     });
 }
 
+/// Ends the implicit pointer grab GDK still holds for the press that began the drag.
+///
+/// The compositor owns the pointer for the whole drag and takes the button release, so GDK never sees it: it goes on believing the button is held, and keeps routing every pointer event to the window that was pressed (a window made after the drag, or the one that was dragged, would get none). Ungrabbing the pointer ends the grab GDK holds. Must run on the main thread.
+#[allow(deprecated)]
+fn release_pointer_grab() {
+    if let Some(pointer) = gdk::Display::default()
+        .and_then(|display| display.default_seat())
+        .and_then(|seat| seat.pointer())
+    {
+        let raw: *mut gdk::ffi::GdkDevice = pointer.to_glib_none().0;
+        // SAFETY: `pointer` is a live `GdkDevice`, and this runs on the main thread.
+        unsafe { gdk::ffi::gdk_device_ungrab(raw, gdk::ffi::GDK_CURRENT_TIME as u32) };
+    }
+}
+
 fn end<R: Runtime>(app: &AppHandle<R>, state: &State, how: Finish) {
     if let Some(ended) = state.finish(how) {
+        release_pointer_grab();
         debug!("window-tearoff: toplevel drag ended: {ended:?}");
         emit_ended(app, &ended);
     }
