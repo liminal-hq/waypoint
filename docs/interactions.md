@@ -200,6 +200,20 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Right-click          | SANDISK in the sidebar | Format…                                    |
 | Right-click          | Empty space            | New Encrypted Vault…                       |
 
+### 10.1 Answering a waiting job
+
+The conflict and error dialogs open by themselves in the window that started the job; Resolve… on the job's row (the ring's popover or the Operations window) opens them from any window.
+
+| Input                                                 | Target          | Result                                                                  |
+| ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------- |
+| Choice in a row                                       | A conflict      | Answers that clash; only the choices that can be carried out are listed |
+| Apply to all remaining                                | Conflict dialog | Answers every clash it can; a row's own choice wins                     |
+| Continue                                              | Conflict dialog | Sends the answers; off until every clash is answered                    |
+| Esc, Cancel the operation                             | Conflict dialog | Stops the job, after a question once anything was answered              |
+| Decide later                                          | Either dialog   | Closes it and leaves the job waiting                                    |
+| Esc                                                   | Error dialog    | Closes it and leaves the job waiting                                    |
+| Retry, Skip, Skip all like this, Cancel the operation | Error dialog    | Tells the job what to do with the item that failed                      |
+
 ## 11. Customisation and basics
 
 | Input       | Target                            | Result                                   |
