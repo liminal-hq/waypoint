@@ -498,6 +498,70 @@ fn changes_are_reported_once_per_burst() {
 }
 
 #[test]
+fn closing_the_last_tab_of_the_last_window_runs_the_hook() {
+    // The mock runtime does not show the webview being destroyed, so this checks the store and
+    // the hook, which run after the destroy call in `after_unlock`.
+    let hits = Arc::new(AtomicUsize::new(0));
+    let counter = hits.clone();
+    let t = setup_with(
+        StorePolicy::default(),
+        move |deps| {
+            deps.on_last_window_closed = Some(Arc::new(move |_app| {
+                counter.fetch_add(1, Ordering::SeqCst);
+            }));
+        },
+        &["main-1"],
+    );
+    let a = open_tab(&t.app, "main-1", "a").unwrap();
+    tauri::async_runtime::block_on(commands::close_tab(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        a,
+    ))
+    .unwrap();
+    assert!(sessions(&t.app).with_store(|s| s.windows().is_empty()));
+    assert_eq!(hits.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn a_geometry_change_is_reported_though_it_makes_no_event() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let t = setup_with(
+        m2_policy(),
+        move |deps| {
+            deps.change_delay = Duration::from_millis(50);
+            deps.on_change = Some(Arc::new(move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+            }));
+        },
+        &["main-1"],
+    );
+    open_tab(&t.app, "main-1", "a").unwrap();
+    wait_until("the tab's report", || calls.load(Ordering::SeqCst) == 1);
+    let geometry = Geometry {
+        x: None,
+        y: None,
+        width: 900,
+        height: 600,
+        maximised: false,
+    };
+    tauri::async_runtime::block_on(commands::set_geometry(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        geometry,
+    ))
+    .unwrap();
+    wait_until("the geometry's report", || {
+        calls.load(Ordering::SeqCst) == 2
+    });
+    assert_eq!(
+        sessions(&t.app).with_store(|s| s.window("main-1").and_then(|w| w.geometry)),
+        Some(geometry)
+    );
+}
+
+#[test]
 fn the_new_commands_run_through_the_store() {
     let t = setup(&["main-1"]);
     let a = open_tab(&t.app, "main-1", "a").unwrap();

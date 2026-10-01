@@ -59,6 +59,32 @@ impl<R: Runtime> Sessions<R> {
         &self.deps.storage
     }
 
+    /// Replaces the store with a restored one, under the plugin's policy. Called once at start,
+    /// before any window exists or any command runs; it sends no events and schedules no save.
+    pub fn restore(&self, mut restored: Store) {
+        restored.set_policy(self.deps.policy);
+        *locked(&self.store) = restored;
+    }
+
+    /// A copy of the store, waiting at most `wait` for its lock. For callers on the main thread,
+    /// which must not wait on a lock that a window factory holds while it waits for that thread;
+    /// `None` when the lock stayed busy.
+    pub fn try_clone_store(&self, wait: std::time::Duration) -> Option<Store> {
+        let start = std::time::Instant::now();
+        loop {
+            match self.store.try_lock() {
+                Ok(store) => return Some(store.clone()),
+                Err(std::sync::TryLockError::Poisoned(e)) => return Some(e.into_inner().clone()),
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    if start.elapsed() >= wait {
+                        return None;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+            }
+        }
+    }
+
     /// Reads the store under its lock.
     pub fn with_store<T>(&self, read: impl FnOnce(&Store) -> T) -> T {
         read(&locked(&self.store))
@@ -82,6 +108,8 @@ impl<R: Runtime> Sessions<R> {
         let mut store = locked(&self.store);
         self.ensure_window(app, &mut store, label)?;
         let before = store.clone();
+        // Geometry has no event but is still worth saving.
+        let silent_change = matches!(command, Command::SetGeometry { .. });
         let outcome = store.dispatch(label, command)?;
         for opened in outcome.windows_opened() {
             let geometry = store.window(&opened).and_then(|w| w.geometry);
@@ -97,6 +125,9 @@ impl<R: Runtime> Sessions<R> {
         }
         self.publish(app, &outcome);
         drop(store);
+        if silent_change {
+            self.schedule_change();
+        }
         self.after_unlock(app, &outcome);
         Ok(outcome)
     }
@@ -186,6 +217,15 @@ impl<R: Runtime> Sessions<R> {
             return;
         }
         self.schedule_change();
+        // A window the store closed by itself (its last tab closed, or its tabs were all moved
+        // away) goes with it. The store already forgot it, so the destroy event finds nothing.
+        for label in outcome.windows_closed() {
+            if let Some(webview) = app.get_webview_window(&label) {
+                if let Err(e) = webview.destroy() {
+                    log::warn!("could not destroy window `{label}`: {e}");
+                }
+            }
+        }
         if outcome.last_window_closed {
             if let Some(hook) = &self.deps.on_last_window_closed {
                 hook(app);

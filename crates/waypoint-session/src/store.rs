@@ -109,6 +109,11 @@ impl Store {
         self.policy
     }
 
+    /// Changes the policy, for a store restored from a document (which carries none).
+    pub fn set_policy(&mut self, policy: StorePolicy) {
+        self.policy = policy;
+    }
+
     pub fn revision(&self) -> u64 {
         self.revision
     }

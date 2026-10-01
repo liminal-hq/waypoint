@@ -436,12 +436,8 @@ pub async fn close_window<R: Runtime>(
     if sessions.with_store(|s| s.window(&label).is_none()) {
         return Err(SessionError::UnknownWindow(label).into());
     }
+    // `Sessions::run` destroys the webview of every window the store closes.
     sessions.run(window.app_handle(), &label, Command::CloseWindow)?;
-    if let Some(webview) = window.app_handle().get_webview_window(&label) {
-        if let Err(e) = webview.destroy() {
-            log::warn!("could not destroy window `{label}`: {e}");
-        }
-    }
     Ok(())
 }
 
