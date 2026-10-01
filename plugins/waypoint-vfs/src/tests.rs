@@ -410,6 +410,53 @@ fn an_entry_resolves_to_its_location_and_selections_add_up() {
 }
 
 #[test]
+fn a_selection_resolves_to_locations_in_view_order_for_the_owning_window_only() {
+    let dir = folder_with(&["a.txt", "b.txt", "c.txt", ".hidden"]);
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let id = |name: &str| entries.iter().find(|e| e.name == name).unwrap().id;
+    let vfs = app.state::<Vfs>();
+    let names = |locations: Vec<Location>| -> Vec<String> {
+        locations
+            .into_iter()
+            .map(|l| l.display.rsplit('/').next().unwrap().to_owned())
+            .collect()
+    };
+
+    // Chosen ids come back in the order the view shows them, once each, whatever order they came in.
+    let chosen = waypoint_vfs::SelectionSpec::Chosen {
+        ids: vec![id("c.txt"), id("a.txt"), id("c.txt")],
+    };
+    let resolved = vfs
+        .resolve_selection("main", snapshot.handle, &chosen)
+        .unwrap();
+    assert_eq!(names(resolved.clone()), ["a.txt", "c.txt"]);
+    assert!(resolved[0].uri.starts_with("file://") && resolved[0].uri.ends_with("/a.txt"));
+
+    // "All except" covers the rest of the view, and not what the filter hides.
+    let rest = waypoint_vfs::SelectionSpec::AllExcept {
+        ids: vec![id("b.txt")],
+    };
+    let resolved = vfs
+        .resolve_selection("main", snapshot.handle, &rest)
+        .unwrap();
+    assert_eq!(names(resolved), ["a.txt", "c.txt"]);
+
+    // An id the view does not hold is dropped, as `summarise_selection` drops it.
+    let gone = waypoint_vfs::SelectionSpec::Chosen {
+        ids: vec![waypoint_protocol::EntryId(9999)],
+    };
+    assert!(vfs
+        .resolve_selection("main", snapshot.handle, &gone)
+        .unwrap()
+        .is_empty());
+
+    // Another window cannot resolve this window's listing.
+    let foreign = vfs.resolve_selection("other", snapshot.handle, &chosen);
+    assert_eq!(foreign, Err(VfsError::StaleHandle));
+}
+
+#[test]
 fn entry_commands_are_scoped_to_the_owning_window() {
     let dir = folder_with(&["a.txt"]);
     let app = app();

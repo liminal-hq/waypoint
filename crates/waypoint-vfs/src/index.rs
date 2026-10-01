@@ -288,6 +288,21 @@ impl Index {
             .collect()
     }
 
+    /// The names a selection covers, in view order. Ids the view does not hold do not count, and an
+    /// id given twice counts once.
+    pub fn selected_names(&self, selection: &SelectionSpec) -> Vec<&OsStr> {
+        let (ids, chosen) = match selection {
+            SelectionSpec::Chosen { ids } => (ids, true),
+            SelectionSpec::AllExcept { ids } => (ids, false),
+        };
+        let listed: std::collections::HashSet<u32> = ids.iter().map(|id| id.0).collect();
+        self.view
+            .iter()
+            .filter(|id| listed.contains(id) == chosen)
+            .map(|&id| self.rec(id).name.as_os_str())
+            .collect()
+    }
+
     /// What a selection adds up to over the current view. Ids the view does not hold (gone, or
     /// filtered out) do not count. O(n) over the view for "all except", O(chosen) otherwise, and it
     /// allocates nothing per row.

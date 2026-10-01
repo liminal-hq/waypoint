@@ -28,6 +28,25 @@ pub struct Vfs {
     local: Arc<LocalProvider>,
 }
 
+impl Vfs {
+    /// The locations a selection over `handle` covers, in view order, for the app to hand to
+    /// operations (A47): the `window` that opened the listing is the only one that may resolve it,
+    /// and the frontend never builds a path. Ids the view no longer holds are dropped.
+    pub fn resolve_selection(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        selection: &SelectionSpec,
+    ) -> Result<Vec<Location>, VfsError> {
+        let listing = self.registry.get(window, handle)?;
+        Ok(listing
+            .resolve_selection(selection)?
+            .iter()
+            .map(|path| path.to_location())
+            .collect())
+    }
+}
+
 impl Default for Vfs {
     fn default() -> Self {
         Self {
