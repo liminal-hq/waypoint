@@ -15,13 +15,16 @@ import type {
 	Size,
 	TearoffClient,
 	TearoffFeatures,
+	ToplevelDragEnded,
 } from '../services/tearoffClient';
 import type { TabsApi } from '../services/tabsApi';
 import { parseRegionId, type DropSlot } from './dropRegions';
 import { groupTabs } from './groupLayout';
 import { pairName } from './PairPill';
 import type { TabDragSource, TearOffHook } from './tabDrag';
-import type { TearCardStore } from './tearOffCardModel';
+import { postNotice } from './notices';
+import { parseTearPayload, type TearPayload } from './tearOffPayload';
+import type { TearCardStore } from './tearOffCard';
 import { CARD_GRAB, CARD_SIZE, newWindowGeometry } from './tearOffPlacement';
 import { locationLabel } from './tabTitle';
 import { refuse, windowName } from './windowActions';
@@ -109,7 +112,16 @@ function pill(kind: string, text: string): DragPill {
 	return { kind, text, announce: tf('drag.announce.pill', { text: lowerFirst(text) }) };
 }
 
-type Phase = 'idle' | 'starting' | 'following' | 'degraded';
+type Phase =
+	| 'idle'
+	| 'starting'
+	| 'following'
+	| 'degraded'
+	// The compositor-moved window: getting the tabs into a window and the drag started, then the drag itself.
+	| 'tearing'
+	| 'toplevel'
+	// The compositor-moved window could not start; nothing more is tried until the pointer is back in the strip.
+	| 'blocked';
 
 /**
  * The tear-off hook for one window. While the pointer is over the window it shows the in-page
@@ -122,6 +134,13 @@ type Phase = 'idle' | 'starting' | 'following' | 'degraded';
  * another window merges the tabs into that window, at the slot the region names; no region opens
  * a new window under the cursor; a cursor the plugin cannot vouch for (stale, or none) opens one
  * without geometry, which cascades from this window. Every move flushes the tabs' hints first.
+ *
+ * Where the plugin reports `toplevelDrag` (Wayland with `xdg-toplevel-drag`, D94's replacement) none
+ * of that applies: as soon as the pointer is out of the strip the tabs move to a new window made
+ * hidden (or, when they are all the window has, the window itself is taken), the compositor
+ * attaches that real window to the pointer, and this page hears of the end of the drag (the page
+ * gets no pointer events meanwhile, so the drag engine is stopped at once and reset again at the
+ * end). What the drag ends as is acted on by the page that holds the tabs (`tearOffHandoff.ts`).
  *
  * The plugin's `cursor-stale` event is not acted on: a pointer held still for a second looks the
  * same as a frozen cursor, and the merge label and a merge by region should survive a pause. The
@@ -292,6 +311,99 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		);
 	};
 
+	/** The compositor has the drag: stop the engine, which will get no more pointer events. */
+	const enterToplevel = () => {
+		if (phase !== 'tearing') return;
+		phase = 'toplevel';
+		deps.cancelDrag();
+	};
+
+	/** Moves the tabs to a window made hidden, or takes this window when they are all it has, and starts the compositor's drag of it. */
+	const startToplevel = (unit: Unit, dragged: TabDragSource, point: Point) => {
+		phase = 'tearing';
+		const mine = generation;
+		void (async () => {
+			let target: string | null = null;
+			try {
+				const windows = await deps.api.listWindows();
+				const own = windows.find((window) => window.active)?.label;
+				if (!own) throw new Error('this window is not in the session');
+				const snapshot = deps.snapshot();
+				const whole = !!snapshot && snapshot.tabs.every((tab) => dragged.unit.includes(tab.id));
+				const index = snapshot
+					? Math.max(
+							0,
+							snapshot.tabs.findIndex((tab) => tab.id === dragged.unit[0]),
+						)
+					: 0;
+				const payload: TearPayload = {
+					v: 1,
+					mode: whole ? 'window' : 'tabs',
+					what: unit.what,
+					tabs: [...dragged.unit],
+					name: unit.name,
+					source: { window: own, index },
+				};
+				target = own;
+				if (!whole) {
+					for (const id of dragged.unit) await deps.flush(id);
+					// The new window must not be mapped before the drag has attached it.
+					await deps.client.holdNextWindow(true);
+					try {
+						target = await deps.api.moveTabs(unit.what, {
+							kind: 'newWindow',
+							label: null,
+							geometry: null,
+						});
+					} finally {
+						await deps.client.holdNextWindow(false).catch(() => {});
+					}
+				}
+				// The pointer holds the window where it holds this one: the new window opens over the old.
+				const view = deps.viewport();
+				const grab = {
+					x: Math.min(Math.max(point.x, 0), view.width),
+					y: Math.min(Math.max(point.y, 0), view.height),
+				};
+				const report = await deps.client.beginToplevelDrag(payload, target, grab);
+				if (report.state === 'started') enterToplevel();
+				else if (phase === 'tearing' && mine === generation) phase = 'blocked';
+			} catch (error) {
+				console.warn('could not start the window drag', error);
+				if (phase === 'tearing' && mine === generation) {
+					phase = 'blocked';
+					refuse(error, 'window.notice.moveFailed');
+				}
+			}
+		})();
+	};
+
+	/** What a toplevel drag's end means to the page that began it. The page holding the tabs acts on it (`tearOffHandoff.ts`); this one stops the engine and says what happened. */
+	const onToplevelEnded = (ended: ToplevelDragEnded) => {
+		if (phase === 'idle' || (phase !== 'tearing' && phase !== 'toplevel' && phase !== 'blocked'))
+			return;
+		reset();
+		// The drag's own pointer events never reached the page, so nothing else has told the engine it is over.
+		deps.cancelDrag();
+		const name = parseTearPayload(ended.payload)?.name ?? '';
+		const moved = parseTearPayload(ended.payload)?.mode === 'tabs';
+		switch (ended.outcome) {
+			case 'dropped-elsewhere':
+				if (moved) deps.announce(tf('drag.announce.movedNewWindow', { name }));
+				break;
+			case 'cancelled':
+				deps.announce(t('drag.announce.cancelled'));
+				break;
+			case 'failed':
+				postNotice(t('window.notice.moveFailed'));
+				deps.announce(t('window.notice.moveFailed'));
+				break;
+			case 'dropped-on-window':
+				// The window that took it says so.
+				break;
+		}
+	};
+
 	return {
 		update(point: Point, dragged: TabDragSource): DragPill {
 			source = dragged;
@@ -299,6 +411,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 			const view = deps.viewport();
 			const inside = point.x >= 0 && point.y >= 0 && point.x < view.width && point.y < view.height;
 			const unit = describeUnit(deps.snapshot(), dragged);
+			if (features.toplevelDrag) {
+				// The real window is the preview: no card here, no ghost.
+				showCard(null);
+				if (phase === 'idle') startToplevel(unit, dragged, point);
+				return pill('window', t('drag.pill.newWindow'));
+			}
 			if (features.ghost && features.cursorFollow && phase === 'idle' && !inside) {
 				startFollowing(unit);
 			}
@@ -315,6 +433,8 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		},
 
 		leave() {
+			// The drag has been handed to the compositor (or is being); the pointer coming back to the strip changes nothing.
+			if (phase === 'tearing' || phase === 'toplevel') return;
 			const was = phase;
 			reset();
 			// The ghost is put away; the pointer came back to the strip, or the drag was cancelled.
@@ -322,6 +442,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		},
 
 		async drop(_point: Point, dragged: TabDragSource): Promise<boolean> {
+			// Released before the compositor took the drag: it carries on, and if the button was already up it ends as failed and the tabs go back.
+			if (phase === 'tearing' || phase === 'toplevel') return true;
+			if (phase === 'blocked') {
+				reset();
+				return false;
+			}
 			const features = deps.features();
 			const was = phase;
 			const unit = describeUnit(deps.snapshot(), dragged);
@@ -363,7 +489,11 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 			);
 		},
 
+		handsOff: () => phase === 'tearing' || phase === 'toplevel',
+
 		connect() {
+			const stopStarted = deps.client.onToplevelStarted(() => enterToplevel());
+			const stopEnded = deps.client.onToplevelEnded(onToplevelEnded);
 			const stopTimeout = deps.client.onTimeout(() => {
 				// The plugin has put the ghost away already.
 				reset();
@@ -371,6 +501,8 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				deps.cancelDrag();
 			});
 			return () => {
+				stopStarted();
+				stopEnded();
 				stopTimeout();
 				const was = phase;
 				reset();

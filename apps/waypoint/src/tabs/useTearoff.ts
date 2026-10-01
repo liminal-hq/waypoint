@@ -11,6 +11,7 @@ import {
 	type TearoffFeatures,
 } from '../services/tearoffClient';
 import { buildDropRegions, sameRegions, type StripSlot } from './dropRegions';
+import { createTearHandoff, type TearHandoffDeps } from './tearOffHandoff';
 
 /** How long a burst of layout changes settles before the regions are sent. */
 export const REGION_DELAY_MS = 100;
@@ -164,4 +165,19 @@ export function useDropRegions(
 	useEffect(() => {
 		push.current?.();
 	}, [layoutKey]);
+}
+
+/**
+ * Acts, in the window that holds the tabs of a compositor-moved drag, on how it ended (see
+ * `createTearHandoff`), and announces a payload dropped on this window. Runs for the window's life.
+ */
+export function useTearHandoff(
+	client: TearoffClient | undefined,
+	deps: Omit<TearHandoffDeps, 'client'>,
+): void {
+	const { api, flush, announce } = deps;
+	useEffect(() => {
+		if (!client) return;
+		return createTearHandoff({ client, api, flush, announce }).connect();
+	}, [client, api, flush, announce]);
 }

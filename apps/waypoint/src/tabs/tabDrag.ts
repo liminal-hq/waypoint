@@ -96,6 +96,8 @@ export interface TearOffHook {
 	leave?(): void;
 	/** A release in the new-window phase; resolve true when the hook took the tabs. */
 	drop?(point: Point, source: TabDragSource): boolean | Promise<boolean>;
+	/** True while the drag has been handed to the compositor: the engine's cancel is then not a cancel, and says nothing. */
+	handsOff?(): boolean;
 	/** Called once while the window is live; returns what undoes it. */
 	connect?(): () => void;
 }
@@ -610,7 +612,8 @@ export function createTabDragHandlers(
 			clearHolds(control);
 			if (out) deps.tearOff?.leave?.();
 			out = false;
-			control.announce(t('drag.announce.cancelled'));
+			// A drag handed to the compositor is stopped here, not cancelled: its end is announced when it comes.
+			if (!deps.tearOff?.handsOff?.()) control.announce(t('drag.announce.cancelled'));
 		},
 	};
 }

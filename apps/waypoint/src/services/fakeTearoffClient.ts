@@ -9,11 +9,15 @@ import {
 	type DropReport,
 	type GhostPayload,
 	type Hit,
+	type PayloadDropped,
 	type Point,
 	type Region,
 	type Size,
 	type TearoffClient,
 	type TearoffFeatures,
+	type ToplevelBeginReport,
+	type ToplevelDragEnded,
+	type ToplevelDragStarted,
 } from './tearoffClient';
 
 /** A cursor report at logical (`x`, `y`) on a window scaled by `scale`. */
@@ -44,6 +48,16 @@ export class FakeTearoffClient implements TearoffClient {
 	begins: { payload: GhostPayload; grabOffset: Point; size: Size }[] = [];
 	updates: GhostPayload[] = [];
 	statusCalls = 0;
+	/** What `beginToplevelDrag` answers; a `started` one also fires `onToplevelStarted`, as the plugin does. */
+	toplevelBegin: ToplevelBeginReport = { state: 'started', reason: null };
+	toplevelBegins: { payload: unknown; windowLabel: string; grabOffset: Point }[] = [];
+	/** What `takeToplevelResult` returns, once. */
+	pendingResult: ToplevelDragEnded | null = null;
+	/** The values `holdNextWindow` was given, in order. */
+	holds: boolean[] = [];
+	private startedListeners = new Set<(started: ToplevelDragStarted) => void>();
+	private endedListeners = new Set<(ended: ToplevelDragEnded) => void>();
+	private droppedListeners = new Set<(dropped: PayloadDropped) => void>();
 	private timeoutListeners = new Set<() => void>();
 	private staleListeners = new Set<(stale: boolean) => void>();
 
@@ -92,6 +106,59 @@ export class FakeTearoffClient implements TearoffClient {
 	onCursorStale(listener: (stale: boolean) => void): () => void {
 		this.staleListeners.add(listener);
 		return () => this.staleListeners.delete(listener);
+	}
+
+	async holdNextWindow(on: boolean): Promise<void> {
+		this.calls.push(`hold:${on}`);
+		this.holds.push(on);
+	}
+
+	async beginToplevelDrag(
+		payload: unknown,
+		windowLabel: string,
+		grabOffset: Point,
+	): Promise<ToplevelBeginReport> {
+		this.calls.push('beginToplevel');
+		this.toplevelBegins.push({ payload, windowLabel, grabOffset });
+		await this.gate;
+		if (this.toplevelBegin.state === 'started') {
+			for (const listener of [...this.startedListeners]) listener({ window: windowLabel, payload });
+		}
+		return this.toplevelBegin;
+	}
+
+	async endToplevelDrag(): Promise<void> {
+		this.calls.push('endToplevel');
+	}
+
+	async takeToplevelResult(): Promise<ToplevelDragEnded | null> {
+		this.calls.push('takeResult');
+		const result = this.pendingResult;
+		this.pendingResult = null;
+		return result;
+	}
+
+	onToplevelStarted(listener: (started: ToplevelDragStarted) => void): () => void {
+		this.startedListeners.add(listener);
+		return () => this.startedListeners.delete(listener);
+	}
+
+	onToplevelEnded(listener: (ended: ToplevelDragEnded) => void): () => void {
+		this.endedListeners.add(listener);
+		return () => this.endedListeners.delete(listener);
+	}
+
+	onPayloadDropped(listener: (dropped: PayloadDropped) => void): () => void {
+		this.droppedListeners.add(listener);
+		return () => this.droppedListeners.delete(listener);
+	}
+
+	fireEnded(ended: ToplevelDragEnded): void {
+		for (const listener of [...this.endedListeners]) listener(ended);
+	}
+
+	fireDropped(dropped: PayloadDropped): void {
+		for (const listener of [...this.droppedListeners]) listener(dropped);
 	}
 
 	fireTimeout(): void {

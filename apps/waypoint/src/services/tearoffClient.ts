@@ -3,10 +3,30 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { DropReport, Hit, Point, Region, Size } from '@liminal-hq/plugin-window-tearoff';
+import type {
+	DropReport,
+	Hit,
+	PayloadDropped,
+	Point,
+	Region,
+	Size,
+	ToplevelBeginReport,
+	ToplevelDragEnded,
+	ToplevelDragStarted,
+} from '@liminal-hq/plugin-window-tearoff';
 import type { Unsubscribe } from './vfsClient';
 
-export type { DropReport, Hit, Point, Region, Size };
+export type {
+	DropReport,
+	Hit,
+	PayloadDropped,
+	Point,
+	Region,
+	Size,
+	ToplevelBeginReport,
+	ToplevelDragEnded,
+	ToplevelDragStarted,
+};
 
 /**
  * What the plugin can do on this system. Nothing here is a platform check: each one is a probe
@@ -22,6 +42,8 @@ export interface TearoffFeatures {
 	windowPosition: boolean;
 	/** Another window's drop regions can be hit-tested. */
 	hitTest: boolean;
+	/** The compositor can move a real window with the pointer for the whole drag (Wayland, `xdg-toplevel-drag`). */
+	toplevelDrag: boolean;
 }
 
 /** Every feature off: what a window has before the plugin has answered, and without the plugin. */
@@ -30,6 +52,7 @@ export const NO_TEAROFF: TearoffFeatures = {
 	cursorFollow: false,
 	windowPosition: false,
 	hitTest: false,
+	toplevelDrag: false,
 };
 
 /** What the drag draws on the ghost card; the plugin carries it as opaque JSON. */
@@ -56,4 +79,23 @@ export interface TearoffClient {
 	onTimeout(listener: () => void): Unsubscribe;
 	/** The cursor froze while a button was held (`true`) or moved again (`false`). */
 	onCursorStale(listener: (stale: boolean) => void): Unsubscribe;
+
+	/** Keeps the next window the session makes hidden (`true`), or stops doing so; the toplevel drag shows it. */
+	holdNextWindow(on: boolean): Promise<void>;
+	/** Drags the window `windowLabel` with the compositor, from the press in this window. */
+	beginToplevelDrag(
+		payload: unknown,
+		windowLabel: string,
+		grabOffset: Point,
+	): Promise<ToplevelBeginReport>;
+	/** Cancels the toplevel drag in progress. */
+	endToplevelDrag(): Promise<void>;
+	/** How the drag that moved this window ended, for a page that loaded after it did; read once. */
+	takeToplevelResult(): Promise<ToplevelDragEnded | null>;
+	/** The compositor took the drag this window began: the page gets no pointer events until it ends. */
+	onToplevelStarted(listener: (started: ToplevelDragStarted) => void): Unsubscribe;
+	/** A toplevel drag this window began, or that moved this window, ended. */
+	onToplevelEnded(listener: (ended: ToplevelDragEnded) => void): Unsubscribe;
+	/** A toplevel drag's payload was dropped on this window. */
+	onPayloadDropped(listener: (dropped: PayloadDropped) => void): Unsubscribe;
 }

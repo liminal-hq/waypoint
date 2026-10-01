@@ -46,7 +46,7 @@ import { createTearCardStore } from '../tabs/tearOffCardModel';
 import { TearOffCard } from '../tabs/TearOffCard';
 import { createTearOff } from '../tabs/tearOff';
 import { sessionSignature } from '../tabs/tabDrag';
-import { useDropRegions, useTearoffFeatures } from '../tabs/useTearoff';
+import { useDropRegions, useTearHandoff, useTearoffFeatures } from '../tabs/useTearoff';
 import { TabStrip } from '../tabs/TabStrip';
 import { activePair, visibleTabs } from '../tabs/pairLayout';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
@@ -101,6 +101,7 @@ export function Workspace({
 	const snapshot = useTabsSnapshot();
 	const { features, live } = useTearoffFeatures(tearoff);
 	useDropRegions(tearoff, features.hitTest, sessionSignature(snapshot));
+	useTearHandoff(tearoff, { api, flush: flushHints, announce });
 	const [card] = useState(createTearCardStore);
 	const latest = useRef(snapshot);
 	latest.current = snapshot;

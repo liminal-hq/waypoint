@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { invoke } from '@tauri-apps/api/core';
 import * as tearoff from '@liminal-hq/plugin-window-tearoff';
 import { NO_TEAROFF, type TearoffClient, type TearoffFeatures } from './tearoffClient';
 import type { Unsubscribe } from './vfsClient';
@@ -40,6 +41,7 @@ export function createTauriTearoffClient(): TearoffClient {
 					cursorFollow: tearoff.hasFeature(status, 'cursor_follow'),
 					windowPosition: tearoff.hasFeature(status, 'window_position'),
 					hitTest: tearoff.hasFeature(status, 'hit_test'),
+					toplevelDrag: tearoff.hasFeature(status, 'toplevel_drag'),
 				}),
 				(error: unknown) => {
 					console.warn('the tear-off plugin did not report its status', error);
@@ -56,5 +58,14 @@ export function createTauriTearoffClient(): TearoffClient {
 		setDropRegions: (regions) => tearoff.setDropRegions(regions),
 		onTimeout: (listener) => subscribe(tearoff.onTimeout(listener)),
 		onCursorStale: (listener) => subscribe(tearoff.onCursorStale(listener)),
+		// The app's own command (the session's window factory is the app's), not the plugin's.
+		holdNextWindow: (on) => invoke<void>('hold_next_window', { on }),
+		beginToplevelDrag: (payload, windowLabel, grabOffset) =>
+			tearoff.beginToplevelDrag(payload, windowLabel, grabOffset),
+		endToplevelDrag: () => tearoff.endToplevelDrag(),
+		takeToplevelResult: () => tearoff.takeToplevelDragResult(),
+		onToplevelStarted: (listener) => subscribe(tearoff.onToplevelDragStarted(listener)),
+		onToplevelEnded: (listener) => subscribe(tearoff.onToplevelDragEnded(listener)),
+		onPayloadDropped: (listener) => subscribe(tearoff.onPayloadDropped(listener)),
 	};
 }
