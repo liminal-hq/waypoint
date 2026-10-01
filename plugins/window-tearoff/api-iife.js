@@ -19,6 +19,10 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     const TOPLEVEL_DRAG_ENDED_EVENT = 'window-tearoff://toplevel-drag-ended';
     /** Sent to the window a toplevel drag's payload was dropped on. */
     const PAYLOAD_DROPPED_EVENT = 'window-tearoff://tab-dropped';
+    /** Sent to a window while a toplevel drag's payload is over it, where the pointer is and which registered region it is over. */
+    const DRAG_HOVER_EVENT = 'window-tearoff://drag-hover';
+    /** Sent to a window that was sent `drag-hover` once the payload leaves it or is dropped on it. */
+    const DRAG_LEAVE_EVENT = 'window-tearoff://drag-leave';
     function cmd(name, args) {
         return core.invoke(`${PREFIX}${name}`, args);
     }
@@ -102,6 +106,14 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     function onPayloadDropped(handler) {
         return webviewWindow.getCurrentWebviewWindow().listen(PAYLOAD_DROPPED_EVENT, (event) => handler(event.payload));
     }
+    /** Listens, in any window, for a toplevel drag's payload moving over it (about 20 times a second at most, and only when the pointer moved). */
+    function onDragHover(handler) {
+        return webviewWindow.getCurrentWebviewWindow().listen(DRAG_HOVER_EVENT, (event) => handler(event.payload));
+    }
+    /** Listens, in any window, for a toplevel drag's payload leaving it or being dropped on it, after `onDragHover` events. */
+    function onDragLeave(handler) {
+        return webviewWindow.getCurrentWebviewWindow().listen(DRAG_LEAVE_EVENT, (event) => handler(event.payload));
+    }
     /** Listens, in the ghost window, for the drag's payload as it is sent and updated; `null` means the drag ended and the card should clear. */
     function onPayload(handler) {
         return webviewWindow.getCurrentWebviewWindow().listen(PAYLOAD_EVENT, (event) => handler(event.payload));
@@ -116,6 +128,8 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     }
 
     exports.CURSOR_STALE_EVENT = CURSOR_STALE_EVENT;
+    exports.DRAG_HOVER_EVENT = DRAG_HOVER_EVENT;
+    exports.DRAG_LEAVE_EVENT = DRAG_LEAVE_EVENT;
     exports.PAYLOAD_DROPPED_EVENT = PAYLOAD_DROPPED_EVENT;
     exports.PAYLOAD_EVENT = PAYLOAD_EVENT;
     exports.TIMEOUT_EVENT = TIMEOUT_EVENT;
@@ -131,6 +145,8 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     exports.hasFeature = hasFeature;
     exports.hitTest = hitTest;
     exports.onCursorStale = onCursorStale;
+    exports.onDragHover = onDragHover;
+    exports.onDragLeave = onDragLeave;
     exports.onPayload = onPayload;
     exports.onPayloadDropped = onPayloadDropped;
     exports.onTimeout = onTimeout;

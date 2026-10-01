@@ -8,6 +8,8 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { BeginReport } from './bindings/BeginReport';
 import type { BeginState } from './bindings/BeginState';
+import type { DragHover } from './bindings/DragHover';
+import type { DragLeave } from './bindings/DragLeave';
 import type { DropReport } from './bindings/DropReport';
 import type { Hit } from './bindings/Hit';
 import type { Outcome } from './bindings/Outcome';
@@ -38,6 +40,11 @@ export const TOPLEVEL_DRAG_STARTED_EVENT = 'window-tearoff://toplevel-drag-start
 export const TOPLEVEL_DRAG_ENDED_EVENT = 'window-tearoff://toplevel-drag-ended';
 /** Sent to the window a toplevel drag's payload was dropped on. */
 export const PAYLOAD_DROPPED_EVENT = 'window-tearoff://tab-dropped';
+
+/** Sent to a window while a toplevel drag's payload is over it, where the pointer is and which registered region it is over. */
+export const DRAG_HOVER_EVENT = 'window-tearoff://drag-hover';
+/** Sent to a window that was sent `drag-hover` once the payload leaves it or is dropped on it. */
+export const DRAG_LEAVE_EVENT = 'window-tearoff://drag-leave';
 
 /** The features `getStatus` can report. */
 export type Feature = 'ghost' | 'cursor_follow' | 'window_position' | 'hit_test' | 'toplevel_drag';
@@ -156,6 +163,20 @@ export function onPayloadDropped(handler: (_dropped: PayloadDropped) => void): P
 	);
 }
 
+/** Listens, in any window, for a toplevel drag's payload moving over it (about 20 times a second at most, and only when the pointer moved). */
+export function onDragHover(handler: (_hover: DragHover) => void): Promise<UnlistenFn> {
+	return getCurrentWebviewWindow().listen<DragHover>(DRAG_HOVER_EVENT, (event) =>
+		handler(event.payload),
+	);
+}
+
+/** Listens, in any window, for a toplevel drag's payload leaving it or being dropped on it, after `onDragHover` events. */
+export function onDragLeave(handler: (_leave: DragLeave) => void): Promise<UnlistenFn> {
+	return getCurrentWebviewWindow().listen<DragLeave>(DRAG_LEAVE_EVENT, (event) =>
+		handler(event.payload),
+	);
+}
+
 /** Listens, in the ghost window, for the drag's payload as it is sent and updated; `null` means the drag ended and the card should clear. */
 export function onPayload<T = unknown>(handler: (_payload: T) => void): Promise<UnlistenFn> {
 	return getCurrentWebviewWindow().listen<T>(PAYLOAD_EVENT, (event) => handler(event.payload));
@@ -176,6 +197,8 @@ export function onCursorStale(handler: (_stale: boolean) => void): Promise<Unlis
 export type {
 	BeginReport,
 	BeginState,
+	DragHover,
+	DragLeave,
 	DropReport,
 	Hit,
 	Outcome,

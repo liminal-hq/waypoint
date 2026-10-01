@@ -97,10 +97,39 @@ pub fn hit_test(cursor: Point, windows: &[WindowGeometry]) -> Option<Hit> {
             }
         }
     }
-    best.map(|(_, window, region)| Hit {
-        window: window.label.clone(),
-        region: region.id.clone(),
+    best.map(|(_, window, region)| {
+        let local = Point {
+            x: (cursor.x - f64::from(window.inner_position.0)) / window.scale_factor,
+            y: (cursor.y - f64::from(window.inner_position.1)) / window.scale_factor,
+        };
+        Hit {
+            window: window.label.clone(),
+            region: region.id.clone(),
+            x: local.x,
+            y: local.y,
+        }
     })
+}
+
+/// The id of the region of one window under a point in logical pixels from the top-left of its content, for a caller that already knows which window the point is in (a drop target's own pointer position).
+///
+/// As in `hit_test`, the smallest region wins an overlap, and the earlier one keeps a tie; a region covers its left and top edges and not its right and bottom. A region is not clipped to the window here: the point is already inside it.
+pub fn region_at(regions: &[Region], x: f64, y: f64) -> Option<&str> {
+    let mut best: Option<(f64, &Region)> = None;
+    for region in regions {
+        let inside = x >= region.x
+            && x < region.x + region.width
+            && y >= region.y
+            && y < region.y + region.height;
+        if !inside {
+            continue;
+        }
+        let area = region.width * region.height;
+        if best.is_none_or(|(smallest, _)| area < smallest) {
+            best = Some((area, region));
+        }
+    }
+    best.map(|(_, region)| region.id.as_str())
 }
 
 #[cfg(test)]
@@ -137,11 +166,13 @@ mod tests {
         Point { x, y }
     }
 
-    fn hit(window: &str, region: &str) -> Option<Hit> {
-        Some(Hit {
-            window: window.into(),
-            region: region.into(),
-        })
+    /// The window and region of a hit, so most tests need not know where in the region the cursor was.
+    fn hit(window: &str, region: &str) -> Option<(String, String)> {
+        Some((window.into(), region.into()))
+    }
+
+    fn hit_test(cursor: Point, windows: &[WindowGeometry]) -> Option<(String, String)> {
+        super::hit_test(cursor, windows).map(|hit| (hit.window, hit.region))
     }
 
     #[test]
@@ -344,5 +375,35 @@ mod tests {
             vec![region("zero", 10.0, 10.0, 0.0, 0.0)],
         )];
         assert_eq!(hit_test(at(10.0, 10.0), &degenerate), None);
+    }
+
+    #[test]
+    fn a_hit_reports_the_cursor_in_the_windows_logical_pixels() {
+        let windows = [window(
+            "a",
+            (100, 200),
+            (800, 600),
+            2.0,
+            vec![region("strip", 0.0, 0.0, 300.0, 40.0)],
+        )];
+        // 2x: physical (160, 250) is (60, 50) from the origin, which is logical (30, 25).
+        let found = super::hit_test(at(160.0, 250.0), &windows).expect("a hit");
+        assert_eq!((found.x, found.y), (30.0, 25.0));
+        assert_eq!(found.region, "strip");
+    }
+
+    #[test]
+    fn region_at_finds_the_smallest_region_under_a_point() {
+        let regions = vec![
+            region("strip", 0.0, 0.0, 400.0, 40.0),
+            region("slot:1", 100.0, 0.0, 50.0, 40.0),
+            region("slot:2", 150.0, 0.0, 50.0, 40.0),
+        ];
+        assert_eq!(region_at(&regions, 120.0, 10.0), Some("slot:1"));
+        assert_eq!(region_at(&regions, 150.0, 10.0), Some("slot:2"));
+        assert_eq!(region_at(&regions, 300.0, 10.0), Some("strip"));
+        assert_eq!(region_at(&regions, 300.0, 40.0), None);
+        assert_eq!(region_at(&regions, -1.0, 10.0), None);
+        assert_eq!(region_at(&[], 1.0, 1.0), None);
     }
 }

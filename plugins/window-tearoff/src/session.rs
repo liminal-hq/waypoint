@@ -234,6 +234,12 @@ impl Tearoff {
         lock(&self.regions).insert(label.to_string(), regions);
     }
 
+    /// The id of the region of `label` under (`x`, `y`) in logical pixels from the top-left of its content; the smallest wins an overlap.
+    pub fn region_at(&self, label: &str, x: f64, y: f64) -> Option<String> {
+        let regions = lock(&self.regions);
+        regions::region_at(regions.get(label)?, x, y).map(str::to_string)
+    }
+
     /// Forgets a destroyed window's regions, and ends the drag if that window began it.
     pub fn window_destroyed<R: Runtime>(&self, app: &AppHandle<R>, label: &str) {
         lock(&self.regions).remove(label);
@@ -487,6 +493,7 @@ impl Tearoff {
 /// Cancels the toplevel drag through the tracker, which reports the end; if the tracker has no drag (it ended already, or never started) the state is ended here so it cannot stick. Must run on the main thread.
 fn cancel_toplevel<R: Runtime>(app: &AppHandle<R>, state: &toplevel::State) {
     toplevel::cancel();
+    toplevel::leave_hovered(app, state);
     if let Some(ended) = state.finish(Finish::Cancelled { after_drop: false }) {
         toplevel::emit_ended(app, &ended);
     }

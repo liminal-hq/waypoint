@@ -205,6 +205,8 @@ fn wire_types_use_camel_case() {
         hit: Some(Hit {
             window: "main-1".into(),
             region: "strip".into(),
+            x: 0.5,
+            y: 1.0,
         }),
     };
     let value = serde_json::to_value(&report).unwrap();
@@ -214,7 +216,7 @@ fn wire_types_use_camel_case() {
             "cursor": { "x": 1.0, "y": 2.0 },
             "scaleFactor": 2.0,
             "cursorStale": false,
-            "hit": { "window": "main-1", "region": "strip" },
+            "hit": { "window": "main-1", "region": "strip", "x": 0.5, "y": 1.0 },
         })
     );
     assert_eq!(
@@ -228,6 +230,35 @@ fn wire_types_use_camel_case() {
     assert_eq!(
         serde_json::to_value(BeginState::NoGhost).unwrap(),
         json!("noGhost")
+    );
+}
+
+#[test]
+fn hover_events_carry_the_pointer_and_the_region() {
+    use crate::models::{DragHover, DragLeave};
+    let hover = DragHover {
+        window: "main-2".into(),
+        x: 120.5,
+        y: 14.0,
+        region: Some("slot:3".into()),
+        payload: json!({"tabs": [1]}),
+    };
+    assert_eq!(
+        serde_json::to_value(&hover).unwrap(),
+        json!({
+            "window": "main-2",
+            "x": 120.5,
+            "y": 14.0,
+            "region": "slot:3",
+            "payload": { "tabs": [1] },
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(DragLeave {
+            window: "main-2".into()
+        })
+        .unwrap(),
+        json!({ "window": "main-2" })
     );
 }
 

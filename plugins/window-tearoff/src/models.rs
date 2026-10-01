@@ -20,6 +20,11 @@ pub const TOPLEVEL_DRAG_ENDED_EVENT: &str = "window-tearoff://toplevel-drag-ende
 /// Emitted to the window a toplevel drag was dropped on, with a `PayloadDropped` payload.
 pub const TAB_DROPPED_EVENT: &str = "window-tearoff://tab-dropped";
 
+/// Emitted to a window a toplevel drag's payload is over, with a `DragHover` payload, at most about 20 times a second and only when the pointer has moved.
+pub const DRAG_HOVER_EVENT: &str = "window-tearoff://drag-hover";
+/// Emitted, with a `DragLeave` payload, to a window that was sent `drag-hover` once the payload leaves it or is dropped on it.
+pub const DRAG_LEAVE_EVENT: &str = "window-tearoff://drag-leave";
+
 /// The label the plugin gives the ghost window unless `Options` says otherwise.
 pub const DEFAULT_GHOST_LABEL: &str = "tear-ghost";
 
@@ -77,7 +82,7 @@ pub enum Outcome {
 }
 
 /// A registered region that the cursor was over.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
 pub struct Hit {
@@ -85,6 +90,9 @@ pub struct Hit {
     pub window: String,
     /// The `id` of the region.
     pub region: String,
+    /// The cursor in logical pixels from the top-left of that window's content, the origin its regions are measured from.
+    pub x: f64,
+    pub y: f64,
 }
 
 /// What `end` found.
@@ -244,6 +252,8 @@ pub struct ToplevelDragEnded {
     pub outcome: ToplevelOutcome,
     /// The window the payload was dropped on, for `dropped-on-window`.
     pub target: Option<String>,
+    /// The id of the region of `target` the drop was over, when it was over one.
+    pub region: Option<String>,
     /// The drag's opaque payload, as `begin_toplevel_drag` was given it.
     #[ts(type = "unknown")]
     pub payload: serde_json::Value,
@@ -261,4 +271,35 @@ pub struct PayloadDropped {
     /// The drag's payload, parsed from what the source offered.
     #[ts(type = "unknown")]
     pub payload: serde_json::Value,
+    /// Where it was dropped, in logical pixels from the top-left of the window's content.
+    pub x: f64,
+    pub y: f64,
+    /// The id of the region the drop was over, when it was over one of the window's registered regions.
+    pub region: Option<String>,
+}
+
+/// Sent to a window while a toplevel drag's payload is over it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct DragHover {
+    /// The label of the window the payload is over (the receiver).
+    pub window: String,
+    /// The pointer in logical pixels from the top-left of the window's content.
+    pub x: f64,
+    pub y: f64,
+    /// The id of the registered region under the pointer, if any.
+    pub region: Option<String>,
+    /// The drag's opaque payload, as `begin_toplevel_drag` was given it.
+    #[ts(type = "unknown")]
+    pub payload: serde_json::Value,
+}
+
+/// Sent to a window that was sent `drag-hover` when the payload leaves it or is dropped on it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct DragLeave {
+    /// The label of the window the payload left (the receiver).
+    pub window: String,
 }

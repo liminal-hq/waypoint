@@ -12,14 +12,15 @@ use std::{
         atomic::{AtomicU32, Ordering},
         Mutex, MutexGuard,
     },
+    time::{Duration, Instant},
 };
 
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::models::{
-    PayloadDropped, ToplevelBeginReport, ToplevelBeginState, ToplevelDragEnded,
-    ToplevelDragStarted, ToplevelOutcome, TOPLEVEL_DRAG_ENDED_EVENT,
+    DragLeave, PayloadDropped, ToplevelBeginReport, ToplevelBeginState, ToplevelDragEnded,
+    ToplevelDragStarted, ToplevelOutcome, DRAG_LEAVE_EVENT, TOPLEVEL_DRAG_ENDED_EVENT,
 };
 
 #[cfg(target_os = "linux")]
@@ -42,6 +43,67 @@ struct Active {
     payload: Value,
     /// The window that took the payload, once one has.
     target: Option<String>,
+    /// The region of `target` the drop was over, when it was over one.
+    region: Option<String>,
+}
+
+/// The least time between two `drag-hover` events to one window (about 20 a second).
+pub const HOVER_INTERVAL: Duration = Duration::from_millis(50);
+
+/// What the plugin owes the windows for one pointer movement of a toplevel drag.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Motion {
+    /// A window the payload was over until now, which is to be told it has left.
+    pub leave: Option<String>,
+    /// Whether the window it is over now is to be told where the pointer is.
+    pub hover: bool,
+}
+
+/// Throttles and de-duplicates the pointer positions a drop target reports during a toplevel drag, so the page of the window hovered hears of the pointer at about 20 Hz and only when it moved. It also remembers which window was told, so every window that was sent a `drag-hover` is sent a `drag-leave` exactly once.
+#[derive(Debug, Default)]
+pub struct HoverGate {
+    window: Option<String>,
+    sent: Option<(f64, f64, Instant)>,
+}
+
+impl HoverGate {
+    /// The pointer is at (`x`, `y`) in `label`'s content at `now`.
+    pub fn motion(&mut self, label: &str, x: f64, y: f64, now: Instant) -> Motion {
+        let mut motion = Motion::default();
+        if self.window.as_deref() != Some(label) {
+            motion.leave = self.window.take();
+            self.sent = None;
+            self.window = Some(label.to_string());
+        }
+        let due = match self.sent {
+            None => true,
+            Some((last_x, last_y, at)) => {
+                (last_x != x || last_y != y) && now.saturating_duration_since(at) >= HOVER_INTERVAL
+            }
+        };
+        if due {
+            self.sent = Some((x, y, now));
+        }
+        motion.hover = due;
+        motion
+    }
+
+    /// The payload left `label`, or was dropped on it. True when that window had been sent a `drag-hover` and is to be sent a `drag-leave`.
+    pub fn leave(&mut self, label: &str) -> bool {
+        if self.window.as_deref() == Some(label) {
+            self.window = None;
+            self.sent = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The drag ended: the window that was hovered, if any, is to be told it has left.
+    pub fn end(&mut self) -> Option<String> {
+        self.sent = None;
+        self.window.take()
+    }
 }
 
 /// How the compositor ended a drag.
@@ -74,12 +136,30 @@ pub fn emit_ended<R: Runtime>(app: &AppHandle<R>, ended: &ToplevelDragEnded) {
     }
 }
 
+/// Tells the window the payload was over, if any, that it has left, for a drag that ends (or is abandoned) with the pointer over a window.
+pub fn leave_hovered<R: Runtime>(app: &AppHandle<R>, state: &State) {
+    if let Some(label) = state.hover_end() {
+        emit_leave(app, &label);
+    }
+}
+
+/// Tells `label` the payload has left it.
+pub fn emit_leave<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    let event = DragLeave {
+        window: label.to_string(),
+    };
+    if let Err(error) = app.emit_to(label, DRAG_LEAVE_EVENT, &event) {
+        log::warn!("window-tearoff: cannot tell `{label}` the payload left: {error}");
+    }
+}
+
 /// The toplevel drag state: at most one drag at a time, and the result of each ended drag until the dragged window's page has read it (a page that is still loading when the drag ends misses the event).
 #[derive(Default)]
 pub struct State {
     active: Mutex<Option<Active>>,
     results: Mutex<HashMap<String, ToplevelDragEnded>>,
     seq: AtomicU32,
+    hover: Mutex<HoverGate>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -114,7 +194,9 @@ impl State {
             window: window.to_string(),
             payload: payload.clone(),
             target: None,
+            region: None,
         });
+        *lock(&self.hover) = HoverGate::default();
         lock(&self.results).remove(window);
         Ok(ToplevelDragStarted {
             window: window.to_string(),
@@ -125,25 +207,60 @@ impl State {
     /// Gives the drag slot back when the drag never started.
     pub fn abandon(&self) {
         *lock(&self.active) = None;
+        lock(&self.hover).end();
     }
 
-    /// A window took the drag's payload. Returns what to tell that window; `None` when no drag is running, or when the window is the one being dragged (it sits under the pointer, and a drop on itself is a drop on nothing).
-    pub fn payload_dropped(&self, target: &str, payload: Value) -> Option<PayloadDropped> {
+    /// The drag's payload when `window` is a window it can hover: a drag is running and the window is not the one being dragged (it sits under the pointer, and a hover over itself is a hover over nothing).
+    pub fn hover_payload(&self, window: &str) -> Option<Value> {
+        let active = lock(&self.active);
+        let current = active.as_ref()?;
+        (current.window != window).then(|| current.payload.clone())
+    }
+
+    /// The pointer is at (`x`, `y`) in `window`'s content; see `HoverGate::motion`.
+    pub fn hover_motion(&self, window: &str, x: f64, y: f64, now: Instant) -> Motion {
+        lock(&self.hover).motion(window, x, y, now)
+    }
+
+    /// The drag is over: the window it was over, if any; see `HoverGate::end`.
+    pub fn hover_end(&self) -> Option<String> {
+        lock(&self.hover).end()
+    }
+
+    /// The payload left `window` or is dropped on it; see `HoverGate::leave`.
+    pub fn hover_leave(&self, window: &str) -> bool {
+        lock(&self.hover).leave(window)
+    }
+
+    /// A window took the drag's payload at (`x`, `y`) in its content, over `region` when one. Returns what to tell that window; `None` when no drag is running, or when the window is the one being dragged (it sits under the pointer, and a drop on itself is a drop on nothing).
+    pub fn payload_dropped(
+        &self,
+        target: &str,
+        payload: Value,
+        at: (f64, f64),
+        region: Option<String>,
+    ) -> Option<PayloadDropped> {
         let mut active = lock(&self.active);
         let current = active.as_mut()?;
         if current.window == target {
             return None;
         }
         current.target = Some(target.to_string());
+        current.region = region.clone();
         Some(PayloadDropped {
             window: target.to_string(),
             payload,
+            x: at.0,
+            y: at.1,
+            region,
         })
     }
 
     /// Ends the drag. Returns the result to send, once: a second end (the compositor may send `cancelled` right after `dnd_finished`) finds nothing running and returns `None`.
     pub fn finish(&self, how: Finish) -> Option<ToplevelDragEnded> {
         let current = lock(&self.active).take()?;
+        lock(&self.hover).end();
+        let region = current.region;
         let (outcome, target, reason) = match how {
             Finish::Finished => match current.target {
                 Some(target) => (ToplevelOutcome::DroppedOnWindow, Some(target), None),
@@ -162,6 +279,7 @@ impl State {
             source: current.source,
             outcome,
             target,
+            region,
             payload: current.payload,
             reason,
         });
@@ -182,6 +300,7 @@ impl State {
             source: source.to_string(),
             outcome: ToplevelOutcome::Failed,
             target: None,
+            region: None,
             payload: payload.clone(),
             reason: Some(reason.to_string()),
         })
@@ -255,13 +374,21 @@ mod tests {
     fn a_drop_on_another_window_names_it_and_routes_the_payload() {
         let state = begun();
         let dropped = state
-            .payload_dropped("main-3", json!({"tabs": [1, 2]}))
+            .payload_dropped(
+                "main-3",
+                json!({"tabs": [1, 2]}),
+                (30.0, 12.0),
+                Some("slot:2".into()),
+            )
             .expect("a drag is running");
         assert_eq!(dropped.window, "main-3");
         assert_eq!(dropped.payload, json!({"tabs": [1, 2]}));
+        assert_eq!((dropped.x, dropped.y), (30.0, 12.0));
+        assert_eq!(dropped.region.as_deref(), Some("slot:2"));
         let ended = state.finish(Finish::Finished).unwrap();
         assert_eq!(ended.outcome, ToplevelOutcome::DroppedOnWindow);
         assert_eq!(ended.target.as_deref(), Some("main-3"));
+        assert_eq!(ended.region.as_deref(), Some("slot:2"));
         assert_eq!(ended.window, "main-2");
         assert_eq!(ended.source, "main-1");
         assert_eq!(ended.payload, json!({"tabs": [1, 2]}));
@@ -270,7 +397,9 @@ mod tests {
     #[test]
     fn a_drop_back_on_the_source_is_a_drop_on_a_window() {
         let state = begun();
-        assert!(state.payload_dropped("main-1", json!(null)).is_some());
+        assert!(state
+            .payload_dropped("main-1", json!(null), (0.0, 0.0), None)
+            .is_some());
         let ended = state.finish(Finish::Finished).unwrap();
         assert_eq!(ended.outcome, ToplevelOutcome::DroppedOnWindow);
         assert_eq!(ended.target.as_deref(), Some("main-1"));
@@ -279,7 +408,9 @@ mod tests {
     #[test]
     fn a_drop_on_the_dragged_window_itself_counts_for_nothing() {
         let state = begun();
-        assert!(state.payload_dropped("main-2", json!(null)).is_none());
+        assert!(state
+            .payload_dropped("main-2", json!(null), (0.0, 0.0), None)
+            .is_none());
         let ended = state.finish(Finish::Finished).unwrap();
         assert_eq!(ended.outcome, ToplevelOutcome::DroppedElsewhere);
         assert_eq!(ended.target, None);
@@ -288,7 +419,7 @@ mod tests {
     #[test]
     fn a_payload_is_not_routed_when_no_drag_runs() {
         assert!(State::default()
-            .payload_dropped("main-3", json!(1))
+            .payload_dropped("main-3", json!(1), (0.0, 0.0), None)
             .is_none());
     }
 
@@ -322,7 +453,7 @@ mod tests {
     #[test]
     fn a_drag_ends_once() {
         let state = begun();
-        state.payload_dropped("main-3", json!(null));
+        state.payload_dropped("main-3", json!(null), (0.0, 0.0), None);
         assert!(state.finish(Finish::Finished).is_some());
         // `cancelled` can arrive right after `dnd_finished`.
         assert!(state
@@ -397,5 +528,88 @@ mod tests {
         state.finish(Finish::Finished);
         state.forget("main-2");
         assert!(state.take_result("main-2").is_none());
+    }
+
+    #[test]
+    fn only_a_window_other_than_the_dragged_one_is_hovered() {
+        let state = begun();
+        assert_eq!(state.hover_payload("main-3"), Some(json!({"tabs": [1, 2]})));
+        assert!(state.hover_payload("main-1").is_some());
+        assert_eq!(state.hover_payload("main-2"), None);
+        assert_eq!(State::default().hover_payload("main-3"), None);
+    }
+
+    fn ms(base: Instant, n: u64) -> Instant {
+        base + Duration::from_millis(n)
+    }
+
+    #[test]
+    fn the_first_motion_in_a_window_is_sent_at_once() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        let motion = gate.motion("main-1", 10.0, 5.0, base);
+        assert_eq!(
+            motion,
+            Motion {
+                leave: None,
+                hover: true
+            }
+        );
+    }
+
+    #[test]
+    fn motion_is_limited_to_about_twenty_a_second() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        assert!(gate.motion("a", 1.0, 1.0, base).hover);
+        assert!(!gate.motion("a", 2.0, 1.0, ms(base, 10)).hover);
+        assert!(!gate.motion("a", 3.0, 1.0, ms(base, 49)).hover);
+        assert!(gate.motion("a", 4.0, 1.0, ms(base, 50)).hover);
+        // The skipped positions are not owed: the next one that is due carries the pointer's place.
+        assert!(!gate.motion("a", 5.0, 1.0, ms(base, 60)).hover);
+        assert!(gate.motion("a", 6.0, 1.0, ms(base, 100)).hover);
+    }
+
+    #[test]
+    fn a_pointer_that_has_not_moved_is_not_sent_again() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        assert!(gate.motion("a", 1.0, 1.0, base).hover);
+        assert!(!gate.motion("a", 1.0, 1.0, ms(base, 500)).hover);
+        assert!(gate.motion("a", 1.0, 2.0, ms(base, 501)).hover);
+    }
+
+    #[test]
+    fn moving_to_another_window_leaves_the_first_and_is_sent_at_once() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        gate.motion("a", 1.0, 1.0, base);
+        let motion = gate.motion("b", 9.0, 9.0, ms(base, 1));
+        assert_eq!(motion.leave.as_deref(), Some("a"));
+        assert!(motion.hover);
+        // `a` was left already, so it is not left again.
+        assert!(!gate.leave("a"));
+        assert!(gate.leave("b"));
+    }
+
+    #[test]
+    fn a_leave_is_owed_only_to_a_window_that_was_hovered_and_only_once() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        assert!(!gate.leave("a"));
+        gate.motion("a", 1.0, 1.0, base);
+        assert!(gate.leave("a"));
+        assert!(!gate.leave("a"));
+        // Coming back is sent at once again.
+        assert!(gate.motion("a", 1.0, 1.0, ms(base, 1)).hover);
+    }
+
+    #[test]
+    fn the_end_of_a_drag_leaves_the_hovered_window() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        gate.motion("a", 1.0, 1.0, base);
+        assert_eq!(gate.end().as_deref(), Some("a"));
+        assert_eq!(gate.end(), None);
     }
 }

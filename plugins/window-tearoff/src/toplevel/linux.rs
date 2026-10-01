@@ -3,7 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::{cell::RefCell, ffi::c_void, sync::Arc, time::Duration};
+use std::{
+    cell::RefCell,
+    ffi::c_void,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use gdk::prelude::*;
 use gtk::{
@@ -18,10 +23,11 @@ use wayland_toplevel_drag::{
     DragRequest, Event, StartError, Tracker, Unavailable,
 };
 
-use super::{emit_ended, Finish, State};
+use super::{emit_ended, emit_leave, leave_hovered, Finish, State};
 use crate::{
     models::{
-        ToplevelBeginReport, ToplevelBeginState, TAB_DROPPED_EVENT, TOPLEVEL_DRAG_STARTED_EVENT,
+        DragHover, ToplevelBeginReport, ToplevelBeginState, DRAG_HOVER_EVENT, TAB_DROPPED_EVENT,
+        TOPLEVEL_DRAG_STARTED_EVENT,
     },
     session::Tearoff,
     status::{Platform, ToplevelProbe},
@@ -250,6 +256,7 @@ fn release_pointer_grab() {
 }
 
 fn end<R: Runtime>(app: &AppHandle<R>, state: &State, how: Finish) {
+    leave_hovered(app, state);
     if let Some(ended) = state.finish(how) {
         release_pointer_grab();
         debug!("window-tearoff: toplevel drag ended: {ended:?}");
@@ -295,13 +302,30 @@ pub fn install_drop_target<R: Runtime>(window: &tauri::Window<R>, mime: &str) {
         }
     }
     let ours = move |context: &gdk::DragContext| context.list_targets().contains(&atom);
+    let app = window.app_handle().clone();
+    let label = window.label().to_string();
     view.connect_drag_motion({
-        move |_, context, _, _, time| {
+        let (app, label) = (app.clone(), label.clone());
+        move |_, context, x, y, time| {
             if !ours(context) {
                 return false;
             }
             context.drag_status(gdk::DragAction::MOVE, time);
+            hover(&app, &label, f64::from(x), f64::from(y));
             true
+        }
+    });
+    view.connect_drag_leave({
+        let (app, label) = (app.clone(), label.clone());
+        move |_, context, _| {
+            if !ours(context) {
+                return;
+            }
+            if let Some(tearoff) = app.try_state::<Tearoff>() {
+                if tearoff.toplevel().hover_leave(&label) {
+                    emit_leave(&app, &label);
+                }
+            }
         }
     });
     view.connect_drag_drop({
@@ -313,17 +337,19 @@ pub fn install_drop_target<R: Runtime>(window: &tauri::Window<R>, mime: &str) {
             true
         }
     });
-    let app = window.app_handle().clone();
-    let label = window.label().to_string();
-    view.connect_drag_data_received(move |_, context, _, _, data, info, time| {
+    view.connect_drag_data_received(move |_, context, x, y, data, info, time| {
         if info != TARGET_INFO || data.target() != atom {
             return;
         }
         match serde_json::from_slice::<Value>(&data.data()) {
             Ok(payload) => {
-                let routed = app
-                    .try_state::<Tearoff>()
-                    .and_then(|tearoff| tearoff.toplevel().payload_dropped(&label, payload));
+                let (x, y) = (f64::from(x), f64::from(y));
+                let routed = app.try_state::<Tearoff>().and_then(|tearoff| {
+                    let region = tearoff.region_at(&label, x, y);
+                    tearoff
+                        .toplevel()
+                        .payload_dropped(&label, payload, (x, y), region)
+                });
                 if let Some(dropped) = routed {
                     if let Err(error) = app.emit_to(label.as_str(), TAB_DROPPED_EVENT, &dropped) {
                         warn!("window-tearoff: cannot hand the payload to `{label}`: {error}");
@@ -337,4 +363,31 @@ pub fn install_drop_target<R: Runtime>(window: &tauri::Window<R>, mime: &str) {
             }
         }
     });
+}
+
+/// Tells the page of `label` where the payload of the toplevel drag is over it (see `HoverGate`), and the page of the window it was over before that, if it was another, that it has left.
+fn hover<R: Runtime>(app: &AppHandle<R>, label: &str, x: f64, y: f64) {
+    let Some(tearoff) = app.try_state::<Tearoff>() else {
+        return;
+    };
+    let state = tearoff.toplevel();
+    let Some(payload) = state.hover_payload(label) else {
+        return;
+    };
+    let motion = state.hover_motion(label, x, y, Instant::now());
+    if let Some(previous) = motion.leave {
+        emit_leave(app, &previous);
+    }
+    if motion.hover {
+        let event = DragHover {
+            window: label.to_string(),
+            x,
+            y,
+            region: tearoff.region_at(label, x, y),
+            payload,
+        };
+        if let Err(error) = app.emit_to(label, DRAG_HOVER_EVENT, &event) {
+            warn!("window-tearoff: cannot tell `{label}` where the payload is: {error}");
+        }
+    }
 }

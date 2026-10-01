@@ -11,4 +11,12 @@ window: string,
 /**
  * The drag's payload, parsed from what the source offered.
  */
-payload: unknown, };
+payload: unknown, 
+/**
+ * Where it was dropped, in logical pixels from the top-left of the window's content.
+ */
+x: number, y: number, 
+/**
+ * The id of the region the drop was over, when it was over one of the window's registered regions.
+ */
+region: string | null, };

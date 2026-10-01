@@ -11,4 +11,8 @@ window: string,
 /**
  * The `id` of the region.
  */
-region: string, };
+region: string, 
+/**
+ * The cursor in logical pixels from the top-left of that window's content, the origin its regions are measured from.
+ */
+x: number, y: number, };

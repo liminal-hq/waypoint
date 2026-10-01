@@ -22,6 +22,10 @@ source: string, outcome: ToplevelOutcome,
  */
 target: string | null, 
 /**
+ * The id of the region of `target` the drop was over, when it was over one.
+ */
+region: string | null, 
+/**
  * The drag's opaque payload, as `begin_toplevel_drag` was given it.
  */
 payload: unknown, 
