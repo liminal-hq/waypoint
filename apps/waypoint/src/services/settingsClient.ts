@@ -13,6 +13,7 @@ import type {
 	SettingsCommandError,
 	SettingsSnapshot,
 	StartupMode,
+	UiSettings,
 } from '@liminal-hq/waypoint-plugin-settings';
 import type { Unsubscribe } from './vfsClient';
 
@@ -26,6 +27,7 @@ export type {
 	SettingsCommandError,
 	SettingsSnapshot,
 	StartupMode,
+	UiSettings,
 };
 
 /**
@@ -53,6 +55,10 @@ export const DEFAULT_SETTINGS: Settings = {
 		defaultActionRule: 'byVolume',
 		springLoadMs: 600,
 		shelfPersist: true,
+	},
+	ui: {
+		actionBar: true,
+		actionBarLabels: true,
 	},
 };
 

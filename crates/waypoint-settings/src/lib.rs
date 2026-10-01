@@ -13,7 +13,7 @@ mod storage;
 
 pub use model::{
     ClickMode, DefaultView, DndSettings, DropActionRule, GeneralSettings, Settings, SettingsError,
-    SettingsSnapshot, StartupMode, SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
+    SettingsSnapshot, StartupMode, UiSettings, SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
 };
 pub use storage::{
     KeyValue, MemoryStorage, Persistence, SettingsDocument, SettingsStorage, StorageError,

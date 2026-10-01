@@ -104,6 +104,27 @@ impl Default for DndSettings {
     }
 }
 
+/// What the window chrome shows (SPEC 5.9). These are view choices of the window, kept here so
+/// every window and every restart agree on them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct UiSettings {
+    /// Whether the Action bar shows under the toolbar.
+    pub action_bar: bool,
+    /// Whether the Action bar's buttons carry their labels, or are icons only.
+    pub action_bar_labels: bool,
+}
+
+impl Default for UiSettings {
+    fn default() -> Self {
+        Self {
+            action_bar: true,
+            action_bar_labels: true,
+        }
+    }
+}
+
 /// Everything the Settings window edits that is not an operations setting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
@@ -111,6 +132,7 @@ impl Default for DndSettings {
 pub struct Settings {
     pub general: GeneralSettings,
     pub dnd: DndSettings,
+    pub ui: UiSettings,
 }
 
 /// Why a settings value was refused. Nothing changed.
@@ -175,6 +197,8 @@ mod tests {
         assert_eq!(s.dnd.default_action_rule, DropActionRule::ByVolume);
         assert_eq!(s.dnd.spring_load_ms, 600);
         assert!(s.dnd.shelf_persist);
+        assert!(s.ui.action_bar);
+        assert!(s.ui.action_bar_labels);
         assert_eq!(s.validate(), Ok(()));
     }
 
@@ -220,6 +244,28 @@ mod tests {
         assert_eq!(partial.general.default_view, DefaultView::Grid);
         assert_eq!(partial.general.click_mode, ClickMode::Double);
         assert_eq!(partial.dnd, DndSettings::default());
+        // So does one from before the `ui` section: the Action bar is on, with labels.
+        assert_eq!(partial.ui, UiSettings::default());
+        let ui = serde_json::to_value(UiSettings::default()).unwrap();
+        assert_eq!(ui["actionBar"], true);
+        assert_eq!(ui["actionBarLabels"], true);
+    }
+
+    #[test]
+    fn the_action_bar_choices_round_trip_and_default_one_by_one() {
+        let hidden: Settings = serde_json::from_str(r#"{"ui":{"actionBar":false}}"#).unwrap();
+        assert!(!hidden.ui.action_bar);
+        assert!(hidden.ui.action_bar_labels);
+        let icons_only = Settings {
+            ui: UiSettings {
+                action_bar: true,
+                action_bar_labels: false,
+            },
+            ..Settings::default()
+        };
+        let text = serde_json::to_string(&icons_only).unwrap();
+        assert_eq!(serde_json::from_str::<Settings>(&text).unwrap(), icons_only);
+        assert_eq!(icons_only.validate(), Ok(()));
     }
 
     #[test]

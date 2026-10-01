@@ -232,6 +232,19 @@ mod tests {
     }
 
     #[test]
+    fn a_document_from_before_the_ui_section_loads_with_the_action_bar_on() {
+        let (memory, storage) = setup();
+        memory.set(
+            SETTINGS_KEY,
+            serde_json::json!({"version": 1, "body": {"general": {"defaultView": "grid"}}}),
+        );
+        let loaded = storage.load().unwrap().unwrap();
+        assert_eq!(loaded.body.general.default_view, DefaultView::Grid);
+        assert!(loaded.body.ui.action_bar);
+        assert!(loaded.body.ui.action_bar_labels);
+    }
+
+    #[test]
     fn nothing_stored_loads_nothing_quietly() {
         let (memory, storage) = setup();
         assert_eq!(storage.load().unwrap(), None);

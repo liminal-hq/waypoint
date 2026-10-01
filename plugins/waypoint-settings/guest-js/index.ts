@@ -14,6 +14,7 @@ import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/Plugi
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
 import type { SettingsSnapshot } from '@liminal-hq/waypoint-protocol/generated/SettingsSnapshot';
 import type { StartupMode } from '@liminal-hq/waypoint-protocol/generated/StartupMode';
+import type { UiSettings } from '@liminal-hq/waypoint-protocol/generated/UiSettings';
 
 const PREFIX = 'plugin:waypoint-settings|';
 
@@ -71,4 +72,5 @@ export type {
 	Settings,
 	SettingsSnapshot,
 	StartupMode,
+	UiSettings,
 };
