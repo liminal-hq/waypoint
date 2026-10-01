@@ -457,6 +457,15 @@ describe('the joint menu', () => {
 		expect(store.closed()).toHaveLength(2);
 	});
 
+	it('opens at once with a hanging window list', async () => {
+		const h = await renderWorkspace();
+		await joined(h);
+		vi.spyOn(h.tabs, 'listWindows').mockReturnValue(new Promise(() => {}));
+		fireEvent.contextMenu(joint());
+		expect(await screen.findByRole('menu', { name: 'Split actions' })).toBeInTheDocument();
+		expect(await item('Move to New Window')).toBeInTheDocument();
+	});
+
 	it('says so, and changes nothing, when the new window cannot be made', async () => {
 		const h = await renderWorkspace();
 		await joined(h);

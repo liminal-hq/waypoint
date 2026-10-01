@@ -6,12 +6,11 @@
 import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
-import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
-import { useEffect, useState } from 'react';
 import { t } from '../i18n/messages';
 import { usePairActions } from './pairActions';
 import { pairJointItems, runPairMenuItem } from './pairMenus';
 import { useTabsSnapshot } from './TabsContext';
+import { useOtherWindows } from './useOtherWindows';
 import { useWindowActions } from './windowActions';
 
 interface PairJointMenuProps {
@@ -28,18 +27,8 @@ export function PairJointMenu({ pair, ...rest }: PairJointMenuProps) {
 	const actions = usePairActions();
 	const tabs = useTabsSnapshot()?.tabs ?? [];
 	const windows = useWindowActions();
-	const [others, setOthers] = useState<WindowSummary[] | null>(null);
-	// The other windows are read fresh when the menu opens: they come and go unheard.
-	useEffect(() => {
-		let current = true;
-		void windows.otherWindows().then((list) => {
-			if (current) setOthers(list);
-		});
-		return () => {
-			current = false;
-		};
-	}, [windows]);
-	if (others === null) return null;
+	// The other windows are read when the menu opens; it does not wait for them.
+	const others = useOtherWindows(windows);
 	return (
 		<ContextMenu
 			{...rest}

@@ -128,7 +128,7 @@ describe('reporting hints', () => {
 
 	it('reports when the shell asks for a flush, until stopped', async () => {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		const api = { setTabHints: vi.fn(async () => {}) };
 		let flush: (() => void) | null = null;
