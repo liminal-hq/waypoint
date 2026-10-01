@@ -40,6 +40,7 @@ pub enum Op {
     SetPermissions,
     Symlink,
     ReadLink,
+    CopyWithin,
 }
 
 impl Op {
@@ -58,6 +59,7 @@ impl Op {
                 | Op::SetTimes
                 | Op::SetPermissions
                 | Op::Symlink
+                | Op::CopyWithin
         )
     }
 }
@@ -132,6 +134,8 @@ struct State {
     writes: usize,
     /// Paths to remove at the next call on the provider itself (a stream cannot reach it).
     deferred: Vec<VfsPath>,
+    /// The reads (counted from 1, over all streams) whose first byte is flipped.
+    corrupt_reads: Vec<usize>,
 }
 
 #[derive(Default)]
@@ -238,6 +242,12 @@ impl<P: Provider> FaultyProvider<P> {
         self.add(Trigger::Global(n), Action::Vanish(path.clone()));
     }
 
+    /// Flips the first byte that the nth next `read` call (1 is the first, over every stream)
+    /// returns, as a failing disk or a bad cable would; the call succeeds.
+    pub fn corrupt_read_nth(&self, n: usize) {
+        self.shared.lock().corrupt_reads.push(n);
+    }
+
     /// How many calls of any kind have been made.
     pub fn calls(&self) -> usize {
         self.shared.lock().total
@@ -276,7 +286,15 @@ impl Read for FaultyRead {
         self.shared
             .hit(Op::Read, &self.path)
             .map_err(|e| InjectedError(e).into_io())?;
-        self.inner.read(buf)
+        let read = self.inner.read(buf)?;
+        if read > 0 {
+            let state = self.shared.lock();
+            let nth = state.per_op.get(&Op::Read).copied().unwrap_or(0);
+            if state.corrupt_reads.contains(&nth) {
+                buf[0] ^= 0xff;
+            }
+        }
+        Ok(read)
     }
 }
 
@@ -440,6 +458,9 @@ impl<P: Provider> Provider for FaultyProvider<P> {
         progress: &mut dyn FnMut(u64),
         cancel: &CancelToken,
     ) -> Option<Result<u64, VfsError>> {
+        if let Err(error) = self.hit(Op::CopyWithin, src) {
+            return Some(Err(error));
+        }
         self.inner.copy_file_within(src, dst, progress, cancel)
     }
 }

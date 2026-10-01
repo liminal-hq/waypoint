@@ -8,5 +8,6 @@
 pub mod faulty;
 pub mod harness;
 pub mod sandbox;
+pub mod transfer;
 pub mod trash;
 pub mod tree;
