@@ -147,7 +147,7 @@ Native Rust and webview output share one log stream. `tauri-plugin-log` is confi
 - Every window entry calls `initLogger(label)` once at startup; new window kinds must too.
 - Use `log::{trace,debug,info,warn,error}!` in Rust and `console.*` in the front end. Do not add a second logging path, and never log secrets, credentials or full file contents.
 - Each window's capabilities must include `log:default` (`capabilities/logging.json` grants it to every window), or forwarding fails silently.
-- The log file is under the app's log directory (on Linux, `~/.local/share/dev.liminal.waypoint/logs/`).
+- The log file is under the app's log directory (on Linux, `~/.local/share/ca.liminalhq.waypoint/logs/`).
 
 ## CI and Release
 

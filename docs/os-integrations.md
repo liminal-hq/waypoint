@@ -60,7 +60,7 @@ Status: draft v0.1 · decisions D42–D47 in `decisions.md`.
 | Prevent sleep                    | `org.freedesktop.portal.Inhibit`                                                       | Only while transfers run.                                                          |
 | Drag and drop with other apps    | `text/uri-list`; `x-special/gnome-copied-files` for the clipboard                      | Wayland: handled by the toolkit, so test on GNOME and KDE.                         |
 | Open in Terminal                 | `xdg-terminal-exec` where present, then the desktop's default terminal setting         | The built-in terminal tab is separate.                                             |
-| Run as administrator             | polkit action `dev.liminal.waypoint.admin` with a small helper                         | Never elevates the whole app.                                                      |
+| Run as administrator             | polkit action `ca.liminalhq.waypoint.admin` with a small helper                        | Never elevates the whole app.                                                      |
 
 ### Reusing extensions people already have
 
