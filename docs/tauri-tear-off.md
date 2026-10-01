@@ -56,6 +56,26 @@ The pieces above are `plugins/window-tearoff` (ghost, follow thread, regions, `h
 - **Two traps found by running it.** The ghost cannot be built inside the plugin's `RunEvent::Ready` hook (Tauri holds its plugin store locked there, the same deadlock as `setup`); the plugin asks the main thread for it from the async runtime. And once the pointer leaves the page, the page gets no `pointermove` events (a `pointerup` still arrives), so anything that must change while the ghost follows (the merge label) runs on a timer against `hit_test`, not on pointer events. The `cursor-stale` event also fires for a pointer held still, so it is not treated as an error; only the drop report's `cursorStale` stops a window being placed.
 - **Placement.** The new window's geometry is the source window's inner size and an inner origin of `cursor − (grab + frame margin) × scale` in physical pixels, so the visible window's corner sits at the grab point; `fit_geometry` on the Rust side drops a position no monitor holds.
 
+## Wayland: a real window with `xdg-toplevel-drag` (milestone 3, slice 13)
+
+Where the compositor offers `xdg_toplevel_drag_manager_v1` (GNOME's Mutter does; KDE has it too, unverified here), Waypoint does not draw a ghost: the compositor moves a real window. The app starts a `wl_data_device` drag and attaches a toplevel to it; the window follows the pointer outside every window, stays where it is dropped, and snaps back on cancel. The generic part is `crates/wayland-toplevel-drag` (see its README); the Tauri part is the `toplevel_drag` feature of `plugins/window-tearoff`; the flow is `tabs/tearOff.ts` and `tabs/tearOffHandoff.ts`.
+
+**The flow.** The drag engine's first move past 24 px out of the strip starts it. The page flushes the tabs' hints, asks the app to keep the next window hidden (`hold_next_window`, read by the session's window factory), moves the tabs with `moveTabs(NewWindow)`, and calls `begin_toplevel_drag(payload, newLabel, grabOffset)`. When the unit is every tab the window has, nothing moves and the window itself is dragged (the press window is the dragged window). The plugin shows the hidden window with GTK directly, finds its `xdg_toplevel` and starts the drag. The source page is told with `toplevel-drag-started`, stops its drag engine, and hears nothing more until `toplevel-drag-ended`. The window that holds the tabs when the drag ends acts on it: `dropped-on-window` merges the tabs into the target (end of its strip) and the emptied window closes; `cancelled` and `failed` move them back to their window and index; `dropped-elsewhere` leaves the window. The drag's payload (a JSON `TearPayload`) carries what moves and where it came from, and comes back on the end event, so the torn window's page can act even though only it can change its own session; the plugin also keeps the result until that page reads it, because a page that is still loading misses the event.
+
+**Requirements and pitfalls found by running it** (headless Mutter 50.4 and a live GNOME Shell session, a standalone GTK3 window and a real Tauri window):
+
+- GTK3 exposes the `wl_display` and each `wl_surface`, but not the `xdg_toplevel` or the implicit-grab serial. The toplevel and GTK's `wl_data_device` come from a C interposer on `wl_proxy_marshal_flags` that the final executable must export (`-rdynamic`, `-Wl,--undefined=wl_proxy_marshal_flags`, set in `apps/waypoint/src-tauri/build.rs`); the serial from a `wl_pointer` of our own on a separate queue of GTK's connection.
+- Reuse GTK's own `wl_data_device`. A second device makes Mutter send drops to the wrong one.
+- Dispatch the tracker's queue before reading the press serial: the page's own pointerdown is a few milliseconds old, and a periodic pump alone races it and yields serial 0.
+- Show the window with GTK (`gtk_window().show_all()` on the main thread), not through Tauri's queued `show()`, before looking up its toplevel: GDK creates it on show.
+- `cancelled` can arrive right after `dnd_finished`, so the end of a drag must be idempotent; destroy `xdg_toplevel_drag_v1` only after the drag has ended. A cancel after `dnd_drop_performed` means "released over nothing" (the window stays), a cancel without one is Esc (the window snaps back).
+- After the drag starts the page gets no pointer events until the pointer re-enters (only `gotpointercapture` and `blur` come before), so the plugin tells it the drag started and ended and the page resets its drag engine.
+- **GDK's implicit grab never ends.** The compositor takes the button release, so GDK keeps routing every pointer event to the window that was pressed: the dragged window and any window made afterwards get none, and a torn-off window can be seen but not used. The plugin ungrabs the pointer (`gdk_device_ungrab`) when the drag ends. This was found only by sweeping the pointer across a dropped window; a drop-only test passes without it.
+- A WebKitGTK webview rejects a drop of a type it does not know unless it is added to the drop targets and `drag-motion`, `drag-drop` and `drag-data-received` accept it; wry's own handlers (only for the uri list) coexist when ours use another `info` value. The dragged window does not receive its own drag.
+- The pointer capability can come and go (a remote desktop session ending, a pointer unplugged); the tracker follows it, or it holds a dead `wl_pointer` and every drag fails with "no pointer button is held".
+
+**What was verified.** On headless Mutter 50.4 with screen capture frames: the new window follows the pointer at the grab offset and stays where it is dropped; Esc returns it (and the tab); a drop on another window merges the tab there and closes the torn window, for a tab, a pair and a whole window; the torn window takes pointer input afterwards. On a live GNOME session: `get_status` reports `toplevel_drag`, and a drag out of the strip ended `dropped-elsewhere` with the window left in place; the live screen then locked, so the rest was not repeated there. Not verified: a hardware pointer, KDE, fractional scale, a second monitor.
+
 ## Things Waypoint needs that Doska doesn't show
 
 - **Merging into another window.** The pattern only tears off. To merge, each window needs to know where the other windows' tab rows are on screen. The backend can hold each window's frame plus tab-strip rect, hit-test the cursor on release, and emit a "receive tab" event to the target window.
@@ -75,7 +95,7 @@ The pieces above are `plugins/window-tearoff` (ghost, follow thread, regions, `h
 - **Show before positioning.** On X11 a position set before `show` is overridden at map time. On Wayland `set_position` is ignored.
 - **Hit-test inner geometry, not `outer_position`.** For the frameless-shadow windows `outer_position` is 37 logical px above the client origin on X11, and on Wayland positions read back as (0, 0).
 - **`is_always_on_top()` is a stored flag on Linux.** It is not evidence that the window is on top; on Wayland always-on-top does not hold once the source window is activated.
-- **Native drag and drop is not the transport.** An OS-level drag stops in-page pointer events and cannot place the new window on Wayland, so the ghost-window design stays primary (A36).
+- **Native drag and drop is not the transport for X11 and Windows.** An OS-level drag stops in-page pointer events and cannot place the new window there, so the ghost-window design stays primary (A36). On Wayland the OS-level drag is exactly what moves a real window (`xdg-toplevel-drag`, above), and the page copes with the missing pointer events by being told when it starts and ends.
 
 ## Thresholds
 
@@ -87,4 +107,4 @@ One set is used everywhere (SPEC §13c, `interactions.md` §3.5 and §7): 4 px t
 2. Tear-off from the tab strip, opening a new window at the drop point.
 3. Session hand-off so the tab's state moves with it.
 4. Merge-by-drop across windows.
-5. Wayland fallback.
+5. Wayland: the real window through `xdg-toplevel-drag` where the compositor has it, and the in-page card with a compositor-placed window where it does not.

@@ -109,17 +109,66 @@ render(await getPayload()); // the page may have loaded after `begin`
 | `cursor_follow`   | The native cursor is live while a button is held. True on X11 (including XWayland) and Windows. False on Wayland, where the toolkit reports `(0, 0)` for every read. |
 | `window_position` | Probed at runtime: the ghost is asked for two positions and the plugin checks that the reads move the same way. Wayland ignores positions and reads `(0, 0)`.        |
 | `hit_test`        | Probed at runtime: windows report readable inner positions, so a cursor can be tested against their regions.                                                         |
+| `toplevel_drag`   | A real window can follow the pointer for the whole drag, moved by the compositor (Wayland with `xdg-toplevel-drag`). See below.                                      |
 
 The probes run once per session and are cached. A platform claim is not enough for the cursor: under XWayland it follows the pointer only while a button is held or the pointer is over one of the app's windows, and otherwise stays at its last value without an error. The follow loop therefore watches the value, and when it stops changing for a second while a button is held it stops moving the ghost and sends `window-tearoff://cursor-stale` (`true`); when it changes again it resumes and sends `false`. `DropReport.cursorStale` says whether it was stale at the end.
 
 Hit-testing uses each window's inner (content) position and size, never its outer position: a frameless window with a drop shadow has an outer frame above and left of its content. The windowing system does not report stacking order, so where regions overlap the one with the smallest visible area wins, then the earlier window by label, then the earlier region.
+
+## Dragging a real window (`toplevel_drag`)
+
+On Wayland an app can neither read the cursor nor place a window, but a compositor that supports `xdg-toplevel-drag-v1` (Mutter does) can move one of the app's own windows with the pointer for the whole drag: outside every window of the app, leaving it where it is dropped, snapping it back on cancel. The feature is reported only on a Wayland display that has the protocol, when the executable exports the proxy interposer the `wayland-toplevel-drag` crate needs (`unavailable` says why otherwise), and when GTK's Wayland handles can be read. Set `WINDOW_TEAROFF_DISABLE_TOPLEVEL_DRAG=1` to turn it off, for example to test the fallback on a compositor that has it.
+
+The executable must link with `-rdynamic` and `-Wl,--undefined=wl_proxy_marshal_flags` (a library cannot set link arguments downstream), for example in its `build.rs`:
+
+```rust
+fn main() {
+    println!("cargo:rustc-link-arg-bins=-rdynamic");
+    println!("cargo:rustc-link-arg-bins=-Wl,--undefined=wl_proxy_marshal_flags");
+}
+```
+
+`Options::toplevel_drag_mime` names the MIME type the payload travels under; every window of the app accepts a drop of it. The drag starts from a button press in the calling window, and the window to drag is one the caller names, normally one it has just made hidden (the window is shown with GTK, not Tauri, so it is not mapped before the drag attaches it) or the calling window itself:
+
+```typescript
+import {
+	beginToplevelDrag,
+	onPayloadDropped,
+	onToplevelDragEnded,
+	onToplevelDragStarted,
+	takeToplevelDragResult,
+} from '@liminal-hq/plugin-window-tearoff';
+
+// In the window the pointer is pressed in, past the point where the drag should start:
+const report = await beginToplevelDrag({ anything: 'JSON' }, 'new-window-label', { x: 120, y: 18 });
+if (report.state !== 'started') {
+	// 'unavailable', 'alreadyActive' or 'failed': nothing is dragged, and the named window was told the drag failed.
+}
+
+// The page gets no pointer events once the compositor owns the drag, so reset any drag state here.
+await onToplevelDragStarted(({ window, payload }) => stopMyOwnDrag());
+
+// Sent to this window and to the dragged window, however the drag ends.
+await onToplevelDragEnded((ended) => {
+	// ended.outcome: 'dropped-on-window' (ended.target names it), 'dropped-elsewhere',
+	// 'cancelled' (Escape) or 'failed' (ended.reason). ended.seq numbers the drag.
+});
+
+// A window the payload was dropped on hears it too.
+await onPayloadDropped(({ window, payload }) => {});
+
+// In the dragged window, for a page that was still loading when the drag ended; read once.
+const missed = await takeToplevelDragResult();
+```
+
+`endToplevelDrag()` cancels the drag in progress. A drop on the dragged window itself counts as a drop on nothing. If a begin does not start, the window it named gets a `failed` end as well, so a caller that made it can put its contents back; that window is shown again if it was hidden.
 
 ## Platforms
 
 | Platform      | `ghost` | `cursor_follow` | `window_position` | `hit_test` | Notes                                                                                                                                                                                                                                                                                                              |
 | ------------- | ------- | --------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Linux X11     | probed  | `true`          | probed            | probed     | XWayland counts as X11. Shows the ghost before positioning it, because a position set before `show` is overridden at map time.                                                                                                                                                                                     |
-| Linux Wayland | `false` | `false`         | `false`           | `false`    | No cursor, no window positions. Take the in-page preview path.                                                                                                                                                                                                                                                     |
+| Linux Wayland | `false` | `false`         | `false`           | `false`    | No cursor, no window positions. `toplevel_drag` where the compositor supports it, otherwise the in-page preview path.                                                                                                                                                                                              |
 | Windows       | `true`  | `true`          | `true`            | `true`     | Reported without probing. Run on Windows 11 in the milestone 3 verification. Every ghost show is `SW_SHOWNOACTIVATE`: `tao` only does that for a window's first show, and a later `SW_SHOW` would activate the ghost despite `WS_EX_NOACTIVATE`, so the source window would blur and Escape would reach the ghost. |
 | Other         | `false` | `false`         | `false`           | `false`    | macOS, Android and iOS report the plugin unavailable.                                                                                                                                                                                                                                                              |
 
