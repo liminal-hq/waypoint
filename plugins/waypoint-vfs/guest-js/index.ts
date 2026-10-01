@@ -21,6 +21,7 @@ import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/S
 import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInfo';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 
+import type { FolderCheck } from '@liminal-hq/waypoint-protocol/generated/FolderCheck';
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 
 const PREFIX = 'plugin:waypoint-vfs|';
@@ -114,6 +115,14 @@ export function getFreeSpace(location: Location): Promise<VolumeSpace | null> {
 }
 
 /**
+ * Whether `location` is a folder and can be written to, for a destination picker. Rejects with
+ * `notFound` (or `permissionDenied`) where it cannot be seen at all.
+ */
+export function checkFolder(location: Location): Promise<FolderCheck> {
+	return cmd<FolderCheck>('check_folder', { location });
+}
+
+/**
  * Opens a file of an open listing in its default application. Rust resolves the path from
  * `(handle, id)`; a folder is rejected with `unsupported`.
  */
@@ -169,6 +178,7 @@ export type {
 	Entry,
 	EntryId,
 	Filter,
+	FolderCheck,
 	ListingEvent,
 	ListingHandle,
 	ListingSnapshot,

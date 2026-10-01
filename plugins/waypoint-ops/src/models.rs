@@ -46,6 +46,17 @@ pub enum ClipboardMode {
     Cut,
 }
 
+/// Who put the entries on the clipboard: Waypoint's own Cut or Copy, or another application's file
+/// clipboard that Waypoint adopted when it was pasted (or the window regained focus).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ClipboardSource {
+    #[default]
+    App,
+    Os,
+}
+
 /// The entries Cut or Copy last put on the shared clipboard, which every window sees.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -53,6 +64,9 @@ pub enum ClipboardMode {
 pub struct Clipboard {
     pub mode: ClipboardMode,
     pub items: Vec<Location>,
+    /// Who set it; a clear is the app's.
+    #[serde(default)]
+    pub source: ClipboardSource,
     /// Counts up with every change, including a clear.
     #[ts(type = "number")]
     pub revision: u64,
@@ -63,6 +77,7 @@ impl Default for Clipboard {
         Self {
             mode: ClipboardMode::Copy,
             items: Vec::new(),
+            source: ClipboardSource::App,
             revision: 0,
         }
     }

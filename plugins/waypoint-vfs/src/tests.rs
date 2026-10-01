@@ -510,6 +510,28 @@ fn free_space_is_reported_for_a_real_folder_and_null_for_a_missing_one() {
     assert!(missing.is_none());
 }
 
+#[test]
+fn check_folder_tells_a_writable_folder_from_a_file_a_read_only_folder_and_a_missing_one() {
+    use std::os::unix::fs::PermissionsExt;
+    let app = app();
+    let dir = folder_with(&["a.txt"]);
+    let check = |path: &Path| {
+        tauri::async_runtime::block_on(commands::check_folder(app.state::<Vfs>(), location(path)))
+    };
+    let folder = check(dir.path()).unwrap();
+    assert!(folder.is_folder && folder.writable);
+    let file = check(&dir.path().join("a.txt")).unwrap();
+    assert!(!file.is_folder && !file.writable);
+    let locked = dir.path().join("locked");
+    fs::create_dir(&locked).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
+    let locked_check = check(&locked).unwrap();
+    assert!(locked_check.is_folder && !locked_check.writable);
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+    let missing = check(&dir.path().join("gone")).unwrap_err();
+    assert!(matches!(missing, Error::Vfs(VfsError::NotFound { .. })));
+}
+
 // ---- the Trash ----
 
 fn trash_location() -> Location {

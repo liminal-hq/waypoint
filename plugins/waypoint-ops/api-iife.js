@@ -109,9 +109,20 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
         const token = await cmd('subscribe_progress', { onProgress: channel });
         return () => cmd('unsubscribe_progress', { token });
     }
-    /** Replaces the shared clipboard; an empty list clears it. Every window is told. */
-    function setClipboard(mode, items) {
-        return cmd('set_clipboard', { mode, items });
+    /**
+     * Replaces the shared clipboard; an empty list clears it. Every window is told. `source` says who
+     * set it (`app` when omitted; `os` for files adopted from another application's clipboard).
+     */
+    function setClipboard(mode, items, source) {
+        return cmd('set_clipboard', { mode, items, source: source ?? null });
+    }
+    /**
+     * Puts the entries a selection covers on the shared clipboard. Rust resolves them from the listing
+     * this window opened, so a selection of a hundred thousand files is still a handle and a spec.
+     * Rejects (`unsupported`) for a selection of nothing.
+     */
+    function setClipboardFromSelection(handle, spec, mode) {
+        return cmd('set_clipboard_from_selection', { handle, spec, mode });
     }
     function getClipboard() {
         return cmd('get_clipboard');
@@ -178,6 +189,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.resume = resume;
     exports.retry = retry;
     exports.setClipboard = setClipboard;
+    exports.setClipboardFromSelection = setClipboardFromSelection;
     exports.setSettings = setSettings;
     exports.submit = submit;
     exports.subscribeProgress = subscribeProgress;

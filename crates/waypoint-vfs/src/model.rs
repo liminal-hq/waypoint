@@ -283,6 +283,21 @@ pub struct VolumeSpace {
     pub total_bytes: u64,
 }
 
+/// What a destination picker needs to know about a location before it offers it: it is there (a
+/// missing one is rejected with `NotFound` instead), and whether it is a folder that can be written
+/// to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct FolderCheck {
+    /// A folder, or a link to one.
+    pub is_folder: bool,
+    /// Something can be written there: its provider writes at all and the folder's own permissions
+    /// allow it. Where the permissions cannot be read this is `true`, and a refusal shows when the
+    /// job runs.
+    pub writable: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,8 +14,9 @@ use waypoint_ops::{
     OpsSettings, OpsSnapshot, RecoveryReport, Resolution,
 };
 use waypoint_protocol::{Location, PluginStatus};
+use waypoint_vfs::{ListingHandle, SelectionSpec};
 
-use crate::models::{Clipboard, ClipboardMode, Error, JobProgress, PlanPreview};
+use crate::models::{Clipboard, ClipboardMode, ClipboardSource, Error, JobProgress, PlanPreview};
 use crate::ops::Ops;
 
 /// Reports whether the queue works, and which parts of it do on this system.
@@ -255,8 +256,29 @@ pub async fn set_clipboard<R: Runtime>(
     ops: State<'_, Ops<R>>,
     mode: ClipboardMode,
     items: Vec<Location>,
+    source: Option<ClipboardSource>,
 ) -> Result<Clipboard, Error> {
-    Ok(ops.set_clipboard(mode, items))
+    Ok(ops.set_clipboard_from(mode, items, source.unwrap_or_default()))
+}
+
+/// Puts the entries a selection covers on the shared clipboard. Rust resolves them from the
+/// listing the calling window opened (A47), so the page sends a handle and a selection and never a
+/// path.
+#[tauri::command]
+pub async fn set_clipboard_from_selection<R: Runtime>(
+    window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    handle: ListingHandle,
+    spec: SelectionSpec,
+    mode: ClipboardMode,
+) -> Result<Clipboard, Error> {
+    let ops = ops.inner().clone();
+    let label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        ops.set_clipboard_from_selection(&label, handle, &spec, mode)
+    })
+    .await
+    .map_err(|e| Error::Internal(e.to_string()))?
 }
 
 #[tauri::command]

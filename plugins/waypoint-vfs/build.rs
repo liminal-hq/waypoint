@@ -17,6 +17,7 @@ const COMMANDS: &[&str] = &[
     "entry_location",
     "summarise_selection",
     "get_free_space",
+    "check_folder",
     "open_entry",
     "list_places",
     "add_favourite",

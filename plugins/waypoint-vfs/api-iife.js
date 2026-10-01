@@ -71,6 +71,13 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
         return cmd('get_free_space', { location });
     }
     /**
+     * Whether `location` is a folder and can be written to, for a destination picker. Rejects with
+     * `notFound` (or `permissionDenied`) where it cannot be seen at all.
+     */
+    function checkFolder(location) {
+        return cmd('check_folder', { location });
+    }
+    /**
      * Opens a file of an open listing in its default application. Rust resolves the path from
      * `(handle, id)`; a folder is rejected with `unsupported`.
      */
@@ -114,6 +121,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     }
 
     exports.addFavourite = addFavourite;
+    exports.checkFolder = checkFolder;
     exports.closeListing = closeListing;
     exports.describeLocation = describeLocation;
     exports.entryLocation = entryLocation;

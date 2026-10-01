@@ -15,7 +15,10 @@ use tauri::{
 };
 
 pub use deps::{ChangeHook, MemorySettings, OpsDeps, SettingsStorage, EXIT_WAIT, SAVE_DELAY};
-pub use models::{Clipboard, ClipboardMode, Error, JobJournal, JobProgress, PlanNote, PlanPreview};
+pub use models::{
+    Clipboard, ClipboardMode, ClipboardSource, Error, JobJournal, JobProgress, PlanNote,
+    PlanPreview,
+};
 pub use ops::{Ops, MAX_CONCURRENCY, MAX_TRASH_EXPIRY_DAYS, MAX_UNDO_DEPTH};
 
 /// The event every change to the queue or the journal is broadcast on, to every window; the
@@ -71,6 +74,7 @@ pub fn init_with<R: Runtime>(
             commands::subscribe_progress,
             commands::unsubscribe_progress,
             commands::set_clipboard,
+            commands::set_clipboard_from_selection,
             commands::get_clipboard,
             commands::jobs_targeting,
             commands::get_settings,

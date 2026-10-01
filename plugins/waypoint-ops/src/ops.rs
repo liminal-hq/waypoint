@@ -26,10 +26,12 @@ use waypoint_ops::{
     SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError,
 };
 use waypoint_protocol::Location;
-use waypoint_vfs::CancelToken;
+use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec};
 
 use crate::deps::{ChangeHook, OpsDeps, SettingsStorage};
-use crate::models::{Clipboard, ClipboardMode, Error, JobProgress, PlanNote, PlanPreview};
+use crate::models::{
+    Clipboard, ClipboardMode, ClipboardSource, Error, JobProgress, PlanNote, PlanPreview,
+};
 use crate::worker;
 use crate::{CLIPBOARD_EVENT, EVENT, RECOVERED_EVENT};
 
@@ -890,15 +892,46 @@ impl<R: Runtime> Ops<R> {
 
     /// Replaces the shared clipboard and tells every window. An empty list clears it.
     pub fn set_clipboard(&self, mode: ClipboardMode, items: Vec<Location>) -> Clipboard {
+        self.set_clipboard_from(mode, items, ClipboardSource::App)
+    }
+
+    /// Replaces the shared clipboard with entries from `source` and tells every window.
+    pub fn set_clipboard_from(
+        &self,
+        mode: ClipboardMode,
+        items: Vec<Location>,
+        source: ClipboardSource,
+    ) -> Clipboard {
         let mut core = self.shared.lock();
         let clipboard = Clipboard {
             mode,
             items,
+            source,
             revision: core.clipboard.revision + 1,
         };
         core.clipboard = clipboard.clone();
         self.shared.emit_clipboard(&clipboard);
         clipboard
+    }
+
+    /// Puts what `spec` selects in the listing `handle` (which `window` opened) on the clipboard.
+    /// The locations are resolved here, by the app's resolver, so the page never builds a path and
+    /// a selection of "everything except these" stays a handle and a range. A selection of nothing
+    /// is refused rather than clearing the clipboard.
+    pub fn set_clipboard_from_selection(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        spec: &SelectionSpec,
+        mode: ClipboardMode,
+    ) -> Result<Clipboard, Error> {
+        let items = self.shared.resolver.resolve(handle, spec, window)?;
+        if items.is_empty() {
+            return Err(Error::Ops(OpsError::Unsupported {
+                what: "copying an empty selection".to_owned(),
+            }));
+        }
+        Ok(self.set_clipboard(mode, items))
     }
 
     /// The unfinished jobs that read from, write into, or remove something that holds `location`.

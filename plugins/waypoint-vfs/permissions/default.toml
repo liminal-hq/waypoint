@@ -14,6 +14,7 @@ permissions = [
   "allow-entry-location",
   "allow-summarise-selection",
   "allow-get-free-space",
+  "allow-check-folder",
   "allow-open-entry",
   "allow-list-places",
   "allow-add-favourite",

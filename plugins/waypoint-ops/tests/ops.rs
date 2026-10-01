@@ -14,7 +14,9 @@ use std::time::Duration;
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::test::MockRuntime;
 use tauri::Manager;
-use tauri_plugin_waypoint_ops::{commands, ClipboardMode, JobProgress, Ops, MAX_CONCURRENCY};
+use tauri_plugin_waypoint_ops::{
+    commands, ClipboardMode, ClipboardSource, JobProgress, Ops, MAX_CONCURRENCY,
+};
 use waypoint_ops::{
     ConflictPolicy, Decision, JobKind, JobState, JournalStorage, OpsError, OpsEvent, OpsSettings,
     OpsSnapshot, Resolution, VerifyAlgorithm, WaitReason,
@@ -615,6 +617,7 @@ fn the_clipboard_is_shared_by_every_window() {
         env.app.state::<Ops<MockRuntime>>(),
         ClipboardMode::Cut,
         items.clone(),
+        None,
     ))
     .unwrap();
     assert_eq!(set.revision, 1);
@@ -642,6 +645,61 @@ fn the_clipboard_is_shared_by_every_window() {
     let cleared = env.ops().set_clipboard(ClipboardMode::Copy, Vec::new());
     assert_eq!(cleared.revision, 2);
     assert!(cleared.items.is_empty());
+}
+
+#[test]
+fn the_clipboard_remembers_who_set_it() {
+    let env = env();
+    let first = env
+        .ops()
+        .set_clipboard(ClipboardMode::Copy, vec![env.loc("a.txt")]);
+    assert_eq!(first.source, ClipboardSource::App);
+    let adopted = tauri::async_runtime::block_on(commands::set_clipboard(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        ClipboardMode::Cut,
+        vec![env.loc("b.txt")],
+        Some(ClipboardSource::Os),
+    ))
+    .unwrap();
+    assert_eq!(adopted.source, ClipboardSource::Os);
+    assert_eq!(adopted.revision, 2);
+    // A clear is the app's, and an omitted source means the app.
+    let cleared = env.ops().set_clipboard(ClipboardMode::Copy, Vec::new());
+    assert_eq!(cleared.source, ClipboardSource::App);
+}
+
+#[test]
+fn a_selection_goes_on_the_clipboard_resolved_by_the_apps_resolver() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    *env.resolver.0.lock().unwrap() = vec![env.loc("b.txt")];
+    let set = tauri::async_runtime::block_on(commands::set_clipboard_from_selection(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        waypoint_vfs::ListingHandle(1),
+        waypoint_vfs::SelectionSpec::AllExcept { ids: vec![] },
+        ClipboardMode::Cut,
+    ))
+    .unwrap();
+    assert_eq!(set.items, vec![env.loc("b.txt")]);
+    assert_eq!(set.mode, ClipboardMode::Cut);
+    assert_eq!(set.source, ClipboardSource::App);
+    env.wait_for("the clipboard event", |e| {
+        e.clipboards.lock().unwrap().iter().any(|(_, c)| *c == set)
+    });
+    // Nothing selected is refused and leaves the clipboard as it was.
+    *env.resolver.0.lock().unwrap() = Vec::new();
+    let refused = tauri::async_runtime::block_on(commands::set_clipboard_from_selection(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        waypoint_vfs::ListingHandle(1),
+        waypoint_vfs::SelectionSpec::Chosen { ids: vec![] },
+        ClipboardMode::Copy,
+    ));
+    assert!(refused.is_err());
+    assert_eq!(env.ops().clipboard(), set);
 }
 
 #[test]

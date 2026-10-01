@@ -7,6 +7,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { BatchPreview } from '@liminal-hq/waypoint-protocol/generated/BatchPreview';
 import type { Clipboard } from '@liminal-hq/waypoint-protocol/generated/Clipboard';
+import type { ClipboardSource } from '@liminal-hq/waypoint-protocol/generated/ClipboardSource';
 import type { ClipboardMode } from '@liminal-hq/waypoint-protocol/generated/ClipboardMode';
 import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
@@ -16,6 +17,7 @@ import type { JobProgress } from '@liminal-hq/waypoint-protocol/generated/JobPro
 import type { JobRequest } from '@liminal-hq/waypoint-protocol/generated/JobRequest';
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
 import type { JournalId } from '@liminal-hq/waypoint-protocol/generated/JournalId';
+import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import type { OpsEvent } from '@liminal-hq/waypoint-protocol/generated/OpsEvent';
@@ -31,11 +33,13 @@ import type { Resolution } from '@liminal-hq/waypoint-protocol/generated/Resolut
 import type { PreviewRow } from '@liminal-hq/waypoint-protocol/generated/PreviewRow';
 import type { Problem } from '@liminal-hq/waypoint-protocol/generated/Problem';
 import type { RuleError } from '@liminal-hq/waypoint-protocol/generated/RuleError';
+import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 
 export type {
 	BatchPreview,
 	Clipboard,
 	ClipboardMode,
+	ClipboardSource,
 	ConflictPolicy,
 	Decision,
 	JobId,
@@ -44,6 +48,7 @@ export type {
 	JobRequest,
 	JournalEntrySummary,
 	JournalId,
+	ListingHandle,
 	Location,
 	OpsError,
 	OpsEvent,
@@ -59,6 +64,7 @@ export type {
 	RenameSpec,
 	Resolution,
 	RuleError,
+	SelectionSpec,
 };
 
 const PREFIX = 'plugin:waypoint-ops|';
@@ -203,9 +209,29 @@ export async function subscribeProgress(
 	return () => cmd<void>('unsubscribe_progress', { token });
 }
 
-/** Replaces the shared clipboard; an empty list clears it. Every window is told. */
-export function setClipboard(mode: ClipboardMode, items: Location[]): Promise<Clipboard> {
-	return cmd<Clipboard>('set_clipboard', { mode, items });
+/**
+ * Replaces the shared clipboard; an empty list clears it. Every window is told. `source` says who
+ * set it (`app` when omitted; `os` for files adopted from another application's clipboard).
+ */
+export function setClipboard(
+	mode: ClipboardMode,
+	items: Location[],
+	source?: ClipboardSource,
+): Promise<Clipboard> {
+	return cmd<Clipboard>('set_clipboard', { mode, items, source: source ?? null });
+}
+
+/**
+ * Puts the entries a selection covers on the shared clipboard. Rust resolves them from the listing
+ * this window opened, so a selection of a hundred thousand files is still a handle and a spec.
+ * Rejects (`unsupported`) for a selection of nothing.
+ */
+export function setClipboardFromSelection(
+	handle: ListingHandle,
+	spec: SelectionSpec,
+	mode: ClipboardMode,
+): Promise<Clipboard> {
+	return cmd<Clipboard>('set_clipboard_from_selection', { handle, spec, mode });
 }
 
 export function getClipboard(): Promise<Clipboard> {

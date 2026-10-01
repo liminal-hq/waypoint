@@ -49,6 +49,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::entry_location,
             commands::summarise_selection,
             commands::get_free_space,
+            commands::check_folder,
             commands::open_entry,
             commands::list_places,
             commands::add_favourite,

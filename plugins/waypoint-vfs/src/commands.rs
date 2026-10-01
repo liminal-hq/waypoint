@@ -11,9 +11,9 @@ use tauri_plugin_opener::OpenerExt;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
-    Entry, EntryKind, Filter, Listing, ListingEvent, ListingHandle, ListingLayout, ListingOptions,
-    ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider, SelectionSpec,
-    SelectionSummary, SortSpec, TrashInfo, TrashProvider, TrashSource, VolumeSpace,
+    Entry, EntryKind, Filter, FolderCheck, Listing, ListingEvent, ListingHandle, ListingLayout,
+    ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
+    SelectionSpec, SelectionSummary, SortSpec, TrashInfo, TrashProvider, TrashSource, VolumeSpace,
 };
 
 use crate::error::Error;
@@ -299,6 +299,32 @@ pub async fn summarise_selection<R: Runtime>(
 ) -> Result<SelectionSummary, Error> {
     let listing = listing_of(&window, &state, handle)?;
     blocking(move || listing.summarise_selection(&selection)).await
+}
+
+/// Whether a location is a folder and can be written to, for a destination picker. A location
+/// that is not there is rejected (`NotFound`, or `PermissionDenied` where it cannot be seen).
+#[tauri::command]
+pub async fn check_folder(state: State<'_, Vfs>, location: Location) -> Result<FolderCheck, Error> {
+    let path = parse(&location)?;
+    let provider = state.provider_for(&path)?;
+    blocking(move || {
+        let entry = provider.stat(&path)?;
+        let is_folder = entry.kind == EntryKind::Directory
+            || (entry.kind == EntryKind::Symlink
+                && entry.link_target == Some(EntryKind::Directory));
+        let writable = is_folder
+            && !provider.read_only()
+            && provider
+                .permissions(&path)
+                .map(|permissions| !permissions.readonly)
+                .unwrap_or(true);
+        Ok::<_, VfsError>(FolderCheck {
+            is_folder,
+            writable,
+        })
+    })
+    .await?
+    .map_err(Error::from)
 }
 
 /// Free and total space on the volume holding a location; `null` when it cannot be determined.
