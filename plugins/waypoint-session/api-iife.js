@@ -98,6 +98,28 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     function closeGroup(group) {
         return cmd('close_group', { group });
     }
+    // Workspaces.
+    /**
+     * Saves a group's folders as a workspace and returns its id. The name defaults to the group's; a
+     * name already in use rejects with a message that begins `a workspace named`.
+     */
+    function saveGroupAsWorkspace(group, name) {
+        return cmd('save_group_as_workspace', { group, name: name ?? null });
+    }
+    function renameWorkspace(workspace, name) {
+        return cmd('rename_workspace', { workspace, name });
+    }
+    function deleteWorkspace(workspace) {
+        return cmd('delete_workspace', { workspace });
+    }
+    /** Switches this window's Favourites to a workspace, or back to the bookmarks with `null`. */
+    function setActiveWorkspace(workspace) {
+        return cmd('set_active_workspace', { workspace });
+    }
+    /** Replaces a workspace's folders: add, remove and reorder are all this. */
+    function setWorkspaceLocations(workspace, locations) {
+        return cmd('set_workspace_locations', { workspace, locations });
+    }
     // Pairs.
     /** Pairs two or more tabs and returns the new pair's id. */
     function joinPair(tabs, layout) {
@@ -163,6 +185,7 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     exports.closeWindow = closeWindow;
     exports.collapseOtherGroups = collapseOtherGroups;
     exports.createGroup = createGroup;
+    exports.deleteWorkspace = deleteWorkspace;
     exports.duplicateGroup = duplicateGroup;
     exports.forward = forward;
     exports.getSnapshot = getSnapshot;
@@ -180,8 +203,11 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     exports.pinTab = pinTab;
     exports.removeFromGroup = removeFromGroup;
     exports.renameGroup = renameGroup;
+    exports.renameWorkspace = renameWorkspace;
     exports.reopenTab = reopenTab;
+    exports.saveGroupAsWorkspace = saveGroupAsWorkspace;
     exports.separatePair = separatePair;
+    exports.setActiveWorkspace = setActiveWorkspace;
     exports.setGeometry = setGeometry;
     exports.setGroupCollapsed = setGroupCollapsed;
     exports.setGroupColour = setGroupColour;
@@ -190,6 +216,7 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     exports.setTabColour = setTabColour;
     exports.setTabHints = setTabHints;
     exports.setView = setView;
+    exports.setWorkspaceLocations = setWorkspaceLocations;
     exports.sortGroup = sortGroup;
     exports.swapPanes = swapPanes;
     exports.toggleSplit = toggleSplit;

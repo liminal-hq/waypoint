@@ -20,6 +20,7 @@ import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import type { Unsubscribe } from './vfsClient';
 
 /** How many windows may be open at once; the plugin refuses a window past this (`MAX_WINDOWS` in Rust). */
@@ -88,6 +89,19 @@ export interface TabsApi {
 	ungroup(group: GroupId): Promise<void>;
 	closeGroup(group: GroupId): Promise<void>;
 
+	/**
+	 * Saves a group's folders as a workspace and resolves to its id. The name defaults to the
+	 * group's; a name already in use rejects with a message that begins `a workspace named`
+	 * (see `isWorkspaceNameTaken`).
+	 */
+	saveGroupAsWorkspace(group: GroupId, name?: string): Promise<WorkspaceId>;
+	renameWorkspace(workspace: WorkspaceId, name: string): Promise<void>;
+	deleteWorkspace(workspace: WorkspaceId): Promise<void>;
+	/** Switches this window's Favourites to a workspace, or back to the bookmarks with `null`. */
+	setActiveWorkspace(workspace: WorkspaceId | null): Promise<void>;
+	/** Replaces a workspace's folders: add, remove and reorder are all this. */
+	setWorkspaceLocations(workspace: WorkspaceId, locations: Location[]): Promise<void>;
+
 	/** Pairs two or more tabs; resolves to the new pair's id. */
 	joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId>;
 	separatePair(pair: PairId): Promise<void>;
@@ -117,6 +131,11 @@ export interface TabsApi {
 
 	/** Follows every change to this window's session. */
 	onEvent(listener: (event: SessionEvent) => void): Unsubscribe;
+}
+
+/** Whether a rejection from `saveGroupAsWorkspace` or `renameWorkspace` means the name is in use. */
+export function isWorkspaceNameTaken(error: unknown): boolean {
+	return String(error).includes('a workspace named');
 }
 
 /**
@@ -180,6 +199,12 @@ export function applyTabsEvent(snapshot: SessionSnapshot, event: SessionEvent): 
 		case 'geometryChanged':
 			next.geometry = event.geometry;
 			break;
+		case 'workspacesChanged':
+			next.workspaces = event.workspaces;
+			break;
+		case 'workspaceActivated':
+			next.workspace = event.workspace;
+			break;
 		case 'windowOpened':
 		case 'windowClosed':
 			// Nothing in this window's own state changes; the revision still advances.
@@ -219,6 +244,12 @@ export const tabsApi: TabsApi = {
 	moveGroup: (group, index) => session.moveGroup(group, index),
 	ungroup: (group) => session.ungroup(group),
 	closeGroup: (group) => session.closeGroup(group),
+	saveGroupAsWorkspace: (group, name) => session.saveGroupAsWorkspace(group, name),
+	renameWorkspace: (workspace, name) => session.renameWorkspace(workspace, name),
+	deleteWorkspace: (workspace) => session.deleteWorkspace(workspace),
+	setActiveWorkspace: (workspace) => session.setActiveWorkspace(workspace),
+	setWorkspaceLocations: (workspace, locations) =>
+		session.setWorkspaceLocations(workspace, locations),
 	joinPair: (tabs, layout) => session.joinPair(tabs, layout),
 	separatePair: (pair) => session.separatePair(pair),
 	setPairLayout: (pair, layout) => session.setPairLayout(pair, layout),

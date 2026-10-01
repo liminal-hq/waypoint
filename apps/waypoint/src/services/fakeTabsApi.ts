@@ -18,6 +18,7 @@ import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import { FakeTabsStore, type FakeCommand, type Outcome } from './fakeTabsStore';
 import { MAX_WINDOWS, type Handoff, type OpenTabOptions, type TabsApi } from './tabsApi';
 import type { Unsubscribe } from './vfsClient';
@@ -181,6 +182,29 @@ export class FakeTabsApi implements TabsApi {
 
 	async closeGroup(group: GroupId): Promise<void> {
 		this.run({ kind: 'closeGroup', group });
+	}
+
+	async saveGroupAsWorkspace(group: GroupId, name?: string): Promise<WorkspaceId> {
+		const outcome = this.run({ kind: 'saveGroupAsWorkspace', group, name: name ?? null });
+		return this.fromEvents(outcome, 'saving a workspace', (e) =>
+			e.kind === 'workspacesChanged' ? e.workspaces[e.workspaces.length - 1]?.id : undefined,
+		);
+	}
+
+	async renameWorkspace(workspace: WorkspaceId, name: string): Promise<void> {
+		this.run({ kind: 'renameWorkspace', workspace, name });
+	}
+
+	async deleteWorkspace(workspace: WorkspaceId): Promise<void> {
+		this.run({ kind: 'deleteWorkspace', workspace });
+	}
+
+	async setActiveWorkspace(workspace: WorkspaceId | null): Promise<void> {
+		this.run({ kind: 'setActiveWorkspace', workspace });
+	}
+
+	async setWorkspaceLocations(workspace: WorkspaceId, locations: Location[]): Promise<void> {
+		this.run({ kind: 'setWorkspaceLocations', workspace, locations });
 	}
 
 	async joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId> {

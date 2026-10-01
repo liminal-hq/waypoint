@@ -13,7 +13,7 @@ use waypoint_protocol::{Location, PluginStatus};
 use waypoint_session::{
     Command, Geometry, GroupId, GroupSort, MoveTo, MoveWhat, Outcome, PairId, PairLayout,
     SessionError, SessionEvent, SessionSnapshot, TabColour, TabHints, TabId, ViewPrefs,
-    WindowSummary,
+    WindowSummary, WorkspaceId,
 };
 
 use crate::error::Error;
@@ -338,6 +338,92 @@ pub async fn close_group<R: Runtime>(
     run(&window, &sessions, Command::CloseGroup { group }).map(drop)
 }
 
+// Workspaces.
+
+/// Saves a group's folders as a workspace (named `name`, or after the group) and returns its id.
+/// A name already in use fails with an error that begins `a workspace named`.
+#[tauri::command]
+pub async fn save_group_as_workspace<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    group: GroupId,
+    name: Option<String>,
+) -> Result<WorkspaceId, Error> {
+    let outcome = run(
+        &window,
+        &sessions,
+        Command::SaveGroupAsWorkspace { group, name },
+    )?;
+    from_events(
+        &window,
+        &outcome,
+        "saving a workspace",
+        |event| match event {
+            // New workspaces are appended, so the last one is the one just made.
+            SessionEvent::WorkspacesChanged { workspaces, .. } => workspaces.last().map(|w| w.id),
+            _ => None,
+        },
+    )
+}
+
+#[tauri::command]
+pub async fn rename_workspace<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    workspace: WorkspaceId,
+    name: String,
+) -> Result<(), Error> {
+    run(
+        &window,
+        &sessions,
+        Command::RenameWorkspace { workspace, name },
+    )
+    .map(drop)
+}
+
+#[tauri::command]
+pub async fn delete_workspace<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    workspace: WorkspaceId,
+) -> Result<(), Error> {
+    run(&window, &sessions, Command::DeleteWorkspace { workspace }).map(drop)
+}
+
+/// Switches the calling window's Favourites to a workspace, or back to the bookmarks with `null`.
+#[tauri::command]
+pub async fn set_active_workspace<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    workspace: Option<WorkspaceId>,
+) -> Result<(), Error> {
+    run(
+        &window,
+        &sessions,
+        Command::SetActiveWorkspace { workspace },
+    )
+    .map(drop)
+}
+
+/// Replaces a workspace's folders (add, remove and reorder are all this).
+#[tauri::command]
+pub async fn set_workspace_locations<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    workspace: WorkspaceId,
+    locations: Vec<Location>,
+) -> Result<(), Error> {
+    run(
+        &window,
+        &sessions,
+        Command::SetWorkspaceLocations {
+            workspace,
+            locations,
+        },
+    )
+    .map(drop)
+}
+
 // Pairs.
 
 /// Pairs two or more tabs and returns the new pair's id.
@@ -543,7 +629,16 @@ pub async fn list_windows<R: Runtime>(
 pub async fn get_status() -> Result<PluginStatus, Error> {
     Ok(PluginStatus::available(
         [
-            "tabs", "history", "pin", "colour", "closed", "mru", "groups", "pairs", "windows",
+            "tabs",
+            "history",
+            "pin",
+            "colour",
+            "closed",
+            "mru",
+            "groups",
+            "pairs",
+            "windows",
+            "workspaces",
         ]
         .map(String::from)
         .to_vec(),
@@ -558,7 +653,16 @@ mod tests {
     fn reports_available() {
         let status = tauri::async_runtime::block_on(get_status()).unwrap();
         assert!(status.available);
-        for feature in ["tabs", "groups", "pairs", "windows", "closed", "mru", "pin"] {
+        for feature in [
+            "tabs",
+            "groups",
+            "pairs",
+            "windows",
+            "closed",
+            "mru",
+            "pin",
+            "workspaces",
+        ] {
             assert!(status.features.contains(&feature.to_string()), "{feature}");
         }
     }

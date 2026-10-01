@@ -606,6 +606,72 @@ fn the_new_commands_run_through_the_store() {
 }
 
 #[test]
+fn workspaces_are_saved_switched_and_announced_to_every_window() {
+    let t = setup(&["main-1", "main-2"]);
+    let a = open_tab(&t.app, "main-1", "a").unwrap();
+    open_tab(&t.app, "main-2", "other").unwrap();
+    let first = events(&t.app, "main-1");
+    let second = events(&t.app, "main-2");
+    let w = || window(&t.app, "main-1");
+    let group = tauri::async_runtime::block_on(commands::create_group(
+        w(),
+        sessions(&t.app),
+        vec![a],
+        Some("Site".into()),
+    ))
+    .unwrap();
+    drain(&first);
+    drain(&second);
+
+    let id = tauri::async_runtime::block_on(commands::save_group_as_workspace(
+        w(),
+        sessions(&t.app),
+        group,
+        None,
+    ))
+    .unwrap();
+    // Workspaces are global: both windows hear the list.
+    for receiver in [&first, &second] {
+        assert!(drain(receiver)
+            .iter()
+            .any(|e| matches!(e, SessionEvent::WorkspacesChanged { workspaces, .. } if workspaces[0].name == "Site")));
+    }
+    let again = tauri::async_runtime::block_on(commands::save_group_as_workspace(
+        w(),
+        sessions(&t.app),
+        group,
+        Some("site".into()),
+    ));
+    let message = again.unwrap_err().to_string();
+    assert!(message.starts_with("a workspace named"), "{message}");
+
+    // Switching is per window.
+    tauri::async_runtime::block_on(commands::set_active_workspace(
+        w(),
+        sessions(&t.app),
+        Some(id),
+    ))
+    .unwrap();
+    assert!(drain(&first).iter().any(|e| matches!(
+        e,
+        SessionEvent::WorkspaceActivated {
+            workspace: Some(_),
+            ..
+        }
+    )));
+    assert!(drain(&second).is_empty());
+    tauri::async_runtime::block_on(commands::delete_workspace(w(), sessions(&t.app), id)).unwrap();
+    assert!(drain(&first).iter().any(|e| matches!(
+        e,
+        SessionEvent::WorkspaceActivated {
+            workspace: None,
+            ..
+        }
+    )));
+    assert!(sessions(&t.app).with_store(|s| s.violations().is_empty()));
+}
+
+#[test]
 fn closing_a_window_by_name_removes_its_session_and_unknown_windows_are_refused() {
     let t = setup(&["main-1", "main-2"]);
     open_tab(&t.app, "main-1", "a").unwrap();

@@ -20,6 +20,7 @@ import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/Se
 import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
 import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
+import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 
@@ -159,6 +160,37 @@ export function ungroup(group: GroupId): Promise<void> {
 
 export function closeGroup(group: GroupId): Promise<void> {
 	return cmd<void>('close_group', { group });
+}
+
+// Workspaces.
+
+/**
+ * Saves a group's folders as a workspace and returns its id. The name defaults to the group's; a
+ * name already in use rejects with a message that begins `a workspace named`.
+ */
+export function saveGroupAsWorkspace(group: GroupId, name?: string): Promise<WorkspaceId> {
+	return cmd<WorkspaceId>('save_group_as_workspace', { group, name: name ?? null });
+}
+
+export function renameWorkspace(workspace: WorkspaceId, name: string): Promise<void> {
+	return cmd<void>('rename_workspace', { workspace, name });
+}
+
+export function deleteWorkspace(workspace: WorkspaceId): Promise<void> {
+	return cmd<void>('delete_workspace', { workspace });
+}
+
+/** Switches this window's Favourites to a workspace, or back to the bookmarks with `null`. */
+export function setActiveWorkspace(workspace: WorkspaceId | null): Promise<void> {
+	return cmd<void>('set_active_workspace', { workspace });
+}
+
+/** Replaces a workspace's folders: add, remove and reorder are all this. */
+export function setWorkspaceLocations(
+	workspace: WorkspaceId,
+	locations: Location[],
+): Promise<void> {
+	return cmd<void>('set_workspace_locations', { workspace, locations });
 }
 
 // Pairs.

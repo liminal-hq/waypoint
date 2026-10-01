@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import basic from '../../../../crates/waypoint-session/tests/conformance/basic.json';
 import groupsAndPairs from '../../../../crates/waypoint-session/tests/conformance/groups_and_pairs.json';
 import windowsAndHandoff from '../../../../crates/waypoint-session/tests/conformance/windows_and_handoff.json';
+import workspacesScenario from '../../../../crates/waypoint-session/tests/conformance/workspaces.json';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
 import type { MoveTo } from '@liminal-hq/waypoint-protocol/generated/MoveTo';
 import type { MoveWhat } from '@liminal-hq/waypoint-protocol/generated/MoveWhat';
@@ -33,11 +34,13 @@ interface WindowFacts {
 	mru?: number[];
 	groups?: { id: number; name: string; collapsed: boolean; tabs: number[] }[];
 	pairs?: { id: number; panes: number[]; layout: string; sizes: number[] }[];
+	workspace?: number | null;
 }
 
 interface Facts extends WindowFacts {
 	closed?: number[];
 	windows?: string[];
+	workspaces?: { id: number; name: string; locations: string[] }[];
 	others?: Record<string, WindowFacts>;
 }
 
@@ -46,7 +49,8 @@ type Op = Record<string, unknown> & { op: string };
 interface Step {
 	window?: string;
 	do: Op;
-	expect: Facts;
+	/** Omitted by a step that only checks it fails. */
+	expect?: Facts;
 	error?: boolean;
 	note?: string;
 }
@@ -60,6 +64,7 @@ const scenarios: Record<string, Scenario> = {
 	basic,
 	groups_and_pairs: groupsAndPairs,
 	windows_and_handoff: windowsAndHandoff,
+	workspaces: workspacesScenario,
 } as Record<string, Scenario>;
 
 const path = (op: Op, key: string) => fileLocation(String(op[key]));
@@ -129,6 +134,23 @@ async function perform(api: FakeTabsApi, op: Op): Promise<void> {
 			return api.setPairSizes(num(op, 'pair'), list(op, 'sizes'));
 		case 'toggleSplit':
 			return api.toggleSplit(num(op, 'tab'));
+		case 'saveGroupAsWorkspace':
+			await api.saveGroupAsWorkspace(
+				num(op, 'group'),
+				op.name === undefined ? undefined : String(op.name),
+			);
+			return;
+		case 'renameWorkspace':
+			return api.renameWorkspace(num(op, 'workspace'), String(op.name));
+		case 'deleteWorkspace':
+			return api.deleteWorkspace(num(op, 'workspace'));
+		case 'setActiveWorkspace':
+			return api.setActiveWorkspace(op.workspace === null ? null : num(op, 'workspace'));
+		case 'setWorkspaceLocations':
+			return api.setWorkspaceLocations(
+				num(op, 'workspace'),
+				(op.locations as string[]).map((l) => fileLocation(l)),
+			);
 		case 'openWindow':
 			await api.openWindow(op.location === undefined ? undefined : path(op, 'location'));
 			return;
@@ -149,7 +171,17 @@ async function perform(api: FakeTabsApi, op: Op): Promise<void> {
 	}
 }
 
-const WINDOW_FACTS = ['tabs', 'active', 'locations', 'pinned', 'history', 'mru', 'groups', 'pairs'];
+const WINDOW_FACTS = [
+	'tabs',
+	'active',
+	'locations',
+	'pinned',
+	'history',
+	'mru',
+	'groups',
+	'pairs',
+	'workspace',
+];
 
 /** The window facts of a snapshot, as the scenarios state them. */
 function checkWindow(w: WindowState | SessionSnapshot, want: WindowFacts, at: string) {
@@ -202,6 +234,7 @@ function checkWindow(w: WindowState | SessionSnapshot, want: WindowFacts, at: st
 		}));
 		expect(got, `${at}: pairs`).toEqual(want.pairs);
 	}
+	if (want.workspace !== undefined) expect(w.workspace, `${at}: workspace`).toBe(want.workspace);
 }
 
 /** One open window: its handle, what it heard, and the snapshot rebuilt from those events. */
@@ -227,6 +260,7 @@ describe.each(Object.entries(scenarios))('conformance scenario %s', (name, scena
 
 		for (const [n, step] of scenario.steps.entries()) {
 			const at = `${name} step ${n + 1}`;
+			const want = step.expect ?? {};
 			const label = step.window ?? 'main-1';
 			const handle = attached.get(label);
 			if (!handle) throw new Error(`${at}: ${label} is not open`);
@@ -246,18 +280,27 @@ describe.each(Object.entries(scenarios))('conformance scenario %s', (name, scena
 			for (const gone of [...attached.keys()])
 				if (!store.windowLabels().includes(gone)) attached.delete(gone);
 
-			if (WINDOW_FACTS.some((k) => k in step.expect)) {
-				checkWindow(await handle.api.getSnapshot(), step.expect, at);
+			if (WINDOW_FACTS.some((k) => k in want)) {
+				checkWindow(await handle.api.getSnapshot(), want, at);
 			}
-			if (step.expect.closed) {
+			if (want.closed) {
 				expect(
 					store.closed().map((c) => c.tab.id),
 					`${at}: closed`,
-				).toEqual(step.expect.closed);
+				).toEqual(want.closed);
 			}
-			if (step.expect.windows)
-				expect(store.windowLabels(), `${at}: windows`).toEqual(step.expect.windows);
-			for (const [other, facts] of Object.entries(step.expect.others ?? {})) {
+			if (want.workspaces) {
+				expect(
+					store.toSnapshot().workspaces.map((w) => ({
+						id: w.id,
+						name: w.name,
+						locations: w.locations.map((l) => l.display),
+					})),
+					`${at}: workspaces`,
+				).toEqual(want.workspaces);
+			}
+			if (want.windows) expect(store.windowLabels(), `${at}: windows`).toEqual(want.windows);
+			for (const [other, facts] of Object.entries(want.others ?? {})) {
 				const w = store.window(other);
 				expect(w, `${at}: ${other} is open`).toBeDefined();
 				if (w) checkWindow(w, facts, `${at} (${other})`);

@@ -26,6 +26,8 @@ import type { WindowEvent } from '@liminal-hq/waypoint-protocol/generated/Window
 import type { WindowState } from '@liminal-hq/waypoint-protocol/generated/WindowState';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import type { Handoff } from './tabsApi';
+import type { Workspace } from '@liminal-hq/waypoint-protocol/generated/Workspace';
+import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 
 /**
  * This file is the TypeScript twin of `crates/waypoint-session` (`reducer/*.rs`, `layout.rs`,
@@ -77,6 +79,11 @@ export type FakeCommand =
 	| { kind: 'setPairSizes'; pair: PairId; sizes: number[] }
 	| { kind: 'swapPanes'; pair: PairId }
 	| { kind: 'toggleSplit'; tab: TabId }
+	| { kind: 'saveGroupAsWorkspace'; group: GroupId; name: string | null }
+	| { kind: 'renameWorkspace'; workspace: WorkspaceId; name: string }
+	| { kind: 'deleteWorkspace'; workspace: WorkspaceId }
+	| { kind: 'setActiveWorkspace'; workspace: WorkspaceId | null }
+	| { kind: 'setWorkspaceLocations'; workspace: WorkspaceId; locations: Location[] }
 	| { kind: 'registerWindow'; label: string }
 	| { kind: 'openWindow'; location: Location | null; geometry: Geometry | null }
 	| { kind: 'closeWindow' }
@@ -95,6 +102,8 @@ const unknownTab = (id: TabId) => `no such tab: ${id}`;
 const unknownGroup = (id: GroupId) => `no such group: ${id}`;
 const unknownPair = (id: PairId) => `no such pair: ${id}`;
 const unknownWindow = (label: string) => `no such window: ${label}`;
+const unknownWorkspace = (id: WorkspaceId) => `no such workspace: ${id}`;
+const workspaceNameTaken = (name: string) => `a workspace named "${name}" already exists`;
 const invalid = (why: string) => `invalid command: ${why}`;
 
 interface State {
@@ -105,6 +114,8 @@ interface State {
 	nextGroup: number;
 	nextPair: number;
 	nextWindow: number;
+	workspaces: Workspace[];
+	nextWorkspace: number;
 }
 
 const defaultView = (): ViewPrefs => ({ mode: 'list', showHidden: false, iconSize: 64 });
@@ -119,6 +130,7 @@ function newWindowState(label: string): WindowState {
 		pairs: [],
 		geometry: null,
 		view: defaultView(),
+		workspace: null,
 	};
 }
 
@@ -459,6 +471,9 @@ function windowEvents(
 		out.push({ kind: 'mruChanged', mru: after.mru, revision: R });
 	if (!deepEqual(after.view, before.view))
 		out.push({ kind: 'viewChanged', view: after.view, revision: R });
+	if (after.workspace !== before.workspace) {
+		out.push({ kind: 'workspaceActivated', workspace: after.workspace, revision: R });
+	}
 	if (!deepEqual(after.geometry, before.geometry) && after.geometry !== null) {
 		out.push({ kind: 'geometryChanged', geometry: after.geometry, revision: R });
 	}
@@ -472,6 +487,9 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 		const now = after.windows.find((w) => w.label === old.label);
 		if (now) {
 			for (const event of windowEvents(old, now, reopened)) push(old.label, event);
+			if (!deepEqual(before.workspaces, after.workspaces)) {
+				push(old.label, { kind: 'workspacesChanged', workspaces: after.workspaces, revision: R });
+			}
 		} else {
 			for (const tab of old.tabs) push(old.label, { kind: 'tabClosed', tab: tab.id, revision: R });
 			push(old.label, { kind: 'windowClosed', window: old.label, revision: R });
@@ -483,6 +501,9 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 		for (const event of windowEvents(newWindowState(now.label), now, reopened)) {
 			push(now.label, event);
 		}
+		if (after.workspaces.length > 0) {
+			push(now.label, { kind: 'workspacesChanged', workspaces: after.workspaces, revision: R });
+		}
 	}
 	return out;
 }
@@ -490,6 +511,11 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 // The store.
 
 /** Another window's pair or group is a single block; this is its stable sort key. */
+/** What makes two workspace names the same: they match ignoring case and surrounding space. */
+function workspaceKey(name: string): string {
+	return name.trim().toLowerCase();
+}
+
 function sortKey(tab: TabSnapshot, by: GroupSort): [boolean, string] {
 	const name = () => {
 		const display = tab.location.display.replace(/[/\\]+$/, '');
@@ -553,6 +579,8 @@ export class FakeTabsStore {
 		nextGroup: 1,
 		nextPair: 1,
 		nextWindow: 1,
+		workspaces: [],
+		nextWorkspace: 1,
 	};
 	private readonly listeners = new Map<string, Set<Listener>>();
 	private readonly handoffListeners = new Map<string, Set<(handoff: Handoff) => void>>();
@@ -607,6 +635,8 @@ export class FakeTabsStore {
 			geometry: w.geometry,
 			view: w.view,
 			closed: this.state.closed,
+			workspaces: this.state.workspaces,
+			workspace: w.workspace,
 		});
 	}
 
@@ -620,6 +650,8 @@ export class FakeTabsStore {
 			nextGroup: this.state.nextGroup,
 			nextPair: this.state.nextPair,
 			nextWindow: this.state.nextWindow,
+			workspaces: this.state.workspaces,
+			nextWorkspace: this.state.nextWorkspace,
 		});
 	}
 
@@ -649,6 +681,26 @@ export class FakeTabsStore {
 				if (pairs.has(p.id)) out.push(`pair ${p.id} is in two windows`);
 				pairs.add(p.id);
 				if (p.id >= s.nextPair) out.push(`pair ${p.id} is at or above next_pair`);
+			}
+		}
+		const workspaceIds = new Set<WorkspaceId>();
+		const workspaceNames = new Set<string>();
+		for (const ws of s.workspaces) {
+			if (workspaceIds.has(ws.id)) out.push(`workspace ${ws.id} is not unique`);
+			workspaceIds.add(ws.id);
+			if (ws.id >= s.nextWorkspace) out.push(`workspace ${ws.id} is at or above next_workspace`);
+			const key = workspaceKey(ws.name);
+			if (workspaceNames.has(key) || key === '') {
+				out.push(`workspace ${ws.id} has an empty or repeated name`);
+			}
+			workspaceNames.add(key);
+			if (new Set(ws.locations.map((l) => l.uri)).size !== ws.locations.length) {
+				out.push(`workspace ${ws.id} repeats a folder`);
+			}
+		}
+		for (const w of s.windows) {
+			if (w.workspace !== null && !workspaceIds.has(w.workspace)) {
+				out.push(`${w.label}: the active workspace does not exist`);
 			}
 		}
 		if (s.closed.length > CLOSED_LIMIT) out.push('too many closed tabs');
@@ -745,6 +797,10 @@ export class FakeTabsStore {
 
 /** Brings every window into a legal shape after a command: prunes what dangles, then orders. */
 function settle(s: State): void {
+	const workspaceIds = new Set(s.workspaces.map((w) => w.id));
+	for (const w of s.windows) {
+		if (w.workspace !== null && !workspaceIds.has(w.workspace)) w.workspace = null;
+	}
 	for (const w of s.windows) {
 		const live = new Set(w.tabs.map((t) => t.id));
 		// Panes that no longer exist leave their pair; a pair of fewer than two is gone.
@@ -821,6 +877,12 @@ class Reducer {
 			case 'setView':
 			case 'moveTabs':
 				return this.windows(c);
+			case 'saveGroupAsWorkspace':
+			case 'renameWorkspace':
+			case 'deleteWorkspace':
+			case 'setActiveWorkspace':
+			case 'setWorkspaceLocations':
+				return this.workspaces(c);
 			case 'createGroup':
 			case 'addToGroup':
 			case 'removeFromGroup':
@@ -843,6 +905,65 @@ class Reducer {
 				return this.pairs(c);
 			default:
 				return this.tabs(c);
+		}
+	}
+
+	// Workspaces (reducer/workspaces.rs).
+
+	private workspaces(c: FakeCommand): void {
+		const s = this.s;
+		// Workspaces are global but their events go to windows, so a command needs a live caller.
+		const w = this.win();
+		const find = (id: WorkspaceId): Workspace => {
+			const ws = s.workspaces.find((x) => x.id === id);
+			if (!ws) throw unknownWorkspace(id);
+			return ws;
+		};
+		const clean = (name: string): string => {
+			const trimmed = name.trim();
+			if (trimmed === '') throw invalid('a workspace needs a name');
+			return trimmed;
+		};
+		const ensureFree = (name: string, except: WorkspaceId | null) => {
+			const key = workspaceKey(name);
+			if (s.workspaces.some((x) => x.id !== except && workspaceKey(x.name) === key)) {
+				throw workspaceNameTaken(name);
+			}
+		};
+		const unique = (locations: Location[]): Location[] => {
+			const seen = new Set<string>();
+			return locations.filter((l) => !seen.has(l.uri) && seen.add(l.uri));
+		};
+		switch (c.kind) {
+			case 'saveGroupAsWorkspace': {
+				const group = this.group(w, c.group);
+				const name = clean(c.name ?? group.name);
+				ensureFree(name, null);
+				const locations = unique(w.tabs.filter((t) => t.group === group.id).map((t) => t.location));
+				s.workspaces.push({ id: s.nextWorkspace, name, locations });
+				s.nextWorkspace += 1;
+				return;
+			}
+			case 'renameWorkspace': {
+				const ws = find(c.workspace);
+				const name = clean(c.name);
+				ensureFree(name, c.workspace);
+				ws.name = name;
+				return;
+			}
+			case 'deleteWorkspace':
+				find(c.workspace);
+				s.workspaces = s.workspaces.filter((x) => x.id !== c.workspace);
+				return;
+			case 'setActiveWorkspace':
+				if (c.workspace !== null) find(c.workspace);
+				w.workspace = c.workspace;
+				return;
+			case 'setWorkspaceLocations':
+				find(c.workspace).locations = unique(c.locations);
+				return;
+			default:
+				throw new Error(`routed elsewhere: ${c.kind}`);
 		}
 	}
 
