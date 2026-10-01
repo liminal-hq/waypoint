@@ -11,7 +11,7 @@ const at = { display: '/home/a/x.txt', uri: 'file:///home/a/x.txt' };
 
 const CASES: Array<[OpsError, RegExp]> = [
 	[{ kind: 'notFound', location: at }, /\/home\/a\/x\.txt was not found/],
-	[{ kind: 'permissionDenied', location: at }, /not allowed to change \/home\/a\/x\.txt/],
+	[{ kind: 'permissionDenied', location: at }, /Permission denied for \/home\/a\/x\.txt/],
 	[{ kind: 'notEnoughSpace', needed: 5_000_000, free: 1_000_000 }, /5 MB needed, 1 MB free/],
 	[{ kind: 'notEnoughSpace', needed: 0, free: 0 }, /not enough free space on the destination/],
 	[{ kind: 'invalidName', name: 'a:b', reason: 'contains a colon' }, /“a:b” cannot be used.*colon/],

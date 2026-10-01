@@ -689,7 +689,7 @@ export const enMessages = {
 	'ops.problem.job': 'Job: {title}',
 	'ops.problem.message.notFound': '{location} was not found. It may have been moved or deleted.',
 	'ops.problem.message.permissionDenied':
-		'Waypoint is not allowed to change {location}. Check its permissions, and those of the folder it is in.',
+		'Permission denied for {location}. Check its permissions, and those of the folder it is in or going to.',
 	'ops.problem.message.notEnoughSpace':
 		'There is not enough free space: {needed} needed, {free} free.',
 	'ops.problem.message.notEnoughSpace.unknown':

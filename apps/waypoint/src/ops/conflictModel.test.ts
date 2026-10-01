@@ -66,6 +66,7 @@ describe('dateHint', () => {
 	it('says nothing when a date is unknown or nothing exists yet', () => {
 		expect(dateHint(conflictFor('a', { existingModifiedMs: null }))).toBe('unknown');
 		expect(dateHint(conflictFor('a', { withinBatch: true }))).toBe('unknown');
+		expect(dateHint(conflictFor('a', { kind: 'folderOverFolder' }))).toBe('unknown');
 	});
 });
 

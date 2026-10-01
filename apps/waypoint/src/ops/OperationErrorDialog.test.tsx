@@ -46,7 +46,7 @@ describe('what it says', () => {
 		expect(
 			screen.getByRole('dialog', { name: 'An item could not be processed' }),
 		).toBeInTheDocument();
-		expect(dialog()).toHaveTextContent(/not allowed to change \/src\/big\.iso/);
+		expect(dialog()).toHaveTextContent(/Permission denied for \/src\/big\.iso/);
 		expect(dialog()).toHaveTextContent('Item: /src/big.iso');
 		expect(dialog()).toHaveTextContent('Job: Copying big.iso');
 	});

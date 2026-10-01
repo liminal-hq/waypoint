@@ -53,10 +53,14 @@ export function isDestructive(policy: ConflictPolicy): boolean {
 
 export type DateHint = 'newer' | 'older' | 'same' | 'unknown';
 
-/** How the incoming entry's date compares with the existing one's. */
+/**
+ * How the incoming entry's date compares with the existing one's. Only files are compared: a
+ * folder's date moves whenever something inside it does, so it says nothing about which is newer.
+ */
 export function dateHint(conflict: Conflict): DateHint {
 	const { sourceModifiedMs: incoming, existingModifiedMs: existing } = conflict;
-	if (incoming === null || existing === null || conflict.withinBatch) return 'unknown';
+	if (conflict.kind !== 'fileOverFile' || conflict.withinBatch) return 'unknown';
+	if (incoming === null || existing === null) return 'unknown';
 	if (incoming > existing) return 'newer';
 	if (incoming < existing) return 'older';
 	return 'same';

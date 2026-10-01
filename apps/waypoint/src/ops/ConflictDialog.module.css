@@ -63,7 +63,7 @@
 	border-block-end: 1px solid var(--wp-border-subtle);
 	text-align: start;
 	vertical-align: top;
-	overflow-wrap: anywhere;
+	overflow-wrap: break-word;
 }
 
 .table thead th {
@@ -72,6 +72,7 @@
 }
 
 .name {
+	min-inline-size: 9ch;
 	font-weight: 600;
 }
 
