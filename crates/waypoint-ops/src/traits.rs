@@ -53,6 +53,14 @@ pub trait Trash: Send + Sync {
     /// days, and returns how many items went.
     fn empty(&self, older_than_days: Option<u32>) -> Result<u64, OpsError>;
 
+    /// Whether an item with this receipt is still in the Trash. An undo of a trash asks before it
+    /// acts, so an item that was emptied is refused cleanly. The default says yes, which leaves the
+    /// refusal to `restore` itself; an implementation that can look should.
+    fn contains(&self, receipt: &TrashReceipt) -> Result<bool, OpsError> {
+        let _ = receipt;
+        Ok(true)
+    }
+
     /// The receipt for an item the Trash view shows at `trashed`.
     fn receipt_for(&self, trashed: &Location) -> Result<TrashReceipt, OpsError>;
 }

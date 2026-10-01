@@ -19,8 +19,8 @@ export type JobSnapshot = { id: JobId, kind: JobKind, state: JobState,
  */
 title: string, sources: SourcesSummary, destination: Location | null, options: JobOptions, originWindow: string, counts: Counts, progress: Progress, createdMs: number, startedMs: number | null, finishedMs: number | null, 
 /**
- * Whether the journal can undo this job. The journal arrives with a later slice; until then
- * this is always false.
+ * Whether the journal holds an entry that can undo this job. The store starts it false; the
+ * plugin sets it with `OpsStore::mark_undoable` once the journal has committed the entry.
  */
 undoable: boolean, 
 /**

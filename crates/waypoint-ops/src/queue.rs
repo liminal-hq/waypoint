@@ -186,6 +186,7 @@ impl OpsStore {
         OpsSnapshot {
             revision: self.revision,
             jobs: self.jobs.iter().map(|j| j.snapshot.clone()).collect(),
+            journal: Default::default(),
         }
     }
 
@@ -238,6 +239,20 @@ impl OpsStore {
             job: self.jobs[index].snapshot.clone(),
             revision,
         }
+    }
+
+    /// Records whether the journal can undo the job, once the journal has committed its entry.
+    pub fn mark_undoable(
+        &mut self,
+        id: JobId,
+        undoable: bool,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        if self.jobs[index].snapshot.undoable == undoable {
+            return Ok(Vec::new());
+        }
+        self.jobs[index].snapshot.undoable = undoable;
+        Ok(vec![self.changed(index)])
     }
 
     /// Adds a job at the end of the queue, in `Planning`.

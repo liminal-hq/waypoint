@@ -29,6 +29,7 @@ pub use copy_engine::CHUNK_BYTES;
 pub use copy_job::{RunOptions, TransferReport};
 pub use copy_resolve::{action_for, Action, Resolutions};
 
+use crate::journal::InverseStep;
 use crate::model::{Conflict, Counts, Decision, JobId, JobKind, OpsError, Progress, Resolution};
 use crate::names::file_name_of;
 use crate::plan::{Plan, PlanItem};
@@ -95,6 +96,9 @@ pub struct ExecReport {
     pub counts: Counts,
     /// What a copy or move did beyond the lists above.
     pub transfer: TransferReport,
+    /// What the journal needs to reverse the job, in the order the originals were done. The
+    /// fingerprints are filled in after the job ends (`fingerprint_steps`).
+    pub inverse: Vec<InverseStep>,
 }
 
 /// Why a job stopped before the end. `error` is `Cancelled` for a cancel.
@@ -353,6 +357,10 @@ impl Run<'_> {
             provider.create_file(target)?;
         }
         self.report.created.push(target.to_location());
+        self.report.inverse.push(InverseStep::RemoveCreated {
+            location: target.to_location(),
+            fingerprint: None,
+        });
         self.entry_done(file_name_of(target).as_deref());
         Ok(())
     }
@@ -386,6 +394,10 @@ impl Run<'_> {
         self.report
             .renamed
             .push((source.to_location(), target.to_location()));
+        self.report.inverse.push(InverseStep::Rename {
+            from: target.to_location(),
+            to: source.to_location(),
+        });
         self.entry_done(file_name_of(target).as_deref());
         Ok(())
     }
@@ -429,6 +441,10 @@ impl Run<'_> {
             }
         }
         self.report.created.push(target.to_location());
+        self.report.inverse.push(InverseStep::RemoveCreated {
+            location: target.to_location(),
+            fingerprint: None,
+        });
         Ok(())
     }
 
@@ -568,6 +584,9 @@ impl Run<'_> {
         let receipt = results.pop().unwrap_or(Err(OpsError::Io {
             message: "the Trash gave no answer".to_owned(),
         }))?;
+        self.report.inverse.push(InverseStep::RestoreTrashed {
+            receipt: receipt.clone(),
+        });
         self.report.trashed.push(receipt);
         self.entry_done(file_name_of(source).as_deref());
         Ok(())

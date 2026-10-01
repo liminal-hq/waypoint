@@ -10,6 +10,8 @@ use ts_rs::TS;
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{ListingHandle, SelectionSpec};
 
+use crate::journal::{JournalEntrySummary, JournalId, JournalSnapshot, StaleReason};
+
 /// Names a job. Global to the store and never reused while the store lives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
@@ -37,13 +39,13 @@ pub enum JobKind {
     /// Makes a symbolic link in the destination to each source, which stays where it is.
     Link,
     BatchRename,
-    /// Reverses the job `of`.
+    /// Reverses the journal entry `of`.
     Undo {
-        of: JobId,
+        of: JournalId,
     },
-    /// Applies again the job `of` that an undo reversed.
+    /// Applies again the journal entry `of` that an undo reversed.
     Redo {
-        of: JobId,
+        of: JournalId,
     },
 }
 
@@ -258,6 +260,15 @@ pub enum OpsError {
     /// replacing one with the other would delete a tree (or bury a file) without being asked.
     #[error("{} cannot be replaced by an entry of another kind", .location.display)]
     CannotReplace { location: Location },
+    /// An undo found the entry changed since the job left it, and did nothing.
+    #[error("{} cannot be undone: {reason:?}", .location.display)]
+    UndoStale {
+        location: Location,
+        reason: StaleReason,
+    },
+    /// There is no such entry in the journal, or it is not in a state this can be done in.
+    #[error("{reason}")]
+    UndoUnavailable { reason: String },
     #[error("{message}")]
     Io { message: String },
 }
@@ -426,8 +437,8 @@ pub struct JobSnapshot {
     pub started_ms: Option<i64>,
     #[ts(type = "number | null")]
     pub finished_ms: Option<i64>,
-    /// Whether the journal can undo this job. The journal arrives with a later slice; until then
-    /// this is always false.
+    /// Whether the journal holds an entry that can undo this job. The store starts it false; the
+    /// plugin sets it with `OpsStore::mark_undoable` once the journal has committed the entry.
     pub undoable: bool,
     /// What verification recorded, once a verified copy or move has checked at least one file
     /// (A51); `None` when the job did not verify.
@@ -442,6 +453,9 @@ pub struct OpsSnapshot {
     #[ts(type = "number")]
     pub revision: u64,
     pub jobs: Vec<JobSnapshot>,
+    /// What Undo and Redo would do. The journal counts its own revision, so this part is mirrored
+    /// by `OpsEvent::JournalChanged` on its own gate.
+    pub journal: JournalSnapshot,
 }
 
 /// Something that happened to the queue. Applying the events in order to a snapshot at the
@@ -477,6 +491,13 @@ pub enum OpsEvent {
         #[ts(type = "number")]
         revision: u64,
     },
+    /// The undo history changed. `revision` is the journal's own, not the queue's.
+    JournalChanged {
+        #[ts(type = "number")]
+        revision: u64,
+        undo: Option<JournalEntrySummary>,
+        redo: Option<JournalEntrySummary>,
+    },
 }
 
 impl OpsEvent {
@@ -485,15 +506,31 @@ impl OpsEvent {
             OpsEvent::JobAdded { revision, .. }
             | OpsEvent::JobChanged { revision, .. }
             | OpsEvent::JobRemoved { revision, .. }
-            | OpsEvent::QueueReordered { revision, .. } => *revision,
+            | OpsEvent::QueueReordered { revision, .. }
+            | OpsEvent::JournalChanged { revision, .. } => *revision,
         }
     }
 }
 
 impl OpsSnapshot {
     /// Applies one event, as a mirror does. An event at or below the snapshot's revision is stale
-    /// and ignored.
+    /// and ignored; a journal event is judged against the journal's revision instead.
     pub fn apply(&mut self, event: &OpsEvent) {
+        if let OpsEvent::JournalChanged {
+            revision,
+            undo,
+            redo,
+        } = event
+        {
+            if *revision > self.journal.revision {
+                self.journal = JournalSnapshot {
+                    revision: *revision,
+                    undo: undo.clone(),
+                    redo: redo.clone(),
+                };
+            }
+            return;
+        }
         if event.revision() <= self.revision {
             return;
         }
@@ -506,6 +543,7 @@ impl OpsSnapshot {
                 }
             }
             OpsEvent::JobRemoved { id, .. } => self.jobs.retain(|j| j.id != *id),
+            OpsEvent::JournalChanged { .. } => {}
             OpsEvent::QueueReordered { order, .. } => {
                 let mut taken: Vec<Option<JobSnapshot>> = std::mem::take(&mut self.jobs)
                     .into_iter()
@@ -600,7 +638,7 @@ mod tests {
             r#"{"kind":"createFolder"}"#
         );
         assert_eq!(
-            serde_json::to_string(&JobKind::Undo { of: JobId(3) }).unwrap(),
+            serde_json::to_string(&JobKind::Undo { of: JournalId(3) }).unwrap(),
             r#"{"kind":"undo","of":3}"#
         );
     }

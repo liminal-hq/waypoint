@@ -491,7 +491,7 @@ fn planning_never_writes_whatever_the_request() {
         JobKind::Copy,
         JobKind::Move,
         JobKind::BatchRename,
-        JobKind::Undo { of: JobId(1) },
+        JobKind::Undo { of: JournalId(1) },
     ];
     let names = [
         "a", "B", "b", "c.txt", "..", "", "x/y", "CON", "d (2).md", "nul.",

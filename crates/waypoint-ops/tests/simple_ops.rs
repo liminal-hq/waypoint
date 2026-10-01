@@ -589,8 +589,8 @@ fn kinds_without_an_executor_report_unsupported_and_write_nothing() {
         build(&h, &tree(&[("a", "x"), ("d/", "")]));
         for request in [
             h.request(JobKind::BatchRename, &["a"], None, None),
-            h.request(JobKind::Undo { of: JobId(1) }, &[], None, None),
-            h.request(JobKind::Redo { of: JobId(1) }, &[], None, None),
+            h.request(JobKind::Undo { of: JournalId(1) }, &[], None, None),
+            h.request(JobKind::Redo { of: JournalId(1) }, &[], None, None),
         ] {
             assert!(matches!(
                 refused(request, &mut h),

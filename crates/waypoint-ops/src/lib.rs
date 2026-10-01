@@ -2,12 +2,13 @@
 // operations (create, rename, duplicate, trash, restore, delete) and for copy and move, with their
 // conflict policies, error decisions and verification. It is pure: no `tauri`, no threads of its
 // own, and no access to the file system except through a `waypoint_vfs::Provider`. The undo
-// journal and the Tauri plugin build on it in later slices.
+// journal records what each job did and undoes it; the Tauri plugin builds on it in a later slice.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 pub mod exec;
+mod journal;
 mod model;
 mod names;
 mod plan;
@@ -22,6 +23,7 @@ pub use exec::{
     action_for, remove_all, Action, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport,
     ExecSink, Executor, NullSink, Resolutions, RunOptions, SimpleCopy, TransferReport, CHUNK_BYTES,
 };
+pub use journal::*;
 pub use model::*;
 pub use names::{
     file_name_of, fold_name, is_within, same_name, same_path, split_name, unique_full_name,
