@@ -18,7 +18,7 @@ export interface TabActions {
 	/** Opens `location` in a tab next to the active one, without leaving the current tab. */
 	openInBackground(location: Location): void;
 	activate(tab: TabId): void;
-	/** Closes a tab. Closing the last one leaves a fresh tab at Home: a window always has a tab until session restore and window closing arrive (milestone 3). */
+	/** Closes a tab. Closing a window's last tab closes the window (D91); the session plugin does that, so there is nothing to do here. */
 	close(tab: TabId): void;
 	/** Moves a tab to `index` (its position after the move). */
 	move(tab: TabId, index: number): void;
@@ -35,14 +35,11 @@ function report(error: unknown): void {
 /** Closes run one at a time per session, so a burst of them never decides from a stale view. */
 const closeQueues = new WeakMap<TabsApi, Promise<void>>();
 
-async function closeOne(api: TabsApi, tab: TabId, home: Location): Promise<void> {
+async function closeOne(api: TabsApi, tab: TabId): Promise<void> {
 	// Read the session now, not when the actions were built: an earlier close may have changed it.
 	const current = await api.getSnapshot();
 	if (!current.tabs.some((candidate) => candidate.id === tab)) return;
-	if (current.tabs.length === 1) {
-		// Replace rather than empty the window, so it never shows nothing.
-		await api.openTab(home);
-	}
+	// The session closes the window when this was its last tab (D91).
 	await api.closeTab(tab);
 }
 
@@ -66,7 +63,7 @@ export function createTabActions(
 		activate,
 		close: (tab) => {
 			const queued = (closeQueues.get(api) ?? Promise.resolve())
-				.then(() => closeOne(api, tab, home))
+				.then(() => closeOne(api, tab))
 				.catch(report);
 			closeQueues.set(api, queued);
 		},

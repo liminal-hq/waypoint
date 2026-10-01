@@ -8,7 +8,9 @@ import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { OpenOptions, VfsClient } from '../services/vfsClient';
 import { openListingModel, toVfsError } from './listingModel';
+import { applyHints } from './tabHints';
 import { createListingSession, type SessionState } from './useListingSession';
+import type { ViewMode } from './viewStore';
 
 /** How long a tab can be in the background before it drops the pages it has cached. */
 export const BACKGROUND_EVICT_DELAY_MS = 15_000;
@@ -17,6 +19,8 @@ export interface ListingManagerOptions {
 	/** What a newly opened listing starts with; `inherited` is the sort of the listing it replaces (used as is when omitted). */
 	openOptions?: (inherited: SortSpec | undefined) => OpenOptions;
 	evictDelayMs?: number;
+	/** The layout in use, which decides which scroll offset a restored tab's hint belongs to. */
+	viewMode?: () => ViewMode;
 }
 
 interface Slot {
@@ -43,6 +47,8 @@ export class ListingManager {
 	private slots = new Map<TabId, Slot>();
 	private listeners = new Set<() => void>();
 	private version = 0;
+	/** Tabs whose hints (restored scroll and focus) have been applied: they apply once, to the first listing. */
+	private hinted = new Set<TabId>();
 	/** The latest hidden-files choice, applied to listings that become ready after it was made. */
 	private wantedHidden: boolean | null = null;
 
@@ -70,6 +76,9 @@ export class ListingManager {
 		const live = new Set(tabs.map((tab) => tab.id));
 		for (const id of [...this.slots.keys()]) {
 			if (!live.has(id)) this.release(id);
+		}
+		for (const id of [...this.hinted]) {
+			if (!live.has(id)) this.hinted.delete(id);
 		}
 		for (const tab of tabs) {
 			const slot = this.slots.get(tab.id);
@@ -116,7 +125,11 @@ export class ListingManager {
 		const previous = this.slots.get(tab.id);
 		const inherited =
 			previous?.state.status === 'ready' ? previous.state.session.model.sort : undefined;
-		if (previous) this.release(tab.id);
+		if (previous) {
+			this.release(tab.id);
+			// The tab moved on from the listing its hints described.
+			this.hinted.add(tab.id);
+		}
 
 		const slot: Slot = {
 			uri: tab.location.uri,
@@ -137,7 +150,12 @@ export class ListingManager {
 					model.dispose();
 					return;
 				}
-				slot.state = { status: 'ready', session: createListingSession(model) };
+				const session = createListingSession(model);
+				slot.state = { status: 'ready', session };
+				if (!this.hinted.has(tab.id)) {
+					this.hinted.add(tab.id);
+					applyHints(session, tab.hints, this.options.viewMode?.() ?? 'list');
+				}
 				if (slot.background) this.scheduleEviction(slot);
 				// A toggle made while this listing was opening has not reached it yet.
 				this.applyHidden(slot);

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { getHome } from '@liminal-hq/waypoint-plugin-vfs';
+import { invoke } from '@tauri-apps/api/core';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { VfsClientProvider } from '../browse/VfsClientContext';
@@ -40,6 +41,7 @@ function start(): Promise<MainServices> {
 	return startMainServices({
 		getHome,
 		tabsApi,
+		getRestoreNotice: () => invoke<string | null>('take_restore_notice'),
 		createClient: createTauriVfsClient,
 		createPlacesClient: createTauriPlacesClient,
 	});
@@ -89,7 +91,9 @@ export function MainScreen() {
 										/>
 									</Suspense>
 								)}
-								<Workspace />
+								<Workspace
+									startup={{ view: startup.services.view, notice: startup.services.notice }}
+								/>
 							</main>
 						</TabsProvider>
 					</PlacesClientProvider>

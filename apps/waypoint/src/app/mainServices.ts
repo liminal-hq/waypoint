@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
@@ -15,6 +16,10 @@ export interface MainServices {
 	tabsApi: TabsApi;
 	/** Where a new tab opens when nothing says otherwise. */
 	home: Location;
+	/** The window's saved view choices, applied once as the window starts. */
+	view?: ViewPrefs;
+	/** A sentence to show once when the last session could not be restored. */
+	notice?: string | null;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -24,18 +29,24 @@ export interface MainServicesDeps {
 	tabsApi: TabsApi;
 	createClient(): VfsClient;
 	createPlacesClient(): PlacesClient;
+	/** The one-time sentence about a session that could not be restored; `null` when it was. */
+	getRestoreNotice?(): Promise<string | null>;
 }
 
 /**
  * Reads the home folder, makes sure the window's session has a first tab, and returns the clients.
  * A window that already has tabs (a reload, a restored session) keeps them: only an empty session
- * opens one.
+ * opens one. The snapshot's view choices travel with the services so the first render uses them.
  */
 export async function startMainServices(deps: MainServicesDeps): Promise<MainServices> {
 	const home = await deps.getHome();
 	const snapshot = await deps.tabsApi.getSnapshot();
 	if (snapshot.tabs.length === 0) await deps.tabsApi.openTab(home);
+	// Asked of Rust once per run; a failure to ask is not worth a failed start.
+	const notice = await (deps.getRestoreNotice?.() ?? Promise.resolve(null)).catch(() => null);
 	return {
+		view: snapshot.view,
+		notice,
 		client: deps.createClient(),
 		placesClient: deps.createPlacesClient(),
 		tabsApi: deps.tabsApi,

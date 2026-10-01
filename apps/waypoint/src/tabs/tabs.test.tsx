@@ -5,6 +5,8 @@
 
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FakeTabsApi } from '../services/fakeTabsApi';
+import { FakeTabsStore } from '../services/fakeTabsStore';
 import { stubLayout } from '../test/browseHarness';
 import { DOCS, HOME, MUSIC, renderWorkspace } from '../test/workspaceHarness';
 
@@ -108,17 +110,19 @@ describe('the tab strip', () => {
 		await waitFor(() => expect(h.client.openCount).toBe(1));
 	});
 
-	it('keeps a tab at Home when the last one closes', async () => {
-		const h = await renderWorkspace();
+	it('closes the window when the last tab closes, and the tab goes to Recently Closed', async () => {
+		const onLastWindowClosed = vi.fn();
+		const store = new FakeTabsStore({
+			policy: { closeWindowOnLastTab: true },
+			onLastWindowClosed,
+		});
+		const h = await renderWorkspace(undefined, new FakeTabsApi(store, 'main-1'));
 		await h.tabs.navigate(1, DOCS);
 		await option('report.pdf');
 		fireEvent.click(screen.getByRole('button', { name: 'Close docs' }));
-		await waitFor(async () => {
-			const s = await snapshot(h);
-			expect(s.tabs).toHaveLength(1);
-			expect(s.tabs[0]!.location.uri).toBe(HOME.uri);
-		});
-		await option('notes.txt');
+		await waitFor(() => expect(onLastWindowClosed).toHaveBeenCalledTimes(1));
+		expect(store.windowLabels()).toEqual([]);
+		expect(store.closed().map((closed) => closed.tab.location.uri)).toEqual([DOCS.uri]);
 	});
 
 	it('opens a folder in a background tab on middle-click, and leaves files alone', async () => {

@@ -14,12 +14,16 @@ import type { MenuRequest } from '../browse/useListInteractions';
 import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
+import { followHints } from '../browse/tabHints';
 import {
 	createViewStore,
+	followView,
 	useViewState,
+	viewFromPrefs,
 	ViewStoreContext,
 	type ViewStore,
 } from '../browse/viewStore';
+import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import { tf, t } from '../i18n/messages';
 import { Sidebar } from '../sidebar/Sidebar';
 import { SidebarToggle } from '../sidebar/SidebarToggle';
@@ -38,7 +42,7 @@ import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
 import { TabStrip } from '../tabs/TabStrip';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
-import { useTabsSnapshot } from '../tabs/TabsContext';
+import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import styles from './Workspace.module.css';
 
@@ -47,14 +51,26 @@ const OPENING: SessionState = { status: 'opening' };
 /** How long a failure stays in the status bar. */
 const NOTICE_MS = 6000;
 
+/** What the window starts from: the saved view, and a sentence to show when the last session could not be restored. */
+export interface WorkspaceStartup {
+	view?: ViewPrefs;
+	notice?: string | null;
+}
+
 /** The browsing area. It owns the window's view choices (list or grid, icon size, hidden files). */
-export function Workspace() {
-	const [viewStore] = useState(() => createViewStore());
+export function Workspace({ startup }: { startup?: WorkspaceStartup }) {
+	const [viewStore] = useState(() =>
+		createViewStore(startup?.view ? viewFromPrefs(startup.view) : {}),
+	);
 	const [sidebarStore] = useState(() => createSidebarStore());
 	return (
 		<ViewStoreContext.Provider value={viewStore}>
 			<SidebarStoreContext.Provider value={sidebarStore}>
-				<WorkspaceBody viewStore={viewStore} sidebarStore={sidebarStore} />
+				<WorkspaceBody
+					viewStore={viewStore}
+					sidebarStore={sidebarStore}
+					startupNotice={startup?.notice ?? null}
+				/>
 			</SidebarStoreContext.Provider>
 		</ViewStoreContext.Provider>
 	);
@@ -63,17 +79,21 @@ export function Workspace() {
 function WorkspaceBody({
 	viewStore,
 	sidebarStore,
+	startupNotice,
 }: {
 	viewStore: ViewStore;
 	sidebarStore: SidebarStore;
+	startupNotice: string | null;
 }) {
 	const client = useVfsClient();
+	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const [manager] = useState(
 		() =>
 			new ListingManager(client, {
 				// A new listing keeps the hidden-files choice; the sort is inherited from the
 				// listing the tab had before.
+				viewMode: () => viewStore.getState().mode,
 				openOptions: (inherited) => ({
 					...(inherited ? { sort: inherited } : {}),
 					filter: { showHidden: viewStore.getState().showHidden },
@@ -81,7 +101,9 @@ function WorkspaceBody({
 			}),
 	);
 	// Numbered, so the same message arriving again restarts its timer.
-	const [notice, setNotice] = useState<{ id: number; text: string } | null>(null);
+	const [notice, setNotice] = useState<{ id: number; text: string } | null>(
+		startupNotice ? { id: 0, text: startupNotice } : null,
+	);
 	const noticeCount = useRef(0);
 	const [menu, setMenu] = useState<MenuRequest | null>(null);
 	const navigation = useNavigation();
@@ -124,6 +146,22 @@ function WorkspaceBody({
 		if (snapshot) manager.sync(snapshot.tabs, snapshot.active);
 	}, [manager, snapshot]);
 	useEffect(() => () => manager.dispose(), [manager]);
+	// The view choices and the active tab's scroll and focus go to the session so a restart brings
+	// them back (the page applies them once, when it starts).
+	useEffect(() => followView(viewStore, api), [viewStore, api]);
+	const activeId = useRef<number | null>(null);
+	activeId.current = snapshot?.active ?? null;
+	useEffect(
+		() =>
+			followHints(api, () => {
+				const tab = activeId.current;
+				const state = tab === null ? undefined : manager.stateFor(tab);
+				return tab !== null && state?.status === 'ready'
+					? { tab, session: state.session, mode: viewStore.getState().mode }
+					: null;
+			}),
+		[api, manager, viewStore],
+	);
 
 	useEffect(() => manager.setShowHidden(showHidden), [manager, showHidden]);
 

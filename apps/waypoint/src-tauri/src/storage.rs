@@ -421,4 +421,43 @@ mod tests {
         storage.save(&document(1)).unwrap();
         assert!(memory.get(PREVIOUS).is_none());
     }
+
+    #[test]
+    fn recently_closed_tabs_survive_a_save_and_load() {
+        let mut store = Store::new();
+        store
+            .dispatch(
+                "main-1",
+                Command::RegisterWindow {
+                    label: "main-1".into(),
+                },
+            )
+            .unwrap();
+        for name in ["a", "b"] {
+            store
+                .dispatch(
+                    "main-1",
+                    Command::Open {
+                        location: Location::new(format!("/{name}"), format!("file:///{name}")),
+                        after: None,
+                        activate: true,
+                    },
+                )
+                .unwrap();
+        }
+        store
+            .dispatch(
+                "main-1",
+                Command::Close {
+                    tab: waypoint_session::TabId(1),
+                },
+            )
+            .unwrap();
+        assert_eq!(store.closed().len(), 1);
+
+        let (_, storage) = setup();
+        storage.save(&store.to_document()).unwrap();
+        let (restored, _) = Store::from_document(storage.load().unwrap().unwrap()).unwrap();
+        assert_eq!(restored.closed(), store.closed());
+    }
 }
