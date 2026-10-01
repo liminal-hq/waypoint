@@ -1,0 +1,32 @@
+/* The seam on the trailing edge of a pair's first tab; it overlaps the tab beside it. */
+.joint {
+	position: absolute;
+	top: 50%;
+	inset-inline-end: -10px;
+	z-index: 3;
+	display: flex;
+	transform: translateY(-50%);
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 999px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-secondary);
+	cursor: default;
+}
+
+.button:hover {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+}

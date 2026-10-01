@@ -41,7 +41,7 @@ afterEach(() => vi.useRealTimers());
 describe('applying hints', () => {
 	it('gives a restored tab its scroll offset and focuses the entry by name', async () => {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 120, focused: 'beta.txt' })], 1);
+		manager.sync([tab(1, { scrollTop: 120, focused: 'beta.txt' })], new Set([1]));
 		const session = await ready(manager, 1);
 		await settle();
 		expect(session.view.scrollTop).toBe(120);
@@ -54,7 +54,7 @@ describe('applying hints', () => {
 
 	it('uses the grid offset when the grid is the layout', async () => {
 		const { manager } = setup('grid');
-		manager.sync([tab(1, { scrollTop: 300, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 300, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		expect(session.view.gridScrollTop).toBe(300);
 		expect(session.view.scrollTop).toBe(0);
@@ -62,7 +62,7 @@ describe('applying hints', () => {
 
 	it('ignores a name the listing does not have', async () => {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: 'gone.txt' })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: 'gone.txt' })], new Set([1]));
 		const session = await ready(manager, 1);
 		await settle();
 		expect(session.store.getState().focus).toBeNull();
@@ -71,16 +71,16 @@ describe('applying hints', () => {
 	it('applies once: a tab that navigates on does not take its old hints again', async () => {
 		const { manager } = setup();
 		const hints = { scrollTop: 50, focused: null };
-		manager.sync([tab(1, hints)], 1);
+		manager.sync([tab(1, hints)], new Set([1]));
 		await ready(manager, 1);
-		manager.sync([tab(1, hints, OTHER)], 1);
+		manager.sync([tab(1, hints, OTHER)], new Set([1]));
 		const next = await ready(manager, 1);
 		expect(next.view.scrollTop).toBe(0);
 	});
 
 	it('does not apply them to a tab that was never restored with any', async () => {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		expect(session.view.scrollTop).toBe(0);
 		expect(session.store.getState().focus).toBeNull();
@@ -90,7 +90,7 @@ describe('applying hints', () => {
 describe('reading hints', () => {
 	it('reads the layout in use and the focused entry', async () => {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		await session.model.readRange(0, 3);
 		session.view.scrollTop = 40.4;
@@ -104,7 +104,7 @@ describe('reading hints', () => {
 describe('reporting hints', () => {
 	async function reporting() {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		const api = { setTabHints: vi.fn(async () => {}) };
 		vi.useFakeTimers();
@@ -181,7 +181,7 @@ describe('reporting hints', () => {
 describe('flushing hints', () => {
 	it('sends the tab’s hints now and resolves only once the session has them', async () => {
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		let accept: () => void = () => {};
 		const setTabHints = vi.fn(
@@ -209,7 +209,7 @@ describe('flushing hints', () => {
 		const { manager } = setup();
 		manager.sync(
 			[tab(1, { scrollTop: 0, focused: null }), tab(2, { scrollTop: 0, focused: null }, OTHER)],
-			1,
+			new Set([1]),
 		);
 		const first = await ready(manager, 1);
 		const api = { setTabHints: vi.fn(async () => {}) };
@@ -230,7 +230,7 @@ describe('flushing hints', () => {
 	it('resolves when the session cannot take the hints, and when nothing is reporting', async () => {
 		await expect(flushHints(9)).resolves.toBeUndefined();
 		const { manager } = setup();
-		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], new Set([1]));
 		const session = await ready(manager, 1);
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const stop = followHints(
@@ -259,9 +259,9 @@ describe('a tab handed to a window that is running', () => {
 		const target = new ListingManager(client, { viewMode: () => 'list' });
 		source.sync(
 			[tab(7, { scrollTop: 0, focused: null }), tab(8, { scrollTop: 0, focused: null }, OTHER)],
-			7,
+			new Set([7]),
 		);
-		target.sync([tab(9, { scrollTop: 0, focused: null }, OTHER)], 9);
+		target.sync([tab(9, { scrollTop: 0, focused: null }, OTHER)], new Set([9]));
 		await ready(source, 7);
 		await settle();
 		expect(client.openCount).toBe(2);
@@ -269,8 +269,8 @@ describe('a tab handed to a window that is running', () => {
 		// The hand-off: the target gains the tab (with the hints the source just reported), the
 		// source loses it.
 		const moved = arriving({ scrollTop: 240, focused: 'beta.txt' });
-		target.sync([tab(9, { scrollTop: 0, focused: null }, OTHER), moved], 7);
-		source.sync([tab(8, { scrollTop: 0, focused: null }, OTHER)], 8);
+		target.sync([tab(9, { scrollTop: 0, focused: null }, OTHER), moved], new Set([7]));
+		source.sync([tab(8, { scrollTop: 0, focused: null }, OTHER)], new Set([8]));
 		const session = await ready(target, 7);
 		await settle();
 
@@ -287,16 +287,16 @@ describe('a tab handed to a window that is running', () => {
 
 	it('keeps the hints for a tab that arrives in the background until its listing opens', async () => {
 		const { manager } = setup();
-		manager.sync([tab(9, { scrollTop: 0, focused: null }, OTHER)], 9);
+		manager.sync([tab(9, { scrollTop: 0, focused: null }, OTHER)], new Set([9]));
 		await ready(manager, 9);
 		manager.sync(
 			[tab(9, { scrollTop: 0, focused: null }, OTHER), arriving({ scrollTop: 90, focused: null })],
-			9,
+			new Set([9]),
 		);
 		expect(manager.stateFor(7)).toBeUndefined();
 		manager.sync(
 			[tab(9, { scrollTop: 0, focused: null }, OTHER), arriving({ scrollTop: 90, focused: null })],
-			7,
+			new Set([7]),
 		);
 		const session = await ready(manager, 7);
 		expect(session.view.scrollTop).toBe(90);
@@ -305,10 +305,10 @@ describe('a tab handed to a window that is running', () => {
 	it('applies the hints again when a tab leaves and comes back', async () => {
 		const { manager } = setup();
 		const hints = { scrollTop: 60, focused: null };
-		manager.sync([tab(7, hints)], 7);
+		manager.sync([tab(7, hints)], new Set([7]));
 		await ready(manager, 7);
-		manager.sync([], null);
-		manager.sync([tab(7, { scrollTop: 130, focused: null })], 7);
+		manager.sync([], new Set());
+		manager.sync([tab(7, { scrollTop: 130, focused: null })], new Set([7]));
 		const session = await ready(manager, 7);
 		expect(session.view.scrollTop).toBe(130);
 	});

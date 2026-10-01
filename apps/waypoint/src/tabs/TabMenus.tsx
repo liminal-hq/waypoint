@@ -14,6 +14,9 @@ import { useTabActions } from './tabActions';
 import { useTabExtras } from './tabExtras';
 import { useOtherWindows } from './useOtherWindows';
 import { useWindowActions } from './windowActions';
+import { usePairActions } from './pairActions';
+import { pairOfTab } from './pairLayout';
+import { insertBefore, pairTabItems, runPairMenuItem } from './pairMenus';
 import { plusMenuItems, runPlusMenuItem, runTabMenuItem, tabMenuItems } from './tabMenuModel';
 
 interface MenuProps {
@@ -33,23 +36,32 @@ export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabS
 	const actions = useTabActions();
 	const extras = useTabExtras();
 	const groupActions = useGroupActions();
-	const groups = useTabsSnapshot()?.groups ?? [];
+	const pairActions = usePairActions();
+	const snapshot = useTabsSnapshot();
+	const groups = snapshot?.groups ?? [];
+	const pairs = snapshot?.pairs ?? [];
+	const pair = pairOfTab(pairs, tab.id);
 	const windowActions = useWindowActions();
 	const others = useOtherWindows(windowActions);
 	return (
 		<ContextMenu
 			{...rest}
 			ariaLabel={t('tabs.menu.label')}
-			items={tabMenuItems(tab, closed, groups, others)}
-			onSelect={(item) =>
+			items={insertBefore(
+				tabMenuItems(tab, closed, groups, others),
+				'sep-close',
+				pairTabItems(tab, pair, snapshot?.tabs ?? [], pairs),
+			)}
+			onSelect={(item) => {
+				if (runPairMenuItem(item, { actions: pairActions, pair, tab })) return;
 				runTabMenuItem(item, tab, actions, {
 					closed,
 					extras,
 					groups,
 					groupActions,
 					windows: { others, actions: windowActions },
-				})
-			}
+				});
+			}}
 		/>
 	);
 }

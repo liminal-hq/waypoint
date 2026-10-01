@@ -9,8 +9,6 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { EntryContextMenu } from '../browse/EntryContextMenu';
 import { ListingManager } from '../browse/listingManager';
 import { BackgroundContextMenu } from '../browse/BackgroundContextMenu';
-import { FileView } from '../browse/FileView';
-import type { MenuRequest } from '../browse/useListInteractions';
 import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
@@ -38,15 +36,21 @@ import { usePlacesClient } from '../sidebar/PlacesClientContext';
 import { useSidebarShortcuts } from '../sidebar/useSidebarShortcuts';
 import { NavigationBar } from '../nav/NavigationBar';
 import { useNavigation } from '../nav/useNavigation';
-import { useOpenEntry, type EntryAction } from '../nav/useOpenEntry';
+import type { EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
 import { TabStrip } from '../tabs/TabStrip';
+import { activePair, visibleTabs } from '../tabs/pairLayout';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { onNotice } from '../tabs/notices';
+import { usePairShortcuts } from '../tabs/usePairShortcuts';
 import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import { useWindowShortcuts } from '../tabs/windowActions';
+import { NoticeToast } from './NoticeToast';
+import { clearPaneFocus } from '../tabs/paneFocus';
+import { dismissNotice } from './notices';
+import { PaneArea, type PaneMenuRequest } from './PaneArea';
 import styles from './Workspace.module.css';
 
 const OPENING: SessionState = { status: 'opening' };
@@ -108,7 +112,7 @@ function WorkspaceBody({
 		startupNotice ? { id: 0, text: startupNotice } : null,
 	);
 	const noticeCount = useRef(0);
-	const [menu, setMenu] = useState<MenuRequest | null>(null);
+	const [menu, setMenu] = useState<PaneMenuRequest | null>(null);
 	const navigation = useNavigation();
 	const onFailure = useCallback(
 		(entry: Entry, action: EntryAction) =>
@@ -123,7 +127,6 @@ function WorkspaceBody({
 			}),
 		[],
 	);
-	const { open, openInNewTab, copyPath, addToFavourites } = useOpenEntry(navigation, onFailure);
 	const places = usePlacesClient();
 	// A message from the sidebar, numbered like the others so a repeat restarts the timer.
 	const notify = useCallback((text: string) => setNotice({ id: ++noticeCount.current, text }), []);
@@ -139,6 +142,7 @@ function WorkspaceBody({
 	useSidebarShortcuts(sidebarStore, navigation.tab?.location, pinCurrent);
 	const sidebarOpen = useSidebarState((state) => state.open);
 	useTabShortcuts();
+	usePairShortcuts();
 	useWindowShortcuts();
 	// Messages from code with no route to the status bar (a window that could not open).
 	useEffect(() => onNotice(notify), [notify]);
@@ -147,11 +151,19 @@ function WorkspaceBody({
 	const gridSize = useViewState((view) => view.gridSize);
 	const showHidden = useViewState((view) => view.showHidden);
 
-	// One listing per tab, kept in step with the session (A9, A20).
+	// One listing per tab, kept in step with the session (A9, A20): every pane on screen has a live one.
 	useEffect(() => {
-		if (snapshot) manager.sync(snapshot.tabs, snapshot.active);
+		if (snapshot) manager.sync(snapshot.tabs, visibleTabs(snapshot));
 	}, [manager, snapshot]);
-	useEffect(() => () => manager.dispose(), [manager]);
+	useEffect(
+		() => () => {
+			manager.dispose();
+			// A toast or a focus request from this window's session means nothing to the next one.
+			dismissNotice();
+			clearPaneFocus();
+		},
+		[manager],
+	);
 	// The view choices and the active tab's scroll and focus go to the session so a restart brings
 	// them back (the page applies them once, when it starts).
 	useEffect(() => followView(viewStore, api), [viewStore, api]);
@@ -191,13 +203,32 @@ function WorkspaceBody({
 
 	useSyncExternalStore(manager.subscribe, manager.getVersion);
 	const tab = navigation.tab;
-	// A tab that has only just become active has no listing until the effect above opens one.
-	const state = tab ? (manager.stateFor(tab.id) ?? OPENING) : undefined;
+	// The panes on screen: the active tab, or all of its pair. The focused pane is the active tab.
+	const pair = activePair(snapshot);
+	const panes = pair
+		? pair.panes.flatMap((id) => snapshot?.tabs.find((candidate) => candidate.id === id) ?? [])
+		: tab
+			? [tab]
+			: [];
+	// A tab that has only just become visible has no listing until the effect above opens one.
+	const stateFor = (id: number): SessionState => manager.stateFor(id) ?? OPENING;
+	const state = tab ? stateFor(tab.id) : undefined;
 	const session = state?.status === 'ready' ? state.session : null;
 
-	// A menu belongs to the entry and listing it was opened on; it must not outlive either.
-	const handle = session?.model.handle;
-	useEffect(() => setMenu(null), [tab?.id, handle]);
+	// A menu belongs to the entry and listing it was opened on; it must not outlive either. Another
+	// pane becoming active (the press that opened the menu does that) is not a reason to close it.
+	const liveHandles = panes
+		.map((pane) => {
+			const paneState = manager.stateFor(pane.id);
+			return paneState?.status === 'ready' ? paneState.session.model.handle : '';
+		})
+		.join(',');
+	useEffect(() => {
+		const handle = menu?.session?.model.handle;
+		if (menu && (handle === undefined || !liveHandles.split(',').includes(String(handle)))) {
+			setMenu(null);
+		}
+	}, [menu, liveHandles]);
 
 	return (
 		<div className={styles.workspace}>
@@ -212,13 +243,15 @@ function WorkspaceBody({
 					aria-label={tab ? undefined : t('tabs.panel.label')}
 					aria-labelledby={tab ? tabDomId(tab.id) : undefined}
 				>
-					{state && (
-						<FileView
-							state={state}
+					{panes.length > 0 && (
+						<PaneArea
+							panes={panes}
+							pair={panes.length > 1 ? pair : undefined}
+							active={tab?.id ?? null}
+							stateFor={stateFor}
 							mode={mode}
 							gridSize={gridSize}
-							onOpen={open}
-							onOpenInNewTab={openInNewTab}
+							onFailure={onFailure}
 							onMenu={setMenu}
 						/>
 					)}
@@ -227,9 +260,10 @@ function WorkspaceBody({
 			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
 				<ViewSwitcher />
 			</StatusBar>
+			<NoticeToast />
 			{menu?.kind === 'background' && (
 				<BackgroundContextMenu
-					session={session}
+					session={menu.session}
 					showHidden={showHidden}
 					position={menu.position}
 					keyboard={menu.keyboard}
@@ -244,10 +278,10 @@ function WorkspaceBody({
 					position={menu.position}
 					keyboard={menu.keyboard}
 					onClose={() => setMenu(null)}
-					onOpen={open}
-					onOpenInNewTab={openInNewTab}
-					onCopyPath={copyPath}
-					onAddToFavourites={addToFavourites}
+					onOpen={menu.openers.open}
+					onOpenInNewTab={menu.openers.openInNewTab}
+					onCopyPath={menu.openers.copyPath}
+					onAddToFavourites={menu.openers.addToFavourites}
 				/>
 			)}
 		</div>

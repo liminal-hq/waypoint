@@ -276,3 +276,38 @@
 	color: var(--wp-text-primary);
 	font-size: 12px;
 }
+
+/* A pair: its tabs sit together as one pill, with the joint on the seam (PairPill.tsx). */
+.slot[data-pair] {
+	width: 140px;
+	background: color-mix(in srgb, var(--wp-bg-hover) 70%, transparent);
+}
+
+.slot[data-pair][data-pinned] {
+	width: 36px;
+}
+
+.slot[data-pair-end='start'] {
+	/* Above the next tab, so the joint on its edge is not painted over. */
+	z-index: 2;
+	margin-inline-end: -2px;
+	border-start-end-radius: 0;
+	padding-inline-end: 10px;
+}
+
+.slot[data-pair-end='end'] {
+	border-start-start-radius: 0;
+	padding-inline-start: 12px;
+}
+
+.slot[data-pair-end='middle'] {
+	z-index: 2;
+	margin-inline-end: -2px;
+	border-start-start-radius: 0;
+	border-start-end-radius: 0;
+	padding-inline: 12px 10px;
+}
+
+.slot[data-pair][data-active] {
+	background: var(--wp-bg-content);
+}

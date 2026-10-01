@@ -1,0 +1,74 @@
+.divider {
+	position: relative;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--wp-border-subtle);
+	touch-action: none;
+	user-select: none;
+}
+
+.divider[data-layout='sideBySide'] {
+	width: 5px;
+	cursor: col-resize;
+}
+
+.divider[data-layout='stacked'] {
+	height: 5px;
+	cursor: row-resize;
+}
+
+/* A larger hit area than the line itself, so the divider is easy to catch. */
+.divider::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+}
+
+.divider[data-layout='sideBySide']::before {
+	inset-inline: -4px;
+}
+
+.divider[data-layout='stacked']::before {
+	inset-block: -4px;
+}
+
+.grip {
+	border-radius: 2px;
+	background: var(--wp-text-muted);
+	opacity: 0;
+	transition: opacity 120ms;
+}
+
+.divider[data-layout='sideBySide'] .grip {
+	width: 3px;
+	height: 28px;
+}
+
+.divider[data-layout='stacked'] .grip {
+	width: 28px;
+	height: 3px;
+}
+
+.divider:hover,
+.divider:active {
+	background: var(--wp-bg-hover);
+}
+
+.divider:hover .grip,
+.divider:active .grip,
+.divider:focus-visible .grip {
+	opacity: 1;
+}
+
+.divider:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.grip {
+		transition: none;
+	}
+}

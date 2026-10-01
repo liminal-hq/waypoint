@@ -1,0 +1,69 @@
+.header {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 4px 0 8px;
+	border-bottom: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-window);
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	user-select: none;
+}
+
+.header[data-active] {
+	color: var(--wp-text-primary);
+	background: color-mix(in srgb, var(--wp-accent) 10%, var(--wp-bg-window));
+}
+
+.grip {
+	flex: none;
+	color: var(--wp-text-muted);
+}
+
+.icon {
+	flex: none;
+	color: var(--wp-accent);
+}
+
+.title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 600;
+}
+
+/* The active pane says so in words, not only in the outline. */
+.badge {
+	flex: none;
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var(--wp-accent);
+	color: var(--wp-accent-fg);
+	font-size: 11px;
+}
+
+.close {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+}
+
+.close:hover {
+	background: var(--wp-control-bg-hover);
+}
+
+.close:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+}

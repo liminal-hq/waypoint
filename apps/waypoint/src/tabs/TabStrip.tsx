@@ -48,6 +48,8 @@ import {
 	type StripItem,
 } from './groupLayout';
 import { colourMessageId } from './tabColours';
+import { pairOfTab } from './pairLayout';
+import { PairJoint, pairName, pairSlotAttributes } from './PairPill';
 import { tabDomId, TAB_PANEL_ID } from './tabIds';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
@@ -122,6 +124,11 @@ export function TabStrip() {
 	// A group chip is a stop in the roving order too; `focusedChip` is set while one holds focus.
 	const [focusedChip, setFocusedChip] = useState<GroupId | null>(null);
 	const hiddenGroup = hiddenActiveGroup(snapshot);
+	// A paired tab says which split it is in, so the pill's name reaches each half.
+	const pairLabelFor = (id: TabId): string | undefined => {
+		const pair = pairOfTab(snapshot?.pairs ?? [], id);
+		return pair ? pairName(pair, snapshot) : undefined;
+	};
 
 	const { closed, refresh } = useClosedTabs();
 	const [menu, setMenu] = useState<MenuState | null>(null);
@@ -492,6 +499,7 @@ export function TabStrip() {
 								data-group-first={item.groupFirst ? '' : undefined}
 								data-group-last={item.groupLast ? '' : undefined}
 								data-dragging={dragged ? '' : undefined}
+								{...pairSlotAttributes(snapshot, tab.id)}
 								style={
 									{
 										'--wp-tab-shift': `${dragged ? (drag?.dx ?? 0) : shift}px`,
@@ -516,12 +524,20 @@ export function TabStrip() {
 									groupName={item.group?.name}
 									selected={tab.id === active}
 									tabStop={tab.id === tabStop}
+									pairLabel={pairLabelFor(tab.id)}
 									onFocus={() => setFocused(tab.id)}
 									onKeyDown={(event) => onTabKeyDown(event, tab, index)}
 								/>
 								{tab.pinned ? null : (
 									<CloseButton tab={tab} onClose={() => actions.close(tab.id)} />
 								)}
+								{pairOfTab(snapshot?.pairs ?? [], tab.id) ? (
+									<PairJoint
+										pair={pairOfTab(snapshot?.pairs ?? [], tab.id)!}
+										snapshot={snapshot}
+										tab={tab.id}
+									/>
+								) : null}
 							</div>
 						);
 					})}
@@ -667,14 +683,25 @@ interface TabButtonProps {
 	groupName: string | undefined;
 	selected: boolean;
 	tabStop: boolean;
+	/** "Split: A and B" when the tab is half of a pair. */
+	pairLabel: string | undefined;
 	onFocus: () => void;
 	onKeyDown: (event: KeyboardEvent) => void;
 }
 
-function TabButton({ tab, groupName, selected, tabStop, onFocus, onKeyDown }: TabButtonProps) {
+function TabButton({
+	tab,
+	groupName,
+	selected,
+	tabStop,
+	pairLabel,
+	onFocus,
+	onKeyDown,
+}: TabButtonProps) {
 	const title = useTabTitle(tab);
 	// The colour and the pin are words as well as marks, so neither is conveyed by appearance alone.
 	const details = [
+		pairLabel ?? null,
 		groupName === undefined ? null : tf('groups.tab.member', { name: groupName }),
 		tab.pinned ? t('tabs.pinned') : null,
 		tab.colour ? tf('tabs.colourDescription', { colour: t(colourMessageId(tab.colour)) }) : null,

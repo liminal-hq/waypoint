@@ -1,4 +1,4 @@
-// Owns one listing per tab: opens the active tab's folder, closes it when the tab leaves it or closes
+// Owns one listing per tab: opens the folder of every tab on screen, closes it when the tab leaves it or closes
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -28,7 +28,7 @@ interface Slot {
 	state: SessionState;
 	evictTimer: ReturnType<typeof setTimeout> | null;
 	evicted: boolean;
-	/** Set while the tab is not the active one, so a listing that finishes opening in the background still evicts. */
+	/** Set while the tab is not on screen, so a listing that finishes opening in the background still evicts. */
 	background: boolean;
 	/** The hidden-files choice last sent to this listing, which its confirmed filter may not reflect yet. */
 	requestedHidden?: boolean;
@@ -36,7 +36,7 @@ interface Slot {
 
 /**
  * A listing is a handle in Rust and memory in the webview, so it lives only as long as a tab needs
- * it (A9, A20). The active tab's listing opens when the tab shows a folder and closes when the tab
+ * it (A9, A20). The listing of every tab on screen (the active tab, or all panes of its pair) opens when the tab shows a folder and closes when the tab
  * navigates elsewhere or closes. A background tab keeps its listing for a short while, then drops
  * its cached pages down to the ones it last showed (stale, so they still paint on return while
  * fresh ones load) and, on a location change made while hidden, closes it outright.
@@ -71,8 +71,11 @@ export class ListingManager {
 		return this.slots.get(tab)?.state;
 	}
 
-	/** Brings the open listings in line with the tabs and which one is active. */
-	sync(tabs: readonly TabSnapshot[], active: TabId | null): void {
+	/**
+	 * Brings the open listings in line with the tabs and the ones on screen: the active tab, or
+	 * every pane of the active tab's pair. Each visible tab has a live listing of its own.
+	 */
+	sync(tabs: readonly TabSnapshot[], visible: ReadonlySet<TabId>): void {
 		const live = new Set(tabs.map((tab) => tab.id));
 		for (const id of [...this.slots.keys()]) {
 			if (!live.has(id)) this.release(id);
@@ -82,7 +85,7 @@ export class ListingManager {
 		}
 		for (const tab of tabs) {
 			const slot = this.slots.get(tab.id);
-			if (tab.id === active) {
+			if (visible.has(tab.id)) {
 				this.stopEvicting(slot);
 				if (slot) slot.background = false;
 				if (!slot || slot.uri !== tab.location.uri) this.open(tab);
