@@ -18,13 +18,14 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SO
 # Add a directory here (and its crate to CRATES) whenever a crate or plugin exports bindings.
 DIRS=(
   "packages/protocol/src/generated"
+  "plugins/native-dnd/guest-js/bindings"
   "plugins/os-prefs/guest-js/bindings"
   "plugins/system-appearance/guest-js/bindings"
   "plugins/window-manager/guest-js/bindings"
   "plugins/window-tearoff/guest-js/bindings"
   "plugins/trash/guest-js/bindings"
 )
-CRATES=(waypoint-protocol waypoint-session waypoint-vfs waypoint-ops tauri-plugin-os-prefs tauri-plugin-system-appearance tauri-plugin-window-manager tauri-plugin-window-tearoff tauri-plugin-trash)
+CRATES=(waypoint-protocol waypoint-session waypoint-vfs waypoint-ops tauri-plugin-native-dnd tauri-plugin-os-prefs tauri-plugin-system-appearance tauri-plugin-window-manager tauri-plugin-window-tearoff tauri-plugin-trash)
 
 snapshot="$(mktemp -d)"
 compared=0
