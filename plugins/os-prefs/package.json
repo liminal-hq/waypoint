@@ -22,8 +22,7 @@
 		"require": "./dist-js/index.cjs"
 	},
 	"scripts": {
-		"build": "rollup -c",
-		"prepare": "pnpm build"
+		"build": "rollup -c"
 	},
 	"files": [
 		"dist-js",
