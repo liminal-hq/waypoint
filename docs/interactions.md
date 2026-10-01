@@ -92,6 +92,9 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 > Native window implementation for Tauri: see `tauri-tear-off.md`.
 
 - Drag a tab within the strip to reorder it. A drag starts after 4 px of movement. Drag it more than 24 px out of the strip to tear it off; a ghost window follows the cursor (where the platform allows it).
+- One pill follows the pointer with “Esc to cancel” and is announced as “Drag: release to …”. Final texts: “Release to move {tab} to position {n} of {count}”, “Release to move group {name}”, “Release to split with {tab}”, “Release to start a new group”, “Release to add to {group}”, “Release to leave {group}”, “Release to split on the left” (or right, top, bottom), “Release to separate the split”. The new-window phase shows no pill until tear-off arrives.
+- Thresholds (`tabs/dragTiming.ts`): 4 px to start, 24 px out of the strip for the new-window phase, 450 ms hold over the middle half of a tab to split, 800 ms rest in a slot to group (a move of more than 6 px restarts either hold), 140 ms of motion (0 under Reduce motion). The file area's edge zones are its outer quarter, measured once when the drag starts.
+- Priority on each move: the new-window phase (unless over a file-area edge zone), a group chip under the pointer, a tab body under the pointer (split hold), then the slot (reorder, leave, or the rest-to-group hold).
 - Dropping a tab onto another window's strip merges it there. Dropping it onto a group chip joins the group.
 - Dropping files onto a tab springs it open. Dropping onto the "+" opens a new tab at the dropped folder.
 
