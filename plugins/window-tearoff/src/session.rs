@@ -89,7 +89,8 @@ impl Tearoff {
         }
     }
 
-    /// The toplevel drag's state, shared with the drop targets on the windows.
+    /// The toplevel drag's state, shared with the drop targets on the windows (Linux).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub fn toplevel(&self) -> &Arc<toplevel::State> {
         &self.toplevel
     }

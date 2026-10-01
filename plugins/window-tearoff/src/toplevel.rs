@@ -3,6 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// Only the Linux module drives a drag; the bookkeeping is shared so it can be tested everywhere.
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
 use std::{
     collections::HashMap,
     sync::{
