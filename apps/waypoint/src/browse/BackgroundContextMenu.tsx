@@ -1,4 +1,4 @@
-// The context menu of the file area's empty space: sort and hidden files
+// The context menu of the file area's empty space: New, Undo and Redo, sort and hidden files
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,12 +13,17 @@ import {
 	ArrowDownIcon,
 	ClockIcon,
 	EyeIcon,
+	NewFileIcon,
+	NewFolderIcon,
+	RedoIcon,
 	SizeIcon,
 	TagIcon,
 	TextIcon,
 	TrashIcon,
+	UndoIcon,
 } from '../icons/MenuIcons';
-import { t, type MessageId } from '../i18n/messages';
+import { t, tf, type MessageId } from '../i18n/messages';
+import type { CommandState, FileCommandId } from '../ops/fileCommands';
 import type { ListingSession } from './useListingSession';
 
 const SORT_KEYS: Array<{ key: SortKey; label: MessageId; icon: ReactNode }> = [
@@ -37,20 +42,109 @@ export interface TrashBackground {
 	count: number;
 }
 
+/** What the file commands add to the empty-space menu. */
+export interface BackgroundCommands {
+	states: Partial<Record<FileCommandId, CommandState>>;
+	/** The history's newest entries' words ("Move 3 items to Trash"), for "Undo Move 3 items to Trash". */
+	undoLabel: string | null;
+	redoLabel: string | null;
+}
+
+/** The commands the empty-space menu can run. */
+export type BackgroundCommand = 'newFolder' | 'newFile' | 'undo' | 'redo';
+
+const BACKGROUND_COMMANDS: BackgroundCommand[] = ['newFolder', 'newFile', 'undo', 'redo'];
+
 /**
- * The empty-space menu's items: sort (when a listing is open) and the hidden-files toggle. In the
- * Trash the sort keys are Name, Size and Date deleted, there is no hidden-files toggle (nothing is
- * hidden), and Empty Trash comes last.
+ * New and the history, ahead of the view items. Paste joins after New (slice 09). New is left out
+ * where the listing is read-only; Undo and Redo are always listed and disabled when there is
+ * nothing to do.
+ */
+function commandItems({ states, undoLabel, redoLabel }: BackgroundCommands): MenuItem[] {
+	const newItems: MenuItem[] = [
+		...(states.newFolder?.visible
+			? [
+					{
+						type: 'action',
+						id: 'newFolder',
+						label: t('menu.new.folder'),
+						shortcut: 'F7',
+						icon: <NewFolderIcon />,
+					} as const,
+				]
+			: []),
+		...(states.newFile?.visible
+			? [
+					{
+						type: 'action',
+						id: 'newFile',
+						label: t('menu.new.file'),
+						shortcut: 'Shift+F7',
+						icon: <NewFileIcon />,
+					} as const,
+				]
+			: []),
+	];
+	const history: MenuItem[] = [
+		...(states.undo?.visible
+			? [
+					{
+						type: 'action',
+						id: 'undo',
+						label: undoLabel ? tf('menu.undoNamed', { label: undoLabel }) : t('menu.undo'),
+						shortcut: 'Ctrl+Z',
+						icon: <UndoIcon />,
+						disabled: !states.undo.enabled,
+					} as const,
+					{
+						type: 'action',
+						id: 'redo',
+						label: redoLabel ? tf('menu.redoNamed', { label: redoLabel }) : t('menu.redo'),
+						shortcut: 'Ctrl+Shift+Z',
+						icon: <RedoIcon />,
+						disabled: !states.redo?.enabled,
+					} as const,
+				]
+			: []),
+	];
+	return [
+		...(newItems.length > 0
+			? [
+					{
+						type: 'submenu',
+						id: 'new',
+						label: t('menu.new'),
+						icon: <NewFolderIcon />,
+						items: newItems,
+					} as const,
+					{ type: 'separator' } as const,
+				]
+			: []),
+		...(history.length > 0 ? [...history, { type: 'separator' } as const] : []),
+	];
+}
+
+/** What the Trash's empty-space menu and the file commands add to the plain one; each is absent where it does not apply. */
+export interface BackgroundExtras {
+	trash?: TrashBackground | null;
+	commands?: BackgroundCommands | undefined;
+}
+
+/**
+ * The empty-space menu's items: the file commands, sort (when a listing is open) and the
+ * hidden-files toggle. In the Trash (read only, so no commands) the sort keys are Name, Size and
+ * Date deleted, there is no hidden-files toggle (nothing is hidden), and Empty Trash comes last.
  */
 export function backgroundMenuItems(
 	sort: SortSpec | undefined,
 	showHidden: boolean,
-	trash: TrashBackground | null = null,
+	{ trash = null, commands }: BackgroundExtras = {},
 ): MenuItem[] {
 	const keys = SORT_KEYS.filter(({ key }) =>
 		trash ? TRASH_SORT_KEYS.includes(key) : key !== 'deleted',
 	);
 	const items: MenuItem[] = [
+		...(commands && !trash ? commandItems(commands) : []),
 		...(sort
 			? ([
 					{ type: 'section', label: t('menu.sortBy') },
@@ -112,6 +206,8 @@ interface BackgroundContextMenuProps {
 	/** In the Trash: Empty Trash asks, then empties it. Absent elsewhere. */
 	onEmptyTrash?: (() => void) | undefined;
 	onClose: () => void;
+	commands?: BackgroundCommands | undefined;
+	onCommand?: ((command: BackgroundCommand) => void) | undefined;
 }
 
 /**
@@ -127,13 +223,14 @@ export function BackgroundContextMenu({
 	onToggleHidden,
 	onEmptyTrash,
 	onClose,
+	commands,
+	onCommand,
 }: BackgroundContextMenuProps) {
 	const inTrash = session?.model.layout === 'trash';
-	const items = backgroundMenuItems(
-		session?.model.sort,
-		showHidden,
-		inTrash ? { count: session.model.count } : null,
-	);
+	const items = backgroundMenuItems(session?.model.sort, showHidden, {
+		trash: inTrash ? { count: session.model.count } : null,
+		commands: inTrash ? undefined : commands,
+	});
 
 	return (
 		<ContextMenu
@@ -147,6 +244,9 @@ export function BackgroundContextMenu({
 				const model = session?.model;
 				if (item.id === 'showHidden') return onToggleHidden();
 				if (item.id === 'emptyTrash') return onEmptyTrash?.();
+				if (BACKGROUND_COMMANDS.includes(item.id as BackgroundCommand)) {
+					return onCommand?.(item.id as BackgroundCommand);
+				}
 				if (!model) return;
 				const current = model.sort;
 				if (item.id.startsWith('sort:')) {

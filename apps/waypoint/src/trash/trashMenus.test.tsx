@@ -26,7 +26,7 @@ describe('the Trash empty-space menu', () => {
 	const sort = { key: 'name' as const, descending: false, directoriesFirst: true };
 
 	it('sorts by name, size and date deleted, never modified or kind', () => {
-		const items = backgroundMenuItems(sort, false, { count: 2 });
+		const items = backgroundMenuItems(sort, false, { trash: { count: 2 } });
 		expect(ids(items).filter((id) => id?.startsWith('sort:'))).toEqual([
 			'sort:name',
 			'sort:size',
@@ -35,11 +35,11 @@ describe('the Trash empty-space menu', () => {
 	});
 
 	it('has no hidden-files toggle and ends with Empty Trash, off while it is empty', () => {
-		const full = backgroundMenuItems(sort, false, { count: 2 });
+		const full = backgroundMenuItems(sort, false, { trash: { count: 2 } });
 		expect(ids(full)).not.toContain('showHidden');
 		expect(ids(full).at(-1)).toBe('emptyTrash');
 		expect(find(full, 'emptyTrash')).toMatchObject({ danger: true, disabled: false });
-		expect(find(backgroundMenuItems(sort, false, { count: 0 }), 'emptyTrash')).toMatchObject({
+		expect(find(backgroundMenuItems(sort, false, { trash: { count: 0 } }), 'emptyTrash')).toMatchObject({
 			disabled: true,
 		});
 	});

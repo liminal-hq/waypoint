@@ -6,12 +6,12 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { EntryContextMenu } from '../browse/EntryContextMenu';
+import { EntryContextMenu, type EntryCommand } from '../browse/EntryContextMenu';
 import { TrashEntryMenu } from '../trash/TrashEntryMenu';
 import { useTrashClient } from '../trash/TrashClientContext';
 import { TrashActionsProvider, useTrashJobs } from '../trash/trashJobs';
 import { ListingManager } from '../browse/listingManager';
-import { BackgroundContextMenu } from '../browse/BackgroundContextMenu';
+import { BackgroundContextMenu, type BackgroundCommand } from '../browse/BackgroundContextMenu';
 import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
@@ -61,6 +61,10 @@ import { onNotice } from '../tabs/notices';
 import { usePairShortcuts } from '../tabs/usePairShortcuts';
 import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import { useWindowShortcuts } from '../tabs/windowActions';
+import { CloseGuardHost } from '../tabs/CloseGuardHost';
+import { useFileCommandsHost } from '../ops/useFileCommandsHost';
+import { FileCommandsProvider } from '../ops/FileCommandsContext';
+import { useFileShortcuts } from '../ops/useFileShortcuts';
 import { NoticeToast } from './NoticeToast';
 import { clearPaneFocus } from '../tabs/paneFocus';
 import { dismissNotice } from './notices';
@@ -138,11 +142,13 @@ export function Workspace({
 				<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
 					<MergeLandingContext.Provider value={landing}>
 						<TearOffCard store={card} />
-						<WorkspaceBody
-							viewStore={viewStore}
-							sidebarStore={sidebarStore}
-							startupNotice={startup?.notice ?? null}
-						/>
+						<CloseGuardHost>
+							<WorkspaceBody
+								viewStore={viewStore}
+								sidebarStore={sidebarStore}
+								startupNotice={startup?.notice ?? null}
+							/>
+						</CloseGuardHost>
 					</MergeLandingContext.Provider>
 				</TabDragProvider>
 			</SidebarStoreContext.Provider>
@@ -273,6 +279,17 @@ function WorkspaceBody({
 
 	useSyncExternalStore(manager.subscribe, manager.getVersion);
 	const tab = navigation.tab;
+	// The file commands act on the active pane's listing; the keys read it when pressed.
+	const activeSession = useCallback(() => {
+		const id = activeId.current;
+		const state = id === null ? undefined : manager.stateFor(id);
+		return state?.status === 'ready' ? state.session : null;
+	}, [manager]);
+	const { commands, dialog: commandDialog } = useFileCommandsHost(activeSession);
+	useFileShortcuts(commands, {
+		activeSession,
+		deleteInTrash: (session) => trashActions?.deletePermanently(session),
+	});
 	// The panes on screen: the active tab, or all of its pair. The focused pane is the active tab.
 	const pair = activePair(snapshot);
 	const panes = pair
@@ -300,8 +317,32 @@ function WorkspaceBody({
 		}
 	}, [menu, liveHandles]);
 
+	const runCommand = (command: EntryCommand | BackgroundCommand, entry?: Entry) => {
+		const from = menu?.session ?? null;
+		if (!commands) return;
+		switch (command) {
+			case 'newFolder':
+				return void commands.newFolder(from);
+			case 'newFile':
+				return void commands.newFile(from);
+			case 'rename':
+				return commands.rename(from, entry);
+			case 'duplicate':
+				return void commands.duplicate(from);
+			case 'moveToTrash':
+				return void commands.moveToTrash(from);
+			case 'deletePermanently':
+				return void commands.deletePermanently(from);
+			case 'undo':
+				return void commands.undo();
+			case 'redo':
+				return void commands.redo();
+		}
+	};
+
 	return (
 		<TrashActionsProvider value={trashActions}>
+			<FileCommandsProvider value={commands}>
 			<div className={styles.workspace}>
 				<TabStrip />
 				<NavigationBar leading={<SidebarToggle />} />
@@ -332,6 +373,8 @@ function WorkspaceBody({
 					<ViewSwitcher />
 				</StatusBar>
 				<NoticeToast />
+				{commandDialog}
+				{trashDialogs}
 				{menu?.kind === 'background' && (
 					<BackgroundContextMenu
 						session={menu.session}
@@ -345,6 +388,16 @@ function WorkspaceBody({
 								: undefined
 						}
 						onClose={() => setMenu(null)}
+						commands={
+							commands
+								? {
+										states: commands.states(menu.session),
+										undoLabel: commands.history().undo?.label ?? null,
+										redoLabel: commands.history().redo?.label ?? null,
+									}
+								: undefined
+						}
+						onCommand={runCommand}
 					/>
 				)}
 				{menu?.kind === 'entry' && menu.session?.model.layout === 'trash' && trashActions && (
@@ -367,10 +420,12 @@ function WorkspaceBody({
 						onOpenInNewTab={menu.openers.openInNewTab}
 						onCopyPath={menu.openers.copyPath}
 						onAddToFavourites={menu.openers.addToFavourites}
+						commands={commands?.states(menu.session)}
+						onCommand={runCommand}
 					/>
 				)}
-				{trashDialogs}
 			</div>
+			</FileCommandsProvider>
 		</TrashActionsProvider>
 	);
 }

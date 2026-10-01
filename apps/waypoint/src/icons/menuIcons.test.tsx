@@ -69,8 +69,8 @@ describe('context menu icons', () => {
 	it('gives the Trash menus an icon on every item', () => {
 		expectEveryItemHasIcon(trashEntryMenuItems());
 		const sort = { key: 'deleted' as const, descending: false, directoriesFirst: true };
-		expectEveryItemHasIcon(backgroundMenuItems(sort, false, { count: 2 }));
-		expectEveryItemHasIcon(backgroundMenuItems(undefined, false, { count: 0 }));
+		expectEveryItemHasIcon(backgroundMenuItems(sort, false, { trash: { count: 2 } }));
+		expectEveryItemHasIcon(backgroundMenuItems(undefined, false, { trash: { count: 0 } }));
 	});
 
 	it('gives the tab menu an icon on every item, grouped, ungrouped and with other windows', () => {
