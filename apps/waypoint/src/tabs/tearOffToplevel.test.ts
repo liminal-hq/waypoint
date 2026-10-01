@@ -243,8 +243,8 @@ describe('when it cannot start', () => {
 		expect(h.moveTabs).toHaveBeenCalledTimes(1);
 		expect(h.hook.handsOff()).toBe(false);
 		h.client.fireEnded(ended(h, { outcome: 'failed', reason: 'no button is held' }));
-		expect(notices).toEqual(['Could not move the tab.']);
-		expect(h.said).toContain('Could not move the tab.');
+		expect(notices).toEqual(['Could not move it to another window.']);
+		expect(h.said).toContain('Could not move it to another window.');
 		expect(h.cancelled()).toBe(1);
 		// A fresh drag works again.
 		h.hook.leave();
