@@ -387,6 +387,9 @@ describe('the Ctrl+Tab switcher', () => {
 			expect(rows.map((row) => row.textContent)).toEqual(['music', 'docs', 'test']),
 		);
 		expect(rows[2]).toHaveAttribute('data-candidate');
+		// The candidate is in the accessibility tree too, not only drawn highlighted.
+		expect(rows[2]).toHaveAttribute('aria-current', 'true');
+		expect(rows[1]).not.toHaveAttribute('aria-current');
 		expect(live()).toHaveTextContent('test, tab 1 of 3');
 		expect(activate).not.toHaveBeenCalled();
 

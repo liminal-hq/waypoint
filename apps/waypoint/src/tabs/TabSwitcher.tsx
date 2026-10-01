@@ -38,7 +38,11 @@ export function TabSwitcher() {
 function SwitcherRow({ tab, candidate }: { tab: TabSnapshot; candidate: boolean }) {
 	const title = useTabTitle(tab);
 	return (
-		<li className={styles.row} data-candidate={candidate ? '' : undefined}>
+		<li
+			className={styles.row}
+			data-candidate={candidate ? '' : undefined}
+			aria-current={candidate ? 'true' : undefined}
+		>
 			<FolderTabIcon className={styles.icon} />
 			<span className={styles.title}>{title}</span>
 			{tab.pinned ? <PinIcon className={styles.pin} width={12} height={12} /> : null}
