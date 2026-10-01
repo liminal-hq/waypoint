@@ -8,7 +8,7 @@ Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11
 
 ## Status
 
-**Early development.** The skeleton (milestone 1) and the listing spikes (milestone 0) are merged, and the reusable window plugins have graduated to the shared `tauri-plugins-workspace`. Milestone 2 (Browse, local) is built as a stack of pull requests under review (epic #21): `waypoint-path`, `waypoint-vfs` with watching, the vfs and session plugins, the list and grid views, selection, tabs, navigation, the sidebar, and the status bar, with the A18 performance budgets re-measured on the real list (`docs/architecture/milestone-0-spikes.md`). Nothing writes to disk yet (operations are milestone 4). Scaffold only what the current milestone needs, not the whole tree speculatively.
+**Early development.** The skeleton (milestone 1) and the listing spikes (milestone 0) are merged, and the reusable window plugins have graduated to the shared `tauri-plugins-workspace`. Milestone 2 (Browse, local) is merged (epic #21): `waypoint-path`, `waypoint-vfs` with watching, the vfs and session plugins, the list and grid views, selection, tabs, navigation, the sidebar, and the status bar, with the A18 performance budgets re-measured on the real list (`docs/architecture/milestone-0-spikes.md`). Nothing writes to disk yet (operations are milestone 4). Scaffold only what the current milestone needs, not the whole tree speculatively.
 
 `docs/ui-mockups/` points at the original Claude Design prototype. It is **reference only** — its code is not to be ported, adapted or structurally mirrored. Only the behaviour it demonstrates is authoritative, and only via `SPEC.md` and the docs.
 
