@@ -193,9 +193,12 @@ describe('keyboard', () => {
 		await waitFor(() => expect(tabs()).toHaveLength(2));
 		expect((await snapshot(h)).tabs[1]!.location.uri).toBe(DOCS.uri);
 
+		// Ctrl+Tab walks and commits when Ctrl is released.
 		fireEvent.keyDown(window, { key: 'Tab', ctrlKey: true });
+		fireEvent.keyUp(window, { key: 'Control' });
 		await waitFor(() => expect(tabs()[0]).toHaveAttribute('aria-selected', 'true'));
 		fireEvent.keyDown(window, { key: 'Tab', ctrlKey: true, shiftKey: true });
+		fireEvent.keyUp(window, { key: 'Control' });
 		await waitFor(() => expect(tabs()[1]).toHaveAttribute('aria-selected', 'true'));
 
 		fireEvent.keyDown(window, { key: '1', altKey: true });

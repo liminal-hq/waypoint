@@ -1,0 +1,43 @@
+.swatch {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--wp-tab-swatch);
+}
+
+.swatch[data-colour='red'] {
+	--wp-tab-swatch: var(--wp-tab-colour-red);
+}
+
+.swatch[data-colour='orange'] {
+	--wp-tab-swatch: var(--wp-tab-colour-orange);
+}
+
+.swatch[data-colour='yellow'] {
+	--wp-tab-swatch: var(--wp-tab-colour-yellow);
+}
+
+.swatch[data-colour='green'] {
+	--wp-tab-swatch: var(--wp-tab-colour-green);
+}
+
+.swatch[data-colour='teal'] {
+	--wp-tab-swatch: var(--wp-tab-colour-teal);
+}
+
+.swatch[data-colour='blue'] {
+	--wp-tab-swatch: var(--wp-tab-colour-blue);
+}
+
+.swatch[data-colour='purple'] {
+	--wp-tab-swatch: var(--wp-tab-colour-purple);
+}
+
+.swatch[data-colour='pink'] {
+	--wp-tab-swatch: var(--wp-tab-colour-pink);
+}
+
+.swatch[data-colour='grey'] {
+	--wp-tab-swatch: var(--wp-tab-colour-grey);
+}

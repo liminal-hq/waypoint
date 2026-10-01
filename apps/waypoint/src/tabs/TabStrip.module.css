@@ -11,6 +11,8 @@
 	flex: 1 1 0;
 	min-width: 0;
 	overflow-x: auto;
+	/* Scrolling a tab into view leaves it clear of the pinned tabs that stay put on the left. */
+	scroll-padding-inline-start: var(--wp-pinned-width, 0px);
 	scrollbar-width: none;
 }
 
@@ -51,6 +53,90 @@
 	background: var(--wp-bg-raised);
 	box-shadow: 0 2px 8px color-mix(in srgb, var(--wp-text-primary) 25%, transparent);
 	cursor: grabbing;
+}
+
+/* Pinned tabs: icon only, grouped on the left, and kept in view while the rest scroll under them. */
+.slot[data-pinned] {
+	position: sticky;
+	left: calc(var(--wp-pin-index) * 38px);
+	z-index: 1;
+	width: 36px;
+	justify-content: center;
+	background: var(--wp-bg-window);
+}
+
+.slot[data-pinned]:hover {
+	background: var(--wp-bg-hover);
+}
+
+.slot[data-pinned][data-active] {
+	background: var(--wp-bg-content);
+}
+
+.slot[data-pinned][data-dragging] {
+	z-index: 2;
+	background: var(--wp-bg-raised);
+}
+
+.slot[data-pinned] .tab {
+	justify-content: center;
+	padding: 0;
+}
+
+.pinBadge {
+	position: absolute;
+	top: 3px;
+	right: 3px;
+	color: var(--wp-text-secondary);
+}
+
+/* A coloured tab carries an accent bar along its top edge. */
+.slot[data-colour]::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 6px;
+	right: 6px;
+	height: 3px;
+	border-radius: 0 0 2px 2px;
+	background: var(--wp-tab-accent);
+	pointer-events: none;
+}
+
+.slot[data-colour='red'] {
+	--wp-tab-accent: var(--wp-tab-colour-red);
+}
+
+.slot[data-colour='orange'] {
+	--wp-tab-accent: var(--wp-tab-colour-orange);
+}
+
+.slot[data-colour='yellow'] {
+	--wp-tab-accent: var(--wp-tab-colour-yellow);
+}
+
+.slot[data-colour='green'] {
+	--wp-tab-accent: var(--wp-tab-colour-green);
+}
+
+.slot[data-colour='teal'] {
+	--wp-tab-accent: var(--wp-tab-colour-teal);
+}
+
+.slot[data-colour='blue'] {
+	--wp-tab-accent: var(--wp-tab-colour-blue);
+}
+
+.slot[data-colour='purple'] {
+	--wp-tab-accent: var(--wp-tab-colour-purple);
+}
+
+.slot[data-colour='pink'] {
+	--wp-tab-accent: var(--wp-tab-colour-pink);
+}
+
+.slot[data-colour='grey'] {
+	--wp-tab-accent: var(--wp-tab-colour-grey);
 }
 
 .tab {

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { dropIndex, shiftFor } from './reorder';
+import { clampToZone, dropIndex, shiftFor } from './reorder';
 
 // Four tabs, 100 wide, side by side: centres at 50, 150, 250 and 350.
 const spans = [0, 100, 200, 300].map((left) => ({ left, right: left + 100 }));
@@ -32,5 +32,18 @@ describe('shiftFor', () => {
 		expect([0, 1, 2, 3].map((i) => shiftFor(i, 0, 2, 100))).toEqual([0, -100, -100, 0]);
 		expect([0, 1, 2, 3].map((i) => shiftFor(i, 3, 1, 100))).toEqual([0, 100, 100, 0]);
 		expect([0, 1, 2, 3].map((i) => shiftFor(i, 2, 2, 100))).toEqual([0, 0, 0, 0]);
+	});
+});
+
+describe('clampToZone', () => {
+	// Two pinned tabs (0 and 1) and three unpinned (2 to 4).
+	it('keeps a pinned tab among the pinned positions', () => {
+		expect(clampToZone(4, true, 2, 5)).toBe(1);
+		expect(clampToZone(0, true, 2, 5)).toBe(0);
+	});
+
+	it('keeps an unpinned tab among the unpinned positions', () => {
+		expect(clampToZone(0, false, 2, 5)).toBe(2);
+		expect(clampToZone(9, false, 2, 5)).toBe(4);
 	});
 });

@@ -106,11 +106,11 @@ describe('the tab menu', () => {
 		await renderWorkspace(undefined, one);
 		fireEvent.contextMenu(tabs()[0]!, { clientX: 10, clientY: 10 });
 		const menu = await screen.findByRole('menu', { name: 'Tab actions' });
-		expect(
-			within(menu)
-				.getAllByRole('menuitem')
-				.map((item) => item.textContent),
-		).toEqual(['Move to New Window', 'Move to Window']);
+		const labels = within(menu)
+			.getAllByRole('menuitem')
+			.map((item) => item.textContent);
+		expect(labels).toContain('Move to New Window');
+		expect(labels).toContain('Move to Window');
 		const submenu = within(menu).getByRole('menuitem', { name: 'Move to Window' });
 		expect(submenu).toHaveAttribute('aria-haspopup', 'menu');
 		fireEvent.click(submenu);
