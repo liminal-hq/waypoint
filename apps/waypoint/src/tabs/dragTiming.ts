@@ -8,8 +8,8 @@ import { DRAG_MOTION_MS } from '../dnd/dragSession';
 /** A press becomes a drag after the pointer moves this far (SPEC §13c). */
 export const DRAG_START_PX = 4;
 
-/** Dragging this far above or below the strip leaves it: the new-window phase. */
-export const TEAR_OFF_PX = 24;
+/** Out of the window, never this: below the strip a drag stops arming holds or joining chips this far from it. */
+export const STRIP_BAND_PX = 24;
 
 /** Holding over the middle of another tab for this long splits with it. */
 export const HOLD_SPLIT_MS = 450;
@@ -26,5 +26,5 @@ export const HOLD_JITTER_PX = 6;
 /** The middle share of a tab's width that counts as its body for a split; the rest is its edges. */
 export const TAB_BODY_FRACTION = 0.5;
 
-/** How deep into the file area, as a share of its width or height, an edge zone reaches. */
-export const EDGE_ZONE_FRACTION = 0.25;
+/** A pointer riding the border of a split region or the file area stays in the region it was in this far out. */
+export const SPLIT_ZONE_SLACK_PX = 6;

@@ -109,14 +109,14 @@ describe('a drag out of the strip', () => {
 		const h = await renderWorkspace(undefined, undefined, undefined, { tearoff: client });
 		await openTwo(h);
 		fireEvent.pointerDown(slot(1), { button: 0, clientX: 150, clientY: 15, pointerId: 1 });
-		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(pills()).toHaveLength(1));
 		expect(pills()[0]).toHaveTextContent('Release to open in a new window');
 		expect(cards()).toHaveLength(1);
 		expect(cards()[0]).toHaveTextContent('docs');
 		expect(cards()[0]).toHaveAttribute('aria-hidden', 'true');
 		await waitFor(() => expect(status()).toContain('Drag: release to open in a new window'));
-		fireEvent.pointerUp(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerUp(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(status()).toContain('Moved docs to a new window'));
 		await waitFor(async () =>
 			expect((await h.tabs.getSnapshot()).tabs.map((tab) => tab.id)).toEqual([1, 3]),
@@ -132,15 +132,15 @@ describe('a drag out of the strip', () => {
 		const h = await renderWorkspace(undefined, undefined, undefined, { tearoff: client });
 		await openTwo(h);
 		fireEvent.pointerDown(slot(1), { button: 0, clientX: 150, clientY: 15, pointerId: 1 });
-		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(cards()).toHaveLength(1));
 		fireEvent.keyDown(window, { key: 'Escape' });
 		await waitFor(() => expect(cards()).toHaveLength(0));
-		fireEvent.pointerUp(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerUp(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		expect((await h.tabs.getSnapshot()).tabs).toHaveLength(3);
 
 		fireEvent.pointerDown(slot(1), { button: 0, clientX: 150, clientY: 15, pointerId: 1 });
-		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(cards()).toHaveLength(1));
 		fireEvent.pointerMove(slot(1), { clientX: 165, clientY: 20, pointerId: 1 });
 		await waitFor(() => expect(cards()).toHaveLength(0));
@@ -174,11 +174,11 @@ describe('a drag out of the strip', () => {
 		await waitFor(() => expect(document.querySelectorAll('[data-pane]')).toHaveLength(2));
 		const grips = () => document.querySelectorAll<HTMLElement>('[data-pane-grip]');
 		fireEvent.pointerDown(grips()[1]!, { button: 0, clientX: 600, clientY: 230, pointerId: 1 });
-		fireEvent.pointerMove(grips()[1]!, { clientX: 600, clientY: 300, pointerId: 1 });
+		fireEvent.pointerMove(grips()[1]!, { clientX: 600, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(cards()).toHaveLength(1));
 		expect(cards()[0]).toHaveTextContent('docs');
 		expect(cards()[0]).not.toHaveTextContent('2');
-		fireEvent.pointerUp(grips()[1]!, { clientX: 600, clientY: 300, pointerId: 1 });
+		fireEvent.pointerUp(grips()[1]!, { clientX: 600, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(status()).toContain('Moved docs to a new window'));
 		const snapshot = await h.tabs.getSnapshot();
 		expect(snapshot.tabs.map((tab) => tab.id)).toEqual([1, 3]);
@@ -190,9 +190,9 @@ describe('a drag out of the strip', () => {
 		const h = await renderWorkspace();
 		await openTwo(h);
 		fireEvent.pointerDown(slot(1), { button: 0, clientX: 150, clientY: 15, pointerId: 1 });
-		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerMove(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		expect(cards()).toHaveLength(0);
-		fireEvent.pointerUp(slot(1), { clientX: 500, clientY: 400, pointerId: 1 });
+		fireEvent.pointerUp(slot(1), { clientX: 500, clientY: -20, pointerId: 1 });
 		expect((await h.tabs.getSnapshot()).tabs).toHaveLength(3);
 	});
 });

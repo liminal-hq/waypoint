@@ -24,7 +24,7 @@ import { tf } from '../i18n/messages';
 import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry, type EntryAction, type EntryOpeners } from '../nav/useOpenEntry';
 import { PaneDivider } from '../tabs/PaneDivider';
-import { PaneEdgeZone } from '../tabs/PaneEdgeZone';
+import { SplitZones } from '../tabs/SplitZones';
 import { PaneHeader } from '../tabs/PaneHeader';
 import { clearPaneFocus, subscribePaneFocus, wantedPaneFocus } from '../tabs/paneFocus';
 import { equalSizes } from '../tabs/pairLayout';
@@ -123,7 +123,7 @@ export function PaneArea({
 			ref={area}
 			className={styles.area}
 			data-layout={paired ? pair.layout : 'single'}
-			// A tab drag measures this once, when it begins, for the edge zones.
+			// A tab drag measures this once, when it begins, for the split regions.
 			data-pane-area=""
 		>
 			{panes.map((tab, index) => (
@@ -157,7 +157,7 @@ export function PaneArea({
 					/>
 				</Fragment>
 			))}
-			<PaneEdgeZone />
+			<SplitZones />
 		</div>
 	);
 }

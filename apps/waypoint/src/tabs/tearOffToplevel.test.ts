@@ -5,7 +5,9 @@
 
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
+import { fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDragSession } from '../dnd/dragSession';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakeTabsStore } from '../services/fakeTabsStore';
 import { fileLocation } from '../services/fakeVfsClient';
@@ -13,7 +15,12 @@ import { FakeTearoffClient } from '../services/fakeTearoffClient';
 import type { ToplevelDragEnded } from '../services/tearoffClient';
 import type { StripMeasure } from './dragLayout';
 import { onNotice } from './notices';
-import { describeTabDrag, type TabDragSource } from './tabDrag';
+import {
+	createTabDragHandlers,
+	describeTabDrag,
+	type TabDragSource,
+	type TabDragTarget,
+} from './tabDrag';
 import { createTearOff, type TearOff } from './tearOff';
 import { createTearHandoff } from './tearOffHandoff';
 import { createTearCardStore } from './tearOffCardModel';
@@ -550,5 +557,64 @@ describe('where the compositor cannot drag a window', () => {
 		await settle();
 		expect(h.client.toplevelBegins).toEqual([]);
 		expect(h.moveTabs).not.toHaveBeenCalled();
+	});
+});
+
+describe('what starts the compositor drag', () => {
+	async function engine() {
+		const h = await setup();
+		let snapshot = await h.api.getSnapshot();
+		const session = createDragSession<TabDragSource, TabDragTarget>({
+			startThresholdPx: 4,
+			reducedMotion: () => false,
+		});
+		const press = () => {
+			session.begin(
+				{ pointerId: 1, clientX: 50, clientY: 15, source: h.source({ tab: h.ids.a! }) },
+				createTabDragHandlers({
+					api: h.api,
+					snapshot: () => snapshot,
+					announce: () => {},
+					requestRename: () => {},
+					tearOff: h.hook,
+					viewport: () => VIEW,
+				}),
+			);
+		};
+		const move = (x: number, y: number) =>
+			fireEvent.pointerMove(window, { clientX: x, clientY: y, pointerId: 1 });
+		return {
+			h,
+			press,
+			move,
+			stop: () => session.dispose(),
+			refresh: async () => {
+				snapshot = await h.api.getSnapshot();
+			},
+		};
+	}
+
+	it('waits for the pointer to leave the window: the strip, the toolbar and the area are not it', async () => {
+		const { h, press, move, stop } = await engine();
+		press();
+		move(60, 15);
+		for (const y of [60, 200, 400, VIEW.height - 1]) move(300, y);
+		await settle();
+		expect(h.client.toplevelBegins).toEqual([]);
+		expect(h.moveTabs).not.toHaveBeenCalled();
+		move(300, -10);
+		await settle();
+		expect(h.client.toplevelBegins).toHaveLength(1);
+		stop();
+	});
+
+	it('starts it on the right side and the bottom too', async () => {
+		const { h, press, move, stop } = await engine();
+		press();
+		move(60, 15);
+		move(VIEW.width + 5, 300);
+		await settle();
+		expect(h.client.toplevelBegins).toHaveLength(1);
+		stop();
 	});
 });

@@ -1,4 +1,4 @@
-// Verifies the drag geometry: edge zones, the strip's band, body hits, previews and where a unit lands
+// Verifies the drag geometry: the window's bounds, the strip's band, body hits, previews and where a unit lands
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	bodyAt,
 	distanceFromStrip,
-	edgeAt,
+	outsideWindow,
 	planReorder,
 	previewShifts,
 	slotLeft,
@@ -32,24 +32,15 @@ const tab = (id: number, extra: Partial<TabSnapshot> = {}): TabSnapshot => ({
 const spans = [0, 100, 200, 300].map((left) => ({ left, right: left + 100 }));
 const tabs = [tab(1), tab(2), tab(3), tab(4)];
 
-describe('edgeAt', () => {
-	const area = { left: 0, top: 100, right: 400, bottom: 500 };
-	it('names the edge the pointer is in the outer quarter of, and none in the middle', () => {
-		expect(edgeAt(area, { x: 20, y: 300 })).toBe('left');
-		expect(edgeAt(area, { x: 380, y: 300 })).toBe('right');
-		expect(edgeAt(area, { x: 200, y: 110 })).toBe('top');
-		expect(edgeAt(area, { x: 200, y: 490 })).toBe('bottom');
-		expect(edgeAt(area, { x: 200, y: 300 })).toBeNull();
-		expect(edgeAt(area, { x: 99, y: 300 })).toBe('left');
-		expect(edgeAt(area, { x: 101, y: 300 })).toBeNull();
-	});
-
-	it('settles a corner on the nearer edge by share of the area, and rejects points outside', () => {
-		// 10 px in from the left is 2.5% of the width; 40 px down is 10% of the height.
-		expect(edgeAt(area, { x: 10, y: 140 })).toBe('left');
-		expect(edgeAt(area, { x: 100, y: 110 })).toBe('top');
-		expect(edgeAt(area, { x: -5, y: 300 })).toBeNull();
-		expect(edgeAt(area, { x: 200, y: 600 })).toBeNull();
+describe('outsideWindow', () => {
+	const view = { width: 1000, height: 700 };
+	it('is true once a coordinate is past the client area on any side', () => {
+		expect(outsideWindow({ x: 0, y: 0 }, view)).toBe(false);
+		expect(outsideWindow({ x: 999, y: 699 }, view)).toBe(false);
+		expect(outsideWindow({ x: -1, y: 300 }, view)).toBe(true);
+		expect(outsideWindow({ x: 300, y: -1 }, view)).toBe(true);
+		expect(outsideWindow({ x: 1000, y: 300 }, view)).toBe(true);
+		expect(outsideWindow({ x: 300, y: 700 }, view)).toBe(true);
 	});
 });
 

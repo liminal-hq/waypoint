@@ -13,7 +13,7 @@ import type { TabsApi } from '../services/tabsApi';
 import {
 	bodyAt,
 	distanceFromStrip,
-	edgeAt,
+	outsideWindow,
 	planReorder,
 	previewShifts,
 	slotLeft,
@@ -23,10 +23,12 @@ import {
 	type ReorderPlan,
 	type StripMeasure,
 } from './dragLayout';
-import { HOLD_JITTER_PX, HOLD_SPLIT_MS, REST_GROUP_MS, TEAR_OFF_PX } from './dragTiming';
+import { HOLD_JITTER_PX, HOLD_SPLIT_MS, REST_GROUP_MS, STRIP_BAND_PX } from './dragTiming';
+import { requestPaneFocus } from './paneFocus';
 import { pairName } from './PairPill';
 import { groupTabs } from './groupLayout';
 import type { Span } from './reorder';
+import { zoneAt } from './splitRegions';
 import { locationLabel } from './tabTitle';
 
 /** Every way a tab drag can end. A new one must be listed in `NON_POINTER_PATHS` too. */
@@ -81,18 +83,20 @@ export type TabDragTarget =
 	| { outcome: 'holdGroup'; to: number; neighbour: TabId; preview: TabDragPreview }
 	| { outcome: 'overGroupLabel'; group: GroupId }
 	| { outcome: 'leaveGroup'; group: GroupId; to: number; preview: TabDragPreview }
+	/** Over one of the file area's four regions; the target names the one under the pointer. */
 	| { outcome: 'splitPane'; edge: Edge }
 	| { outcome: 'newWindow' };
 
 /**
- * The seam for the new-window phase (`tearOff.ts`). The engine raises it once the pointer is more
- * than `TEAR_OFF_PX` out of the strip and not over a file-area edge zone. Without one the phase
- * shows no pill and a release does nothing.
+ * The seam for the new-window phase (`tearOff.ts`). The engine raises it once the pointer has left
+ * the window (its coordinates are outside the client area, or the document saw it leave); inside
+ * the window the strip, the toolbar and the file area's split regions decide, never this. Without
+ * one the phase shows no pill and a release does nothing.
  */
 export interface TearOffHook {
-	/** The pointer is out of the strip; returns the pill to show, or null for none. */
+	/** The pointer is out of the window; returns the pill to show, or null for none. */
 	update?(point: Point, source: TabDragSource): DragPill | null;
-	/** The pointer came back over the strip. */
+	/** The pointer came back into the window. */
 	leave?(): void;
 	/** A release in the new-window phase; resolve true when the hook took the tabs. */
 	drop?(point: Point, source: TabDragSource): boolean | Promise<boolean>;
@@ -111,7 +115,15 @@ export interface TabDragDeps {
 	/** Opens a new group's name for editing. */
 	requestRename(group: GroupId): void;
 	tearOff?: TearOffHook;
+	/** The window's client area; the document's size by default. */
+	viewport?(): { width: number; height: number };
 }
+
+/** What `createTabDragHandlers` returns: the handlers, and the document's word that the pointer left. */
+export type TabDragHandlers = DragHandlers<TabDragSource, TabDragTarget> & {
+	/** The document reported `pointerleave`: the pointer is out of the window at its last position. */
+	leftWindow(): void;
+};
 
 /** The layout a drop on `edge` of the file area gives, and whether the dragged tab is the first pane. */
 export function edgeLayout(edge: Edge): { layout: 'sideBySide' | 'stacked'; before: boolean } {
@@ -214,16 +226,14 @@ function distance(a: Point, b: Point): number {
 
 /**
  * The outcomes of a tab drag over `dragSession`. Every move works out, in this order: the new-window
- * phase (more than `TEAR_OFF_PX` out of the strip, unless the pointer is over a file-area edge
- * zone, which splits that pane); a group chip under the pointer (add to the group); another tab's
+ * phase (the pointer has left the window, and only then); the file area's split regions (the tab
+ * joins the view on show, in the region's edge); a group chip under the pointer (add to the group); another tab's
  * body under the pointer (the ring, then the split); and otherwise where the unit would land, which
  * is a reorder, a leave when a grouped tab is past its group's span, or a new group once it has
  * rested in one slot. Release commits whatever is showing; Esc, or the browser taking the pointer,
  * abandons it and nothing changes.
  */
-export function createTabDragHandlers(
-	deps: TabDragDeps,
-): DragHandlers<TabDragSource, TabDragTarget> {
+export function createTabDragHandlers(deps: TabDragDeps): TabDragHandlers {
 	// The state of the holds: the tab being held over, and the slot being rested in.
 	let split: {
 		other: TabId;
@@ -234,6 +244,10 @@ export function createTabDragHandlers(
 	let rest: { key: string; anchor: Point; neighbour: TabId; armed: boolean } | null = null;
 	let current: { plan: ReorderPlan; shifts: Map<TabId, number> } | null = null;
 	let out = false;
+	/** The document said the pointer left; cleared by the next move that is inside the window. */
+	let left = false;
+	let zone: Edge | null = null;
+	let live: { control: DragControl<TabDragSource, TabDragTarget>; point: Point } | null = null;
 
 	const clearHolds = (control: DragControl<TabDragSource, TabDragTarget>) => {
 		control.clearHold('split');
@@ -362,7 +376,11 @@ export function createTabDragHandlers(
 		control.setPill(reorderPill(source, snapshot, plan));
 	};
 
-	const move = (control: DragControl<TabDragSource, TabDragTarget>, point: Point) => {
+	const move = (
+		control: DragControl<TabDragSource, TabDragTarget>,
+		point: Point,
+		replay = false,
+	) => {
 		const snapshot = deps.snapshot();
 		if (!snapshot) return;
 		const source = control.source;
@@ -371,22 +389,16 @@ export function createTabDragHandlers(
 		if (!dragged) return;
 		const tabs = snapshot.tabs;
 
-		// Out of the strip: a file-area edge splits that pane, anything else is the new-window phase.
-		if (distanceFromStrip(measure.strip, point.y) > TEAR_OFF_PX) {
+		const view = deps.viewport?.() ?? { width: window.innerWidth, height: window.innerHeight };
+		const outside = outsideWindow(point, view);
+		if (!outside && left && !replay) left = false;
+		live = { control, point };
+
+		// Out of the window: the new-window phase. Inside it, nothing tears off.
+		if (outside || left) {
 			clearHolds(control);
 			current = null;
-			const edge = source.kind === 'tab' && measure.area ? edgeAt(measure.area, point) : null;
-			const active = tabs.find((tab) => tab.id === snapshot.active);
-			const paired = snapshot.pairs.some(
-				(pair) => pair.panes.includes(source.lead) || (active && pair.panes.includes(active.id)),
-			);
-			if (edge && active && !paired && canJoin(dragged, active)) {
-				if (out) deps.tearOff?.leave?.();
-				out = false;
-				control.setTarget({ outcome: 'splitPane', edge });
-				control.setPill(pill('pane', tf('drag.pill.splitPane', { edge: t(EDGE_WORDS[edge]) })));
-				return;
-			}
+			zone = null;
 			out = true;
 			control.setTarget({ outcome: 'newWindow' });
 			control.setPill(deps.tearOff?.update?.(point, source) ?? null);
@@ -397,8 +409,36 @@ export function createTabDragHandlers(
 			deps.tearOff?.leave?.();
 		}
 
+		// Over the file area the four regions win: the dragged tab opens beside the view on show.
+		const active = tabs.find((tab) => tab.id === snapshot.active);
+		const paired = snapshot.pairs.some(
+			(pair) => pair.panes.includes(source.lead) || (active && pair.panes.includes(active.id)),
+		);
+		const offered =
+			source.kind === 'tab' &&
+			source.unit.length === 1 &&
+			!!measure.area &&
+			!!active &&
+			!paired &&
+			(dragged.id === active.id || canJoin(dragged, active));
+		const edge = offered && measure.area ? zoneAt(measure.area, point, zone) : null;
+		zone = edge;
+		if (edge) {
+			clearHolds(control);
+			current = null;
+			control.setTarget({ outcome: 'splitPane', edge });
+			control.setPill(pill('pane', tf('drag.pill.splitPane', { edge: t(EDGE_WORDS[edge]) })));
+			return;
+		}
+		// Anywhere else in the window is the strip's: a reorder, with the holds only near the strip.
+		const nearStrip = distanceFromStrip(measure.strip, point.y) <= STRIP_BAND_PX;
+		if (!nearStrip) {
+			clearHolds(control);
+			split = null;
+		}
+
 		// A group chip under the pointer takes the tab in.
-		if (source.kind === 'tab') {
+		if (source.kind === 'tab' && nearStrip) {
 			const chip = measure.chips.find((c) => point.x >= c.left && point.x <= c.right);
 			if (chip && dragged.group !== chip.group) {
 				const group = snapshot.groups.find((candidate) => candidate.id === chip.group);
@@ -423,7 +463,7 @@ export function createTabDragHandlers(
 		const single = source.kind === 'tab' && source.unit.length === 1;
 
 		// A tab already being held over keeps its place while the pointer stays on it.
-		if (split) {
+		if (split && nearStrip) {
 			const still = bodyAt(
 				tabs,
 				measure.spans,
@@ -451,7 +491,7 @@ export function createTabDragHandlers(
 		const shifts = previewShifts(tabs, source.unit, plan.order, width);
 		current = { plan, shifts };
 
-		if (single && plan.leaving === null) {
+		if (single && plan.leaving === null && nearStrip) {
 			const candidate = bodyAt(
 				tabs,
 				measure.spans,
@@ -478,7 +518,7 @@ export function createTabDragHandlers(
 
 		// Resting in one slot, not hovering anything, starts a group.
 		const neighbour =
-			source.kind === 'tab' && dragged.group === null && plan.leaving === null
+			source.kind === 'tab' && dragged.group === null && plan.leaving === null && nearStrip
 				? groupNeighbour(plan.order, source.unit, dragged)
 				: null;
 		if (!neighbour) {
@@ -592,6 +632,22 @@ export function createTabDragHandlers(
 				const active = snapshot.active;
 				if (active === null) return;
 				const { layout, before } = edgeLayout(target.edge);
+				if (active === source.lead) {
+					// The view itself is dragged: split it as F3 does, a copy beside it, on the chosen edge.
+					await api.toggleSplit(active);
+					const fresh = await api.getSnapshot();
+					const made = fresh.pairs.find((candidate) => candidate.panes.includes(active));
+					const created = made?.origin.kind === 'toggle' ? made.origin.created : undefined;
+					if (!made || created === undefined) return;
+					if (made.layout !== layout) await api.setPairLayout(made.id, layout);
+					// The copy is the new pane: it leads on the left and the top, and follows on the others.
+					const leads = made.panes[0] === created;
+					if (before !== leads) await api.swapPanes(made.id);
+					await api.activateTab(created);
+					requestPaneFocus(created);
+					deps.announce(tf('pair.announce.split', { title: title(active) }));
+					return;
+				}
 				// The pane on show leads, so it keeps its place and group; the dragged tab joins it.
 				const pair = await api.joinPair([active, source.lead], layout);
 				if (before) await api.swapPanes(pair);
@@ -607,8 +663,16 @@ export function createTabDragHandlers(
 
 	return {
 		move,
+		leftWindow: () => {
+			if (!live || left) return;
+			left = true;
+			move(live.control, live.point, true);
+		},
 		drop: commit,
 		cancel: (control) => {
+			zone = null;
+			live = null;
+			left = false;
 			clearHolds(control);
 			if (out) deps.tearOff?.leave?.();
 			out = false;

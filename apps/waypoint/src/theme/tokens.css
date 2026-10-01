@@ -45,6 +45,13 @@
 	--wp-drag-motion: 140ms;
 	--wp-drag-hold-split: 450ms;
 
+	/* Split regions of the file area while a tab is dragged over it: dashed outlines, the one hovered, and the pane it would open. */
+	--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 55%, transparent);
+	--wp-split-zone-outline-active: var(--wp-accent);
+	--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 16%, transparent);
+	--wp-split-zone-label: var(--wp-text-secondary);
+	--wp-split-zone-label-active: var(--wp-accent);
+
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
 	--wp-row-height: 28px;
 }
@@ -77,6 +84,9 @@
 		--wp-tab-colour-purple: #a78bfa;
 		--wp-tab-colour-pink: #f472b6;
 		--wp-tab-colour-grey: #9ca3af;
+		--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 60%, transparent);
+		--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
+		--wp-split-zone-label: var(--wp-text-primary);
 	}
 }
 
@@ -111,6 +121,9 @@
 	--wp-tab-colour-purple: #a78bfa;
 	--wp-tab-colour-pink: #f472b6;
 	--wp-tab-colour-grey: #9ca3af;
+	--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 60%, transparent);
+	--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
+	--wp-split-zone-label: var(--wp-text-primary);
 }
 
 /*

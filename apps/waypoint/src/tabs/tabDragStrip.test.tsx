@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { readFileSync } from 'node:fs';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubLayout } from '../test/browseHarness';
@@ -116,20 +117,64 @@ describe('a tab drag', () => {
 		expect(field).toHaveValue(group.name);
 	});
 
-	it('highlights an edge zone with the pane area and splits on release', async () => {
+	it('draws the four split regions over the file area, highlights the one hovered and splits on release', async () => {
 		stubGeometry();
 		const h = await renderWorkspace();
 		await openTwo(h);
 		fireEvent.pointerDown(slot(0), { button: 0, clientX: 50, clientY: 15, pointerId: 1 });
 		fireEvent.pointerMove(slot(0), { clientX: 40, clientY: 400, pointerId: 1 });
-		await waitFor(() => expect(document.querySelector('[data-edge="left"]')).not.toBeNull());
-		expect(pills()[0]).toHaveTextContent('Release to split on the left');
+		await waitFor(() => expect(document.querySelector('[data-split-zones]')).not.toBeNull());
+		const zones = Array.from(document.querySelectorAll('[data-zone]'));
+		expect(zones.map((zone) => zone.textContent)).toEqual([
+			'Split left',
+			'Split right',
+			'Split top',
+			'Split bottom',
+		]);
+		expect(zones.map((zone) => zone.hasAttribute('data-hovered'))).toEqual([
+			true,
+			false,
+			false,
+			false,
+		]);
+		const overlay = document.querySelector('[data-split-zones]')!;
+		expect(overlay).toHaveAttribute('aria-hidden', 'true');
+		expect(overlay.querySelector('[data-edge="left"]')).not.toBeNull();
+		expect(pills()[0]).toHaveTextContent('Split left with the current view');
+		expect(pills()[0]).toHaveTextContent('Esc to cancel');
+		// Over the toolbar, between the strip and the area, the regions are gone and nothing tears off.
+		fireEvent.pointerMove(slot(0), { clientX: 40, clientY: 120, pointerId: 1 });
+		await waitFor(() => expect(document.querySelector('[data-split-zones]')).toBeNull());
+		expect(pills()[0]).toHaveTextContent('Release to move');
+		fireEvent.pointerMove(slot(0), { clientX: 40, clientY: 400, pointerId: 1 });
+		await waitFor(() => expect(document.querySelector('[data-split-zones]')).not.toBeNull());
 		fireEvent.pointerUp(slot(0), { clientX: 40, clientY: 400, pointerId: 1 });
 		await waitFor(async () => expect((await h.tabs.getSnapshot()).pairs).toHaveLength(1));
 		const pair = (await h.tabs.getSnapshot()).pairs[0]!;
 		expect(pair.layout).toBe('sideBySide');
 		expect(pair.panes).toEqual([1, 3]);
-		await waitFor(() => expect(document.querySelector('[data-edge]')).toBeNull());
+		await waitFor(() => expect(document.querySelector('[data-split-zones]')).toBeNull());
+	});
+
+	it('takes the document leaving the window as leaving: the regions go and the drag is the new-window phase', async () => {
+		stubGeometry();
+		const h = await renderWorkspace();
+		await openTwo(h);
+		fireEvent.pointerDown(slot(0), { button: 0, clientX: 50, clientY: 15, pointerId: 1 });
+		fireEvent.pointerMove(slot(0), { clientX: 40, clientY: 400, pointerId: 1 });
+		await waitFor(() => expect(document.querySelector('[data-split-zones]')).not.toBeNull());
+		fireEvent.pointerLeave(document.documentElement);
+		await waitFor(() => expect(document.querySelector('[data-split-zones]')).toBeNull());
+		fireEvent.pointerUp(slot(0), { clientX: 40, clientY: 400, pointerId: 1 });
+		expect((await h.tabs.getSnapshot()).pairs).toHaveLength(0);
+	});
+
+	it('draws the regions with tokens only and no motion under Reduce motion', () => {
+		const css = readFileSync('src/tabs/SplitZones.module.css', 'utf8');
+		expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+		expect(css).toContain('var(--wp-split-zone-outline-active)');
+		expect(css).toMatch(/prefers-reduced-motion: reduce\)[^]*transition: none/);
+		expect(css).toContain('pointer-events: none');
 	});
 
 	it('shows no pill in the new-window phase and does not cancel', async () => {
@@ -137,10 +182,10 @@ describe('a tab drag', () => {
 		const h = await renderWorkspace();
 		await openTwo(h);
 		fireEvent.pointerDown(slot(0), { button: 0, clientX: 50, clientY: 15, pointerId: 1 });
-		fireEvent.pointerMove(slot(0), { clientX: 500, clientY: 100, pointerId: 1 });
+		fireEvent.pointerMove(slot(0), { clientX: 500, clientY: -20, pointerId: 1 });
 		await waitFor(() => expect(slot(0)).toHaveAttribute('data-dragging'));
 		expect(pills()).toHaveLength(0);
-		fireEvent.pointerUp(slot(0), { clientX: 500, clientY: 100, pointerId: 1 });
+		fireEvent.pointerUp(slot(0), { clientX: 500, clientY: -20, pointerId: 1 });
 		expect((await h.tabs.getSnapshot()).tabs.map((tab) => tab.id)).toEqual([1, 2, 3]);
 	});
 

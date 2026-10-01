@@ -94,7 +94,14 @@ export function useTabDrag(scroller: RefObject<HTMLElement | null>): TabDrag {
 		if (!current || !strip) return;
 		const source = describeTabDrag(current, measureStrip(strip, current.tabs), press);
 		if (!source) return;
-		session.begin(
+		const handlers = createTabDragHandlers({
+			api,
+			snapshot: () => latest.current,
+			announce,
+			requestRename,
+			tearOff,
+		});
+		const began = session.begin(
 			{
 				pointerId: event.pointerId,
 				clientX: event.clientX,
@@ -102,14 +109,19 @@ export function useTabDrag(scroller: RefObject<HTMLElement | null>): TabDrag {
 				element: event.currentTarget.closest('[data-slot],[data-chip]') ?? event.currentTarget,
 				source,
 			},
-			createTabDragHandlers({
-				api,
-				snapshot: () => latest.current,
-				announce,
-				requestRename,
-				tearOff,
-			}),
+			handlers,
 		);
+		if (!began) return;
+		// Where the pointer is captured it keeps reporting coordinates outside the window, which the
+		// engine reads; this is the other signal, for a document that sees the pointer leave.
+		const root = document.documentElement;
+		const onLeave = () => handlers.leftWindow();
+		root.addEventListener('pointerleave', onLeave);
+		const stop = session.store.subscribe((state) => {
+			if (state.phase === 'pending' || state.phase === 'dragging') return;
+			root.removeEventListener('pointerleave', onLeave);
+			stop();
+		});
 	};
 
 	const view = useMemo<TabDragView>(() => {

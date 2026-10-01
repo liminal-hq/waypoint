@@ -11,8 +11,7 @@ import type { DragHandlers } from '../dnd/dragSession';
 import { t, tf } from '../i18n/messages';
 import type { TabsApi } from '../services/tabsApi';
 import { announce } from './announcer';
-import { distanceFromStrip, type Rect } from './dragLayout';
-import { TEAR_OFF_PX } from './dragTiming';
+import { distanceFromStrip, outsideWindow, type Rect } from './dragLayout';
 import type { TabDragSource, TearOffHook } from './tabDrag';
 import { useSeparateSession, useTearOffHook } from './TabDragContext';
 import { useTabsApi, useTabsSnapshot } from './TabsContext';
@@ -48,21 +47,23 @@ function paneSource(source: SeparateSource): TabDragSource {
 }
 
 /**
- * Over the strip a release separates the pair, as Separate Tabs does. More than `TEAR_OFF_PX` out
- * of it is the new-window phase (`tearOff.ts`) for that one pane: a release opens it in a window of
- * its own, or merges it into another window, while its partner stays a single tab here. In
- * between a release does nothing.
+ * Over the strip a release separates the pair, as Separate Tabs does. Out of the window is the
+ * new-window phase (`tearOff.ts`) for that one pane: a release opens it in a window of its own, or
+ * merges it into another window, while its partner stays a single tab here. Anywhere else in the
+ * window a release does nothing.
  */
 export function createSeparateHandlers(deps: {
 	api: TabsApi;
 	snapshot(): SessionSnapshot | null;
 	tearOff?: TearOffHook;
+	viewport?(): { width: number; height: number };
 }): DragHandlers<SeparateSource, SeparateTarget> {
 	let out = false;
 	return {
 		move: (control, point) => {
 			const away = distanceFromStrip(control.source.strip, point.y);
-			if (away > TEAR_OFF_PX) {
+			const view = deps.viewport?.() ?? { width: window.innerWidth, height: window.innerHeight };
+			if (outsideWindow(point, view)) {
 				out = true;
 				control.setTarget({ outcome: 'newWindow' });
 				control.setPill(deps.tearOff?.update?.(point, paneSource(control.source)) ?? null);

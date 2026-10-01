@@ -1,0 +1,87 @@
+/* The split regions over the file area: the same thirds and halves `splitRegions.ts` hit-tests. */
+.zones {
+	position: absolute;
+	z-index: 4;
+	inset: 0;
+	pointer-events: none;
+}
+
+.preview {
+	position: absolute;
+	background: var(--wp-split-zone-fill);
+	animation: wp-split-zone var(--wp-drag-motion) ease-out;
+}
+
+.preview[data-edge='left'] {
+	inset: 0 50% 0 0;
+}
+
+.preview[data-edge='right'] {
+	inset: 0 0 0 50%;
+}
+
+.preview[data-edge='top'] {
+	inset: 0 0 50% 0;
+}
+
+.preview[data-edge='bottom'] {
+	inset: 50% 0 0 0;
+}
+
+.zone {
+	position: absolute;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 2px dashed var(--wp-split-zone-outline);
+	color: var(--wp-split-zone-label);
+	font-size: 13px;
+	transition:
+		border-color var(--wp-drag-motion) ease-out,
+		color var(--wp-drag-motion) ease-out;
+}
+
+.zone[data-zone='left'] {
+	inset: 0 66.6667% 0 0;
+}
+
+.zone[data-zone='right'] {
+	inset: 0 0 0 66.6667%;
+}
+
+.zone[data-zone='top'] {
+	inset: 0 33.3333% 50% 33.3333%;
+}
+
+.zone[data-zone='bottom'] {
+	inset: 50% 33.3333% 0 33.3333%;
+}
+
+.zone[data-hovered] {
+	border-style: solid;
+	border-color: var(--wp-split-zone-outline-active);
+	color: var(--wp-split-zone-label-active);
+	font-weight: 700;
+}
+
+.label {
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: var(--wp-bg-raised);
+}
+
+@keyframes wp-split-zone {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.zone {
+		transition: none;
+	}
+}

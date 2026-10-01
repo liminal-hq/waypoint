@@ -533,6 +533,10 @@ describe('reordering around groups', () => {
 			this: HTMLElement,
 		) {
 			const index = this.getAttribute('data-index');
+			// The file area is far from the strip, as on the page.
+			if (this.hasAttribute('data-pane-area')) {
+				return { left: 0, right: 1000, top: 200, bottom: 600, width: 1000, height: 400 } as DOMRect;
+			}
 			// A chip sits left of the tabs, out of the way of the tabs' spans.
 			if (this.hasAttribute('data-chip')) {
 				return { left: -100, right: -10, top: 0, bottom: 30, width: 90, height: 30 } as DOMRect;

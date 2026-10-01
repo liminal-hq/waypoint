@@ -5,9 +5,10 @@
 	top: calc(var(--wp-drag-y, 0px) + 18px);
 	left: calc(var(--wp-drag-x, 0px) + 14px);
 	display: flex;
-	flex-direction: column;
-	gap: 1px;
-	max-width: 280px;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	max-width: 420px;
 	padding: 5px 10px;
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 999px;
@@ -36,6 +37,10 @@
 }
 
 .hint {
+	flex: none;
+	padding-left: 8px;
+	border-left: 1px solid var(--wp-border-subtle);
 	color: var(--wp-text-muted);
 	font-size: 11px;
+	white-space: nowrap;
 }

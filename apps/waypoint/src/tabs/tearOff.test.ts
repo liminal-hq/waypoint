@@ -125,13 +125,13 @@ beforeEach(() => {
 afterEach(() => stop());
 
 describe('the in-page card', () => {
-	it('follows the pointer inside the window with the pill, on every platform', async () => {
+	it('shows the card and the pill where the pointer left, on every platform', async () => {
 		const h = await setup();
 		const source = h.source({ tab: h.ids.a! });
 		const pill = h.hook.update(INSIDE, source);
 		expect(pill).toMatchObject({ kind: 'window', text: 'Release to open in a new window' });
 		expect(h.card.getState().payload).toEqual({ title: 'a' });
-		// Nothing asks the plugin for a ghost while the pointer is over the page.
+		// With no ghost to start (Wayland without a toplevel drag) the card is all there is.
 		expect(h.client.calls).toEqual([]);
 	});
 
@@ -146,13 +146,11 @@ describe('the in-page card', () => {
 		expect(h.card.getState().payload).toEqual({ title: 'c', count: 2 });
 	});
 
-	it('hides when the pointer leaves the window and when the drag goes back to the strip', async () => {
+	it('stays while the pointer is out of the window and hides when the drag comes back in', async () => {
 		const h = await setup();
 		const source = h.source({ tab: h.ids.a! });
 		h.hook.update(INSIDE, source);
 		h.hook.update(OUTSIDE, source);
-		expect(h.card.getState().payload).toBeNull();
-		h.hook.update(INSIDE, source);
 		expect(h.card.getState().payload).not.toBeNull();
 		h.hook.leave();
 		expect(h.card.getState().payload).toBeNull();
@@ -163,8 +161,9 @@ describe('the ghost', () => {
 	it('starts once when the pointer leaves the window, and takes the card over', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true });
 		const source = h.source({ tab: h.ids.a! });
+		// The engine calls the hook only once the pointer has left: even at its last position in the window.
 		h.hook.update(INSIDE, source);
-		expect(h.client.calls).toEqual([]);
+		expect(h.client.calls).toEqual(['begin']);
 		h.hook.update(OUTSIDE, source);
 		h.hook.update({ x: 1600, y: 420 }, source);
 		await settle();
@@ -174,8 +173,7 @@ describe('the ghost', () => {
 			grabOffset: { x: 48, y: 20 },
 			size: { width: 240, height: 84 },
 		});
-		// Back over the page, the ghost is still the one drawn.
-		h.hook.update(INSIDE, source);
+		// The ghost is the one drawn, not the card.
 		expect(h.card.getState().payload).toBeNull();
 		expect(h.client.calls.filter((call) => call === 'begin')).toHaveLength(1);
 	});
@@ -455,7 +453,6 @@ describe('a release', () => {
 	it('asks the plugin where a release landed even if the drag never left the window', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, windowPosition: true });
 		const source = h.source({ tab: h.ids.a! });
-		h.hook.update(INSIDE, source);
 		h.client.report = reportAt(400, 300, 1);
 		await h.hook.drop(INSIDE, source);
 		expect(h.client.calls).toEqual(['end:drop']);
@@ -585,8 +582,11 @@ describe('over the drag engine', () => {
 		const { h, press, move, up } = await engine({});
 		press();
 		move(60, 15);
+		// Inside the window nothing tears off; out of it, a release opens a window.
 		move(400, 300);
-		up(400, 300);
+		expect(h.client.calls).toEqual([]);
+		move(-20, 300);
+		up(-20, 300);
 		await settle();
 		await settle();
 		expect(h.said.at(-1)).toBe('Moved a to a new window');

@@ -8,7 +8,7 @@ import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { Point } from '../dnd/dragSession';
-import { EDGE_ZONE_FRACTION, TAB_BODY_FRACTION } from './dragTiming';
+import { TAB_BODY_FRACTION } from './dragTiming';
 import { measureSpans, settledOrder } from './groupLayout';
 import { clampToZone, unitDropIndex, type Span } from './reorder';
 
@@ -67,29 +67,9 @@ export function distanceFromStrip(strip: Rect, y: number): number {
 	return Math.max(strip.top - y, y - strip.bottom, 0);
 }
 
-/**
- * The edge of the file area the pointer is in the outer `fraction` of, or null in the middle or
- * outside the area. In a corner the nearer edge, by share of the area, wins.
- */
-export function edgeAt(
-	area: Rect,
-	point: Point,
-	fraction: number = EDGE_ZONE_FRACTION,
-): Edge | null {
-	const width = area.right - area.left;
-	const height = area.bottom - area.top;
-	if (width <= 0 || height <= 0) return null;
-	const nx = (point.x - area.left) / width;
-	const ny = (point.y - area.top) / height;
-	if (nx < 0 || nx > 1 || ny < 0 || ny > 1) return null;
-	const distances: [Edge, number][] = [
-		['left', nx],
-		['right', 1 - nx],
-		['top', ny],
-		['bottom', 1 - ny],
-	];
-	const nearest = distances.reduce((best, next) => (next[1] < best[1] ? next : best));
-	return nearest[1] <= fraction ? nearest[0] : null;
+/** Whether `point` is outside the window's client area, which is where the new-window phase begins. */
+export function outsideWindow(point: Point, view: { width: number; height: number }): boolean {
+	return point.x < 0 || point.y < 0 || point.x >= view.width || point.y >= view.height;
 }
 
 /** The tabs that travel with `tab`: its pair's panes, or the tab alone; in strip order. */

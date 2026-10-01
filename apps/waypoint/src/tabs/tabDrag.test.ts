@@ -15,6 +15,7 @@ import { REST_GROUP_MS, HOLD_SPLIT_MS } from './dragTiming';
 import {
 	createTabDragHandlers,
 	describeTabDrag,
+	type TabDragHandlers,
 	type TabDragSource,
 	type TabDragTarget,
 	type TearOffHook,
@@ -51,6 +52,8 @@ const TAB_W = 100;
 const CHIP_W = 60;
 const STRIP = { left: 0, top: 0, right: 2000, bottom: 30 };
 const AREA = { left: 0, top: 200, right: 1000, bottom: 600 };
+/** The window: wider than the area so the strip, the sidebar's side and the way out are all in reach. */
+const VIEW = { width: 2000, height: 700 };
 
 /** Lays the strip out the way the page does: a chip before its group's tabs, every tab 100 wide. */
 function layout(snapshot: SessionSnapshot): StripMeasure {
@@ -91,19 +94,20 @@ async function setup(names: string[] = ['a', 'b', 'c', 'd', 'e'], tearOff?: Tear
 		announce: (text) => live.push(text),
 		sameTarget: (a, b) => JSON.stringify(a) === JSON.stringify(b),
 	});
+	let handlers: TabDragHandlers | null = null;
 	const press = (what: { tab: TabId } | { group: number }, at: { x: number; y?: number }) => {
 		const source = describeTabDrag(snapshot, layout(snapshot), what)!;
-		session.begin(
-			{ pointerId: 1, clientX: at.x, clientY: at.y ?? 15, source },
-			createTabDragHandlers({
-				api,
-				snapshot: () => snapshot,
-				announce: (text) => live.push(text),
-				requestRename: (group) => renames.push(group),
-				tearOff,
-			}),
-		);
+		handlers = createTabDragHandlers({
+			api,
+			snapshot: () => snapshot,
+			announce: (text) => live.push(text),
+			requestRename: (group) => renames.push(group),
+			tearOff,
+			viewport: () => VIEW,
+		});
+		session.begin({ pointerId: 1, clientX: at.x, clientY: at.y ?? 15, source }, handlers);
 	};
+	const leftWindow = () => handlers!.leftWindow();
 	const move = (x: number, y = 15) =>
 		fireEvent.pointerMove(window, { clientX: x, clientY: y, pointerId: 1 });
 	const up = (x: number, y = 15) =>
@@ -122,6 +126,7 @@ async function setup(names: string[] = ['a', 'b', 'c', 'd', 'e'], tearOff?: Tear
 		renames,
 		session,
 		press,
+		leftWindow,
 		move,
 		up,
 		state,
@@ -180,9 +185,9 @@ describe('reorder', () => {
 		await h.api.pinTab(h.ids.b!, true);
 		await h.refresh();
 		h.press({ tab: h.ids.c! }, { x: 250 });
-		h.move(-400);
+		h.move(1);
 		expect(h.state().target).toMatchObject({ outcome: 'reorder', to: 2 });
-		h.up(-400);
+		h.up(1);
 		await h.settle();
 		expect(order(h.snapshot())).toEqual(['a', 'b', 'c', 'd', 'e']);
 
@@ -486,20 +491,18 @@ describe('leave a group', () => {
 });
 
 describe('split a pane', () => {
+	// `e` is the active tab, the pane on show; the area is x 0-1000 and y 200-600.
 	it.each([
-		['left', 40, 400, 'sideBySide', 'a', 'e'],
-		['right', 960, 400, 'sideBySide', 'e', 'a'],
-		['top', 500, 210, 'stacked', 'a', 'e'],
-		['bottom', 500, 590, 'stacked', 'e', 'a'],
-	] as const)('splits %s', async (edge, x, y, layoutName, first, second) => {
+		['left', 100, 400, 'sideBySide', 'a', 'e'],
+		['right', 900, 400, 'sideBySide', 'e', 'a'],
+		['top', 500, 250, 'stacked', 'a', 'e'],
+		['bottom', 500, 550, 'stacked', 'e', 'a'],
+	] as const)('splits %s with the view on show', async (edge, x, y, layoutName, first, second) => {
 		const h = await setup();
-		// `e` is the active tab, the pane on show.
 		h.press({ tab: h.ids.a! }, { x: 50 });
 		h.move(x, y);
 		expect(h.state().target).toEqual({ outcome: 'splitPane', edge });
-		expect(h.state().pill?.text).toBe(
-			`Release to split ${{ left: 'on the left', right: 'on the right', top: 'on the top', bottom: 'on the bottom' }[edge]}`,
-		);
+		expect(h.state().pill?.text).toBe(`Split ${edge} with the current view`);
 		h.up(x, y);
 		await h.settle();
 		const pair = h.snapshot().pairs[0]!;
@@ -508,28 +511,123 @@ describe('split a pane', () => {
 		expect(h.live).toContain(`Split ${first} and ${second}`);
 	});
 
-	it('is not offered in the middle of the area, for the active tab itself, or over a pair', async () => {
+	it.each([
+		['left', 100, 400, 'sideBySide', true],
+		['right', 900, 400, 'sideBySide', false],
+		['top', 500, 250, 'stacked', true],
+		['bottom', 500, 550, 'stacked', false],
+	] as const)(
+		'splits the active tab itself %s, as F3 does, with the copy on that side',
+		async (edge, x, y, layoutName, copyFirst) => {
+			const h = await setup();
+			h.press({ tab: h.ids.e! }, { x: 450 });
+			h.move(x, y);
+			expect(h.state().target).toEqual({ outcome: 'splitPane', edge });
+			h.up(x, y);
+			await h.settle();
+			const pair = h.snapshot().pairs[0]!;
+			expect(pair.layout).toBe(layoutName);
+			expect(pair.origin.kind).toBe('toggle');
+			const created = pair.origin.kind === 'toggle' ? pair.origin.created : -1;
+			expect(created).not.toBe(h.ids.e);
+			expect(pair.panes).toEqual(copyFirst ? [created, h.ids.e] : [h.ids.e, created]);
+			expect(h.snapshot().active).toBe(created);
+		},
+	);
+
+	it('covers the whole area: the regions meet at the thirds and at the centre column halves', async () => {
 		const h = await setup();
 		h.press({ tab: h.ids.a! }, { x: 50 });
-		h.move(500, 400);
-		expect(h.state().target).toEqual({ outcome: 'newWindow' });
-		h.session.cancel();
+		const edgeAt = (x: number, y: number) => {
+			h.move(x, y);
+			const target = h.state().target;
+			return target?.outcome === 'splitPane' ? target.edge : target?.outcome;
+		};
+		expect(edgeAt(1000 / 3 - 20, 400)).toBe('left');
+		expect(edgeAt(1000 / 3 + 20, 300)).toBe('top');
+		expect(edgeAt(1000 / 3 + 20, 500)).toBe('bottom');
+		expect(edgeAt(1000 - 1000 / 3 + 20, 400)).toBe('right');
+		expect(edgeAt(500, 392)).toBe('top');
+		expect(edgeAt(500, 408)).toBe('bottom');
+	});
 
-		h.press({ tab: h.ids.e! }, { x: 450 });
-		h.move(40, 400);
-		expect(h.state().target).toEqual({ outcome: 'newWindow' });
+	it('is offered only over the file area, so the strip, the toolbar and the sidebar are the strip’s', async () => {
+		const h = await setup();
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		// The toolbar, between the strip and the area.
+		h.move(500, 120);
+		expect(h.state().target?.outcome).toBe('reorder');
+		// The status bar, below it.
+		h.move(500, 650);
+		expect(h.state().target?.outcome).toBe('reorder');
+		expect(h.state().pill?.kind).toBe('move');
+	});
+
+	it('is not offered over a pair, for a pair, or when the tabs cannot join', async () => {
+		const h = await setup();
+		await h.api.pinTab(h.ids.a!, true);
+		await h.refresh();
+		// A pinned tab cannot join the unpinned view on show.
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		h.move(100, 400);
+		expect(h.state().target?.outcome).toBe('reorder');
 		h.session.cancel();
 
 		await h.api.joinPair([h.ids.d!, h.ids.e!], 'sideBySide');
 		await h.refresh();
+		h.press({ tab: h.ids.b! }, { x: 150 });
+		h.move(100, 400);
+		expect(h.state().target?.outcome).toBe('reorder');
+		h.session.cancel();
+		h.press({ tab: h.ids.d! }, { x: 350 });
+		h.move(100, 400);
+		expect(h.state().target?.outcome).not.toBe('splitPane');
+	});
+
+	it('cancels with Escape, and when the pointer goes back out of the area', async () => {
+		const h = await setup();
+		const joinPair = vi.spyOn(h.api, 'joinPair');
 		h.press({ tab: h.ids.a! }, { x: 50 });
-		h.move(40, 400);
-		expect(h.state().target).toEqual({ outcome: 'newWindow' });
+		h.move(100, 400);
+		expect(h.state().target?.outcome).toBe('splitPane');
+		fireEvent.keyDown(document.body, { key: 'Escape' });
+		expect(h.state().phase).toBe('cancelled');
+		h.up(100, 400);
+		await h.settle();
+		expect(joinPair).not.toHaveBeenCalled();
+		expect(h.live[h.live.length - 1]).toBe('Drag cancelled');
+
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		h.move(100, 400);
+		h.move(100, 100);
+		expect(h.state().target?.outcome).toBe('reorder');
+		h.up(100, 100);
+		await h.settle();
+		expect(joinPair).not.toHaveBeenCalled();
+	});
+
+	it('does not flicker at the area’s edge or between regions', async () => {
+		const h = await setup();
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		h.move(100, 400);
+		// A few pixels above the area, or across a border, keeps the region it was in.
+		h.move(100, 197);
+		expect(h.state().target).toEqual({ outcome: 'splitPane', edge: 'left' });
+		h.move(1000 / 3 + 3, 400);
+		expect(h.state().target).toEqual({ outcome: 'splitPane', edge: 'left' });
+		h.move(1000 / 3 + 12, 400);
+		expect(h.state().target).toEqual({ outcome: 'splitPane', edge: 'top' });
+		// Well out of it is the strip's again.
+		h.move(100, 150);
+		expect(h.state().target?.outcome).toBe('reorder');
+		// Coming in from outside has no slack.
+		h.move(100, 197);
+		expect(h.state().target?.outcome).toBe('reorder');
 	});
 });
 
 describe('the new-window phase', () => {
-	it('is entered 24 px out of the strip, shows no pill and a release does nothing yet', async () => {
+	it('starts only when the pointer leaves the window, shows no pill and a release does nothing yet', async () => {
 		const h = await setup();
 		const spies = [
 			'moveTab',
@@ -540,16 +638,49 @@ describe('the new-window phase', () => {
 			'moveTabs',
 		].map((name) => vi.spyOn(h.api, name as 'moveTab'));
 		h.press({ tab: h.ids.a! }, { x: 50 });
-		h.move(60, 30 + 24);
-		expect(h.state().target?.outcome).toBe('reorder');
-		h.move(60, 30 + 25);
-		expect(h.state().phase).toBe('dragging');
+		// Far below the strip, over the toolbar, the area and the status bar, it is still the window's.
+		for (const y of [60, 150, 400, VIEW.height - 1]) {
+			h.move(60, y);
+			expect(h.state().target?.outcome).not.toBe('newWindow');
+		}
+		h.move(60, 0);
+		expect(h.state().target?.outcome).not.toBe('newWindow');
+		h.move(60, -1);
 		expect(h.state().target).toEqual({ outcome: 'newWindow' });
 		expect(h.state().pill).toBeNull();
-		h.up(60, 100);
+		h.move(VIEW.width, 100);
+		expect(h.state().target).toEqual({ outcome: 'newWindow' });
+		h.move(VIEW.width - 1, 100);
+		expect(h.state().target?.outcome).not.toBe('newWindow');
+		h.move(60, VIEW.height);
+		expect(h.state().target).toEqual({ outcome: 'newWindow' });
+		h.up(60, VIEW.height + 40);
 		await h.settle();
 		for (const spy of spies) expect(spy).not.toHaveBeenCalled();
 		expect(order(h.snapshot())).toEqual(['a', 'b', 'c', 'd', 'e']);
+	});
+
+	it('is also entered from the file area, and from a split region', async () => {
+		const h = await setup();
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		h.move(100, 400);
+		expect(h.state().target?.outcome).toBe('splitPane');
+		h.move(-30, 400);
+		expect(h.state().target).toEqual({ outcome: 'newWindow' });
+	});
+
+	it('starts when the document says the pointer left, at its last position', async () => {
+		const update = vi.fn(() => ({ kind: 'window', text: 'Release to open in a new window' }));
+		const h = await setup(undefined, { update });
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		h.move(100, 400);
+		expect(update).not.toHaveBeenCalled();
+		h.leftWindow();
+		expect(h.state().target).toEqual({ outcome: 'newWindow' });
+		expect(update).toHaveBeenCalledWith({ x: 100, y: 400 }, expect.anything());
+		// The next move inside the window is a plain move again.
+		h.move(110, 400);
+		expect(h.state().target?.outcome).toBe('splitPane');
 	});
 
 	it('hands the hook the pointer, a pill, the way back and the release', async () => {
@@ -559,18 +690,20 @@ describe('the new-window phase', () => {
 		const h = await setup(undefined, { update, leave, drop });
 		h.press({ tab: h.ids.a! }, { x: 50 });
 		h.move(60, 100);
+		expect(update).not.toHaveBeenCalled();
+		h.move(60, -40);
 		expect(update).toHaveBeenCalled();
 		expect(h.state().pill?.text).toBe('Release to open in a new window');
-		// Back over the strip it is a reorder again, and the hook is told.
+		// Back in the window it is a reorder again, and the hook is told.
 		h.move(60, 15);
 		expect(leave).toHaveBeenCalledTimes(1);
 		expect(h.state().target?.outcome).toBe('reorder');
 		expect(h.state().pill?.kind).toBe('move');
-		h.move(60, 100);
-		h.up(60, 100);
+		h.move(60, -40);
+		h.up(60, -40);
 		await h.settle();
 		expect(drop).toHaveBeenCalledTimes(1);
-		expect(drop.mock.calls[0]![0]).toEqual({ x: 60, y: 100 });
+		expect(drop.mock.calls[0]![0]).toEqual({ x: 60, y: -40 });
 	});
 });
 
@@ -611,7 +744,7 @@ describe('the pill', () => {
 		for (const [x, y] of [
 			[400, 15],
 			[30, 20],
-			[500, 400],
+			[500, -20],
 			[40, 400],
 			[400, 15],
 		] as const) {
@@ -622,7 +755,7 @@ describe('the pill', () => {
 			'Release to move d to position 4 of 5',
 			`Release to add to Group ${group}`,
 			'(none)',
-			'Release to split on the left',
+			'Split left with the current view',
 			'Release to move d to position 4 of 5',
 		]);
 	});

@@ -124,9 +124,11 @@ type Phase =
 	| 'blocked';
 
 /**
- * The tear-off hook for one window. While the pointer is over the window it shows the in-page
- * card. Where the plugin reports a ghost that follows the cursor, the ghost takes over when the
- * pointer leaves the window, and says "Release to merge into …" while the cursor is over another
+ * The tear-off hook for one window. The engine calls it only once the pointer has left the window
+ * (its coordinates are outside the client area, or the document saw it leave); inside the window
+ * the strip, the toolbar and the file area's split regions decide and nothing here runs. Until a
+ * ghost has the drag, the in-page card is the preview, where the pointer was last seen. Where the
+ * plugin reports a ghost that follows the cursor, the ghost takes over at once, and says "Release to merge into …" while the cursor is over another
  * window's strip; where it does not (Wayland, D94) the card and the pill are all there is, and a
  * release outside the strip opens a window the compositor places.
  *
@@ -136,7 +138,7 @@ type Phase =
  * without geometry, which cascades from this window. Every move flushes the tabs' hints first.
  *
  * Where the plugin reports `toplevelDrag` (Wayland with `xdg-toplevel-drag`, D94's replacement) none
- * of that applies: as soon as the pointer is out of the strip the tabs move to a new window made
+ * of that applies: as soon as the pointer leaves the window the tabs move to a new window made
  * hidden (or, when they are all the window has, the window itself is taken), the compositor
  * attaches that real window to the pointer, and this page hears of the end of the drag (the page
  * gets no pointer events meanwhile, so the drag engine is stopped at once and reset again at the
@@ -417,8 +419,6 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		update(point: Point, dragged: TabDragSource): DragPill {
 			source = dragged;
 			const features = deps.features();
-			const view = deps.viewport();
-			const inside = point.x >= 0 && point.y >= 0 && point.x < view.width && point.y < view.height;
 			const unit = describeUnit(deps.snapshot(), dragged);
 			if (features.toplevelDrag) {
 				// The real window is the preview: no card here, no ghost.
@@ -426,7 +426,7 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				if (phase === 'idle') startToplevel(unit, dragged, point);
 				return pill('window', t('drag.pill.newWindow'));
 			}
-			if (features.ghost && features.cursorFollow && phase === 'idle' && !inside) {
+			if (features.ghost && features.cursorFollow && phase === 'idle') {
 				startFollowing(unit);
 			}
 			if (phase === 'following') {
@@ -434,7 +434,8 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				pollHit();
 				pushGhost();
 			} else {
-				showCard(inside ? payload(unit, false) : null);
+				// Until the ghost has the drag (or where there is none) the card is the preview, held where the pointer left.
+				showCard(payload(unit, false));
 			}
 			return mergeName && phase === 'following'
 				? pill('merge', tf('drag.pill.mergeInto', { name: mergeName }))
