@@ -21,7 +21,6 @@ export const enMessages = {
 	'window.ops.title': 'Waypoint — Operations',
 	'window.ops.description': 'Operations and jobs — coming soon.',
 	'window.tearGhost.title': 'Waypoint — Tab preview',
-	'window.tearGhost.description': 'Tab tear-off preview — coming soon.',
 
 	'browse.list.label': 'Files',
 	'browse.column.name': 'Name',
