@@ -3,18 +3,53 @@
 	flex-direction: column;
 	height: 100%;
 	min-height: 0;
+	/* The columns answer to the width of the view, not of the window: a pane of a split is narrow in a wide window. */
+	container-type: inline-size;
+	container-name: list;
 	background: var(--wp-bg-content);
 	color: var(--wp-text-primary);
 }
 
 /* The header and every row share one grid, so the columns line up. */
 .columns {
+	--wp-name-min: 120px;
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 88px 168px 96px;
+	/* Name never gets less than a readable stub; Kind, Modified and Size give way to it, in that order. */
+	grid-template-columns: minmax(var(--wp-name-min), 1fr) 88px 168px 96px;
 	align-items: center;
 	column-gap: 12px;
 	padding: 0 12px;
 	box-sizing: border-box;
+}
+
+@container list (max-width: 571px) {
+	.columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 88px 168px;
+	}
+
+	.columns [data-column='kind'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 463px) {
+	.columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 88px;
+	}
+
+	.columns [data-column='modified'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 283px) {
+	.columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr);
+	}
+
+	.columns [data-column='size'] {
+		display: none;
+	}
 }
 
 .header {

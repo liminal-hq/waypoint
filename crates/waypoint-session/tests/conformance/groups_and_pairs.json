@@ -1,0 +1,199 @@
+{
+	"description": "Groups and pairs in one window: create, add, collapse, rename, pin, sort, move, remove, join, swap, resize, the split toggle, duplicate, close and reopen. Both runners must agree on every step.",
+	"steps": [
+		{ "do": { "op": "open", "location": "/a" }, "expect": { "tabs": [1], "active": 1 } },
+		{ "do": { "op": "open", "location": "/b", "activate": false }, "expect": { "tabs": [1, 2] } },
+		{
+			"do": { "op": "open", "location": "/c", "activate": false },
+			"expect": { "tabs": [1, 2, 3] }
+		},
+		{
+			"do": { "op": "open", "location": "/d", "activate": false },
+			"expect": { "tabs": [1, 2, 3, 4] }
+		},
+		{
+			"do": { "op": "open", "location": "/e", "activate": false },
+			"expect": { "tabs": [1, 2, 3, 4, 5] }
+		},
+		{
+			"do": { "op": "createGroup", "tabs": [2, 3], "name": "Work" },
+			"expect": {
+				"tabs": [1, 2, 3, 4, 5],
+				"groups": [{ "id": 1, "name": "Work", "collapsed": false, "tabs": [2, 3] }]
+			}
+		},
+		{
+			"do": { "op": "createGroup", "tabs": [5] },
+			"note": "a group made without a name is called Group N",
+			"expect": {
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": false, "tabs": [2, 3] },
+					{ "id": 2, "name": "Group 2", "collapsed": false, "tabs": [5] }
+				]
+			}
+		},
+		{
+			"do": { "op": "addToGroup", "tab": 1, "group": 1 },
+			"note": "a tab added to a group goes to the end of its run",
+			"expect": {
+				"tabs": [2, 3, 1, 4, 5],
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": false, "tabs": [2, 3, 1] },
+					{ "id": 2, "name": "Group 2", "collapsed": false, "tabs": [5] }
+				]
+			}
+		},
+		{
+			"do": { "op": "collapseGroup", "group": 1, "collapsed": true },
+			"expect": {
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": true, "tabs": [2, 3, 1] },
+					{ "id": 2, "name": "Group 2", "collapsed": false, "tabs": [5] }
+				]
+			}
+		},
+		{
+			"do": { "op": "collapseOthers", "group": 1 },
+			"expect": {
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": true, "tabs": [2, 3, 1] },
+					{ "id": 2, "name": "Group 2", "collapsed": true, "tabs": [5] }
+				]
+			}
+		},
+		{
+			"do": { "op": "renameGroup", "group": 2, "name": "Solo" },
+			"expect": {
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": true, "tabs": [2, 3, 1] },
+					{ "id": 2, "name": "Solo", "collapsed": true, "tabs": [5] }
+				]
+			}
+		},
+		{
+			"do": { "op": "pin", "tab": 4, "pinned": true },
+			"note": "a pinned tab moves in front of the unpinned ones",
+			"expect": { "tabs": [4, 2, 3, 1, 5], "pinned": [4] }
+		},
+		{
+			"do": { "op": "pin", "tab": 2, "pinned": true },
+			"note": "pinning a tab in a group pins the whole group",
+			"expect": { "tabs": [4, 2, 3, 1, 5], "pinned": [4, 2, 3, 1] }
+		},
+		{
+			"do": { "op": "sortGroup", "group": 1, "by": "name" },
+			"expect": { "tabs": [4, 1, 2, 3, 5] }
+		},
+		{
+			"do": { "op": "moveGroup", "group": 1, "index": 0 },
+			"note": "the group moves to the front; pinned blocks stay in first-seen order",
+			"expect": { "tabs": [1, 2, 3, 4, 5] }
+		},
+		{
+			"do": { "op": "removeFromGroup", "tab": 3 },
+			"expect": {
+				"tabs": [1, 2, 3, 4, 5],
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": true, "tabs": [1, 2] },
+					{ "id": 2, "name": "Solo", "collapsed": true, "tabs": [5] }
+				]
+			}
+		},
+		{
+			"do": { "op": "joinPair", "tabs": [4, 5], "layout": "stacked" },
+			"note": "the pair takes the group and the pin of its first tab, so tab 5 leaves its group and the group goes",
+			"expect": {
+				"tabs": [1, 2, 3, 4, 5],
+				"pinned": [1, 2, 3, 4, 5],
+				"groups": [{ "id": 1, "name": "Work", "collapsed": true, "tabs": [1, 2] }],
+				"pairs": [{ "id": 1, "panes": [4, 5], "layout": "stacked", "sizes": [500, 500] }]
+			}
+		},
+		{
+			"do": { "op": "swapPanes", "pair": 1 },
+			"note": "the tab order follows the pane order",
+			"expect": {
+				"tabs": [1, 2, 3, 5, 4],
+				"pairs": [{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [500, 500] }]
+			}
+		},
+		{
+			"do": { "op": "setPairSizes", "pair": 1, "sizes": [300, 700] },
+			"expect": {
+				"pairs": [{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [300, 700] }]
+			}
+		},
+		{
+			"do": { "op": "setPairSizes", "pair": 1, "sizes": [500, 400] },
+			"note": "sizes must add up to 1000",
+			"error": true,
+			"expect": {
+				"pairs": [{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [300, 700] }]
+			}
+		},
+		{
+			"do": { "op": "toggleSplit", "tab": 3 },
+			"note": "splitting makes a copy of the tab beside it",
+			"expect": {
+				"tabs": [1, 2, 3, 6, 5, 4],
+				"pairs": [
+					{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [300, 700] },
+					{ "id": 2, "panes": [3, 6], "layout": "sideBySide", "sizes": [500, 500] }
+				]
+			}
+		},
+		{
+			"do": { "op": "toggleSplit", "tab": 3 },
+			"note": "toggling a split made by a toggle closes the tab it made, and remembers it in Recently Closed",
+			"expect": {
+				"tabs": [1, 2, 3, 5, 4],
+				"closed": [6],
+				"pairs": [{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [300, 700] }]
+			}
+		},
+		{
+			"do": { "op": "duplicateGroup", "group": 1 },
+			"note": "the copy has new tabs and a new group of the same name, expanded, right after the original",
+			"expect": {
+				"tabs": [1, 2, 7, 8, 3, 5, 4],
+				"groups": [
+					{ "id": 1, "name": "Work", "collapsed": true, "tabs": [1, 2] },
+					{ "id": 3, "name": "Work", "collapsed": false, "tabs": [7, 8] }
+				]
+			}
+		},
+		{
+			"do": { "op": "closeGroup", "group": 3 },
+			"expect": { "tabs": [1, 2, 3, 5, 4], "closed": [8, 7, 6] }
+		},
+		{
+			"do": { "op": "reopen" },
+			"note": "the newest closed tab returns to its old index; its group is gone, so it is ungrouped",
+			"expect": {
+				"tabs": [1, 2, 3, 8, 5, 4],
+				"active": 8,
+				"mru": [8],
+				"closed": [7, 6],
+				"groups": [{ "id": 1, "name": "Work", "collapsed": true, "tabs": [1, 2] }]
+			}
+		},
+		{
+			"do": { "op": "reopen", "tab": 99 },
+			"note": "a tab that is not in the closed list is an error",
+			"error": true,
+			"expect": { "closed": [7, 6] }
+		},
+		{
+			"do": { "op": "colour", "tab": 8, "colour": "teal" },
+			"expect": { "tabs": [1, 2, 3, 8, 5, 4] }
+		},
+		{
+			"do": { "op": "joinPair", "tabs": [1, 5] },
+			"note": "a tab that is already in a pair cannot be joined",
+			"error": true,
+			"expect": {
+				"pairs": [{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [300, 700] }]
+			}
+		}
+	]
+}

@@ -22,6 +22,7 @@ import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { FileIcon } from './FileIcon';
 import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
+import { useHourCycle } from './TimeFormatContext';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
 import type { ListingSession, SessionState } from './useListingSession';
 import { useListingSession } from './useListingSession';
@@ -29,7 +30,12 @@ import { mapPosition, isReset } from './patch';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
 import { isSelected, selectedCount } from './selection';
 import { useVfsClient } from './VfsClientContext';
-import { useListInteractions, type MenuRequest, type OpenHandler } from './useListInteractions';
+import {
+	useListInteractions,
+	type MenuRequest,
+	type OpenHandler,
+	type OpenInNewHandler,
+} from './useListInteractions';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
@@ -58,7 +64,7 @@ export function ListView({ location, onOpen }: ListViewProps) {
 interface ListingViewProps {
 	state: SessionState;
 	onOpen?: OpenHandler | undefined;
-	onOpenInNewTab?: OpenHandler | undefined;
+	onOpenInNewTab?: OpenInNewHandler | undefined;
 	/** Right-click, the menu key and Shift+F10. The host renders the menu. */
 	onMenu?: ((request: MenuRequest) => void) | undefined;
 	/** Whether the list announces selection changes itself; a host with a status bar does that. */
@@ -92,7 +98,7 @@ export function ListingView({
 interface ListingBodyProps {
 	session: ListingSession;
 	onOpen: OpenHandler | undefined;
-	onOpenInNewTab: OpenHandler | undefined;
+	onOpenInNewTab: OpenInNewHandler | undefined;
 	onMenu: ((request: MenuRequest) => void) | undefined;
 	announceSelection: boolean;
 }
@@ -109,6 +115,7 @@ function ListingBody({
 	const selection = useStore(store, (state) => state.selection);
 	const focus = useStore(store, (state) => state.focus);
 	const touched = useStore(store, (state) => state.touched);
+	const hourCycle = useHourCycle();
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
@@ -188,7 +195,19 @@ function ListingBody({
 		element.dispatchEvent(new Event('scroll'));
 	}, [session]);
 
+	// A restored offset is applied once the listing is tall enough to reach it (or has stopped growing).
+	useLayoutEffect(() => {
+		const element = scroller.current;
+		const pending = session.view.pendingScroll;
+		if (!element || pending === null) return;
+		if (element.scrollHeight - element.clientHeight < pending && model.phase === 'scanning') return;
+		session.view.pendingScroll = null;
+		element.scrollTop = pending;
+		element.dispatchEvent(new Event('scroll'));
+	}, [session, model, version]);
+
 	const recordAnchor = () => {
+		if (session.view.pendingScroll !== null) return;
 		const top = scroller.current?.scrollTop ?? 0;
 		session.view.scrollTop = top;
 		anchor.current = { top, position: Math.floor(top / rowHeight) };
@@ -345,7 +364,7 @@ function ListingBody({
 									onAuxClick={(event) => {
 										if (event.button === 1 && entry) {
 											event.preventDefault();
-											onOpenInNewTab?.(entry, model.handle);
+											onOpenInNewTab?.(entry, model.handle, event.ctrlKey);
 										}
 									}}
 								>
@@ -355,15 +374,17 @@ function ListingBody({
 												<FileIcon group={entry.group} />
 												<span className={styles.nameText}>{entry.name}</span>
 											</span>
-											<span className={styles.cell}>
+											<span className={styles.cell} data-column="size">
 												{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
 											</span>
-											<span className={styles.cell}>
+											<span className={styles.cell} data-column="modified">
 												{entry.modifiedMs === null
 													? t('browse.value.none')
-													: formatModified(entry.modifiedMs)}
+													: formatModified(entry.modifiedMs, undefined, hourCycle)}
 											</span>
-											<span className={styles.cell}>{t(`browse.group.${entry.group}`)}</span>
+											<span className={styles.cell} data-column="kind">
+												{t(`browse.group.${entry.group}`)}
+											</span>
 										</>
 									) : (
 										<>

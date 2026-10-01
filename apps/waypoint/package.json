@@ -20,8 +20,10 @@
 		"pretest:ci": "bun run --cwd ../.. build:plugins"
 	},
 	"dependencies": {
+		"@liminal-hq/plugin-os-prefs": "workspace:*",
 		"@liminal-hq/plugin-system-appearance": "workspace:*",
 		"@liminal-hq/plugin-window-manager": "workspace:*",
+		"@liminal-hq/plugin-window-tearoff": "workspace:*",
 		"@liminal-hq/waypoint-plugin-session": "workspace:*",
 		"@liminal-hq/waypoint-chrome": "workspace:*",
 		"@liminal-hq/waypoint-plugin-vfs": "workspace:*",
@@ -31,7 +33,6 @@
 		"@tauri-apps/api": "^2.10.1",
 		"@tauri-apps/plugin-log": "^2.8.0",
 		"@tauri-apps/plugin-os": "^2.3.2",
-		"@tauri-apps/plugin-window-state": "^2.4.1",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"zustand": "^5.0.12"

@@ -7,7 +7,7 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { useMemo } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
-import { useActiveTab, useTabsApi } from '../tabs/TabsContext';
+import { useActiveTab, useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { useLocationInfo } from './locationInfo';
 
 export interface Navigation {
@@ -30,14 +30,20 @@ function report(error: unknown): void {
 }
 
 /**
+ * With no `tabId` these follow the active tab; a pane passes its own tab's id.
+ *
  * The session keeps each tab's history (A20); these commands only ask it to move. A step that
  * lands on a missing or unreadable folder is not refused here: the tab shows the error state and
  * its history stays intact, so Back still returns to where the person was.
  */
-export function useNavigation(): Navigation {
+export function useNavigation(tabId?: number): Navigation {
 	const api = useTabsApi();
 	const client = useVfsClient();
-	const tab = useActiveTab();
+	const active = useActiveTab();
+	const snapshot = useTabsSnapshot();
+	// A pane of a pair navigates its own tab, which may not be the active one yet.
+	const tab =
+		tabId === undefined ? active : snapshot?.tabs.find((candidate) => candidate.id === tabId);
 	const info = useLocationInfo(client, tab?.location);
 	const parent = info?.parent ?? null;
 	const id = tab?.id;

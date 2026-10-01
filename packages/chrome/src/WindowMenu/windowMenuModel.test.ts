@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
+import { expectEveryItemHasIcon } from '../ContextMenu/expectEveryItemHasIcon';
 import { buildWindowMenuModel } from './windowMenuModel';
 
 const ids = (items: ReturnType<typeof buildWindowMenuModel>) =>
@@ -81,5 +82,11 @@ describe('buildWindowMenuModel', () => {
 	it('omits More options by default', () => {
 		const items = buildWindowMenuModel({ isMaximised: false, alwaysOnTop: false });
 		expect(items.some((i) => i.id === 'system-menu')).toBe(false);
+	});
+
+	it('gives every item an icon, whichever options are on', () => {
+		const all = { alwaysOnTop: true, canShowSystemMenu: true };
+		expectEveryItemHasIcon(buildWindowMenuModel({ isMaximised: false, ...all }));
+		expectEveryItemHasIcon(buildWindowMenuModel({ isMaximised: true, ...all }));
 	});
 });

@@ -21,7 +21,12 @@ import styles from './GridView.module.css';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
 import { isReset, mapPosition } from './patch';
 import { isSelected, selectedCount } from './selection';
-import { useListInteractions, type MenuRequest, type OpenHandler } from './useListInteractions';
+import {
+	useListInteractions,
+	type MenuRequest,
+	type OpenHandler,
+	type OpenInNewHandler,
+} from './useListInteractions';
 import type { ListingSession, SessionState } from './useListingSession';
 
 /** Rows drawn beyond the viewport on each side. */
@@ -32,7 +37,7 @@ interface GridViewProps {
 	/** Icon size in pixels (48 to 256). */
 	size: number;
 	onOpen?: OpenHandler | undefined;
-	onOpenInNewTab?: OpenHandler | undefined;
+	onOpenInNewTab?: OpenInNewHandler | undefined;
 	onMenu?: ((request: MenuRequest) => void) | undefined;
 	/** Whether the grid announces selection changes itself; a host with a status bar does that. */
 	announceSelection?: boolean | undefined;
@@ -161,7 +166,19 @@ function GridBody({
 		element.dispatchEvent(new Event('scroll'));
 	}, [session]);
 
+	// A restored offset is applied once the listing is tall enough to reach it (or has stopped growing).
+	useLayoutEffect(() => {
+		const element = scroller.current;
+		const pending = session.view.pendingScroll;
+		if (!element || pending === null) return;
+		if (element.scrollHeight - element.clientHeight < pending && model.phase === 'scanning') return;
+		session.view.pendingScroll = null;
+		element.scrollTop = pending;
+		element.dispatchEvent(new Event('scroll'));
+	}, [session, model, version]);
+
 	const recordAnchor = () => {
+		if (session.view.pendingScroll !== null) return;
 		const top = scroller.current?.scrollTop ?? 0;
 		session.view.gridScrollTop = top;
 		anchor.current = { top, position: Math.floor(top / cell.height) * columns };
@@ -279,7 +296,7 @@ function GridBody({
 												onAuxClick={(event) => {
 													if (event.button === 1 && entry) {
 														event.preventDefault();
-														onOpenInNewTab?.(entry, model.handle);
+														onOpenInNewTab?.(entry, model.handle, event.ctrlKey);
 													}
 												}}
 											>

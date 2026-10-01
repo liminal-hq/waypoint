@@ -1,0 +1,133 @@
+{
+	"description": "Windows and the hand-off of tabs between them: open a window, move tabs, a group and a pair to an existing or a new window, close a window, reopen a tab from a window that is gone. Both runners must agree on every step.",
+	"steps": [
+		{
+			"do": { "op": "open", "location": "/a" },
+			"expect": { "tabs": [1], "active": 1, "windows": ["main-1"] }
+		},
+		{ "do": { "op": "open", "location": "/b", "activate": false }, "expect": { "tabs": [1, 2] } },
+		{
+			"do": { "op": "open", "location": "/c", "activate": false },
+			"expect": { "tabs": [1, 2, 3] }
+		},
+		{
+			"do": { "op": "open", "location": "/d", "activate": false },
+			"expect": { "tabs": [1, 2, 3, 4] }
+		},
+		{
+			"do": { "op": "createGroup", "tabs": [2, 3], "name": "Work" },
+			"expect": { "groups": [{ "id": 1, "name": "Work", "collapsed": false, "tabs": [2, 3] }] }
+		},
+		{
+			"do": { "op": "openWindow", "location": "/w" },
+			"note": "a new window is main-{n} with its first tab active",
+			"expect": {
+				"windows": ["main-1", "main-2"],
+				"others": { "main-2": { "tabs": [5], "active": 5, "locations": ["/w"] } }
+			}
+		},
+		{
+			"do": {
+				"op": "moveTabs",
+				"what": { "kind": "tabs", "value": [1] },
+				"to": { "kind": "existingWindow", "label": "main-2", "index": 0 }
+			},
+			"note": "the active tab moves, so it stays the active tab of the target and the source falls back to its neighbour",
+			"expect": {
+				"tabs": [2, 3, 4],
+				"active": 2,
+				"others": { "main-2": { "tabs": [1, 5], "active": 1 } }
+			}
+		},
+		{
+			"do": {
+				"op": "moveTabs",
+				"what": { "kind": "group", "value": 1 },
+				"to": { "kind": "newWindow" }
+			},
+			"note": "a whole group keeps its identity in the new window",
+			"expect": {
+				"tabs": [4],
+				"active": 4,
+				"windows": ["main-1", "main-2", "main-3"],
+				"others": {
+					"main-3": {
+						"tabs": [2, 3],
+						"active": 2,
+						"groups": [{ "id": 1, "name": "Work", "collapsed": false, "tabs": [2, 3] }]
+					}
+				}
+			}
+		},
+		{
+			"do": {
+				"op": "moveTabs",
+				"what": { "kind": "tabs", "value": [99] },
+				"to": { "kind": "newWindow" }
+			},
+			"error": true,
+			"expect": { "tabs": [4], "windows": ["main-1", "main-2", "main-3"] }
+		},
+		{
+			"do": {
+				"op": "moveTabs",
+				"what": { "kind": "tabs", "value": [4] },
+				"to": { "kind": "existingWindow", "label": "main-1", "index": 0 }
+			},
+			"note": "the tabs are already in that window",
+			"error": true,
+			"expect": { "tabs": [4] }
+		},
+		{
+			"window": "main-3",
+			"do": { "op": "closeWindow" },
+			"note": "a closed window's tabs go to the closed list, newest first",
+			"expect": { "windows": ["main-1", "main-2"], "closed": [3, 2] }
+		},
+		{
+			"window": "main-2",
+			"do": { "op": "reopen" },
+			"note": "the window it was closed in is gone, so the tab comes back to the calling window at its old index",
+			"expect": { "tabs": [1, 3, 5], "active": 3, "mru": [3], "closed": [2] }
+		},
+		{
+			"do": {
+				"op": "moveTabs",
+				"what": { "kind": "tabs", "value": [4] },
+				"to": { "kind": "existingWindow", "label": "main-2", "index": 99 }
+			},
+			"note": "moving a window's last tab closes the window (the app's rule), and the index clamps",
+			"expect": {
+				"windows": ["main-2"],
+				"others": { "main-2": { "tabs": [1, 3, 5, 4], "active": 4 } }
+			}
+		},
+		{
+			"window": "main-2",
+			"do": { "op": "joinPair", "tabs": [1, 5] },
+			"expect": {
+				"tabs": [1, 5, 3, 4],
+				"pairs": [{ "id": 1, "panes": [1, 5], "layout": "sideBySide", "sizes": [500, 500] }]
+			}
+		},
+		{
+			"window": "main-2",
+			"do": {
+				"op": "moveTabs",
+				"what": { "kind": "pair", "value": 1 },
+				"to": { "kind": "newWindow" }
+			},
+			"note": "a pair moves whole to the new window",
+			"expect": {
+				"tabs": [3, 4],
+				"windows": ["main-2", "main-4"],
+				"others": {
+					"main-4": {
+						"tabs": [1, 5],
+						"pairs": [{ "id": 1, "panes": [1, 5], "layout": "sideBySide", "sizes": [500, 500] }]
+					}
+				}
+			}
+		}
+	]
+}

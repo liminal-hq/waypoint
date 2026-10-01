@@ -183,7 +183,7 @@ describe('navigating', () => {
 			within(menu)
 				.getAllByRole('menuitem')
 				.map((i) => i.textContent),
-		).toEqual(['Open', 'Open in New Tab']);
+		).toEqual(['Open', 'Open in New Tab', 'Open in New Window']);
 		fireEvent.click(within(menu).getByRole('menuitem', { name: 'Open in New Tab' }));
 		await waitFor(async () => expect((await h.tabs.getSnapshot()).tabs).toHaveLength(2));
 		expect((await h.tabs.getSnapshot()).tabs[1]!.location).toEqual(DOWNLOADS);
@@ -279,6 +279,7 @@ describe('favourites', () => {
 		).toEqual([
 			'Open',
 			'Open in New Tab',
+			'Open in New Window',
 			'RenameF2',
 			'Move UpAlt+↑',
 			'Move DownAlt+↓',
@@ -592,7 +593,7 @@ describe('the Folders tree', () => {
 			within(menu)
 				.getAllByRole('menuitem')
 				.map((i) => i.textContent),
-		).toEqual(['Open', 'Open in New Tab', 'Add to Favourites']);
+		).toEqual(['Open', 'Open in New Tab', 'Open in New Window', 'Add to Favourites']);
 		fireEvent.click(within(menu).getByRole('menuitem', { name: 'Add to Favourites' }));
 		await waitFor(() => expect(h.places.calls).toContain(`add ${DOCS.uri}`));
 		fireEvent.click(within(sidebar()).getByRole('tab', { name: 'Places' }));

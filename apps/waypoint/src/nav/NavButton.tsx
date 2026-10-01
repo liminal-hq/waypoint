@@ -15,11 +15,25 @@ import {
 	type PointerEvent as ReactPointerEvent,
 	type ReactNode,
 } from 'react';
+import { FolderTabIcon } from '../icons/AppIcons';
 import styles from './NavButton.module.css';
 
 /** How long the pointer stays down before the history menu opens. */
 export const LONG_PRESS_MS = 500;
 const MAX_MENU_ITEMS = 25;
+
+/** The back/forward history menu's items: an optional heading, then one folder per row. */
+export function historyMenuItems(history: readonly Location[], menuLabel?: string): MenuItem[] {
+	return [
+		...(menuLabel ? [{ type: 'section', label: menuLabel } as const] : []),
+		...history.slice(0, MAX_MENU_ITEMS).map((location, index): MenuItem => ({
+			type: 'action',
+			id: String(index),
+			label: location.display,
+			icon: <FolderTabIcon />,
+		})),
+	];
+}
 
 interface NavButtonProps {
 	label: string;
@@ -105,14 +119,7 @@ export function NavButton({
 		}
 	};
 
-	const items: MenuItem[] = [
-		...(menuLabel ? [{ type: 'section', label: menuLabel } as const] : []),
-		...history.slice(0, MAX_MENU_ITEMS).map((location, index): MenuItem => ({
-			type: 'action',
-			id: String(index),
-			label: location.display,
-		})),
-	];
+	const items = historyMenuItems(history, menuLabel);
 
 	return (
 		<>

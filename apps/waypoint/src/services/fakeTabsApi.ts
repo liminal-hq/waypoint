@@ -3,121 +3,329 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Geometry } from '@liminal-hq/waypoint-protocol/generated/Geometry';
+import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
+import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { MoveTo } from '@liminal-hq/waypoint-protocol/generated/MoveTo';
+import type { MoveWhat } from '@liminal-hq/waypoint-protocol/generated/MoveWhat';
+import type { PairId } from '@liminal-hq/waypoint-protocol/generated/PairId';
+import type { PairLayout } from '@liminal-hq/waypoint-protocol/generated/PairLayout';
 import type { SessionEvent } from '@liminal-hq/waypoint-protocol/generated/SessionEvent';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
+import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
+import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
-import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
-import type { OpenTabOptions, TabsApi } from './tabsApi';
+import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
+import { FakeTabsStore, type FakeCommand, type Outcome } from './fakeTabsStore';
+import { MAX_WINDOWS, type Handoff, type OpenTabOptions, type TabsApi } from './tabsApi';
 import type { Unsubscribe } from './vfsClient';
 
 /**
- * Runs the `waypoint-session` reducer's semantics in TypeScript: the first tab is always active,
- * closing the active tab activates the tab that takes its place (or the one before), commands
- * that change nothing make no events, every event takes the next revision, and an unknown tab
- * rejects with the same message as Rust. `tabsApi.test.ts` and the Rust tests pin the same
- * behaviour, so the two must change together.
+ * One window's handle on a fake session store, with the plugin's commands. The semantics are the
+ * `waypoint-session` store's (`FakeTabsStore` is its TypeScript twin; the shared scripted
+ * scenarios keep the two honest): the first tab is always active, closing the active tab
+ * activates the most recently used tab or else the neighbour, commands that change nothing make
+ * no events, every event takes the next global revision, and an error rejects with the same
+ * message as Rust.
+ *
+ * `new FakeTabsApi()` is the milestone 2 single window (`main-1`, empty at revision 0, kept when
+ * its last tab closes). To model several windows, share one `FakeTabsStore`:
+ * `const store = new FakeTabsStore(); const one = new FakeTabsApi(store, 'main-1');` registers
+ * the window like the plugin does on a window's first call, and a window that a command created
+ * (`openWindow`, `moveTabs` to a new window) is attached with `new FakeTabsApi(store, label)`.
  */
 export class FakeTabsApi implements TabsApi {
-	private tabs: TabSnapshot[] = [];
-	private active: TabId | null = null;
-	private revision = 0;
-	private nextId = 1;
-	private listeners = new Set<(event: SessionEvent) => void>();
+	readonly store: FakeTabsStore;
+	readonly label: string;
+
+	constructor(store: FakeTabsStore = FakeTabsStore.singleWindow(), label = 'main-1') {
+		this.store = store;
+		this.label = label;
+		if (!store.windowLabels().includes(label) && label.startsWith('main-')) {
+			store.dispatch(label, { kind: 'registerWindow', label });
+		}
+	}
+
+	/** Runs a command for this window. */
+	private run(command: FakeCommand): Outcome {
+		return this.store.dispatch(this.label, command);
+	}
+
+	private mine(outcome: Outcome): SessionEvent[] {
+		return outcome.events.filter((e) => e.window === this.label).map((e) => e.event);
+	}
+
+	private fromEvents<T>(
+		outcome: Outcome,
+		what: string,
+		pick: (e: SessionEvent) => T | undefined,
+	): T {
+		for (const event of this.mine(outcome)) {
+			const found = pick(event);
+			if (found !== undefined) return found;
+		}
+		throw `internal error: ${what} produced no event`;
+	}
 
 	async getSnapshot(): Promise<SessionSnapshot> {
-		return structuredClone({ revision: this.revision, tabs: this.tabs, active: this.active });
+		return this.store.snapshot(this.label);
 	}
 
 	async openTab(location: Location, options: OpenTabOptions = {}): Promise<TabId> {
-		const index = options.after === undefined ? this.tabs.length : this.indexOf(options.after) + 1;
-		const tab: TabSnapshot = { id: this.nextId++, location, back: [], forward: [] };
-		this.tabs.splice(index, 0, tab);
-		this.emit({ kind: 'tabOpened', tab: structuredClone(tab), index, revision: 0 });
-		if ((options.activate ?? true) || this.active === null) {
-			this.active = tab.id;
-			this.emit({ kind: 'tabActivated', tab: tab.id, revision: 0 });
+		const outcome = this.run({
+			kind: 'open',
+			location,
+			after: options.after ?? null,
+			activate: options.activate ?? true,
+		});
+		return this.fromEvents(outcome, 'opening a tab', (e) =>
+			e.kind === 'tabOpened' ? e.tab.id : undefined,
+		);
+	}
+
+	async closeTab(tab: TabId): Promise<void> {
+		this.run({ kind: 'close', tab });
+	}
+
+	async activateTab(tab: TabId): Promise<void> {
+		this.run({ kind: 'activate', tab });
+	}
+
+	async moveTab(tab: TabId, index: number): Promise<void> {
+		this.run({ kind: 'move', tab, index });
+	}
+
+	async navigate(tab: TabId, location: Location): Promise<void> {
+		this.run({ kind: 'navigate', tab, location });
+	}
+
+	async back(tab: TabId): Promise<void> {
+		this.run({ kind: 'back', tab });
+	}
+
+	async forward(tab: TabId): Promise<void> {
+		this.run({ kind: 'forward', tab });
+	}
+
+	async pinTab(tab: TabId, pinned: boolean): Promise<void> {
+		this.run({ kind: 'pin', tab, pinned });
+	}
+
+	async setTabColour(tab: TabId, colour: TabColour | null): Promise<void> {
+		this.run({ kind: 'setColour', tab, colour });
+	}
+
+	async setTabHints(tab: TabId, hints: TabHints): Promise<void> {
+		this.run({ kind: 'setHints', tab, hints });
+	}
+
+	async reopenTab(tab?: TabId): Promise<TabId | null> {
+		const outcome = this.run({ kind: 'reopen', tab: tab ?? null });
+		return (
+			outcome.events.flatMap((e) => (e.event.kind === 'tabReopened' ? [e.event.tab.id] : []))[0] ??
+			null
+		);
+	}
+
+	async createGroup(tabs: TabId[], name?: string): Promise<GroupId> {
+		const outcome = this.run({ kind: 'createGroup', tabs, name: name ?? null });
+		return this.fromEvents(outcome, 'creating a group', (e) =>
+			e.kind === 'groupCreated' ? e.group.id : undefined,
+		);
+	}
+
+	async addToGroup(tab: TabId, group: GroupId): Promise<void> {
+		this.run({ kind: 'addToGroup', tab, group });
+	}
+
+	async removeFromGroup(tab: TabId): Promise<void> {
+		this.run({ kind: 'removeFromGroup', tab });
+	}
+
+	async renameGroup(group: GroupId, name: string): Promise<void> {
+		this.run({ kind: 'renameGroup', group, name });
+	}
+
+	async setGroupColour(group: GroupId, colour: TabColour | null): Promise<void> {
+		this.run({ kind: 'setGroupColour', group, colour });
+	}
+
+	async setGroupCollapsed(group: GroupId, collapsed: boolean): Promise<void> {
+		this.run({ kind: 'setGroupCollapsed', group, collapsed });
+	}
+
+	async collapseOtherGroups(group: GroupId): Promise<void> {
+		this.run({ kind: 'collapseOthers', group });
+	}
+
+	async sortGroup(group: GroupId, by: GroupSort): Promise<void> {
+		this.run({ kind: 'sortGroup', group, by });
+	}
+
+	async duplicateGroup(group: GroupId): Promise<GroupId> {
+		const outcome = this.run({ kind: 'duplicateGroup', group });
+		return this.fromEvents(outcome, 'duplicating a group', (e) =>
+			e.kind === 'groupCreated' ? e.group.id : undefined,
+		);
+	}
+
+	async moveGroup(group: GroupId, index: number): Promise<void> {
+		this.run({ kind: 'moveGroup', group, index });
+	}
+
+	async ungroup(group: GroupId): Promise<void> {
+		this.run({ kind: 'ungroup', group });
+	}
+
+	async closeGroup(group: GroupId): Promise<void> {
+		this.run({ kind: 'closeGroup', group });
+	}
+
+	async saveGroupAsWorkspace(group: GroupId, name?: string): Promise<WorkspaceId> {
+		const outcome = this.run({ kind: 'saveGroupAsWorkspace', group, name: name ?? null });
+		return this.fromEvents(outcome, 'saving a workspace', (e) =>
+			e.kind === 'workspacesChanged' ? e.workspaces[e.workspaces.length - 1]?.id : undefined,
+		);
+	}
+
+	async renameWorkspace(workspace: WorkspaceId, name: string): Promise<void> {
+		this.run({ kind: 'renameWorkspace', workspace, name });
+	}
+
+	async deleteWorkspace(workspace: WorkspaceId): Promise<void> {
+		this.run({ kind: 'deleteWorkspace', workspace });
+	}
+
+	async setActiveWorkspace(workspace: WorkspaceId | null): Promise<void> {
+		this.run({ kind: 'setActiveWorkspace', workspace });
+	}
+
+	async setWorkspaceLocations(workspace: WorkspaceId, locations: Location[]): Promise<void> {
+		this.run({ kind: 'setWorkspaceLocations', workspace, locations });
+	}
+
+	async joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId> {
+		const outcome = this.run({ kind: 'joinPair', tabs, layout });
+		return this.fromEvents(outcome, 'joining a pair', (e) =>
+			e.kind === 'pairCreated' ? e.pair.id : undefined,
+		);
+	}
+
+	async separatePair(pair: PairId): Promise<void> {
+		this.run({ kind: 'separatePair', pair });
+	}
+
+	async setPairLayout(pair: PairId, layout: PairLayout): Promise<void> {
+		this.run({ kind: 'setPairLayout', pair, layout });
+	}
+
+	async setPairSizes(pair: PairId, sizes: number[]): Promise<void> {
+		this.run({ kind: 'setPairSizes', pair, sizes });
+	}
+
+	async swapPanes(pair: PairId): Promise<void> {
+		this.run({ kind: 'swapPanes', pair });
+	}
+
+	async toggleSplit(tab: TabId): Promise<void> {
+		this.run({ kind: 'toggleSplit', tab });
+	}
+
+	/** The plugin refuses a window past the cap before it changes anything. */
+	private checkWindowCap(): void {
+		if (this.store.windowLabels().length >= MAX_WINDOWS) {
+			throw {
+				kind: 'tooManyWindows',
+				message: `cannot open more than ${MAX_WINDOWS} windows`,
+				limit: MAX_WINDOWS,
+			};
 		}
-		return tab.id;
 	}
 
-	async closeTab(id: TabId): Promise<void> {
-		const index = this.indexOf(id);
-		this.tabs.splice(index, 1);
-		this.emit({ kind: 'tabClosed', tab: id, revision: 0 });
-		if (this.active === id) {
-			this.active = (this.tabs[index] ?? this.tabs[index - 1])?.id ?? null;
-			if (this.active !== null) this.emit({ kind: 'tabActivated', tab: this.active, revision: 0 });
+	async openWindow(location?: Location, geometry?: Geometry): Promise<string> {
+		this.checkWindowCap();
+		const outcome = this.run({
+			kind: 'openWindow',
+			location: location ?? null,
+			geometry: geometry ?? null,
+		});
+		const opened = outcome.events.flatMap((e) =>
+			e.event.kind === 'windowOpened' ? [e.event.window] : [],
+		)[0];
+		if (opened === undefined) throw 'internal error: opening a window produced no event';
+		return opened;
+	}
+
+	async closeWindow(target?: string): Promise<void> {
+		const label = target ?? this.label;
+		if (!this.store.windowLabels().includes(label)) throw `no such window: ${label}`;
+		this.store.dispatch(label, { kind: 'closeWindow' });
+	}
+
+	async setGeometry(geometry: Geometry): Promise<void> {
+		this.run({ kind: 'setGeometry', geometry });
+	}
+
+	async setView(view: ViewPrefs): Promise<void> {
+		this.run({ kind: 'setView', view });
+	}
+
+	async moveTabs(what: MoveWhat, to: MoveTo): Promise<string> {
+		if (to.kind === 'newWindow' && to.label !== null) {
+			// A window's label is the store's to allocate; a caller cannot pick one.
+			throw `internal error: a new window cannot be given the label \`${to.label}\``;
+		}
+		const moving = this.movingTabs(what);
+		// A move that empties a window which closes when empty swaps it for the new one: no growth.
+		if (to.kind === 'newWindow' && !this.emptiesWindow(moving)) this.checkWindowCap();
+		const outcome = this.run({ kind: 'moveTabs', what, to });
+		if (to.kind === 'existingWindow') {
+			this.store.notifyHandoff(to.label, { tabs: moving, from: this.label });
+			return to.label;
+		}
+		const opened = outcome.events.flatMap((e) =>
+			e.event.kind === 'windowOpened' ? [e.event.window] : [],
+		)[0];
+		if (opened === undefined) throw 'internal error: moving tabs produced no target window';
+		return opened;
+	}
+
+	private emptiesWindow(moving: readonly TabId[]): boolean {
+		const w = this.store.window(this.label);
+		return (
+			this.store.policy.closeWindowOnLastTab &&
+			w !== undefined &&
+			w.tabs.length > 0 &&
+			w.tabs.every((t) => moving.includes(t.id))
+		);
+	}
+
+	/** The tabs a move takes, as the plugin reports them to the window they arrive in. */
+	private movingTabs(what: MoveWhat): TabId[] {
+		const w = this.store.window(this.label);
+		if (!w) return [];
+		switch (what.kind) {
+			case 'tabs':
+				return [...what.value];
+			case 'group':
+				return w.tabs.filter((t) => t.group === what.value).map((t) => t.id);
+			case 'pair':
+				return w.pairs.find((p) => p.id === what.value)?.panes ?? [];
 		}
 	}
 
-	async activateTab(id: TabId): Promise<void> {
-		this.indexOf(id);
-		if (this.active === id) return;
-		this.active = id;
-		this.emit({ kind: 'tabActivated', tab: id, revision: 0 });
+	async listWindows(): Promise<WindowSummary[]> {
+		return this.store.windowSummaries(this.label);
 	}
 
-	async moveTab(id: TabId, index: number): Promise<void> {
-		const from = this.indexOf(id);
-		const to = Math.min(index, this.tabs.length - 1);
-		if (from === to) return;
-		this.tabs.splice(to, 0, ...this.tabs.splice(from, 1));
-		this.emit({ kind: 'tabMoved', tab: id, index: to, revision: 0 });
-	}
-
-	async navigate(id: TabId, location: Location): Promise<void> {
-		const tab = this.tabFor(id);
-		if (tab.location.uri === location.uri && tab.location.display === location.display) return;
-		tab.back.push(tab.location);
-		tab.location = location;
-		tab.forward = [];
-		this.emitNavigated(tab);
-	}
-
-	async back(id: TabId): Promise<void> {
-		const tab = this.tabFor(id);
-		const previous = tab.back.pop();
-		if (previous === undefined) return;
-		tab.forward.push(tab.location);
-		tab.location = previous;
-		this.emitNavigated(tab);
-	}
-
-	async forward(id: TabId): Promise<void> {
-		const tab = this.tabFor(id);
-		const following = tab.forward.pop();
-		if (following === undefined) return;
-		tab.back.push(tab.location);
-		tab.location = following;
-		this.emitNavigated(tab);
+	onHandoff(listener: (handoff: Handoff) => void): Unsubscribe {
+		return this.store.listenHandoff(this.label, listener);
 	}
 
 	onEvent(listener: (event: SessionEvent) => void): Unsubscribe {
-		this.listeners.add(listener);
-		return () => this.listeners.delete(listener);
-	}
-
-	private indexOf(id: TabId): number {
-		const index = this.tabs.findIndex((t) => t.id === id);
-		if (index < 0) throw `no such tab: ${id}`;
-		return index;
-	}
-
-	private tabFor(id: TabId): TabSnapshot {
-		const tab = this.tabs[this.indexOf(id)];
-		if (!tab) throw `no such tab: ${id}`;
-		return tab;
-	}
-
-	private emitNavigated(tab: TabSnapshot): void {
-		this.emit({ kind: 'tabNavigated', tab: structuredClone(tab), revision: 0 });
-	}
-
-	/** Stamps the next revision on an event and delivers it. */
-	private emit(event: SessionEvent): void {
-		this.revision += 1;
-		const stamped = { ...event, revision: this.revision } as SessionEvent;
-		for (const listener of [...this.listeners]) listener(stamped);
+		return this.store.listen(this.label, listener);
 	}
 }

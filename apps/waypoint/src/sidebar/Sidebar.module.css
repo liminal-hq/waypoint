@@ -93,6 +93,7 @@
 }
 
 .item[aria-current='page'],
+.item[aria-current='true'],
 .treeItem[aria-current='page'] {
 	background: var(--wp-bg-selected);
 }

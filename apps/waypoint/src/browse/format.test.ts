@@ -37,3 +37,30 @@ describe('formatModified', () => {
 		expect(text).toMatch(/\d{1,2}:\d{2}/);
 	});
 });
+
+describe('formatModified with an hour cycle', () => {
+	// 13:05 local time, built from parts so the test does not depend on the machine's time zone.
+	const afternoon = new Date(2026, 9, 1, 13, 5).getTime();
+
+	it('shows a 24-hour clock for h23, whatever the locale defaults to', () => {
+		expect(formatModified(afternoon, 'en-CA', 'h23')).toContain('13:05');
+		expect(formatModified(afternoon, 'en-CA', 'h23')).not.toMatch(/p\.m\./);
+	});
+
+	it('shows a 12-hour clock for h12', () => {
+		expect(formatModified(afternoon, 'en-CA', 'h12')).toMatch(/1:05\s*p\.m\./);
+	});
+
+	it('leaves the choice to the locale without an hour cycle', () => {
+		expect(formatModified(afternoon, 'en-CA')).toMatch(/1:05\s*p\.m\./);
+		expect(formatModified(afternoon, 'en-GB')).toContain('13:05');
+	});
+
+	it('keeps a separate formatter for each hour cycle', () => {
+		const a = formatModified(afternoon, 'en-CA', 'h23');
+		const b = formatModified(afternoon, 'en-CA', 'h12');
+		const c = formatModified(afternoon, 'en-CA', 'h23');
+		expect(a).not.toBe(b);
+		expect(c).toBe(a);
+	});
+});

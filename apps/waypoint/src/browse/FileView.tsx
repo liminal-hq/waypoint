@@ -5,7 +5,7 @@
 
 import { GridView } from './GridView';
 import { ListingView } from './ListView';
-import type { MenuRequest, OpenHandler } from './useListInteractions';
+import type { MenuRequest, OpenHandler, OpenInNewHandler } from './useListInteractions';
 import type { SessionState } from './useListingSession';
 import type { ViewMode } from './viewStore';
 
@@ -14,7 +14,7 @@ interface FileViewProps {
 	mode: ViewMode;
 	gridSize: number;
 	onOpen: OpenHandler;
-	onOpenInNewTab: OpenHandler;
+	onOpenInNewTab: OpenInNewHandler;
 	onMenu: (request: MenuRequest) => void;
 }
 

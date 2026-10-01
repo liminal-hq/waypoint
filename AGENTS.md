@@ -22,7 +22,7 @@
 
 ## Project Status
 
-Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in **early development**: the skeleton (milestone 1) and the listing spikes (milestone 0) are merged, and the reusable window plugins have graduated to the shared `tauri-plugins-workspace`. **Milestone 2 (Browse, local)** is merged (epic #21): `waypoint-path`, `waypoint-vfs` with watching, the vfs and session plugins, the list and grid views, selection, tabs, navigation, the sidebar and the status bar, with the performance budgets re-measured on the real list. Nothing writes to disk yet (operations are milestone 4); scaffold only what the current milestone needs. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
+Waypoint is a tabbed, extensible file manager for Linux (primary) and Windows 11 (a real target), built with Tauri v2, React/TypeScript and Rust. The repository is in **early development**: the skeleton (milestone 1), the listing spikes (milestone 0) and **Milestone 2 (Browse, local)** are merged, and the reusable window plugins have graduated to the shared `tauri-plugins-workspace`. **Milestone 3 (Windows and tabs)** is built as a stack of 13 pull requests under review (parking issue #58): multiple windows, pinned and coloured tabs, groups, pairs, Recently Closed, `Ctrl+Tab` in most-recently-used order, workspaces, tear-off and merge, and session restore. `crates/waypoint-session` is the one pure store for every window's tabs, groups, pairs, pins, colours, history, closed tabs and workspaces; `plugins/waypoint-session` holds it behind one lock, sends each window granular events and saves it under the app's `ca.liminalhq.waypoint` data directory, and the page renders it through `TabsApi`. Tear-off and merge come from the reusable `plugins/window-tearoff` (and, on Wayland, `crates/wayland-toplevel-drag`), driven by the tab drag engine in `apps/waypoint/src/tabs`. Nothing writes to disk yet (operations are milestone 4); scaffold only what the current milestone needs. Update this section (and drop the "planned" qualifiers in [Repository Layout](#repository-layout)) as each part is actually scaffolded.
 
 The prototype that the product design came from lives in a Claude Design project and is **reference only**; see `docs/ui-mockups/README.md`. Only the _behaviour_ it demonstrates is authoritative, and only via `SPEC.md` and the docs. Do not port, adapt or structurally mirror its code.
 
@@ -147,7 +147,7 @@ Native Rust and webview output share one log stream. `tauri-plugin-log` is confi
 - Every window entry calls `initLogger(label)` once at startup; new window kinds must too.
 - Use `log::{trace,debug,info,warn,error}!` in Rust and `console.*` in the front end. Do not add a second logging path, and never log secrets, credentials or full file contents.
 - Each window's capabilities must include `log:default` (`capabilities/logging.json` grants it to every window), or forwarding fails silently.
-- The log file is under the app's log directory (on Linux, `~/.local/share/dev.liminal.waypoint/logs/`).
+- The log file is under the app's log directory (on Linux, `~/.local/share/ca.liminalhq.waypoint/logs/`).
 
 ## CI and Release
 
@@ -164,12 +164,13 @@ CI and release follow the Liminal HQ house pipeline (Jar and Cadence are the ref
 ## Frontend Code Conventions
 
 - **No barrel files.** Don't create an `index.ts`/`index.tsx` that only re-exports from sibling files. Import directly from the file that defines the thing (e.g. `import { TabStrip } from '../tabs/TabStrip'`). Barrels obscure the real dependency graph and slow down tree-shaking and IDE "go to definition."
-- **React 19 + TypeScript (strict) + Vite.** Function components only. Feature-folder layout under `src/features/`; see `docs/architecture/frontend.md` for the stack and the reasoning.
+- **React 19 + TypeScript (strict) + Vite.** Function components only. One folder per area directly under `src/` (`app`, `tabs`, `browse`, `nav`, `sidebar`, `status`, `services`, …); see `docs/architecture/frontend.md` for the stack and the reasoning.
 - **The frontend renders; Rust decides.** Filesystem, operations, session and permission logic lives in Rust. Frontend code reacts to commands and events and never re-derives domain rules. Ephemeral UI state (hover, drag pointer state, focus) stays in the frontend.
 - **Styling:** CSS Modules plus CSS custom properties for the semantic tokens in `docs/theming-and-platforms.md`. No inline-style styling (the prototype's approach): a value that must be measured in script, such as a menu's position, is passed to the stylesheet as a CSS custom property (`style={{ '--wp-menu-x': '12px' }}`) and consumed by a rule in the module, never as `left`, `top` or a colour on the element. **Colour literals live only in token files** (`apps/waypoint/src/theme/tokens.css` and the chrome's `packages/chrome/src/tokens.css` defaults); component CSS uses `var(--wp-*)` with no inline fallback, and every property a component reads needs a default in the chrome's `tokens.css`. `packages/chrome/src/tokens.test.ts` enforces all three.
 - **Accessibility is a build requirement, not a polish pass:** roles, names, focus order and keyboard paths follow `docs/accessibility.md`. A component that is not keyboard-operable is not done.
 - **All user-visible strings go through the message catalogue** (RTL and localisation are in scope, D80) — no string literals in JSX. The milestone-one catalogue is `apps/waypoint/src/i18n/messages.ts` (`t('area.thing')`), and the chrome's labels are supplied from it by `i18n/chromeLabels.ts`; add a key there, never a literal in a component. `i18n/messages.test.ts` fails if a screen holds literal `title`, `description` or `label` copy.
 - **JavaScript reaches a native plugin only through its `guest-js` package.** Every plugin ships typed `guest-js` functions (and typed event subscriptions) that own the command and event names. Application and package code imports those functions and never calls `invoke('plugin:...|...')` or listens for a plugin's event by string. A plugin is not done until its `guest-js` covers every command and event the front end uses. `scripts/check-plugin-boundaries.sh` enforces the invoke half in CI.
+- **Module names never differ only by case.** `TabMenus.tsx` beside `tabMenus.ts` is two files on Linux and one on Windows and macOS, where `tsc` fails while Cargo still embeds a stale `dist`. Give the pure model of a component a distinct name (`tabMenuModel.ts`). `scripts/check-case-collisions.sh` (`bun run check:case`) enforces it in CI.
 
 ## Architecture Rules
 
@@ -195,13 +196,13 @@ The rules below are the enforceable core of `docs/architecture/`. Change the arc
 
 ## Repository Layout
 
-Cargo workspace + **Bun workspaces**, matching Jar and Cadence. `apps/waypoint`, `packages/chrome`, `packages/protocol`, `crates/waypoint-protocol`, `crates/waypoint-vfs` (wire types so far), `crates/waypoint-session` (the tab reducer), a `plugins/waypoint-vfs` skeleton and `plugins/waypoint-session` exist; everything else below is **planned** until it is scaffolded. The authoritative design is `docs/architecture/`.
+Cargo workspace + **Bun workspaces**, matching Jar and Cadence. Built so far: `apps/waypoint`, `packages/chrome`, `packages/protocol`, the crates `waypoint-protocol`, `waypoint-path`, `waypoint-vfs`, `waypoint-session` and `wayland-toplevel-drag`, and the plugins `system-appearance`, `window-manager`, `window-tearoff`, `waypoint-vfs` and `waypoint-session`; everything else below is **planned** until it is scaffolded. The app's identifier is `ca.liminalhq.waypoint`. The authoritative design is `docs/architecture/`.
 
 - `apps/waypoint` — the Tauri app: React/TypeScript frontend in `src/`, and `src-tauri/` as a thin composition root that registers plugins and wires crates together.
 - `packages/chrome` — shared React chrome (title bar, window menu, context menu, settings shell) with no Waypoint domain imports, structured so it can be extracted for the other Liminal HQ apps.
 - `packages/protocol` — the TypeScript types `ts-rs` generates from the domain crates' wire types (types only, never hand-edited); the app and each domain plugin's `guest-js` import from it by package name.
-- `crates/*` — pure Rust, no `tauri` dependency: `waypoint-protocol` (shared types and `ts-rs` generation), `waypoint-vfs`, `waypoint-ops`, `waypoint-session`, `waypoint-search`, `waypoint-ext`, and per-protocol provider crates.
-- `plugins/*` — Tauri plugins (see `plugins/README.md`; `system-appearance` is built), each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
+- `crates/*` — pure Rust, no `tauri` dependency: `waypoint-protocol` (shared types and `ts-rs` generation), `waypoint-path`, `waypoint-vfs`, `waypoint-session` and `wayland-toplevel-drag` are built; `waypoint-ops`, `waypoint-search`, `waypoint-ext` and per-protocol provider crates are planned.
+- `plugins/*` — Tauri plugins (see `plugins/README.md`; `system-appearance`, `window-manager`, `window-tearoff`, `waypoint-vfs` and `waypoint-session` are built), each a Rust crate plus a `guest-js` package. Two tiers: domain plugins (`tauri-plugin-waypoint-*`) and reusable plugins (`tauri-plugin-{name}`) that graduate to the shared workspace.
 - `docs/` — product design docs (`decisions.md`, `interactions.md`, …), `architecture/` (structure, plugins, frontend, CI/CD, ADRs) and `ui-mockups/` (prototype pointer, reference only).
 - `scripts/` — repo tooling (`check-headers.sh`, later `check-release-versions.sh`).
 - `.github/` — workflows, `dependabot.yml`, `release.yml` (changelog categories).

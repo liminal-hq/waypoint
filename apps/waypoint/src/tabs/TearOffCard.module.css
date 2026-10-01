@@ -1,0 +1,11 @@
+/* The new-window preview: a card hung below the pill, beside the pointer, never over what it would drop onto. */
+.card {
+	position: fixed;
+	z-index: 999;
+	top: calc(var(--wp-drag-y, 0px) + 64px);
+	left: calc(var(--wp-drag-x, 0px) + 14px);
+	width: var(--wp-tear-card-width);
+	height: var(--wp-tear-card-height);
+	pointer-events: none;
+	user-select: none;
+}

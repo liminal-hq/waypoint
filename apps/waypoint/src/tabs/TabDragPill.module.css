@@ -1,0 +1,49 @@
+/* The drag label: one pill beside the pointer, never over what it would drop onto. */
+.pill {
+	position: fixed;
+	z-index: 1000;
+	top: calc(var(--wp-drag-y, 0px) + 18px);
+	left: calc(var(--wp-drag-x, 0px) + 14px);
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	/* Sized by its text, never by the room left of the window's edge; near the right edge it slides left to stay whole. */
+	width: max-content;
+	max-width: min(420px, calc(100vw - 16px));
+	translate: min(0px, calc(100vw - var(--wp-drag-x, 0px) - 22px - 100%)) 0;
+	padding: 5px 10px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 999px;
+	background: var(--wp-bg-raised);
+	box-shadow: 0 4px 14px color-mix(in srgb, var(--wp-text-primary) 25%, transparent);
+	color: var(--wp-text-primary);
+	font-size: 12px;
+	line-height: 1.3;
+	pointer-events: none;
+	user-select: none;
+}
+
+/* The outcomes that change something get the accent, so a move reads as quieter than a split. */
+.pill[data-kind='split'],
+.pill[data-kind='window'],
+.pill[data-kind='merge'],
+.pill[data-kind='group'],
+.pill[data-kind='add'],
+.pill[data-kind='leave'],
+.pill[data-kind='pane'] {
+	border-color: var(--wp-accent);
+}
+
+.text {
+	font-weight: 600;
+}
+
+.hint {
+	flex: none;
+	padding-left: 8px;
+	border-left: 1px solid var(--wp-border-subtle);
+	color: var(--wp-text-muted);
+	font-size: 11px;
+	white-space: nowrap;
+}

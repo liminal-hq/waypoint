@@ -10,6 +10,9 @@ import {
 	GRID_SIZE_DEFAULT,
 	GRID_SIZE_MAX,
 	GRID_SIZE_MIN,
+	followView,
+	prefsFromView,
+	viewFromPrefs,
 } from './viewStore';
 
 describe('the view store', () => {
@@ -46,5 +49,33 @@ describe('the view store', () => {
 		store.getState().setGridSize(200);
 		expect(set).not.toHaveBeenCalled();
 		set.mockRestore();
+	});
+});
+
+describe('the view in the session', () => {
+	it('converts to and from the session’s view choices, clamping the icon size', () => {
+		const prefs = { mode: 'grid', showHidden: true, iconSize: 120 } as const;
+		expect(viewFromPrefs(prefs)).toEqual({ mode: 'grid', showHidden: true, gridSize: 120 });
+		expect(prefsFromView(viewFromPrefs(prefs))).toEqual(prefs);
+		expect(viewFromPrefs({ ...prefs, iconSize: 9999 }).gridSize).toBe(GRID_SIZE_MAX);
+	});
+
+	it('reports each change to the session, and nothing for a no-op or after it stops', () => {
+		const store = createViewStore();
+		const api = { setView: vi.fn(async () => {}) };
+		const stop = followView(store, api);
+		store.getState().setMode('grid');
+		expect(api.setView).toHaveBeenLastCalledWith({
+			mode: 'grid',
+			showHidden: false,
+			iconSize: GRID_SIZE_DEFAULT,
+		});
+		store.getState().setMode('grid');
+		expect(api.setView).toHaveBeenCalledTimes(1);
+		store.getState().toggleHidden();
+		expect(api.setView).toHaveBeenCalledTimes(2);
+		stop();
+		store.getState().setGridSize(200);
+		expect(api.setView).toHaveBeenCalledTimes(2);
 	});
 });

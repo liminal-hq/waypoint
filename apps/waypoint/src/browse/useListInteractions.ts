@@ -12,6 +12,9 @@ import { findByPrefix, TypeAheadBuffer } from './typeAhead';
 
 export type OpenHandler = (entry: Entry, handle: ListingHandle) => void;
 
+/** Opens an entry beside the current tab, or in a new window when `inNewWindow` (Ctrl held). */
+export type OpenInNewHandler = (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
+
 /** A request for a context menu: on an entry, or (for the host to decide) on empty space. */
 export type MenuRequest =
 	| {

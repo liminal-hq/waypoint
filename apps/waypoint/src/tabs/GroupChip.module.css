@@ -1,0 +1,140 @@
+.wrap {
+	position: relative;
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	height: 30px;
+	padding-bottom: 2px;
+	--wp-group-accent: var(--wp-text-secondary);
+}
+
+.wrap[data-colour='red'] {
+	--wp-group-accent: var(--wp-tab-colour-red);
+}
+
+.wrap[data-colour='orange'] {
+	--wp-group-accent: var(--wp-tab-colour-orange);
+}
+
+.wrap[data-colour='yellow'] {
+	--wp-group-accent: var(--wp-tab-colour-yellow);
+}
+
+.wrap[data-colour='green'] {
+	--wp-group-accent: var(--wp-tab-colour-green);
+}
+
+.wrap[data-colour='teal'] {
+	--wp-group-accent: var(--wp-tab-colour-teal);
+}
+
+.wrap[data-colour='blue'] {
+	--wp-group-accent: var(--wp-tab-colour-blue);
+}
+
+.wrap[data-colour='purple'] {
+	--wp-group-accent: var(--wp-tab-colour-purple);
+}
+
+.wrap[data-colour='pink'] {
+	--wp-group-accent: var(--wp-tab-colour-pink);
+}
+
+.wrap[data-colour='grey'] {
+	--wp-group-accent: var(--wp-tab-colour-grey);
+}
+
+/* A pinned group's chip sticks with the pinned tabs, at the same stride. */
+.wrap[data-pinned] {
+	position: sticky;
+	left: calc(var(--wp-pin-index) * 38px);
+	z-index: 1;
+	width: 36px;
+	justify-content: center;
+	background: var(--wp-bg-window);
+}
+
+.chip,
+.input {
+	box-sizing: border-box;
+	height: 22px;
+	border: 1px solid var(--wp-group-accent);
+	border-radius: 11px;
+	background: color-mix(in srgb, var(--wp-group-accent) 22%, var(--wp-bg-window));
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	max-width: 160px;
+	padding: 0 9px 0 7px;
+	cursor: default;
+	user-select: none;
+}
+
+.chip:hover {
+	background: color-mix(in srgb, var(--wp-group-accent) 34%, var(--wp-bg-window));
+}
+
+.chip:focus-visible,
+.input:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+/* A collapsed group that holds the active tab says so with a filled dot. */
+.chip[data-active-inside] .dot {
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--wp-group-accent) 45%, transparent);
+}
+
+.wrap[data-over-limit] .chip {
+	outline: 2px solid var(--wp-warning);
+	outline-offset: 1px;
+}
+
+.wrap[data-pinned] .chip {
+	padding: 0 6px;
+}
+
+.dot {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--wp-group-accent);
+}
+
+.pin {
+	flex: none;
+	color: var(--wp-text-secondary);
+}
+
+.name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.count {
+	flex: none;
+	font-size: 12px;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+
+.wrap[data-over-limit] .count {
+	color: var(--wp-warning);
+	font-weight: 700;
+}
+
+.input {
+	min-width: 60px;
+	max-width: 180px;
+	padding: 0 8px;
+	user-select: text;
+}

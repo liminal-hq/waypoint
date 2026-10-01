@@ -10,7 +10,7 @@ describe('the sidebar store', () => {
 	it('starts open, every section open, nothing expanded', () => {
 		const state = createSidebarStore().getState();
 		expect(state.open).toBe(true);
-		expect(state.collapsed).toEqual({ places: false, favourites: false });
+		expect(state.collapsed).toEqual({ places: false, favourites: false, workspaces: false });
 		expect(state.expanded.size).toBe(0);
 	});
 
@@ -19,7 +19,11 @@ describe('the sidebar store', () => {
 		store.getState().toggleOpen();
 		store.getState().toggleSection('favourites');
 		expect(store.getState().open).toBe(false);
-		expect(store.getState().collapsed).toEqual({ places: false, favourites: true });
+		expect(store.getState().collapsed).toEqual({
+			places: false,
+			favourites: true,
+			workspaces: false,
+		});
 		store.getState().toggleSection('favourites');
 		expect(store.getState().collapsed.favourites).toBe(false);
 	});

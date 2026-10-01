@@ -1,0 +1,7 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "tear-off",
+	"description": "Lets the main windows drag tabs out through the tear-off plugin (start and end a drag, register drop regions) and lets the ghost window read the drag's payload.",
+	"windows": ["main-*", "tear-ghost"],
+	"permissions": ["window-tearoff:default"]
+}

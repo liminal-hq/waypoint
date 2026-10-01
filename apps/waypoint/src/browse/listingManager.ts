@@ -1,4 +1,4 @@
-// Owns one listing per tab: opens the active tab's folder, closes it when the tab leaves it or closes
+// Owns one listing per tab: opens the folder of every tab on screen, closes it when the tab leaves it or closes
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -8,7 +8,9 @@ import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { OpenOptions, VfsClient } from '../services/vfsClient';
 import { openListingModel, toVfsError } from './listingModel';
+import { applyHints } from './tabHints';
 import { createListingSession, type SessionState } from './useListingSession';
+import type { ViewMode } from './viewStore';
 
 /** How long a tab can be in the background before it drops the pages it has cached. */
 export const BACKGROUND_EVICT_DELAY_MS = 15_000;
@@ -17,6 +19,8 @@ export interface ListingManagerOptions {
 	/** What a newly opened listing starts with; `inherited` is the sort of the listing it replaces (used as is when omitted). */
 	openOptions?: (inherited: SortSpec | undefined) => OpenOptions;
 	evictDelayMs?: number;
+	/** The layout in use, which decides which scroll offset a restored tab's hint belongs to. */
+	viewMode?: () => ViewMode;
 }
 
 interface Slot {
@@ -24,7 +28,7 @@ interface Slot {
 	state: SessionState;
 	evictTimer: ReturnType<typeof setTimeout> | null;
 	evicted: boolean;
-	/** Set while the tab is not the active one, so a listing that finishes opening in the background still evicts. */
+	/** Set while the tab is not on screen, so a listing that finishes opening in the background still evicts. */
 	background: boolean;
 	/** The hidden-files choice last sent to this listing, which its confirmed filter may not reflect yet. */
 	requestedHidden?: boolean;
@@ -32,7 +36,7 @@ interface Slot {
 
 /**
  * A listing is a handle in Rust and memory in the webview, so it lives only as long as a tab needs
- * it (A9, A20). The active tab's listing opens when the tab shows a folder and closes when the tab
+ * it (A9, A20). The listing of every tab on screen (the active tab, or all panes of its pair) opens when the tab shows a folder and closes when the tab
  * navigates elsewhere or closes. A background tab keeps its listing for a short while, then drops
  * its cached pages down to the ones it last showed (stale, so they still paint on return while
  * fresh ones load) and, on a location change made while hidden, closes it outright.
@@ -43,6 +47,8 @@ export class ListingManager {
 	private slots = new Map<TabId, Slot>();
 	private listeners = new Set<() => void>();
 	private version = 0;
+	/** Tabs whose hints (restored scroll and focus) have been applied: they apply once, to the first listing. */
+	private hinted = new Set<TabId>();
 	/** The latest hidden-files choice, applied to listings that become ready after it was made. */
 	private wantedHidden: boolean | null = null;
 
@@ -65,15 +71,21 @@ export class ListingManager {
 		return this.slots.get(tab)?.state;
 	}
 
-	/** Brings the open listings in line with the tabs and which one is active. */
-	sync(tabs: readonly TabSnapshot[], active: TabId | null): void {
+	/**
+	 * Brings the open listings in line with the tabs and the ones on screen: the active tab, or
+	 * every pane of the active tab's pair. Each visible tab has a live listing of its own.
+	 */
+	sync(tabs: readonly TabSnapshot[], visible: ReadonlySet<TabId>): void {
 		const live = new Set(tabs.map((tab) => tab.id));
 		for (const id of [...this.slots.keys()]) {
 			if (!live.has(id)) this.release(id);
 		}
+		for (const id of [...this.hinted]) {
+			if (!live.has(id)) this.hinted.delete(id);
+		}
 		for (const tab of tabs) {
 			const slot = this.slots.get(tab.id);
-			if (tab.id === active) {
+			if (visible.has(tab.id)) {
 				this.stopEvicting(slot);
 				if (slot) slot.background = false;
 				if (!slot || slot.uri !== tab.location.uri) this.open(tab);
@@ -116,7 +128,11 @@ export class ListingManager {
 		const previous = this.slots.get(tab.id);
 		const inherited =
 			previous?.state.status === 'ready' ? previous.state.session.model.sort : undefined;
-		if (previous) this.release(tab.id);
+		if (previous) {
+			this.release(tab.id);
+			// The tab moved on from the listing its hints described.
+			this.hinted.add(tab.id);
+		}
 
 		const slot: Slot = {
 			uri: tab.location.uri,
@@ -137,7 +153,12 @@ export class ListingManager {
 					model.dispose();
 					return;
 				}
-				slot.state = { status: 'ready', session: createListingSession(model) };
+				const session = createListingSession(model);
+				slot.state = { status: 'ready', session };
+				if (!this.hinted.has(tab.id)) {
+					this.hinted.add(tab.id);
+					applyHints(session, tab.hints, this.options.viewMode?.() ?? 'list');
+				}
 				if (slot.background) this.scheduleEviction(slot);
 				// A toggle made while this listing was opening has not reached it yet.
 				this.applyHidden(slot);

@@ -22,6 +22,17 @@
 	--wp-warning: #a16207;
 	--wp-focus-ring: #2563eb;
 
+	/* Tab and group colour labels (the TabColour wire type). Each is at least 3:1 against the window background. */
+	--wp-tab-colour-red: #dc2626;
+	--wp-tab-colour-orange: #c2410c;
+	--wp-tab-colour-yellow: #a16207;
+	--wp-tab-colour-green: #15803d;
+	--wp-tab-colour-teal: #0f766e;
+	--wp-tab-colour-blue: #2563eb;
+	--wp-tab-colour-purple: #7c3aed;
+	--wp-tab-colour-pink: #db2777;
+	--wp-tab-colour-grey: #6b7280;
+
 	/* Window chrome (packages/chrome). Derived from the palette so they follow the scheme. */
 	--wp-bg-chrome: var(--wp-bg-raised);
 	--wp-control-bg: color-mix(in srgb, var(--wp-text-primary) 6%, transparent);
@@ -29,6 +40,21 @@
 	--wp-title-bar-height: 40px;
 	--wp-title-bar-opacity: 1;
 	--wp-window-radius: 12px;
+
+	/* Tab drag motion (D82): slides, rings and brackets last this long, and the split hold draws over its own. */
+	--wp-drag-motion: 140ms;
+	--wp-drag-hold-split: 450ms;
+
+	/* Split regions of the file area while a tab is dragged over it: dashed outlines, the one hovered, and the pane it would open. */
+	--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 55%, transparent);
+	--wp-split-zone-outline-active: var(--wp-accent);
+	--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 16%, transparent);
+	--wp-split-zone-label: var(--wp-text-secondary);
+	--wp-split-zone-label-active: var(--wp-accent);
+
+	/* The tab strip while tabs dragged from another window are over it: a faint wash and an outline, with the accent line at the slot. */
+	--wp-merge-landing-fill: color-mix(in srgb, var(--wp-accent) 8%, transparent);
+	--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 45%, transparent);
 
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
 	--wp-row-height: 28px;
@@ -53,6 +79,20 @@
 		--wp-success: #4ade80;
 		--wp-warning: #facc15;
 		--wp-focus-ring: #60a5fa;
+		--wp-tab-colour-red: #f87171;
+		--wp-tab-colour-orange: #fb923c;
+		--wp-tab-colour-yellow: #facc15;
+		--wp-tab-colour-green: #4ade80;
+		--wp-tab-colour-teal: #2dd4bf;
+		--wp-tab-colour-blue: #60a5fa;
+		--wp-tab-colour-purple: #a78bfa;
+		--wp-tab-colour-pink: #f472b6;
+		--wp-tab-colour-grey: #9ca3af;
+		--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 60%, transparent);
+		--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
+		--wp-split-zone-label: var(--wp-text-primary);
+		--wp-merge-landing-fill: color-mix(in srgb, var(--wp-accent) 14%, transparent);
+		--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 55%, transparent);
 	}
 }
 
@@ -78,6 +118,18 @@
 	--wp-success: #4ade80;
 	--wp-warning: #facc15;
 	--wp-focus-ring: #60a5fa;
+	--wp-tab-colour-red: #f87171;
+	--wp-tab-colour-orange: #fb923c;
+	--wp-tab-colour-yellow: #facc15;
+	--wp-tab-colour-green: #4ade80;
+	--wp-tab-colour-teal: #2dd4bf;
+	--wp-tab-colour-blue: #60a5fa;
+	--wp-tab-colour-purple: #a78bfa;
+	--wp-tab-colour-pink: #f472b6;
+	--wp-tab-colour-grey: #9ca3af;
+	--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 60%, transparent);
+	--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
+	--wp-split-zone-label: var(--wp-text-primary);
 }
 
 /*
@@ -131,4 +183,10 @@ select,
 [data-selectable] {
 	-webkit-user-select: text;
 	user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--wp-drag-motion: 0ms;
+	}
 }

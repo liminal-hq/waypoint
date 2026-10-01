@@ -5,16 +5,62 @@
 
 import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
+import type { ReactNode } from 'react';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
+import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
+import { FolderTabIcon } from '../icons/AppIcons';
+import { ArrowDownIcon, ClockIcon, EyeIcon, SizeIcon, TagIcon, TextIcon } from '../icons/MenuIcons';
 import { t, type MessageId } from '../i18n/messages';
 import type { ListingSession } from './useListingSession';
 
-const SORT_KEYS: Array<{ key: SortKey; label: MessageId }> = [
-	{ key: 'name', label: 'menu.sort.name' },
-	{ key: 'size', label: 'menu.sort.size' },
-	{ key: 'modified', label: 'menu.sort.modified' },
-	{ key: 'kind', label: 'menu.sort.kind' },
+const SORT_KEYS: Array<{ key: SortKey; label: MessageId; icon: ReactNode }> = [
+	{ key: 'name', label: 'menu.sort.name', icon: <TextIcon /> },
+	{ key: 'size', label: 'menu.sort.size', icon: <SizeIcon /> },
+	{ key: 'modified', label: 'menu.sort.modified', icon: <ClockIcon /> },
+	{ key: 'kind', label: 'menu.sort.kind', icon: <TagIcon /> },
 ];
+
+/** The empty-space menu's items: sort (when a listing is open) and the hidden-files toggle. */
+export function backgroundMenuItems(sort: SortSpec | undefined, showHidden: boolean): MenuItem[] {
+	return [
+		...(sort
+			? ([
+					{ type: 'section', label: t('menu.sortBy') },
+					...SORT_KEYS.map(({ key, label, icon }): MenuItem => ({
+						type: 'checkbox',
+						id: `sort:${key}`,
+						label: t(label),
+						icon,
+						checked: sort.key === key,
+					})),
+					{ type: 'separator' },
+					{
+						type: 'checkbox',
+						id: 'descending',
+						label: t('menu.sort.descending'),
+						icon: <ArrowDownIcon />,
+						checked: sort.descending,
+					},
+					{
+						type: 'checkbox',
+						id: 'foldersFirst',
+						label: t('menu.sort.foldersFirst'),
+						icon: <FolderTabIcon />,
+						checked: sort.directoriesFirst,
+					},
+					{ type: 'separator' },
+				] as MenuItem[])
+			: []),
+		{
+			type: 'checkbox',
+			id: 'showHidden',
+			label: t('menu.showHidden'),
+			icon: <EyeIcon />,
+			checked: showHidden,
+			shortcut: 'Ctrl+H',
+		},
+	];
+}
 
 interface BackgroundContextMenuProps {
 	session: ListingSession | null;
@@ -38,41 +84,7 @@ export function BackgroundContextMenu({
 	onToggleHidden,
 	onClose,
 }: BackgroundContextMenuProps) {
-	const sort = session?.model.sort;
-	const items: MenuItem[] = [
-		...(sort
-			? ([
-					{ type: 'section', label: t('menu.sortBy') },
-					...SORT_KEYS.map(({ key, label }): MenuItem => ({
-						type: 'checkbox',
-						id: `sort:${key}`,
-						label: t(label),
-						checked: sort.key === key,
-					})),
-					{ type: 'separator' },
-					{
-						type: 'checkbox',
-						id: 'descending',
-						label: t('menu.sort.descending'),
-						checked: sort.descending,
-					},
-					{
-						type: 'checkbox',
-						id: 'foldersFirst',
-						label: t('menu.sort.foldersFirst'),
-						checked: sort.directoriesFirst,
-					},
-					{ type: 'separator' },
-				] as MenuItem[])
-			: []),
-		{
-			type: 'checkbox',
-			id: 'showHidden',
-			label: t('menu.showHidden'),
-			checked: showHidden,
-			shortcut: 'Ctrl+H',
-		},
-	];
+	const items = backgroundMenuItems(session?.model.sort, showHidden);
 
 	return (
 		<ContextMenu

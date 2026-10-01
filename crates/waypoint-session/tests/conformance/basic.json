@@ -1,0 +1,82 @@
+{
+	"description": "Tabs in one window: open, activate, MRU, neighbour fallback, history, move and pin. The Rust store and the TypeScript FakeTabsApi must both satisfy every step.",
+	"steps": [
+		{
+			"do": { "op": "open", "location": "/a", "activate": true },
+			"expect": { "tabs": [1], "active": 1, "locations": ["/a"] }
+		},
+		{
+			"do": { "op": "open", "location": "/b", "activate": false },
+			"expect": { "tabs": [1, 2], "active": 1, "locations": ["/a", "/b"] }
+		},
+		{
+			"do": { "op": "open", "location": "/c", "after": 1, "activate": true },
+			"expect": { "tabs": [1, 3, 2], "active": 3, "locations": ["/a", "/c", "/b"] }
+		},
+		{ "do": { "op": "activate", "tab": 2 }, "expect": { "tabs": [1, 3, 2], "active": 2 } },
+		{
+			"do": { "op": "close", "tab": 2 },
+			"note": "mru is empty after the close, so the neighbour rule picks the tab before it",
+			"expect": { "tabs": [1, 3], "active": 3 }
+		},
+		{
+			"do": { "op": "navigate", "tab": 3, "location": "/c/x" },
+			"expect": {
+				"locations": ["/a", "/c/x"],
+				"history": { "3": { "back": ["/c"], "forward": [] } }
+			}
+		},
+		{
+			"do": { "op": "navigate", "tab": 3, "location": "/c/x/y" },
+			"expect": { "history": { "3": { "back": ["/c", "/c/x"], "forward": [] } } }
+		},
+		{
+			"do": { "op": "back", "tab": 3 },
+			"expect": {
+				"locations": ["/a", "/c/x"],
+				"history": { "3": { "back": ["/c"], "forward": ["/c/x/y"] } }
+			}
+		},
+		{
+			"do": { "op": "forward", "tab": 3 },
+			"expect": {
+				"locations": ["/a", "/c/x/y"],
+				"history": { "3": { "back": ["/c", "/c/x"], "forward": [] } }
+			}
+		},
+		{
+			"do": { "op": "activate", "tab": 3 },
+			"note": "activating the active tab changes nothing",
+			"expect": { "tabs": [1, 3], "active": 3 }
+		},
+		{
+			"do": { "op": "open", "location": "/d", "activate": false },
+			"expect": { "tabs": [1, 3, 4], "active": 3 }
+		},
+		{ "do": { "op": "activate", "tab": 4 }, "expect": { "active": 4 } },
+		{ "do": { "op": "activate", "tab": 1 }, "expect": { "active": 1 } },
+		{ "do": { "op": "activate", "tab": 3 }, "expect": { "active": 3 } },
+		{
+			"do": { "op": "close", "tab": 3 },
+			"note": "mru is [1, 4]: the most recently used tab wins over the neighbour (which would be 4)",
+			"expect": { "tabs": [1, 4], "active": 1 }
+		},
+		{ "do": { "op": "move", "tab": 4, "index": 0 }, "expect": { "tabs": [4, 1], "active": 1 } },
+		{
+			"do": { "op": "move", "tab": 4, "index": 99 },
+			"note": "an index past the end clamps to the last position",
+			"expect": { "tabs": [1, 4] }
+		},
+		{
+			"do": { "op": "pin", "tab": 4, "pinned": true },
+			"note": "pinned tabs come first",
+			"expect": { "tabs": [4, 1], "pinned": [4], "active": 1 }
+		},
+		{
+			"do": { "op": "close", "tab": 99 },
+			"note": "an unknown tab is an error and changes nothing",
+			"error": true,
+			"expect": { "tabs": [4, 1], "active": 1 }
+		}
+	]
+}

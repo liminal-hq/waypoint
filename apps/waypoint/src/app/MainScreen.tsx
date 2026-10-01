@@ -4,12 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { getHome } from '@liminal-hq/waypoint-plugin-vfs';
+import { invoke } from '@tauri-apps/api/core';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { tabsApi } from '../services/tabsApi';
 import { createTauriPlacesClient } from '../services/tauriPlacesClient';
+import { createTauriTearoffClient } from '../services/tauriTearoffClient';
+import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
 import { TabsProvider } from '../tabs/TabsContext';
@@ -40,8 +44,11 @@ function start(): Promise<MainServices> {
 	return startMainServices({
 		getHome,
 		tabsApi,
+		getRestoreNotice: () => invoke<string | null>('take_restore_notice'),
 		createClient: createTauriVfsClient,
 		createPlacesClient: createTauriPlacesClient,
+		createTearoffClient: createTauriTearoffClient,
+		createTimeFormatClient: createTauriTimeFormatClient,
 	});
 }
 
@@ -79,19 +86,24 @@ export function MainScreen() {
 			) : startup.state === 'ready' ? (
 				<VfsClientProvider client={startup.services.client}>
 					<PlacesClientProvider client={startup.services.placesClient}>
-						<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
-							<main className={styles.content}>
-								{DevLiveControls && startup.services.demo && (
-									<Suspense fallback={null}>
-										<DevLiveControls
-											client={startup.services.demo.client}
-											location={startup.services.home}
-										/>
-									</Suspense>
-								)}
-								<Workspace />
-							</main>
-						</TabsProvider>
+						<TimeFormatProvider client={startup.services.timeFormat}>
+							<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
+								<main className={styles.content}>
+									{DevLiveControls && startup.services.demo && (
+										<Suspense fallback={null}>
+											<DevLiveControls
+												client={startup.services.demo.client}
+												location={startup.services.home}
+											/>
+										</Suspense>
+									)}
+									<Workspace
+										startup={{ view: startup.services.view, notice: startup.services.notice }}
+										tearoff={startup.services.tearoff}
+									/>
+								</main>
+							</TabsProvider>
+						</TimeFormatProvider>
 					</PlacesClientProvider>
 				</VfsClientProvider>
 			) : null}

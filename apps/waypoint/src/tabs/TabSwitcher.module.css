@@ -1,0 +1,58 @@
+.overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--wp-z-menu);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+}
+
+.list {
+	box-sizing: border-box;
+	min-width: 240px;
+	max-width: min(480px, calc(100vw - 32px));
+	max-height: calc(100vh - 64px);
+	margin: 0;
+	padding: 4px;
+	overflow: hidden;
+	list-style: none;
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-primary);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	box-shadow: var(--wp-shadow-menu);
+	font-size: 13px;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 28px;
+	padding: 0 8px;
+	border-radius: 6px;
+}
+
+/* The candidate is marked by fill and by weight, not by colour alone. */
+.row[data-candidate] {
+	background: var(--wp-accent);
+	color: var(--wp-accent-contrast);
+	font-weight: 600;
+}
+
+.icon {
+	flex: none;
+}
+
+.title {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pin {
+	flex: none;
+}

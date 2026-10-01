@@ -23,6 +23,8 @@ Source: `ScottMorris/liminal-notes` (Editor ContextMenu) and `liminal-hq/jar` (C
 
 - Item types: action, checkbox, submenu, separator, section label, danger.
 - Anatomy: a 16 px icon, a label, a right-aligned shortcut in a muted monospace font, and a submenu chevron.
+- Icons: every action, checkbox and submenu item has an icon, so labels line up and the menu reads the same everywhere. Colour items show their swatch, and a checked checkbox shows the check mark in place of its icon. Icons are `aria-hidden` (the label always carries the meaning) and take the secondary text colour, or the row's own colour when it is highlighted or a danger item.
+- Where icons live: chrome menus use `packages/chrome/src/icons/icons.tsx`; the app's menus use `apps/waypoint/src/icons/MenuIcons.tsx` (and `AppIcons.tsx`). The item-to-icon mapping sits in each menu's item builder, and each builder's test calls `expectEveryItemHasIcon` (`@liminal-hq/waypoint-chrome/ContextMenu/expectEveryItemHasIcon`), which walks nested submenus, so a new item cannot ship without one.
 - Behaviour: positioned to stay in the viewport, arrow keys, Enter and Esc work, typing a letter jumps to an item, submenus open on hover after 150 ms.
 - Styling: a raised surface, a subtle border, a 8 px radius, 4 px padding, rows 28 px high and 6 px row radius, accent hover.
 

@@ -5,9 +5,9 @@
 
 import type { ReactNode, SVGProps } from 'react';
 
-type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
+export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
 
-function Glyph({ children, ...rest }: IconProps & { children: ReactNode }) {
+export function Glyph({ children, ...rest }: IconProps & { children: ReactNode }) {
 	return (
 		<svg
 			width={16}
@@ -106,5 +106,11 @@ export const SidebarIcon = (props: IconProps) => (
 export const StarIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.2 4.4 13.1l.7-4L2.2 6.3l4-.6z" />
+	</Glyph>
+);
+
+export const PinIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M9.5 2.5l4 4-2 .8-2.2 2.2.4 2.6-1 1L5.5 9.5 2.5 13.5M6.5 5.5l-1 1 4 4" />
 	</Glyph>
 );

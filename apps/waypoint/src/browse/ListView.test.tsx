@@ -10,7 +10,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { VfsClient } from '../services/vfsClient';
 import { clientWith, FOLDER, hugeClient, stubLayout, withOverrides } from '../test/browseHarness';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ListView } from './ListView';
+import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
+import { TimeFormatProvider } from './TimeFormatContext';
 import { VfsClientProvider } from './VfsClientContext';
 
 let restoreLayout: () => void;
@@ -113,6 +117,28 @@ describe('listing', () => {
 		expect(docs).toHaveTextContent('—');
 		expect(docs.querySelector('svg[data-group="folder"]')).not.toBeNull();
 		expect(photo.querySelector('svg[data-group="image"]')).not.toBeNull();
+	});
+
+	it('shows the modified time on the 24-hour clock the system is set to, and follows a change', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(FOLDER, [
+			makeEntry(1, 'photo.jpg', { size: 10, modifiedMs: new Date(2026, 9, 1, 13, 5).getTime() }),
+		]);
+		const timeFormat = new FakeTimeFormatClient('h23');
+		render(
+			<VfsClientProvider client={client}>
+				<TimeFormatProvider client={timeFormat}>
+					<ListView location={FOLDER} />
+				</TimeFormatProvider>
+			</VfsClientProvider>,
+		);
+		const photo = await screen.findByRole('option', { name: /photo\.jpg/ });
+		await waitFor(() => expect(photo).toHaveTextContent('13:05'));
+		act(() => timeFormat.set('h12'));
+		await waitFor(() => expect(photo).not.toHaveTextContent('13:05'));
+		expect(photo).toHaveTextContent(/\b1:05/);
+		act(() => timeFormat.set('h23'));
+		await waitFor(() => expect(photo).toHaveTextContent('13:05'));
 	});
 
 	it('measures the row height once the scroller appears after an empty first render', async () => {
@@ -282,6 +308,43 @@ describe('sort header', () => {
 		await screen.findByRole('listbox');
 		for (const column of ['Name', 'Size', 'Modified', 'Kind']) {
 			expect(screen.getByRole('button', { name: new RegExp(`^${column}`) })).toBeVisible();
+		}
+	});
+});
+
+describe('narrow views', () => {
+	it('names every cell by its column, so a narrow view can drop the trailing ones and keep Name', async () => {
+		const { client } = clientWith(3);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		const row = list.querySelector('[role=option]')!;
+		expect(
+			[...row.querySelectorAll('[data-column]')].map((cell) => cell.getAttribute('data-column')),
+		).toEqual(['size', 'modified', 'kind']);
+		expect(
+			[...screen.getAllByRole('button', { name: /^(Name|Size|Modified|Kind)/ })].map((button) =>
+				button.getAttribute('data-column'),
+			),
+		).toEqual(['name', 'size', 'modified', 'kind']);
+	});
+
+	it('keeps Name a readable minimum and drops Kind, Modified and Size as the view narrows', () => {
+		// jsdom lays nothing out, so the stylesheet's rules are checked as written.
+		const css = readFileSync(resolve(process.cwd(), 'src/browse/ListView.module.css'), 'utf8');
+		expect(css).toContain('container-type: inline-size');
+		expect(css).toMatch(/--wp-name-min:\s*120px/);
+		expect(css).toMatch(
+			/grid-template-columns:\s*minmax\(var\(--wp-name-min\), 1fr\) 88px 168px 96px/,
+		);
+		for (const [width, column] of [
+			['571', 'kind'],
+			['463', 'modified'],
+			['283', 'size'],
+		] as const) {
+			const rule = new RegExp(
+				`@container list \\(max-width: ${width}px\\)[^]*?\\[data-column='${column}'\\]\\s*\\{\\s*display: none`,
+			);
+			expect(css, `${column} hides at ${width}px`).toMatch(rule);
 		}
 	});
 });

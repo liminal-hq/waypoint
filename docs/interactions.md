@@ -19,30 +19,33 @@
 
 ## 2. Keyboard (default "Waypoint" preset)
 
-| Keys                      | Action                                   |
-| ------------------------- | ---------------------------------------- |
-| Ctrl+T / Ctrl+W           | New tab / close tab                      |
-| Ctrl+Shift+T              | Reopen closed tab                        |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used) |
-| Alt+1…9                   | Go to tab                                |
-| Ctrl+Shift+N              | New window                               |
-| Ctrl+K or Ctrl+Shift+P    | Command palette                          |
-| Ctrl+L                    | Edit path                                |
-| Ctrl+F                    | Search · `/` inline filter               |
-| F2                        | Rename · Ctrl+F2 batch rename            |
-| F3                        | Toggle split                             |
-| F4                        | Terminal drawer                          |
-| F5 / Shift+F5             | Copy / move to the other pane            |
-| F6                        | Switch the active pane                   |
-| F9                        | Sidebar · F11 inspector                  |
-| Space                     | Quick Look                               |
-| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                              |
-| Ctrl+H                    | Hidden files                             |
-| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage |
-| Ctrl+D                    | Bookmark                                 |
-| Ctrl+B                    | Toggle the Shelf                         |
-| Delete / Shift+Delete     | Trash / delete permanently               |
-| Alt+Enter                 | Properties                               |
+| Keys                      | Action                                                    |
+| ------------------------- | --------------------------------------------------------- |
+| Ctrl+T / Ctrl+W           | New tab / close tab                                       |
+| Ctrl+Shift+T              | Reopen closed tab                                         |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                  |
+| Alt+1…9                   | Go to tab                                                 |
+| Ctrl+Shift+N              | New window (one tab at Home)                              |
+| Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸) |
+| Ctrl+K or Ctrl+Shift+P    | Command palette                                           |
+| Ctrl+L                    | Edit path                                                 |
+| Ctrl+F                    | Search · `/` inline filter                                |
+| F2                        | Rename · Ctrl+F2 batch rename                             |
+| F3                        | Toggle split                                              |
+| F4                        | Terminal drawer                                           |
+| F5 / Shift+F5             | Copy / move to the other pane                             |
+| F6                        | Switch the active pane                                    |
+| F9                        | Sidebar · F11 inspector                                   |
+| Space                     | Quick Look                                                |
+| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                               |
+| Ctrl+H                    | Hidden files                                              |
+| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage                  |
+| Ctrl+D                    | Bookmark                                                  |
+| Ctrl+B                    | Toggle the Shelf                                          |
+| Delete / Shift+Delete     | Trash / delete permanently                                |
+| Alt+Enter                 | Properties                                                |
+
+Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highlight down the most-recently-used list (the active tab first), Shift+Tab moves it up, and releasing Ctrl activates the highlighted tab once, so the tabs passed on the way do not enter the MRU list. Escape cancels. Menu key or Shift+F10 on a focused tab, or on the + button, opens its menu; pressing and holding the + button opens its menu too. Delete or Ctrl+W close a pinned tab; a middle-click does not.
 
 ### Vim mode (optional)
 
@@ -88,7 +91,10 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 > Native window implementation for Tauri: see `tauri-tear-off.md`.
 
-- Drag a tab within the strip to reorder it. Drag it out more than 24 px vertically to tear it off; a ghost window follows the cursor.
+- Drag a tab within the strip to reorder it. A drag starts after 4 px of movement. Drag it out of the window to tear it off (the pointer leaves the client area); a ghost window follows the cursor (where the platform allows it). Inside the window nothing tears off: the file area's four split regions win over it, and the strip, toolbar, sidebar and status bar are reorder.
+- One pill follows the pointer with “Esc to cancel” and is announced as “Drag: release to …”. Final texts: “Release to move {tab} to position {n} of {count}”, “Release to move group {name}”, “Release to split with {tab}”, “Release to start a new group”, “Release to add to {group}”, “Release to leave {group}”, “Split left with the current view” (or right, top, bottom), “Release to separate the split”. The new-window phase shows no pill until tear-off arrives.
+- Thresholds (`tabs/dragTiming.ts`): 4 px to start, out of the window for the new-window phase (no pixel threshold), 450 ms hold over the middle half of a tab to split, 800 ms rest in a slot to group (a move of more than 6 px restarts either hold), 140 ms of motion (0 under Reduce motion). The file area's split regions are its left and right thirds and the upper and lower halves of the centre column, measured once when the drag starts, with 6 px of slack to stop the borders flickering. The new pane's half is tinted; the active tab may be dragged to them (it splits itself, as F3 does), and they are offered only while neither tab is in a pair.
+- Priority on each move: the new-window phase (only when the pointer has left the window), the file area's split regions, a group chip under the pointer, a tab body under the pointer (split hold), then the slot (reorder, leave, or the rest-to-group hold).
 - Dropping a tab onto another window's strip merges it there. Dropping it onto a group chip joins the group.
 - Dropping files onto a tab springs it open. Dropping onto the "+" opens a new tab at the dropped folder.
 
@@ -124,17 +130,22 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Click                    | Group label                    | Collapse or expand                                                                                                                         |
 | Double-click             | Group label                    | Rename in place                                                                                                                            |
 | Right-click              | Group label                    | Group menu (see SPEC §5.2)                                                                                                                 |
-| Drag                     | Group label                    | Move the group along the strip; out of the window or onto the New-window zones tears it off                                                |
+| Enter, Space             | Focused group label            | Collapse or expand                                                                                                                         |
+| F2                       | Focused group label            | Rename in place (Enter commits, Esc cancels, an empty name keeps the old one)                                                              |
+| Menu key, Shift+F10      | Focused group label            | Group menu                                                                                                                                 |
+| Ctrl+Shift+Left or Right | Focused group label            | Move the whole group one place along the strip                                                                                             |
+| Drag                     | Group label                    | Move the group along the strip; out of the window tears it off                                                                             |
 | Drag tab onto            | Group label                    | Add the tab (and its pair) to the group                                                                                                    |
 | Drag tab out             | Beyond the group's span        | Remove it from the group                                                                                                                   |
 | Drag folder onto         | Group label                    | Open it as a new tab in the group                                                                                                          |
-| Hold tab over            | Middle of another tab (0.45 s) | Split with it (joined pair)                                                                                                                |
+| Hold tab over            | Middle of another tab (450 ms) | Split with it (joined pair)                                                                                                                |
 | Drag tab to              | Content edge                   | Split left, right, top or bottom                                                                                                           |
 | Drag                     | Pair joint                     | Move both; out of the window tears off both                                                                                                |
 | Double-click             | Pair joint                     | Reset pane sizes                                                                                                                           |
 | Right-click              | Pair joint                     | Separate, Swap Panes, Layout, Reset Sizes, Sync Navigation, Compare Folders, Pin, Colour, Group, Duplicate, Move to New Window, Close Both |
-| F3                       | Anywhere                       | Split with a new tab, or separate if already split                                                                                         |
-| F6                       | Split                          | Move focus to the next pane                                                                                                                |
+| F3                       | Anywhere                       | Split with a new tab (focused); on a toggled split closes the pane it made (Undo toast), on a joined pair separates                        |
+| F6, Shift+F6             | Split                          | Move focus to the next, or previous, pane                                                                                                  |
+| Arrow keys, Enter        | Pane divider (focused)         | Move it 2% (10% with Shift) along its axis; Enter resets to equal sizes                                                                    |
 | Alt+Enter                | Selection or current folder    | Floating Properties window                                                                                                                 |
 | Right-click → Properties | Item or empty space            | Inspector on the Properties tab                                                                                                            |
 

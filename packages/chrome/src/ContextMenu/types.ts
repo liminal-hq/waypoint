@@ -17,6 +17,8 @@ interface LabelledMenuItem {
 	icon?: ReactNode;
 	shortcut?: string;
 	disabled?: boolean;
+	/** A native tooltip on the row, for saying why it is disabled. */
+	title?: string;
 }
 
 export interface ActionMenuItem extends LabelledMenuItem {

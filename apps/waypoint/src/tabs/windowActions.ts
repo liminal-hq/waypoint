@@ -1,0 +1,213 @@
+// New windows and the hand-off of tabs between windows: the commands, their notices and announcements
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { MoveWhat } from '@liminal-hq/waypoint-protocol/generated/MoveWhat';
+import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import { useEffect, useMemo } from 'react';
+import { flushHints } from '../browse/tabHints';
+import { t, tf, tn } from '../i18n/messages';
+import { WARN_WINDOWS, windowLimitOf, type TabsApi } from '../services/tabsApi';
+import { announce } from './announcer';
+import { postNotice } from './notices';
+import { useHomeLocation, useTabsApi } from './TabsContext';
+import { locationLabel } from './tabTitle';
+
+/** What a window can do about other windows. Every method settles; a failure becomes a notice. */
+export interface WindowActions {
+	/** Ctrl+Shift+N: a new window with one tab at Home. */
+	newWindow(): Promise<void>;
+	/** Ctrl+middle-click and Open in New Window: a new window with one tab at `location`. */
+	openInNewWindow(location: Location): Promise<void>;
+	/** Hands `tab` to a window of its own. */
+	moveToNewWindow(tab: TabSnapshot): Promise<void>;
+	/** Hands `tab` to the end of another window's strip. */
+	moveToWindow(tab: TabSnapshot, target: WindowSummary): Promise<void>;
+	/**
+	 * Hands `what` (a group or a pair, whose tabs are `tabIds`) to a window of its own, or to the end
+	 * of `target`'s strip. It flushes every tab's hints first and says `say` aloud when it is done.
+	 */
+	moveMany(
+		what: MoveWhat,
+		tabIds: readonly number[],
+		target: WindowSummary | null,
+		say: MoveSpeech,
+	): Promise<void>;
+	/** The other windows of the session, for the Move to Window menu. */
+	otherWindows(): Promise<WindowSummary[]>;
+}
+
+/** What a move says aloud: to a new window, or to the window named by its menu label. */
+export interface MoveSpeech {
+	newWindow: string;
+	toWindow(windowName: string): string;
+}
+
+const tabMove = (tab: TabSnapshot): MoveWhat => ({ kind: 'tabs', value: [tab.id] });
+
+const tabSpeech = (tab: TabSnapshot): MoveSpeech => ({
+	newWindow: t('tabs.announce.movedNewWindow'),
+	toWindow: (window) =>
+		tf('tabs.announce.movedToWindow', { name: locationLabel(tab.location), window }),
+});
+
+/** The title a window goes by in announcements. */
+export function windowName(window: WindowSummary): string {
+	return window.title === '' ? t('tabs.menu.untitledWindow') : window.title;
+}
+
+/** The text a menu shows for a window: its folder and how many tabs it holds. */
+export function windowMenuLabel(window: WindowSummary): string {
+	const title = window.title === '' ? t('tabs.menu.untitledWindow') : window.title;
+	return tf('tabs.menu.windowEntry', {
+		title,
+		tabs: tn('tabs.count', window.tabCount),
+	});
+}
+
+/** Says why a window could not be opened or a tab moved, in the status bar. */
+export function refuse(
+	error: unknown,
+	fallback: 'window.notice.openFailed' | 'window.notice.moveFailed',
+) {
+	const limit = windowLimitOf(error);
+	if (limit !== null) {
+		postNotice(tf('window.notice.limit', { limit }));
+		return;
+	}
+	console.warn('window command failed', error);
+	postNotice(t(fallback));
+}
+
+/**
+ * The window commands over `api`. `flush` sends a tab's scroll and focus to the session before the
+ * tab moves, so the window it arrives in can restore them; it defaults to the view's own reporter.
+ */
+export function createWindowActions(
+	api: TabsApi,
+	home: Location,
+	flush: (tab: number) => Promise<void> = flushHints,
+): WindowActions {
+	// From `WARN_WINDOWS` windows on, say so: each one costs memory.
+	const warnIfMany = async () => {
+		try {
+			if ((await api.listWindows()).length >= WARN_WINDOWS) postNotice(t('window.notice.many'));
+		} catch (error) {
+			console.debug('could not count the windows', error);
+		}
+	};
+	const open = async (location: Location): Promise<boolean> => {
+		try {
+			await api.openWindow(location);
+		} catch (error) {
+			refuse(error, 'window.notice.openFailed');
+			return false;
+		}
+		await warnIfMany();
+		return true;
+	};
+	const moveMany = async (
+		what: MoveWhat,
+		tabIds: readonly number[],
+		target: WindowSummary | null,
+		say: MoveSpeech,
+	): Promise<void> => {
+		try {
+			for (const id of tabIds) await flush(id);
+			await api.moveTabs(
+				what,
+				target
+					? { kind: 'existingWindow', label: target.label, index: target.tabCount }
+					: { kind: 'newWindow', label: null, geometry: null },
+			);
+		} catch (error) {
+			return refuse(error, 'window.notice.moveFailed');
+		}
+		announce(target ? say.toWindow(windowName(target)) : say.newWindow);
+		if (!target) await warnIfMany();
+	};
+	return {
+		newWindow: async () => {
+			if (await open(home)) announce(t('tabs.announce.openedWindow'));
+		},
+		openInNewWindow: async (location) => {
+			await open(location);
+		},
+		moveToNewWindow: (tab) => moveMany(tabMove(tab), [tab.id], null, tabSpeech(tab)),
+		moveToWindow: (tab, target) => moveMany(tabMove(tab), [tab.id], target, tabSpeech(tab)),
+		moveMany,
+		otherWindows: async () => {
+			try {
+				return (await api.listWindows()).filter((window) => !window.active);
+			} catch (error) {
+				console.warn('could not list the windows', error);
+				return [];
+			}
+		},
+	};
+}
+
+export function useWindowActions(): WindowActions {
+	const api = useTabsApi();
+	const home = useHomeLocation();
+	return useMemo(() => createWindowActions(api, home), [api, home]);
+}
+
+/**
+ * The key that opens a new window (Ctrl+Shift+N). Returns whether it took the key.
+ */
+export function handleWindowKey(
+	event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>,
+	actions: Pick<WindowActions, 'newWindow'>,
+): boolean {
+	if (
+		(event.ctrlKey || event.metaKey) &&
+		event.shiftKey &&
+		!event.altKey &&
+		event.key.toLowerCase() === 'n'
+	) {
+		void actions.newWindow();
+		return true;
+	}
+	return false;
+}
+
+/** Ctrl+Shift+N, and the announcement of tabs that other windows hand to this one. */
+export function useWindowShortcuts(): void {
+	const actions = useWindowActions();
+	const api = useTabsApi();
+	useEffect(() => {
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.defaultPrevented || event.isComposing) return;
+			if (handleWindowKey(event, actions)) event.preventDefault();
+		};
+		window.addEventListener('keydown', onKeyDown);
+		return () => window.removeEventListener('keydown', onKeyDown);
+	}, [actions]);
+	useEffect(
+		() =>
+			api.onHandoff(({ tabs }) => {
+				void announceArrival(api, tabs);
+			}),
+		[api],
+	);
+}
+
+/** Says which tabs just arrived from another window (the live region of this window's strip). */
+export async function announceArrival(api: Pick<TabsApi, 'getSnapshot'>, tabs: number[]) {
+	try {
+		const snapshot = await api.getSnapshot();
+		const arrived = snapshot.tabs.filter((tab) => tabs.includes(tab.id));
+		const [only] = arrived;
+		if (arrived.length === 1 && only) {
+			announce(tf('tabs.announce.movedHere', { name: locationLabel(only.location) }));
+		} else if (arrived.length > 1) {
+			announce(tn('tabs.announce.movedManyHere', arrived.length));
+		}
+	} catch (error) {
+		console.debug('could not announce the arriving tabs', error);
+	}
+}

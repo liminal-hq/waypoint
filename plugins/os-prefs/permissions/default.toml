@@ -1,0 +1,8 @@
+[default]
+description = "Default permissions for the os-prefs plugin. Listening to the time-format change event also needs the core event permission (`core:event:default`)."
+permissions = [
+  "allow-get-status",
+  "allow-get-time-format",
+  "allow-get-animator-duration-scale",
+  "allow-open-notification-settings",
+]
