@@ -372,15 +372,17 @@ function ListingBody({
 												<FileIcon group={entry.group} />
 												<span className={styles.nameText}>{entry.name}</span>
 											</span>
-											<span className={styles.cell}>
+											<span className={styles.cell} data-column="size">
 												{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
 											</span>
-											<span className={styles.cell}>
+											<span className={styles.cell} data-column="modified">
 												{entry.modifiedMs === null
 													? t('browse.value.none')
 													: formatModified(entry.modifiedMs)}
 											</span>
-											<span className={styles.cell}>{t(`browse.group.${entry.group}`)}</span>
+											<span className={styles.cell} data-column="kind">
+												{t(`browse.group.${entry.group}`)}
+											</span>
 										</>
 									) : (
 										<>

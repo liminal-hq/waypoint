@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { VfsClient } from '../services/vfsClient';
 import { clientWith, FOLDER, hugeClient, stubLayout, withOverrides } from '../test/browseHarness';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ListView } from './ListView';
 import { VfsClientProvider } from './VfsClientContext';
 
@@ -282,6 +284,43 @@ describe('sort header', () => {
 		await screen.findByRole('listbox');
 		for (const column of ['Name', 'Size', 'Modified', 'Kind']) {
 			expect(screen.getByRole('button', { name: new RegExp(`^${column}`) })).toBeVisible();
+		}
+	});
+});
+
+describe('narrow views', () => {
+	it('names every cell by its column, so a narrow view can drop the trailing ones and keep Name', async () => {
+		const { client } = clientWith(3);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		const row = list.querySelector('[role=option]')!;
+		expect(
+			[...row.querySelectorAll('[data-column]')].map((cell) => cell.getAttribute('data-column')),
+		).toEqual(['size', 'modified', 'kind']);
+		expect(
+			[...screen.getAllByRole('button', { name: /^(Name|Size|Modified|Kind)/ })].map((button) =>
+				button.getAttribute('data-column'),
+			),
+		).toEqual(['name', 'size', 'modified', 'kind']);
+	});
+
+	it('keeps Name a readable minimum and drops Kind, Modified and Size as the view narrows', () => {
+		// jsdom lays nothing out, so the stylesheet's rules are checked as written.
+		const css = readFileSync(resolve(process.cwd(), 'src/browse/ListView.module.css'), 'utf8');
+		expect(css).toContain('container-type: inline-size');
+		expect(css).toMatch(/--wp-name-min:\s*120px/);
+		expect(css).toMatch(
+			/grid-template-columns:\s*minmax\(var\(--wp-name-min\), 1fr\) 88px 168px 96px/,
+		);
+		for (const [width, column] of [
+			['571', 'kind'],
+			['463', 'modified'],
+			['283', 'size'],
+		] as const) {
+			const rule = new RegExp(
+				`@container list \\(max-width: ${width}px\\)[^]*?\\[data-column='${column}'\\]\\s*\\{\\s*display: none`,
+			);
+			expect(css, `${column} hides at ${width}px`).toMatch(rule);
 		}
 	});
 });
