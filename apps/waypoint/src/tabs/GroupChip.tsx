@@ -25,7 +25,8 @@ interface GroupChipProps {
 	tabStop: boolean;
 	renaming: boolean;
 	onFocus: () => void;
-	onToggle: () => void;
+	/** Sets the group collapsed or expanded, by value so that repeating it cannot flip it back. */
+	onSetCollapsed: (collapsed: boolean) => void;
 	/** Commits a new name; an empty or unchanged one is ignored by the caller. */
 	onRename: (name: string) => void;
 	onKeyDown: (event: KeyboardEvent) => void;
@@ -53,7 +54,7 @@ export function GroupChip({
 	tabStop,
 	renaming,
 	onFocus,
-	onToggle,
+	onSetCollapsed,
 	onRename,
 	onKeyDown,
 	onContextMenu,
@@ -69,13 +70,17 @@ export function GroupChip({
 		.concat(overLimit ? [tf('groups.chip.overLimit', { limit: GROUP_SOFT_LIMIT })] : [])
 		.join(', ');
 	const button = useRef<HTMLButtonElement | null>(null);
-	// Whether the click that began a double-click already toggled, so the rename can undo it.
-	const toggledByClick = useRef(false);
+	// The state before the click that began a double-click toggled it, so the rename can restore it.
+	const collapsedBeforeClick = useRef<boolean | null>(null);
 	const wasRenaming = useRef(false);
+	// Whether the name field ended from the keyboard (Enter or Escape) rather than by focus leaving.
+	const endedByKey = useRef(false);
 
-	// Closing the name field hands the focus back to the chip.
+	// Ending the name field with the keyboard hands the focus back to the chip; leaving it by
+	// clicking elsewhere keeps the focus where that click put it.
 	useEffect(() => {
-		if (wasRenaming.current && !renaming) button.current?.focus();
+		if (wasRenaming.current && !renaming && endedByKey.current) button.current?.focus();
+		if (!renaming) endedByKey.current = false;
 		wasRenaming.current = renaming;
 	}, [renaming]);
 
@@ -96,11 +101,15 @@ export function GroupChip({
 			{renaming ? (
 				<RenameField
 					name={group.name}
-					onCommit={(name) => {
+					onCommit={(name, byKey) => {
+						endedByKey.current = byKey;
 						onRename(name);
 						endRename();
 					}}
-					onCancel={endRename}
+					onCancel={() => {
+						endedByKey.current = true;
+						endRename();
+					}}
 				/>
 			) : (
 				<button
@@ -125,12 +134,12 @@ export function GroupChip({
 					onClick={(event) => {
 						// The second click of a double-click is the rename's, not another toggle.
 						if (event.detail > 1) return;
-						toggledByClick.current = true;
-						onToggle();
+						collapsedBeforeClick.current = group.collapsed;
+						onSetCollapsed(!group.collapsed);
 					}}
 					onDoubleClick={() => {
-						if (toggledByClick.current) onToggle();
-						toggledByClick.current = false;
+						if (collapsedBeforeClick.current !== null) onSetCollapsed(collapsedBeforeClick.current);
+						collapsedBeforeClick.current = null;
 						onStartRename();
 					}}
 				>
@@ -155,7 +164,7 @@ function RenameField({
 	onCancel,
 }: {
 	name: string;
-	onCommit: (name: string) => void;
+	onCommit: (name: string, byKey: boolean) => void;
 	onCancel: () => void;
 }) {
 	const [value, setValue] = useState(name);
@@ -165,10 +174,10 @@ function RenameField({
 		input.current?.focus();
 		input.current?.select();
 	}, []);
-	const finish = (commit: boolean) => {
+	const finish = (commit: boolean, byKey: boolean) => {
 		if (done.current) return;
 		done.current = true;
-		if (commit) onCommit(value);
+		if (commit) onCommit(value, byKey);
 		else onCancel();
 	};
 	return (
@@ -179,16 +188,16 @@ function RenameField({
 			aria-label={t('groups.rename.label')}
 			size={Math.max(6, value.length + 1)}
 			onChange={(event) => setValue(event.target.value)}
-			onBlur={() => finish(true)}
+			onBlur={() => finish(true, false)}
 			onKeyDown={(event) => {
 				// The strip's own keys (arrows, Delete) must not act on the tab behind the field.
 				event.stopPropagation();
 				if (event.key === 'Enter') {
 					event.preventDefault();
-					finish(true);
+					finish(true, true);
 				} else if (event.key === 'Escape') {
 					event.preventDefault();
-					finish(false);
+					finish(false, true);
 				}
 			}}
 		/>

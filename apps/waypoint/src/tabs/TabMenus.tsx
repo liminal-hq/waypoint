@@ -7,13 +7,12 @@ import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTab';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
-import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
-import { useEffect, useState } from 'react';
 import { t } from '../i18n/messages';
 import { useGroupActions } from './groupActions';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
 import { useTabExtras } from './tabExtras';
+import { useOtherWindows } from './useOtherWindows';
 import { useWindowActions } from './windowActions';
 import { plusMenuItems, runPlusMenuItem, runTabMenuItem, tabMenuItems } from './tabMenuModel';
 
@@ -36,17 +35,7 @@ export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabS
 	const groupActions = useGroupActions();
 	const groups = useTabsSnapshot()?.groups ?? [];
 	const windowActions = useWindowActions();
-	const [others, setOthers] = useState<WindowSummary[] | null>(null);
-	useEffect(() => {
-		let current = true;
-		void windowActions.otherWindows().then((windows) => {
-			if (current) setOthers(windows);
-		});
-		return () => {
-			current = false;
-		};
-	}, [windowActions]);
-	if (others === null) return null;
+	const others = useOtherWindows(windowActions);
 	return (
 		<ContextMenu
 			{...rest}

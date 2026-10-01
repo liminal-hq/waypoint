@@ -464,7 +464,7 @@ export function TabStrip() {
 									tabStop={chipStop === item.group.id}
 									renaming={renaming === item.group.id}
 									onFocus={() => setFocusedChip(item.group.id)}
-									onToggle={() => groupActions.setCollapsed(item.group, !item.group.collapsed)}
+									onSetCollapsed={(collapsed) => groupActions.setCollapsed(item.group, collapsed)}
 									onRename={(name) => groupActions.rename(item.group, name)}
 									onStartRename={() => requestRename(item.group.id)}
 									onKeyDown={(event) => onChipKeyDown(event, item, at)}

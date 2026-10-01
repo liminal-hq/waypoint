@@ -109,6 +109,31 @@ describe('the group chip', () => {
 		expect(await screen.findByRole('textbox', { name: 'Group name' })).toBeInTheDocument();
 	});
 
+	it('undoes a double-click toggle with an explicit value even before the snapshot arrives', async () => {
+		const h = await renderWorkspace();
+		await withGroup(h);
+		const calls: boolean[] = [];
+		vi.spyOn(h.tabs, 'setGroupCollapsed').mockImplementation((_group, collapsed) => {
+			calls.push(collapsed);
+			return new Promise(() => {});
+		});
+		const button = chip(/^Group 1,/);
+		fireEvent.click(button, { detail: 1 });
+		fireEvent.click(button, { detail: 2 });
+		fireEvent.doubleClick(button);
+		expect(calls).toEqual([true, false]);
+	});
+
+	it('leaves the focus where the click put it when a blur ends the rename', async () => {
+		const h = await renderWorkspace();
+		await withGroup(h);
+		fireEvent.doubleClick(chip(/^Group 1,/));
+		await screen.findByRole('textbox', { name: 'Group name' });
+		act(() => tabs()[2]!.focus());
+		await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
+		expect(tabs()[2]).toHaveFocus();
+	});
+
 	it('renames with F2; Escape cancels and an empty name keeps the old one', async () => {
 		const h = await renderWorkspace();
 		await withGroup(h);
@@ -207,6 +232,20 @@ describe('the soft limit', () => {
 		expect(live()).toHaveTextContent('Group 1 has 9 tabs');
 		// Nothing was refused.
 		expect((await snapshot(h)).tabs.filter((tab) => tab.group === 1)).toHaveLength(9);
+	});
+});
+
+describe('menus without the window list', () => {
+	it('open at once with a hanging window list, and the group menu too', async () => {
+		const h = await renderWorkspace();
+		await withGroup(h);
+		vi.spyOn(h.tabs, 'listWindows').mockReturnValue(new Promise(() => {}));
+		fireEvent.contextMenu(tabs()[2]!);
+		expect(await screen.findByRole('menu', { name: 'Tab actions' })).toBeInTheDocument();
+		fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+		await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+		fireEvent.contextMenu(chip(/^Group 1,/));
+		expect(await screen.findByRole('menu', { name: 'Group actions' })).toBeInTheDocument();
 	});
 });
 

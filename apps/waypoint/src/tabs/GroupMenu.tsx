@@ -12,11 +12,12 @@ import type {
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
-import { createElement, useEffect, useState } from 'react';
+import { createElement } from 'react';
 import { t } from '../i18n/messages';
 import { useGroupActions, type GroupActions } from './groupActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
 import { TabColourSwatch } from './TabColourSwatch';
+import { useOtherWindows } from './useOtherWindows';
 import { useWindowActions } from './windowActions';
 import { runWindowMoveChoice, windowMoveItems } from './windowMoveMenu';
 
@@ -176,18 +177,7 @@ interface GroupMenuProps extends GroupMenuState {
 export function GroupMenu({ group, pinned, hasOthers, onRename, ...rest }: GroupMenuProps) {
 	const actions = useGroupActions();
 	const windows = useWindowActions();
-	const [others, setOthers] = useState<WindowSummary[] | null>(null);
-	// The other windows are read fresh when the menu opens: they come and go unheard.
-	useEffect(() => {
-		let current = true;
-		void windows.otherWindows().then((list) => {
-			if (current) setOthers(list);
-		});
-		return () => {
-			current = false;
-		};
-	}, [windows]);
-	if (others === null) return null;
+	const others = useOtherWindows(windows);
 	return (
 		<ContextMenu
 			{...rest}
