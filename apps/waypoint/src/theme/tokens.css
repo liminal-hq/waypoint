@@ -72,6 +72,23 @@
 	--wp-ops-popover-shadow: 0 8px 24px color-mix(in srgb, var(--wp-text-primary) 28%, transparent);
 	--wp-ops-popover-width: 380px;
 	--wp-ops-motion: 120ms;
+
+	/* A file drag (SPEC §6): the target it would drop on, the one that refuses, the spring-load ring, and the ghost that follows the pointer. */
+	--wp-drop-ok-outline: var(--wp-accent);
+	--wp-drop-ok-fill: color-mix(in srgb, var(--wp-accent) 14%, transparent);
+	--wp-drop-blocked-outline: var(--wp-danger);
+	--wp-drop-blocked-fill: color-mix(in srgb, var(--wp-danger) 10%, transparent);
+	--wp-drop-spring-ring: var(--wp-accent);
+	--wp-file-drag-card-bg: var(--wp-bg-raised);
+	--wp-file-drag-card-border: var(--wp-border-subtle);
+	--wp-file-drag-shadow: 0 4px 14px color-mix(in srgb, var(--wp-text-primary) 25%, transparent);
+	--wp-file-drag-count-bg: var(--wp-accent);
+	--wp-file-drag-count-fg: var(--wp-accent-fg);
+	--wp-file-drag-badge-bg: var(--wp-bg-raised);
+	--wp-file-drag-badge-fg: var(--wp-text-primary);
+	--wp-file-drag-badge-border: var(--wp-border-subtle);
+	--wp-file-drag-trash: var(--wp-danger);
+	--wp-file-drag-shake: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -107,6 +124,8 @@
 		--wp-split-zone-label: var(--wp-text-primary);
 		--wp-merge-landing-fill: color-mix(in srgb, var(--wp-accent) 14%, transparent);
 		--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 55%, transparent);
+		--wp-drop-ok-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
+		--wp-drop-blocked-fill: color-mix(in srgb, var(--wp-danger) 20%, transparent);
 	}
 }
 
@@ -144,6 +163,8 @@
 	--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 60%, transparent);
 	--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
 	--wp-split-zone-label: var(--wp-text-primary);
+	--wp-drop-ok-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
+	--wp-drop-blocked-fill: color-mix(in srgb, var(--wp-danger) 20%, transparent);
 }
 
 /*
@@ -203,5 +224,6 @@ select,
 	:root {
 		--wp-drag-motion: 0ms;
 		--wp-ops-motion: 0ms;
+		--wp-file-drag-shake: 0px;
 	}
 }
