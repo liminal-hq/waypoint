@@ -108,6 +108,7 @@ export const enMessages = {
 	'tabs.announce.duplicated': 'Duplicated {title}',
 	'tabs.announce.closedOthers': 'Closed the other tabs',
 	'tabs.announce.closedRight': 'Closed the tabs to the right',
+	'tabs.announce.nothingToClose': 'No tabs to close',
 	'tabs.menu.pin': 'Pin Tab',
 	'tabs.menu.unpin': 'Unpin Tab',
 	'tabs.menu.colour': 'Colour',

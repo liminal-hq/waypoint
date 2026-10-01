@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTab';
-import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { useMemo } from 'react';
@@ -14,7 +13,7 @@ import { announce } from './announcer';
 import { colourMessageId } from './tabColours';
 import type { TabActions } from './tabActions';
 import { locationLabel } from './tabTitle';
-import { useTabsApi, useTabsSnapshot } from './TabsContext';
+import { useTabsApi } from './TabsContext';
 import { useTabActions } from './tabActions';
 
 export interface TabExtras {
@@ -35,12 +34,7 @@ function report(error: unknown): void {
 	console.warn('tab command failed', error);
 }
 
-export function createTabExtras(
-	api: TabsApi,
-	actions: Pick<TabActions, 'close'>,
-	snapshot: SessionSnapshot | null,
-): TabExtras {
-	const tabs = snapshot?.tabs ?? [];
+export function createTabExtras(api: TabsApi, actions: Pick<TabActions, 'close'>): TabExtras {
 	const run = (work: Promise<unknown>) => void work.catch(report);
 	return {
 		pin: (tab, pinned) =>
@@ -74,15 +68,26 @@ export function createTabExtras(
 						announce(tf('tabs.announce.duplicated', { title: locationLabel(tab.location) })),
 					),
 			),
-		closeOthers: (tab) => {
-			for (const other of tabs) if (other.id !== tab.id && !other.pinned) actions.close(other.id);
-			announce(t('tabs.announce.closedOthers'));
-		},
-		closeToRight: (tab) => {
-			const from = tabs.findIndex((candidate) => candidate.id === tab.id);
-			for (const other of tabs.slice(from + 1)) if (!other.pinned) actions.close(other.id);
-			announce(t('tabs.announce.closedRight'));
-		},
+		closeOthers: (tab) =>
+			run(
+				api.getSnapshot().then((latest) => {
+					const doomed = latest.tabs.filter((other) => other.id !== tab.id && !other.pinned);
+					for (const other of doomed) actions.close(other.id);
+					announce(
+						t(doomed.length ? 'tabs.announce.closedOthers' : 'tabs.announce.nothingToClose'),
+					);
+				}),
+			),
+		closeToRight: (tab) =>
+			run(
+				api.getSnapshot().then((latest) => {
+					const from = latest.tabs.findIndex((candidate) => candidate.id === tab.id);
+					const doomed =
+						from < 0 ? [] : latest.tabs.slice(from + 1).filter((other) => !other.pinned);
+					for (const other of doomed) actions.close(other.id);
+					announce(t(doomed.length ? 'tabs.announce.closedRight' : 'tabs.announce.nothingToClose'));
+				}),
+			),
 		reopen: (closed) =>
 			run(
 				api.reopenTab(closed?.tab.id).then(async (id) => {
@@ -100,7 +105,6 @@ export function createTabExtras(
 
 export function useTabExtras(): TabExtras {
 	const api = useTabsApi();
-	const snapshot = useTabsSnapshot();
 	const actions = useTabActions();
-	return useMemo(() => createTabExtras(api, actions, snapshot), [api, actions, snapshot]);
+	return useMemo(() => createTabExtras(api, actions), [api, actions]);
 }

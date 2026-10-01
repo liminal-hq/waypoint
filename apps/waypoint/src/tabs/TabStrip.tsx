@@ -418,9 +418,21 @@ export function TabStrip() {
 						openPlusMenu({ x: clientX, y: clientY }, false);
 					}, PLUS_HOLD_MS);
 				}}
-				onPointerUp={() => clearTimeout(holdTimer.current)}
-				onPointerLeave={() => clearTimeout(holdTimer.current)}
-				onPointerCancel={() => clearTimeout(holdTimer.current)}
+				onPointerUp={() => {
+					clearTimeout(holdTimer.current);
+					// The click that ends a hold follows in the same task; one that never comes (the
+					// pointer was released elsewhere) must not swallow the next keyboard activation.
+					setTimeout(() => (heldOpen.current = false), 0);
+				}}
+				onPointerLeave={() => {
+					clearTimeout(holdTimer.current);
+					heldOpen.current = false;
+				}}
+				onPointerCancel={() => {
+					clearTimeout(holdTimer.current);
+					heldOpen.current = false;
+				}}
+				onBlur={() => (heldOpen.current = false)}
 				onContextMenu={(event) => {
 					event.preventDefault();
 					if (Date.now() - lastKeyboardMenu.current < KEYBOARD_MENU_DEBOUNCE_MS) return;

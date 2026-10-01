@@ -199,6 +199,34 @@ describe('the tab menu', () => {
 		expect(names()).toEqual(['test', 'docs', 'docs', 'music']);
 	});
 
+	it('keeps a duplicate of a pinned, non-last pinned tab out of the pinned block', async () => {
+		const h = await renderWorkspace();
+		await openTwo(h);
+		await h.tabs.pinTab(1, true);
+		await h.tabs.pinTab(2, true);
+		await waitFor(() => expect(tabs()).toHaveLength(3));
+		await openTabMenu(0);
+		fireEvent.click(await item('Duplicate Tab'));
+		await waitFor(() => expect(tabs()).toHaveLength(4));
+		const state = (await snapshot(h)).tabs;
+		expect(state.map((tab) => tab.pinned)).toEqual([true, true, false, false]);
+	});
+
+	it('says nothing closed when there is nothing to close to the right or among the others', async () => {
+		const h = await renderWorkspace();
+		await openTabMenu(0);
+		fireEvent.click(await item('Close Tabs to the Right'));
+		await waitFor(() => expect(live()).toHaveTextContent('No tabs to close'));
+		await h.tabs.openTab(DOCS);
+		await h.tabs.pinTab(1, true);
+		await h.tabs.pinTab(2, true);
+		await waitFor(() => expect(tabs()).toHaveLength(2));
+		await openTabMenu(0);
+		fireEvent.click(await item('Close Other Tabs'));
+		await waitFor(() => expect(live()).toHaveTextContent('No tabs to close'));
+		expect(tabs()).toHaveLength(2);
+	});
+
 	it('closes this tab, the others, or the ones to the right, keeping pinned tabs', async () => {
 		const h = await renderWorkspace();
 		await openTwo(h);
@@ -341,6 +369,25 @@ describe('the + button menu', () => {
 		fireEvent.pointerUp(plus(), { pointerId: 1 });
 		fireEvent.click(plus());
 		expect((await snapshot(h)).tabs).toHaveLength(1);
+	});
+
+	it('does not swallow the next keyboard activation after a hold released off the button', async () => {
+		const h = await renderWorkspace();
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		fireEvent.pointerDown(plus(), { button: 0, clientX: 10, clientY: 10, pointerId: 1 });
+		act(() => {
+			vi.advanceTimersByTime(PLUS_HOLD_MS + 10);
+		});
+		vi.useRealTimers();
+		await screen.findByRole('menu', { name: 'New tab actions' });
+		// Dragged off the button and released elsewhere: no click is ever dispatched on it.
+		fireEvent.pointerLeave(plus(), { pointerId: 1 });
+		fireEvent.pointerUp(document.body, { pointerId: 1 });
+		fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+		await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+		fireEvent.click(plus());
+		await waitFor(() => expect(tabs()).toHaveLength(2));
+		expect((await snapshot(h)).tabs).toHaveLength(2);
 	});
 
 	it('does not open on a short press, which is a plain click', async () => {
