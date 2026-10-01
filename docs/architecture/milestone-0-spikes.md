@@ -105,3 +105,35 @@ Re-run later with `#perf-auto=/tmp/waypoint-perf&max&grid` (maximise first, and 
 **Keyboard and roles**, audited in the running Linux app: the landmarks are a `main`, a `nav` for the location bar, a `nav` for the sidebar and polite status regions; the file list is a `listbox` named Files with `aria-multiselectable` and `aria-rowcount`; every button, tab and option has an accessible name; and the tab order follows `docs/accessibility.md` item 6 (window buttons, tab strip, toolbar, sidebar, files, status bar). Every Places and Favourites item is its own tab stop rather than a roving one, which suits a short list of buttons but is an open question for a screen-reader pass. The AT-SPI tree, which is what Orca reads, was dumped from the running app: a `Sidebar` landmark, a `Sidebar view` tab list, a `Tabs` tab list, a `Navigation` toolbar, the file list as a multi-select list box whose items are named like "name, size, date, kind" with their selected state, and the Folders tree with `level`, `posinset`, `setsize` and expanded state on every item. **Not done:** listening to Orca itself.
 
 **Checks on the running Linux app** (development build): files created, renamed and deleted from a shell appear in an open folder within the second; Favourites against the real `~/.config/gtk-3.0/bookmarks` (Ctrl+D appends one line and leaves the others alone, F2 rewrites the label, Alt+Up reorders among the shown favourites without disturbing the remote bookmarks the sidebar does not show, Remove restores the file byte for byte); and a double-click on a file launches the system default application with its path. The first of these found that renaming a selected file dropped its selection, fixed by the `moved` field of the `Changed` event (A33). Real-pointer drag reordering is unchecked.
+
+## Milestone 3 spikes
+
+Spikes 3 and 4 of `README.md` §7 never ran in milestone 0, and the multi-window cost is new. They run first on throwaway branches (`spike/tearoff`, `spike/native-dnd`, `spike/multi-window`) and are written up here. A10, A35 and A36 stay Proposed until they report.
+
+### Multi-window cost on WebKitGTK
+
+**Result pending.** The spike must answer:
+
+- What does one extra WebKitGTK window cost in resident memory (the plan's ceiling is about 150 MB) and in time from creating the window to its first listing paint (about 600 ms)?
+- Does the cost hold at 4 and at 8 windows? If not, the plan caps windows (warn at 8) and keeps the ghost page static.
+- Does a hidden or background window throttle anything the session relies on?
+
+### Tear-off ghost and hit-testing
+
+**Result pending.** The spike must answer (README §7, spike 3):
+
+- Does a pre-created, transparent, always-on-top, click-through ghost follow the native cursor on a 16 ms thread without stealing the pointer or the drop target, on GNOME Wayland, XWayland or X11, and Windows 11?
+- Is the ghost realised before `set_ignore_cursor_events` (a never-shown GTK window panics, `tao/src/platform_impl/linux/event_loop.rs:452`), and does pointer capture survive the ghost appearing under the pointer?
+- What do `cursor_position()` and window positions return on Wayland (`tao` 0.37 returns `Ok((0, 0))` for the cursor), so which of `cursor_follow`, `window_position` and `hit_test` are false there?
+- Is the physical-to-logical conversion right on mixed scale factors and across monitors?
+- Does hit-testing the cursor against each window's outer position plus its registered regions find another window's tab strip and tab body?
+- On Wayland, what does the degraded path (in-page preview only, the compositor places the new window, merge by menu) look like?
+- What does the ghost cost in CPU over a 10 s drag (the target is at most 5% of one core)?
+
+### Native drag and drop and `dragDropEnabled`
+
+**Result pending.** The spike must answer (README §7, spike 4):
+
+- Do inbound file drops arrive with positions, and are outbound drags to other apps and a terminal possible on Linux (`text/uri-list`, `x-special/gnome-copied-files`) and Windows (OLE)?
+- Does `dragDropEnabled: true` block in-page pointer drags on Windows? If it does, every window is created with it off and `native-dnd` owns inbound drops in milestone 4.
+- Does the setting, which is fixed at window creation, need to differ between window kinds (A40)?

@@ -59,7 +59,7 @@ Three tiers, one direction of dependency:
 
 ## 4. Windows
 
-One frontend bundle; the entry point routes on the webview label.
+One frontend bundle; the entry point routes on the webview label. There is no static main window: no browser window is declared in `tauri.conf.json`, and the composition root creates each `main-{n}` from the restored session (a new session opens one window at Home), through a `WindowFactory` injected into the session plugin. Labels are never reused within a process (A40).
 
 | Label             | Purpose                                                                |
 | ----------------- | ---------------------------------------------------------------------- |
@@ -69,7 +69,7 @@ One frontend bundle; the entry point routes on the webview label.
 | `ops`             | Popped-out operations queue                                            |
 | `tear-ghost`      | The pre-created, hidden, click-through ghost used during tab tear-off  |
 
-Capabilities are granted per label, least privilege. Tab, group, pair and layout state lives in `waypoint-session` in Rust, so tear-off, merge-by-drop and session restore are atomic backend operations that hand a serialised tab (location, history, split state, group, pin, colour) to the target window; selection and scroll travel as UI hints.
+Capabilities are granted per label, least privilege. Tab, group, pair and layout state for every window lives in one `waypoint-session` store in Rust (A37), so tear-off, merge-by-drop and session restore are atomic backend operations (`MoveTabs`, A38) that hand a tab (location, history, split state, group, pin, colour) to the target window; only the scroll position and the focused entry travel as UI hints. The session is saved through `tauri-plugin-store` (A39).
 
 ## 5. Cross-cutting rules
 
@@ -85,18 +85,18 @@ Capabilities are granted per label, least privilege. Tab, group, pair and layout
 
 Each milestone scaffolds only what it needs.
 
-| #   | Milestone                                     | Delivers                                                                                                                                                                                               |
-| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0   | **Risk spikes** (throwaway, in a scratch app) | See §7. Confirms or changes A2, A3, A9 and the tear-off approach before structure is committed.                                                                                                        |
-| 1   | **Skeleton**                                  | `apps/waypoint` shell, `waypoint-protocol` + `ts-rs` drift check, `packages/chrome` (title bar, window menu, context menu), tokens, CI jobs for Rust/JS/drift/headers, `tauri:dev` with the MCP bridge |
-| 2   | **Browse (local)**                            | `waypoint-path`, `waypoint-vfs` local provider + watcher, listing handles, virtualised list/grid, tab strip, sidebar, path bar, status bar                                                             |
-| 3   | **Windows and tabs**                          | `waypoint-session`, reusable `window-tearoff` + `native-dnd`, tear-off, merge, pairs, groups, session restore                                                                                          |
-| 4   | **Operations**                                | `waypoint-ops`, reusable `trash`, undo journal, conflict resolver, verification, drag-and-drop engine + Shelf                                                                                          |
-| 5   | **System fit**                                | reusable `system-appearance`, `window-effects`, `thumbnails`, `volumes`; extend `xdg-portal` / `desktop-integration`; Services panel                                                                   |
-| 6   | **Remotes and virtual locations**             | `secrets`, provider crates (SFTP first, then SMB, WebDAV, S3, archives, Git)                                                                                                                           |
-| 7   | **Search, terminal, tags**                    | `waypoint-search`, reusable `pty`, tags/xattr                                                                                                                                                          |
-| 8   | **Extensions**                                | `waypoint-ext` registry, manifest, permission model; bundled features re-expressed as first-party extensions; runtime decision (A7)                                                                    |
-| 9   | **Windows 11 parity, packaging, release**     | Windows modules for each plugin, MSI/portable/AppImage/deb/rpm, `release.yml`                                                                                                                          |
+| #   | Milestone                                     | Delivers                                                                                                                                                                                                          |
+| --- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | **Risk spikes** (throwaway, in a scratch app) | See §7. Confirms or changes A2, A3, A9 and the tear-off approach; spikes 3 and 4 run with milestone 3.                                                                                                            |
+| 1   | **Skeleton**                                  | `apps/waypoint` shell, `waypoint-protocol` + `ts-rs` drift check, `packages/chrome` (title bar, window menu, context menu), tokens, CI jobs for Rust/JS/drift/headers, `tauri:dev` with the MCP bridge            |
+| 2   | **Browse (local)**                            | `waypoint-path`, `waypoint-vfs` local provider + watcher, listing handles, virtualised list/grid, tab strip, sidebar, path bar, status bar                                                                        |
+| 3   | **Windows and tabs**                          | `waypoint-session` (one store for all windows), reusable `window-tearoff`, tear-off, merge, pairs, groups, pinned tabs, closed-tab history, session restore; `native-dnd` is spiked here and built in milestone 4 |
+| 4   | **Operations**                                | `waypoint-ops`, reusable `trash`, undo journal, conflict resolver, verification, drag-and-drop engine + Shelf                                                                                                     |
+| 5   | **System fit**                                | reusable `system-appearance`, `window-effects`, `thumbnails`, `volumes`; extend `xdg-portal` / `desktop-integration`; Services panel                                                                              |
+| 6   | **Remotes and virtual locations**             | `secrets`, provider crates (SFTP first, then SMB, WebDAV, S3, archives, Git)                                                                                                                                      |
+| 7   | **Search, terminal, tags**                    | `waypoint-search`, reusable `pty`, tags/xattr                                                                                                                                                                     |
+| 8   | **Extensions**                                | `waypoint-ext` registry, manifest, permission model; bundled features re-expressed as first-party extensions; runtime decision (A7)                                                                               |
+| 9   | **Windows 11 parity, packaging, release**     | Windows modules for each plugin, MSI/portable/AppImage/deb/rpm, `release.yml`                                                                                                                                     |
 
 Windows modules are written alongside each Linux module from milestone 2 onward, not deferred to milestone 9; milestone 9 is the parity audit and packaging.
 
@@ -106,8 +106,8 @@ Run alongside milestone 1 (A14), not before it. Throwaway experiments, each with
 
 1. **Big-listing render (done; see [`milestone-0-spikes.md`](milestone-0-spikes.md)).** A virtualised list of 100 000–500 000 rows fed by a Rust listing handle with range fetch, measured for scroll and selection latency on **WebKitGTK (Wayland and X11)** and **WebView2**. Confirms React + TanStack Virtual, or triggers the Solid/Svelte fallback in `frontend.md`.
 2. **Transparency and blur.** `transparent: true` plus `backdrop-filter` and compositor blur on GNOME/Mutter, KDE/KWin, Cinnamon and Windows 11 Mica.
-3. **Tear-off.** Ghost window follow, multi-monitor scale conversion, and the Wayland fallback path; cross-window hit-testing for merge.
-4. **Native drag and drop in and out.** Inbound file drops with positions, outbound drag to other apps and a terminal, and the `dragDropEnabled` interaction with an in-page pointer drag engine on Windows.
+3. **Tear-off (not yet run; scheduled with milestone 3, A35).** Ghost window follow, multi-monitor scale conversion, and the Wayland fallback path; cross-window hit-testing for merge. Also the cost of an extra WebKitGTK window (A36).
+4. **Native drag and drop in and out (not yet run; scheduled with milestone 3, A36).** Inbound file drops with positions, outbound drag to other apps and a terminal, and the `dragDropEnabled` interaction with an in-page pointer drag engine on Windows.
 5. **Listing throughput (done on local files; see [`milestone-0-spikes.md`](milestone-0-spikes.md)).** `read_dir` + metadata streaming over a `Channel` on a 500 000-entry directory, local and over SFTP, with the watcher active.
 
 ## 8. Risks

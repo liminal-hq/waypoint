@@ -52,7 +52,7 @@ The question: which front-end approach keeps Waypoint's code clean and maintaina
 | App state                 | Rust is the source of truth. Client store: `zustand` for ephemeral UI state and a thin cache of Rust snapshots                                                                                                    | Spindle's choice; small and unopinionated                                                                                                                                                                                                              |
 | Server-state style access | Typed service modules per plugin wrapping the plugin's guest-js API; subscriptions via Tauri events/Channels into stores                                                                                          | No raw `invoke` strings in feature code                                                                                                                                                                                                                |
 | Lists                     | `@tanstack/react-virtual`                                                                                                                                                                                         |                                                                                                                                                                                                                                                        |
-| Drag and drop             | Own pointer-event engine in `features/dnd` (state machine); `native-dnd` plugin for OS in/out                                                                                                                     | `@dnd-kit` (used in Cadence) suits sortable lists, not spring-loading or tear-off; may be used for simple reorder lists such as Settings                                                                                                               |
+| Drag and drop             | Own pointer-event engine in `src/dnd` (state machine); `native-dnd` plugin for OS in/out                                                                                                                          | `@dnd-kit` (used in Cadence) suits sortable lists, not spring-loading or tear-off; may be used for simple reorder lists such as Settings                                                                                                               |
 | Accessible primitives     | Headless, accessible building blocks for menus, dialogs, popovers, tabs and comboboxes where `packages/chrome` does not already provide them (candidate: Radix Primitives or React Aria; pick one in milestone 1) | Do not hand-roll focus traps and menu keyboard models                                                                                                                                                                                                  |
 | Styling                   | CSS Modules + CSS custom properties (semantic tokens from `docs/theming-and-platforms.md`)                                                                                                                        | No CSS-in-JS runtime; no inline-style styling                                                                                                                                                                                                          |
 | Icons                     | Freedesktop icon-theme resolution via `system-appearance`, with Waypoint's SVG set (`wp-icons`) as fallback, four styles (D70)                                                                                    | Icon set is authored fresh as SVG sprites, not copied from the prototype's JS                                                                                                                                                                          |
@@ -64,29 +64,26 @@ The question: which front-end approach keeps Waypoint's code clean and maintaina
 
 ```
 apps/waypoint/src/
-  app/            window entry points and routing by webview label (main, settings, properties, ops, tear-ghost)
-  features/       one folder per product feature; each owns its components, hooks, store slice and tests
-    browser/      file views (list, grid, columns, disk usage), selection, rubber-band, type-ahead
-    tabs/         tab strip, groups, pairs, + button, start page, drag language
-    sidebar/      places, favourites, workspaces, devices, remotes, tags, folder tree
-    navigation/   path bar, history menus, Go to, Copy To / Move To
-    inspector/    preview, properties, plugin panels
-    dnd/          the drag engine (state machine), spring-loading, action picker, feedback
-    shelf/  search/  ops/  terminal/  palette/  quicklook/  rename/  conflicts/  connect/
-    settings/     settings shell sections, shortcut editor, context-menu editor
-    extensions/   plugin manager UI and extension-point slots
-  services/       typed wrappers over plugin guest-js APIs; event/Channel subscriptions
-  store/          zustand slices and Rust-snapshot caches
+  app/            window entry points and the main screen, routed by webview label (main, settings, properties, ops, tear-ghost); window capabilities
+  tabs/           tab strip, tab actions and shortcuts, reorder, the tabs store; later groups, pairs and the drag language
+  browse/         file views (list, grid), listing manager and session, selection, type-ahead, view store, context menus
+  nav/            navigation bar, path bar, history buttons, opening entries
+  sidebar/        places, favourites and the folder tree
+  status/         status bar, view switcher, selection summary and free space
+  services/       typed wrappers over plugin guest-js APIs and their fakes (VfsClient, TabsApi, PlacesClient), the logger
   theme/          tokens, scheme/accent/density/transparency application
-  i18n/           catalogue, formatters
-  a11y/           live-region announcer, focus helpers, roving tabindex
+  i18n/           message catalogue, chrome labels
+  icons/          the app's icon set
+  dev/            development-only harnesses (performance)
   test/           harness, Tauri mocks, fixtures
 packages/chrome/  title bar, window menu, context menu, settings shell (shared, domain-free)
 ```
 
+The layout is one folder per area at the top of `src/`, not a `features/` folder. Later milestones add areas the same way (`dnd/` for the drag engine, then `shelf/`, `search/`, `ops/`, `terminal/`, `inspector/`, `settings/` and `extensions/` as they arrive); each area owns its components, hooks, store and tests.
+
 **The sidebar (milestone 2).** `apps/waypoint/src/sidebar/` holds a Places / Folders switch over two views: Places with Favourites, or the Folders tree on its own. Its state is split the way the rest of the window is: Rust owns the Places and Favourites (the `waypoint-vfs` places service, which reads and writes the freedesktop bookmarks file), reached through the `PlacesClient` contract in `services/` (`createTauriPlacesClient()` over the plugin's `guest-js`, `FakePlacesClient` for tests and `?demo`) and supplied to the window by `PlacesClientProvider`. The plugin has no change event, so the client announces each of its own mutations and the sidebar re-reads when the window regains focus to catch edits other programs make to the bookmarks file. The window-only state (panel shown, which view, collapsed sections, expanded folders) lives in a zustand store (`sidebarStore`), in memory and never in `localStorage`. The Folders tree is lazy: a `FolderTreeModel` opens one folders-only listing (`Filter.only = 'directories'`) per expanded node through `VfsClient`, keeps it open while the node is expanded so the tree follows changes on disk, and closes it when the node collapses or the Folders view is left. The tree is its own view so that choosing a place or favourite never moves it: it follows the active tab only while it is the view on screen. The tree never parses a path: its root and the ancestors it expands come from `describeLocation`, and each child's location from `entryLocation` (A28).
 
-Rules that keep it clean: features import from `services/`, `store/`, `theme/` and `packages/chrome`, never from each other's internals; a feature exposes its public surface through the file that defines it (no barrels); extension-point _slots_ (column, panel, statusItem, action) are rendered by the owning feature from the registry the extension host provides.
+Rules that keep it clean: areas import from `services/`, `theme/` and `packages/chrome`, and from each other only through the file that defines the thing, never an area's internals; an area exposes its public surface through the file that defines it (no barrels); extension-point _slots_ (column, panel, statusItem, action) are rendered by the owning feature from the registry the extension host provides.
 
 ## 6. Shared chrome
 

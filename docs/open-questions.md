@@ -11,15 +11,11 @@
 7. Default checksum algorithm: BLAKE3 or SHA-256?
 8. Should the Shelf persist items across reboots by default?
 
-9. Confirm doska's licence before reusing any of its code. The tear-off doc only describes the pattern.
-10. Wayland: is a fallback without a floating ghost acceptable?
+9. Should groups be able to span windows in a later version?
 
-11. Should groups be able to span windows in a later version?
-12. Should pinned groups collapse to icon-only tabs, or keep their labels?
-
-13. Windows: who owns the sparse MSIX package and code signing for the modern Explorer menu?
-14. Should Waypoint ship its own FileChooser portal backend, or leave that to a later phase?
-15. Which Windows version is the minimum (Windows 10 support)?
+10. Windows: who owns the sparse MSIX package and code signing for the modern Explorer menu?
+11. Should Waypoint ship its own FileChooser portal backend, or leave that to a later phase?
+12. Which Windows version is the minimum (Windows 10 support)?
 
 ## Assumptions made
 

@@ -2,7 +2,7 @@
 
 Reference: [romenkova/doska](https://github.com/romenkova/doska), by way of a Reddit post in r/tauri. It shows a clean way to drag something out of a Tauri window and turn it into a new window. Waypoint's tab tear-off should use the same pattern if we build on Tauri v2.
 
-Check the repo's licence before copying any code. This doc describes the pattern in our own words and does not reproduce their source.
+doska is MIT-licensed, so the pattern is reused and its code may be reused with attribution. This doc describes the pattern in our own words and does not reproduce their source.
 
 ## Why this pattern
 
@@ -13,7 +13,7 @@ A webview can only track the pointer while it is inside the window. Once a drag 
 ### 1. Drag handle, in the web UI
 
 - Mouse down on a marked handle starts a _pending_ drag. Ignore buttons, links and inputs inside the handle.
-- Wait for a small movement threshold (about 4 px) before it counts as a drag. Below that it is still a click.
+- Wait for a small movement threshold (4 px) before it counts as a drag. Below that it is still a click.
 - Once it counts as a drag: clear any text selection, set `user-select: none` and a grabbing cursor on `body`, and ask the backend to show the ghost.
 - While dragging, check whether the pointer is outside the window's viewport. If it is, fade the source (in Doska, opacity to about 40%).
 - On mouse up: restore the body styles, tell the backend to hide the ghost, and if the pointer is outside the viewport, open the new window at the drop point.
@@ -39,7 +39,7 @@ A webview can only track the pointer while it is inside the window. Once a drag 
 
 | Waypoint behaviour                           | Prototype                                                                   | Tauri build                                                                                |
 | -------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Tear a tab off                               | Drag more than 26 px away from the tab row; a ghost card follows the cursor | The handle logic above on the tab; ghost window follows the native cursor                  |
+| Tear a tab off                               | Drag more than 24 px away from the tab row; a ghost card follows the cursor | The handle logic above on the tab; ghost window follows the native cursor                  |
 | Ghost content                                | A mini window card with the tab title                                       | The ghost window renders the same card; send the title and theme through the start command |
 | Release outside                              | New floating window at the drop point                                       | New `WebviewWindow` at the drop point, loading the tab's location                          |
 | Release on another Waypoint window's tab row | "Merge into that window"                                                    | Needs cross-window hit-testing (see below)                                                 |
@@ -54,6 +54,15 @@ A webview can only track the pointer while it is inside the window. Once a drag 
 - **Wayland.** Client-set window positions and always-on-top ghosts are restricted on some Wayland compositors. Test on GNOME (Mutter) and KDE (KWin). Fall back to opening the new window centred on the source and skip the floating ghost if positioning isn't allowed.
 - **Windows 11 and X11.** Click-through ghosts work well on both, but test transparency on the ghost because it must respect the user's transparency setting.
 - **Tab drags that also carry files.** If files are dragged, the ghost shows the file stack (see `interactions.md` §3.6) instead of a tab card.
+
+## Pitfalls
+
+- **`cursor_position()` lies on Wayland.** `tao` 0.37 returns `Ok((0, 0))` rather than an error (`tao/src/platform_impl/linux/util.rs:18`), so a ghost-follow thread would pin the ghost at the origin. Detect Wayland and report `cursor_follow: false`.
+- **`set_ignore_cursor_events` panics on a window that was never shown.** On Linux a GTK window that has not been realised panics (`tao/src/platform_impl/linux/event_loop.rs:452`). Realise the ghost first (show it once, off-screen, on the main thread) and only then make it click-through.
+
+## Thresholds
+
+One set is used everywhere (SPEC §13c, `interactions.md` §3.5 and §7): 4 px to start a drag, 24 px to tear off, a 450 ms hold to split, an 800 ms rest to start a group, and 140 ms of motion.
 
 ## Suggested build order
 

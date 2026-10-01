@@ -88,7 +88,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 > Native window implementation for Tauri: see `tauri-tear-off.md`.
 
-- Drag a tab within the strip to reorder it. Drag it out more than 24 px vertically to tear it off; a ghost window follows the cursor.
+- Drag a tab within the strip to reorder it. A drag starts after 4 px of movement. Drag it more than 24 px out of the strip to tear it off; a ghost window follows the cursor (where the platform allows it).
 - Dropping a tab onto another window's strip merges it there. Dropping it onto a group chip joins the group.
 - Dropping files onto a tab springs it open. Dropping onto the "+" opens a new tab at the dropped folder.
 
@@ -124,11 +124,11 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Click                    | Group label                    | Collapse or expand                                                                                                                         |
 | Double-click             | Group label                    | Rename in place                                                                                                                            |
 | Right-click              | Group label                    | Group menu (see SPEC §5.2)                                                                                                                 |
-| Drag                     | Group label                    | Move the group along the strip; out of the window or onto the New-window zones tears it off                                                |
+| Drag                     | Group label                    | Move the group along the strip; out of the window tears it off                                                                             |
 | Drag tab onto            | Group label                    | Add the tab (and its pair) to the group                                                                                                    |
 | Drag tab out             | Beyond the group's span        | Remove it from the group                                                                                                                   |
 | Drag folder onto         | Group label                    | Open it as a new tab in the group                                                                                                          |
-| Hold tab over            | Middle of another tab (0.45 s) | Split with it (joined pair)                                                                                                                |
+| Hold tab over            | Middle of another tab (450 ms) | Split with it (joined pair)                                                                                                                |
 | Drag tab to              | Content edge                   | Split left, right, top or bottom                                                                                                           |
 | Drag                     | Pair joint                     | Move both; out of the window tears off both                                                                                                |
 | Double-click             | Pair joint                     | Reset pane sizes                                                                                                                           |

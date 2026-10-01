@@ -87,8 +87,9 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 - **Merge:** drop a tab onto another window's strip. Drop it onto a tab's body to put it next to that tab.
 - **Spring-load:** while you hover a file drag over a tab for 600 ms, that tab activates.
 - Middle-click a folder to open it in a new tab beside the current one, without leaving the current tab. **Ctrl+middle-click** opens it in a new window. Middle-click a tab to close it.
-- **Keyboard:** the strip is a tablist with roving focus. Left and Right move focus along the tabs (Home and End jump), Enter or Space activates the focused tab, Ctrl+Shift+Left or Right moves it, and Delete closes it. Ctrl+T opens a tab at the current folder, Ctrl+W closes the active tab, Ctrl+Tab and Ctrl+Shift+Tab step through the tabs in strip order, and Alt+1 to Alt+9 go to that tab. Dragging a tab along the strip reorders it, and Escape abandons the drag.
-- Closing the last tab leaves a new tab at Home (until window closing and session restore arrive). Each tab keeps its selection and scroll position while it is open; a background tab gives up its cached rows after a short while and refreshes them when you return.
+- **Keyboard:** the strip is a tablist with roving focus. Left and Right move focus along the tabs (Home and End jump), Enter or Space activates the focused tab, Ctrl+Shift+Left or Right moves it, and Delete closes it. Ctrl+T opens a tab at the current folder, Ctrl+W closes the active tab, Ctrl+Tab and Ctrl+Shift+Tab step through the tabs in most-recently-used order, committed when Ctrl is released, and Alt+1 to Alt+9 go to that tab. Dragging a tab along the strip reorders it, and Escape abandons the drag.
+- **Last tab and last window (milestone 3):** closing the last tab of a window closes the window, and closing the last window quits Waypoint. Closed tabs, including the tabs of a closed window, go to Recently Closed (the last 10, kept with the session).
+- Closing the last tab leaves a new tab at Home until milestone 3 introduces the rule below. Each tab keeps its selection and scroll position while it is open; a background tab gives up its cached rows after a short while and refreshes them when you return.
 
 #### The + button
 
@@ -123,9 +124,9 @@ Settings → General → When Waypoint starts: **Restore last session** (default
 - **Pairs:** a joined pair (split view) always stays together inside a group. Adding, removing, pinning or colouring one half applies to both.
 - **Label:** click collapses or expands (a collapsed label reads “Site · 3”). Double-click renames in place. A new group is auto-named “Group N” and enters rename immediately.
 - **Right-click menu:** Rename Group, Change Colour, Collapse or Expand, Collapse All Other Groups, New Tab in Group, Pin or Unpin Group, Sort Tabs in Group (by name, by location, local first), Duplicate Group, Save Group as Workspace, Move Group to New Window, Ungroup, Close Group.
-- **Drag and drop:** drag the label to move the whole group; drag a tab onto a label to add it; drag a tab out of the group's span to remove it; drag the label out of the window (or onto the New-window zones) to tear the group off; drag a folder onto a label to open it as a new tab in that group.
+- **Drag and drop:** drag the label to move the whole group; drag a tab onto a label to add it; drag a tab out of the group's span to remove it; drag the label out of the window to tear the group off; drag a folder onto a label to open it as a new tab in that group.
 - **Workspaces:** saving a group as a workspace adds its locations as a sidebar favourites set.
-- Overflow: the strip scrolls and a tab list menu appears. Ctrl+Tab cycles tabs in most-recently-used order.
+- Overflow: the strip scrolls and a tab list menu appears. Ctrl+Tab cycles tabs in most-recently-used order, committed when Ctrl is released.
 
 ### 5.3a Search
 
@@ -337,15 +338,15 @@ Right-clicking empty parts of the title bar or the tab strip opens the same wind
 
 ## 13c. Tab drag language
 
-Every tab drag shows one label pill beside the pointer saying what will happen, with “Esc to cancel”. Motion is 140 ms and turns into instant jumps with Reduce motion.
+Every tab drag shows one label pill beside the pointer saying what will happen, with “Esc to cancel”. Motion is 140 ms and turns into instant jumps with Reduce motion. The thresholds are one set: a drag starts after 4 px of movement, tears off after 24 px away from the strip, splits after a 450 ms hold over the middle of a tab, and starts a group after an 800 ms rest in a slot.
 
 - **Reorder:** the tab follows the pointer inside the strip, the other tabs slide aside, and a thin accent line marks the open slot. On release the tab settles into the slot.
-- **Split pair:** hold over the middle of another tab. A ring draws around it over about half a second, then the two tabs bridge into one pill.
-- **New group:** rest in a slot for about 0.8 seconds. A bracket draws under the slot and the pill says “Release to start a new group”. The new group opens with its name ready to edit.
+- **Split pair:** hold over the middle of another tab. A ring draws around it over 450 ms, then the two tabs bridge into one pill.
+- **New group:** rest in a slot for 800 ms. A bracket draws under the slot and the pill says “Release to start a new group”. The new group opens with its name ready to edit.
 - **Add to a group:** drag onto a group label; the pill says “Release to add to …”.
 - **Leave a group:** drag the tab out of the group's span.
 - **Split pane:** drag into the file area; the left, right, top or bottom area highlights and the pill says which.
-- **New window:** drag away from the strip. The tab collapses out of the strip, a mini window preview follows the pointer, and the pill says “Release to open in a new window”. Dropping it on the other window's strip merges it in; moving it back over the strip cancels.
+- **New window:** drag away from the strip. The tab collapses out of the strip, a mini window preview follows the pointer, and the pill says “Release to open in a new window”. Dropping it on the other window's strip merges it in; moving it back over the strip cancels. Where the compositor allows no cursor position or window placement (Wayland), there is no floating ghost: the preview stays inside the window, the compositor places the new window, and a tab merges into another window from its menu.
 - **Cancel:** Esc at any point slides the tab back to where it started.
 
 ## 14. Accessibility
