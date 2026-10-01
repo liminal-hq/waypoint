@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod ops;
+mod ops_window;
 mod persistence;
 mod storage;
 mod windows;
@@ -151,7 +152,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
             hold_next_window,
-            show_window
+            show_window,
+            ops_window::open_ops_window
         ])
         .setup({
             let saver = Arc::clone(&saver);
