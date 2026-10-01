@@ -3,8 +3,14 @@
 	"steps": [
 		{ "do": { "op": "open", "location": "/a" }, "expect": { "tabs": [1] } },
 		{ "do": { "op": "open", "location": "/b", "activate": false }, "expect": { "tabs": [1, 2] } },
-		{ "do": { "op": "open", "location": "/a", "activate": false }, "expect": { "tabs": [1, 2, 3] } },
-		{ "do": { "op": "open", "location": "/z", "activate": false }, "expect": { "tabs": [1, 2, 3, 4] } },
+		{
+			"do": { "op": "open", "location": "/a", "activate": false },
+			"expect": { "tabs": [1, 2, 3] }
+		},
+		{
+			"do": { "op": "open", "location": "/z", "activate": false },
+			"expect": { "tabs": [1, 2, 3, 4] }
+		},
 		{
 			"do": { "op": "createGroup", "tabs": [1, 2, 3], "name": "Site" },
 			"expect": { "groups": [{ "id": 1, "name": "Site", "collapsed": false, "tabs": [1, 2, 3] }] }
