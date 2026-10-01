@@ -90,3 +90,29 @@ describe('OpsScreen', () => {
 		);
 	});
 });
+
+describe('OpsScreen resolving', () => {
+	it('opens the conflict dialog from "Resolve…" for a job another window started', async () => {
+		const user = userEvent.setup();
+		const fake = renderScreen();
+		await screen.findByText('Nothing is running.');
+		let id = 0;
+		await act(async () => {
+			id = await fake.submit(request(['a.txt']));
+			fake.start(id);
+		});
+		await act(async () =>
+			fake.askError(
+				id,
+				{ kind: 'io', message: 'boom' },
+				{ display: '/src/a.txt', uri: 'file:///src/a.txt' },
+			),
+		);
+		// The job belongs to main-1: this window waits to be asked.
+		expect(screen.queryByRole('dialog')).toBeNull();
+		await user.click(await screen.findByRole('button', { name: /^Resolve…/ }));
+		expect(
+			await screen.findByRole('dialog', { name: 'An item could not be processed' }),
+		).toBeInTheDocument();
+	});
+});

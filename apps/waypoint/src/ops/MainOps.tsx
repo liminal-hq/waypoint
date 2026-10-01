@@ -11,6 +11,7 @@ import type { Location, OpsClient } from '../services/opsClient';
 import { announce } from '../tabs/announcer';
 import { useActiveTab, useTabsApi } from '../tabs/TabsContext';
 import { OpsProvider } from './OpsContext';
+import { OpsResolverHost } from './OpsResolverHost';
 import { startOpsAnnouncer } from './opsAnnouncer';
 import { showRecoveryNotice, startUndoNotices } from './opsNotices';
 import type { OpsHandle } from './opsStore';
@@ -71,6 +72,7 @@ export function MainOps({ client, children }: MainOpsProps) {
 			onHandle={onHandle}
 		>
 			{children}
+			<OpsResolverHost />
 		</OpsProvider>
 	);
 }

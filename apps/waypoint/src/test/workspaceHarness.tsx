@@ -11,6 +11,9 @@ import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
+import { OpsProvider } from '../ops/OpsContext';
+import { OpsResolverHost } from '../ops/OpsResolverHost';
+import type { OpsClient } from '../services/opsClient';
 import { TabsProvider } from '../tabs/TabsContext';
 import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
@@ -35,21 +38,37 @@ export function createTree(): FakeVfsClient {
 	return client;
 }
 
-/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`; `options.tearoff` is the tear-off plugin, `options.trash` the Trash service). */
+/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`; `options.tearoff` is the tear-off plugin, `options.trash` the Trash service, `options.ops` the operations queue). */
 export async function renderWorkspace(
 	client: FakeVfsClient = createTree(),
 	tabs: FakeTabsApi = new FakeTabsApi(),
 	places: FakePlacesClient = new FakePlacesClient({ places: fakePlaces('/home/test') }),
-	options: { sidebar?: boolean; tearoff?: TearoffClient; trash?: TrashClient } = {},
+	options: {
+		sidebar?: boolean;
+		tearoff?: TearoffClient;
+		trash?: TrashClient;
+		/** The operations queue: the window follows it and answers the jobs it started (`main-1`). */
+		ops?: OpsClient;
+	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
+	const workspace = (
+		<TabsProvider api={tabs} home={HOME}>
+			<Workspace tearoff={options.tearoff} />
+		</TabsProvider>
+	);
 	const view = render(
 		<VfsClientProvider client={client}>
 			<PlacesClientProvider client={places}>
 				<TrashClientProvider client={options.trash}>
-					<TabsProvider api={tabs} home={HOME}>
-						<Workspace tearoff={options.tearoff} />
-					</TabsProvider>
+					{options.ops ? (
+						<OpsProvider client={options.ops} windowLabel="main-1">
+							{workspace}
+							<OpsResolverHost />
+						</OpsProvider>
+					) : (
+						workspace
+					)}
 				</TrashClientProvider>
 			</PlacesClientProvider>
 		</VfsClientProvider>,
