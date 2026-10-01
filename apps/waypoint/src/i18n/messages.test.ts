@@ -6,6 +6,7 @@
 import { defaultChromeLabels } from '@liminal-hq/waypoint-chrome/labels';
 import { describe, expect, it } from 'vitest';
 import { chromeLabels } from './chromeLabels';
+import { pluralText, policyLabel } from '../ops/resolveText';
 import { enMessages, t, tf, tn } from './messages';
 
 const screens = import.meta.glob<string>(
@@ -74,19 +75,10 @@ describe('the Trash messages', () => {
 		expect(tn('trash.done.deleted', 2, 'en-CA')).toBe('Deleted 2 items permanently');
 		expect(tn('trash.done.skipped', 1, 'en-CA')).toBe('1 item was left in the Trash');
 		expect(tn('sidebar.trash.count', 4, 'en-CA')).toBe('4 items in the Trash');
-		expect(tn('trash.conflict.message', 3, 'en-CA')).toBe(
-			'3 items already exist in their original folders.',
-		);
 	});
 
 	it('fill in the names they mention', () => {
-		expect(tf('trash.conflict.message.one', { name: 'a.txt' })).toBe(
-			'“a.txt” already exists in its original folder.',
-		);
 		expect(tf('trash.failed.restore', { reason: 'no room' })).toBe('Could not restore: no room');
-		expect(tf('trash.parent.message', { folder: '/home/a' })).toBe(
-			'/home/a no longer exists. Recreate it and restore the item there?',
-		);
 	});
 
 	it('keep the Trash’s words consistent where they appear in more than one place', () => {
@@ -94,6 +86,32 @@ describe('the Trash messages', () => {
 		expect(t('menu.deletePermanently')).toBe(t('trash.delete'));
 		expect(t('menu.restore')).toBe(t('trash.restore'));
 		expect(t('browse.column.deleted')).toBe(t('menu.sort.deleted'));
+	});
+});
+
+describe('the conflict resolver messages', () => {
+	it('have a one and an other form for what is counted', () => {
+		expect(pluralText('ops.conflict.title', 1, { destination: '/dest' }, 'en-CA')).toBe(
+			'1 item already exists in /dest',
+		);
+		expect(pluralText('ops.conflict.title', 1200, { destination: '/dest' }, 'en-CA')).toBe(
+			'1,200 items already exist in /dest',
+		);
+		expect(pluralText('ops.conflict.title.restore', 3, {}, 'en-CA')).toBe(
+			'3 items already exist in their original folders',
+		);
+		expect(pluralText('ops.conflict.more', 30, {}, 'en-CA')).toBe('and 30 more');
+	});
+
+	it('name every choice the engine knows', () => {
+		expect(
+			(['replace', 'skip', 'keepBoth', 'mergeFolders', 'replaceIfNewer'] as const).map(policyLabel),
+		).toEqual(['Replace', 'Skip', 'Keep both', 'Merge folders', 'Replace if newer']);
+	});
+
+	it('agree with the Cancel the operation wording wherever it appears', () => {
+		expect(t('ops.conflict.cancel')).toBe(t('ops.problem.cancel'));
+		expect(t('ops.conflict.cancelConfirm.confirm')).toBe(t('ops.conflict.cancel'));
 	});
 });
 
