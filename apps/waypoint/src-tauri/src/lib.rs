@@ -3,6 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::sync::Arc;
+
+use tauri_plugin_waypoint_session::{MemoryStorage, SessionDeps, WindowError, WindowFactory};
+use waypoint_session::StorePolicy;
+
 /// The level floor applied to every log line — native Rust and forwarded
 /// webview `console.*` calls alike. Verbose in a debug build, `Info` and up in
 /// a release one, the same split the other Liminal HQ apps use.
@@ -12,6 +17,34 @@ fn log_level() -> log::LevelFilter {
     } else {
         log::LevelFilter::Info
     }
+}
+
+/// The window factory until windows can be created from Rust (milestone 3, slice 04): the app has
+/// the one window `tauri.conf.json` declares, so a command that needs another one fails cleanly.
+struct NoWindowFactory;
+
+impl WindowFactory for NoWindowFactory {
+    fn create(
+        &self,
+        _app: &tauri::AppHandle,
+        _label: &str,
+        _geometry: Option<&waypoint_session::Geometry>,
+    ) -> Result<(), WindowError> {
+        Err(WindowError::NotAvailable)
+    }
+}
+
+/// The session's dependencies for now: no window creation, nothing persisted, and the milestone 2
+/// rule that closing a window's last tab leaves it empty (the page puts a Home tab there). The
+/// persistence wiring and the app's own policy come with slice 03.
+fn session_deps() -> SessionDeps {
+    SessionDeps::new(
+        Arc::new(NoWindowFactory),
+        Arc::new(MemoryStorage::default()),
+        StorePolicy {
+            close_window_on_last_tab: false,
+        },
+    )
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -49,7 +82,7 @@ pub fn run() {
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
-        .plugin(tauri_plugin_waypoint_session::init())
+        .plugin(tauri_plugin_waypoint_session::init(session_deps()))
         .plugin(tauri_plugin_window_state::Builder::default().build());
 
     // Lets an agent drive and screenshot the running app during development. Not on Windows, where

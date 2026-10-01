@@ -1,7 +1,7 @@
 [package]
 name = "tauri-plugin-waypoint-session"
 version = "0.1.0"
-description = "Waypoint's session plugin: tabs, their order, the active tab and per-tab history for each window, over the waypoint-session crate"
+description = "Waypoint's session plugin: every window's tabs, groups, pairs, view and geometry in one store, over the waypoint-session crate"
 authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
@@ -12,8 +12,8 @@ build = "build.rs"
 links = "tauri-plugin-waypoint-session"
 
 [package.metadata.platforms.support]
-linux = { level = "full", notes = "Nothing platform-specific; the state is in memory" }
-windows = { level = "full", notes = "Nothing platform-specific; the state is in memory" }
+linux = { level = "full", notes = "Nothing platform-specific; the state is in memory, and windows are created by the injected factory" }
+windows = { level = "full", notes = "Nothing platform-specific; the state is in memory, and windows are created by the injected factory" }
 
 [lib]
 name = "tauri_plugin_waypoint_session"
@@ -29,3 +29,7 @@ waypoint-session = { path = "../../crates/waypoint-session" }
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tauri = { workspace = true, features = ["test"] }

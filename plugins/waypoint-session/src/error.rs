@@ -5,12 +5,17 @@
 
 use thiserror::Error;
 
+use crate::deps::WindowError;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("internal error: {0}")]
     Internal(String),
     #[error(transparent)]
     Session(#[from] waypoint_session::SessionError),
+    /// The window factory could not make a window; the store change was rolled back.
+    #[error("could not create the window: {0}")]
+    Window(#[from] WindowError),
 }
 
 impl serde::Serialize for Error {

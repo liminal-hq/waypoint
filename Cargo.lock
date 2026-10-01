@@ -4176,6 +4176,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.21",
@@ -4986,6 +4987,7 @@ dependencies = [
  "tauri-plugin-window-manager",
  "tauri-plugin-window-state",
  "waypoint-protocol",
+ "waypoint-session",
 ]
 
 [[package]]
