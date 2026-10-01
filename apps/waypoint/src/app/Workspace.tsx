@@ -42,7 +42,7 @@ import { ViewSwitcher } from '../status/ViewSwitcher';
 import type { TearoffClient } from '../services/tearoffClient';
 import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
-import { createTearCardStore } from '../tabs/tearOffCard';
+import { createTearCardStore } from '../tabs/tearOffCardModel';
 import { TearOffCard } from '../tabs/TearOffCard';
 import { createTearOff } from '../tabs/tearOff';
 import { sessionSignature } from '../tabs/tabDrag';

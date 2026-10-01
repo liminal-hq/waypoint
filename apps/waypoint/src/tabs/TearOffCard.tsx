@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from 'zustand';
 import { TearCard } from '../app/TearCard';
 import { CARD_SIZE } from './tearOffPlacement';
-import type { TearCardStore } from './tearOffCard';
+import type { TearCardStore } from './tearOffCardModel';
 import styles from './TearOffCard.module.css';
 
 /**

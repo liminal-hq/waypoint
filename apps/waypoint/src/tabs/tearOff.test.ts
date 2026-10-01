@@ -20,7 +20,7 @@ import {
 	type TabDragSource,
 	type TabDragTarget,
 } from './tabDrag';
-import { createTearCardStore } from './tearOffCard';
+import { createTearCardStore } from './tearOffCardModel';
 import { createTearOff, HIT_POLL_MS, type TearOff } from './tearOff';
 
 const VIEW = { width: 1000, height: 700 };

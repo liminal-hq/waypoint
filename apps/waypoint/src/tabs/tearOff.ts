@@ -21,7 +21,7 @@ import { parseRegionId, type DropSlot } from './dropRegions';
 import { groupTabs } from './groupLayout';
 import { pairName } from './PairPill';
 import type { TabDragSource, TearOffHook } from './tabDrag';
-import type { TearCardStore } from './tearOffCard';
+import type { TearCardStore } from './tearOffCardModel';
 import { CARD_GRAB, CARD_SIZE, newWindowGeometry } from './tearOffPlacement';
 import { locationLabel } from './tabTitle';
 import { refuse, windowName } from './windowActions';
