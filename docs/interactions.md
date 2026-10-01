@@ -19,30 +19,31 @@
 
 ## 2. Keyboard (default "Waypoint" preset)
 
-| Keys                      | Action                                   |
-| ------------------------- | ---------------------------------------- |
-| Ctrl+T / Ctrl+W           | New tab / close tab                      |
-| Ctrl+Shift+T              | Reopen closed tab                        |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used) |
-| Alt+1…9                   | Go to tab                                |
-| Ctrl+Shift+N              | New window                               |
-| Ctrl+K or Ctrl+Shift+P    | Command palette                          |
-| Ctrl+L                    | Edit path                                |
-| Ctrl+F                    | Search · `/` inline filter               |
-| F2                        | Rename · Ctrl+F2 batch rename            |
-| F3                        | Toggle split                             |
-| F4                        | Terminal drawer                          |
-| F5 / Shift+F5             | Copy / move to the other pane            |
-| F6                        | Switch the active pane                   |
-| F9                        | Sidebar · F11 inspector                  |
-| Space                     | Quick Look                               |
-| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                              |
-| Ctrl+H                    | Hidden files                             |
-| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage |
-| Ctrl+D                    | Bookmark                                 |
-| Ctrl+B                    | Toggle the Shelf                         |
-| Delete / Shift+Delete     | Trash / delete permanently               |
-| Alt+Enter                 | Properties                               |
+| Keys                      | Action                                                    |
+| ------------------------- | --------------------------------------------------------- |
+| Ctrl+T / Ctrl+W           | New tab / close tab                                       |
+| Ctrl+Shift+T              | Reopen closed tab                                         |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                  |
+| Alt+1…9                   | Go to tab                                                 |
+| Ctrl+Shift+N              | New window (one tab at Home)                              |
+| Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸) |
+| Ctrl+K or Ctrl+Shift+P    | Command palette                                           |
+| Ctrl+L                    | Edit path                                                 |
+| Ctrl+F                    | Search · `/` inline filter                                |
+| F2                        | Rename · Ctrl+F2 batch rename                             |
+| F3                        | Toggle split                                              |
+| F4                        | Terminal drawer                                           |
+| F5 / Shift+F5             | Copy / move to the other pane                             |
+| F6                        | Switch the active pane                                    |
+| F9                        | Sidebar · F11 inspector                                   |
+| Space                     | Quick Look                                                |
+| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                               |
+| Ctrl+H                    | Hidden files                                              |
+| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage                  |
+| Ctrl+D                    | Bookmark                                                  |
+| Ctrl+B                    | Toggle the Shelf                                          |
+| Delete / Shift+Delete     | Trash / delete permanently                                |
+| Alt+Enter                 | Properties                                                |
 
 ### Vim mode (optional)
 
