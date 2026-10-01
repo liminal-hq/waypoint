@@ -54,7 +54,7 @@ var __TAURI_PLUGIN_TRASH__ = (function (exports, core) {
     }
     /** True if a rejected value is a `TrashError`. */
     function isTrashError(value) {
-        return typeof value === 'object' && value !== null && typeof value.kind === 'string';
+        return (typeof value === 'object' && value !== null && typeof value.kind === 'string');
     }
 
     exports.deleteItem = deleteItem;

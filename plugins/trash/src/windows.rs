@@ -1,13 +1,14 @@
 // The Windows backend: IFileOperation to trash, and the Recycle Bin shell folder to list, restore, delete and empty
 //
-// Everything that talks to the shell runs on the main thread (see `main_thread`) with COM initialised, as `IFileOperation` and the shell folders require a single-threaded apartment. The Recycle Bin is read through `IShellItem2` properties: the original location (`System.Recycle.DeletedFrom`) and the deletion time (`System.Recycle.DateDeleted`).
-//
-// An item's id is the path of its file in the bin (`C:\$Recycle.Bin\S-1-5-21-…\$R1A2B3C.txt`). It is unique, survives restarts, and is what the shell itself names the item by.
-//
-// Restore moves the item out of the bin with `IFileOperation::MoveItem`, after checking the destination here: the shell's own "undelete" verb answers conflicts with dialogs, and this plugin must report `OriginExists` and `OriginMissingParent` instead and never overwrite.
-//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+//! Everything that talks to the shell runs on the main thread (see `main_thread`) with COM initialised, as `IFileOperation` and the shell folders require a single-threaded apartment. The Recycle Bin is read through `IShellItem2` properties: the original location (`System.Recycle.DeletedFrom`) and the deletion time (`System.Recycle.DateDeleted`).
+//!
+//! An item's id is the path of its file in the bin (`C:\$Recycle.Bin\S-1-5-21-…\$R1A2B3C.txt`). It is unique, survives restarts, and is what the shell itself names the item by.
+//!
+//! Restore moves the item out of the bin with `IFileOperation::MoveItem`, after checking the destination here: the shell's own "undelete" verb answers conflicts with dialogs, and this plugin must report `OriginExists` and `OriginMissingParent` instead and never overwrite.
+//!
 
 use std::path::{Path, PathBuf};
 

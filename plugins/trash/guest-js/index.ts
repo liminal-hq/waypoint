@@ -92,5 +92,7 @@ export function empty(olderThanDays?: number): Promise<EmptyReport> {
 
 /** True if a rejected value is a `TrashError`. */
 export function isTrashError(value: unknown): value is TrashError {
-	return typeof value === 'object' && value !== null && typeof (value as TrashError).kind === 'string';
+	return (
+		typeof value === 'object' && value !== null && typeof (value as TrashError).kind === 'string'
+	);
 }
