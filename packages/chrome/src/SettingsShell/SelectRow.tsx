@@ -24,11 +24,12 @@ function Select<T extends string>({
 	options,
 	onChange,
 }: Pick<SelectRowProps<T>, 'value' | 'options' | 'onChange'>) {
-	const { controlId, describedBy, disabled } = useSettingsRowControl();
+	const { controlId, describedBy, disabled, invalid } = useSettingsRowControl();
 	return (
 		<select
 			id={controlId}
 			aria-describedby={describedBy}
+			aria-invalid={invalid || undefined}
 			disabled={disabled}
 			className={styles.field}
 			value={value}

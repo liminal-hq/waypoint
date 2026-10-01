@@ -244,6 +244,40 @@ describe('SettingsRow', () => {
 		);
 	});
 
+	it('shows an error as an alert tied to the control, and clears it with the prop', () => {
+		const { rerender } = render(
+			<NumberRow
+				label="Delay"
+				description="How long to wait"
+				value={600}
+				onChange={() => {}}
+				error="Delay must be between 200 and 2000"
+			/>,
+		);
+		const field = screen.getByRole('spinbutton', { name: 'Delay' });
+		expect(screen.getByRole('alert')).toHaveTextContent('Delay must be between 200 and 2000');
+		expect(field).toHaveAttribute('aria-invalid', 'true');
+		expect(field).toHaveAccessibleDescription(
+			'How long to wait Delay must be between 200 and 2000',
+		);
+		rerender(<NumberRow label="Delay" value={600} onChange={() => {}} />);
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(screen.getByRole('spinbutton')).not.toHaveAttribute('aria-invalid');
+	});
+
+	it('marks a select invalid while its row shows an error', () => {
+		render(
+			<SelectRow
+				label="Rule"
+				value="a"
+				options={[{ value: 'a', label: 'A' }]}
+				onChange={() => {}}
+				error="Refused"
+			/>,
+		);
+		expect(screen.getByRole('combobox', { name: 'Rule' })).toHaveAttribute('aria-invalid', 'true');
+	});
+
 	it('disables the control without a reason line when only disabled', () => {
 		render(<ToggleRow label="Thing" checked onChange={() => {}} disabled />);
 		expect(screen.getByRole('switch')).toBeDisabled();
@@ -351,6 +385,20 @@ describe('NumberRow', () => {
 		fireEvent.blur(field);
 		expect(onChange).toHaveBeenCalledWith(16);
 		expect(field).toHaveValue(16);
+	});
+
+	it('applies a typed value only on Enter or blur when it commits on commit', () => {
+		const onChange = vi.fn();
+		render(
+			<NumberRow label="Depth" value={4} min={1} max={200} commitOn="commit" onChange={onChange} />,
+		);
+		const field = screen.getByRole('spinbutton');
+		fireEvent.change(field, { target: { value: '5' } });
+		fireEvent.change(field, { target: { value: '50' } });
+		expect(onChange).not.toHaveBeenCalled();
+		fireEvent.keyDown(field, { key: 'Enter' });
+		expect(onChange).toHaveBeenCalledTimes(1);
+		expect(onChange).toHaveBeenCalledWith(50);
 	});
 
 	it('reverts an empty field on blur', () => {

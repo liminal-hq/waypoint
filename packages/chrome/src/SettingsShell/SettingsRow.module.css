@@ -34,6 +34,13 @@
 	line-height: 1.4;
 }
 
+.error {
+	color: var(--wp-danger);
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.4;
+}
+
 .control {
 	display: flex;
 	flex: none;

@@ -16,6 +16,12 @@ export interface NumberRowProps extends Omit<SettingsRowProps, 'children'> {
 	step?: number;
 	/** Suffix shown after the field, such as "MB" or "ms". */
 	unit?: string;
+	/**
+	 * When a typed value is applied: on every valid keystroke (`change`, the default), or only
+	 * when the field is left or Enter is pressed (`commit`), for a setting that must not take the
+	 * half-typed values on the way to the one meant.
+	 */
+	commitOn?: 'change' | 'commit';
 }
 
 function NumberField({
@@ -25,8 +31,9 @@ function NumberField({
 	max,
 	step,
 	unit,
+	commitOn = 'change',
 }: Omit<NumberRowProps, keyof SettingsRowProps>) {
-	const { controlId, labelId, describedBy, disabled } = useSettingsRowControl();
+	const { controlId, labelId, describedBy, disabled, invalid } = useSettingsRowControl();
 	// While typing the text may be empty or out of range; the value only changes for valid numbers.
 	const [draft, setDraft] = useState<string | null>(null);
 	const inRange = (n: number) => (min === undefined || n >= min) && (max === undefined || n <= max);
@@ -48,6 +55,7 @@ function NumberField({
 				id={controlId}
 				aria-labelledby={labelId}
 				aria-describedby={describedBy}
+				aria-invalid={invalid || undefined}
 				disabled={disabled}
 				className={`${styles.field} ${styles.number}`}
 				value={draft ?? String(value)}
@@ -57,7 +65,13 @@ function NumberField({
 				onChange={(event) => {
 					setDraft(event.target.value);
 					const n = Number(event.target.value);
-					if (event.target.value.trim() !== '' && Number.isFinite(n) && inRange(n)) onChange(n);
+					if (
+						commitOn === 'change' &&
+						event.target.value.trim() !== '' &&
+						Number.isFinite(n) &&
+						inRange(n)
+					)
+						onChange(n);
 				}}
 				onBlur={finish}
 				onKeyDown={(event) => {
@@ -73,10 +87,27 @@ function NumberField({
 	);
 }
 
-export function NumberRow({ value, onChange, min, max, step, unit, ...row }: NumberRowProps) {
+export function NumberRow({
+	value,
+	onChange,
+	min,
+	max,
+	step,
+	unit,
+	commitOn,
+	...row
+}: NumberRowProps) {
 	return (
 		<SettingsRow {...row}>
-			<NumberField value={value} onChange={onChange} min={min} max={max} step={step} unit={unit} />
+			<NumberField
+				value={value}
+				onChange={onChange}
+				min={min}
+				max={max}
+				step={step}
+				unit={unit}
+				commitOn={commitOn}
+			/>
 		</SettingsRow>
 	);
 }

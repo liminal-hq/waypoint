@@ -19,6 +19,11 @@ export interface SettingsRowProps {
 	 * reason line, for the Services-panel convention. An app that hides such options just omits the row.
 	 */
 	unavailableReason?: string;
+	/**
+	 * Why the last change was refused, shown under the description as an alert and tied to the
+	 * control. The app clears it when the next change is made.
+	 */
+	error?: string;
 	/** Set false when the control's own text is its name (a button), so the label is not tied to it. Default true. */
 	associateLabel?: boolean;
 }
@@ -31,6 +36,8 @@ export interface SettingsRowControl {
 	/** Space-separated ids of the description and reason lines that exist. */
 	describedBy: string | undefined;
 	disabled: boolean;
+	/** The row shows an error, so a field marks itself invalid. */
+	invalid: boolean;
 }
 
 const RowContext = createContext<SettingsRowControl | null>(null);
@@ -48,6 +55,7 @@ export function SettingsRow({
 	children,
 	disabled = false,
 	unavailableReason,
+	error,
 	associateLabel = true,
 }: SettingsRowProps) {
 	const id = useId();
@@ -56,12 +64,14 @@ export function SettingsRow({
 	const off = disabled || unavailable;
 	const descriptionId = description ? `${id}-description` : undefined;
 	const reasonId = unavailable ? `${id}-reason` : undefined;
-	const describedBy = [descriptionId, reasonId].filter(Boolean).join(' ') || undefined;
+	const errorId = error ? `${id}-error` : undefined;
+	const describedBy = [descriptionId, reasonId, errorId].filter(Boolean).join(' ') || undefined;
 	const control: SettingsRowControl = {
 		controlId: `${id}-control`,
 		labelId: `${id}-label`,
 		describedBy,
 		disabled: off,
+		invalid: error !== undefined,
 	};
 	return (
 		<RowContext.Provider value={control}>
@@ -87,6 +97,11 @@ export function SettingsRow({
 					{unavailable ? (
 						<div id={reasonId} className={styles.reason}>
 							{labels.unavailable}: {unavailableReason}
+						</div>
+					) : null}
+					{error ? (
+						<div id={errorId} role="alert" className={styles.error}>
+							{error}
 						</div>
 					) : null}
 				</div>
