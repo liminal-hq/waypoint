@@ -45,6 +45,8 @@
 | Delete / Shift+Delete     | Trash / delete permanently                                |
 | Alt+Enter                 | Properties                                                |
 
+Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highlight down the most-recently-used list (the active tab first), Shift+Tab moves it up, and releasing Ctrl activates the highlighted tab once, so the tabs passed on the way do not enter the MRU list. Escape cancels. Menu key or Shift+F10 on a focused tab, or on the + button, opens its menu; pressing and holding the + button opens its menu too. Delete or Ctrl+W close a pinned tab; a middle-click does not.
+
 ### Vim mode (optional)
 
 `h j k l` to move, `gg` and `G` for top and bottom, `Enter` or `l` to open, `h` or `-` to go up, `yy` to yank to the Shelf, `p` to paste, `dd` to trash, `cw` to rename, `v` for visual select, `/` to filter, `gt` and `gT` for tabs, `:` for the palette. A mode indicator appears in the status bar.
