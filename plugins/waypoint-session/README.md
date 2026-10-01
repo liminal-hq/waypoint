@@ -12,7 +12,7 @@ This is a domain plugin, private to Waypoint (see `docs/architecture/crates-and-
 - **First run.** A main window (`main-{n}`) the store does not hold yet is registered, empty, under its own label by its first `get_snapshot` or command (`Command::RegisterWindow`), so the page just reads its snapshot and opens a tab. A label that is not a main window is refused.
 - **Injected dependencies.** `init(SessionDeps { create_window, storage, policy, on_last_window_closed, on_change, change_delay })`:
   - `create_window: Arc<dyn WindowFactory<R>>` builds the webview for a window a command made (`open_window`, `move_tabs` to a new window). The plugin calls it after the store change and before any event is sent, with the store locked, so it must not call back into the session commands; if it fails, the store goes back to how it was and the command fails.
-  - `storage: Arc<dyn SessionStorage>` is held for the app's persistence wiring (`Sessions::storage`); the plugin does not load or save by itself yet.
+  - `storage: Arc<dyn SessionStorage>` is the seam the app saves through (`Sessions::storage`). The plugin never loads or saves on its own: the app loads a document, calls `Sessions::restore` with the resulting `Store` before it creates any window, and saves from `on_change` and when a window closes or the app exits (`apps/waypoint/src-tauri/src/persistence.rs` and `storage.rs`, over `tauri-plugin-store`).
   - `policy` is the store's `StorePolicy` (`close_window_on_last_tab`).
   - `on_last_window_closed` runs when the last window of the store closes, outside the lock.
   - `on_change` is called with a copy of the store `change_delay` (default one second) after the first change of a burst, once per burst, from a helper thread. It is the hook persistence subscribes to.
@@ -21,4 +21,4 @@ This is a domain plugin, private to Waypoint (see `docs/architecture/crates-and-
 
 ## Status
 
-Tabs, order, the active tab, history, pins, colours, hints, reopen, groups, pairs, windows, geometry, view and hand-off, in memory. Persistence and window creation from Rust arrive in slices 03 and 04 of milestone 3.
+Tabs, order, the active tab, history, pins, colours, hints, reopen, groups, pairs, windows, geometry, view and hand-off. The store is restored by the app at start (`Sessions::restore`), a window the store closes by itself (its last tab closed, with `close_window_on_last_tab`) has its webview destroyed, and `set_geometry` and `set_view` are how a window reports its place and view choices for saving. Windows are created by the injected `WindowFactory`.
