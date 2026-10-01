@@ -145,6 +145,28 @@ describe('FakeTabsStore with several windows', () => {
 		await expect(api.reopenTab(99)).rejects.toBe('no such tab: 99');
 	});
 
+	it('colours a pair as one and numbers default group names per window', async () => {
+		const { store, one, two } = twoWindows();
+		const a = await one.openTab(loc('a'));
+		const b = await one.openTab(loc('b'));
+		const c = await one.openTab(loc('c'));
+		await one.joinPair([a, b], 'sideBySide');
+		await one.setTabColour(b, 'teal');
+		const colours = () => store.window('main-1')!.tabs.map((t) => t.colour);
+		expect(colours()).toEqual(['teal', 'teal', null]);
+		await one.setTabColour(a, null);
+		expect(colours()).toEqual([null, null, null]);
+
+		await one.createGroup([a]);
+		await one.createGroup([c]);
+		const d = await two.openTab(loc('d'));
+		await two.createGroup([d]);
+		expect(store.window('main-2')!.groups.map((g) => g.name)).toEqual(['Group 1']);
+		await one.ungroup(1);
+		await one.createGroup([b]);
+		expect(store.window('main-1')!.groups.map((g) => g.name)).toEqual(['Group 2', 'Group 3']);
+	});
+
 	it("returns the ids the plugin returns and rejects with Rust's messages", async () => {
 		const api = new FakeTabsApi();
 		const a = await api.openTab(loc('a'));

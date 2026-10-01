@@ -172,6 +172,13 @@ const pairOf = (w: WindowState, tab: TabId): Pair | undefined =>
 	w.pairs.find((p) => p.panes.includes(tab));
 
 /** The tabs that must travel together with `tab`: its pair's panes in pane order, or the tab. */
+/** "Group N" for a group made without a name: N counts the window's groups and skips taken numbers. */
+function defaultGroupName(w: WindowState): string {
+	let n = w.groups.length + 1;
+	while (w.groups.some((g) => g.name === `Group ${n}`)) n += 1;
+	return `Group ${n}`;
+}
+
 function unit(w: WindowState, tab: TabId): TabId[] {
 	const pair = pairOf(w, tab);
 	return pair ? pair.panes.filter((p) => indexOf(w, p) >= 0) : [tab];
@@ -874,9 +881,13 @@ class Reducer {
 				for (const t of w.tabs) if (set.has(t.id)) t.pinned = c.pinned;
 				return;
 			}
-			case 'setColour':
-				this.tab(w, c.tab).colour = c.colour;
+			case 'setColour': {
+				// A pair shares one colour, so colouring one half colours both.
+				this.tab(w, c.tab);
+				const set = new Set(unit(w, c.tab));
+				for (const t of w.tabs) if (set.has(t.id)) t.colour = c.colour;
 				return;
+			}
 			case 'setHints':
 				this.tab(w, c.tab).hints = c.hints;
 				return;
@@ -954,7 +965,7 @@ class Reducer {
 						t.pinned = pinned;
 					}
 				}
-				w.groups.push({ id, name: c.name ?? `Group ${id}`, colour: null, collapsed: false });
+				w.groups.push({ id, name: c.name ?? defaultGroupName(w), colour: null, collapsed: false });
 				s.nextGroup += 1;
 				return;
 			}
