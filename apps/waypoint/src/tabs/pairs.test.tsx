@@ -470,7 +470,9 @@ describe('the joint menu', () => {
 				{ kind: 'newWindow', label: null, geometry: null },
 			),
 		);
-		expect(await screen.findByRole('alert')).toHaveTextContent('Could not move the tab.');
+		expect(await screen.findByRole('alert')).toHaveTextContent(
+			'Could not move it to another window.',
+		);
 		expect((await snapshot(h)).pairs).toHaveLength(1);
 	});
 
