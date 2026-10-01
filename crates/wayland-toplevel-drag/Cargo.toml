@@ -18,5 +18,7 @@ wayland-backend = { version = "0.3", features = ["client_system"] }
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 
-[target.'cfg(target_os = "linux")'.build-dependencies]
+# Not limited to Linux: build-dependency `cfg`s follow the target, but the build script itself is
+# compiled for the host, and on a Windows host it names `cc` too before returning early.
+[build-dependencies]
 cc = "1"
