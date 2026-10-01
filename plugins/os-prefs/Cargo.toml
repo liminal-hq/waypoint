@@ -1,0 +1,76 @@
+[package]
+name = "tauri-plugin-os-prefs"
+version = "0.0.0"
+description = "Tauri plugin that reads the user's operating system preferences, such as the 12/24-hour clock, and pushes changes"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-os-prefs"
+keywords = ["tauri", "plugin", "time-format", "preferences"]
+categories = ["api-bindings"]
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Reads the user's Region time format through GetLocaleInfoEx and polls for changes; read live on Windows 11 through the plugin's ignored `live_region_read` test" }
+linux = { level = "full", notes = "Reads the GNOME clock-format setting through xdg-desktop-portal, Cinnamon's through gsettings, and the locale's convention elsewhere; pushes changes on GNOME and Cinnamon" }
+macos = { level = "partial", notes = "Reads the hour cycle through NSDateFormatter and follows locale-change notifications and a poll; type-checked but not yet run on macOS" }
+android = { level = "full", notes = "Reads DateFormat.is24HourFormat, the animator duration scale and opens the notification settings" }
+ios = { level = "partial", notes = "Reads the hour cycle through NSDateFormatter on demand; type-checked but not yet run on iOS" }
+
+[lib]
+name = "tauri_plugin_os_prefs"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true, features = ["time", "rt", "sync"] }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.9", default-features = false, features = ["tokio"] }
+futures-util = "0.3"
+libc = "0.2"
+
+# Matches the version Tauri resolves.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Globalization"] }
+
+# The same versions Tauri resolves. iOS shares the macOS hour-format reader.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSDateFormatter",
+  "NSFormatter",
+  "NSLocale",
+  "NSString",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "NSDateFormatter",
+  "NSFormatter",
+  "NSLocale",
+  "NSNotification",
+  "NSOperation",
+  "NSString",
+] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin = { workspace = true }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["time", "rt", "sync", "macros"] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }

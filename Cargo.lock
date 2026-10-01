@@ -4184,6 +4184,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-os-prefs"
+version = "0.0.0"
+dependencies = [
+ "ashpd",
+ "block2 0.6.2",
+ "futures-util",
+ "libc",
+ "log",
+ "objc2 0.6.4",
+ "objc2-foundation 0.3.2",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "tauri-plugin-store"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5102,6 +5123,7 @@ dependencies = [
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-opener",
  "tauri-plugin-os",
+ "tauri-plugin-os-prefs",
  "tauri-plugin-store",
  "tauri-plugin-system-appearance",
  "tauri-plugin-waypoint-session",

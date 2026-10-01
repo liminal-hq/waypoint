@@ -20,6 +20,7 @@
 		"pretest:ci": "bun run --cwd ../.. build:plugins"
 	},
 	"dependencies": {
+		"@liminal-hq/plugin-os-prefs": "workspace:*",
 		"@liminal-hq/plugin-system-appearance": "workspace:*",
 		"@liminal-hq/plugin-window-manager": "workspace:*",
 		"@liminal-hq/plugin-window-tearoff": "workspace:*",
