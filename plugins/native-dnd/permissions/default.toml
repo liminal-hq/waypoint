@@ -1,0 +1,8 @@
+[default]
+description = "Default permissions for the native-dnd plugin"
+permissions = [
+  "allow-get-status",
+  "allow-start-drag",
+  "allow-set-files",
+  "allow-get-files",
+]
