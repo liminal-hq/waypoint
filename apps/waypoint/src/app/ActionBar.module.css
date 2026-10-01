@@ -1,0 +1,104 @@
+.bar {
+	position: relative;
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 2px;
+	min-height: 36px;
+	padding: 3px 8px;
+	overflow: hidden;
+	border-bottom: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-window);
+}
+
+.cell {
+	position: relative;
+	display: flex;
+	flex: none;
+}
+
+/* A rule between groups. The padding is part of the cell, so it counts in the measured width. */
+.cell[data-divider] {
+	padding-inline-start: 9px;
+}
+
+.cell[data-divider]::before {
+	content: '';
+	position: absolute;
+	inset-block: 6px;
+	inset-inline-start: 4px;
+	width: 1px;
+	background: var(--wp-border-subtle);
+}
+
+/* A button that did not fit stays in the document, out of sight and out of the focus order, so its width can still be measured. */
+.cell[data-overflow] {
+	position: absolute;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-width: 28px;
+	height: 28px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 13px;
+	white-space: nowrap;
+	cursor: default;
+}
+
+.bar[data-labels='false'] .button {
+	padding: 0;
+	width: 28px;
+}
+
+.button:hover:not([aria-disabled='true']) {
+	background: var(--wp-bg-hover);
+}
+
+.button[aria-expanded='true'] {
+	background: var(--wp-bg-selected);
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.button[aria-disabled='true'] {
+	color: var(--wp-text-muted);
+	opacity: 0.5;
+}
+
+.label {
+	line-height: 1;
+}
+
+.chevron {
+	margin-inline-start: -2px;
+	opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.button {
+		transition: background-color 80ms ease-out;
+	}
+}
+
+.hint {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

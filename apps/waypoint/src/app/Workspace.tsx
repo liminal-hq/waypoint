@@ -75,6 +75,13 @@ import { BatchRenameHost } from '../ops/batchRename/BatchRenameHost';
 import { batchRenameSelection } from '../ops/batchRename/batchRenameSelection';
 import { openBatchRename } from '../ops/batchRename/batchRenameStore';
 import { useBatchRenameShortcut } from '../ops/batchRename/useBatchRenameShortcut';
+import {
+	CommandBridgeProvider,
+	createCommandBridge,
+	useProvidedCommandBridge,
+} from '../commands/commandBridge';
+import { useWorkspaceCommands } from '../commands/useWorkspaceCommands';
+import { ActionBar } from './ActionBar';
 import { NoticeToast } from './NoticeToast';
 import { clearPaneFocus } from '../tabs/paneFocus';
 import { dismissNotice } from './notices';
@@ -117,6 +124,9 @@ export function Workspace({
 		createViewStore(startup?.view ? viewFromPrefs(startup.view) : {}),
 	);
 	const [sidebarStore] = useState(() => createSidebarStore());
+	// The Main window provides the bridge its title bar's menu reads; a workspace mounted alone makes its own.
+	const [ownBridge] = useState(createCommandBridge);
+	const bridge = useProvidedCommandBridge() ?? ownBridge;
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const { features, live } = useTearoffFeatures(tearoff);
@@ -146,23 +156,25 @@ export function Workspace({
 		[tearoff, live, api, card],
 	);
 	return (
-		<ViewStoreContext.Provider value={viewStore}>
-			<SidebarStoreContext.Provider value={sidebarStore}>
-				{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
-				<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
-					<MergeLandingContext.Provider value={landing}>
-						<TearOffCard store={card} />
-						<CloseGuardHost>
-							<WorkspaceBody
-								viewStore={viewStore}
-								sidebarStore={sidebarStore}
-								startupNotice={startup?.notice ?? null}
-							/>
-						</CloseGuardHost>
-					</MergeLandingContext.Provider>
-				</TabDragProvider>
-			</SidebarStoreContext.Provider>
-		</ViewStoreContext.Provider>
+		<CommandBridgeProvider value={bridge}>
+			<ViewStoreContext.Provider value={viewStore}>
+				<SidebarStoreContext.Provider value={sidebarStore}>
+					{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
+					<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
+						<MergeLandingContext.Provider value={landing}>
+							<TearOffCard store={card} />
+							<CloseGuardHost>
+								<WorkspaceBody
+									viewStore={viewStore}
+									sidebarStore={sidebarStore}
+									startupNotice={startup?.notice ?? null}
+								/>
+							</CloseGuardHost>
+						</MergeLandingContext.Provider>
+					</TabDragProvider>
+				</SidebarStoreContext.Provider>
+			</ViewStoreContext.Provider>
+		</CommandBridgeProvider>
 	);
 }
 
@@ -312,6 +324,15 @@ function WorkspaceBody({
 		activeSession,
 		deleteInTrash: (session) => trashActions?.deletePermanently(session),
 	});
+	// The menu, the Action bar and (next) the palette list the same commands; the bridge carries their state.
+	useWorkspaceCommands({
+		commands,
+		activeSession,
+		subscribePanes: manager.subscribe,
+		clipboard,
+		view: viewStore,
+		sidebar: sidebarStore,
+	});
 	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
 	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
 	const currentBatchSelection = useCallback(
@@ -397,6 +418,7 @@ function WorkspaceBody({
 						<div className={styles.workspace}>
 							<TabStrip />
 							<NavigationBar leading={<SidebarToggle />} />
+							<ActionBar />
 							<div className={styles.middle}>
 								{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
 								<div
