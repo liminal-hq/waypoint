@@ -368,7 +368,13 @@ pub fn build_main_window<R: Runtime>(
     hidden: bool,
 ) -> Result<WebviewWindow<R>, WindowError> {
     let fail = |e: tauri::Error| WindowError::Failed(e.to_string());
-    // Hidden until the geometry is applied, so the window never shows at the wrong size.
+    // Hidden until the geometry is applied, so the window never shows at the wrong size. The native
+    // drop handler stays on (it is the default): `native-dnd` turns its events into file drops, which
+    // is how files from other applications reach a window. A54 revises A36's choice of building runtime
+    // windows with the handler off; Waypoint's own drags use pointer events, so Windows losing HTML5
+    // drag and drop costs nothing, and the tab strip's drags and tear-off still work. The tear-off
+    // ghost is the one window that must not accept drops, and `window-tearoff` builds it with the
+    // handler off.
     let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
         .title("Waypoint")
         .inner_size(DEFAULT_SIZE.0, DEFAULT_SIZE.1)
@@ -377,7 +383,6 @@ pub fn build_main_window<R: Runtime>(
         .decorations(false)
         .transparent(true)
         .shadow(true)
-        .disable_drag_drop_handler()
         .visible(false)
         .build()
         .map_err(fail)?;

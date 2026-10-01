@@ -4144,6 +4144,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-native-dnd"
+version = "0.1.0"
+dependencies = [
+ "gdk",
+ "gdk-pixbuf",
+ "gtk",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "windows 0.62.2",
+ "windows-core 0.62.2",
+]
+
+[[package]]
 name = "tauri-plugin-opener"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5140,6 +5159,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-log",
  "tauri-plugin-mcp-bridge",
+ "tauri-plugin-native-dnd",
  "tauri-plugin-opener",
  "tauri-plugin-os",
  "tauri-plugin-os-prefs",

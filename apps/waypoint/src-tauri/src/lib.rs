@@ -140,6 +140,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_manager::init())
         .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
         .plugin(tauri_plugin_trash::init())
+        .plugin(tauri_plugin_native_dnd::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
