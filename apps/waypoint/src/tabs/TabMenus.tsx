@@ -10,6 +10,8 @@ import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSna
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { useEffect, useState } from 'react';
 import { t } from '../i18n/messages';
+import { useGroupActions } from './groupActions';
+import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
 import { useTabExtras } from './tabExtras';
 import { useWindowActions } from './windowActions';
@@ -31,6 +33,8 @@ interface MenuProps {
 export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabSnapshot }) {
 	const actions = useTabActions();
 	const extras = useTabExtras();
+	const groupActions = useGroupActions();
+	const groups = useTabsSnapshot()?.groups ?? [];
 	const windowActions = useWindowActions();
 	const [others, setOthers] = useState<WindowSummary[] | null>(null);
 	useEffect(() => {
@@ -47,11 +51,13 @@ export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabS
 		<ContextMenu
 			{...rest}
 			ariaLabel={t('tabs.menu.label')}
-			items={tabMenuItems(tab, closed, others)}
+			items={tabMenuItems(tab, closed, groups, others)}
 			onSelect={(item) =>
 				runTabMenuItem(item, tab, actions, {
 					closed,
 					extras,
+					groups,
+					groupActions,
 					windows: { others, actions: windowActions },
 				})
 			}

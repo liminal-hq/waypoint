@@ -5,6 +5,7 @@
 
 import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTab';
 import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
+import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import {
@@ -28,7 +29,24 @@ import {
 	PlusIcon,
 } from '../icons/AppIcons';
 import { announce, clearAnnouncement, useAnnouncement } from './announcer';
-import { clampToZone, dropIndex, shiftFor, type Span } from './reorder';
+import { dropIndex, shiftFor, type Span } from './reorder';
+import { chipDomId, GroupChip } from './GroupChip';
+import { GroupMenu } from './GroupMenu';
+import {
+	requestRename,
+	useExpandOnActivate,
+	useGroupActions,
+	useGroupLimitWarning,
+	useRenaming,
+} from './groupActions';
+import {
+	buildStrip,
+	hiddenActiveGroup,
+	landingIndex,
+	measureSpans,
+	stepTarget,
+	type StripItem,
+} from './groupLayout';
 import { colourMessageId } from './tabColours';
 import { tabDomId, TAB_PANEL_ID } from './tabIds';
 import { useTabsSnapshot } from './TabsContext';
@@ -55,6 +73,13 @@ type MenuState =
 	| {
 			kind: 'tab';
 			tab: TabId;
+			position: MenuPosition;
+			keyboard: boolean;
+			returnTo: HTMLElement | null;
+	  }
+	| {
+			kind: 'group';
+			group: GroupId;
 			position: MenuPosition;
 			keyboard: boolean;
 			returnTo: HTMLElement | null;
@@ -89,7 +114,14 @@ export function TabStrip() {
 	};
 	const announcement = useAnnouncement();
 	const suppressClick = useRef(false);
-	const pinnedCount = tabs.filter((tab) => tab.pinned).length;
+	const layout = buildStrip(snapshot);
+	const groupActions = useGroupActions();
+	const renaming = useRenaming();
+	const limitWarning = useGroupLimitWarning();
+	useExpandOnActivate();
+	// A group chip is a stop in the roving order too; `focusedChip` is set while one holds focus.
+	const [focusedChip, setFocusedChip] = useState<GroupId | null>(null);
+	const hiddenGroup = hiddenActiveGroup(snapshot);
 
 	const { closed, refresh } = useClosedTabs();
 	const [menu, setMenu] = useState<MenuState | null>(null);
@@ -118,10 +150,23 @@ export function TabStrip() {
 	}, []);
 
 	// A tab made active by any other route (Ctrl+Tab, Alt+digit, a click) takes the focus stop back.
-	useEffect(() => setFocused(null), [active]);
+	useEffect(() => {
+		setFocused(null);
+		setFocusedChip(null);
+	}, [active]);
 
-	// Roving focus follows the active tab unless the person has moved it with the arrow keys.
-	const tabStop = tabs.some((tab) => tab.id === focused) ? focused : active;
+	// Roving focus follows the active tab unless the person has moved it with the arrow keys. When
+	// the active tab is hidden in a collapsed group, its chip is the stop.
+	const visibleTab = (id: TabId | null) =>
+		layout.items.some((item) => item.kind === 'tab' && item.tab.id === id);
+	const chipStop = layout.items.some(
+		(item) => item.kind === 'chip' && item.group.id === focusedChip,
+	)
+		? focusedChip
+		: visibleTab(focused)
+			? null
+			: hiddenGroup;
+	const tabStop = chipStop !== null ? null : visibleTab(focused) ? focused : active;
 
 	const measureOverflow = useCallback(() => {
 		const element = scroller.current;
@@ -134,7 +179,7 @@ export function TabStrip() {
 		);
 	}, []);
 
-	useLayoutEffect(measureOverflow, [measureOverflow, tabs.length]);
+	useLayoutEffect(measureOverflow, [measureOverflow, tabs.length, layout.items.length]);
 	useEffect(() => {
 		const element = scroller.current;
 		if (!element || typeof ResizeObserver === 'undefined') return;
@@ -161,16 +206,88 @@ export function TabStrip() {
 
 	const focusTab = (id: TabId) => {
 		setFocused(id);
+		setFocusedChip(null);
 		document.getElementById(tabDomId(id))?.focus();
 	};
 
-	const onTabKeyDown = (event: KeyboardEvent, tab: TabSnapshot, index: number) => {
-		const last = tabs.length - 1;
-		const step = (target: number) => {
+	const focusItem = (item: StripItem | undefined) => {
+		if (!item) return;
+		if (item.kind === 'tab') return focusTab(item.tab.id);
+		setFocusedChip(item.group.id);
+		document.getElementById(chipDomId(item.group.id))?.focus();
+	};
+
+	/** Arrow, Home and End keys move through the chips and visible tabs alike. */
+	const navigate = (event: KeyboardEvent, at: number): boolean => {
+		const last = layout.items.length - 1;
+		const go = (target: number) => {
 			event.preventDefault();
-			const next = tabs[Math.max(0, Math.min(last, target))];
-			if (next) focusTab(next.id);
+			focusItem(layout.items[Math.max(0, Math.min(last, target))]);
+			return true;
 		};
+		switch (event.key) {
+			case 'ArrowRight':
+				return go(at + 1);
+			case 'ArrowLeft':
+				return go(at - 1);
+			case 'Home':
+				return go(0);
+			case 'End':
+				return go(last);
+		}
+		return false;
+	};
+
+	const onChipKeyDown = (event: KeyboardEvent, item: StripItem & { kind: 'chip' }, at: number) => {
+		if (
+			(event.key === 'ArrowRight' || event.key === 'ArrowLeft') &&
+			event.ctrlKey &&
+			event.shiftKey
+		) {
+			// Keyboard move of the whole group, the counterpart of dragging its chip.
+			event.preventDefault();
+			groupActions.moveBy(item.group, event.key === 'ArrowRight' ? 1 : -1);
+			return;
+		}
+		if (navigate(event, at)) return;
+		switch (event.key) {
+			case 'Enter':
+			case ' ':
+				event.preventDefault();
+				return groupActions.setCollapsed(item.group, !item.group.collapsed);
+			case 'ContextMenu':
+			case 'F10': {
+				if (event.key === 'F10' && !event.shiftKey) return;
+				event.preventDefault();
+				const element = event.currentTarget as HTMLElement;
+				const rect = element.getBoundingClientRect();
+				lastKeyboardMenu.current = Date.now();
+				openMenu({
+					kind: 'group',
+					group: item.group.id,
+					position: { x: rect.left, y: rect.bottom },
+					keyboard: true,
+					returnTo: element,
+				});
+				return;
+			}
+		}
+	};
+
+	const onChipContextMenu = (event: MouseEvent, item: StripItem & { kind: 'chip' }) => {
+		event.preventDefault();
+		if (Date.now() - lastKeyboardMenu.current < KEYBOARD_MENU_DEBOUNCE_MS) return;
+		openMenu({
+			kind: 'group',
+			group: item.group.id,
+			position: { x: event.clientX, y: event.clientY },
+			keyboard: false,
+			returnTo: document.getElementById(chipDomId(item.group.id)),
+		});
+	};
+
+	const onTabKeyDown = (event: KeyboardEvent, tab: TabSnapshot, index: number) => {
+		const at = layout.items.findIndex((item) => item.kind === 'tab' && item.tab.id === tab.id);
 		switch (event.key) {
 			case 'ArrowRight':
 			case 'ArrowLeft': {
@@ -178,8 +295,9 @@ export function TabStrip() {
 				if (event.ctrlKey && event.shiftKey) {
 					// Keyboard reorder, the counterpart of dragging.
 					event.preventDefault();
-					// A tab stays on its own side of the pinned boundary, as the session store keeps it.
-					const target = clampToZone(index + delta, tab.pinned, pinnedCount, tabs.length);
+					// The session keeps a tab on its own side of the pinned boundary and a grouped tab
+					// inside its group; a tab outside groups steps over a neighbouring group whole.
+					const target = stepTarget(tabs, index, delta);
 					if (target !== index) {
 						actions.move(tab.id, target);
 						announce(
@@ -192,12 +310,11 @@ export function TabStrip() {
 					}
 					return;
 				}
-				return step(index + delta);
+				return void navigate(event, at);
 			}
 			case 'Home':
-				return step(0);
 			case 'End':
-				return step(last);
+				return void navigate(event, at);
 			case 'Enter':
 			case ' ':
 				event.preventDefault();
@@ -241,11 +358,7 @@ export function TabStrip() {
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>, id: TabId, index: number) => {
 		if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
-		const slots = [...(scroller.current?.querySelectorAll<HTMLElement>('[data-slot]') ?? [])];
-		const spans = slots.map((slot) => {
-			const rect = slot.getBoundingClientRect();
-			return { left: rect.left, right: rect.right };
-		});
+		const spans = scroller.current ? measureSpans(scroller.current, tabs) : [];
 		event.currentTarget.setPointerCapture?.(event.pointerId);
 		setDrag({ id, from: index, startX: event.clientX, dx: 0, dragging: false, spans, to: index });
 	};
@@ -258,13 +371,9 @@ export function TabStrip() {
 		if (!dragging) return;
 		const origin = drag.spans[drag.from];
 		const centre = origin ? (origin.left + origin.right) / 2 + dx : event.clientX;
-		const pinned = tabs[drag.from]?.pinned ?? false;
-		const to = clampToZone(
-			dropIndex(drag.spans, drag.from, centre),
-			pinned,
-			pinnedCount,
-			tabs.length,
-		);
+		// Where the session will really leave the tab: it stays on its side of the pinned boundary,
+		// a grouped tab stays in its group, and a drop into another group's run lands beside the group.
+		const to = landingIndex(tabs, drag.from, dropIndex(drag.spans, drag.from, centre));
 		setDrag({ ...drag, dx, dragging, to });
 	};
 
@@ -326,7 +435,7 @@ export function TabStrip() {
 			<div
 				ref={scroller}
 				className={styles.scroller}
-				style={{ '--wp-pinned-width': `${pinnedCount * PINNED_STRIDE_PX}px` } as CSSProperties}
+				style={{ '--wp-pinned-width': `${layout.pinSlots * PINNED_STRIDE_PX}px` } as CSSProperties}
 				onScroll={measureOverflow}
 				onWheel={(event) => {
 					// A vertical wheel scrolls a horizontal strip.
@@ -336,7 +445,34 @@ export function TabStrip() {
 				}}
 			>
 				<div role="tablist" aria-label={t('tabs.strip.label')} className={styles.tablist}>
-					{tabs.map((tab, index) => {
+					{layout.items.map((item, at) => {
+						if (item.kind === 'chip') {
+							const chipDragShift =
+								drag?.dragging && drag.from !== item.firstIndex
+									? shiftFor(
+											item.firstIndex,
+											drag.from,
+											drag.to,
+											(drag.spans[drag.from]?.right ?? 0) - (drag.spans[drag.from]?.left ?? 0),
+										)
+									: 0;
+							return (
+								<GroupChip
+									key={`group-${item.group.id}`}
+									item={item}
+									shift={chipDragShift}
+									tabStop={chipStop === item.group.id}
+									renaming={renaming === item.group.id}
+									onFocus={() => setFocusedChip(item.group.id)}
+									onToggle={() => groupActions.setCollapsed(item.group, !item.group.collapsed)}
+									onRename={(name) => groupActions.rename(item.group, name)}
+									onStartRename={() => requestRename(item.group.id)}
+									onKeyDown={(event) => onChipKeyDown(event, item, at)}
+									onContextMenu={(event) => onChipContextMenu(event, item)}
+								/>
+							);
+						}
+						const { tab, index } = item;
 						const dragged = drag?.dragging && drag.id === tab.id;
 						const width = drag
 							? (drag.spans[drag.from]?.right ?? 0) - (drag.spans[drag.from]?.left ?? 0)
@@ -352,11 +488,15 @@ export function TabStrip() {
 								data-active={tab.id === active ? '' : undefined}
 								data-pinned={tab.pinned ? '' : undefined}
 								data-colour={tab.colour ?? undefined}
+								data-group={item.group ? item.group.id : undefined}
+								data-group-first={item.groupFirst ? '' : undefined}
+								data-group-last={item.groupLast ? '' : undefined}
 								data-dragging={dragged ? '' : undefined}
 								style={
 									{
 										'--wp-tab-shift': `${dragged ? (drag?.dx ?? 0) : shift}px`,
-										'--wp-pin-index': index,
+										'--wp-pin-index': item.pinIndex,
+										'--wp-group-accent': `var(--wp-tab-colour-${item.group?.colour ?? 'grey'})`,
 									} as CSSProperties
 								}
 								onPointerDown={(event) => onPointerDown(event, tab.id, index)}
@@ -373,6 +513,7 @@ export function TabStrip() {
 							>
 								<TabButton
 									tab={tab}
+									groupName={item.group?.name}
 									selected={tab.id === active}
 									tabStop={tab.id === tabStop}
 									onFocus={() => setFocused(tab.id)}
@@ -461,6 +602,11 @@ export function TabStrip() {
 			<div className={styles.srOnly} role="status" aria-live="polite">
 				{announcement}
 			</div>
+			{limitWarning ? (
+				<div className={styles.warning} role="note">
+					{limitWarning.text}
+				</div>
+			) : null}
 			<TabSwitcher />
 			{menu?.kind === 'tab' && tabs.some((tab) => tab.id === menu.tab) ? (
 				<TabContextMenu
@@ -471,6 +617,9 @@ export function TabStrip() {
 					returnFocusTo={menu.returnTo}
 					onClose={closeMenu}
 				/>
+			) : null}
+			{menu?.kind === 'group' ? (
+				<GroupMenuFor menu={menu} items={layout.items} onClose={closeMenu} />
 			) : null}
 			{menu?.kind === 'plus' ? (
 				<PlusMenu
@@ -485,18 +634,48 @@ export function TabStrip() {
 	);
 }
 
+/** The group menu for the group `menu` names, if it is still there. */
+function GroupMenuFor({
+	menu,
+	items,
+	onClose,
+}: {
+	menu: Extract<MenuState, { kind: 'group' }>;
+	items: StripItem[];
+	onClose: () => void;
+}) {
+	const chip = items.find((item) => item.kind === 'chip' && item.group.id === menu.group);
+	if (chip?.kind !== 'chip') return null;
+	const others = items.some((item) => item.kind === 'chip' && item.group.id !== menu.group);
+	return (
+		<GroupMenu
+			group={chip.group}
+			pinned={chip.pinned}
+			hasOthers={others}
+			position={menu.position}
+			openedWithKeyboard={menu.keyboard}
+			returnFocusTo={menu.returnTo}
+			onClose={onClose}
+			// The menu returns focus to the chip as it closes; the name field takes it after that.
+			onRename={() => setTimeout(() => requestRename(menu.group), 0)}
+		/>
+	);
+}
+
 interface TabButtonProps {
 	tab: TabSnapshot;
+	groupName: string | undefined;
 	selected: boolean;
 	tabStop: boolean;
 	onFocus: () => void;
 	onKeyDown: (event: KeyboardEvent) => void;
 }
 
-function TabButton({ tab, selected, tabStop, onFocus, onKeyDown }: TabButtonProps) {
+function TabButton({ tab, groupName, selected, tabStop, onFocus, onKeyDown }: TabButtonProps) {
 	const title = useTabTitle(tab);
 	// The colour and the pin are words as well as marks, so neither is conveyed by appearance alone.
 	const details = [
+		groupName === undefined ? null : tf('groups.tab.member', { name: groupName }),
 		tab.pinned ? t('tabs.pinned') : null,
 		tab.colour ? tf('tabs.colourDescription', { colour: t(colourMessageId(tab.colour)) }) : null,
 	].filter((detail) => detail !== null);

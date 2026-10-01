@@ -6,7 +6,9 @@
 import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTab';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { MenuItem, SelectableMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
-import { t } from '../i18n/messages';
+import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
+import { t, tf } from '../i18n/messages';
+import type { GroupActions } from './groupActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
 import { TabColourSwatch } from './TabColourSwatch';
 import type { TabActions } from './tabActions';
@@ -20,6 +22,7 @@ import type { WindowActions } from './windowActions';
 const REOPEN_SHORTCUT = 'Ctrl+Shift+T';
 const CLOSED_PREFIX = 'closed:';
 const COLOUR_PREFIX = 'colour:';
+const GROUP_PREFIX = 'group:';
 
 /** The Reopen Closed Tab action and the Recently Closed submenu, shared by both menus. */
 export function closedTabItems(closed: readonly ClosedTab[]): MenuItem[] {
@@ -52,13 +55,20 @@ export function closedTabItems(closed: readonly ClosedTab[]): MenuItem[] {
 export function tabMenuItems(
 	tab: TabSnapshot,
 	closed: readonly ClosedTab[],
+	groups: readonly Group[] = [],
 	others: readonly WindowSummary[] = [],
 ): MenuItem[] {
+	const own = groups.find((group) => group.id === tab.group);
+	const pinWording = (pinned: boolean) =>
+		own
+			? // Pinning a grouped tab pins its whole group, so the item says whose.
+				tf(pinned ? 'tabs.menu.unpinGroup' : 'tabs.menu.pinGroup', { name: own.name })
+			: t(pinned ? 'tabs.menu.unpin' : 'tabs.menu.pin');
 	return [
 		{
 			type: 'action',
 			id: tab.pinned ? 'unpin' : 'pin',
-			label: t(tab.pinned ? 'tabs.menu.unpin' : 'tabs.menu.pin'),
+			label: pinWording(tab.pinned),
 		},
 		{
 			type: 'submenu',
@@ -80,6 +90,30 @@ export function tabMenuItems(
 				})),
 			],
 		},
+		{
+			type: 'submenu',
+			id: 'addToGroup',
+			label: t('tabs.menu.addToGroup'),
+			items: [
+				...groups
+					.filter((group) => group.id !== tab.group)
+					.map((group) => ({
+						type: 'action' as const,
+						id: `${GROUP_PREFIX}${group.id}`,
+						label: group.name,
+						icon: group.colour
+							? createElement(TabColourSwatch, { colour: group.colour })
+							: undefined,
+					})),
+				...(groups.some((group) => group.id !== tab.group)
+					? [{ type: 'separator' as const, id: 'sep-new-group' }]
+					: []),
+				{ type: 'action' as const, id: 'newGroup', label: t('tabs.menu.newGroup') },
+			],
+		},
+		...(own
+			? [{ type: 'action' as const, id: 'removeFromGroup', label: t('tabs.menu.removeFromGroup') }]
+			: []),
 		{ type: 'separator', id: 'sep-copy' },
 		{ type: 'action', id: 'duplicate', label: t('tabs.menu.duplicate') },
 		{ type: 'separator', id: 'sep-window' },
@@ -116,6 +150,8 @@ interface MenuContext {
 		others: readonly WindowSummary[];
 		actions: Pick<WindowActions, 'moveToNewWindow' | 'moveToWindow'>;
 	};
+	groups?: readonly Group[];
+	groupActions?: GroupActions;
 }
 
 /** Runs what choosing `item` in the tab menu means for `tab`. */
@@ -123,9 +159,15 @@ export function runTabMenuItem(
 	item: SelectableMenuItem,
 	tab: TabSnapshot,
 	actions: Pick<TabActions, 'close'>,
-	{ closed, extras, windows }: MenuContext,
+	{ closed, extras, groups = [], groupActions, windows }: MenuContext,
 ): void {
 	if (windows && runWindowMoveItem(item, tab, windows.others, windows.actions)) return;
+	if (item.id.startsWith(GROUP_PREFIX)) {
+		const id = Number(item.id.slice(GROUP_PREFIX.length));
+		const group = groups.find((candidate) => candidate.id === id);
+		if (group) groupActions?.addTo(tab, group);
+		return;
+	}
 	if (item.id.startsWith(COLOUR_PREFIX)) {
 		const name = item.id.slice(COLOUR_PREFIX.length);
 		const colour = TAB_COLOURS.find((candidate) => candidate === name) ?? null;
@@ -138,6 +180,10 @@ export function runTabMenuItem(
 			return extras.pin(tab, true);
 		case 'unpin':
 			return extras.pin(tab, false);
+		case 'newGroup':
+			return groupActions?.newGroup(tab);
+		case 'removeFromGroup':
+			return groupActions?.removeFrom(tab);
 		case 'duplicate':
 			return extras.duplicate(tab);
 		case 'close':

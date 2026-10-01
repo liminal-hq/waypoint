@@ -1,4 +1,5 @@
 .strip {
+	position: relative;
 	display: flex;
 	flex: none;
 	align-items: center;
@@ -239,4 +240,39 @@
 	clip-path: inset(50%);
 	white-space: nowrap;
 	border: 0;
+}
+
+/* A group's tabs sit under a bracket in the group's colour, unbroken from its first tab to its last. */
+.slot[data-group]::after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: -1px;
+	right: -3px;
+	height: 2px;
+	background: var(--wp-group-accent);
+	pointer-events: none;
+}
+
+.slot[data-group-first]::after {
+	left: 4px;
+	border-top-left-radius: 1px;
+}
+
+.slot[data-group-last]::after {
+	right: 4px;
+}
+
+.warning {
+	position: absolute;
+	top: calc(100% + 4px);
+	right: 8px;
+	z-index: 5;
+	max-width: 320px;
+	padding: 6px 10px;
+	border: 1px solid var(--wp-warning);
+	border-radius: 6px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-primary);
+	font-size: 12px;
 }
