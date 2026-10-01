@@ -94,7 +94,7 @@ fn toggle_split(store: &mut Store, wi: usize, tab: TabId) -> Result<(), SessionE
             PairOrigin::Toggle { created } if pair.panes.contains(&created) => {
                 // Closing the pane toggling made leaves the other one, active if this was.
                 let keep = pair.panes.iter().copied().find(|p| *p != created);
-                close_tabs(store, wi, [created].into_iter().collect(), false, keep);
+                close_tabs(store, wi, [created].into_iter().collect(), true, keep);
             }
             _ => store.windows[wi].pairs.retain(|p| p.id != pair.id),
         }

@@ -199,7 +199,14 @@ fn toggling_a_split_creates_a_second_pane_and_toggling_again_closes_it() {
     assert_eq!(ids(&s, W), vec![1, 2]);
     assert_eq!(s.window(W).unwrap().active, Some(TabId(1)));
     assert!(s.window(W).unwrap().pairs.is_empty());
-    // The tab toggling made is not a tab the user closed.
+    // The pane goes to Recently Closed with its history, so Reopen Closed Tab brings it back.
+    assert_eq!(s.closed().len(), 1);
+    assert_eq!(s.closed()[0].tab.id, TabId(3));
+    run(&mut s, W, Command::Reopen { tab: None });
+    assert_ok(&s);
+    assert_eq!(ids(&s, W), vec![1, 3, 2]);
+    assert!(s.window(W).unwrap().pairs.is_empty());
+    assert_eq!(s.window(W).unwrap().active, Some(TabId(3)));
     assert!(s.closed().is_empty());
 }
 
