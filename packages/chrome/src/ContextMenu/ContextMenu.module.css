@@ -58,6 +58,13 @@
 	justify-content: center;
 	width: 16px;
 	height: 16px;
+	color: var(--wp-text-secondary);
+}
+
+/* The icon follows the row's own colour when the row is highlighted or dangerous. */
+.item:focus .icon,
+.danger .icon {
+	color: inherit;
 }
 
 .label {

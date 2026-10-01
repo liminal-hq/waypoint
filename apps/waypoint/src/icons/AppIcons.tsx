@@ -5,9 +5,9 @@
 
 import type { ReactNode, SVGProps } from 'react';
 
-type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
+export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
 
-function Glyph({ children, ...rest }: IconProps & { children: ReactNode }) {
+export function Glyph({ children, ...rest }: IconProps & { children: ReactNode }) {
 	return (
 		<svg
 			width={16}

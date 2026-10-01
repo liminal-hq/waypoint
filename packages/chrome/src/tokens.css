@@ -13,6 +13,7 @@
 	--wp-bg-chrome: #1e1f22;
 	--wp-bg-chrome-unfocused: var(--wp-bg-chrome);
 	--wp-text-primary: #e6e6e6;
+	--wp-text-secondary: #c4c4c4;
 	--wp-text-muted: #9a9a9a;
 	--wp-border-subtle: rgb(255 255 255 / 12%);
 
@@ -50,6 +51,7 @@
 		--wp-bg-raised: #ffffff;
 		--wp-bg-chrome: #ebebed;
 		--wp-text-primary: #1e1f22;
+		--wp-text-secondary: #4a4a4f;
 		--wp-text-muted: #6b6b70;
 		--wp-border-subtle: rgb(0 0 0 / 12%);
 		--wp-focus-ring: #1c71d8;
