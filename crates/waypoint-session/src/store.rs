@@ -5,6 +5,7 @@
 
 use crate::model::{
     ClosedTab, SessionEvent, SessionSnapshot, StoreSnapshot, TabId, WindowEvent, WindowState,
+    WindowSummary,
 };
 use crate::reducer::{reduce, Command, SessionError};
 
@@ -131,6 +132,14 @@ impl Store {
             .iter()
             .position(|w| w.label == label)
             .ok_or_else(|| SessionError::UnknownWindow(label.to_string()))
+    }
+
+    /// Every window as a menu lists it, in the order they were opened; `caller` is marked.
+    pub fn window_summaries(&self, caller: &str) -> Vec<WindowSummary> {
+        self.windows
+            .iter()
+            .map(|w| w.summary(w.label == caller))
+            .collect()
     }
 
     /// Recently closed tabs, newest first.

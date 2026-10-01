@@ -521,3 +521,47 @@ fn registering_a_taken_or_foreign_label_is_an_error_and_changes_nothing() {
         assert_eq!(store, before);
     }
 }
+
+#[test]
+fn window_summaries_title_a_window_by_its_active_folder_and_mark_the_caller() {
+    let mut s = store_with(&["Documents", "Music"]);
+    run(
+        &mut s,
+        "",
+        Command::OpenWindow {
+            location: Some(waypoint_protocol::Location::new(
+                "C:\\Users\\me\\",
+                "file:///C:/Users/me",
+            )),
+            geometry: None,
+        },
+    );
+    run(
+        &mut s,
+        "",
+        Command::OpenWindow {
+            location: Some(waypoint_protocol::Location::new("/", "file:///")),
+            geometry: None,
+        },
+    );
+    run(&mut s, W, Command::Activate { tab: TabId(2) });
+    let summaries = s.window_summaries("main-2");
+    assert_eq!(summaries.len(), 3);
+    assert_eq!(
+        (
+            summaries[0].title.as_str(),
+            summaries[0].tab_count,
+            summaries[0].active
+        ),
+        ("Music", 2, false)
+    );
+    assert_eq!(
+        (
+            summaries[1].title.as_str(),
+            summaries[1].tab_count,
+            summaries[1].active
+        ),
+        ("me", 1, true)
+    );
+    assert_eq!(summaries[2].title, "/");
+}

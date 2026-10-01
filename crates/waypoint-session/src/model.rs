@@ -207,6 +207,48 @@ impl WindowState {
     }
 }
 
+/// A window as a menu lists it: which one it is, what it shows and how many tabs it holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct WindowSummary {
+    pub label: String,
+    /// The name of the folder the window's active tab shows (its first tab when none is active);
+    /// empty for a window without tabs.
+    pub title: String,
+    pub tab_count: u32,
+    /// Whether this is the window that asked, so a menu can leave it out.
+    pub active: bool,
+}
+
+/// The last component of a display path, which is what a tab is titled with. A root (`/`,
+/// `C:\`) is its own title.
+fn folder_name(display: &str) -> &str {
+    let trimmed = display.trim_end_matches(['/', '\\']);
+    match trimmed.rsplit(['/', '\\']).next() {
+        Some(name) if !name.is_empty() => name,
+        _ => display,
+    }
+}
+
+impl WindowState {
+    /// The summary of this window; `active` says whether it is the window that asked.
+    pub fn summary(&self, active: bool) -> WindowSummary {
+        let shown = self
+            .active
+            .and_then(|id| self.tab(id))
+            .or_else(|| self.tabs.first());
+        WindowSummary {
+            label: self.label.clone(),
+            title: shown
+                .map(|t| folder_name(&t.location.display).to_string())
+                .unwrap_or_default(),
+            tab_count: self.tabs.len() as u32,
+            active,
+        }
+    }
+}
+
 /// One window's session at one global revision. An empty `tabs` with no `active` is a valid state.
 /// The first three fields are the milestone 2 snapshot; the rest are additions.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
