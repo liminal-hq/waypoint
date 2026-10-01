@@ -620,3 +620,41 @@ fn closing_a_window_by_name_removes_its_session_and_unknown_windows_are_refused(
     ));
     assert!(again.is_err());
 }
+
+#[test]
+fn run_existing_does_not_register_a_window_the_store_closed() {
+    let t = setup(&["main-1"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    let geometry = Geometry {
+        x: None,
+        y: None,
+        width: 900,
+        height: 600,
+        maximised: false,
+    };
+    // The webview still exists (it is being destroyed) but the store already forgot the window.
+    destroyed(&t.app, "main-1");
+    wait_until("the store forgets the window", || {
+        sessions(&t.app).with_store(|s| s.window("main-1").is_none())
+    });
+
+    let refused =
+        sessions(&t.app).run_existing(t.app.handle(), "main-1", Command::SetGeometry { geometry });
+    assert!(refused.is_err());
+    assert!(sessions(&t.app).with_store(|s| s.windows().is_empty()));
+
+    // A window the store holds still takes the command.
+    let t = setup(&["main-1"]);
+    tauri::async_runtime::block_on(commands::get_snapshot(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+    ))
+    .unwrap();
+    sessions(&t.app)
+        .run_existing(t.app.handle(), "main-1", Command::SetGeometry { geometry })
+        .unwrap();
+    assert_eq!(
+        sessions(&t.app).with_store(|s| s.window("main-1").and_then(|w| w.geometry)),
+        Some(geometry)
+    );
+}

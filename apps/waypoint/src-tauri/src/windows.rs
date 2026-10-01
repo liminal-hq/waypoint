@@ -346,8 +346,11 @@ impl GeometryCapture {
             if let Some(geometry) = read_geometry(&window, previous) {
                 if previous != Some(geometry) {
                     // A window the store no longer holds (closing) is not an error worth more
-                    // than a debug line.
-                    if let Err(e) = sessions.run(&app, &label, Command::SetGeometry { geometry }) {
+                    // than a debug line, and must not be registered again: that would save an
+                    // empty ghost window.
+                    if let Err(e) =
+                        sessions.run_existing(&app, &label, Command::SetGeometry { geometry })
+                    {
                         log::debug!("geometry of `{label}` not saved: {e}");
                     }
                 }

@@ -105,8 +105,33 @@ impl<R: Runtime> Sessions<R> {
     /// store change; if the factory fails the store goes back to how it was, nothing is sent and
     /// the error is returned.
     pub fn run(&self, app: &AppHandle<R>, label: &str, command: Command) -> Result<Outcome, Error> {
+        self.run_checked(app, label, command, true)
+    }
+
+    /// Like `run`, but never registers a window: a label the store does not hold is refused with
+    /// `UnknownWindow` (checked under the same lock as the command). For work that follows a
+    /// window's life from outside, such as the deferred geometry capture, which must not bring a
+    /// window back that the store has just closed.
+    pub fn run_existing(
+        &self,
+        app: &AppHandle<R>,
+        label: &str,
+        command: Command,
+    ) -> Result<Outcome, Error> {
+        self.run_checked(app, label, command, false)
+    }
+
+    fn run_checked(
+        &self,
+        app: &AppHandle<R>,
+        label: &str,
+        command: Command,
+        register: bool,
+    ) -> Result<Outcome, Error> {
         let mut store = locked(&self.store);
-        self.ensure_window(app, &mut store, label)?;
+        if register {
+            self.ensure_window(app, &mut store, label)?;
+        }
         let before = store.clone();
         // Geometry has no event but is still worth saving.
         let silent_change = matches!(command, Command::SetGeometry { .. });
