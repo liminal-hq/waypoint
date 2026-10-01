@@ -13,9 +13,6 @@ export function createTauriTrashClient(): TrashClient {
 	return {
 		getInfo: () => getTrashInfo(),
 		submit: (request) => ops.submit(request),
-		resolveConflicts: (job, policy) => ops.resolve(job, [], policy),
-		resolveError: (job, decision) => ops.resolveError(job, decision),
-		cancel: (job) => ops.cancel(job),
 		onEvent(listener): Unsubscribe {
 			let stopped = false;
 			let unlisten: (() => void) | undefined;

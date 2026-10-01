@@ -4,15 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { ConfirmDialog } from '@liminal-hq/waypoint-chrome/Dialog/ConfirmDialog';
-import { Dialog } from '@liminal-hq/waypoint-chrome/Dialog/Dialog';
-import { DialogActions, DialogButton } from '@liminal-hq/waypoint-chrome/Dialog/DialogActions';
-import type { Conflict } from '@liminal-hq/waypoint-protocol/generated/Conflict';
-import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
 import type { JobKind } from '@liminal-hq/waypoint-protocol/generated/JobKind';
 import type { JobRequest } from '@liminal-hq/waypoint-protocol/generated/JobRequest';
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
-import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import {
@@ -29,6 +24,7 @@ import { selectedCount } from '../browse/selection';
 import type { ListingSession } from '../browse/useListingSession';
 import { toSelectionSpec } from '../status/useSelectionSummary';
 import { t, tf, tn } from '../i18n/messages';
+import { problemText } from '../ops/problemModel';
 import type { TrashClient } from './trashClient';
 
 /** What the Trash view can do, for its menus, its action bar and its keys. */
@@ -63,7 +59,7 @@ export function opsErrorText(error: OpsError): string {
 		case 'trashUnavailable':
 			return error.reason;
 		case 'originMissingParent':
-			return tf('trash.parent.message', { folder: error.location.display });
+			return problemText(error).message;
 		case 'io':
 		case 'unsupported':
 			return error.kind === 'io' ? error.message : error.what;
@@ -106,10 +102,7 @@ interface Tracked {
 
 type Question =
 	| { kind: 'delete'; session: ListingSession; count: number; spec: SelectionSpec }
-	| { kind: 'empty'; count: number }
-	| { kind: 'conflicts'; job: JobId; conflicts: Conflict[] }
-	| { kind: 'parent'; job: JobId; folder: Location }
-	| { kind: 'problem'; job: JobId; text: string };
+	| { kind: 'empty'; count: number };
 
 function request(kind: JobKind, sources: JobRequest['sources']): JobRequest {
 	return {
@@ -125,10 +118,10 @@ function request(kind: JobKind, sources: JobRequest['sources']): JobRequest {
 
 /**
  * Runs the Trash view's jobs through `client` and follows them: it asks before anything is deleted
- * for good, and when a restore parks on a question (a name that is taken, a folder that is gone) it
- * puts the question to the person and passes the answer on. Only jobs this window started are
- * followed, so each question is asked once, in the window that asked for the job. What happened is
- * reported through `notify`.
+ * for good and reports what happened through `notify`. Only jobs this window started are followed.
+ * When a restore parks on a question (a name that is taken, a folder that is gone) it is the
+ * operations queue's resolver (`OpsResolverHost`) that asks it, in the window that started the job,
+ * with the same dialogs every copy and move uses.
  *
  * Returns the actions and the dialogs they use; render the dialogs anywhere in the window.
  */
@@ -148,10 +141,6 @@ export function useTrashJobs(
 		if (!mine) return;
 		const say = (text: string) => notifyRef.current(text);
 		const { state } = job;
-		// Whatever the job was waiting on is answered or moot once it moves on.
-		if (state.state !== 'waiting') {
-			setQuestion((now) => (now && 'job' in now && now.job === job.id ? null : now));
-		}
 		switch (state.state) {
 			case 'done': {
 				tracked.current.delete(job.id);
@@ -174,17 +163,6 @@ export function useTrashJobs(
 			case 'cancelled':
 				tracked.current.delete(job.id);
 				return;
-			case 'waiting': {
-				const { reason } = state;
-				if (reason.kind === 'conflicts') {
-					setQuestion({ kind: 'conflicts', job: job.id, conflicts: reason.conflicts });
-				} else if (reason.error.kind === 'originMissingParent') {
-					setQuestion({ kind: 'parent', job: job.id, folder: reason.error.location });
-				} else {
-					setQuestion({ kind: 'problem', job: job.id, text: opsErrorText(reason.error) });
-				}
-				return;
-			}
 			default:
 				return;
 		}
@@ -262,15 +240,6 @@ export function useTrashJobs(
 		};
 	}, [client, start]);
 
-	const answer = useCallback(
-		(work: Promise<void>) =>
-			work.catch((error: unknown) => {
-				console.warn('could not answer the Trash job', error);
-				notifyRef.current(tf('trash.failed.submit', { reason: rejectionText(error) }));
-			}),
-		[],
-	);
-
 	const dialogs = (
 		<TrashDialogs
 			question={question}
@@ -294,24 +263,6 @@ export function useTrashJobs(
 					),
 				);
 			}}
-			onConflicts={(policy: ConflictPolicy) => {
-				if (question?.kind !== 'conflicts' || !client) return;
-				const { job } = question;
-				setQuestion(null);
-				void answer(client.resolveConflicts(job, policy));
-			}}
-			onStop={() => {
-				if (!question || !('job' in question) || !client) return setQuestion(null);
-				const { job } = question;
-				setQuestion(null);
-				void answer(client.cancel(job));
-			}}
-			onDecision={(decision) => {
-				if (!question || !('job' in question) || !client) return;
-				const { job } = question;
-				setQuestion(null);
-				void answer(client.resolveError(job, decision));
-			}}
 		/>
 	);
 	return { actions, dialogs };
@@ -322,25 +273,10 @@ interface TrashDialogsProps {
 	onClose(): void;
 	onConfirmDelete(): void;
 	onConfirmEmpty(): void;
-	onConflicts(policy: ConflictPolicy): void;
-	/** The question was dismissed: the job stops. */
-	onStop(): void;
-	onDecision(decision: 'createParents' | 'skip'): void;
 }
 
-function TrashDialogs({
-	question,
-	onClose,
-	onConfirmDelete,
-	onConfirmEmpty,
-	onConflicts,
-	onStop,
-	onDecision,
-}: TrashDialogsProps) {
+function TrashDialogs({ question, onClose, onConfirmDelete, onConfirmEmpty }: TrashDialogsProps) {
 	const cancel = t('trash.confirm.cancel');
-	const conflicts = question?.kind === 'conflicts' ? question.conflicts : [];
-	// Only a file may replace a file; any other clash can be kept beside or skipped.
-	const canReplace = conflicts.length > 0 && conflicts.every((c) => c.kind === 'fileOverFile');
 	return (
 		<>
 			<ConfirmDialog
@@ -366,76 +302,6 @@ function TrashDialogs({
 				danger
 				onConfirm={onConfirmEmpty}
 				onCancel={onClose}
-			/>
-			<Dialog
-				open={question?.kind === 'conflicts'}
-				title={t('trash.conflict.title')}
-				description={
-					conflicts.length === 1
-						? tf('trash.conflict.message.one', { name: conflicts[0]?.name ?? '' })
-						: tn('trash.conflict.message', conflicts.length)
-				}
-				size="small"
-				onClose={onStop}
-				footer={
-					<DialogActions>
-						<DialogButton variant="secondary" onClick={onStop}>
-							{t('trash.conflict.cancel')}
-						</DialogButton>
-						<DialogButton variant="secondary" onClick={() => onConflicts('skip')}>
-							{t('trash.conflict.skip')}
-						</DialogButton>
-						{canReplace && (
-							<DialogButton variant="secondary" onClick={() => onConflicts('replace')}>
-								{t('trash.conflict.replace')}
-							</DialogButton>
-						)}
-						<DialogButton variant="primary" onClick={() => onConflicts('keepBoth')}>
-							{t('trash.conflict.keepBoth')}
-						</DialogButton>
-					</DialogActions>
-				}
-			/>
-			<Dialog
-				open={question?.kind === 'parent'}
-				title={t('trash.parent.title')}
-				description={
-					question?.kind === 'parent'
-						? tf('trash.parent.message', { folder: question.folder.display })
-						: ''
-				}
-				size="small"
-				onClose={onStop}
-				footer={
-					<DialogActions>
-						<DialogButton variant="secondary" onClick={onStop}>
-							{t('trash.parent.cancel')}
-						</DialogButton>
-						<DialogButton variant="secondary" onClick={() => onDecision('skip')}>
-							{t('trash.parent.skip')}
-						</DialogButton>
-						<DialogButton variant="primary" onClick={() => onDecision('createParents')}>
-							{t('trash.parent.create')}
-						</DialogButton>
-					</DialogActions>
-				}
-			/>
-			<Dialog
-				open={question?.kind === 'problem'}
-				title={t('trash.error.title')}
-				description={question?.kind === 'problem' ? question.text : ''}
-				size="small"
-				onClose={onStop}
-				footer={
-					<DialogActions>
-						<DialogButton variant="secondary" onClick={onStop}>
-							{t('trash.error.cancel')}
-						</DialogButton>
-						<DialogButton variant="primary" onClick={() => onDecision('skip')}>
-							{t('trash.error.skip')}
-						</DialogButton>
-					</DialogActions>
-				}
 			/>
 		</>
 	);

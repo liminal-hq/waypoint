@@ -5,6 +5,7 @@
 
 import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
+import type { Resolution } from '@liminal-hq/waypoint-protocol/generated/Resolution';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
 import type { JobKind } from '@liminal-hq/waypoint-protocol/generated/JobKind';
 import type { JobRequest } from '@liminal-hq/waypoint-protocol/generated/JobRequest';
@@ -12,6 +13,7 @@ import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSna
 import type { JobState } from '@liminal-hq/waypoint-protocol/generated/JobState';
 import type { OpsEvent } from '@liminal-hq/waypoint-protocol/generated/OpsEvent';
 import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInfo';
+import type { OpsClient } from '../services/opsClient';
 import type { Unsubscribe } from '../services/vfsClient';
 import type { TrashClient } from './trashClient';
 
@@ -20,9 +22,11 @@ export interface FakeJob {
 	id: JobId;
 	request: JobRequest;
 	state: JobState;
-	/** The policies the view answered the job's conflicts with. */
+	/** The policies the resolver answered the job's conflicts with (the bulk choice, when it sent one). */
 	policies: ConflictPolicy[];
-	/** The decisions the view answered the job's errors with. */
+	/** The per-item answers the resolver sent with them. */
+	resolutions: Resolution[];
+	/** The decisions the resolver answered the job's errors with. */
 	decisions: Decision[];
 }
 
@@ -33,7 +37,7 @@ export interface FakeJob {
 export class FakeTrashClient implements TrashClient {
 	info: TrashInfo = { available: true, reason: null, count: 0 };
 	readonly jobs: FakeJob[] = [];
-	/** The jobs the view cancelled. */
+	/** The jobs the resolver cancelled. */
 	readonly cancelled: JobId[] = [];
 	infoCalls = 0;
 	rejectSubmits: unknown = null;
@@ -52,22 +56,19 @@ export class FakeTrashClient implements TrashClient {
 	async submit(request: JobRequest): Promise<JobId> {
 		if (this.rejectSubmits) throw this.rejectSubmits;
 		const id = this.jobs.length + 1;
-		const job: FakeJob = { id, request, state: { state: 'queued' }, policies: [], decisions: [] };
+		// The plugin fills in the window the request came from.
+		const filled: JobRequest = { ...request, originWindow: request.originWindow || 'main-1' };
+		const job: FakeJob = {
+			id,
+			request: filled,
+			state: { state: 'queued' },
+			policies: [],
+			resolutions: [],
+			decisions: [],
+		};
 		this.jobs.push(job);
 		this.emit({ kind: 'jobAdded', job: this.snapshot(job), revision: ++this.revision });
 		return id;
-	}
-
-	async resolveConflicts(job: JobId, policy: ConflictPolicy): Promise<void> {
-		this.job(job).policies.push(policy);
-	}
-
-	async resolveError(job: JobId, decision: Decision): Promise<void> {
-		this.job(job).decisions.push(decision);
-	}
-
-	async cancel(job: JobId): Promise<void> {
-		this.cancelled.push(job);
 	}
 
 	onEvent(listener: (event: OpsEvent) => void): Unsubscribe {
@@ -75,6 +76,40 @@ export class FakeTrashClient implements TrashClient {
 		return () => {
 			this.listeners.delete(listener);
 		};
+	}
+
+	/**
+	 * The queue as the resolver and the queue UI see it: the same jobs and events, answered into
+	 * `policies`, `resolutions`, `decisions` and `cancelled`. Only what the resolver uses is
+	 * simulated; any other command rejects.
+	 */
+	opsClient(): OpsClient {
+		const unsupported = (name: string) => () =>
+			Promise.reject(new Error(`FakeTrashClient does not simulate ${name}`));
+		const client: Partial<OpsClient> = {
+			snapshot: async () => ({
+				revision: this.revision,
+				jobs: this.jobs.map((job) => this.snapshot(job)),
+				journal: { revision: 0, undo: null, redo: null },
+			}),
+			resolve: async (job, resolutions, applyToAll) => {
+				const entry = this.job(job);
+				entry.resolutions.push(...resolutions);
+				if (applyToAll) entry.policies.push(applyToAll);
+			},
+			resolveError: async (job, decision) => {
+				this.job(job).decisions.push(decision);
+			},
+			cancel: async (job) => {
+				this.cancelled.push(job);
+			},
+			subscribeProgress: async () => () => {},
+			onEvent: (listener) => this.onEvent(listener),
+		};
+		return new Proxy(client, {
+			get: (target, name) =>
+				name in target ? target[name as keyof OpsClient] : unsupported(String(name)),
+		}) as OpsClient;
 	}
 
 	/** The job with this id. */

@@ -11,9 +11,6 @@ import { createTauriTrashClient } from './tauriTrashClient';
 const vfs = vi.hoisted(() => ({ getTrashInfo: vi.fn() }));
 const ops = vi.hoisted(() => ({
 	submit: vi.fn(),
-	resolve: vi.fn(),
-	resolveError: vi.fn(),
-	cancel: vi.fn(),
 	onOpsEvent: vi.fn(),
 }));
 vi.mock('@liminal-hq/waypoint-plugin-vfs', () => vfs);
@@ -39,18 +36,11 @@ describe('createTauriTrashClient', () => {
 		expect(await createTauriTrashClient().getInfo()).toBe(info);
 	});
 
-	it('hands jobs and answers to the operations plugin', async () => {
+	it('hands jobs to the operations plugin', async () => {
 		const client = createTauriTrashClient();
 		ops.submit.mockResolvedValue(12);
 		expect(await client.submit(request)).toBe(12);
 		expect(ops.submit).toHaveBeenCalledWith(request);
-		await client.resolveConflicts(12, 'keepBoth');
-		// One policy for every clash the job has: no per-source answers.
-		expect(ops.resolve).toHaveBeenCalledWith(12, [], 'keepBoth');
-		await client.resolveError(12, 'createParents');
-		expect(ops.resolveError).toHaveBeenCalledWith(12, 'createParents');
-		await client.cancel(12);
-		expect(ops.cancel).toHaveBeenCalledWith(12);
 	});
 
 	it('listens to the queue until told to stop, even if it stops before the listener is registered', async () => {

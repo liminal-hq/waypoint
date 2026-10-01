@@ -5,6 +5,7 @@
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { makeEntry } from '../services/fakeVfsClient';
@@ -47,7 +48,11 @@ async function setup(info: { count?: number; available?: boolean; reason?: strin
 	client.setFolder(TRASH_LOCATION, ITEMS);
 	const trash = new FakeTrashClient({ count: ITEMS.length, ...info });
 	const places = new FakePlacesClient({ places: fakePlaces('/home/test') });
-	const h = await renderWorkspace(client, undefined, places, { sidebar: true, trash });
+	const h = await renderWorkspace(client, undefined, places, {
+		sidebar: true,
+		trash,
+		ops: trash.opsClient(),
+	});
 	await screen.findByRole('button', { name: /^Home/ });
 	return { ...h, trash, tree: client };
 }
@@ -422,36 +427,57 @@ describe('the questions a restore asks', () => {
 		return h;
 	}
 
-	it('offers Keep Both, Skip and Replace when a file name is taken, and passes the answer on', async () => {
+	it('asks a taken file name in the shared dialog, and says Keep both restores under a free name', async () => {
+		const user = userEvent.setup();
 		const h = await restoring();
 		act(() => h.trash.waitForConflicts(h.trash.last.id, ['report.pdf'], 'fileOverFile'));
-		const dialog = await screen.findByRole('dialog', { name: 'Name already taken' });
-		expect(
-			within(dialog).getByText('“report.pdf” already exists in its original folder.'),
-		).toBeTruthy();
-		expect(within(dialog).getByRole('button', { name: 'Replace' })).toBeInTheDocument();
-		fireEvent.click(within(dialog).getByRole('button', { name: 'Keep Both' }));
-		await waitFor(() => expect(h.trash.last.policies).toEqual(['keepBoth']));
+		const dialog = await screen.findByRole('dialog', {
+			name: '1 item already exists in its original folder',
+		});
+		const choose = within(dialog).getByRole('combobox', { name: 'Choice for report.pdf' });
+		await user.selectOptions(choose, 'Keep both');
+		expect(within(dialog).getByText('Restored under a free name.')).toBeInTheDocument();
+		await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+		await waitFor(() =>
+			expect(h.trash.last.resolutions).toEqual([
+				{ source: { display: 'Trash/report.pdf', uri: 'trash:/report.pdf' }, policy: 'keepBoth' },
+			]),
+		);
 		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 	});
 
-	it('does not offer Replace for a folder', async () => {
+	it('warns that replacing a folder replaces all of it', async () => {
+		const user = userEvent.setup();
 		const h = await restoring();
 		act(() => h.trash.waitForConflicts(h.trash.last.id, ['old drafts'], 'folderOverFolder'));
-		const dialog = await screen.findByRole('dialog', { name: 'Name already taken' });
-		expect(within(dialog).queryByRole('button', { name: 'Replace' })).toBeNull();
-		fireEvent.click(within(dialog).getByRole('button', { name: 'Skip' }));
-		await waitFor(() => expect(h.trash.last.policies).toEqual(['skip']));
+		const dialog = await screen.findByRole('dialog', { name: /already exists in its original/ });
+		await user.selectOptions(
+			within(dialog).getByRole('combobox', { name: 'Choice for old drafts' }),
+			'Replace',
+		);
+		expect(within(dialog).getByText(/Replaces the whole folder/)).toBeInTheDocument();
 	});
 
-	it('words several clashes together and stops the job when dismissed', async () => {
+	it('words several clashes together, answers them with one choice, and stops the job when cancelled', async () => {
+		const user = userEvent.setup();
 		const h = await restoring();
 		act(() => h.trash.waitForConflicts(h.trash.last.id, ['a', 'b', 'c'], 'fileOverFile'));
-		const dialog = await screen.findByRole('dialog', { name: 'Name already taken' });
-		expect(
-			within(dialog).getByText('3 items already exist in their original folders.'),
-		).toBeTruthy();
-		fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+		const dialog = await screen.findByRole('dialog', {
+			name: '3 items already exist in their original folders',
+		});
+		await user.selectOptions(
+			within(dialog).getByRole('combobox', { name: 'Apply to all remaining' }),
+			'Skip',
+		);
+		await user.click(within(dialog).getByRole('checkbox', { name: /Apply to all conflicts/ }));
+		await user.click(within(dialog).getByRole('button', { name: 'Continue' }));
+		await waitFor(() => expect(h.trash.last.policies).toEqual(['skip']));
+
+		act(() => h.trash.waitForConflicts(h.trash.last.id, ['d'], 'fileOverFile'));
+		const again = await screen.findByRole('dialog', {
+			name: '1 item already exists in its original folder',
+		});
+		await user.click(within(again).getByRole('button', { name: 'Cancel the operation' }));
 		await waitFor(() => expect(h.trash.cancelled).toEqual([h.trash.last.id]));
 	});
 
@@ -472,7 +498,7 @@ describe('the questions a restore asks', () => {
 		);
 		const dialog = await screen.findByRole('dialog', { name: 'The original folder is gone' });
 		expect(within(dialog).getByText(/\/home\/test\/docs no longer exists/)).toBeTruthy();
-		fireEvent.click(within(dialog).getByRole('button', { name: 'Recreate Folder' }));
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Recreate folders' }));
 		await waitFor(() => expect(h.trash.last.decisions).toEqual(['createParents']));
 	});
 
@@ -488,8 +514,8 @@ describe('the questions a restore asks', () => {
 				},
 			}),
 		);
-		const dialog = await screen.findByRole('dialog', { name: 'Could not restore an item' });
-		expect(within(dialog).getByText('the disk hiccupped')).toBeInTheDocument();
+		const dialog = await screen.findByRole('dialog', { name: 'An item could not be processed' });
+		expect(within(dialog).getByText(/the disk hiccupped/)).toBeInTheDocument();
 		fireEvent.click(within(dialog).getByRole('button', { name: 'Skip' }));
 		await waitFor(() => expect(h.trash.last.decisions).toEqual(['skip']));
 	});
@@ -500,7 +526,7 @@ describe('the questions a restore asks', () => {
 		// A job this window did not start parks on a question: this window does not ask it.
 		h.trash.emit({
 			kind: 'jobAdded',
-			job: { ...jobShell(), id: 99, state: { state: 'queued' } },
+			job: { ...jobShell(), id: 99, originWindow: 'main-2', state: { state: 'queued' } },
 			revision: 3,
 		});
 		act(() => {
@@ -509,6 +535,7 @@ describe('the questions a restore asks', () => {
 				job: {
 					...jobShell(),
 					id: 99,
+					originWindow: 'main-2',
 					state: {
 						state: 'waiting',
 						reason: { kind: 'conflicts', conflicts: [] },
