@@ -297,7 +297,7 @@ describe('closed tabs', () => {
 describe('the + button menu', () => {
 	const plus = () => screen.getByRole('button', { name: 'New tab' });
 
-	it('opens on right-click with the new-tab and reopen items only', async () => {
+	it('opens on right-click with the new-tab, new-window and reopen items', async () => {
 		await renderWorkspace();
 		fireEvent.contextMenu(plus());
 		const menu = await screen.findByRole('menu', { name: 'New tab actions' });
@@ -308,6 +308,7 @@ describe('the + button menu', () => {
 		).toEqual([
 			'New TabCtrl+T',
 			'New Tab at Home',
+			'New WindowCtrl+Shift+N',
 			'Reopen Closed TabCtrl+Shift+T',
 			'Recently Closed',
 		]);

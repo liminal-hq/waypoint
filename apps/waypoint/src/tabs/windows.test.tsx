@@ -54,6 +54,17 @@ describe('a new window', () => {
 		expect(store.window('main-1')!.tabs).toHaveLength(1);
 	});
 
+	it('opens from the + button menu, and says so in the live region', async () => {
+		const { store, one } = twoWindows();
+		await renderWorkspace(undefined, one);
+		fireEvent.contextMenu(screen.getByRole('button', { name: 'New tab' }));
+		fireEvent.click(await screen.findByRole('menuitem', { name: /^New Window/ }));
+		await waitFor(() => expect(store.windowLabels()).toEqual(['main-1', 'main-2']));
+		expect(store.window('main-2')!.tabs.map((tab) => tab.location.uri)).toEqual([HOME.uri]);
+		await waitFor(() => expect(liveRegion()).toHaveTextContent('Opened a new window'));
+		expect(store.window('main-1')!.tabs).toHaveLength(1);
+	});
+
 	it('is the key the handler answers to, and nothing else', () => {
 		const actions = { newWindow: vi.fn(async () => {}) };
 		const key = { key: 'n', ctrlKey: true, metaKey: false, altKey: false, shiftKey: true };

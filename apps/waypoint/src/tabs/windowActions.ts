@@ -66,17 +66,23 @@ export function createWindowActions(
 			console.debug('could not count the windows', error);
 		}
 	};
-	const open = async (location: Location) => {
+	const open = async (location: Location): Promise<boolean> => {
 		try {
 			await api.openWindow(location);
 		} catch (error) {
-			return refuse(error, 'window.notice.openFailed');
+			refuse(error, 'window.notice.openFailed');
+			return false;
 		}
 		await warnIfMany();
+		return true;
 	};
 	return {
-		newWindow: () => open(home),
-		openInNewWindow: open,
+		newWindow: async () => {
+			if (await open(home)) announce(t('tabs.announce.openedWindow'));
+		},
+		openInNewWindow: async (location) => {
+			await open(location);
+		},
 		moveToNewWindow: async (tab) => {
 			try {
 				await flush(tab.id);

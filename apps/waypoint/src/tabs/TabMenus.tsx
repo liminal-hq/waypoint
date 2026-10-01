@@ -63,12 +63,13 @@ export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabS
 export function PlusMenu({ closed, ...rest }: MenuProps) {
 	const actions = useTabActions();
 	const extras = useTabExtras();
+	const windows = useWindowActions();
 	return (
 		<ContextMenu
 			{...rest}
 			ariaLabel={t('tabs.plusMenu.label')}
 			items={plusMenuItems(closed)}
-			onSelect={(item) => runPlusMenuItem(item, actions, { closed, extras })}
+			onSelect={(item) => runPlusMenuItem(item, actions, { closed, extras, windows })}
 		/>
 	);
 }

@@ -97,6 +97,12 @@ export function plusMenuItems(closed: readonly ClosedTab[]): MenuItem[] {
 	return [
 		{ type: 'action', id: 'newTab', label: t('tabs.plusMenu.newTab'), shortcut: 'Ctrl+T' },
 		{ type: 'action', id: 'newTabHome', label: t('tabs.plusMenu.newTabHome') },
+		{
+			type: 'action',
+			id: 'newWindow',
+			label: t('tabs.plusMenu.newWindow'),
+			shortcut: 'Ctrl+Shift+N',
+		},
 		{ type: 'separator', id: 'sep-closed' },
 		...closedTabItems(closed),
 	];
@@ -147,11 +153,18 @@ export function runTabMenuItem(
 export function runPlusMenuItem(
 	item: SelectableMenuItem,
 	actions: Pick<TabActions, 'newTab' | 'newTabAtHome'>,
-	{ closed, extras }: MenuContext,
+	{
+		closed,
+		extras,
+		windows,
+	}: Pick<MenuContext, 'closed' | 'extras'> & {
+		windows: Pick<WindowActions, 'newWindow'>;
+	},
 ): void {
 	if (runClosedItem(item, closed, extras)) return;
 	if (item.id === 'newTab') actions.newTab();
 	else if (item.id === 'newTabHome') actions.newTabAtHome();
+	else if (item.id === 'newWindow') void windows.newWindow();
 }
 
 function runClosedItem(
