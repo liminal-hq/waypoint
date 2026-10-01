@@ -97,6 +97,7 @@ fn new_window(
     };
     let mut w = WindowState::new(label.clone());
     w.geometry = geometry;
+    w.view = store.new_window_view;
     store.windows.push(w);
     Ok(label)
 }

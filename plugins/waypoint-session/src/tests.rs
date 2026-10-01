@@ -176,6 +176,36 @@ fn a_main_window_is_registered_on_its_first_snapshot_and_other_windows_are_refus
 }
 
 #[test]
+fn a_window_made_after_the_new_window_view_is_set_starts_with_it_and_a_restore_keeps_it() {
+    use waypoint_session::{ViewMode, ViewPrefs};
+    let t = setup(&["main-1", "main-2", "main-3"]);
+    let grid = ViewPrefs {
+        mode: ViewMode::Grid,
+        show_hidden: true,
+        icon_size: 64,
+    };
+    let view_of = |label: &str| {
+        tauri::async_runtime::block_on(commands::get_snapshot(
+            window(&t.app, label),
+            sessions(&t.app),
+        ))
+        .unwrap()
+        .view
+    };
+    assert_eq!(view_of("main-1"), ViewPrefs::default());
+    sessions(&t.app).set_new_window_view(grid);
+    assert_eq!(
+        view_of("main-1"),
+        ViewPrefs::default(),
+        "an existing window keeps its view"
+    );
+    assert_eq!(view_of("main-2"), grid);
+    // A store restored from a document gets the choice too.
+    sessions(&t.app).restore(waypoint_session::Store::new());
+    assert_eq!(view_of("main-3"), grid);
+}
+
+#[test]
 fn commands_act_on_the_calling_window_and_events_reach_only_that_window() {
     let t = setup(&["main-1", "main-2"]);
     let one = events(&t.app, "main-1");

@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::model::{
-    ClosedTab, SessionEvent, SessionSnapshot, StoreSnapshot, TabId, WindowEvent, WindowState,
-    WindowSummary, Workspace,
+    ClosedTab, SessionEvent, SessionSnapshot, StoreSnapshot, TabId, ViewPrefs, WindowEvent,
+    WindowState, WindowSummary, Workspace,
 };
 use crate::reducer::{reduce, Command, SessionError};
 
@@ -82,6 +82,9 @@ pub struct Store {
     pub(crate) workspaces: Vec<Workspace>,
     pub(crate) next_workspace: u32,
     pub(crate) policy: StorePolicy,
+    /// The view a window made from now on starts with (the Settings window's choice). Not part of
+    /// the document: windows already in the store keep their own.
+    pub(crate) new_window_view: ViewPrefs,
 }
 
 impl Default for Store {
@@ -108,6 +111,7 @@ impl Store {
             workspaces: Vec::new(),
             next_workspace: 1,
             policy,
+            new_window_view: ViewPrefs::default(),
         }
     }
 
@@ -118,6 +122,17 @@ impl Store {
     /// Changes the policy, for a store restored from a document (which carries none).
     pub fn set_policy(&mut self, policy: StorePolicy) {
         self.policy = policy;
+    }
+
+    /// Sets the view that windows made from now on start with. It changes no window that exists,
+    /// is not a mutation (no revision, no event) and is not saved: the app sets it from its
+    /// settings at start-up and whenever they change.
+    pub fn set_new_window_view(&mut self, view: ViewPrefs) {
+        self.new_window_view = view;
+    }
+
+    pub fn new_window_view(&self) -> ViewPrefs {
+        self.new_window_view
     }
 
     pub fn revision(&self) -> u64 {

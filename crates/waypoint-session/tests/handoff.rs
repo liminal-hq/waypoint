@@ -565,3 +565,61 @@ fn window_summaries_title_a_window_by_its_active_folder_and_mark_the_caller() {
     );
     assert_eq!(summaries[2].title, "/");
 }
+
+#[test]
+fn a_window_made_after_the_new_window_view_is_set_starts_with_it_and_the_others_keep_theirs() {
+    let mut s = waypoint_session::Store::new();
+    run(
+        &mut s,
+        "",
+        Command::OpenWindow {
+            location: None,
+            geometry: None,
+        },
+    );
+    let grid = ViewPrefs {
+        mode: ViewMode::Grid,
+        show_hidden: true,
+        icon_size: 64,
+    };
+    s.set_new_window_view(grid);
+    assert_eq!(s.new_window_view(), grid);
+    let revision = s.revision();
+    run(
+        &mut s,
+        "",
+        Command::OpenWindow {
+            location: None,
+            geometry: None,
+        },
+    );
+    run(
+        &mut s,
+        "",
+        Command::RegisterWindow {
+            label: "main-9".into(),
+        },
+    );
+    assert_eq!(
+        s.window("main-1").map(|w| w.view),
+        Some(ViewPrefs::default())
+    );
+    assert_eq!(s.window("main-2").map(|w| w.view), Some(grid));
+    assert_eq!(s.window("main-9").map(|w| w.view), Some(grid));
+    assert!(s.revision() > revision);
+}
+
+#[test]
+fn setting_the_new_window_view_is_not_a_change() {
+    let mut s = waypoint_session::Store::new();
+    let before = s.revision();
+    s.set_new_window_view(ViewPrefs {
+        mode: ViewMode::Grid,
+        show_hidden: false,
+        icon_size: 64,
+    });
+    assert_eq!(s.revision(), before);
+    // And it is not saved: the document of such a store loads with the default.
+    let (loaded, _) = waypoint_session::Store::from_document(s.to_document()).unwrap();
+    assert_eq!(loaded.new_window_view(), ViewPrefs::default());
+}
