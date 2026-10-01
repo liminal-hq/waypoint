@@ -58,10 +58,12 @@ export function createSeparateHandlers(deps: {
 				return tab ? locationLabel(tab.location) : '';
 			};
 			await deps.api.separatePair(pair.id);
+			const titles = pair.panes.map(title);
+			const last = titles[titles.length - 1] ?? '';
 			announce(
 				tf('pair.announce.separated', {
-					first: title(pair.panes[0] ?? -1),
-					second: title(pair.panes[1] ?? -1),
+					titles:
+						titles.length < 2 ? last : `${titles.slice(0, -1).join(', ')} ${t('pair.and')} ${last}`,
 				}),
 			);
 		},
