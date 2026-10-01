@@ -299,6 +299,12 @@ export interface FileCommands {
 	): Promise<void>;
 	undo(): Promise<void>;
 	redo(): Promise<void>;
+	/** The undo history, newest first, as the Undo History menu lists it. */
+	historyEntries(): Promise<JournalEntrySummary[]>;
+	/** Undoes one entry of the history (a refusal says why, as Undo does). */
+	undoEntry(entry: number): Promise<void>;
+	/** Redoes one entry of the history. */
+	redoEntry(entry: number): Promise<void>;
 }
 
 /** How long a command waits for its job before it stops following it; the job carries on. */
@@ -770,6 +776,16 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 				return;
 			}
 			await runRedo(ops, (text) => say(text));
+		},
+
+		historyEntries: () => ops.client.journalSummaries(),
+
+		async undoEntry(entry) {
+			await runUndo(ops, (text) => say(text), entry);
+		},
+
+		async redoEntry(entry) {
+			await runRedo(ops, (text) => say(text), entry);
 		},
 	};
 }

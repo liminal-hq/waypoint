@@ -114,3 +114,12 @@ export const PinIcon = (props: IconProps) => (
 		<path d="M9.5 2.5l4 4-2 .8-2.2 2.2.4 2.6-1 1L5.5 9.5 2.5 13.5M6.5 5.5l-1 1 4 4" />
 	</Glyph>
 );
+
+/** The app mark beside the app menu's name: a waypoint marker over a path. */
+export const AppMarkIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M8 1.8a3.7 3.7 0 0 1 3.7 3.7c0 2.6-3.7 6-3.7 6s-3.7-3.4-3.7-6A3.7 3.7 0 0 1 8 1.8z" />
+		<circle cx="8" cy="5.5" r="1.3" />
+		<path d="M3 14.2h10" />
+	</Glyph>
+);

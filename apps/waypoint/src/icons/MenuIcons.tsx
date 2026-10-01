@@ -304,3 +304,41 @@ export const MoveToIcon = (props: IconProps) => (
 		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H9M2 9.5h6.5M6 7l2.5 2.5L6 12" />
 	</Glyph>
 );
+
+export const SettingsIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle cx="8" cy="8" r="2" />
+		<path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2" />
+	</Glyph>
+);
+
+export const SelectAllIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeDasharray="2 1.6" />
+		<path d="M5.5 8.2l1.7 1.7 3.3-3.6" />
+	</Glyph>
+);
+
+export const InvertSelectionIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+		<path
+			d="M8 2.5v11M8 2.5h3.5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H8z"
+			fill="currentColor"
+			stroke="none"
+		/>
+	</Glyph>
+);
+
+export const ActionBarIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="1.5" y="3.5" width="13" height="5" rx="1.2" />
+		<path d="M4 6h1.5M7.25 6h1.5M10.5 6H12M2 11.5h12" />
+	</Glyph>
+);
+
+export const MoreIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2} />
+	</Glyph>
+);

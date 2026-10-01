@@ -166,6 +166,42 @@ describe('chromeLabels', () => {
 	});
 });
 
+describe('the application menu and Action bar messages', () => {
+	it('fill in the history rows and the Action bar tooltips', () => {
+		expect(tf('appMenu.history.entry', { label: 'New folder', time: '2:30 p.m.' })).toBe(
+			'New folder — 2:30 p.m.',
+		);
+		expect(tf('appMenu.history.undone', { label: 'New folder', time: '2:30 p.m.' })).toBe(
+			'New folder — 2:30 p.m. (undone)',
+		);
+		expect(tf('actionBar.withShortcut', { name: 'Cut', keys: 'Ctrl+X' })).toBe('Cut (Ctrl+X)');
+		expect(tf('actionBar.disabledBecause', { name: 'Cut', reason: 'Select something first' })).toBe(
+			'Cut — Select something first',
+		);
+		expect(tf('actionBar.viewTo', { name: 'Grid' })).toBe('View: switch to Grid');
+	});
+
+	it('give every disabled command a reason that reads as a sentence fragment, with no stop', () => {
+		const reasons = Object.entries(enMessages).filter(([id]) => id.startsWith('cmd.reason.'));
+		expect(reasons.length).toBeGreaterThanOrEqual(8);
+		for (const [id, message] of reasons) expect(message, id).not.toMatch(/[.!?]$/);
+	});
+
+	it('name the menus the way the mnemonics expect', () => {
+		expect(t('appMenu.file')).toBe('File');
+		expect(t('appMenu.edit')).toBe('Edit');
+		expect(t('appMenu.view')).toBe('View');
+		expect(t('appMenu.window')).toBe('Window');
+	});
+
+	it('use the same words as the other menus for the commands they share', () => {
+		expect(t('menu.moveToTrash')).toBe('Move to Trash');
+		expect(t('actionBar.delete')).toBe('Delete');
+		expect(t('actionBar.hideLabels')).toBe('Hide Labels');
+		expect(t('actionBar.hide')).toBe('Hide Action Bar');
+	});
+});
+
 describe('screens', () => {
 	it('finds the screen sources', () => {
 		expect(Object.keys(screens).length).toBeGreaterThanOrEqual(6);
