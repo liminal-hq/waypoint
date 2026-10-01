@@ -57,8 +57,15 @@ A webview can only track the pointer while it is inside the window. Once a drag 
 
 ## Pitfalls
 
-- **`cursor_position()` lies on Wayland.** `tao` 0.37 returns `Ok((0, 0))` rather than an error (`tao/src/platform_impl/linux/util.rs:18`), so a ghost-follow thread would pin the ghost at the origin. Detect Wayland and report `cursor_follow: false`.
-- **`set_ignore_cursor_events` panics on a window that was never shown.** On Linux a GTK window that has not been realised panics (`tao/src/platform_impl/linux/event_loop.rs:452`). Realise the ghost first (show it once, off-screen, on the main thread) and only then make it click-through.
+- **`cursor_position()` lies on Wayland.** `tao` 0.37 returns `Ok((0, 0))` rather than an error (`tao/src/platform_impl/linux/util.rs:18`), so a ghost-follow thread would pin the ghost at the origin. The spike (`milestone-0-spikes.md`, Milestone 3 spikes) found it is also stale on X11 and XWayland unless a button is held and the pointer is over one of the app's windows, so `cursor_follow` is available only on X11 with a button held; report it as a feature flag, not a platform check.
+- **`set_ignore_cursor_events` panics on a window that was never shown.** On Linux a GTK window that has not been realised panics (`tao/src/platform_impl/linux/event_loop.rs:457`; confirmed to abort on both Wayland and X11). Realise the ghost first (show it once, off-screen, on the main thread) and only then make it click-through.
+
+- **`tauri-plugin-window-state` shows a hidden window.** It shows any window it has no saved state for, so a `visible(false)` ghost comes up visible, and it saves the ghost's state at exit. Denylist the ghost for as long as the plugin is registered.
+- **A non-resizable ghost cannot be sized.** `resizable(false)` makes `set_size` a no-op on Linux. The ghost is resizable.
+- **Show before positioning.** On X11 a position set before `show` is overridden at map time. On Wayland `set_position` is ignored.
+- **Hit-test inner geometry, not `outer_position`.** For the frameless-shadow windows `outer_position` is 37 logical px above the client origin on X11, and on Wayland positions read back as (0, 0).
+- **`is_always_on_top()` is a stored flag on Linux.** It is not evidence that the window is on top; on Wayland always-on-top does not hold once the source window is activated.
+- **Native drag and drop is not the transport.** An OS-level drag stops in-page pointer events and cannot place the new window on Wayland, so the ghost-window design stays primary (A36).
 
 ## Thresholds
 
