@@ -259,8 +259,8 @@ jobs:
         id: tests
         run: >-
           cargo nextest run --no-fail-fast
-          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops
-          -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops)))"
+          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings
+          -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))"
 
       - name: Job summary
         if: always()
@@ -270,5 +270,5 @@ jobs:
             echo "## Windows tests"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops)))\"\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
           } >> "${GITHUB_STEP_SUMMARY}"

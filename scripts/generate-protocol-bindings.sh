@@ -5,10 +5,10 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
 # Run after changing any `#[ts(export)]`-annotated type in `crates/waypoint-protocol/src/`,
-# `crates/waypoint-vfs/src/`, `crates/waypoint-session/src/`, `crates/waypoint-ops/src/` or a plugin's `src/`. Each type names its own output directory with `#[ts(export, export_to = ...)]`,
+# `crates/waypoint-vfs/src/`, `crates/waypoint-session/src/`, `crates/waypoint-settings/src/`, `crates/waypoint-ops/src/` or a plugin's `src/`. Each type names its own output directory with `#[ts(export, export_to = ...)]`,
 # so nothing here needs configuring. Do not hand-edit generated files: the domain bindings live in
 # `packages/protocol/src/generated/` and each reusable plugin's in `guest-js/bindings/`.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-ops -p tauri-plugin-os-prefs -p tauri-plugin-system-appearance -p tauri-plugin-window-manager -p tauri-plugin-window-tearoff -p tauri-plugin-waypoint-ops
+cargo test -p waypoint-protocol -p waypoint-session -p waypoint-settings -p waypoint-vfs -p waypoint-ops -p tauri-plugin-os-prefs -p tauri-plugin-system-appearance -p tauri-plugin-window-manager -p tauri-plugin-window-tearoff -p tauri-plugin-waypoint-ops
 echo "Regenerated the protocol and plugin bindings."
