@@ -5175,6 +5175,7 @@ dependencies = [
  "ts-rs",
  "waypoint-path",
  "waypoint-protocol",
+ "waypoint-vfs",
  "windows 0.62.2",
 ]
 

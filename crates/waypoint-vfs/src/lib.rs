@@ -10,6 +10,8 @@ mod icon;
 mod index;
 mod listing;
 mod local;
+#[cfg(any(test, feature = "testing"))]
+mod memory;
 mod model;
 mod names;
 mod navigation;
@@ -31,6 +33,8 @@ pub use error::{from_io, from_io_pair, InjectedError};
 pub use icon::group_for;
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
+#[cfg(any(test, feature = "testing"))]
+pub use memory::{MemOp, MemoryProvider};
 pub use model::*;
 pub use names::{child_path, validate_name};
 pub use navigation::{describe_location, parse_location};

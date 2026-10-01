@@ -9,6 +9,10 @@ homepage.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+# The in-memory provider, for tests of this crate and of crates built on it.
+testing = []
+
 [dependencies]
 serde = { workspace = true }
 dirs = "6"
@@ -26,3 +30,4 @@ windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Storage_Fil
 [dev-dependencies]
 serde_json = { workspace = true }
 tempfile = "3"
+waypoint-vfs = { path = ".", features = ["testing"] }
