@@ -87,7 +87,8 @@ pub struct TransferReport {
     /// What verification recorded, when it ran.
     pub verified: Option<Verification>,
     /// `.waypoint-replaced-*` entries that could not be removed after their replacement was in
-    /// place. They hold the old content and are safe to delete.
+    /// place (safe to delete), or that could not be put back after a replacement failed (the only
+    /// copy of what the replaced entry held).
     pub leftovers: Vec<Location>,
 }
 
@@ -730,9 +731,37 @@ impl Transfer<'_> {
         Ok(aside)
     }
 
-    /// Puts an entry that was set aside back. Best effort: it is the undo of a failed step.
-    fn put_back(&self, provider: &dyn Provider, aside: &VfsPath, target: &VfsPath) {
-        let _ = provider.rename(aside, target, false);
+    /// Puts an entry that was set aside back at `target`, which is free. It is the undo of a
+    /// failed step, so it tries twice; if the entry still cannot go back it stays under its waiting
+    /// name, which is reported in `TransferReport::leftovers` since it holds the only copy.
+    fn put_back(&mut self, provider: &dyn Provider, aside: &VfsPath, target: &VfsPath) -> bool {
+        let back = (0..2).any(|_| provider.rename(aside, target, false).is_ok());
+        if !back {
+            self.report.transfer.leftovers.push(aside.to_location());
+        }
+        back
+    }
+
+    /// Takes away a copy that was put in place and brings back what it replaced, in one step where
+    /// there was something to bring back: renaming the old entry over the copy cannot leave the
+    /// name empty or holding both. Without a replaced entry the copy is removed.
+    fn undo_placement(
+        &mut self,
+        provider: &dyn Provider,
+        target: &VfsPath,
+        aside: Option<&VfsPath>,
+    ) {
+        match aside {
+            Some(aside) => {
+                let back = (0..2).any(|_| provider.rename(aside, target, true).is_ok());
+                if !back {
+                    self.report.transfer.leftovers.push(aside.to_location());
+                }
+            }
+            None => {
+                let _ = (0..2).any(|_| provider.remove_file(target).is_ok());
+            }
+        }
     }
 
     /// Removes an entry that was set aside once its replacement is in. What cannot be removed is
@@ -775,8 +804,17 @@ impl Transfer<'_> {
                     return Ok(());
                 }
                 Err(error) => {
-                    if let Some(aside) = &aside {
-                        self.put_back(dp.as_ref(), aside, target);
+                    if let Some(moved) = &aside {
+                        if !self.put_back(dp.as_ref(), moved, target) {
+                            // The old entry is stranded under its waiting name: stop here rather
+                            // than copy over a name that is empty.
+                            return Err(Flow::item(OpsError::Io {
+                                message: format!(
+                                    "{} could not be put back after a failed replace",
+                                    target.display()
+                                ),
+                            }));
+                        }
                     }
                     if !matches!(error, VfsError::CrossesDevices { .. }) {
                         return Err(error.into());
@@ -812,23 +850,20 @@ impl Transfer<'_> {
             }
         }
         if let Err(error) = dp.rename(&partial, target, false) {
-            if let Some(aside) = &aside {
-                self.put_back(dp.as_ref(), aside, target);
+            if let Some(moved) = &aside {
+                self.put_back(dp.as_ref(), moved, target);
             }
             self.discard(dp.as_ref(), &partial);
             self.meter.progress.bytes_done = base;
             return Err(error.into());
         }
         if ctx.mode == Mode::Move {
-            if let Err(error) = sp.remove_file(src) {
-                // The copy is in place but the source would not go: take the copy away again and
-                // put back what it replaced, so the item is untouched.
-                let _ = dp.remove_file(target);
-                if let Some(aside) = &aside {
-                    self.put_back(dp.as_ref(), aside, target);
-                }
+            if let Err(error) = Self::remove_moved_source(sp.as_ref(), src, entry) {
+                // The copy is in place but the source would not go (or is not what was copied):
+                // take the copy away again and put back what it replaced, so the item is untouched.
+                self.undo_placement(dp.as_ref(), target, aside.as_ref());
                 self.meter.progress.bytes_done = base;
-                return Err(error.into());
+                return Err(error);
             }
         }
         if let Some(aside) = &aside {
@@ -836,6 +871,31 @@ impl Transfer<'_> {
         }
         self.leaf_placed(src, target, existing, 0);
         Ok(())
+    }
+
+    /// Removes the source of a file or link that has been copied, provided it is still what the
+    /// job met: a file that was changed while it was copied (a different size or time) is not
+    /// removed, since its newer content is in no copy. A source that is already gone stays gone.
+    fn remove_moved_source(sp: &dyn Provider, src: &VfsPath, met: &ScannedEntry) -> R<()> {
+        match sp.stat(src) {
+            Ok(now) => {
+                if met.kind == EntryKind::File
+                    && (now.kind != met.kind
+                        || now.size != met.size
+                        || now.modified_ms != met.modified_ms)
+                {
+                    return Err(Flow::item(OpsError::ChangedSince {
+                        location: src.to_location(),
+                    }));
+                }
+            }
+            Err(VfsError::NotFound { .. }) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
+        match sp.remove_file(src) {
+            Ok(()) | Err(VfsError::NotFound { .. }) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
     }
 
     /// Bookkeeping for a file or link that is in place. `renamed_bytes` is how much a rename moved

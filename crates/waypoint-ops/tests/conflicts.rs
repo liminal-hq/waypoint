@@ -837,3 +837,49 @@ fn resolve_is_only_for_a_job_waiting_on_conflicts() {
         Some(ConflictPolicy::Replace)
     );
 }
+
+#[test]
+fn an_original_that_cannot_be_put_back_is_reported_not_lost() {
+    // The move's rename is refused as crossing volumes after the old file was set aside, and then
+    // the old file cannot be renamed back either. It stays under its waiting name, the job stops
+    // there, and the report says where it is.
+    let (mut h, _dir) = local_harness();
+    build(
+        &h,
+        &tree(&[
+            ("src/", ""),
+            ("src/a", "new"),
+            ("dst/", ""),
+            ("dst/a", "old"),
+        ]),
+    );
+    let src = h.path("src").display();
+    h.provider
+        .fail_always_where(Op::Rename, FaultKind::CrossesDevices, move |p| {
+            p.display().starts_with(&src)
+        });
+    h.provider
+        .fail_always_where(Op::Rename, FaultKind::PermissionDenied, |p| {
+            p.display().contains(".waypoint-replaced-")
+        });
+    let result = go(
+        &mut h,
+        JobKind::Move,
+        &["src/a"],
+        "dst",
+        Some(ConflictPolicy::Replace),
+    );
+    let failure = result.failure.expect("the job stopped");
+    assert!(matches!(failure.error, OpsError::Io { .. }));
+    let stranded = failure.report.transfer.leftovers.clone();
+    assert_eq!(stranded.len(), 1);
+    h.provider.reset();
+    let now = dst_tree(&h);
+    assert_eq!(now.len(), 1, "{now:?}");
+    let (name, node) = now.iter().next().unwrap();
+    assert!(name.starts_with(".waypoint-replaced-"), "{name}");
+    assert_eq!(node, &file("old"));
+    assert!(stranded[0].display.ends_with(name.as_str()));
+    // The source was not touched.
+    assert_eq!(src_tree(&h), tree(&[("a", "new")]));
+}

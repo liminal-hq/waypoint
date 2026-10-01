@@ -199,7 +199,13 @@ fn a_cross_volume_move_removes_each_source_item_after_its_copy_not_all_at_the_en
 
 /// What a source and a destination may look like after a stop: every top-level file is whole in one
 /// of them, and nowhere half. `names` are the files of the moved folder.
-fn assert_each_item_moved_or_untouched(src: &Tree, dst: &Tree, original: &Tree, at: &str) {
+fn assert_each_item_moved_or_untouched(
+    src: &Tree,
+    dst: &Tree,
+    original: &Tree,
+    at: &str,
+    gone_means_gone: bool,
+) {
     assert!(
         leftovers(src).is_empty() && leftovers(dst).is_empty(),
         "{at}: {src:?} {dst:?}"
@@ -209,6 +215,9 @@ fn assert_each_item_moved_or_untouched(src: &Tree, dst: &Tree, original: &Tree, 
         let in_dst = dst.get(key) == Some(node);
         match node {
             Node::Dir => {}
+            // A provider that says a source is not found (when it is) is believed: it is gone, so
+            // the copy is kept, and the file shows on both sides.
+            _ if gone_means_gone => assert!(in_src || in_dst, "{at}: {key} is nowhere"),
             _ => assert!(
                 in_src ^ in_dst,
                 "{at}: {key} is in the source: {in_src}, in the destination: {in_dst}\nsrc {src:?}\ndst {dst:?}"
@@ -272,6 +281,7 @@ fn a_failure_at_any_step_of_a_cross_volume_move_leaves_each_item_moved_or_untouc
                 &dst_tree(&h),
                 &expected_union(&t),
                 &at,
+                kind == FaultKind::NotFound,
             );
             match &result.state {
                 JobState::Done => {}
@@ -332,7 +342,7 @@ fn a_cancel_at_any_step_of_a_cross_volume_move_leaves_each_item_moved_or_untouch
         );
         h.provider.reset();
         let at = format!("cancel at {step}/{calls}");
-        assert_each_item_moved_or_untouched(&src_tree(&h), &dst_tree(&h), &t, &at);
+        assert_each_item_moved_or_untouched(&src_tree(&h), &dst_tree(&h), &t, &at, false);
         if result.state == JobState::Cancelled {
             cancelled += 1;
             // A cancel that lands while the job is still being planned has no executor failure.
@@ -570,4 +580,78 @@ fn a_folder_moved_by_copy_keeps_the_time_it_had_though_emptying_it_changes_it() 
     assert!(src_tree(&h).is_empty());
     assert_eq!(mtime_of(&h, "dst/d"), Some(610_000_000_000));
     assert_eq!(mtime_of(&h, "dst/d/sub"), Some(600_000_000_000));
+}
+
+#[test]
+fn a_file_changed_while_it_was_copied_is_not_removed() {
+    // Edits the source in the middle of its own copy.
+    struct Editor<'a> {
+        provider: &'a dyn Provider,
+        src: VfsPath,
+        edited: bool,
+    }
+    impl ExecSink for Editor<'_> {
+        fn progress(&mut self, _: &Progress, _: &Counts) {
+            if !self.edited {
+                self.edited = true;
+                let mut w = self
+                    .provider
+                    .create_write(&self.src, WriteOptions::truncate())
+                    .unwrap();
+                std::io::Write::write_all(&mut w, b"edited meanwhile").unwrap();
+                w.finish(false).unwrap();
+            }
+        }
+    }
+    let (h, _dir) = crossing(CaseRule::Sensitive);
+    put_bytes(&h, "src/f", &pattern(4 * SMALL_CHUNK, 3));
+    h.provider.reset();
+    let planned = h
+        .plan(&req(&h, JobKind::Move, &["src/f"], "dst", None))
+        .unwrap();
+    let mut editor = Editor {
+        provider: h.provider.as_ref(),
+        src: h.path("src/f"),
+        edited: false,
+    };
+    let options = RunOptions {
+        chunk_bytes: SMALL_CHUNK,
+        ..RunOptions::default()
+    };
+    let failure = Executor::new(h.env.clone())
+        .run_with(
+            JobId(1),
+            &planned,
+            &CancelToken::new(),
+            &mut editor,
+            options,
+        )
+        .unwrap_err();
+    assert_eq!(
+        failure.error,
+        OpsError::ChangedSince {
+            location: h.loc("src/f")
+        }
+    );
+    h.provider.reset();
+    // The newer content is where it was, and the stale copy is gone.
+    assert_eq!(src_tree(&h), tree(&[("f", "edited meanwhile")]));
+    assert!(dst_tree(&h).is_empty());
+}
+
+#[test]
+fn a_source_that_is_gone_when_its_copy_is_done_leaves_the_copy() {
+    // Another program deletes the source after it was read: the copy is all that is left, so it
+    // stays and the move counts as done.
+    let (mut h, _dir) = crossing(CaseRule::Sensitive);
+    put_bytes(&h, "src/f", b"precious");
+    h.provider.reset();
+    let src = h.path("src/f");
+    // The removal of the source finds it already gone.
+    h.provider
+        .fail_always_where(Op::RemoveFile, FaultKind::NotFound, move |p| *p == src);
+    let result = go(&mut h, JobKind::Move, &["src/f"], "dst", None);
+    done(&result);
+    h.provider.reset();
+    assert_eq!(dst_tree(&h), tree(&[("f", "precious")]));
 }
