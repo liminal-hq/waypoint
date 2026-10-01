@@ -282,3 +282,19 @@ describe('the extension guard', () => {
 		expect(screen.queryByRole('dialog')).toBeNull();
 	});
 });
+
+describe('a rename that moves the row', () => {
+	it('ends the rename even though the field unmounts before the answer arrives', async () => {
+		const user = userEvent.setup();
+		const { h, rename } = await setup();
+		let release: (outcome: RenameOutcome) => void = () => {};
+		rename.mockImplementation(() => new Promise<RenameOutcome>((resolve) => (release = resolve)));
+		await startRename(h, 'alpha.txt');
+		await user.keyboard('{Control>}a{/Control}zulu.txt{Enter}');
+		// The listing re-sorts the renamed entry, so its row (and the field) is replaced.
+		act(() => h.session.store.setState({ focus: 0 }));
+		cleanup();
+		release({ ok: true });
+		await waitFor(() => expect(h.session.store.getState().renaming).toBeNull());
+	});
+});

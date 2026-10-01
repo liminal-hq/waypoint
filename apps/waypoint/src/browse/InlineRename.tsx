@@ -90,6 +90,8 @@ export function InlineRename({ entry, session, commands, variant, onFinish }: In
 		alive.current = true;
 		return () => {
 			alive.current = false;
+			// Unmounted mid-rename (the listing moved the row): do not let the row's new place open a second field.
+			if (busy.current) session.store.getState().endRename();
 		};
 	}, []);
 
@@ -108,14 +110,13 @@ export function InlineRename({ entry, session, commands, variant, onFinish }: In
 		setPending(true);
 		const outcome = await commands.renameEntry(session, entry, name);
 		busy.current = false;
+		// A rename can move the row (the listing re-sorts it), which unmounts this field before the
+		// answer arrives; the rename is over all the same, so the store must be told.
+		if (outcome.ok) return finish();
 		if (!alive.current) return;
 		setPending(false);
-		if (outcome.ok) {
-			finish();
-		} else {
-			setMessage(outcome.message);
-			refocus();
-		}
+		setMessage(outcome.message);
+		refocus();
 	};
 
 	const commit = () => {
