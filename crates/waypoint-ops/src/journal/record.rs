@@ -57,6 +57,7 @@ fn label_for(kind: JobKind, count: usize, names: &[String]) -> String {
         JobKind::Delete => items("Delete", ""),
         JobKind::Copy => items("Copy", ""),
         JobKind::Move => items("Move", ""),
+        JobKind::Link => items("Link", ""),
         JobKind::BatchRename => items("Rename", ""),
         JobKind::Undo { .. } => items("Undo", ""),
         JobKind::Redo { .. } => items("Redo", ""),

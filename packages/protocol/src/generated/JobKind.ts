@@ -2,7 +2,7 @@
 import type { JournalId } from "./JournalId";
 
 /**
- * What a job does. The kinds from `Copy` on have no executor yet; running one reports a typed
- * `Unsupported`.
+ * What a job does. `BatchRename`, `Undo` and `Redo` have no executor yet; running one reports a
+ * typed `Unsupported`.
  */
-export type JobKind = { "kind": "createFolder" } | { "kind": "createFile" } | { "kind": "rename" } | { "kind": "duplicate" } | { "kind": "trash" } | { "kind": "restore" } | { "kind": "delete" } | { "kind": "copy" } | { "kind": "move" } | { "kind": "batchRename" } | { "kind": "undo", of: JournalId, } | { "kind": "redo", of: JournalId, };
+export type JobKind = { "kind": "createFolder" } | { "kind": "createFile" } | { "kind": "rename" } | { "kind": "duplicate" } | { "kind": "trash" } | { "kind": "restore" } | { "kind": "delete" } | { "kind": "copy" } | { "kind": "move" } | { "kind": "link" } | { "kind": "batchRename" } | { "kind": "undo", of: JournalId, } | { "kind": "redo", of: JournalId, };
