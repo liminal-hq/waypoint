@@ -78,6 +78,14 @@ export function getCursor(): Promise<Point | null> {
 	return cmd<Point | null>('get_cursor');
 }
 
+/**
+ * The registered region under the cursor right now, without ending the drag, so a caller can say what a release would do.
+ * Null where the system reports no usable cursor, cannot hit-test, or the cursor is over no region.
+ */
+export function hitTest(): Promise<Hit | null> {
+	return cmd<Hit | null>('hit_test');
+}
+
 /** The payload of the drag in progress, so a ghost page that loaded after `begin` can still draw it. */
 export function getPayload<T = unknown>(): Promise<T | null> {
 	return cmd<T | null>('get_payload');

@@ -54,6 +54,13 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     function getCursor() {
         return cmd('get_cursor');
     }
+    /**
+     * The registered region under the cursor right now, without ending the drag, so a caller can say what a release would do.
+     * Null where the system reports no usable cursor, cannot hit-test, or the cursor is over no region.
+     */
+    function hitTest() {
+        return cmd('hit_test');
+    }
     /** The payload of the drag in progress, so a ghost page that loaded after `begin` can still draw it. */
     function getPayload() {
         return cmd('get_payload');
@@ -80,6 +87,7 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     exports.getPayload = getPayload;
     exports.getStatus = getStatus;
     exports.hasFeature = hasFeature;
+    exports.hitTest = hitTest;
     exports.onCursorStale = onCursorStale;
     exports.onPayload = onPayload;
     exports.onTimeout = onTimeout;

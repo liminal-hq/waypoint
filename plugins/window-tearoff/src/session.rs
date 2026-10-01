@@ -21,9 +21,9 @@ use crate::{
     follow::{Action, FollowMachine, StartGuard, STALE_AFTER, TICK, TIMEOUT},
     ghost, main_thread,
     models::{
-        BeginReport, BeginState, DropReport, Options, Outcome, PluginStatus, Point, Region, Size,
-        CURSOR_STALE_EVENT, FEATURE_CURSOR_FOLLOW, FEATURE_GHOST, FEATURE_HIT_TEST, PAYLOAD_EVENT,
-        TIMEOUT_EVENT,
+        BeginReport, BeginState, DropReport, Hit, Options, Outcome, PluginStatus, Point, Region,
+        Size, CURSOR_STALE_EVENT, FEATURE_CURSOR_FOLLOW, FEATURE_GHOST, FEATURE_HIT_TEST,
+        PAYLOAD_EVENT, TIMEOUT_EVENT,
     },
     platform,
     regions::{self, WindowGeometry},
@@ -294,6 +294,23 @@ impl Tearoff {
         }
         *lock(&self.payload) = Some(payload.clone());
         self.emit_payload(app, &payload);
+    }
+
+    /// The registered region under the cursor right now, without ending the drag; `None` where the system reports no usable cursor or cannot hit-test.
+    pub async fn peek_hit<R: Runtime>(&self, app: &AppHandle<R>) -> Option<Hit> {
+        let status = self.status(app).await;
+        if !has(&status, FEATURE_CURSOR_FOLLOW) || !has(&status, FEATURE_HIT_TEST) {
+            return None;
+        }
+        let ghost_label = self.options.ghost_label.clone();
+        let regions = lock(&self.regions).clone();
+        let app = app.clone();
+        main_thread::run(&app.clone(), move || {
+            let cursor = native_cursor(&app)?;
+            regions::hit_test(cursor, &geometry(&app, &ghost_label, &regions))
+        })
+        .await
+        .flatten()
     }
 
     /// Ends the drag, hides the ghost and reports where the cursor was and which region it was over. Works without a drag in progress, which is how a caller that got `NoGhost` finds out where the drop landed.

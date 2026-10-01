@@ -52,6 +52,7 @@ pub fn init<R: Runtime>(options: Options) -> TauriPlugin<R> {
             commands::set_drop_regions,
             commands::get_cursor,
             commands::get_payload,
+            commands::hit_test,
         ])
         .setup(move |app, _api| {
             app.manage(Tearoff::new(options));

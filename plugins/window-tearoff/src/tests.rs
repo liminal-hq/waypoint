@@ -97,6 +97,18 @@ fn begin_without_a_ghost_reports_no_ghost_and_end_still_answers() {
 }
 
 #[test]
+fn hit_test_without_a_usable_cursor_finds_nothing() {
+    let app = app();
+    let handle = app.handle().clone();
+    let hit = tauri::async_runtime::block_on(commands::hit_test(
+        handle.clone(),
+        handle.state::<Tearoff>(),
+    ))
+    .unwrap();
+    assert_eq!(hit, None);
+}
+
+#[test]
 fn regions_are_kept_per_window_and_cleared_on_destroy() {
     let app = app();
     let window = app.get_webview_window("main").unwrap();

@@ -8,4 +8,5 @@ permissions = [
   "allow-set-drop-regions",
   "allow-get-cursor",
   "allow-get-payload",
+  "allow-hit-test",
 ]

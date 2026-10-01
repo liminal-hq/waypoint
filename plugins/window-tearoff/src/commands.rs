@@ -8,7 +8,7 @@ use tauri::{AppHandle, Runtime, State, WebviewWindow};
 
 use crate::{
     error::Error,
-    models::{BeginReport, DropReport, Outcome, PluginStatus, Point, Region, Size},
+    models::{BeginReport, DropReport, Hit, Outcome, PluginStatus, Point, Region, Size},
     session::Tearoff,
 };
 
@@ -80,4 +80,13 @@ pub async fn get_cursor<R: Runtime>(
 #[tauri::command]
 pub fn get_payload(state: State<'_, Tearoff>) -> Result<Option<Value>, Error> {
     Ok(state.payload())
+}
+
+/// The registered region under the cursor right now, without ending the drag, so a caller can say what a release would do. Null where the system reports no usable cursor or cannot hit-test.
+#[tauri::command]
+pub async fn hit_test<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, Tearoff>,
+) -> Result<Option<Hit>, Error> {
+    Ok(state.peek_hit(&app).await)
 }

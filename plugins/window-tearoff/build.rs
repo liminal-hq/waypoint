@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "set_drop_regions",
     "get_cursor",
     "get_payload",
+    "hit_test",
 ];
 
 fn main() {
