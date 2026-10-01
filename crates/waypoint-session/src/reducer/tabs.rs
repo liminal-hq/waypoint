@@ -114,7 +114,13 @@ pub(crate) fn apply(
             }
         }
         Command::SetColour { tab, colour } => {
-            tab_mut(store, wi, tab)?.colour = colour;
+            // A pair shares one colour (SPEC §5.6), so colouring one half colours both.
+            let w = &mut store.windows[wi];
+            w.tab(tab).ok_or_else(|| unknown_tab(tab))?;
+            let set: HashSet<TabId> = w.unit(tab).into_iter().collect();
+            for t in w.tabs.iter_mut().filter(|t| set.contains(&t.id)) {
+                t.colour = colour;
+            }
         }
         Command::SetHints { tab, hints } => {
             tab_mut(store, wi, tab)?.hints = hints;

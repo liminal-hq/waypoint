@@ -19,6 +19,17 @@ fn group_exists(w: &WindowState, group: GroupId) -> Result<(), SessionError> {
         .ok_or(SessionError::UnknownGroup(group.0))
 }
 
+/// "Group N" for a group made without a name: N counts from the window's groups, and skips any
+/// number a group in this window already carries. (The group's id is global to the session, so it
+/// would number a window's first group "Group 7".)
+fn default_group_name(w: &WindowState) -> String {
+    let mut n = w.groups.len() + 1;
+    while w.groups.iter().any(|g| g.name == format!("Group {n}")) {
+        n += 1;
+    }
+    format!("Group {n}")
+}
+
 pub(crate) fn apply(store: &mut Store, window: &str, command: Command) -> Result<(), SessionError> {
     let wi = store.window_index(window)?;
     match command {
@@ -34,9 +45,10 @@ pub(crate) fn apply(store: &mut Store, window: &str, command: Command) -> Result
                 t.group = Some(id);
                 t.pinned = pinned;
             }
+            let name = name.unwrap_or_else(|| default_group_name(w));
             w.groups.push(Group {
                 id,
-                name: name.unwrap_or_else(|| format!("Group {}", id.0)),
+                name,
                 colour: None,
                 collapsed: false,
             });

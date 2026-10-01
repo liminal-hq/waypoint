@@ -52,6 +52,53 @@ fn a_default_group_name_is_numbered() {
 }
 
 #[test]
+fn default_group_names_count_the_windows_groups_and_skip_taken_numbers() {
+    let mut s = store_with(&["a", "b", "c", "d"]);
+    let make = |s: &mut waypoint_session::Store, tab: u32| {
+        run(
+            s,
+            W,
+            Command::CreateGroup {
+                tabs: vec![TabId(tab)],
+                name: None,
+            },
+        );
+    };
+    make(&mut s, 1);
+    make(&mut s, 2);
+    // A second window starts at "Group 1" although the session's group ids are already at 3.
+    s.dispatch(
+        "main-2",
+        Command::OpenWindow {
+            location: Some(loc("x")),
+            geometry: None,
+        },
+    )
+    .unwrap();
+    run(
+        &mut s,
+        "main-2",
+        Command::CreateGroup {
+            tabs: vec![TabId(5)],
+            name: None,
+        },
+    );
+    assert_eq!(s.window("main-2").unwrap().groups[0].name, "Group 1");
+    // Ungrouping "Group 1" leaves "Group 2"; the next group is "Group 3", not a repeat of "Group 2".
+    let first = s.window(W).unwrap().groups[0].id;
+    run(&mut s, W, Command::Ungroup { group: first });
+    make(&mut s, 3);
+    let names: Vec<_> = s
+        .window(W)
+        .unwrap()
+        .groups
+        .iter()
+        .map(|g| g.name.clone())
+        .collect();
+    assert_eq!(names, vec!["Group 2", "Group 3"]);
+}
+
+#[test]
 fn add_to_group_moves_the_tab_to_the_end_of_the_group() {
     let mut s = store_with(&["a", "b", "c", "d"]);
     run(

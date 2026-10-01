@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use waypoint_session::{Command, PairLayout, PairOrigin, SessionEvent, TabId};
+use waypoint_session::{Command, PairLayout, PairOrigin, SessionEvent, TabColour, TabId};
 
 mod common;
 use common::{assert_ok, ids, run, store_with};
@@ -233,4 +233,33 @@ fn pinning_a_pair_pins_both_panes() {
     );
     assert_ok(&s);
     assert_eq!(ids(&s, W), vec![2, 3, 1]);
+}
+
+#[test]
+fn colouring_one_half_colours_the_pair() {
+    let mut s = store_with(&["a", "b", "c"]);
+    join(&mut s, &[1, 2]);
+    run(
+        &mut s,
+        W,
+        Command::SetColour {
+            tab: TabId(2),
+            colour: Some(TabColour::Teal),
+        },
+    );
+    let w = s.window(W).unwrap();
+    assert_eq!(w.tab(TabId(1)).unwrap().colour, Some(TabColour::Teal));
+    assert_eq!(w.tab(TabId(2)).unwrap().colour, Some(TabColour::Teal));
+    assert_eq!(w.tab(TabId(3)).unwrap().colour, None);
+    // Clearing it from the other half clears both, and a separated tab keeps its own again.
+    run(
+        &mut s,
+        W,
+        Command::SetColour {
+            tab: TabId(1),
+            colour: None,
+        },
+    );
+    let w = s.window(W).unwrap();
+    assert_eq!(w.tab(TabId(2)).unwrap().colour, None);
 }
