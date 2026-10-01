@@ -11,6 +11,7 @@ import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
+import type { TrashClient } from '../trash/trashClient';
 import type { VfsClient } from '../services/vfsClient';
 
 export interface MainServices {
@@ -29,6 +30,8 @@ export interface MainServices {
 	timeFormat?: TimeFormatClient;
 	/** The operations queue behind the status bar ring; without it the window has no ring. */
 	ops?: OpsClient;
+	/** The Trash's state and jobs; without it the Trash place shows no count and offers no actions. */
+	trash?: TrashClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -41,6 +44,7 @@ export interface MainServicesDeps {
 	createTearoffClient?(): TearoffClient;
 	createTimeFormatClient?(): TimeFormatClient;
 	createOpsClient?(): OpsClient;
+	createTrashClient?(): TrashClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -65,6 +69,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		tearoff: deps.createTearoffClient?.(),
 		timeFormat: deps.createTimeFormatClient?.(),
 		ops: deps.createOpsClient?.(),
+		trash: deps.createTrashClient?.(),
 		home,
 	};
 }

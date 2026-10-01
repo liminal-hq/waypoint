@@ -278,7 +278,9 @@ function GridBody({
 												id={`${listId}-item-${position}`}
 												role="option"
 												className={styles.cell}
-												title={entry?.name}
+												title={
+													entry?.originalPath ? `${entry.name}\n${entry.originalPath}` : entry?.name
+												}
 												aria-selected={selected}
 												aria-setsize={shownItems}
 												aria-posinset={position + 1}

@@ -40,11 +40,27 @@ import {
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
 
-const COLUMNS: Array<{ key: SortKey; label: MessageId }> = [
-	{ key: 'name', label: 'browse.column.name' },
-	{ key: 'size', label: 'browse.column.size' },
-	{ key: 'modified', label: 'browse.column.modified' },
-	{ key: 'kind', label: 'browse.column.kind' },
+/** A column of the header. One with no `sort` is not a sort key (where an item was trashed from). */
+interface Column {
+	/** Names the column for the row cells and the container queries that hide it when narrow. */
+	id: 'name' | 'size' | 'modified' | 'kind' | 'original' | 'deleted';
+	sort?: SortKey;
+	label: MessageId;
+}
+
+const FOLDER_COLUMNS: Column[] = [
+	{ id: 'name', sort: 'name', label: 'browse.column.name' },
+	{ id: 'size', sort: 'size', label: 'browse.column.size' },
+	{ id: 'modified', sort: 'modified', label: 'browse.column.modified' },
+	{ id: 'kind', sort: 'kind', label: 'browse.column.kind' },
+];
+
+/** The Trash shows where each item came from and when it was trashed in place of Modified and Kind. */
+const TRASH_COLUMNS: Column[] = [
+	{ id: 'name', sort: 'name', label: 'browse.column.name' },
+	{ id: 'original', label: 'browse.column.original' },
+	{ id: 'deleted', sort: 'deleted', label: 'browse.column.deleted' },
+	{ id: 'size', sort: 'size', label: 'browse.column.size' },
 ];
 
 interface ListViewProps {
@@ -142,6 +158,8 @@ function ListingBody({
 	// not just on mount: a listing that opens empty would otherwise keep the default height.
 	const scanning = model.phase === 'scanning' || model.phase === 'rescanning';
 	const empty = model.count === 0 && !scanning;
+	const trash = model.layout === 'trash';
+	const columns = trash ? TRASH_COLUMNS : FOLDER_COLUMNS;
 	useLayoutEffect(() => {
 		if (scroller.current) setRowHeight(measureRowHeight(scroller.current));
 	}, [empty]);
@@ -262,24 +280,36 @@ function ListingBody({
 	const activeId = focus === null ? undefined : `${listId}-row-${focus}`;
 
 	return (
-		<div className={styles.view}>
+		<div className={styles.view} data-layout={model.layout}>
 			<div
 				className={`${styles.columns} ${styles.header}`}
 				role="group"
 				aria-label={t('browse.columns.label')}
 			>
-				{COLUMNS.map((column, index) => {
-					const active = model.sort.key === column.key;
+				{columns.map((column, index) => {
+					const { sort } = column;
+					if (sort === undefined) {
+						return (
+							<span
+								key={column.id}
+								className={`${styles.headerButton} ${styles.headerStatic}`}
+								data-column={column.id}
+							>
+								<span>{t(column.label)}</span>
+							</span>
+						);
+					}
+					const active = model.sort.key === sort;
 					return (
 						<button
-							key={column.key}
+							key={column.id}
 							type="button"
 							className={styles.headerButton}
-							data-column={column.key}
+							data-column={column.id}
 							data-sorted={
 								active ? (model.sort.descending ? 'descending' : 'ascending') : undefined
 							}
-							onClick={() => onSort(column.key)}
+							onClick={() => onSort(sort)}
 						>
 							{index === 0 && <span className={styles.iconSpacer} aria-hidden="true" />}
 							<span>{t(column.label)}</span>
@@ -313,7 +343,7 @@ function ListingBody({
 			{empty ? (
 				<div className={styles.emptyArea} onContextMenu={onBackgroundContextMenu}>
 					<MessageState role="status" data-state="empty">
-						{t('browse.empty')}
+						{t(trash ? 'trash.view.empty' : 'browse.empty')}
 					</MessageState>
 				</div>
 			) : (
@@ -374,17 +404,39 @@ function ListingBody({
 												<FileIcon group={entry.group} />
 												<span className={styles.nameText}>{entry.name}</span>
 											</span>
-											<span className={styles.cell} data-column="size">
-												{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
-											</span>
-											<span className={styles.cell} data-column="modified">
-												{entry.modifiedMs === null
-													? t('browse.value.none')
-													: formatModified(entry.modifiedMs, undefined, hourCycle)}
-											</span>
-											<span className={styles.cell} data-column="kind">
-												{t(`browse.group.${entry.group}`)}
-											</span>
+											{trash ? (
+												<>
+													<span
+														className={styles.cell}
+														data-column="original"
+														title={entry.originalPath ?? undefined}
+													>
+														{entry.originalPath ?? t('browse.value.none')}
+													</span>
+													<span className={styles.cell} data-column="deleted">
+														{entry.deletedMs == null
+															? t('browse.value.none')
+															: formatModified(entry.deletedMs, undefined, hourCycle)}
+													</span>
+													<span className={styles.cell} data-column="size">
+														{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
+													</span>
+												</>
+											) : (
+												<>
+													<span className={styles.cell} data-column="size">
+														{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
+													</span>
+													<span className={styles.cell} data-column="modified">
+														{entry.modifiedMs === null
+															? t('browse.value.none')
+															: formatModified(entry.modifiedMs, undefined, hourCycle)}
+													</span>
+													<span className={styles.cell} data-column="kind">
+														{t(`browse.group.${entry.group}`)}
+													</span>
+												</>
+											)}
 										</>
 									) : (
 										<>

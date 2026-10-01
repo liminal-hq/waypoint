@@ -17,6 +17,7 @@ const screens = import.meta.glob<string>(
 		'../tabs/*.tsx',
 		'../status/*.tsx',
 		'../sidebar/*.tsx',
+		'../trash/*.tsx',
 	],
 	{
 		query: '?raw',
@@ -52,6 +53,47 @@ describe('tn', () => {
 		expect(tn('browse.selection', 3, 'en-CA')).toBe('3 items selected');
 		expect(tn('browse.selection', 1200, 'en-CA')).toBe('1,200 items selected');
 		expect(tn('browse.selection', 0, 'en-CA')).toBe('0 items selected');
+	});
+});
+
+describe('the Trash messages', () => {
+	it('have a one and an other form for everything counted', () => {
+		expect(tn('trash.confirm.delete.message', 1, 'en-CA')).toBe(
+			'1 item will be deleted permanently. This cannot be undone.',
+		);
+		expect(tn('trash.confirm.delete.message', 1200, 'en-CA')).toBe(
+			'1,200 items will be deleted permanently. This cannot be undone.',
+		);
+		expect(tn('trash.confirm.empty.message', 1, 'en-CA')).toBe(
+			'The 1 item in the Trash will be deleted permanently. This cannot be undone.',
+		);
+		expect(tn('trash.confirm.empty.message', 3, 'en-CA')).toBe(
+			'All 3 items in the Trash will be deleted permanently. This cannot be undone.',
+		);
+		expect(tn('trash.done.restored', 1, 'en-CA')).toBe('Restored 1 item');
+		expect(tn('trash.done.deleted', 2, 'en-CA')).toBe('Deleted 2 items permanently');
+		expect(tn('trash.done.skipped', 1, 'en-CA')).toBe('1 item was left in the Trash');
+		expect(tn('sidebar.trash.count', 4, 'en-CA')).toBe('4 items in the Trash');
+		expect(tn('trash.conflict.message', 3, 'en-CA')).toBe(
+			'3 items already exist in their original folders.',
+		);
+	});
+
+	it('fill in the names they mention', () => {
+		expect(tf('trash.conflict.message.one', { name: 'a.txt' })).toBe(
+			'“a.txt” already exists in its original folder.',
+		);
+		expect(tf('trash.failed.restore', { reason: 'no room' })).toBe('Could not restore: no room');
+		expect(tf('trash.parent.message', { folder: '/home/a' })).toBe(
+			'/home/a no longer exists. Recreate it and restore the item there?',
+		);
+	});
+
+	it('keep the Trash’s words consistent where they appear in more than one place', () => {
+		expect(t('menu.emptyTrash')).toBe(t('trash.empty'));
+		expect(t('menu.deletePermanently')).toBe(t('trash.delete'));
+		expect(t('menu.restore')).toBe(t('trash.restore'));
+		expect(t('browse.column.deleted')).toBe(t('menu.sort.deleted'));
 	});
 });
 

@@ -7,6 +7,9 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { EntryContextMenu } from '../browse/EntryContextMenu';
+import { TrashEntryMenu } from '../trash/TrashEntryMenu';
+import { useTrashClient } from '../trash/TrashClientContext';
+import { TrashActionsProvider, useTrashJobs } from '../trash/trashJobs';
 import { ListingManager } from '../browse/listingManager';
 import { BackgroundContextMenu } from '../browse/BackgroundContextMenu';
 import type { SessionState } from '../browse/useListingSession';
@@ -194,6 +197,9 @@ function WorkspaceBody({
 	const addFavourite = useAddFavourite();
 	// A message from the sidebar, numbered like the others so a repeat restarts the timer.
 	const notify = useCallback((text: string) => setNotice({ id: ++noticeCount.current, text }), []);
+	// The Trash view's jobs and the questions they ask; the sidebar, the menus and the Trash's own
+	// strip all reach them through `TrashActionsProvider`.
+	const { actions: trashActions, dialogs: trashDialogs } = useTrashJobs(useTrashClient(), notify);
 	const pinCurrent = useCallback(
 		(location: Location) => {
 			addFavourite(location).catch((error: unknown) => {
@@ -295,59 +301,76 @@ function WorkspaceBody({
 	}, [menu, liveHandles]);
 
 	return (
-		<div className={styles.workspace}>
-			<TabStrip />
-			<NavigationBar leading={<SidebarToggle />} />
-			<div className={styles.middle}>
-				{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-				<div
-					className={styles.files}
-					role="tabpanel"
-					id={TAB_PANEL_ID}
-					aria-label={tab ? undefined : t('tabs.panel.label')}
-					aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-				>
-					{panes.length > 0 && (
-						<PaneArea
-							panes={panes}
-							pair={panes.length > 1 ? pair : undefined}
-							active={tab?.id ?? null}
-							stateFor={stateFor}
-							mode={mode}
-							gridSize={gridSize}
-							onFailure={onFailure}
-							onMenu={setMenu}
-						/>
-					)}
+		<TrashActionsProvider value={trashActions}>
+			<div className={styles.workspace}>
+				<TabStrip />
+				<NavigationBar leading={<SidebarToggle />} />
+				<div className={styles.middle}>
+					{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
+					<div
+						className={styles.files}
+						role="tabpanel"
+						id={TAB_PANEL_ID}
+						aria-label={tab ? undefined : t('tabs.panel.label')}
+						aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+					>
+						{panes.length > 0 && (
+							<PaneArea
+								panes={panes}
+								pair={panes.length > 1 ? pair : undefined}
+								active={tab?.id ?? null}
+								stateFor={stateFor}
+								mode={mode}
+								gridSize={gridSize}
+								onFailure={onFailure}
+								onMenu={setMenu}
+							/>
+						)}
+					</div>
 				</div>
+				<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
+					<ViewSwitcher />
+				</StatusBar>
+				<NoticeToast />
+				{menu?.kind === 'background' && (
+					<BackgroundContextMenu
+						session={menu.session}
+						showHidden={showHidden}
+						position={menu.position}
+						keyboard={menu.keyboard}
+						onToggleHidden={() => viewStore.getState().toggleHidden()}
+						onEmptyTrash={
+							trashActions
+								? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
+								: undefined
+						}
+						onClose={() => setMenu(null)}
+					/>
+				)}
+				{menu?.kind === 'entry' && menu.session?.model.layout === 'trash' && trashActions && (
+					<TrashEntryMenu
+						position={menu.position}
+						keyboard={menu.keyboard}
+						onRestore={() => menu.session && trashActions.restore(menu.session)}
+						onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
+						onClose={() => setMenu(null)}
+					/>
+				)}
+				{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
+					<EntryContextMenu
+						entry={menu.entry}
+						handle={menu.handle}
+						position={menu.position}
+						keyboard={menu.keyboard}
+						onClose={() => setMenu(null)}
+						onOpen={menu.openers.open}
+						onOpenInNewTab={menu.openers.openInNewTab}
+						onCopyPath={menu.openers.copyPath}
+						onAddToFavourites={menu.openers.addToFavourites}
+					/>
+				)}
+				{trashDialogs}
 			</div>
-			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
-				<ViewSwitcher />
-			</StatusBar>
-			<NoticeToast />
-			{menu?.kind === 'background' && (
-				<BackgroundContextMenu
-					session={menu.session}
-					showHidden={showHidden}
-					position={menu.position}
-					keyboard={menu.keyboard}
-					onToggleHidden={() => viewStore.getState().toggleHidden()}
-					onClose={() => setMenu(null)}
-				/>
-			)}
-			{menu?.kind === 'entry' && (
-				<EntryContextMenu
-					entry={menu.entry}
-					handle={menu.handle}
-					position={menu.position}
-					keyboard={menu.keyboard}
-					onClose={() => setMenu(null)}
-					onOpen={menu.openers.open}
-					onOpenInNewTab={menu.openers.openInNewTab}
-					onCopyPath={menu.openers.copyPath}
-					onAddToFavourites={menu.openers.addToFavourites}
-				/>
-			)}
-		</div>
+		</TrashActionsProvider>
 	);
 }

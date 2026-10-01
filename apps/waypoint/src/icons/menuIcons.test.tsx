@@ -17,6 +17,7 @@ import { backgroundMenuItems } from '../browse/BackgroundContextMenu';
 import { entryMenuItems } from '../browse/EntryContextMenu';
 import { historyMenuItems } from '../nav/NavButton';
 import { sidebarMenuItems } from '../sidebar/SidebarMenu';
+import { trashEntryMenuItems } from '../trash/TrashEntryMenu';
 import { workspaceMenuItems } from '../sidebar/WorkspaceMenu';
 import { groupMenuItems } from '../tabs/GroupMenu';
 import { pairJointItems, pairTabItems } from '../tabs/pairMenus';
@@ -65,6 +66,13 @@ describe('context menu icons', () => {
 		expectEveryItemHasIcon(backgroundMenuItems(undefined, false));
 	});
 
+	it('gives the Trash menus an icon on every item', () => {
+		expectEveryItemHasIcon(trashEntryMenuItems());
+		const sort = { key: 'deleted' as const, descending: false, directoriesFirst: true };
+		expectEveryItemHasIcon(backgroundMenuItems(sort, false, { count: 2 }));
+		expectEveryItemHasIcon(backgroundMenuItems(undefined, false, { count: 0 }));
+	});
+
 	it('gives the tab menu an icon on every item, grouped, ungrouped and with other windows', () => {
 		expectEveryItemHasIcon(tabMenuItems(tab(1), closed, [group, plain], windows));
 		expectEveryItemHasIcon(tabMenuItems(tab(1, { pinned: true, group: 1 }), [], [group], []));
@@ -92,9 +100,12 @@ describe('context menu icons', () => {
 
 	it('gives each kind of sidebar menu an icon on every item', () => {
 		const state = { favouritePosition: { index: 1, count: 3 }, pinned: false, canRename: true };
-		for (const kind of ['place', 'favourite', 'folder'] as const) {
+		for (const kind of ['place', 'trash', 'favourite', 'folder'] as const) {
 			expectEveryItemHasIcon(sidebarMenuItems(kind, state));
 		}
+		expectEveryItemHasIcon(
+			sidebarMenuItems('trash', { ...state, trash: { count: 3, available: true } }),
+		);
 		expectEveryItemHasIcon(sidebarMenuItems('favourite', { ...state, canRename: false }));
 	});
 

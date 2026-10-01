@@ -63,6 +63,12 @@ export const TrashIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+export const RestoreIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M3.5 6.5h6a3 3 0 0 1 0 6H6M3.5 6.5L6 4M3.5 6.5L6 9" />
+	</Glyph>
+);
+
 export const EditIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<path d="M10.5 3l2.5 2.5-7.5 7.5-3.2.7.7-3.2zM9 4.5L11.5 7" />

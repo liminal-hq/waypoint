@@ -116,6 +116,9 @@ function compare(sort: SortSpec): (a: Entry, b: Entry) => number {
 			case 'kind':
 				result = a.group.localeCompare(b.group) || collator.compare(a.name, b.name);
 				break;
+			case 'deleted':
+				result = (a.deletedMs ?? 0) - (b.deletedMs ?? 0);
+				break;
 		}
 		return (result || a.id - b.id) * direction;
 	};
@@ -152,6 +155,8 @@ export class FakeVfsClient implements VfsClient {
 	private failures = new Map<string, VfsError>();
 	private space = new Map<string, VolumeSpace | null>();
 	private openFailure: VfsError | null = null;
+	/** The locations that list the Trash: read only, with the Trash layout, and items named by id. */
+	private trashes = new Set<string>();
 	/** The files `openEntry` was asked to open, in order, as `(handle, id)` pairs. */
 	readonly opened: Array<{ handle: ListingHandle; id: EntryId }> = [];
 
@@ -182,6 +187,14 @@ export class FakeVfsClient implements VfsClient {
 				changes.has(entry.id) ? { ...entry, ...changes.get(entry.id) } : entry,
 			),
 		);
+	}
+
+	/**
+	 * Makes `location` a Trash: its listings are read only with the Trash layout, and each entry
+	 * resolves to `trash:/item-{id}`.
+	 */
+	markTrash(location: Location): void {
+		this.trashes.add(location.uri);
 	}
 
 	/** Makes opening a location fail with this error, to exercise the error states. */
@@ -235,6 +248,8 @@ export class FakeVfsClient implements VfsClient {
 			phase: 'ready',
 			sort: listing.sort,
 			filter: listing.filter,
+			readOnly: this.trashes.has(listing.location.uri),
+			layout: this.trashes.has(listing.location.uri) ? 'trash' : 'folder',
 		};
 	}
 
@@ -334,6 +349,10 @@ export class FakeVfsClient implements VfsClient {
 	}
 
 	async describeLocation(location: Location): Promise<LocationInfo> {
+		if (location.uri.startsWith('trash:')) {
+			const root = { label: 'Trash', location: { display: 'Trash', uri: 'trash:/' } };
+			return { parent: null, segments: [root] };
+		}
 		const path = pathOf(location);
 		const names = path.split('/').filter((part) => part !== '');
 		const segments: Breadcrumb[] = [{ label: '/', location: fileLocation('/') }];
@@ -351,6 +370,9 @@ export class FakeVfsClient implements VfsClient {
 		const listing = this.get(handle);
 		const entry = (this.folders.get(listing.location.uri) ?? []).find((e) => e.id === id);
 		if (!entry) throw { kind: 'notFound', location: listing.location } satisfies VfsError;
+		if (this.trashes.has(listing.location.uri)) {
+			return { display: `Trash/item-${id}`, uri: `trash:/item-${id}` };
+		}
 		return fileLocation(joinPath(pathOf(listing.location), entry.name));
 	}
 
@@ -382,6 +404,9 @@ export class FakeVfsClient implements VfsClient {
 		await this.delay();
 		const listing = this.get(handle);
 		if (this.openFailure) throw this.openFailure;
+		if (this.trashes.has(listing.location.uri)) {
+			throw { kind: 'unsupported', what: 'opening an item in the Trash' } satisfies VfsError;
+		}
 		if (!listing.view.some((entry) => entry.id === id)) {
 			throw { kind: 'notFound', location: listing.location } satisfies VfsError;
 		}

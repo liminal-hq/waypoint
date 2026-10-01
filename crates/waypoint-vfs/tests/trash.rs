@@ -94,7 +94,7 @@ fn by(key: SortKey, descending: bool) -> SortSpec {
 fn three() -> Arc<MemoryTrashSource> {
     let source = Arc::new(MemoryTrashSource::new());
     source.add(item("t|1", "zebra.txt", 3 * DAY));
-    source.add(item("t|2", "Apple.png", 1 * DAY));
+    source.add(item("t|2", "Apple.png", DAY));
     source.add(item("t|3", "mango.md", 2 * DAY));
     source
 }

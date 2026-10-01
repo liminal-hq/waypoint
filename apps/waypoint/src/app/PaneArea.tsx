@@ -225,6 +225,7 @@ function Pane({
 					state={state}
 					mode={mode}
 					gridSize={gridSize}
+					location={tab.location}
 					onOpen={openers.open}
 					onOpenInNewTab={openers.openInNewTab}
 					onMenu={(request) => onMenu({ ...request, openers, session })}

@@ -37,6 +37,8 @@ const snapshot: ListingSnapshot = {
 	phase: 'scanning',
 	sort: { key: 'name', descending: false, directoriesFirst: true },
 	filter: { showHidden: false },
+	readOnly: false,
+	layout: 'folder',
 };
 
 beforeEach(() => {

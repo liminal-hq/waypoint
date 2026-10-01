@@ -13,6 +13,7 @@ import {
 	FolderOpenIcon,
 	NewTabIcon,
 	StarOffIcon,
+	TrashIcon,
 	WindowIcon,
 } from '../icons/MenuIcons';
 import { t, type MessageId } from '../i18n/messages';
@@ -25,6 +26,8 @@ export interface MenuActions {
 	remove(location: Location): void;
 	move(location: Location, by: number): void;
 	add(location: Location): void;
+	/** Asks, then empties the Trash. */
+	emptyTrash(): void;
 }
 
 interface SidebarMenuProps {
@@ -35,12 +38,15 @@ interface SidebarMenuProps {
 	pinned: boolean;
 	/** Whether a favourite can be renamed (not in a workspace). */
 	canRename: boolean;
+	/** How many items the Trash holds and whether it can be emptied from here; `null` where there is no Trash service. */
+	trash?: { count: number; available: boolean } | null;
 	actions: MenuActions;
 	onClose: () => void;
 }
 
 const LABELS: Record<ItemMenuRequest['kind'], MessageId> = {
 	place: 'sidebar.menu.place',
+	trash: 'sidebar.menu.trash',
 	favourite: 'sidebar.menu.favourite',
 	folder: 'sidebar.menu.folder',
 };
@@ -52,7 +58,8 @@ export function sidebarMenuItems(
 		favouritePosition,
 		pinned,
 		canRename,
-	}: Pick<SidebarMenuProps, 'favouritePosition' | 'pinned' | 'canRename'>,
+		trash = null,
+	}: Pick<SidebarMenuProps, 'favouritePosition' | 'pinned' | 'canRename' | 'trash'>,
 ): MenuItem[] {
 	const items: MenuItem[] = [
 		{ type: 'action', id: 'open', label: t('menu.open'), icon: <FolderOpenIcon /> },
@@ -103,6 +110,18 @@ export function sidebarMenuItems(
 				icon: <StarOffIcon />,
 			},
 		);
+	} else if (kind === 'trash') {
+		items.push(
+			{ type: 'separator' },
+			{
+				type: 'action',
+				id: 'emptyTrash',
+				label: t('menu.emptyTrash'),
+				danger: true,
+				icon: <TrashIcon />,
+				disabled: !trash || !trash.available || trash.count === 0,
+			},
+		);
 	} else if (kind === 'folder') {
 		items.push(
 			{ type: 'separator' },
@@ -123,11 +142,12 @@ export function SidebarMenu({
 	favouritePosition,
 	pinned,
 	canRename,
+	trash = null,
 	actions,
 	onClose,
 }: SidebarMenuProps) {
 	const { kind, location } = request;
-	const items = sidebarMenuItems(kind, { favouritePosition, pinned, canRename });
+	const items = sidebarMenuItems(kind, { favouritePosition, pinned, canRename, trash });
 	return (
 		<ContextMenu
 			items={items}
@@ -155,6 +175,8 @@ export function SidebarMenu({
 						return actions.remove(location);
 					case 'add':
 						return actions.add(location);
+					case 'emptyTrash':
+						return actions.emptyTrash();
 				}
 			}}
 		/>

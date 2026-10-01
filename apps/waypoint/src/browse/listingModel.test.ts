@@ -29,6 +29,19 @@ describe('opening', () => {
 		expect(model.entryAt(0)).toBeUndefined();
 	});
 
+	it('knows whether the listing is read only and which layout its entries have', async () => {
+		const { model } = await open(3);
+		expect(model.readOnly).toBe(false);
+		expect(model.layout).toBe('folder');
+		const client = new FakeVfsClient();
+		const trash = { display: 'Trash', uri: 'trash:/' };
+		client.markTrash(trash);
+		client.setFolder(trash, [makeEntry(1, 'a.txt', { originalPath: '/home', deletedMs: 5 })]);
+		const inTrash = await openListingModel(client, trash);
+		expect(inTrash.readOnly).toBe(true);
+		expect(inTrash.layout).toBe('trash');
+	});
+
 	it('closes the listing when disposed, once', async () => {
 		const { client, model } = await open(10);
 		expect(client.openCount).toBe(1);

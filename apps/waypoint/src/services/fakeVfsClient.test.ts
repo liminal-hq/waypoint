@@ -138,6 +138,55 @@ describe('FakeVfsClient selection, space and opening', () => {
 	});
 });
 
+describe('FakeVfsClient as a Trash', () => {
+	const trash = { display: 'Trash', uri: 'trash:/' };
+	const items = [
+		makeEntry(1, 'new.txt', { originalPath: '/home/a', deletedMs: 3000 }),
+		makeEntry(2, 'old.txt', { originalPath: '/home/b', deletedMs: 1000 }),
+	];
+
+	it('opens a read-only listing with the Trash layout and sorts by the date deleted', async () => {
+		const client = new FakeVfsClient();
+		client.markTrash(trash);
+		client.setFolder(trash, items);
+		const snapshot = await client.openListing(trash, {
+			sort: { key: 'deleted', descending: false, directoriesFirst: false },
+		});
+		expect(snapshot).toMatchObject({ readOnly: true, layout: 'trash' });
+		expect((await client.getRange(snapshot.handle, 0, 5)).map((e) => e.name)).toEqual([
+			'old.txt',
+			'new.txt',
+		]);
+		const newest = await client.setSort(snapshot.handle, {
+			key: 'deleted',
+			descending: true,
+			directoriesFirst: false,
+		});
+		expect((await client.getRange(newest.handle, 0, 5)).map((e) => e.name)).toEqual([
+			'new.txt',
+			'old.txt',
+		]);
+	});
+
+	it('names its items by trash locations, describes itself and refuses to open them', async () => {
+		const client = new FakeVfsClient();
+		client.markTrash(trash);
+		client.setFolder(trash, items);
+		const { handle } = await client.openListing(trash);
+		expect(await client.entryLocation(handle, 2)).toEqual({
+			display: 'Trash/item-2',
+			uri: 'trash:/item-2',
+		});
+		expect((await client.describeLocation(trash)).segments[0]?.label).toBe('Trash');
+		await expect(client.openEntry(handle, 1)).rejects.toMatchObject({ kind: 'unsupported' });
+	});
+
+	it('leaves ordinary folders writable with the folder layout', async () => {
+		const { client } = setup();
+		expect(await client.openListing(home)).toMatchObject({ readOnly: false, layout: 'folder' });
+	});
+});
+
 describe('FakeVfsClient', () => {
 	it('opens a listing with folders first and natural name order', async () => {
 		const { client } = setup();

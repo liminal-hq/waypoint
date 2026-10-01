@@ -1,0 +1,12 @@
+/* The Trash's list under its action strip. */
+.view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.body {
+	flex: 1;
+	min-height: 0;
+}

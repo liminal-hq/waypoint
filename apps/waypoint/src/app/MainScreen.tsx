@@ -11,6 +11,7 @@ import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { MainOps } from '../ops/MainOps';
+import { collectServiceStatuses } from '../services/serviceStatuses';
 import { tabsApi } from '../services/tabsApi';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriPlacesClient } from '../services/tauriPlacesClient';
@@ -18,6 +19,8 @@ import { createTauriTearoffClient } from '../services/tauriTearoffClient';
 import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
+import { createTauriTrashClient } from '../trash/tauriTrashClient';
+import { TrashClientProvider } from '../trash/TrashClientContext';
 import { TabsProvider } from '../tabs/TabsContext';
 import { AppTitleBar } from './AppTitleBar';
 import { startMainServices, type MainServices } from './mainServices';
@@ -43,6 +46,11 @@ if (import.meta.env.DEV || import.meta.env.VITE_WAYPOINT_PERF === '1') {
 
 function start(): Promise<MainServices> {
 	if (wantsDemo()) return import('./demoServices').then((m) => m.startDemoServices());
+	// What works on this system, once, for the log; the Services panel reads the same sources.
+	void collectServiceStatuses().then(
+		(statuses) => console.info('service statuses', JSON.stringify(statuses)),
+		(error: unknown) => console.warn('could not read the service statuses', error),
+	);
 	return startMainServices({
 		getHome,
 		tabsApi,
@@ -52,6 +60,7 @@ function start(): Promise<MainServices> {
 		createTearoffClient: createTauriTearoffClient,
 		createTimeFormatClient: createTauriTimeFormatClient,
 		createOpsClient: createTauriOpsClient,
+		createTrashClient: createTauriTrashClient,
 	});
 }
 
@@ -90,24 +99,26 @@ export function MainScreen() {
 				<VfsClientProvider client={startup.services.client}>
 					<PlacesClientProvider client={startup.services.placesClient}>
 						<TimeFormatProvider client={startup.services.timeFormat}>
-							<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
-								<main className={styles.content}>
-									{DevLiveControls && startup.services.demo && (
-										<Suspense fallback={null}>
-											<DevLiveControls
-												client={startup.services.demo.client}
-												location={startup.services.home}
+							<TrashClientProvider client={startup.services.trash}>
+								<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
+									<main className={styles.content}>
+										{DevLiveControls && startup.services.demo && (
+											<Suspense fallback={null}>
+												<DevLiveControls
+													client={startup.services.demo.client}
+													location={startup.services.home}
+												/>
+											</Suspense>
+										)}
+										<MainOps client={startup.services.ops}>
+											<Workspace
+												startup={{ view: startup.services.view, notice: startup.services.notice }}
+												tearoff={startup.services.tearoff}
 											/>
-										</Suspense>
-									)}
-									<MainOps client={startup.services.ops}>
-										<Workspace
-											startup={{ view: startup.services.view, notice: startup.services.notice }}
-											tearoff={startup.services.tearoff}
-										/>
-									</MainOps>
-								</main>
-							</TabsProvider>
+										</MainOps>
+									</main>
+								</TabsProvider>
+							</TrashClientProvider>
 						</TimeFormatProvider>
 					</PlacesClientProvider>
 				</VfsClientProvider>

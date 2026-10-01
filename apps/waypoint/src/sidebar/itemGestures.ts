@@ -7,7 +7,7 @@ import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { KeyboardEvent, MouseEvent } from 'react';
 
-export type ItemKind = 'place' | 'favourite' | 'folder';
+export type ItemKind = 'place' | 'trash' | 'favourite' | 'folder';
 
 /** What a context menu needs to know about the item it was opened on. */
 export interface ItemMenuRequest {

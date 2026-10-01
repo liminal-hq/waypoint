@@ -14,6 +14,9 @@ import { isWorkspaceNameTaken } from '../services/tabsApi';
 import { useTabActions } from '../tabs/tabActions';
 import { useWindowActions } from '../tabs/windowActions';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
+import { useTrashClient } from '../trash/TrashClientContext';
+import { useTrashActions } from '../trash/trashJobs';
+import { useTrashInfo } from '../trash/useTrashInfo';
 import { FavouriteList } from './FavouriteList';
 import { bookmarksSource, workspaceSource } from './favouritesSource';
 import { FolderTree } from './FolderTree';
@@ -122,6 +125,8 @@ interface SidebarProps {
 export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const placesClient = usePlacesClient();
 	const places = usePlaces(placesClient);
+	const trashInfo = useTrashInfo(useTrashClient());
+	const trashActions = useTrashActions();
 	const navigation = useNavigation();
 	const { openInBackground } = useTabActions();
 	const { openInNewWindow } = useWindowActions();
@@ -200,8 +205,9 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 				if (index >= 0) move(location, index + by);
 			},
 			add: (location: Location) => void source.add(location).catch(fail),
+			emptyTrash: () => trashActions?.emptyTrash(trashInfo?.count ?? 0),
 		}),
-		[goTo, openInNewTab, source, favourites, move, fail],
+		[goTo, openInNewTab, source, favourites, move, fail, trashActions, trashInfo?.count],
 	);
 
 	const failWorkspace = useCallback(
@@ -303,7 +309,12 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 				{view === 'places' ? (
 					<>
 						<Section section="places">
-							<PlaceList places={places?.places ?? []} currentUri={currentUri} actions={actions} />
+							<PlaceList
+								places={places?.places ?? []}
+								currentUri={currentUri}
+								actions={actions}
+								trash={trashInfo}
+							/>
 						</Section>
 						<Section
 							section="favourites"
@@ -357,6 +368,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 					favouritePosition={menuIndex >= 0 ? { index: menuIndex, count: favourites.length } : null}
 					pinned={menuIndex >= 0}
 					canRename={source.canRename}
+					trash={trashActions && trashInfo ? trashInfo : null}
 					actions={menuActions}
 					onClose={() => setMenu(null)}
 				/>

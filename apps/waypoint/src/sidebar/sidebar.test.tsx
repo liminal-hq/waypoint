@@ -74,6 +74,7 @@ describe('structure', () => {
 			'Pictures',
 			'Music',
 			'Videos',
+			'Trash',
 		]);
 		expect(within(placesGroup()).getByRole('button', { name: 'Home' })).toHaveAttribute(
 			'aria-current',
@@ -205,7 +206,7 @@ describe('navigating', () => {
 		press(home, 'ArrowDown');
 		expect(within(placesGroup()).getByRole('button', { name: 'Desktop' })).toHaveFocus();
 		press(document.activeElement!, 'End');
-		expect(within(placesGroup()).getByRole('button', { name: 'Videos' })).toHaveFocus();
+		expect(within(placesGroup()).getByRole('button', { name: 'Trash' })).toHaveFocus();
 		press(document.activeElement!, 'Home');
 		expect(home).toHaveFocus();
 	});

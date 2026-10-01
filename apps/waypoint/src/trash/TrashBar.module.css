@@ -1,0 +1,46 @@
+.bar {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	border-bottom: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-window);
+}
+
+.spacer {
+	flex: 1;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+	background: var(--wp-bg-hover);
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.button:disabled {
+	color: var(--wp-text-muted);
+	cursor: default;
+}
+
+.danger:not(:disabled) {
+	color: var(--wp-danger);
+}

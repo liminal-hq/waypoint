@@ -118,6 +118,24 @@
 	white-space: nowrap;
 }
 
+/* The Trash place's item count, pushed to the end of its row. */
+.badge {
+	flex: none;
+	margin-inline-start: auto;
+	padding: 0 6px;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--wp-text-primary) 10%, transparent);
+	color: var(--wp-text-secondary);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* A place that cannot be used here still opens, to say why. */
+.item[data-unavailable] .label,
+.item[data-unavailable] .itemIcon {
+	opacity: 0.6;
+}
+
 .empty {
 	margin: 0;
 	padding: 4px 12px;
