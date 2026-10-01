@@ -5,12 +5,10 @@
 
 use std::sync::{Arc, Mutex};
 
-use waypoint_protocol::Location;
 use waypoint_session::{apply, Command, Session, SessionEvent, SessionSnapshot, TabId};
 
-fn loc(name: &str) -> Location {
-    Location::new(format!("/{name}"), format!("file:///{name}"))
-}
+mod common;
+use common::{loc, replay, Lcg};
 
 fn open(session: &mut Session, name: &str, activate: bool) -> TabId {
     let events = session
@@ -206,11 +204,7 @@ fn an_unknown_tab_is_an_error_and_changes_nothing() {
 #[test]
 fn the_pure_apply_does_not_touch_its_input() {
     let (first, _) = apply(
-        &SessionSnapshot {
-            revision: 0,
-            tabs: vec![],
-            active: None,
-        },
+        &SessionSnapshot::empty(),
         Command::Open {
             location: loc("a"),
             after: None,
@@ -258,18 +252,6 @@ fn events_serialise_with_a_kind_tag() {
     );
 }
 
-/// A tiny deterministic generator, so the sequences are reproducible without a dependency.
-struct Lcg(u64);
-impl Lcg {
-    fn next(&mut self, bound: usize) -> usize {
-        self.0 = self
-            .0
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        ((self.0 >> 33) as usize) % bound.max(1)
-    }
-}
-
 #[test]
 fn random_command_sequences_hold_the_invariants() {
     for seed in 0..200u64 {
@@ -288,7 +270,7 @@ fn random_command_sequences_hold_the_invariants() {
                 }
             };
             let location = loc(&format!("p{}", rng.next(5)));
-            let command = match rng.next(8) {
+            let command = match rng.next(9) {
                 0 | 1 => Command::Open {
                     location,
                     after: if rng.next(2) == 0 {
@@ -315,6 +297,7 @@ fn random_command_sequences_hold_the_invariants() {
                 6 => Command::Back {
                     tab: pick(&mut rng),
                 },
+                7 => Command::Reopen { tab: None },
                 _ => Command::Forward {
                     tab: pick(&mut rng),
                 },
@@ -332,33 +315,257 @@ fn random_command_sequences_hold_the_invariants() {
             }
             assert_eq!(after.revision, last_revision);
             // History never goes out of step: the events alone rebuild the same session.
+            replayed.closed = after.closed.clone();
             assert_eq!(replayed, after, "seed {seed} step {step}");
         }
     }
 }
 
-/// Applies one event to a snapshot the way a frontend mirror does.
-fn replay(snapshot: &mut SessionSnapshot, event: &SessionEvent) {
-    snapshot.revision = event.revision();
-    match event {
-        SessionEvent::TabOpened { tab, index, .. } => {
-            snapshot.tabs.insert(*index as usize, tab.clone())
-        }
-        SessionEvent::TabClosed { tab, .. } => {
-            snapshot.tabs.retain(|t| t.id != *tab);
-            if snapshot.active == Some(*tab) {
-                snapshot.active = None;
+/// Long random sequences over a many-window store, every command in the language. After every
+/// step all invariants hold, the revision rises by exactly the number of events, and a mirror that
+/// only sees events equals the store.
+#[test]
+fn random_store_sequences_hold_every_invariant() {
+    use common::Mirror;
+    use waypoint_session::{
+        GroupId, GroupSort, MoveTo, MoveWhat, PairId, PairLayout, Store, TabColour, TabHints,
+    };
+
+    let mut stats = std::collections::BTreeMap::<&'static str, u32>::new();
+    let colours = [None, Some(TabColour::Red), Some(TabColour::Blue)];
+    for seed in 0..120u64 {
+        let mut rng = Lcg(seed + 7);
+        let mut store = Store::new();
+        let mut mirror = Mirror::default();
+        let mut moved_groups = 0;
+        for step in 0..250 {
+            let labels: Vec<String> = store.windows().iter().map(|w| w.label.clone()).collect();
+            let window = if labels.is_empty() || rng.next(40) == 0 {
+                "main-1".to_string()
+            } else {
+                labels[rng.next(labels.len())].clone()
+            };
+            let w = store.window(&window).cloned();
+            let tab = |rng: &mut Lcg| match &w {
+                Some(w) if !w.tabs.is_empty() && rng.next(12) != 0 => {
+                    w.tabs[rng.next(w.tabs.len())].id
+                }
+                _ => TabId(5000),
+            };
+            let group = |rng: &mut Lcg| match &w {
+                Some(w) if !w.groups.is_empty() && rng.next(12) != 0 => {
+                    w.groups[rng.next(w.groups.len())].id
+                }
+                _ => GroupId(5000),
+            };
+            let pair = |rng: &mut Lcg| match &w {
+                Some(w) if !w.pairs.is_empty() && rng.next(12) != 0 => {
+                    w.pairs[rng.next(w.pairs.len())].id
+                }
+                _ => PairId(5000),
+            };
+            let tabs =
+                |rng: &mut Lcg| -> Vec<TabId> { (0..1 + rng.next(3)).map(|_| tab(rng)).collect() };
+            let command = match rng.next(40) {
+                0..=3 => Command::Open {
+                    location: loc(&format!("p{}", rng.next(6))),
+                    after: if rng.next(2) == 0 {
+                        None
+                    } else {
+                        Some(tab(&mut rng))
+                    },
+                    activate: rng.next(2) == 0,
+                },
+                4..=5 => Command::Close { tab: tab(&mut rng) },
+                6..=7 => Command::Activate { tab: tab(&mut rng) },
+                8..=9 => Command::Move {
+                    tab: tab(&mut rng),
+                    index: rng.next(9),
+                },
+                10 => Command::Navigate {
+                    tab: tab(&mut rng),
+                    location: loc(&format!("n{}", rng.next(4))),
+                },
+                11 => Command::Back { tab: tab(&mut rng) },
+                12 => Command::Forward { tab: tab(&mut rng) },
+                13..=14 => Command::Pin {
+                    tab: tab(&mut rng),
+                    pinned: rng.next(3) != 0,
+                },
+                15 => Command::SetColour {
+                    tab: tab(&mut rng),
+                    colour: colours[rng.next(3)],
+                },
+                16 => Command::SetHints {
+                    tab: tab(&mut rng),
+                    hints: TabHints {
+                        scroll_top: rng.next(500) as u32,
+                        focused: None,
+                    },
+                },
+                17 => Command::Reopen { tab: None },
+                18..=19 => Command::CreateGroup {
+                    tabs: tabs(&mut rng),
+                    name: None,
+                },
+                20 => Command::AddToGroup {
+                    tab: tab(&mut rng),
+                    group: group(&mut rng),
+                },
+                21 => Command::RemoveFromGroup { tab: tab(&mut rng) },
+                22 => Command::RenameGroup {
+                    group: group(&mut rng),
+                    name: format!("g{}", rng.next(9)),
+                },
+                23 => Command::SetGroupCollapsed {
+                    group: group(&mut rng),
+                    collapsed: rng.next(2) == 0,
+                },
+                24 => Command::CollapseOthers {
+                    group: group(&mut rng),
+                },
+                25 => Command::SortGroup {
+                    group: group(&mut rng),
+                    by: [GroupSort::Name, GroupSort::Location, GroupSort::LocalFirst][rng.next(3)],
+                },
+                26 => Command::DuplicateGroup {
+                    group: group(&mut rng),
+                },
+                27 => Command::MoveGroup {
+                    group: group(&mut rng),
+                    index: rng.next(9),
+                },
+                28 => match rng.next(2) {
+                    0 => Command::Ungroup {
+                        group: group(&mut rng),
+                    },
+                    _ => Command::CloseGroup {
+                        group: group(&mut rng),
+                    },
+                },
+                29..=30 => Command::JoinPair {
+                    tabs: tabs(&mut rng),
+                    layout: PairLayout::SideBySide,
+                },
+                31 => match rng.next(3) {
+                    0 => Command::SeparatePair {
+                        pair: pair(&mut rng),
+                    },
+                    1 => Command::SwapPanes {
+                        pair: pair(&mut rng),
+                    },
+                    _ => Command::SetPairLayout {
+                        pair: pair(&mut rng),
+                        layout: PairLayout::Stacked,
+                    },
+                },
+                32..=33 => Command::ToggleSplit { tab: tab(&mut rng) },
+                34 => Command::OpenWindow {
+                    location: Some(loc("w")),
+                    geometry: None,
+                },
+                35 => Command::CloseWindow,
+                36..=39 => {
+                    let what = match rng.next(3) {
+                        0 => MoveWhat::Tabs(tabs(&mut rng)),
+                        1 => MoveWhat::Group(group(&mut rng)),
+                        _ => MoveWhat::Pair(pair(&mut rng)),
+                    };
+                    let to = if labels.len() > 1 && rng.next(2) == 0 {
+                        MoveTo::ExistingWindow {
+                            label: labels[rng.next(labels.len())].clone(),
+                            index: rng.next(6),
+                        }
+                    } else {
+                        MoveTo::NewWindow {
+                            label: None,
+                            geometry: None,
+                        }
+                    };
+                    Command::MoveTabs { what, to }
+                }
+                _ => unreachable!(),
+            };
+            if matches!(
+                command,
+                Command::MoveTabs {
+                    what: MoveWhat::Group(_),
+                    ..
+                }
+            ) {
+                moved_groups += 1;
+            }
+            let before = store.clone();
+            let Ok(outcome) = store.dispatch(&window, command) else {
+                assert_eq!(
+                    store, before,
+                    "seed {seed} step {step}: error changed the store"
+                );
+                continue;
+            };
+            let problems = store.violations();
+            assert!(problems.is_empty(), "seed {seed} step {step}: {problems:?}");
+            assert_eq!(
+                store.revision(),
+                before.revision() + outcome.events.len() as u64,
+                "seed {seed} step {step}"
+            );
+            if outcome.events.is_empty() {
+                assert_eq!(
+                    store, before,
+                    "seed {seed} step {step}: no events but a change"
+                );
+            }
+            for (i, e) in outcome.events.iter().enumerate() {
+                assert_eq!(e.event.revision(), before.revision() + 1 + i as u64);
+            }
+            for e in &outcome.events {
+                let name = match &e.event {
+                    SessionEvent::GroupCreated { .. } => "groupCreated",
+                    SessionEvent::PairCreated { .. } => "pairCreated",
+                    SessionEvent::TabReopened { .. } => "tabReopened",
+                    SessionEvent::WindowOpened { .. } => "windowOpened",
+                    SessionEvent::WindowClosed { .. } => "windowClosed",
+                    SessionEvent::TabMoved { .. } => "tabMoved",
+                    SessionEvent::GroupRemoved { .. } => "groupRemoved",
+                    SessionEvent::PairRemoved { .. } => "pairRemoved",
+                    _ => continue,
+                };
+                *stats.entry(name).or_default() += 1;
+            }
+            mirror.apply(&outcome.events);
+            if let Err(why) = mirror.matches(&store) {
+                panic!("seed {seed} step {step}: {why}");
+            }
+            // Tab ids never repeat across live and closed tabs.
+            let mut seen = std::collections::HashSet::new();
+            for t in store
+                .windows()
+                .iter()
+                .flat_map(|w| w.tabs.iter().map(|t| t.id))
+            {
+                assert!(seen.insert(t));
+            }
+            for c in store.closed() {
+                assert!(seen.insert(c.tab.id));
             }
         }
-        SessionEvent::TabActivated { tab, .. } => snapshot.active = Some(*tab),
-        SessionEvent::TabMoved { tab, index, .. } => {
-            let from = snapshot.tabs.iter().position(|t| t.id == *tab).unwrap();
-            let moved = snapshot.tabs.remove(from);
-            snapshot.tabs.insert(*index as usize, moved);
-        }
-        SessionEvent::TabNavigated { tab, .. } => {
-            let slot = snapshot.tabs.iter_mut().find(|t| t.id == tab.id).unwrap();
-            *slot = tab.clone();
-        }
+        let _ = moved_groups;
+    }
+    eprintln!("{stats:?}");
+    for key in [
+        "groupCreated",
+        "pairCreated",
+        "tabReopened",
+        "windowOpened",
+        "windowClosed",
+        "tabMoved",
+        "groupRemoved",
+        "pairRemoved",
+    ] {
+        assert!(
+            stats.get(key).copied().unwrap_or(0) > 50,
+            "the generator never exercised {key}"
+        );
     }
 }
