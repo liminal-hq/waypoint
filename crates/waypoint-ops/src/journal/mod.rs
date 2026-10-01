@@ -20,7 +20,8 @@ mod recover;
 mod storage;
 
 pub use apply::{
-    check_steps, fingerprint_steps, prepare, Prepared, RedoPlan, UndoFailure, UndoPlan, UndoReport,
+    check_steps, fingerprint_steps, prepare, prepare_redo, prepare_undo, Prepared, RedoPlan,
+    UndoFailure, UndoPlan, UndoReport,
 };
 pub use engine::{Journal, JournalDeps, Recorded};
 pub use fingerprint::{fingerprint, same as same_fingerprint, verify as verify_fingerprint};

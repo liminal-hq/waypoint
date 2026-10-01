@@ -66,49 +66,66 @@ pub fn prepare(
     match request.kind {
         JobKind::Undo { of } => {
             let steps = journal.undo_steps(of)?;
-            check_steps(ctx.providers, ctx.trash, ctx.protected, &steps)?;
-            let items = steps
-                .iter()
-                .filter_map(|step| {
-                    let source = VfsPath::from_location(&step.subject()).ok()?;
-                    Some(PlanItem {
-                        source: Some(source),
-                        target: None,
-                        kind: EntryKind::Other,
-                        size: None,
-                        entries: 1,
-                        bytes: 0,
-                        case_only: false,
-                    })
-                })
-                .collect::<Vec<_>>();
-            let plan = Plan {
-                kind: request.kind,
-                total_items: steps.len() as u64,
-                total_bytes: 0,
-                items,
-                destination: None,
-                same_volume: true,
-                conflicts: Vec::new(),
-                warnings: Vec::new(),
-            };
-            Ok(Prepared::Undo(UndoPlan {
-                entry: of,
-                steps,
-                plan,
-            }))
+            prepare_undo(of, steps, ctx).map(Prepared::Undo)
         }
         JobKind::Redo { of } => {
             let forward = journal.redo_forward(of)?;
-            let plan = plan_with_progress(&forward, ctx, progress)?;
-            Ok(Prepared::Redo(RedoPlan {
-                entry: of,
-                forward,
-                plan,
-            }))
+            prepare_redo(of, forward, ctx, progress).map(Prepared::Redo)
         }
         _ => Ok(Prepared::Plain(plan_with_progress(request, ctx, progress)?)),
     }
+}
+
+/// Checks the steps of an undo (`Journal::undo_steps`, in the order they will be applied) against
+/// the file system and plans it. The plugin's worker calls this with the steps it took from the
+/// journal, so the journal is not held while the file system is read.
+pub fn prepare_undo(
+    entry: JournalId,
+    steps: Vec<InverseStep>,
+    ctx: &PlanCtx<'_>,
+) -> Result<UndoPlan, OpsError> {
+    check_steps(ctx.providers, ctx.trash, ctx.protected, &steps)?;
+    let items = steps
+        .iter()
+        .filter_map(|step| {
+            let source = VfsPath::from_location(&step.subject()).ok()?;
+            Some(PlanItem {
+                source: Some(source),
+                target: None,
+                kind: EntryKind::Other,
+                size: None,
+                entries: 1,
+                bytes: 0,
+                case_only: false,
+            })
+        })
+        .collect::<Vec<_>>();
+    let plan = Plan {
+        kind: JobKind::Undo { of: entry },
+        total_items: steps.len() as u64,
+        total_bytes: 0,
+        items,
+        destination: None,
+        same_volume: true,
+        conflicts: Vec::new(),
+        warnings: Vec::new(),
+    };
+    Ok(UndoPlan { entry, steps, plan })
+}
+
+/// Plans a redo from the entry's forward request (`Journal::redo_forward`).
+pub fn prepare_redo(
+    entry: JournalId,
+    forward: JobRequest,
+    ctx: &PlanCtx<'_>,
+    progress: &mut dyn FnMut(&PlanProgress),
+) -> Result<RedoPlan, OpsError> {
+    let plan = plan_with_progress(&forward, ctx, progress)?;
+    Ok(RedoPlan {
+        entry,
+        forward,
+        plan,
+    })
 }
 
 fn stale(location: &Location, reason: StaleReason) -> OpsError {
