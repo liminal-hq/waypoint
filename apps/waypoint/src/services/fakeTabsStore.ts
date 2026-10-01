@@ -1165,7 +1165,7 @@ class Reducer {
 			if (origin.kind === 'toggle' && existing.panes.includes(origin.created)) {
 				// Closing the pane toggling made leaves the other one, active if this was.
 				const keep = existing.panes.find((p) => p !== origin.created) ?? null;
-				this.closeTabs(w, new Set([origin.created]), false, keep);
+				this.closeTabs(w, new Set([origin.created]), true, keep);
 			} else {
 				w.pairs = w.pairs.filter((p) => p.id !== existing.id);
 			}

@@ -144,10 +144,10 @@
 		},
 		{
 			"do": { "op": "toggleSplit", "tab": 3 },
-			"note": "toggling a split made by a toggle closes the tab it made, and does not remember it",
+			"note": "toggling a split made by a toggle closes the tab it made, and remembers it in Recently Closed",
 			"expect": {
 				"tabs": [1, 2, 3, 5, 4],
-				"closed": [],
+				"closed": [6],
 				"pairs": [{ "id": 1, "panes": [5, 4], "layout": "stacked", "sizes": [300, 700] }]
 			}
 		},
@@ -164,7 +164,7 @@
 		},
 		{
 			"do": { "op": "closeGroup", "group": 3 },
-			"expect": { "tabs": [1, 2, 3, 5, 4], "closed": [8, 7] }
+			"expect": { "tabs": [1, 2, 3, 5, 4], "closed": [8, 7, 6] }
 		},
 		{
 			"do": { "op": "reopen" },
@@ -173,7 +173,7 @@
 				"tabs": [1, 2, 3, 8, 5, 4],
 				"active": 8,
 				"mru": [8],
-				"closed": [7],
+				"closed": [7, 6],
 				"groups": [{ "id": 1, "name": "Work", "collapsed": true, "tabs": [1, 2] }]
 			}
 		},
@@ -181,7 +181,7 @@
 			"do": { "op": "reopen", "tab": 99 },
 			"note": "a tab that is not in the closed list is an error",
 			"error": true,
-			"expect": { "closed": [7] }
+			"expect": { "closed": [7, 6] }
 		},
 		{
 			"do": { "op": "colour", "tab": 8, "colour": "teal" },
