@@ -55,4 +55,13 @@ describe('the chrome token layer', () => {
 			expect(source, file).not.toMatch(/var\(--wp-[a-z0-9-]+\s*,/);
 		}
 	});
+
+	it('gives a host that forces the light theme the same light values as the media query', () => {
+		const media =
+			tokens.match(/@media \(prefers-color-scheme: light\) \{[\s\S]*?\n\t\}\n\}/)?.[0] ?? '';
+		const forced = tokens.match(/:where\(:root\[data-theme='light'\]\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+		const names = (source: string) => [...source.matchAll(/(--wp-[a-z-]+):/g)].map((m) => m[1]);
+		expect(names(media).length).toBeGreaterThan(0);
+		expect(names(forced).sort()).toEqual(names(media).sort());
+	});
 });

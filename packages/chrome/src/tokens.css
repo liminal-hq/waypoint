@@ -85,3 +85,21 @@
 		--wp-switch-off: rgb(0 0 0 / 28%);
 	}
 }
+
+/* A host that forces the light theme while the OS is dark gets the same values. */
+:where(:root[data-theme='light']) {
+	--wp-bg-raised: #ffffff;
+	--wp-bg-chrome: #ebebed;
+	--wp-text-primary: #1e1f22;
+	--wp-text-secondary: #4a4a4f;
+	--wp-text-muted: #6b6b70;
+	--wp-border-subtle: rgb(0 0 0 / 12%);
+	--wp-focus-ring: #1c71d8;
+	--wp-control-bg: rgb(0 0 0 / 6%);
+	--wp-control-bg-hover: rgb(0 0 0 / 12%);
+	--wp-shadow-menu: 0 8px 24px rgb(0 0 0 / 20%);
+	--wp-scrim: rgb(0 0 0 / 35%);
+	--wp-shadow-dialog: 0 16px 48px rgb(0 0 0 / 25%);
+	--wp-field-bg: rgb(0 0 0 / 5%);
+	--wp-switch-off: rgb(0 0 0 / 28%);
+}

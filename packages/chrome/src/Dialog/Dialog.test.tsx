@@ -129,6 +129,13 @@ describe('Dialog dismissal', () => {
 		expect(onClose).toHaveBeenCalledExactlyOnceWith('backdrop');
 	});
 
+	it('keeps focus where it was when the backdrop is pressed', () => {
+		renderDialog();
+		const dialog = document.querySelector('dialog') as HTMLDialogElement;
+		// `fireEvent` returns false when a handler cancelled the default action (the focus move).
+		expect(fireEvent.mouseDown(dialog)).toBe(false);
+	});
+
 	it('ignores a click that began inside the dialog and ended on the backdrop', () => {
 		const { onClose } = renderDialog();
 		const dialog = document.querySelector('dialog') as HTMLDialogElement;

@@ -181,6 +181,8 @@ function OpenDialog({
 
 	const onMouseDown = (event: ReactMouseEvent<HTMLDialogElement>) => {
 		downOnBackdrop.current = event.target === event.currentTarget;
+		// A press on the backdrop must not pull focus out of the dialog onto its surface.
+		if (downOnBackdrop.current) event.preventDefault();
 	};
 	const onClick = (event: ReactMouseEvent<HTMLDialogElement>) => {
 		// The backdrop belongs to the dialog element, so a click on it targets the dialog itself. Both
