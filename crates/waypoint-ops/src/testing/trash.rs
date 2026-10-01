@@ -58,6 +58,12 @@ impl FakeTrash {
         self.len() == 0
     }
 
+    /// Drops an item from the Trash's records, as another program emptying it would; the
+    /// trashed entry itself is left where it is.
+    pub fn forget(&self, receipt: &TrashReceipt) {
+        self.entries.lock().unwrap().remove(&receipt.id);
+    }
+
     /// The receipts of every item in the Trash, in the order of their ids.
     pub fn receipts(&self) -> Vec<TrashReceipt> {
         self.entries.lock().unwrap().values().cloned().collect()
@@ -117,11 +123,30 @@ impl Trash for FakeTrash {
     }
 
     fn restore(&self, receipt: &TrashReceipt) -> Result<Location, OpsError> {
-        let original = self.parse(&receipt.original)?;
+        self.restore_to(receipt, &receipt.original)
+    }
+
+    fn restore_to(&self, receipt: &TrashReceipt, target: &Location) -> Result<Location, OpsError> {
+        let destination = self.parse(target)?;
+        if let Some(parent) = destination.parent() {
+            // Like the real Trash: a missing folder is its own error, and nothing is replaced.
+            if let Err(VfsError::NotFound { .. }) = self.provider.stat(&parent) {
+                return Err(OpsError::OriginMissingParent {
+                    location: parent.to_location(),
+                });
+            }
+        }
         self.provider
-            .rename(&self.trashed_path(receipt), &original, false)?;
+            .rename(&self.trashed_path(receipt), &destination, false)?;
         self.entries.lock().unwrap().remove(&receipt.id);
-        Ok(receipt.original.clone())
+        Ok(target.clone())
+    }
+
+    fn is_trashed(&self, location: &Location) -> bool {
+        self.parse(location)
+            .ok()
+            .and_then(|path| path.parent())
+            .is_some_and(|parent| parent == self.dir)
     }
 
     fn delete(&self, receipt: &TrashReceipt) -> Result<(), OpsError> {
@@ -137,7 +162,7 @@ impl Trash for FakeTrash {
             .lock()
             .unwrap()
             .values()
-            .filter(|r| cutoff.is_none_or(|c| r.deleted_at < c))
+            .filter(|r| cutoff.is_none_or(|c| r.deleted_at <= c))
             .cloned()
             .collect();
         let mut removed = 0;

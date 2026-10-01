@@ -16,7 +16,7 @@ use tauri::{
 
 pub use deps::{ChangeHook, MemorySettings, OpsDeps, SettingsStorage, EXIT_WAIT, SAVE_DELAY};
 pub use models::{Clipboard, ClipboardMode, Error, JobJournal, JobProgress, PlanNote, PlanPreview};
-pub use ops::{Ops, MAX_CONCURRENCY, MAX_UNDO_DEPTH};
+pub use ops::{Ops, MAX_CONCURRENCY, MAX_TRASH_EXPIRY_DAYS, MAX_UNDO_DEPTH};
 
 /// The event every change to the queue or the journal is broadcast on, to every window; the
 /// payload is an `OpsEvent` carrying the queue's revision (a `JournalChanged` carries the journal's

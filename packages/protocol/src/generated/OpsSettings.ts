@@ -20,4 +20,9 @@ confirmTrash: boolean,
 /**
  * How many journal entries to keep (A52).
  */
-undoDepth: number, };
+undoDepth: number, 
+/**
+ * Empty items that have been in the Trash this many days or more when the app starts; `None`
+ * (the default) never empties it by itself.
+ */
+trashExpiryDays: number | null, };

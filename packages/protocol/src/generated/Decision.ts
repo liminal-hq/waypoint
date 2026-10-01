@@ -3,4 +3,4 @@
 /**
  * The user's answer to an error that stopped a job on one item (A48).
  */
-export type Decision = "retry" | "skip" | "skipAll" | "cancel";
+export type Decision = "retry" | "createParents" | "skip" | "skipAll" | "cancel";

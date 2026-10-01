@@ -55,6 +55,7 @@ fn label_for(kind: JobKind, count: usize, names: &[String]) -> String {
         JobKind::Trash => items("Move", " to Trash"),
         JobKind::Restore => items("Restore", ""),
         JobKind::Delete => items("Delete", ""),
+        JobKind::EmptyTrash { .. } => "Empty Trash".to_owned(),
         JobKind::Copy => items("Copy", ""),
         JobKind::Move => items("Move", ""),
         JobKind::Link => items("Link", ""),

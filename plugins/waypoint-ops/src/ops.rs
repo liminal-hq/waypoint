@@ -36,6 +36,10 @@ use crate::{CLIPBOARD_EVENT, EVENT, RECOVERED_EVENT};
 /// The most workers the settings can ask for.
 pub const MAX_CONCURRENCY: u32 = 16;
 
+/// The most days the Trash sweep can be set to wait (a hundred years: far more than anyone wants,
+/// and low enough that no day count overflows).
+pub const MAX_TRASH_EXPIRY_DAYS: u32 = 36_500;
+
 /// The most journal entries the settings can ask to keep.
 pub const MAX_UNDO_DEPTH: u32 = 500;
 
@@ -388,6 +392,10 @@ impl<R: Runtime> Ops<R> {
 fn clamped(mut settings: OpsSettings) -> OpsSettings {
     settings.concurrency = settings.concurrency.clamp(1, MAX_CONCURRENCY);
     settings.undo_depth = settings.undo_depth.min(MAX_UNDO_DEPTH);
+    // A stored zero or absurd count means no sweep, never "empty everything at every start".
+    settings.trash_expiry_days = settings
+        .trash_expiry_days
+        .filter(|days| (1..=MAX_TRASH_EXPIRY_DAYS).contains(days));
     settings
 }
 
@@ -909,6 +917,14 @@ impl<R: Runtime> Ops<R> {
         if settings.undo_depth > MAX_UNDO_DEPTH {
             return Err(Error::Invalid(format!(
                 "the undo history can keep at most {MAX_UNDO_DEPTH} entries"
+            )));
+        }
+        if settings
+            .trash_expiry_days
+            .is_some_and(|days| days == 0 || days > MAX_TRASH_EXPIRY_DAYS)
+        {
+            return Err(Error::Invalid(format!(
+                "the Trash sweep must wait between 1 and {MAX_TRASH_EXPIRY_DAYS} days, or be off"
             )));
         }
         self.shared

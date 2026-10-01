@@ -35,8 +35,8 @@ pub use copy_resolve::{action_for, Action, Resolutions};
 
 use crate::journal::InverseStep;
 use crate::model::{Conflict, Counts, Decision, JobId, JobKind, OpsError, Progress, Resolution};
-use crate::names::file_name_of;
-use crate::plan::{Plan, PlanItem};
+use crate::names::{file_name_of, unique_full_name};
+use crate::plan::{conflict_kind, Plan, PlanItem};
 use crate::traits::{IdSource, Protected, Providers, Trash, TrashReceipt};
 use remove::remove_tree;
 
@@ -94,6 +94,8 @@ pub struct ExecReport {
     pub restored: Vec<Location>,
     /// Top-level entries removed for good.
     pub deleted: Vec<Location>,
+    /// How many items an `EmptyTrash` removed.
+    pub emptied: u64,
     /// Items left out, with why.
     pub skipped: Vec<(Location, OpsError)>,
     pub progress: Progress,
@@ -170,9 +172,23 @@ impl Executor {
             },
             counts: Counts::default(),
             report: ExecReport::default(),
+            resolutions: options.resolutions,
         };
         let mut done = 0u64;
-        if matches!(plan.kind, JobKind::Undo { .. } | JobKind::Redo { .. }) {
+        if let JobKind::EmptyTrash { older_than_days } = plan.kind {
+            return match run.empty_trash(older_than_days) {
+                Ok(()) => {
+                    run.report.progress = run.progress.clone();
+                    run.report.counts = run.counts;
+                    Ok(run.report)
+                }
+                Err(error) => Err(run.fail(error, None, 0)),
+            };
+        }
+        if matches!(
+            plan.kind,
+            JobKind::BatchRename | JobKind::Undo { .. } | JobKind::Redo { .. }
+        ) {
             return Err(run.fail(
                 OpsError::Unsupported {
                     what: "this operation is not built yet".to_owned(),
@@ -205,6 +221,19 @@ impl Executor {
                         };
                         match decision {
                             Some(Decision::Retry) => continue,
+                            Some(Decision::CreateParents) => match run.create_parents(&error) {
+                                Ok(()) => continue,
+                                Err(OpsError::Cancelled) => {
+                                    return Err(run.fail(
+                                        OpsError::Cancelled,
+                                        Some(location),
+                                        done,
+                                    ));
+                                }
+                                Err(failed) => {
+                                    return Err(run.fail(failed, Some(location), done));
+                                }
+                            },
                             Some(Decision::Skip) => {
                                 run.skip(&location, error);
                                 break;
@@ -263,6 +292,8 @@ struct Run<'a> {
     progress: Progress,
     counts: Counts,
     report: ExecReport,
+    /// The answers to conflicts so far; a restore that meets a taken name asks when none covers it.
+    resolutions: Resolutions,
 }
 
 impl Run<'_> {
@@ -596,17 +627,190 @@ impl Run<'_> {
         Ok(())
     }
 
+    /// Puts an item back where it was. When that name is taken the run asks (or follows the answer
+    /// it already has): keep both restores under a free name, skip leaves the item in the Trash, and
+    /// replace swaps one file for another, the old one set aside until the new one is in place.
     fn restore(&mut self, item: &PlanItem) -> Result<(), OpsError> {
         let source = item.source.as_ref().expect("a restore has a source");
-        let receipt = self.env.trash.receipt_for(&source.to_location())?;
-        let back = self.env.trash.restore(&receipt)?;
-        self.report.restored.push(back);
+        let trashed = source.to_location();
+        let trash = self.env.trash.clone();
+        let receipt = trash.receipt_for(&trashed)?;
+        let (origin, provider) = self.env.providers.for_location(&receipt.original)?;
+        let taken = match provider.stat(&origin) {
+            Ok(existing) => Some(existing),
+            Err(VfsError::NotFound { .. } | VfsError::NotADirectory { .. }) => None,
+            Err(error) => return Err(error.into()),
+        };
+        let back = match taken {
+            None => match trash.restore(&receipt) {
+                Ok(back) => Some(back),
+                // Taken since it was looked at.
+                Err(OpsError::NameInUse { .. }) => {
+                    let existing = provider.stat(&origin)?;
+                    self.restore_over(&receipt, &trashed, &origin, provider.as_ref(), &existing)?
+                }
+                Err(error) => return Err(error),
+            },
+            Some(existing) => {
+                self.restore_over(&receipt, &trashed, &origin, provider.as_ref(), &existing)?
+            }
+        };
+        if let Some(back) = back {
+            self.report.restored.push(back);
+        }
         self.entry_done(file_name_of(source).as_deref());
+        Ok(())
+    }
+
+    /// Restores an item whose original place is taken by `existing`, as the answer says. `None` is
+    /// an item that was skipped.
+    fn restore_over(
+        &mut self,
+        receipt: &TrashReceipt,
+        trashed: &Location,
+        origin: &VfsPath,
+        provider: &dyn Provider,
+        existing: &waypoint_vfs::ScannedEntry,
+    ) -> Result<Option<Location>, OpsError> {
+        let item_kind = {
+            let source = VfsPath::from_location(trashed).map_err(|_| OpsError::Io {
+                message: format!("{} is not a usable location", trashed.display),
+            })?;
+            self.env.providers.for_path(&source)?.stat(&source)?.kind
+        };
+        let kind = conflict_kind(item_kind, existing.kind);
+        let conflict = Conflict {
+            source: trashed.clone(),
+            existing: receipt.original.clone(),
+            name: file_name_of(origin)
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            kind,
+            within_batch: false,
+            source_size: None,
+            existing_size: existing.size,
+            source_modified_ms: None,
+            existing_modified_ms: existing.modified_ms,
+        };
+        let policy = match self.resolutions.policy_for(trashed) {
+            Some(policy) => policy,
+            None => match self.sink.on_conflict(&conflict) {
+                Some(answer) => {
+                    self.resolutions.apply(&answer);
+                    answer.policy
+                }
+                None => {
+                    return Err(OpsError::NameInUse {
+                        location: receipt.original.clone(),
+                    })
+                }
+            },
+        };
+        let taken = OpsError::NameInUse {
+            location: receipt.original.clone(),
+        };
+        match action_for(policy, kind, None, &receipt.original)? {
+            Some(Action::Skip) => {
+                self.skip(trashed, taken);
+                Ok(None)
+            }
+            Some(Action::KeepBoth) => {
+                let folder = origin.parent().ok_or_else(|| OpsError::Protected {
+                    location: origin.to_location(),
+                })?;
+                let rule = Self::rule(provider);
+                let old = file_name_of(origin).unwrap_or_default();
+                let name = unique_full_name(
+                    &mut |candidate| {
+                        child_path(&folder, OsStr::new(candidate), rule)
+                            .map(|path| {
+                                !matches!(provider.stat(&path), Err(VfsError::NotFound { .. }))
+                            })
+                            .unwrap_or(true)
+                    },
+                    &old.to_string_lossy(),
+                );
+                let target = child_path(&folder, OsStr::new(&name), rule)?;
+                Ok(Some(
+                    self.env.trash.restore_to(receipt, &target.to_location())?,
+                ))
+            }
+            // Only a file replaces a file: a folder would be buried or lose a tree.
+            Some(Action::Replace) if kind == crate::model::ConflictKind::FileOverFile => {
+                let aside = self.partial_path(origin)?;
+                provider.rename(origin, &aside, false)?;
+                match self.env.trash.restore(receipt) {
+                    Ok(back) => {
+                        let _ = provider.remove_file(&aside);
+                        self.report.transfer.replaced.push(receipt.original.clone());
+                        Ok(Some(back))
+                    }
+                    Err(error) => {
+                        let _ = provider.rename(&aside, origin, false);
+                        Err(error)
+                    }
+                }
+            }
+            Some(Action::Replace | Action::Merge) | None => Err(OpsError::CannotReplace {
+                location: receipt.original.clone(),
+            }),
+        }
+    }
+
+    /// Makes the folders a restore needs, from the nearest one that exists down to the one the error
+    /// names, so the item can be tried again.
+    fn create_parents(&mut self, error: &OpsError) -> Result<(), OpsError> {
+        let OpsError::OriginMissingParent { location } = error else {
+            // Not a missing folder: the decision is a plain retry.
+            return Ok(());
+        };
+        let (folder, provider) = self.env.providers.for_location(location)?;
+        let mut missing = Vec::new();
+        let mut here = Some(folder);
+        while let Some(path) = here {
+            match provider.stat(&path) {
+                Ok(_) => break,
+                Err(VfsError::NotFound { .. }) => {
+                    here = path.parent();
+                    missing.push(path);
+                }
+                Err(other) => return Err(other.into()),
+            }
+        }
+        for path in missing.into_iter().rev() {
+            self.check()?;
+            match provider.create_dir(&path) {
+                Ok(()) | Err(VfsError::AlreadyExists { .. }) => {}
+                Err(other) => return Err(other.into()),
+            }
+        }
+        Ok(())
+    }
+
+    fn empty_trash(&mut self, older_than_days: Option<u32>) -> Result<(), OpsError> {
+        self.check()?;
+        self.env
+            .trash
+            .available()
+            .map_err(|reason| OpsError::TrashUnavailable { reason })?;
+        let removed = self.env.trash.empty(older_than_days)?;
+        self.report.emptied = removed;
+        self.progress.items_total = removed;
+        self.progress.items_done = removed;
+        self.emit();
         Ok(())
     }
 
     fn delete(&mut self, item: &PlanItem) -> Result<(), OpsError> {
         let source = item.source.as_ref().expect("a delete has a source");
+        // Something in the Trash goes through the Trash, which removes it and its record together.
+        if self.env.trash.is_trashed(&source.to_location()) {
+            let receipt = self.env.trash.receipt_for(&source.to_location())?;
+            self.env.trash.delete(&receipt)?;
+            self.report.deleted.push(source.to_location());
+            self.entry_done(file_name_of(source).as_deref());
+            return Ok(());
+        }
         let provider = self.env.providers.for_path(source)?;
         if self
             .env

@@ -1367,3 +1367,170 @@ fn a_batch_preview_reads_a_selection_through_the_injected_resolver() {
     env.wait_done(id);
     assert_eq!(env.names(""), ["007_b.txt", "a.txt"]);
 }
+
+// ---- the Trash view's jobs ----
+
+/// Trashes `names` through the queue and returns the receipts' trashed locations, in order.
+fn trash_away(env: &Env, names: &[&str]) -> Vec<waypoint_protocol::Location> {
+    let id = env.submit("main-1", env.request(JobKind::Trash, names, None, None));
+    env.wait_done(id);
+    env.trash
+        .receipts()
+        .iter()
+        .map(|r| env.trash.trashed_location(r))
+        .collect()
+}
+
+fn trash_request(
+    env: &Env,
+    kind: JobKind,
+    locations: Vec<waypoint_protocol::Location>,
+) -> waypoint_ops::JobRequest {
+    let mut request = env.request(kind, &[], None, None);
+    request.sources = waypoint_ops::Sources::Locations { locations };
+    request
+}
+
+#[test]
+fn restoring_over_a_taken_name_waits_for_an_answer_and_keeps_both() {
+    let env = env();
+    env.write("a.txt", b"old");
+    let trashed = trash_away(&env, &["a.txt"]);
+    env.write("a.txt", b"new");
+    let id = env.submit(
+        "main-1",
+        trash_request(&env, JobKind::Restore, trashed.clone()),
+    );
+    let state = env.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Conflicts { conflicts },
+    } = state
+    else {
+        panic!("waiting on conflicts");
+    };
+    assert_eq!(conflicts[0].existing, env.loc("a.txt"));
+    assert_eq!(
+        env.read("a.txt"),
+        b"new",
+        "nothing is written while it waits"
+    );
+    tauri::async_runtime::block_on(commands::resolve(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+        vec![],
+        Some(ConflictPolicy::KeepBoth),
+    ))
+    .unwrap();
+    env.wait_done(id);
+    assert_eq!(env.read("a.txt"), b"new");
+    assert_eq!(env.read("a (2).txt"), b"old");
+    assert!(env.trash.is_empty());
+}
+
+#[test]
+fn a_restore_whose_folder_is_gone_asks_and_makes_it_when_told_to() {
+    let env = env();
+    env.dir("gone");
+    env.write("gone/f.txt", b"x");
+    trash_away(&env, &["gone/f.txt"]);
+    let waypoint_path::VfsPath::File(gone) = env.path("gone") else {
+        panic!("a local path");
+    };
+    std::fs::remove_dir(gone.as_path()).unwrap();
+    let trashed: Vec<_> = env
+        .trash
+        .receipts()
+        .iter()
+        .map(|r| env.trash.trashed_location(r))
+        .collect();
+    let id = env.submit("main-1", trash_request(&env, JobKind::Restore, trashed));
+    let state = env.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Error { error, .. },
+    } = state
+    else {
+        panic!("waiting on an error");
+    };
+    assert_eq!(
+        error,
+        OpsError::OriginMissingParent {
+            location: env.loc("gone")
+        }
+    );
+    answer(&env, id, Decision::CreateParents);
+    env.wait_done(id);
+    assert_eq!(env.read("gone/f.txt"), b"x");
+}
+
+#[test]
+fn deleting_from_the_trash_and_emptying_it_are_jobs() {
+    let env = env();
+    for name in ["a", "b", "c"] {
+        env.write(name, name.as_bytes());
+    }
+    let trashed = trash_away(&env, &["a", "b", "c"]);
+    let id = env.submit(
+        "main-1",
+        trash_request(&env, JobKind::Delete, vec![trashed[0].clone()]),
+    );
+    env.wait_done(id);
+    assert_eq!(env.trash.len(), 2);
+    assert!(!env.job(id).undoable, "a permanent delete cannot be undone");
+
+    let sweep = env.submit(
+        "main-1",
+        trash_request(
+            &env,
+            JobKind::EmptyTrash {
+                older_than_days: Some(30),
+            },
+            vec![],
+        ),
+    );
+    env.wait_done(sweep);
+    assert_eq!(env.trash.len(), 2, "nothing is 30 days old");
+    assert_eq!(env.job(sweep).title, "Empty old items from the Trash");
+
+    let empty = env.submit(
+        "main-1",
+        trash_request(
+            &env,
+            JobKind::EmptyTrash {
+                older_than_days: None,
+            },
+            vec![],
+        ),
+    );
+    env.wait_done(empty);
+    assert!(env.trash.is_empty());
+    assert_eq!(env.job(empty).title, "Empty Trash");
+}
+
+#[test]
+fn the_trash_sweep_setting_is_validated_saved_and_defaults_off() {
+    let env = env();
+    let ops = env.ops();
+    assert_eq!(ops.settings().trash_expiry_days, None);
+    for bad in [0, tauri_plugin_waypoint_ops::MAX_TRASH_EXPIRY_DAYS + 1] {
+        let refused = OpsSettings {
+            trash_expiry_days: Some(bad),
+            ..ops.settings()
+        };
+        assert!(ops.set_settings(refused).is_err(), "{bad} days");
+    }
+    assert_eq!(env.settings.saved(), None);
+    let thirty = OpsSettings {
+        trash_expiry_days: Some(30),
+        ..ops.settings()
+    };
+    ops.set_settings(thirty).unwrap();
+    assert_eq!(env.settings.saved().unwrap().trash_expiry_days, Some(30));
+    assert_eq!(ops.settings().trash_expiry_days, Some(30));
+    let off = OpsSettings {
+        trash_expiry_days: None,
+        ..ops.settings()
+    };
+    ops.set_settings(off).unwrap();
+    assert_eq!(ops.settings().trash_expiry_days, None);
+}

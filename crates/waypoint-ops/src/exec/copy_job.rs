@@ -457,7 +457,8 @@ impl Transfer<'_> {
                         return Ok(None);
                     }
                     match self.sink.on_error(at, &error) {
-                        Some(Decision::Retry) => continue,
+                        // Making a missing folder is a restore's: here it is a retry.
+                        Some(Decision::Retry | Decision::CreateParents) => continue,
                         Some(Decision::Skip) => {
                             self.fail_item(at, error);
                             return Ok(None);

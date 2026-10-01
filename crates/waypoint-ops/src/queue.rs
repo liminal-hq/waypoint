@@ -140,6 +140,10 @@ fn title_for(kind: JobKind, sources: &SourcesSummary, name: Option<&str>) -> Str
         JobKind::Trash => "Move to Trash",
         JobKind::Restore => "Restore",
         JobKind::Delete => "Delete",
+        JobKind::EmptyTrash {
+            older_than_days: None,
+        } => "Empty Trash",
+        JobKind::EmptyTrash { .. } => "Empty old items from the Trash",
         JobKind::Copy => "Copy",
         JobKind::Move => "Move",
         JobKind::Link => "Link",

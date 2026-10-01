@@ -63,6 +63,23 @@ pub trait Trash: Send + Sync {
 
     /// The receipt for an item the Trash view shows at `trashed`.
     fn receipt_for(&self, trashed: &Location) -> Result<TrashReceipt, OpsError>;
+
+    /// Whether `location` is an item the Trash view shows, which a permanent delete removes from
+    /// the Trash instead of through its provider and a restore puts back. Default: nothing is.
+    fn is_trashed(&self, location: &Location) -> bool {
+        let _ = location;
+        false
+    }
+
+    /// Puts an item back at `target` instead of where it was (a full path, with the item's name),
+    /// which must not exist; its folder must, and be on the volume the item was trashed on. Used to
+    /// restore under a free name when the original is taken. Default: unsupported.
+    fn restore_to(&self, receipt: &TrashReceipt, target: &Location) -> Result<Location, OpsError> {
+        let _ = (receipt, target);
+        Err(OpsError::Unsupported {
+            what: "restoring to another place".to_owned(),
+        })
+    }
 }
 
 /// Turns what a window has selected into the locations it covers (A47). `src-tauri` implements it

@@ -142,6 +142,17 @@ impl Plan {
 
 type Resolved = Vec<(VfsPath, Arc<dyn Provider>)>;
 
+/// How a new entry of kind `new` clashes with one of kind `old`; anything but a folder counts as a
+/// file.
+pub(crate) fn conflict_kind(new: EntryKind, old: EntryKind) -> ConflictKind {
+    match (new == EntryKind::Directory, old == EntryKind::Directory) {
+        (false, false) => ConflictKind::FileOverFile,
+        (true, true) => ConflictKind::FolderOverFolder,
+        (false, true) => ConflictKind::FileOverFolder,
+        (true, false) => ConflictKind::FolderOverFile,
+    }
+}
+
 /// The path to ask for the volume an entry is on. A symlink is on the volume of the folder that
 /// holds it, not of what it points at (which `volume_id` would follow, and which may be elsewhere
 /// or nowhere), so a link is asked about by its folder.
@@ -217,6 +228,7 @@ pub fn plan_with_progress(
         JobKind::Trash => planner.trash(),
         JobKind::Restore => planner.restore(),
         JobKind::Delete => planner.delete(),
+        JobKind::EmptyTrash { .. } => planner.empty_trash(),
         JobKind::Copy | JobKind::Move | JobKind::Link => planner.transfer(),
         JobKind::BatchRename => planner.batch_rename(),
         JobKind::Undo { .. } | JobKind::Redo { .. } => Err(OpsError::Unsupported {
@@ -502,25 +514,51 @@ impl Planner<'_, '_> {
         Ok(self.finish(items, None, false, Vec::new()))
     }
 
+    /// Reads each item's receipt and looks at the place it came from: a name that is taken there is
+    /// a conflict to answer before anything is restored (A48). A folder that is gone is not a
+    /// conflict; the run asks about it when it gets there.
     fn restore(&mut self) -> Result<Plan, OpsError> {
         self.ctx
             .trash
             .available()
             .map_err(|reason| OpsError::TrashUnavailable { reason })?;
         let sources = self.sources()?;
-        let items = sources
-            .into_iter()
-            .map(|(source, _)| PlanItem {
+        let mut items = Vec::new();
+        let mut conflicts = Vec::new();
+        for (source, provider) in sources {
+            check(self.ctx.cancel)?;
+            let location = source.to_location();
+            let receipt = self.ctx.trash.receipt_for(&location)?;
+            let entry = provider.stat(&source)?;
+            let (origin, origin_provider) = self.ctx.providers.for_location(&receipt.original)?;
+            match origin_provider.stat(&origin) {
+                Ok(existing) => {
+                    conflicts.push(Self::conflict(&source, &entry, &origin, &existing, false))
+                }
+                Err(VfsError::NotFound { .. } | VfsError::NotADirectory { .. }) => {}
+                Err(error) => return Err(error.into()),
+            }
+            self.walked.items += 1;
+            (self.progress)(&self.walked);
+            items.push(PlanItem {
                 source: Some(source),
                 target: None,
-                kind: EntryKind::Other,
-                size: None,
+                kind: entry.kind,
+                size: entry.size,
                 entries: 1,
                 bytes: 0,
                 case_only: false,
-            })
-            .collect();
-        Ok(self.finish(items, None, false, Vec::new()))
+            });
+        }
+        Ok(self.finish(items, None, false, conflicts))
+    }
+
+    fn empty_trash(&mut self) -> Result<Plan, OpsError> {
+        self.ctx
+            .trash
+            .available()
+            .map_err(|reason| OpsError::TrashUnavailable { reason })?;
+        Ok(self.finish(Vec::new(), None, false, Vec::new()))
     }
 
     fn delete(&mut self) -> Result<Plan, OpsError> {
@@ -535,7 +573,12 @@ impl Planner<'_, '_> {
                 });
             }
             let entry = provider.stat(&source)?;
-            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry, true)?;
+            // What is in the Trash is removed from it as one item, whatever it holds.
+            let (entries, bytes) = if self.ctx.trash.is_trashed(&source.to_location()) {
+                (1, 0)
+            } else {
+                self.measure(provider.as_ref(), &source, &entry, true)?
+            };
             items.push(PlanItem {
                 source: Some(source),
                 target: None,
@@ -707,14 +750,7 @@ impl Planner<'_, '_> {
     }
 
     fn kind_of(source: &ScannedEntry, existing: Option<&ScannedEntry>) -> ConflictKind {
-        let src_dir = source.kind == EntryKind::Directory;
-        let dst_dir = existing.is_some_and(|e| e.kind == EntryKind::Directory);
-        match (src_dir, dst_dir) {
-            (false, false) => ConflictKind::FileOverFile,
-            (true, true) => ConflictKind::FolderOverFolder,
-            (false, true) => ConflictKind::FileOverFolder,
-            (true, false) => ConflictKind::FolderOverFile,
-        }
+        conflict_kind(source.kind, existing.map_or(EntryKind::File, |e| e.kind))
     }
 
     fn conflict(

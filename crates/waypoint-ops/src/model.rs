@@ -20,7 +20,11 @@ pub struct JobId(#[ts(type = "number")] pub u64);
 
 /// What a job does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum JobKind {
     CreateFolder,
@@ -32,8 +36,14 @@ pub enum JobKind {
     Trash,
     /// Takes entries out of the Trash and puts them back where they were.
     Restore,
-    /// Removes entries permanently.
+    /// Removes entries permanently. An item in the Trash is removed from the Trash.
     Delete,
+    /// Removes everything in the Trash, or only what has been there `older_than_days` days or more.
+    /// It has no sources.
+    EmptyTrash {
+        #[ts(type = "number | null")]
+        older_than_days: Option<u32>,
+    },
     Copy,
     Move,
     /// Makes a symbolic link in the destination to each source, which stays where it is.
@@ -202,6 +212,9 @@ pub struct Resolution {
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum Decision {
     Retry,
+    /// Make the folders the item needs (a restore from the Trash whose original folder is gone),
+    /// then try again. For any other error it is `Retry`.
+    CreateParents,
     Skip,
     /// Skip this item and every later one that fails the same kind of way (the same `OpsError`
     /// variant); a different kind of failure asks again.
@@ -245,6 +258,10 @@ pub enum OpsError {
     Protected { location: Location },
     #[error("the Trash is unavailable: {reason}")]
     TrashUnavailable { reason: String },
+    /// A restore needs a folder that no longer exists: `location` is that folder, which the
+    /// `CreateParents` decision makes.
+    #[error("{} no longer exists", .location.display)]
+    OriginMissingParent { location: Location },
     #[error("cancelled")]
     Cancelled,
     #[error("unsupported: {what}")]
@@ -605,6 +622,11 @@ pub struct OpsSettings {
     pub confirm_trash: bool,
     /// How many journal entries to keep (A52).
     pub undo_depth: u32,
+    /// Empty items that have been in the Trash this many days or more when the app starts; `None`
+    /// (the default) never empties it by itself.
+    #[serde(default)]
+    #[ts(type = "number | null")]
+    pub trash_expiry_days: Option<u32>,
 }
 
 impl Default for OpsSettings {
@@ -615,6 +637,7 @@ impl Default for OpsSettings {
             verify_algorithm: VerifyAlgorithm::Blake3,
             confirm_trash: false,
             undo_depth: 50,
+            trash_expiry_days: None,
         }
     }
 }

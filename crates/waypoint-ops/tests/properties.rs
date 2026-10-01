@@ -115,7 +115,8 @@ type Apply<P> = Box<dyn FnOnce(&mut Model, &RunResult, &Harness<P>)>;
 /// The kind of an error, for comparing with what the model predicts.
 fn kind(error: &OpsError) -> &'static str {
     match error {
-        OpsError::NotFound { .. } => "notFound",
+        // A folder that is gone is a not-found with a name of its own.
+        OpsError::NotFound { .. } | OpsError::OriginMissingParent { .. } => "notFound",
         OpsError::NameInUse { .. } => "nameInUse",
         OpsError::InvalidName { .. } => "invalidName",
         OpsError::SameFolder => "sameFolder",
