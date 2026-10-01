@@ -20,6 +20,7 @@ import { FileView } from '../browse/FileView';
 import type { MenuRequest } from '../browse/useListInteractions';
 import type { ListingSession, SessionState } from '../browse/useListingSession';
 import type { ViewMode } from '../browse/viewStore';
+import { dropAttributes } from '../dnd/dropTargets';
 import { tf } from '../i18n/messages';
 import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry, type EntryAction, type EntryOpeners } from '../nav/useOpenEntry';
@@ -31,7 +32,7 @@ import { equalSizes } from '../tabs/pairLayout';
 import { usePairActions } from '../tabs/pairActions';
 import { useSeparateDrag } from '../tabs/paneDrag';
 import { useTabActions } from '../tabs/tabActions';
-import { useTabTitle } from '../tabs/tabTitle';
+import { locationLabel, useTabTitle } from '../tabs/tabTitle';
 import styles from './PaneArea.module.css';
 
 /** A menu request from a pane, with what the menu needs to act on that pane and not on whichever is active. */
@@ -208,6 +209,7 @@ function Pane({
 		<div
 			className={styles.pane}
 			data-pane={tab.id}
+			{...dropAttributes('pane', tab.id, locationLabel(tab.location))}
 			tabIndex={-1}
 			data-active={paired && active ? '' : undefined}
 			style={{ flexGrow: share }}

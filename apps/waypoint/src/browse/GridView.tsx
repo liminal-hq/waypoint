@@ -14,6 +14,7 @@ import {
 	type CSSProperties,
 } from 'react';
 import { useStore } from 'zustand';
+import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
@@ -203,16 +204,22 @@ function GridBody({
 
 	const pageRows = () =>
 		Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / cell.height) - 1);
-	const { onKeyDown, onItemClick, onItemDoubleClick, onItemContextMenu, onBackgroundContextMenu } =
-		useListInteractions({
-			session,
-			itemId: (position) => `${listId}-item-${position}`,
-			shown: shownItems,
-			scrollTo: scrollToItem,
-			onOpen,
-			onMenu,
-			move: (key, from, last) => gridMove(key, from, last, columns, pageRows()),
-		});
+	const {
+		onKeyDown,
+		onItemClick,
+		onItemPointerDown,
+		onItemDoubleClick,
+		onItemContextMenu,
+		onBackgroundContextMenu,
+	} = useListInteractions({
+		session,
+		itemId: (position) => `${listId}-item-${position}`,
+		shown: shownItems,
+		scrollTo: scrollToItem,
+		onOpen,
+		onMenu,
+		move: (key, from, last) => gridMove(key, from, last, columns, pageRows()),
+	});
 
 	if (model.error) return <ErrorState error={model.error} />;
 
@@ -256,6 +263,7 @@ function GridBody({
 				<div
 					ref={scroller}
 					className={styles.scroller}
+					{...{ [SCROLL_ATTRIBUTE]: '' }}
 					onScroll={recordAnchor}
 					onContextMenu={onBackgroundContextMenu}
 				>
@@ -304,6 +312,8 @@ function GridBody({
 												data-selected={selected ? '' : undefined}
 												data-cut={entry && cut.has(entry.name) ? '' : undefined}
 												data-active={focus === position ? '' : undefined}
+												{...(entry ? entryDropAttributes(entry, model) : undefined)}
+												onPointerDown={(event) => onItemPointerDown(event, position, entry)}
 												onClick={(event) => onItemClick(event, position, entry)}
 												onContextMenu={(event) => onItemContextMenu(event, position, entry)}
 												onDoubleClick={() => onItemDoubleClick(entry)}

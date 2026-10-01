@@ -18,6 +18,7 @@ import {
 	type CSSProperties,
 } from 'react';
 import { useStore } from 'zustand';
+import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
@@ -282,8 +283,14 @@ function ListingBody({
 			}
 		},
 	});
-	const { onKeyDown, onItemClick, onItemDoubleClick, onItemContextMenu, onBackgroundContextMenu } =
-		interactions;
+	const {
+		onKeyDown,
+		onItemClick,
+		onItemPointerDown,
+		onItemDoubleClick,
+		onItemContextMenu,
+		onBackgroundContextMenu,
+	} = interactions;
 
 	const onSort = (key: SortKey) => {
 		const { sort } = model;
@@ -365,6 +372,7 @@ function ListingBody({
 				<div
 					ref={scroller}
 					className={styles.scroller}
+					{...{ [SCROLL_ATTRIBUTE]: '' }}
 					onScroll={recordAnchor}
 					onContextMenu={onBackgroundContextMenu}
 				>
@@ -401,6 +409,8 @@ function ListingBody({
 									data-selected={selected ? '' : undefined}
 									data-cut={entry && cut.has(entry.name) ? '' : undefined}
 									data-active={focus === item.index ? '' : undefined}
+									{...(entry ? entryDropAttributes(entry, model) : undefined)}
+									onPointerDown={(event) => onItemPointerDown(event, item.index, entry)}
 									onClick={(event) => onItemClick(event, item.index, entry)}
 									onContextMenu={(event) => onItemContextMenu(event, item.index, entry)}
 									onDoubleClick={() => onItemDoubleClick(entry)}

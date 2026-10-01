@@ -60,6 +60,7 @@ export function PlaceList({ places, currentUri, actions, trash = null }: PlaceLi
 							className={styles.item}
 							aria-current={place.location.uri === currentUri ? 'page' : undefined}
 							data-unavailable={unavailable ? '' : undefined}
+							data-drop-unavailable={unavailable ? '' : undefined}
 							title={unavailable ? (trash?.reason ?? t('sidebar.trash.unavailable')) : undefined}
 							{...itemGestures(actions, {
 								kind: isTrash ? 'trash' : 'place',

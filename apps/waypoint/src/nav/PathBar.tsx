@@ -16,6 +16,7 @@ import {
 	type KeyboardEvent,
 } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { dropAttributes } from '../dnd/dropTargets';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { t, tf } from '../i18n/messages';
 import { toVfsError } from '../browse/listingModel';
@@ -84,6 +85,7 @@ function Breadcrumbs({ location, onEdit, onNavigate }: BreadcrumbsProps) {
 								<button
 									type="button"
 									className={styles.crumb}
+									{...dropAttributes('crumb', segment.location.uri, segment.label)}
 									aria-current={last ? 'page' : undefined}
 									onClick={() => onNavigate(segment.location)}
 								>

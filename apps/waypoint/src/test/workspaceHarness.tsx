@@ -14,6 +14,8 @@ import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { OpsProvider } from '../ops/OpsContext';
 import { OpsResolverHost } from '../ops/OpsResolverHost';
 import type { OpsClient } from '../services/opsClient';
+import type { SettingsClient } from '../services/settingsClient';
+import { SettingsProvider } from '../settings/SettingsContext';
 import { TabsProvider } from '../tabs/TabsContext';
 import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
@@ -49,13 +51,20 @@ export async function renderWorkspace(
 		trash?: TrashClient;
 		/** The operations queue: the window follows it and answers the jobs it started (`main-1`). */
 		ops?: OpsClient;
+		/** The settings the window follows (the defaults when omitted). */
+		settings?: SettingsClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
-	const workspace = (
+	const tabbed = (
 		<TabsProvider api={tabs} home={HOME}>
 			<Workspace tearoff={options.tearoff} />
 		</TabsProvider>
+	);
+	const workspace = options.settings ? (
+		<SettingsProvider client={options.settings}>{tabbed}</SettingsProvider>
+	) : (
+		tabbed
 	);
 	const view = render(
 		<VfsClientProvider client={client}>
