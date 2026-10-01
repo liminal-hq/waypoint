@@ -161,6 +161,8 @@ await onPayloadDropped(({ window, payload }) => {});
 const missed = await takeToplevelDragResult();
 ```
 
+While the payload is over a window of the app, that window hears `onDragHover` (about 20 times a second at most, and only when the pointer moved) with the pointer position and the id of the registered drop region under it (see `setDropRegions`), and `onDragLeave` once when it goes; the plugin knows nothing of what the regions mean. `onPayloadDropped` and the end event carry the drop's `x`, `y` and `region` the same way (`PayloadDropped.x/y/region`, `ToplevelDragEnded.region`), so the page that acts on the drop can place it where the target showed it.
+
 `endToplevelDrag()` cancels the drag in progress. A drop on the dragged window itself counts as a drop on nothing. If a begin does not start, the window it named gets a `failed` end as well, so a caller that made it can put its contents back; that window is shown again if it was hidden.
 
 ## Platforms
@@ -200,6 +202,9 @@ interface BeginReport {
 interface Hit {
 	window: string;
 	region: string;
+	/** The cursor in logical pixels from the top-left of that window's content, the origin its regions use. */
+	x: number;
+	y: number;
 }
 interface DropReport {
 	cursor: Point | null;
@@ -221,11 +226,13 @@ interface PluginStatus {
 
 ## Events
 
-| Event                           | Sent to                      | Payload                                    |
-| ------------------------------- | ---------------------------- | ------------------------------------------ |
-| `window-tearoff://payload`      | the ghost window             | the payload, or `null` when the drag ended |
-| `window-tearoff://timeout`      | the window that began a drag | none                                       |
-| `window-tearoff://cursor-stale` | the window that began a drag | `boolean`                                  |
+| Event                           | Sent to                                      | Payload                                                                                                                                           |
+| ------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `window-tearoff://payload`      | the ghost window                             | the payload, or `null` when the drag ended                                                                                                        |
+| `window-tearoff://timeout`      | the window that began a drag                 | none                                                                                                                                              |
+| `window-tearoff://cursor-stale` | the window that began a drag                 | `boolean`                                                                                                                                         |
+| `window-tearoff://drag-hover`   | the window a toplevel drag's payload is over | `DragHover`: `window`, `x`, `y` (logical, from the content's top-left), `region` (the registered region id under the pointer, or null), `payload` |
+| `window-tearoff://drag-leave`   | a window that was sent `drag-hover`          | `DragLeave`: `window`; sent when the payload leaves it, is dropped on it, or the drag ends                                                        |
 
 ## Permissions
 
