@@ -16,7 +16,7 @@ import { onNotice } from './notices';
 import { describeTabDrag, type TabDragSource } from './tabDrag';
 import { createTearOff, type TearOff } from './tearOff';
 import { createTearHandoff } from './tearOffHandoff';
-import { createTearCardStore } from './tearOffCard';
+import { createTearCardStore } from './tearOffCardModel';
 import type { TearPayload } from './tearOffPayload';
 
 const VIEW = { width: 1000, height: 700 };

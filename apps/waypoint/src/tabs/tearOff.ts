@@ -24,7 +24,7 @@ import { pairName } from './PairPill';
 import type { TabDragSource, TearOffHook } from './tabDrag';
 import { postNotice } from './notices';
 import { parseTearPayload, type TearPayload } from './tearOffPayload';
-import type { TearCardStore } from './tearOffCard';
+import type { TearCardStore } from './tearOffCardModel';
 import { CARD_GRAB, CARD_SIZE, newWindowGeometry } from './tearOffPlacement';
 import { locationLabel } from './tabTitle';
 import { refuse, windowName } from './windowActions';
