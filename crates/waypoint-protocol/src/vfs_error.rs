@@ -28,6 +28,25 @@ pub enum VfsError {
     Cancelled,
     /// This provider cannot do what was asked.
     Unsupported { what: String },
+    /// Something already has that name, and the operation was not allowed to replace it.
+    AlreadyExists { location: Location },
+    /// A folder cannot be removed because it still holds entries.
+    NotEmpty { location: Location },
+    /// A file was expected and the location is a folder.
+    IsADirectory { location: Location },
+    /// A rename cannot be atomic because the two places are on different volumes; copy and remove
+    /// instead.
+    CrossesDevices { from: Location, to: Location },
+    /// The volume has no room left (or the user's quota is spent).
+    StorageFull { location: Location },
+    /// The volume is read-only.
+    ReadOnly { location: Location },
+    /// Another program holds the file open in a way that forbids this (a sharing violation on
+    /// Windows, a busy file on Linux).
+    InUse { location: Location },
+    /// The name cannot be created on this provider: empty, too long, a separator, `.` or `..`, a
+    /// NUL, or (under the Windows rules) a reserved device name or a trailing dot or space.
+    InvalidName { name: String, reason: String },
     /// Any other I/O failure, with the operating system's message.
     Io {
         message: String,
