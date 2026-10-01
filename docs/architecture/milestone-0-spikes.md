@@ -216,3 +216,52 @@ Release-build rendering on real hardware (no `WEBKIT_DISABLE_DMABUF_RENDERER`):
 ### Not measured
 
 Per-window idle CPU and a compositor-level flash check; always-on-top on Wayland during a real drag; cross-monitor and mixed-scale behaviour; KDE; anything on Windows 11; a real ghost following a real tab drag from end to end; the real receive path for file drops.
+
+### Milestone 3 verification
+
+Run on the tip of the milestone 3 stack (13 branches), release build (`bun run --cwd apps/waypoint build` and `cargo build -p waypoint --release --features tauri/custom-protocol`) without `WEBKIT_DISABLE_DMABUF_RENDERER`. The owner's GNOME session was locked, so the passes ran in a private headless Mutter (`mutter --headless --wayland --virtual-monitor 1280x720`, its own D-Bus session and its own `XDG_DATA_HOME`, `XDG_CONFIG_HOME` and `GSETTINGS_BACKEND=keyfile`), with the pointer moved through that Mutter's RemoteDesktop interface (relative motion and left button only). XWayland numbers are from that Mutter's XWayland (`GDK_BACKEND=x11`), not a native X server. The timings come from a throwaway page script (not committed) that logged `Date.now()` stamps to a local HTTP server, and `/proc/<pid>/smaps_rollup` and `/proc/<pid>/stat` sampled for the app and every descendant process.
+
+**New window to first listing paint.** From the page asking for a window (a synthetic `Ctrl+Shift+N`) to the new page's first animation frame after its first listing row exists, seven windows opened one after another, three seconds apart: **155 to 169 ms** (the new page's script started 101 to 110 ms after the request). The budget is 600 ms; the milestone 3 spike saw about 160 ms.
+
+**Memory per window** (RSS and PSS summed over the Rust process and every WebKit process; one hidden `tear-ghost` window is always present and is in every row):
+
+| Main windows | Processes | RSS (MB) | PSS (MB) | Rust process PSS (MB) |
+| ------------ | --------- | -------- | -------- | --------------------- |
+| 1            | 4         | 755      | 373      | 99                    |
+| 2            | 5         | 1037     | 476      | 107                   |
+| 4            | 7         | 1586     | 662      | 113                   |
+| 8            | 11        | 2615     | 957      | 128                   |
+
+That is about **266 MB RSS and 83 MB PSS per added window** (the spike measured about 330 MB RSS and 80 to 130 MB PSS), with the Rust process growing about 4 MB per window. Each window is one more web process; the network process is shared.
+
+**The source window's frame times during a tab drag** (`requestAnimationFrame` intervals in the dragged-from window, 60 Hz virtual monitor, maximised):
+
+| Drag                                                                                                                                      | Frames | p50   | p95   | p99   | Worst | Over 33 ms |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----- | ----- | ----- | ----- | ---------- |
+| Reorder back and forth along a strip of five tabs (about 11 s of a 16 s sample)                                                           | 997    | 16 ms | 17 ms | 18 ms | 22 ms | 0          |
+| Pull a tab out of the strip and move the pointer around (12 s; the release build logs too little to confirm the compositor took the drag) | 747    | 16 ms | 17 ms | 17 ms | 30 ms | 0          |
+
+**The ghost's CPU on X11 (XWayland) over a 10 s held drag**, as a share of one core: idle, all processes together 0.5 %. During the held drag the Rust process (the follow thread) used 3.2 %, against 0.8 % in a control drag that stayed inside the strip, and the ghost's web process 1.0 % against 0.1 %; the page being dragged from used 4.7 % against 3.4 %. The ghost's share is therefore about **3.3 %** (budget 5 %); all processes together were 9.0 % against 4.4 %.
+
+**The 500 000-file budgets with split panes open** (`scripts/perf-fixture.sh /tmp/waypoint-perf 500000`, the `#perf-auto=…&max&grid` harness, release build, Wayland, maximised 1280 by 720, a pair with the same folder open in both panes, so two 500 000-entry listings live at once):
+
+| Measure                                      | List                                                          | Grid                                                          |
+| -------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------- |
+| Wheel speed (32 rows a frame), 400 frames    | p50 17 ms, worst 18 ms, no blank rows                         | p50 17 ms, worst 21 ms, no blank rows                         |
+| Fling (714 rows a frame), 700 and 640 frames | p50 17 ms, worst 22 ms, one frame over 20 ms, none over 33 ms | p50 17 ms, worst 21 ms, one frame over 20 ms, none over 33 ms |
+| Jump to a row shows data                     | p50 34 ms (two frames), p95 35 ms                             | not measured by the harness                                   |
+| Select all paints                            | 32 ms                                                         | 31 ms                                                         |
+| Sort (visible rows updated)                  | 16 to 17 ms                                                   | not measured by the harness                                   |
+
+Peak memory during that run was 1168 MB RSS and 787 MB PSS (Rust process 298 MB PSS, WebKit 499 MB PSS). All budgets hold. The harness looks at the first list on screen and opens its folder only in the active tab, so for this run it was changed (not committed) to open the folder in every pane's tab.
+
+**Windows 11** (the VM pass, reported separately): about 95 MB per window (WebView2 working set about 82 MB plus about 11 MB for the app) and 184 to 232 ms per `open_window`; a nine-window session restored, and the 12-window cap held.
+
+**Geometry across restarts on X11 (XWayland).** Two windows placed at (100, 80) 640 by 400 and (520, 240) 640 by 420 came back at the same inner position and size after each of three restarts, and the saved geometry was unchanged; a window opened with `Ctrl+Shift+N` landed 30 px down and to the right of the one it came from. On Wayland the compositor places windows, so only sizes are restored.
+
+**What this does not cover.**
+
+- It is a headless compositor with a virtual monitor, not the owner's GPU and monitors; frame times are paced at the virtual monitor's 60 Hz.
+- RemoteDesktop keyboard events did not reach the webview in the headless session (no keyboard focus), so Escape during an in-page drag was driven with in-page key events; Escape did cancel a compositor-held window drag.
+- Under GNOME's Mutter a cancelled `xdg-toplevel-drag` logged a critical assertion (`meta_dnd_actor_drag_finish`) and, once, the headless Mutter aborted about 13 s later in its cursor-theme code; it did not recur in later runs and is a compositor-side fault.
+- KDE, native X11 with server-side decorations and macOS were not run.
