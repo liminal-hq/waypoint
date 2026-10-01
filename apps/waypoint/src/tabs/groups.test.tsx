@@ -417,7 +417,9 @@ describe('the group menu', () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		await openGroupMenu();
 		fireEvent.click(await item('Move Group to New Window'));
-		expect(await screen.findByRole('alert')).toHaveTextContent('Could not move the tab.');
+		expect(await screen.findByRole('alert')).toHaveTextContent(
+			'Could not move it to another window.',
+		);
 		expect(warn).toHaveBeenCalled();
 		expect(chip(/^Group 1,/)).toBeInTheDocument();
 		expect((await snapshot(h)).groups).toHaveLength(1);
