@@ -3,5 +3,5 @@
 	"identifier": "main",
 	"description": "Capabilities specific to the main file-browser windows.",
 	"windows": ["main-*"],
-	"permissions": ["os:default", "window-state:default"]
+	"permissions": ["os:default"]
 }

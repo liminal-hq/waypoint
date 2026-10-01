@@ -10,20 +10,7 @@
 		"frontendDist": "../dist"
 	},
 	"app": {
-		"windows": [
-			{
-				"label": "main-1",
-				"title": "Waypoint",
-				"width": 1100,
-				"height": 720,
-				"minWidth": 640,
-				"minHeight": 400,
-				"resizable": true,
-				"decorations": false,
-				"transparent": true,
-				"shadow": true
-			}
-		],
+		"windows": [],
 		"security": {
 			"csp": null
 		}

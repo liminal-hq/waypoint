@@ -4154,6 +4154,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-store"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3c6fdaac41e60f2313a440fa1776f3a5fdd16800ff967915e9800985b680822"
+dependencies = [
+ "dunce",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tauri-plugin-system-appearance"
 version = "0.1.0"
 dependencies = [
@@ -4219,21 +4235,6 @@ dependencies = [
  "tokio",
  "ts-rs",
  "windows 0.62.2",
-]
-
-[[package]]
-name = "tauri-plugin-window-state"
-version = "2.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d6815cab7b212f9cfe16a9d79d8d22f9e14159e4a9460f7dec1467167a008e3"
-dependencies = [
- "bitflags 2.13.2",
- "log",
- "serde",
- "serde_json",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -4981,11 +4982,11 @@ dependencies = [
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-opener",
  "tauri-plugin-os",
+ "tauri-plugin-store",
  "tauri-plugin-system-appearance",
  "tauri-plugin-waypoint-session",
  "tauri-plugin-waypoint-vfs",
  "tauri-plugin-window-manager",
- "tauri-plugin-window-state",
  "waypoint-protocol",
  "waypoint-session",
 ]
