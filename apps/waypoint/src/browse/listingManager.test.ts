@@ -12,7 +12,16 @@ const A = fileLocation('/a');
 const B = fileLocation('/b');
 
 function tab(id: number, location = A): TabSnapshot {
-	return { id, location, back: [], forward: [] };
+	return {
+		id,
+		location,
+		back: [],
+		forward: [],
+		pinned: false,
+		colour: null,
+		group: null,
+		hints: { scrollTop: 0, focused: null },
+	};
 }
 
 function setup(options = {}) {

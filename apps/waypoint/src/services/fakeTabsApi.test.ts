@@ -27,7 +27,7 @@ function setup() {
 describe('FakeTabsApi', () => {
 	it('starts empty, which is a valid session', async () => {
 		const { api } = setup();
-		expect(await api.getSnapshot()).toEqual({ revision: 0, tabs: [], active: null });
+		expect(await api.getSnapshot()).toMatchObject({ revision: 0, tabs: [], active: null });
 	});
 
 	it('activates the first tab even when not asked', async () => {

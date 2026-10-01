@@ -26,12 +26,32 @@ export class FakeTabsApi implements TabsApi {
 	private listeners = new Set<(event: SessionEvent) => void>();
 
 	async getSnapshot(): Promise<SessionSnapshot> {
-		return structuredClone({ revision: this.revision, tabs: this.tabs, active: this.active });
+		// Groups, pairs, MRU, geometry and the closed list are Rust-only until the fake mirrors them.
+		return structuredClone({
+			revision: this.revision,
+			tabs: this.tabs,
+			active: this.active,
+			mru: [],
+			groups: [],
+			pairs: [],
+			geometry: null,
+			view: { mode: 'list', showHidden: false, iconSize: 64 },
+			closed: [],
+		});
 	}
 
 	async openTab(location: Location, options: OpenTabOptions = {}): Promise<TabId> {
 		const index = options.after === undefined ? this.tabs.length : this.indexOf(options.after) + 1;
-		const tab: TabSnapshot = { id: this.nextId++, location, back: [], forward: [] };
+		const tab: TabSnapshot = {
+			id: this.nextId++,
+			location,
+			back: [],
+			forward: [],
+			pinned: false,
+			colour: null,
+			group: null,
+			hints: { scrollTop: 0, focused: null },
+		};
 		this.tabs.splice(index, 0, tab);
 		this.emit({ kind: 'tabOpened', tab: structuredClone(tab), index, revision: 0 });
 		if ((options.activate ?? true) || this.active === null) {
