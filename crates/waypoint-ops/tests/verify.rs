@@ -28,7 +28,7 @@ fn verified_request<P: Provider + 'static>(
     request
 }
 
-fn sample() -> Tree {
+fn sample(links: bool) -> Tree {
     let mut t = tree(&[
         ("src/", ""),
         ("src/top/", ""),
@@ -41,7 +41,9 @@ fn sample() -> Tree {
         "src/top/big".to_owned(),
         Node::File(pattern(5 * SMALL_CHUNK + 9, 2)),
     );
-    t.insert("src/top/ln".to_owned(), Node::Link("a".to_owned()));
+    if links {
+        t.insert("src/top/ln".to_owned(), Node::Link("a".to_owned()));
+    }
     t
 }
 
@@ -49,7 +51,7 @@ fn sample() -> Tree {
 fn a_verified_copy_records_the_algorithm_the_file_count_and_one_digest() {
     each_provider!(|h, rule, links| {
         let _ = (rule, links);
-        build(&h, &sample());
+        build(&h, &sample(links));
         let request = verified_request(&h, JobKind::Copy, &["src/top"]);
         let result = run(&mut h, request, &mut Answers::default());
         done(&result);
@@ -90,7 +92,7 @@ fn the_digest_does_not_depend_on_the_chunk_size_or_the_provider() {
     for chunk in [100, SMALL_CHUNK, 1 << 20] {
         for rule in [CaseRule::Sensitive, CaseRule::Insensitive] {
             let (mut h, _dir) = memory_harness(rule);
-            build(&h, &sample());
+            build(&h, &sample(true));
             let request = verified_request(&h, JobKind::Copy, &["src/top"]);
             let options = TransferOptions {
                 chunk_bytes: chunk,
@@ -108,7 +110,7 @@ fn the_digest_does_not_depend_on_the_chunk_size_or_the_provider() {
         }
     }
     let (mut h, _dir) = local_harness();
-    build(&h, &sample());
+    build(&h, &sample(cfg!(unix)));
     let request = verified_request(&h, JobKind::Copy, &["src/top"]);
     let result = run(&mut h, request, &mut Answers::default());
     done(&result);
