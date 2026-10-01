@@ -20,7 +20,7 @@ export function TabDragPill() {
 	const separate = useStore(useSeparateSession().store);
 	// Only one drag runs at a time, so at most one of the two sessions has a pill.
 	const { phase, pill } = tab.phase === 'dragging' ? tab : separate;
-	if (phase !== 'dragging' || !pill) return null;
+	if (phase !== 'dragging' || !pill || pill.undrawn) return null;
 	return createPortal(
 		<div className={styles.pill} data-kind={pill.kind} aria-hidden="true" data-drag-pill="">
 			<span className={styles.text}>{pill.text}</span>

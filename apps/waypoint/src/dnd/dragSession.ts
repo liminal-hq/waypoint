@@ -16,6 +16,8 @@ export interface DragPill {
 	text: string;
 	kind: string;
 	announce?: string;
+	/** The label is announced but not drawn here: something else (the tear-off ghost) already shows it. */
+	undrawn?: boolean;
 }
 
 export interface DragState<Source, Target> {

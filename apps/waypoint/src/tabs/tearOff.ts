@@ -120,8 +120,8 @@ function lowerFirst(text: string): string {
 	return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
-function pill(kind: string, text: string): DragPill {
-	return { kind, text, announce: tf('drag.announce.pill', { text: lowerFirst(text) }) };
+function pill(kind: string, text: string, undrawn = false): DragPill {
+	return { kind, text, announce: tf('drag.announce.pill', { text: lowerFirst(text) }), undrawn };
 }
 
 type Phase =
@@ -497,9 +497,11 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				// Until the ghost has the drag (or where there is none) the card is the preview, held where the pointer left.
 				showCard(payload(unit, false));
 			}
-			return mergeName && phase === 'following'
-				? pill('merge', tf('drag.pill.mergeInto', { name: mergeName }))
-				: pill('window', t('drag.pill.newWindow'));
+			// While the ghost has the drag its card carries the label; a pill here would sit under it.
+			const following = phase === 'following';
+			return mergeName && following
+				? pill('merge', tf('drag.pill.mergeInto', { name: mergeName }), true)
+				: pill('window', t('drag.pill.newWindow'), following);
 		},
 
 		leave() {

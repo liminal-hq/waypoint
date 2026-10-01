@@ -191,7 +191,11 @@ describe('the ghost', () => {
 		await settle();
 		expect(h.client.updates.at(-1)).toMatchObject({ label: 'Release to merge into music' });
 		const pill = h.hook.update(OUTSIDE, source);
-		expect(pill).toMatchObject({ kind: 'merge', text: 'Release to merge into music' });
+		expect(pill).toMatchObject({
+			kind: 'merge',
+			text: 'Release to merge into music',
+			undrawn: true,
+		});
 		// The cursor leaves the strip again: the label goes back.
 		h.client.hit = null;
 		h.tick();
