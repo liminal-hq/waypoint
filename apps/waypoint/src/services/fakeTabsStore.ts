@@ -24,6 +24,8 @@ import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSna
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowEvent } from '@liminal-hq/waypoint-protocol/generated/WindowEvent';
 import type { WindowState } from '@liminal-hq/waypoint-protocol/generated/WindowState';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import type { Handoff } from './tabsApi';
 
 /**
  * This file is the TypeScript twin of `crates/waypoint-session` (`reducer/*.rs`, `layout.rs`,
@@ -516,6 +518,13 @@ function compareBytes(a: string, b: string): number {
 	return x.length - y.length;
 }
 
+/** The last component of a display path, which is what a tab is titled with (as `folder_name` in Rust). */
+function folderName(display: string): string {
+	const trimmed = display.replace(/[/\\]+$/, '');
+	const name = trimmed.split(/[/\\]/).pop();
+	return name ? name : display;
+}
+
 export interface FakeTabsStoreOptions {
 	policy?: StorePolicy;
 	/**
@@ -546,6 +555,7 @@ export class FakeTabsStore {
 		nextWindow: 1,
 	};
 	private readonly listeners = new Map<string, Set<Listener>>();
+	private readonly handoffListeners = new Map<string, Set<(handoff: Handoff) => void>>();
 	readonly policy: StorePolicy;
 	private readonly options: FakeTabsStoreOptions;
 
@@ -657,6 +667,34 @@ export class FakeTabsStore {
 		return () => {
 			set.delete(listener);
 		};
+	}
+
+	/** Every window as a menu lists it: titled by its active folder, `caller` marked. */
+	windowSummaries(caller: string): WindowSummary[] {
+		return this.state.windows.map((w) => {
+			const shown = w.tabs.find((t) => t.id === w.active) ?? w.tabs[0];
+			return {
+				label: w.label,
+				title: shown ? folderName(shown.location.display) : '',
+				tabCount: w.tabs.length,
+				active: w.label === caller,
+			};
+		});
+	}
+
+	/** Follows the tabs handed to one window (the plugin's `HANDOFF_EVENT`). */
+	listenHandoff(label: string, listener: (handoff: Handoff) => void): () => void {
+		let set = this.handoffListeners.get(label);
+		if (!set) this.handoffListeners.set(label, (set = new Set()));
+		set.add(listener);
+		return () => {
+			set.delete(listener);
+		};
+	}
+
+	/** Tells the window `label` that `handoff` arrived; what `move_tabs` does after a move into an existing window. */
+	notifyHandoff(label: string, handoff: Handoff): void {
+		for (const listener of [...(this.handoffListeners.get(label) ?? [])]) listener(handoff);
 	}
 
 	/** A window that went away (its webview was destroyed): its session closes. */

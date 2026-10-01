@@ -17,8 +17,9 @@ import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColou
 import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { FakeTabsStore, type FakeCommand, type Outcome } from './fakeTabsStore';
-import type { OpenTabOptions, TabsApi } from './tabsApi';
+import { MAX_WINDOWS, type Handoff, type OpenTabOptions, type TabsApi } from './tabsApi';
 import type { Unsubscribe } from './vfsClient';
 
 /**
@@ -209,7 +210,19 @@ export class FakeTabsApi implements TabsApi {
 		this.run({ kind: 'toggleSplit', tab });
 	}
 
+	/** The plugin refuses a window past the cap before it changes anything. */
+	private checkWindowCap(): void {
+		if (this.store.windowLabels().length >= MAX_WINDOWS) {
+			throw {
+				kind: 'tooManyWindows',
+				message: `cannot open more than ${MAX_WINDOWS} windows`,
+				limit: MAX_WINDOWS,
+			};
+		}
+	}
+
 	async openWindow(location?: Location, geometry?: Geometry): Promise<string> {
+		this.checkWindowCap();
 		const outcome = this.run({
 			kind: 'openWindow',
 			location: location ?? null,
@@ -241,13 +254,40 @@ export class FakeTabsApi implements TabsApi {
 			// A window's label is the store's to allocate; a caller cannot pick one.
 			throw `internal error: a new window cannot be given the label \`${to.label}\``;
 		}
+		if (to.kind === 'newWindow') this.checkWindowCap();
+		const moving = this.movingTabs(what);
 		const outcome = this.run({ kind: 'moveTabs', what, to });
-		if (to.kind === 'existingWindow') return to.label;
+		if (to.kind === 'existingWindow') {
+			this.store.notifyHandoff(to.label, { tabs: moving, from: this.label });
+			return to.label;
+		}
 		const opened = outcome.events.flatMap((e) =>
 			e.event.kind === 'windowOpened' ? [e.event.window] : [],
 		)[0];
 		if (opened === undefined) throw 'internal error: moving tabs produced no target window';
 		return opened;
+	}
+
+	/** The tabs a move takes, as the plugin reports them to the window they arrive in. */
+	private movingTabs(what: MoveWhat): TabId[] {
+		const w = this.store.window(this.label);
+		if (!w) return [];
+		switch (what.kind) {
+			case 'tabs':
+				return [...what.value];
+			case 'group':
+				return w.tabs.filter((t) => t.group === what.value).map((t) => t.id);
+			case 'pair':
+				return w.pairs.find((p) => p.id === what.value)?.panes ?? [];
+		}
+	}
+
+	async listWindows(): Promise<WindowSummary[]> {
+		return this.store.windowSummaries(this.label);
+	}
+
+	onHandoff(listener: (handoff: Handoff) => void): Unsubscribe {
+		return this.store.listenHandoff(this.label, listener);
 	}
 
 	onEvent(listener: (event: SessionEvent) => void): Unsubscribe {

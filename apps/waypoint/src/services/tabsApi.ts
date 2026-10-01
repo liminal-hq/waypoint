@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import * as session from '@liminal-hq/waypoint-plugin-session';
+import type { Handoff } from '@liminal-hq/waypoint-plugin-session';
 import type { Geometry } from '@liminal-hq/waypoint-protocol/generated/Geometry';
 import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
@@ -18,7 +19,26 @@ import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColou
 import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import type { Unsubscribe } from './vfsClient';
+
+/** How many windows may be open at once; the plugin refuses a window past this (`MAX_WINDOWS` in Rust). */
+export const MAX_WINDOWS = 12;
+
+/** From this many windows on, opening one more tells the person that many are open (`WARN_WINDOWS` in Rust). */
+export const WARN_WINDOWS = 8;
+
+export type { Handoff };
+
+/**
+ * The window cap a rejected command names, or `null` when the rejection is anything else. The
+ * plugin rejects with `{ kind: 'tooManyWindows', limit }` when a window would pass the cap.
+ */
+export function windowLimitOf(error: unknown): number | null {
+	if (typeof error !== 'object' || error === null) return null;
+	const { kind, limit } = error as { kind?: unknown; limit?: unknown };
+	return kind === 'tooManyWindows' && typeof limit === 'number' ? limit : null;
+}
 
 export interface OpenTabOptions {
 	/** Insert after this tab; the end of the strip when omitted. */
@@ -89,6 +109,11 @@ export interface TabsApi {
 	 * not name a label for a new window); resolves to the label of the window they went to.
 	 */
 	moveTabs(what: MoveWhat, to: MoveTo): Promise<string>;
+
+	/** Every window of the session, this one marked `active`. */
+	listWindows(): Promise<WindowSummary[]>;
+	/** Follows the tabs other windows hand to this one. */
+	onHandoff(listener: (handoff: Handoff) => void): Unsubscribe;
 
 	/** Follows every change to this window's session. */
 	onEvent(listener: (event: SessionEvent) => void): Unsubscribe;
@@ -205,17 +230,22 @@ export const tabsApi: TabsApi = {
 	setGeometry: (geometry) => session.setGeometry(geometry),
 	setView: (view) => session.setView(view),
 	moveTabs: (what, to) => session.moveTabs(what, to),
-	onEvent: (listener) => {
-		let unlisten: (() => void) | undefined;
-		let stopped = false;
-		void session.onTabsEvent(listener).then((fn) => {
-			if (stopped) fn();
-			else unlisten = fn;
-		});
-		return () => {
-			stopped = true;
-			unlisten?.();
-			unlisten = undefined;
-		};
-	},
+	listWindows: () => session.listWindows(),
+	onHandoff: (listener) => subscribe(session.onHandoff(listener)),
+	onEvent: (listener) => subscribe(session.onTabsEvent(listener)),
 };
+
+/** Turns a listener registration that resolves later into an unsubscribe that works at once. */
+function subscribe(registration: Promise<() => void>): Unsubscribe {
+	let unlisten: (() => void) | undefined;
+	let stopped = false;
+	void registration.then((fn) => {
+		if (stopped) fn();
+		else unlisten = fn;
+	});
+	return () => {
+		stopped = true;
+		unlisten?.();
+		unlisten = undefined;
+	};
+}
