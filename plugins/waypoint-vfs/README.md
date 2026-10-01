@@ -6,7 +6,7 @@ This is a domain plugin, private to Waypoint (see `docs/architecture/crates-and-
 
 ## Status
 
-Built for local folders. `getStatus()` reports `listing`, `watch` and `places`, plus `polling-fallback` while any open listing is kept current by polling because the operating system's notifications are unavailable. Linux is exercised by tests; the Windows build is type-checked with clippy for `x86_64-pc-windows-gnu` but has not been run on Windows 11.
+Built for local folders. `getStatus()` reports `listing`, `watch` and `places`, `trash-view` when the app has given the plugin a Trash that can be browsed, plus `polling-fallback` while any open listing is kept current by polling because the operating system's notifications are unavailable. Linux is exercised by tests; the Windows build is type-checked with clippy for `x86_64-pc-windows-gnu` but has not been run on Windows 11.
 
 ## Commands
 
@@ -23,6 +23,9 @@ Every command has a typed function in `guest-js`; the app never calls `invoke` i
 | `list_places` (`listPlaces()`)                                            | `Places`: Home and the user folders that exist (Desktop, Documents, Downloads, Pictures, Music, Videos), then the favourites.                                                                                                                         |
 | `add_favourite`, `remove_favourite`, `rename_favourite`, `move_favourite` | Edit the favourites and resolve with the updated `Places`. Adding one that exists, or removing one that does not, is not an error.                                                                                                                    |
 | `get_status` (`getStatus()`)                                              | `PluginStatus` with the features above.                                                                                                                                                                                                               |
+| `get_trash_info` (`getTrashInfo()`)                                       | `TrashInfo`: whether the Trash can be browsed here, why not, and how many items it holds, for the sidebar's Trash place. Reading it lists the Trash.                                                                                                  |
+
+The `trash` scheme (`trash:/`, `trash:/{percent-encoded receipt id}`) is served by a read-only provider over a `TrashSource` the app gives the plugin with `Vfs::set_trash_source` (plugins never call each other); without one, opening it is `unsupported`. Its snapshots are `readOnly` with layout `trash`, and `open_entry` refuses Trash items with `unsupported`.
 
 Handles are numbered from 1 per plugin instance and belong to the window that opened them: another window's handle is `staleHandle`, and every listing of a window is closed (scan cancelled, watcher stopped) when that window is destroyed.
 
