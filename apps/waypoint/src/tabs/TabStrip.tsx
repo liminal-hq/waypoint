@@ -29,7 +29,6 @@ import {
 	PlusIcon,
 } from '../icons/AppIcons';
 import { announce, clearAnnouncement, useAnnouncement } from './announcer';
-import { dropIndex, shiftFor, type Span } from './reorder';
 import { chipDomId, GroupChip } from './GroupChip';
 import { GroupMenu } from './GroupMenu';
 import {
@@ -39,18 +38,13 @@ import {
 	useGroupLimitWarning,
 	useRenaming,
 } from './groupActions';
-import {
-	buildStrip,
-	hiddenActiveGroup,
-	landingIndex,
-	measureSpans,
-	stepTarget,
-	type StripItem,
-} from './groupLayout';
+import { buildStrip, hiddenActiveGroup, stepTarget, type StripItem } from './groupLayout';
 import { colourMessageId } from './tabColours';
 import { pairOfTab } from './pairLayout';
 import { PairJoint, pairName, pairSlotAttributes } from './PairPill';
 import { tabDomId, TAB_PANEL_ID } from './tabIds';
+import { TabDragPill } from './TabDragPill';
+import { useTabDrag } from './useTabDrag';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
 import { PlusMenu, TabContextMenu } from './TabMenus';
@@ -58,9 +52,6 @@ import { TabSwitcher } from './TabSwitcher';
 import { useTabTitle } from './tabTitle';
 import { useClosedTabs } from './useClosedTabs';
 import styles from './TabStrip.module.css';
-
-/** The pointer has to move this far before a press on a tab becomes a drag. */
-const DRAG_THRESHOLD_PX = 5;
 
 /** A pinned tab's width plus the gap after it: where the next pinned tab sticks, and the scroll padding. */
 const PINNED_STRIDE_PX = 38;
@@ -88,16 +79,6 @@ type MenuState =
 	  }
 	| { kind: 'plus'; position: MenuPosition; keyboard: boolean; returnTo: HTMLElement | null };
 
-interface DragState {
-	id: TabId;
-	from: number;
-	startX: number;
-	dx: number;
-	dragging: boolean;
-	spans: Span[];
-	to: number;
-}
-
 export function TabStrip() {
 	const snapshot = useTabsSnapshot();
 	const actions = useTabActions();
@@ -107,15 +88,9 @@ export function TabStrip() {
 	const scroller = useRef<HTMLDivElement | null>(null);
 	const [overflow, setOverflow] = useState({ left: false, right: false });
 	const [focused, setFocused] = useState<TabId | null>(null);
-	const [drag, setDragState] = useState<DragState | null>(null);
-	// The latest drag, for handlers that can run before React has rendered the last update.
-	const dragRef = useRef<DragState | null>(null);
-	const setDrag = (next: DragState | null) => {
-		dragRef.current = next;
-		setDragState(next);
-	};
+	// Dragging is the engine's (`tabDrag.ts`); the strip only starts it and draws what it reports.
+	const drag = useTabDrag(scroller);
 	const announcement = useAnnouncement();
-	const suppressClick = useRef(false);
 	const layout = buildStrip(snapshot);
 	const groupActions = useGroupActions();
 	const renaming = useRenaming();
@@ -363,64 +338,14 @@ export function TabStrip() {
 	const openPlusMenu = (position: MenuPosition, keyboard: boolean) =>
 		openMenu({ kind: 'plus', position, keyboard, returnTo: plusButton.current });
 
-	const onPointerDown = (event: PointerEvent<HTMLDivElement>, id: TabId, index: number) => {
+	const onPointerDown = (event: PointerEvent<HTMLDivElement>, id: TabId) => {
 		if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
-		const spans = scroller.current ? measureSpans(scroller.current, tabs) : [];
-		event.currentTarget.setPointerCapture?.(event.pointerId);
-		setDrag({ id, from: index, startX: event.clientX, dx: 0, dragging: false, spans, to: index });
+		drag.beginTab(event, id);
 	};
-
-	const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-		const drag = dragRef.current;
-		if (!drag) return;
-		const dx = event.clientX - drag.startX;
-		const dragging = drag.dragging || Math.abs(dx) >= DRAG_THRESHOLD_PX;
-		if (!dragging) return;
-		const origin = drag.spans[drag.from];
-		const centre = origin ? (origin.left + origin.right) / 2 + dx : event.clientX;
-		// Where the session will really leave the tab: it stays on its side of the pinned boundary,
-		// a grouped tab stays in its group, and a drop into another group's run lands beside the group.
-		const to = landingIndex(
-			tabs,
-			drag.from,
-			dropIndex(drag.spans, drag.from, centre),
-			snapshot?.pairs,
-		);
-		setDrag({ ...drag, dx, dragging, to });
-	};
-
-	const endDrag = (commit: boolean) => {
-		const drag = dragRef.current;
-		if (drag?.dragging) {
-			suppressClick.current = true;
-			if (commit && drag.to !== drag.from) actions.move(drag.id, drag.to);
-			// The click that ends a drag is not a click on the tab; drop the flag if none follows.
-			setTimeout(() => {
-				suppressClick.current = false;
-			}, 0);
-		}
-		setDrag(null);
-	};
-
-	// Escape abandons a drag in progress.
-	useEffect(() => {
-		if (!drag?.dragging) return;
-		const onKey = (event: globalThis.KeyboardEvent) => {
-			if (event.key === 'Escape') {
-				event.stopPropagation();
-				suppressClick.current = true;
-				setDrag(null);
-			}
-		};
-		window.addEventListener('keydown', onKey, true);
-		return () => window.removeEventListener('keydown', onKey, true);
-	}, [drag?.dragging]);
 
 	const onSlotClick = (id: TabId) => {
-		if (suppressClick.current) {
-			suppressClick.current = false;
-			return;
-		}
+		// The click that ends a drag is not a click on the tab.
+		if (drag.consumeClick()) return;
 		actions.activate(id);
 	};
 
@@ -447,6 +372,9 @@ export function TabStrip() {
 			<div
 				ref={scroller}
 				className={styles.scroller}
+				// A pane header's drag to the strip finds it here.
+				data-strip=""
+
 				style={{ '--wp-pinned-width': `${layout.pinSlots * PINNED_STRIDE_PX}px` } as CSSProperties}
 				onScroll={measureOverflow}
 				onWheel={(event) => {
@@ -456,23 +384,24 @@ export function TabStrip() {
 					}
 				}}
 			>
-				<div role="tablist" aria-label={t('tabs.strip.label')} className={styles.tablist}>
+				<div
+					role="tablist"
+					aria-label={t('tabs.strip.label')}
+					className={styles.tablist}
+					data-drag={drag.view.phase ?? undefined}
+				>
 					{layout.items.map((item, at) => {
 						if (item.kind === 'chip') {
-							const chipDragShift =
-								drag?.dragging && drag.from !== item.firstIndex
-									? shiftFor(
-											item.firstIndex,
-											drag.from,
-											drag.to,
-											(drag.spans[drag.from]?.right ?? 0) - (drag.spans[drag.from]?.left ?? 0),
-										)
-									: 0;
+							const first = tabs[item.firstIndex];
+							const chipDrag = drag.view.chip(item.group.id, first?.id ?? -1);
 							return (
 								<GroupChip
 									key={`group-${item.group.id}`}
 									item={item}
-									shift={chipDragShift}
+									shift={chipDrag.shift}
+									dragging={chipDrag.dragging}
+									onGrab={(event) => drag.beginGroup(event, item.group.id)}
+									suppressClick={drag.consumeClick}
 									tabStop={chipStop === item.group.id}
 									renaming={renaming === item.group.id}
 									onFocus={() => setFocusedChip(item.group.id)}
@@ -485,11 +414,7 @@ export function TabStrip() {
 							);
 						}
 						const { tab, index } = item;
-						const dragged = drag?.dragging && drag.id === tab.id;
-						const width = drag
-							? (drag.spans[drag.from]?.right ?? 0) - (drag.spans[drag.from]?.left ?? 0)
-							: 0;
-						const shift = drag?.dragging ? shiftFor(index, drag.from, drag.to, width) : 0;
+						const slotDrag = drag.view.slot(tab.id);
 						return (
 							<div
 								key={tab.id}
@@ -503,19 +428,21 @@ export function TabStrip() {
 								data-group={item.group ? item.group.id : undefined}
 								data-group-first={item.groupFirst ? '' : undefined}
 								data-group-last={item.groupLast ? '' : undefined}
-								data-dragging={dragged ? '' : undefined}
+								data-dragging={slotDrag.dragging ? '' : undefined}
+								data-ring={slotDrag.ring}
+								data-bridge={slotDrag.bridge}
 								{...pairSlotAttributes(snapshot, tab.id)}
 								style={
 									{
-										'--wp-tab-shift': `${dragged ? (drag?.dx ?? 0) : shift}px`,
+										'--wp-tab-shift': slotDrag.shift ?? '0px',
+										'--wp-tab-lift': slotDrag.dragging
+											? 'clamp(-6px, var(--wp-drag-dy, 0px), 10px)'
+											: '0px',
 										'--wp-pin-index': item.pinIndex,
 										'--wp-group-accent': `var(--wp-tab-colour-${item.group?.colour ?? 'grey'})`,
 									} as CSSProperties
 								}
-								onPointerDown={(event) => onPointerDown(event, tab.id, index)}
-								onPointerMove={onPointerMove}
-								onPointerUp={() => endDrag(true)}
-								onPointerCancel={() => endDrag(false)}
+								onPointerDown={(event) => onPointerDown(event, tab.id)}
 								onMouseDown={(event) => {
 									// Stops middle-click from starting the platform's autoscroll.
 									if (event.button === 1) event.preventDefault();
@@ -541,11 +468,22 @@ export function TabStrip() {
 										pair={pairOfTab(snapshot?.pairs ?? [], tab.id)!}
 										snapshot={snapshot}
 										tab={tab.id}
+										onGrab={(event) => {
+											if (event.button === 0) drag.beginTab(event, tab.id);
+										}}
 									/>
 								) : null}
 							</div>
 						);
 					})}
+					{drag.view.marker ? (
+						<span
+							className={styles.marker}
+							data-kind={drag.view.marker.kind}
+							aria-hidden="true"
+							style={{ left: drag.view.marker.left, width: drag.view.marker.width || undefined }}
+						/>
+					) : null}
 				</div>
 			</div>
 			<button
@@ -623,6 +561,7 @@ export function TabStrip() {
 			<div className={styles.srOnly} role="status" aria-live="polite">
 				{announcement}
 			</div>
+			<TabDragPill />
 			{limitWarning ? (
 				<div className={styles.warning} role="note">
 					{limitWarning.text}

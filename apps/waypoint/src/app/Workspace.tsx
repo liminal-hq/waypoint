@@ -39,6 +39,7 @@ import { useNavigation } from '../nav/useNavigation';
 import type { EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
+import { TabDragProvider } from '../tabs/TabDragContext';
 import { TabStrip } from '../tabs/TabStrip';
 import { activePair, visibleTabs } from '../tabs/pairLayout';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
@@ -73,11 +74,14 @@ export function Workspace({ startup }: { startup?: WorkspaceStartup }) {
 	return (
 		<ViewStoreContext.Provider value={viewStore}>
 			<SidebarStoreContext.Provider value={sidebarStore}>
-				<WorkspaceBody
-					viewStore={viewStore}
-					sidebarStore={sidebarStore}
-					startupNotice={startup?.notice ?? null}
-				/>
+				{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
+				<TabDragProvider>
+					<WorkspaceBody
+						viewStore={viewStore}
+						sidebarStore={sidebarStore}
+						startupNotice={startup?.notice ?? null}
+					/>
+				</TabDragProvider>
 			</SidebarStoreContext.Provider>
 		</ViewStoreContext.Provider>
 	);

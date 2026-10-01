@@ -7,7 +7,15 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
-import { Fragment, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+	Fragment,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+	type PointerEvent,
+} from 'react';
 import { FileView } from '../browse/FileView';
 import type { MenuRequest } from '../browse/useListInteractions';
 import type { ListingSession, SessionState } from '../browse/useListingSession';
@@ -16,10 +24,12 @@ import { tf } from '../i18n/messages';
 import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry, type EntryAction, type EntryOpeners } from '../nav/useOpenEntry';
 import { PaneDivider } from '../tabs/PaneDivider';
+import { PaneEdgeZone } from '../tabs/PaneEdgeZone';
 import { PaneHeader } from '../tabs/PaneHeader';
 import { clearPaneFocus, subscribePaneFocus, wantedPaneFocus } from '../tabs/paneFocus';
 import { equalSizes } from '../tabs/pairLayout';
 import { usePairActions } from '../tabs/pairActions';
+import { useSeparateDrag } from '../tabs/paneDrag';
 import { useTabActions } from '../tabs/tabActions';
 import { useTabTitle } from '../tabs/tabTitle';
 import styles from './PaneArea.module.css';
@@ -66,6 +76,7 @@ export function PaneArea({
 }: PaneAreaProps) {
 	const pairs = usePairActions();
 	const tabActions = useTabActions();
+	const grip = useSeparateDrag(pair?.id);
 	const [live, setLive] = useState<LiveSizes | null>(null);
 	const area = useRef<HTMLDivElement | null>(null);
 	const paired = pair !== undefined && panes.length > 1;
@@ -108,7 +119,13 @@ export function PaneArea({
 	});
 
 	return (
-		<div ref={area} className={styles.area} data-layout={paired ? pair.layout : 'single'}>
+		<div
+			ref={area}
+			className={styles.area}
+			data-layout={paired ? pair.layout : 'single'}
+			// A tab drag measures this once, when it begins, for the edge zones.
+			data-pane-area=""
+		>
 			{panes.map((tab, index) => (
 				<Fragment key={tab.id}>
 					{paired && index > 0 ? (
@@ -136,9 +153,11 @@ export function PaneArea({
 						onMenu={onMenu}
 						onActivate={tabActions.activate}
 						onClose={pairs.closePane}
+						onGrip={grip}
 					/>
 				</Fragment>
 			))}
+			<PaneEdgeZone />
 		</div>
 	);
 }
@@ -157,6 +176,7 @@ interface PaneProps {
 	onMenu: (request: PaneMenuRequest) => void;
 	onActivate: (tab: TabId) => void;
 	onClose: (tab: TabId) => void;
+	onGrip: (event: PointerEvent<HTMLElement>) => void;
 }
 
 function Pane({
@@ -173,6 +193,7 @@ function Pane({
 	onMenu,
 	onActivate,
 	onClose,
+	onGrip,
 }: PaneProps) {
 	const title = useTabTitle(tab);
 	// This pane's own navigation, so opening a folder here moves this pane's tab even for the
@@ -196,7 +217,9 @@ function Pane({
 			onPointerDownCapture={activate}
 			onFocusCapture={activate}
 		>
-			{paired ? <PaneHeader tab={tab} active={active} onClose={() => onClose(tab.id)} /> : null}
+			{paired ? (
+				<PaneHeader tab={tab} active={active} onClose={() => onClose(tab.id)} onGrip={onGrip} />
+			) : null}
 			<div className={styles.content}>
 				<FileView
 					state={state}

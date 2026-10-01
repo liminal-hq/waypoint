@@ -7,7 +7,14 @@ import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types
 import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
-import { useRef, useState, type KeyboardEvent, type MouseEvent, type SyntheticEvent } from 'react';
+import {
+	useRef,
+	useState,
+	type KeyboardEvent,
+	type MouseEvent,
+	type PointerEvent,
+	type SyntheticEvent,
+} from 'react';
 import { t, tf } from '../i18n/messages';
 import { usePairActions } from './pairActions';
 import { pairOfTab } from './pairLayout';
@@ -51,16 +58,18 @@ interface PairJointProps {
 	snapshot: SessionSnapshot | null;
 	/** The tab whose slot holds this joint (the joint sits on its trailing edge). */
 	tab: TabId;
+	/** A press on the joint may become a drag of the whole pair. */
+	onGrab?: (event: PointerEvent<HTMLButtonElement>) => void;
 }
 
 /**
  * The seam between two panes' tabs, drawn on the trailing edge of the first of them (and of each
  * middle one). Right-click, the Menu key or Shift+F10 opens the pair menu (D30), double-click
  * resets the pane sizes, and a plain click does nothing. The same actions are on either half's
- * tab menu, which is the keyboard route: the joint itself is not a tab stop. Dragging the joint to
- * move both tabs arrives with the tab drag engine.
+ * tab menu, which is the keyboard route: the joint itself is not a tab stop. Pressing and dragging
+ * the joint moves both tabs, as dragging either half does (the strip's drag engine).
  */
-export function PairJoint({ pair, snapshot, tab }: PairJointProps) {
+export function PairJoint({ pair, snapshot, tab, onGrab }: PairJointProps) {
 	const actions = usePairActions();
 	const button = useRef<HTMLButtonElement | null>(null);
 	const lastKeyboardMenu = useRef(0);
@@ -97,7 +106,10 @@ export function PairJoint({ pair, snapshot, tab }: PairJointProps) {
 				aria-label={name}
 				aria-haspopup="menu"
 				title={`${name} — ${t('pair.menu.label')}`}
-				onPointerDown={own}
+				onPointerDown={(event) => {
+					onGrab?.(event);
+					own(event);
+				}}
 				onClick={own}
 				onAuxClick={own}
 				onMouseDown={own}

@@ -41,6 +41,10 @@
 	--wp-title-bar-opacity: 1;
 	--wp-window-radius: 12px;
 
+	/* Tab drag motion (D82): slides, rings and brackets last this long, and the split hold draws over its own. */
+	--wp-drag-motion: 140ms;
+	--wp-drag-hold-split: 450ms;
+
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
 	--wp-row-height: 28px;
 }
@@ -160,4 +164,10 @@ select,
 [data-selectable] {
 	-webkit-user-select: text;
 	user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--wp-drag-motion: 0ms;
+	}
 }

@@ -17,6 +17,18 @@
 	background: color-mix(in srgb, var(--wp-accent) 10%, var(--wp-bg-window));
 }
 
+.gripHandle {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 24px;
+	margin-inline-start: -4px;
+	cursor: grab;
+	touch-action: none;
+}
+
 .grip {
 	flex: none;
 	color: var(--wp-text-muted);

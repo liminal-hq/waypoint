@@ -534,11 +534,30 @@ describe('reordering around groups', () => {
 			this: HTMLElement,
 		) {
 			const index = this.getAttribute('data-index');
+			// A chip sits left of the tabs, out of the way of the tabs' spans.
+			if (this.hasAttribute('data-chip')) {
+				return { left: -100, right: -10, top: 0, bottom: 30, width: 90, height: 30 } as DOMRect;
+			}
 			const left = index === null ? 0 : Number(index) * 100;
 			return { left, right: left + 100, top: 0, bottom: 30, width: 100, height: 30 } as DOMRect;
 		});
 
-	it('keeps a dragged group member inside its group', async () => {
+	it('keeps a dragged group member inside its group while it is within the group', async () => {
+		stubSpans();
+		const h = await renderWorkspace();
+		await withGroup(h);
+		const slot = tabs()[0]!.parentElement!;
+		fireEvent.pointerDown(slot, { button: 0, clientX: 50, pointerId: 1 });
+		fireEvent.pointerMove(slot, { clientX: 150, pointerId: 1 });
+		fireEvent.pointerUp(slot, { clientX: 150, pointerId: 1 });
+		// Dragged to the group's last place it stays in the group.
+		await waitFor(async () =>
+			expect((await snapshot(h)).tabs.map((tab) => tab.id)).toEqual([2, 1, 3]),
+		);
+		expect((await snapshot(h)).tabs[1]!.group).toBe(1);
+	});
+
+	it('takes a group member out of its group when it is dragged past the group’s end', async () => {
 		stubSpans();
 		const h = await renderWorkspace();
 		await withGroup(h);
@@ -546,11 +565,11 @@ describe('reordering around groups', () => {
 		fireEvent.pointerDown(slot, { button: 0, clientX: 50, pointerId: 1 });
 		fireEvent.pointerMove(slot, { clientX: 290, pointerId: 1 });
 		fireEvent.pointerUp(slot, { clientX: 290, pointerId: 1 });
-		// Dragged past the group's own end it takes the last place in the group.
+		// Past the span it leaves the group, then lands where it was dropped: after the ungrouped tab.
 		await waitFor(async () =>
-			expect((await snapshot(h)).tabs.map((tab) => tab.id)).toEqual([2, 1, 3]),
+			expect((await snapshot(h)).tabs.map((tab) => tab.id)).toEqual([2, 3, 1]),
 		);
-		expect((await snapshot(h)).tabs[1]!.group).toBe(1);
+		expect((await snapshot(h)).tabs.map((tab) => tab.group)).toEqual([1, null, null]);
 	});
 
 	it('drops an ungrouped tab beside a group, never inside it', async () => {

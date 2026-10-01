@@ -10,6 +10,7 @@ import {
 	type CSSProperties,
 	type KeyboardEvent,
 	type MouseEvent,
+	type PointerEvent,
 } from 'react';
 import { t, tf, tn } from '../i18n/messages';
 import { PinIcon } from '../icons/AppIcons';
@@ -19,9 +20,15 @@ import styles from './GroupChip.module.css';
 
 interface GroupChipProps {
 	item: ChipItem;
+	/** How far a drag in progress has moved the chip, as a CSS length. */
+	shift: string;
+	/** The chip's group is the one being dragged. */
+	dragging: boolean;
+	/** A press on the chip may become a drag of the whole group. */
+	onGrab: (event: PointerEvent<HTMLElement>) => void;
+	/** True once after a drag ends: the click that follows it must not toggle the group. */
+	suppressClick: () => boolean;
 	/** This chip holds the strip's roving tab stop. */
-	/** How far a drag in progress has pushed the chip aside, in pixels. */
-	shift: number;
 	tabStop: boolean;
 	renaming: boolean;
 	onFocus: () => void;
@@ -51,6 +58,9 @@ export function chipDomId(group: number): string {
 export function GroupChip({
 	item,
 	shift,
+	dragging,
+	onGrab,
+	suppressClick,
 	tabStop,
 	renaming,
 	onFocus,
@@ -93,9 +103,13 @@ export function GroupChip({
 			data-colour={group.colour ?? undefined}
 			data-collapsed={group.collapsed ? '' : undefined}
 			data-over-limit={overLimit ? '' : undefined}
+			data-dragging={dragging ? '' : undefined}
 			style={
-				{ '--wp-pin-index': item.pinIndex, transform: `translateX(${shift}px)` } as CSSProperties
+				{ '--wp-pin-index': item.pinIndex, transform: `translateX(${shift})` } as CSSProperties
 			}
+			onPointerDown={(event) => {
+				if (event.button === 0 && !renaming) onGrab(event);
+			}}
 			onContextMenu={onContextMenu}
 		>
 			{renaming ? (
@@ -132,8 +146,8 @@ export function GroupChip({
 						onKeyDown(event);
 					}}
 					onClick={(event) => {
-						// The second click of a double-click is the rename's, not another toggle.
-						if (event.detail > 1) return;
+						// The click that ends a drag, and the second click of a double-click, are not toggles.
+						if (suppressClick() || event.detail > 1) return;
 						collapsedBeforeClick.current = group.collapsed;
 						onSetCollapsed(!group.collapsed);
 					}}
