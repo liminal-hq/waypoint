@@ -83,7 +83,7 @@ export function getPayload<T = unknown>(): Promise<T | null> {
 	return cmd<T | null>('get_payload');
 }
 
-/** Listens, in the ghost window, for the drag's payload as it is sent and updated. */
+/** Listens, in the ghost window, for the drag's payload as it is sent and updated; `null` means the drag ended and the card should clear. */
 export function onPayload<T = unknown>(handler: (_payload: T) => void): Promise<UnlistenFn> {
 	return getCurrentWebviewWindow().listen<T>(PAYLOAD_EVENT, (event) => handler(event.payload));
 }

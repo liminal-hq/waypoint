@@ -28,6 +28,7 @@ export function readGhostPayload(raw: unknown): GhostPayload | null {
 /**
  * The card is drawn only while a drag has sent a payload, so the pre-created window stays empty and transparent between drags.
  * It reads the current payload once on mount (the page may load after the drag began) and then follows the payload events.
+ * The plugin sends a `null` payload when a drag ends, which clears the card before the window is next shown.
  */
 export function TearGhostScreen() {
 	const [payload, setPayload] = useState<GhostPayload | null>(null);

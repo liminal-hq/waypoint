@@ -3,8 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Handler = (_payload: unknown) => void;
 
@@ -38,6 +38,8 @@ describe('readGhostPayload', () => {
 });
 
 describe('TearGhostScreen', () => {
+	afterEach(cleanup);
+
 	beforeEach(() => {
 		mocks.handler = null;
 		mocks.unlisten.mockClear();
@@ -60,6 +62,21 @@ describe('TearGhostScreen', () => {
 		act(() => mocks.handler?.({ title: 'Photos' }));
 		expect(screen.getByText('Photos')).toBeTruthy();
 		expect(screen.queryByText('Documents')).toBeNull();
+	});
+
+	it('clears the card when the drag ends, so the next drag never shows the last one', async () => {
+		render(<TearGhostScreen />);
+		await waitFor(() => expect(mocks.handler).not.toBeNull());
+		act(() => mocks.handler?.({ title: 'Documents' }));
+		expect(screen.getByText('Documents')).toBeTruthy();
+		// The plugin sends a null payload when a drag ends.
+		act(() => mocks.handler?.(null));
+		expect(screen.queryByTestId('tear-ghost-card')).toBeNull();
+		act(() => mocks.handler?.({ title: 'Photos' }));
+		expect(screen.queryByText('Documents')).toBeNull();
+		// An unusable payload does not keep the old card either.
+		act(() => mocks.handler?.({ title: 4 }));
+		expect(screen.queryByTestId('tear-ghost-card')).toBeNull();
 	});
 
 	it('picks up a payload that was sent before the page loaded', async () => {

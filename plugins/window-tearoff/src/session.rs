@@ -31,10 +31,21 @@ use crate::{
 };
 
 /// A drag in progress.
+#[derive(Clone)]
 struct Active {
     source: String,
     stop: Arc<AtomicBool>,
     machine: Arc<Mutex<FollowMachine>>,
+}
+
+/// What `end` found.
+enum EndTake {
+    /// The caller's drag, now ended.
+    Ended(Active),
+    /// Another window's drag, left running.
+    NotYours,
+    /// No drag in progress.
+    Nothing,
 }
 
 /// The state the plugin keeps for the whole session.
@@ -134,18 +145,64 @@ impl Tearoff {
     /// Forgets a destroyed window's regions, and ends the drag if that window began it.
     pub fn window_destroyed<R: Runtime>(&self, app: &AppHandle<R>, label: &str) {
         lock(&self.regions).remove(label);
-        let ended = {
-            let mut active = lock(&self.active);
-            match active.as_ref() {
-                Some(current) if current.source == label => active.take(),
-                _ => None,
-            }
-        };
-        if let Some(ended) = ended {
-            ended.stop.store(true, Ordering::Release);
-            self.guard.finish();
-            self.hide_ghost(app);
+        if let EndTake::Ended(_) = self.take_for_end(label) {
+            self.clear_drag(app);
         }
+    }
+
+    /// Claims the single drag slot for `source` and registers the drag, before anything is awaited,
+    /// so an `end` that arrives while `begin` is still working finds the drag and cancels it.
+    /// `None` when a drag is already running.
+    fn claim(&self, source: &str) -> Option<Active> {
+        if !self.guard.try_start() {
+            return None;
+        }
+        let active = Active {
+            source: source.to_string(),
+            stop: Arc::new(AtomicBool::new(false)),
+            machine: Arc::new(Mutex::new(FollowMachine::new(TIMEOUT, STALE_AFTER))),
+        };
+        *lock(&self.active) = Some(active.clone());
+        Some(active)
+    }
+
+    /// Ends the drag if `source` owns it: stops its follow loop and frees the slot. A drag belongs
+    /// to the window that began it, so another window's call leaves it running.
+    fn take_for_end(&self, source: &str) -> EndTake {
+        let mut slot = lock(&self.active);
+        match slot.as_ref() {
+            None => EndTake::Nothing,
+            Some(current) if current.source != source => EndTake::NotYours,
+            Some(_) => {
+                let ended = slot.take().expect("checked above");
+                ended.stop.store(true, Ordering::Release);
+                self.guard.finish();
+                EndTake::Ended(ended)
+            }
+        }
+    }
+
+    /// Ends the drag identified by its stop token (the follow thread's timeout, or a `begin` that
+    /// failed), unless `end` already did.
+    fn take_by_token(&self, stop: &Arc<AtomicBool>) -> Option<Active> {
+        let mut slot = lock(&self.active);
+        match slot.as_ref() {
+            Some(current) if Arc::ptr_eq(&current.stop, stop) => {
+                let ended = slot.take();
+                stop.store(true, Ordering::Release);
+                self.guard.finish();
+                ended
+            }
+            _ => None,
+        }
+    }
+
+    /// After a drag: hides the ghost, forgets the payload and tells the ghost page to clear its
+    /// card, so the next drag never shows the last one.
+    fn clear_drag<R: Runtime>(&self, app: &AppHandle<R>) {
+        self.hide_ghost(app);
+        *lock(&self.payload) = None;
+        self.emit_payload(app, &Value::Null);
     }
 
     fn hide_ghost<R: Runtime>(&self, app: &AppHandle<R>) {
@@ -178,9 +235,13 @@ impl Tearoff {
         if !has(&status, FEATURE_GHOST) || !has(&status, FEATURE_CURSOR_FOLLOW) {
             return report(BeginState::NoGhost);
         }
-        if !self.guard.try_start() {
+        let Some(active) = self.claim(source.label()) else {
             return report(BeginState::AlreadyActive);
-        }
+        };
+
+        // The payload goes out before the ghost is shown, so the page never draws the last drag's.
+        *lock(&self.payload) = Some(payload.clone());
+        self.emit_payload(app, &payload);
 
         let scale = source.scale_factor().unwrap_or(1.0);
         let ghost_label = self.options.ghost_label.clone();
@@ -196,23 +257,22 @@ impl Tearoff {
         })
         .await
         .flatten();
+        // An `end` that came in while the ghost was being shown has already freed the slot and
+        // cleared the payload; the ghost it hid may have been shown again since, so hide it once more.
+        if active.stop.load(Ordering::Acquire) {
+            if !self.guard.is_active() {
+                self.clear_drag(app);
+            }
+            return report(BeginState::NoGhost);
+        }
         let Some(cursor) = started else {
-            self.guard.finish();
+            if self.take_by_token(&active.stop).is_some() {
+                self.clear_drag(app);
+            }
             return report(BeginState::NoGhost);
         };
 
-        *lock(&self.payload) = Some(payload.clone());
-        self.emit_payload(app, &payload);
-
-        let stop = Arc::new(AtomicBool::new(false));
-        let mut machine = FollowMachine::new(TIMEOUT, STALE_AFTER);
-        machine.tick(std::time::Duration::ZERO, Some(cursor), true);
-        let machine = Arc::new(Mutex::new(machine));
-        *lock(&self.active) = Some(Active {
-            source: source.label().to_string(),
-            stop: stop.clone(),
-            machine: machine.clone(),
-        });
+        lock(&active.machine).tick(std::time::Duration::ZERO, Some(cursor), true);
         spawn_follow(
             app.clone(),
             FollowJob {
@@ -220,8 +280,8 @@ impl Tearoff {
                 ghost: self.options.ghost_label.clone(),
                 grab_offset,
                 scale,
-                stop,
-                machine,
+                stop: active.stop,
+                machine: active.machine,
             },
         );
         report(BeginState::Following)
@@ -243,13 +303,19 @@ impl Tearoff {
         source: &WebviewWindow<R>,
         outcome: Outcome,
     ) -> DropReport {
-        let ended = lock(&self.active).take();
-        if let Some(ended) = &ended {
-            ended.stop.store(true, Ordering::Release);
-            self.guard.finish();
-            self.hide_ghost(app);
-        }
-        *lock(&self.payload) = None;
+        // Only the window that began the drag can end it. Another window's call still reports the
+        // cursor and the hit, as a call with no drag does, but leaves the drag and its ghost alone.
+        let ended = match self.take_for_end(source.label()) {
+            EndTake::Ended(ended) => {
+                self.clear_drag(app);
+                Some(ended)
+            }
+            EndTake::Nothing => {
+                *lock(&self.payload) = None;
+                None
+            }
+            EndTake::NotYours => None,
+        };
 
         let scale_factor = source.scale_factor().unwrap_or(1.0);
         let probes = *self.probes.lock().await;
@@ -401,18 +467,79 @@ fn finish_on_timeout<R: Runtime>(app: &AppHandle<R>, job: &FollowJob) {
     let Some(state) = app.try_state::<Tearoff>() else {
         return;
     };
-    let ended = {
-        let mut active = lock(&state.active);
-        match active.as_ref() {
-            Some(current) if Arc::ptr_eq(&current.stop, &job.stop) => active.take(),
-            _ => None,
-        }
-    };
-    if let Some(ended) = ended {
-        ended.stop.store(true, Ordering::Release);
-        state.guard.finish();
-        state.hide_ghost(app);
-        *lock(&state.payload) = None;
+    if state.take_by_token(&job.stop).is_some() {
+        state.clear_drag(app);
         let _ = app.emit_to(job.source.as_str(), TIMEOUT_EVENT, ());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn tearoff() -> Tearoff {
+        Tearoff::new(Options::default())
+    }
+
+    #[test]
+    fn an_end_during_a_pending_begin_cancels_it() {
+        let state = tearoff();
+        // `begin` claims the slot before it awaits the main thread ...
+        let pending = state.claim("main-1").expect("the slot is free");
+        assert!(state.guard.is_active());
+        assert!(state.claim("main-2").is_none(), "one drag at a time");
+        // ... so an `end` arriving meanwhile finds the drag and stops it.
+        assert!(matches!(
+            state.take_for_end("main-1"),
+            EndTake::Ended(ended) if Arc::ptr_eq(&ended.stop, &pending.stop)
+        ));
+        assert!(
+            pending.stop.load(Ordering::Acquire),
+            "the begin sees the cancellation when it resumes"
+        );
+        assert!(!state.guard.is_active());
+        assert!(state.claim("main-2").is_some(), "the slot is free again");
+    }
+
+    #[test]
+    fn only_the_window_that_began_a_drag_can_end_it() {
+        let state = tearoff();
+        let drag = state.claim("main-1").unwrap();
+        assert!(matches!(state.take_for_end("main-2"), EndTake::NotYours));
+        assert!(state.guard.is_active());
+        assert!(!drag.stop.load(Ordering::Acquire));
+        assert!(matches!(state.take_for_end("main-1"), EndTake::Ended(_)));
+        assert!(matches!(state.take_for_end("main-1"), EndTake::Nothing));
+    }
+
+    #[test]
+    fn the_timeout_ends_only_its_own_drag() {
+        let state = tearoff();
+        let first = state.claim("main-1").unwrap();
+        assert!(matches!(state.take_for_end("main-1"), EndTake::Ended(_)));
+        let second = state.claim("main-1").unwrap();
+        assert!(state.take_by_token(&first.stop).is_none());
+        assert!(state.take_by_token(&second.stop).is_some());
+        assert!(!state.guard.is_active());
+    }
+
+    #[test]
+    fn a_destroyed_window_ends_its_drag_and_forgets_its_payload() {
+        use tauri::test::{mock_builder, mock_context, noop_assets};
+        let app = mock_builder()
+            .build(mock_context(noop_assets()))
+            .expect("the mock app builds");
+        let state = tearoff();
+        state.claim("main-1").unwrap();
+        *lock(&state.payload) = Some(json!({ "title": "Documents" }));
+        state.window_destroyed(app.handle(), "main-2");
+        assert!(
+            state.payload().is_some(),
+            "another window's destruction changes nothing"
+        );
+        state.window_destroyed(app.handle(), "main-1");
+        assert_eq!(state.payload(), None);
+        assert!(!state.guard.is_active());
     }
 }

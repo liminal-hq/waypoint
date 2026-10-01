@@ -95,7 +95,7 @@ render(await getPayload()); // the page may have loaded after `begin`
 
 `begin` places the ghost at `cursor - grabOffset × scaleFactor`, using the calling window's own scale factor, so the ghost lands where the dragged thing was grabbed. It returns `{ state: 'following' }`, `{ state: 'noGhost' }` where no ghost can be shown (nothing was started, but `end` still reports the cursor and hit where it can), or `{ state: 'alreadyActive' }`. The follow thread moves the ghost every 16 ms and ends a drag that runs 30 seconds with a `window-tearoff://timeout` event to the window that began it. Only one drag runs at a time.
 
-`end` hides the ghost and returns a `DropReport`: the cursor in physical pixels (or `null` where the system reports none), the source window's scale factor, whether the cursor value had gone stale, and the hit. A cancelled drag never has a hit.
+`end` hides the ghost and returns a `DropReport`: the cursor in physical pixels (or `null` where the system reports none), the source window's scale factor, whether the cursor value had gone stale, and the hit. A cancelled drag never has a hit. A drag belongs to the window that began it: another window's `end` still reports the cursor and hit but leaves the drag running. Ending a drag (by `end`, the timeout or the source window closing) also clears the payload and sends the ghost a `null` payload, so the ghost page can clear its card; an `end` that arrives while `begin` is still showing the ghost cancels that `begin`, which then reports `noGhost`.
 
 ## Features and status
 
@@ -170,11 +170,11 @@ interface PluginStatus {
 
 ## Events
 
-| Event                           | Sent to                      | Payload     |
-| ------------------------------- | ---------------------------- | ----------- |
-| `window-tearoff://payload`      | the ghost window             | the payload |
-| `window-tearoff://timeout`      | the window that began a drag | none        |
-| `window-tearoff://cursor-stale` | the window that began a drag | `boolean`   |
+| Event                           | Sent to                      | Payload                                    |
+| ------------------------------- | ---------------------------- | ------------------------------------------ |
+| `window-tearoff://payload`      | the ghost window             | the payload, or `null` when the drag ended |
+| `window-tearoff://timeout`      | the window that began a drag | none                                       |
+| `window-tearoff://cursor-stale` | the window that began a drag | `boolean`                                  |
 
 ## Permissions
 

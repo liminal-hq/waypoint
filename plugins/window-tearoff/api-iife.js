@@ -58,7 +58,7 @@ var __TAURI_PLUGIN_WINDOW_TEAROFF__ = (function (exports, core, webviewWindow) {
     function getPayload() {
         return cmd('get_payload');
     }
-    /** Listens, in the ghost window, for the drag's payload as it is sent and updated. */
+    /** Listens, in the ghost window, for the drag's payload as it is sent and updated; `null` means the drag ended and the card should clear. */
     function onPayload(handler) {
         return webviewWindow.getCurrentWebviewWindow().listen(PAYLOAD_EVENT, (event) => handler(event.payload));
     }
