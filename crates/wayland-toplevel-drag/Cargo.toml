@@ -1,0 +1,22 @@
+[package]
+name = "wayland-toplevel-drag"
+version = "0.1.0"
+description = "Drags a real GTK3 toplevel with the pointer on Wayland through xdg-toplevel-drag-v1, on GTK's own connection and data device"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+build = "build.rs"
+
+# The protocol is Linux-only. Elsewhere the crate builds as an empty stub whose `is_supported()` is false.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+thiserror = { workspace = true }
+wayland-backend = { version = "0.3", features = ["client_system"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+
+[target.'cfg(target_os = "linux")'.build-dependencies]
+cc = "1"

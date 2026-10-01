@@ -4,6 +4,7 @@ members = [
   "crates/waypoint-protocol",
   "crates/waypoint-session",
   "crates/waypoint-vfs",
+  "crates/wayland-toplevel-drag",
   "apps/waypoint/src-tauri",
   "plugins/system-appearance",
   "plugins/window-manager",
