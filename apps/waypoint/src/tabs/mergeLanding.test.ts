@@ -5,6 +5,7 @@
 
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { describe, expect, it } from 'vitest';
+import { rawSlotAt } from './landing';
 import type { MergeHover } from '../services/tearoffClient';
 import {
 	createMergeLanding,
@@ -31,14 +32,12 @@ function strip(tabs = [tab(1), tab(2), tab(3)]): StripMeasure {
 	};
 }
 
-const hover = (extra: Partial<MergeHover> = {}): MergeHover => ({
-	x: 0,
-	y: 50,
-	region: null,
-	count: 1,
-	pinned: false,
-	...extra,
-});
+/** A hover at `x` over the strip: the plugin finds the region the strip's own cuts give (`buildDropRegions` is tested to agree). */
+const hover = (extra: Partial<MergeHover> = {}): MergeHover => {
+	const x = extra.x ?? 0;
+	const slot = rawSlotAt(x, strip().spans);
+	return { x, y: 50, region: `slot:${slot}`, count: 1, pinned: false, ...extra };
+};
 
 describe('hoverSlot', () => {
 	const model = strip();
@@ -47,17 +46,12 @@ describe('hoverSlot', () => {
 		expect(hoverSlot(hover({ region: 'strip' }), model)).toBe(3);
 		expect(hoverSlot(hover({ region: 'slot:40' }), model)).toBe(3);
 	});
-	it('cuts the strip at the tab centres when there is no region and the pointer is over the strip', () => {
-		expect(hoverSlot(hover({ x: 60 }), model)).toBe(0);
-		expect(hoverSlot(hover({ x: 90 }), model)).toBe(1);
-		expect(hoverSlot(hover({ x: 250 }), model)).toBe(2);
-	});
-	it('means the end for a pointer over the window but not the strip', () => {
-		expect(hoverSlot(hover({ x: 60, y: 300 }), model)).toBe(3);
-		expect(hoverSlot(hover({ x: 600, y: 50 }), model)).toBe(3);
+	it('means the end when no region is under the pointer, since a release appends then', () => {
+		expect(hoverSlot(hover({ x: 60, region: null }), model)).toBe(3);
+		expect(hoverSlot(hover({ x: 60, y: 300, region: null }), model)).toBe(3);
 	});
 	it('reads a region it does not know as no region', () => {
-		expect(hoverSlot(hover({ region: 'other', x: 60 }), model)).toBe(0);
+		expect(hoverSlot(hover({ region: 'other', x: 60 }), model)).toBe(3);
 	});
 });
 

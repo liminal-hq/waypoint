@@ -10,7 +10,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import { tf } from '../i18n/messages';
 import type { MergeHover } from '../services/tearoffClient';
 import { parseRegionId } from './dropRegions';
-import { landingAt, rawSlotAt, rawSlotOf, type Landing } from './landing';
+import { landingAt, rawSlotOf, type Landing } from './landing';
 import type { Span } from './reorder';
 
 /** How long a hover stays when no newer one arrives: a drag that ended or moved away without saying so (a crashed window, a missed event). */
@@ -66,19 +66,12 @@ export interface MergeLandingDeps {
 
 /**
  * Which slot a hover means. A region the plugin found is the slot a release merges at, so it is
- * used as it is. Without one, a pointer over the strip's own height is mapped from its x with the
- * same cut the regions make (`rawSlotAt`), and a pointer elsewhere over the window means the end,
- * where a merge with no slot appends.
+ * used as it is. With none (the regions are stale, or the pointer is off every strip) a release
+ * appends, so the end is what is shown.
  */
 export function hoverSlot(hover: MergeHover, strip: StripMeasure): number {
 	const region = hover.region === null ? null : parseRegionId(hover.region);
-	if (region) return rawSlotOf(region, strip.tabs.length);
-	const over =
-		hover.y >= strip.strip.top &&
-		hover.y < strip.strip.bottom &&
-		hover.x >= strip.strip.left &&
-		hover.x < strip.strip.right;
-	return over ? rawSlotAt(hover.x, strip.spans) : strip.tabs.length;
+	return region ? rawSlotOf(region, strip.tabs.length) : strip.tabs.length;
 }
 
 /** What a hover shows, from the strip as measured. */

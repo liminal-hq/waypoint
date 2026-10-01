@@ -23,6 +23,22 @@ describe('buildDropRegions', () => {
 		]);
 	});
 
+	it('gives the gap between two tabs and the padding before the first to the nearer tab, as the line does', () => {
+		const slots = [
+			{ index: 0, left: 20, right: 120 },
+			{ index: 1, left: 122, right: 222 },
+		];
+		const regions = buildDropRegions(STRIP, slots);
+		// The padding 10–20 is the first tab's left half; the gap 120–122 continues its right half.
+		expect(regions).toContainEqual({ id: 'slot:0', x: 10, y: 5, width: 60, height: 30 });
+		expect(regions).toContainEqual({ id: 'slot:1', x: 70, y: 5, width: 52, height: 30 });
+		// Nothing is left to the strip's "end" region between tabs.
+		for (const x of [15, 121]) {
+			const hit = regions.filter((r) => r.id !== 'strip' && x >= r.x && x < r.x + r.width);
+			expect(hit).toHaveLength(1);
+		}
+	});
+
 	it('clips a tab that a scrolled strip has partly hidden, and drops one that is out of sight', () => {
 		const regions = buildDropRegions(STRIP, [
 			{ index: 3, left: -30, right: 70 },
@@ -31,7 +47,7 @@ describe('buildDropRegions', () => {
 		]);
 		expect(regions.slice(1)).toEqual([
 			{ id: 'slot:3', x: 10, y: 5, width: 10, height: 30 },
-			{ id: 'slot:4', x: 20, y: 5, width: 50, height: 30 },
+			{ id: 'slot:4', x: 20, y: 5, width: 360, height: 30 },
 			{ id: 'slot:4', x: 380, y: 5, width: 30, height: 30 },
 		]);
 	});

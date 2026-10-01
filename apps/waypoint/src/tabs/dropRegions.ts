@@ -65,29 +65,39 @@ export function buildDropRegions(
 	if (width <= 0 || height <= 0) return [];
 	const region = (id: string, left: number, right: number): Region[] =>
 		right > left ? [{ id, x: left, y: strip.top, width: right - left, height }] : [];
+	// The strip's gaps and padding belong to the neighbour whose centre is nearer the cut, as in `rawSlotAt`: a
+	// region reaches over the gap after it, and the first one over the padding before it.
+	const items = [...slots, ...chips].map((item) => ({ left: item.left, right: item.right }));
+	const reachRight = (right: number): number => {
+		const next = items.filter((item) => item.left >= right).map((item) => item.left);
+		return Math.min(strip.right, next.length > 0 ? Math.min(...next) : right);
+	};
+	const first = items.length > 0 ? Math.min(...items.map((item) => item.left)) : strip.left;
+	const reachLeft = (left: number): number => (left <= first ? strip.left : left);
 	const regions = region(STRIP_REGION, strip.left, strip.right);
 	for (const slot of slots) {
-		const left = Math.max(slot.left, strip.left);
+		const left = Math.max(reachLeft(slot.left), strip.left);
 		const right = Math.min(slot.right, strip.right);
-		if (right <= left) continue;
-		const middle = (slot.left + slot.right) / 2;
+		if (right <= Math.max(slot.left, strip.left)) continue;
+		const middle = Math.min(Math.max((slot.left + slot.right) / 2, left), right);
 		regions.push(
-			...region(slotRegionId(slot.index), left, Math.min(Math.max(middle, left), right)),
-			...region(slotRegionId(slot.index + 1), Math.min(Math.max(middle, left), right), right),
+			...region(slotRegionId(slot.index), left, middle),
+			...region(slotRegionId(slot.index + 1), middle, Math.max(right, reachRight(slot.right))),
 		);
 	}
 	for (const chip of chips) {
-		const left = Math.max(chip.left, strip.left);
+		const left = Math.max(reachLeft(chip.left), strip.left);
 		const right = Math.min(chip.right, strip.right);
-		if (right <= left) continue;
+		if (right <= Math.max(chip.left, strip.left)) continue;
+		const reach = Math.max(right, reachRight(chip.right));
 		if (!chip.collapsed) {
-			regions.push(...region(slotRegionId(chip.firstIndex), left, right));
+			regions.push(...region(slotRegionId(chip.firstIndex), left, reach));
 			continue;
 		}
 		const middle = Math.min(Math.max((chip.left + chip.right) / 2, left), right);
 		regions.push(
 			...region(slotRegionId(chip.firstIndex), left, middle),
-			...region(slotRegionId(chip.firstIndex + chip.count), middle, right),
+			...region(slotRegionId(chip.firstIndex + chip.count), middle, reach),
 		);
 	}
 	return regions;

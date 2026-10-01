@@ -23,7 +23,7 @@ use wayland_toplevel_drag::{
     DragRequest, Event, StartError, Tracker, Unavailable,
 };
 
-use super::{emit_ended, emit_leave, leave_hovered, Finish, State};
+use super::{emit_ended, emit_leave, leave_hovered, Finish, State, HOVER_INTERVAL};
 use crate::{
     models::{
         DragHover, ToplevelBeginReport, ToplevelBeginState, DRAG_HOVER_EVENT, TAB_DROPPED_EVENT,
@@ -379,15 +379,44 @@ fn hover<R: Runtime>(app: &AppHandle<R>, label: &str, x: f64, y: f64) {
         emit_leave(app, &previous);
     }
     if motion.hover {
-        let event = DragHover {
-            window: label.to_string(),
-            x,
-            y,
-            region: tearoff.region_at(label, x, y),
-            payload,
-        };
-        if let Err(error) = app.emit_to(label, DRAG_HOVER_EVENT, &event) {
-            warn!("window-tearoff: cannot tell `{label}` where the payload is: {error}");
-        }
+        emit_hover(app, &tearoff, label, x, y, payload.clone());
+    }
+    if motion.trail {
+        // A pointer that stops sends nothing more, so the last position is sent once the interval is up.
+        let app = app.clone();
+        let label = label.to_string();
+        std::thread::spawn(move || {
+            std::thread::sleep(HOVER_INTERVAL);
+            let Some(tearoff) = app.try_state::<Tearoff>() else {
+                return;
+            };
+            let state = tearoff.toplevel();
+            if let (Some((x, y)), Some(payload)) = (
+                state.hover_flush(&label, Instant::now()),
+                state.hover_payload(&label),
+            ) {
+                emit_hover(&app, &tearoff, &label, x, y, payload);
+            }
+        });
+    }
+}
+
+fn emit_hover<R: Runtime>(
+    app: &AppHandle<R>,
+    tearoff: &Tearoff,
+    label: &str,
+    x: f64,
+    y: f64,
+    payload: Value,
+) {
+    let event = DragHover {
+        window: label.to_string(),
+        x,
+        y,
+        region: tearoff.region_at(label, x, y),
+        payload,
+    };
+    if let Err(error) = app.emit_to(label, DRAG_HOVER_EVENT, &event) {
+        warn!("window-tearoff: cannot tell `{label}` where the payload is: {error}");
     }
 }

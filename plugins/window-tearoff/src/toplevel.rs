@@ -57,6 +57,8 @@ pub struct Motion {
     pub leave: Option<String>,
     /// Whether the window it is over now is to be told where the pointer is.
     pub hover: bool,
+    /// A position was held back by the throttle and none is waiting to send it: call `HoverGate::flush` after `HOVER_INTERVAL`, since a pointer that then stops sends nothing more.
+    pub trail: bool,
 }
 
 /// Throttles and de-duplicates the pointer positions a drop target reports during a toplevel drag, so the page of the window hovered hears of the pointer at about 20 Hz and only when it moved. It also remembers which window was told, so every window that was sent a `drag-hover` is sent a `drag-leave` exactly once.
@@ -64,6 +66,10 @@ pub struct Motion {
 pub struct HoverGate {
     window: Option<String>,
     sent: Option<(f64, f64, Instant)>,
+    /// The latest position seen, which a throttled one leaves unsent.
+    latest: (f64, f64),
+    /// A flush is already owed.
+    trailing: bool,
 }
 
 impl HoverGate {
@@ -75,6 +81,7 @@ impl HoverGate {
             self.sent = None;
             self.window = Some(label.to_string());
         }
+        self.latest = (x, y);
         let due = match self.sent {
             None => true,
             Some((last_x, last_y, at)) => {
@@ -83,9 +90,28 @@ impl HoverGate {
         };
         if due {
             self.sent = Some((x, y, now));
+        } else if !self.trailing && self.sent.is_some_and(|(sx, sy, _)| (sx, sy) != (x, y)) {
+            self.trailing = true;
+            motion.trail = true;
         }
         motion.hover = due;
         motion
+    }
+
+    /// The throttle's interval has passed: the position to send `label` now if the pointer is still over it and moved since the last one sent.
+    pub fn flush(&mut self, label: &str, now: Instant) -> Option<(f64, f64)> {
+        self.trailing = false;
+        if self.window.as_deref() != Some(label) {
+            return None;
+        }
+        let (x, y) = self.latest;
+        match self.sent {
+            Some((sx, sy, _)) if (sx, sy) != (x, y) => {
+                self.sent = Some((x, y, now));
+                Some((x, y))
+            }
+            _ => None,
+        }
     }
 
     /// The payload left `label`, or was dropped on it. True when that window had been sent a `drag-hover` and is to be sent a `drag-leave`.
@@ -220,6 +246,11 @@ impl State {
     /// The pointer is at (`x`, `y`) in `window`'s content; see `HoverGate::motion`.
     pub fn hover_motion(&self, window: &str, x: f64, y: f64, now: Instant) -> Motion {
         lock(&self.hover).motion(window, x, y, now)
+    }
+
+    /// The throttle's interval has passed; see `HoverGate::flush`.
+    pub fn hover_flush(&self, window: &str, now: Instant) -> Option<(f64, f64)> {
+        lock(&self.hover).flush(window, now)
     }
 
     /// The drag is over: the window it was over, if any; see `HoverGate::end`.
@@ -552,7 +583,8 @@ mod tests {
             motion,
             Motion {
                 leave: None,
-                hover: true
+                hover: true,
+                trail: false
             }
         );
     }
@@ -565,9 +597,32 @@ mod tests {
         assert!(!gate.motion("a", 2.0, 1.0, ms(base, 10)).hover);
         assert!(!gate.motion("a", 3.0, 1.0, ms(base, 49)).hover);
         assert!(gate.motion("a", 4.0, 1.0, ms(base, 50)).hover);
-        // The skipped positions are not owed: the next one that is due carries the pointer's place.
         assert!(!gate.motion("a", 5.0, 1.0, ms(base, 60)).hover);
         assert!(gate.motion("a", 6.0, 1.0, ms(base, 100)).hover);
+    }
+
+    #[test]
+    fn a_throttled_position_is_sent_after_the_interval_when_the_pointer_stops() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        assert!(gate.motion("a", 1.0, 1.0, base).hover);
+        // Held back: one flush is owed, not one per skipped position.
+        let held = gate.motion("a", 2.0, 1.0, ms(base, 20));
+        assert!(!held.hover && held.trail);
+        assert!(!gate.motion("a", 3.0, 1.0, ms(base, 30)).trail);
+        // The pointer stopped at 3: that is what the flush sends, once.
+        assert_eq!(gate.flush("a", ms(base, 70)), Some((3.0, 1.0)));
+        assert_eq!(gate.flush("a", ms(base, 120)), None);
+    }
+
+    #[test]
+    fn a_flush_for_a_window_the_pointer_left_sends_nothing() {
+        let base = Instant::now();
+        let mut gate = HoverGate::default();
+        gate.motion("a", 1.0, 1.0, base);
+        assert!(gate.motion("a", 2.0, 1.0, ms(base, 20)).trail);
+        gate.leave("a");
+        assert_eq!(gate.flush("a", ms(base, 70)), None);
     }
 
     #[test]
