@@ -46,6 +46,7 @@ describe('applying hints', () => {
 		await settle();
 		expect(session.view.scrollTop).toBe(120);
 		expect(session.view.gridScrollTop).toBe(0);
+		expect(session.view.pendingScroll).toBe(120);
 		const focus = session.store.getState().focus;
 		expect(focus === null ? null : session.model.entryAt(focus)?.name).toBe('beta.txt');
 		expect(session.store.getState().touched).toBe(false);

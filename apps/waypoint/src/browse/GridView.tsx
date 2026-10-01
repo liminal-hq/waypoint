@@ -161,7 +161,19 @@ function GridBody({
 		element.dispatchEvent(new Event('scroll'));
 	}, [session]);
 
+	// A restored offset is applied once the listing is tall enough to reach it (or has stopped growing).
+	useLayoutEffect(() => {
+		const element = scroller.current;
+		const pending = session.view.pendingScroll;
+		if (!element || pending === null) return;
+		if (element.scrollHeight - element.clientHeight < pending && model.phase === 'scanning') return;
+		session.view.pendingScroll = null;
+		element.scrollTop = pending;
+		element.dispatchEvent(new Event('scroll'));
+	}, [session, model, version]);
+
 	const recordAnchor = () => {
+		if (session.view.pendingScroll !== null) return;
 		const top = scroller.current?.scrollTop ?? 0;
 		session.view.gridScrollTop = top;
 		anchor.current = { top, position: Math.floor(top / cell.height) * columns };

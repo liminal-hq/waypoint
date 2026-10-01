@@ -38,6 +38,7 @@ export function sameHints(a: TabHints, b: TabHints): boolean {
 export function applyHints(session: ListingSession, hints: TabHints, mode: ViewMode): void {
 	if (mode === 'grid') session.view.gridScrollTop = hints.scrollTop;
 	else session.view.scrollTop = hints.scrollTop;
+	session.view.pendingScroll = hints.scrollTop > 0 ? hints.scrollTop : null;
 	if (hints.focused !== null) void focusByName(session, hints.focused);
 }
 

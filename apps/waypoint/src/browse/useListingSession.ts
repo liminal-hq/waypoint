@@ -15,6 +15,11 @@ export interface ViewMemory {
 	scrollTop: number;
 	/** The grid's own offset: a pixel offset means something different in each layout. */
 	gridScrollTop: number;
+	/**
+	 * A restored offset the view has yet to reach: the listing may still be growing, so the view
+	 * keeps trying as it does and ignores scroll events meanwhile. `null` once applied.
+	 */
+	pendingScroll: number | null;
 }
 
 export interface ListingSession {
@@ -24,7 +29,11 @@ export interface ListingSession {
 }
 
 export function createListingSession(model: ListingModel): ListingSession {
-	return { model, store: createBrowseStore(model), view: { scrollTop: 0, gridScrollTop: 0 } };
+	return {
+		model,
+		store: createBrowseStore(model),
+		view: { scrollTop: 0, gridScrollTop: 0, pendingScroll: null },
+	};
 }
 
 export type SessionState =
