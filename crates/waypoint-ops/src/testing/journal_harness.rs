@@ -12,7 +12,7 @@ use waypoint_path::VfsPath;
 use waypoint_protocol::Location;
 use waypoint_vfs::{CancelToken, Provider};
 
-use crate::exec::{ExecFailure, ExecReport, ExecSink, Executor};
+use crate::exec::{ExecFailure, ExecReport, ExecSink, Executor, RunOptions, CHUNK_BYTES};
 use crate::journal::{
     fingerprint_steps, prepare, Journal, JournalDeps, JournalId, PendingRecord, Prepared, Recorded,
     RecoveryReport, UndoFailure, UndoReport,
@@ -40,6 +40,9 @@ pub struct JournalRun {
     /// The process "died" during the run (`FaultyProvider::crash_at`): the journal was left as it
     /// was, with the write-ahead record in it.
     pub crashed: bool,
+    /// How many provider calls had been made when the executor finished, before the fingerprints
+    /// were read: a fault scripted at a call up to this one lands in the job itself.
+    pub exec_calls: usize,
 }
 
 struct Sink<'a> {
@@ -71,6 +74,8 @@ pub struct JournalHarness<P: Provider + 'static> {
     pub settings: Arc<dyn SettingsReader>,
     /// Every journal event, in order.
     pub journal_events: Vec<OpsEvent>,
+    /// The size of one copy chunk, which tests make small to cross many boundaries.
+    pub chunk_bytes: usize,
 }
 
 impl<P: Provider + 'static> Deref for JournalHarness<P> {
@@ -109,6 +114,7 @@ impl<P: Provider + 'static> JournalHarness<P> {
             saver,
             settings,
             journal_events: Vec::new(),
+            chunk_bytes: CHUNK_BYTES,
         }
     }
 
@@ -205,6 +211,7 @@ impl<P: Provider + 'static> JournalHarness<P> {
                     undo: None,
                     plan: None,
                     crashed: h.provider.is_crashed(),
+                    exec_calls: 0,
                 };
             }
         };
@@ -246,6 +253,7 @@ impl<P: Provider + 'static> JournalHarness<P> {
             undo: None,
             plan: Some(plan.clone()),
             crashed: false,
+            exec_calls: 0,
         };
         let mut journal_events: Vec<OpsEvent> = Vec::new();
         match &prepared {
@@ -284,15 +292,39 @@ impl<P: Provider + 'static> JournalHarness<P> {
                 run.undo = Some(outcome);
             }
             Prepared::Plain(_) | Prepared::Redo(_) => {
+                let options = {
+                    let job = h.store.job(id).expect("the job is listed");
+                    let mut resolutions =
+                        h.store.resolutions(id).expect("the job is known").clone();
+                    let mut job_options = job.options;
+                    if let Prepared::Redo(redo) = &prepared {
+                        // A redo runs what the job did, with the policy and verification it had.
+                        if let (None, Some(policy)) =
+                            (resolutions.all(), redo.forward.options.conflict)
+                        {
+                            resolutions.set_all(policy);
+                        }
+                        job_options = redo.forward.options;
+                    }
+                    let mut options = RunOptions::for_job(
+                        &job_options,
+                        &self.settings.ops_settings(),
+                        resolutions,
+                    );
+                    options.chunk_bytes = self.chunk_bytes;
+                    options.clock = h.clock.clone() as Arc<dyn Clock>;
+                    options
+                };
                 let outcome = {
                     let mut sink = Sink {
                         store: &mut h.store,
                         id,
                         events: &mut h.events,
                     };
-                    executor.run(id, &plan, &token, &mut sink)
+                    executor.run_with(id, &plan, &token, &mut sink, options)
                 };
                 run.crashed = h.provider.is_crashed();
+                run.exec_calls = h.provider.calls();
                 let (mut report, failed) = match outcome {
                     Ok(report) => (report, None),
                     Err(failure) => (failure.report.clone(), Some(failure)),
