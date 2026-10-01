@@ -249,7 +249,7 @@ jobs:
       # The time-format plugin's mock-runtime test needs the Common Controls manifest, which a test
       # binary lacks on Windows, so only its unit tests run here: the filter drops the integration
       # test binaries of the plugins listed in it (add a plugin to the list when it joins this job).
-      - name: Test the pure crates, the time-format plugin and the tear-off plugin
+      - name: Test the pure crates and the plugins' unit tests
         id: tests
         run: >-
           cargo nextest run --no-fail-fast

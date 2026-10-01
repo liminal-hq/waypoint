@@ -53,7 +53,7 @@ Waypoint follows the Liminal HQ house pipeline. **Jar** is the closest reference
 3. **Build matrix** (all staged as artefacts): Linux x64 and arm64 in the CI container (`deb`, `rpm`), AppImage packaging, Windows x64 and arm64 (installer) plus a portable zip. macOS is not a target and is omitted.
 4. **`publish-release`:** downloads the staged artefacts, tags each asset with its OS (`Waypoint_Linux_…`, `Waypoint_Win_…`), writes `SHA256SUMS`, and uploads with `gh release upload --clobber`.
 5. **Versioning:** one synchronised version across the root `package.json`, `apps/waypoint/package.json`, `tauri.conf.json`, and the Cargo workspace/crate versions; reusable plugins that have graduated are versioned in the shared repo by `covector`, not here.
-6. **Signing and Windows packaging** (sparse MSIX for the modern Explorer menu, code signing) is unresolved (`docs/open-questions.md` #13) and gets its own decision before the first public Windows release.
+6. **Signing and Windows packaging** (sparse MSIX for the modern Explorer menu, code signing) is unresolved (`docs/open-questions.md` #8) and gets its own decision before the first public Windows release.
 
 Flatpak (D45) is a packaging follow-up: portals-first code is written from day one so the Flatpak manifest is packaging work, not a rewrite.
 
