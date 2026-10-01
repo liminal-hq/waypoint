@@ -177,7 +177,6 @@ pub fn begin<R: Runtime>(
     })();
     let Some(request) = request else {
         state.abandon();
-        dragged_gtk.hide();
         return failed("GTK's Wayland objects could not be found".into());
     };
 
@@ -219,7 +218,6 @@ pub fn begin<R: Runtime>(
         }
         Err(error) => {
             state.abandon();
-            dragged_gtk.hide();
             failed(error.to_string())
         }
     }

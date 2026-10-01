@@ -13,7 +13,7 @@ use crate::{
     commands, init,
     models::{
         BeginState, DropReport, Hit, Options, Outcome, Point, Region, Size, ToplevelBeginState,
-        DEFAULT_GHOST_LABEL,
+        ToplevelOutcome, DEFAULT_GHOST_LABEL,
     },
     session::Tearoff,
 };
@@ -86,6 +86,12 @@ fn a_toplevel_drag_without_the_feature_says_so_and_starts_nothing() {
     assert_eq!(report.state, ToplevelBeginState::Unavailable);
     assert!(report.reason.is_some_and(|reason| !reason.is_empty()));
     assert!(!handle.state::<Tearoff>().toplevel().is_active());
+    // The window the caller meant to drag is told, so its page can put its contents back.
+    let told = handle.state::<Tearoff>().take_toplevel_result("main-2");
+    assert_eq!(
+        told.map(|ended| ended.outcome),
+        Some(ToplevelOutcome::Failed)
+    );
     // Ending, and reading a result, are harmless with no drag.
     tauri::async_runtime::block_on(commands::end_toplevel_drag(
         handle.clone(),

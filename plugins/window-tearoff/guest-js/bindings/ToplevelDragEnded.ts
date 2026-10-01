@@ -6,6 +6,10 @@ import type { ToplevelOutcome } from "./ToplevelOutcome";
  */
 export type ToplevelDragEnded = { 
 /**
+ * Counts the plugin's toplevel drags, so a page that hears of one end twice (the event, and `take_toplevel_drag_result` after loading) can tell it is the same.
+ */
+seq: number, 
+/**
  * The label of the window that was dragged.
  */
 window: string, 

@@ -109,32 +109,54 @@ impl Tearoff {
         grab_offset: Point,
     ) -> ToplevelBeginReport {
         let status = self.status(app).await;
-        if !has(&status, FEATURE_TOPLEVEL_DRAG) {
-            let reason = status
-                .unavailable
-                .iter()
-                .find(|entry| entry.feature == FEATURE_TOPLEVEL_DRAG)
-                .map(|entry| entry.reason.clone());
-            return ToplevelBeginReport {
+        let report = if has(&status, FEATURE_TOPLEVEL_DRAG) {
+            let (state, mime) = (
+                self.toplevel.clone(),
+                self.options.toplevel_drag_mime.clone(),
+            );
+            let (handle, source, window, payload) = (
+                app.clone(),
+                source.label().to_string(),
+                window.clone(),
+                payload.clone(),
+            );
+            let grab = (grab_offset.x.round() as i32, grab_offset.y.round() as i32);
+            main_thread::run(app, move || {
+                toplevel::begin(&handle, &state, &source, &window, &payload, grab, &mime)
+            })
+            .await
+            .unwrap_or(ToplevelBeginReport {
+                state: ToplevelBeginState::Failed,
+                reason: Some("the event loop is gone".into()),
+            })
+        } else {
+            ToplevelBeginReport {
                 state: ToplevelBeginState::Unavailable,
-                reason,
-            };
+                reason: status
+                    .unavailable
+                    .iter()
+                    .find(|entry| entry.feature == FEATURE_TOPLEVEL_DRAG)
+                    .map(|entry| entry.reason.clone()),
+            }
+        };
+        if report.state != ToplevelBeginState::Started {
+            // The caller may already have made the window it meant to drag, and only that window's page can put its contents back, so it is told the drag failed.
+            let ended = self.toplevel.fail_unstarted(
+                source.label(),
+                &window,
+                &payload,
+                report.reason.as_deref().unwrap_or("the drag did not start"),
+            );
+            toplevel::emit_ended(app, &ended);
+            // A window made hidden for the drag must not stay hidden with nobody to show it.
+            let (handle, label) = (app.clone(), window);
+            let _ = app.run_on_main_thread(move || {
+                if let Some(window) = handle.get_webview_window(&label) {
+                    let _ = window.show();
+                }
+            });
         }
-        let (state, mime, source) = (
-            self.toplevel.clone(),
-            self.options.toplevel_drag_mime.clone(),
-            source.label().to_string(),
-        );
-        let handle = app.clone();
-        let grab = (grab_offset.x.round() as i32, grab_offset.y.round() as i32);
-        main_thread::run(app, move || {
-            toplevel::begin(&handle, &state, &source, &window, &payload, grab, &mime)
-        })
-        .await
-        .unwrap_or(ToplevelBeginReport {
-            state: ToplevelBeginState::Failed,
-            reason: Some("the event loop is gone".into()),
-        })
+        report
     }
 
     /// Cancels the toplevel drag in progress, if any: the dragged window snaps back and the drag ends as `cancelled`.

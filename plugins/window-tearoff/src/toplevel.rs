@@ -5,7 +5,10 @@
 
 use std::{
     collections::HashMap,
-    sync::{Mutex, MutexGuard},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Mutex, MutexGuard,
+    },
 };
 
 use serde_json::Value;
@@ -73,6 +76,7 @@ pub fn emit_ended<R: Runtime>(app: &AppHandle<R>, ended: &ToplevelDragEnded) {
 pub struct State {
     active: Mutex<Option<Active>>,
     results: Mutex<HashMap<String, ToplevelDragEnded>>,
+    seq: AtomicU32,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -149,16 +153,42 @@ impl State {
             Finish::Cancelled { after_drop: false } => (ToplevelOutcome::Cancelled, None, None),
             Finish::Failed(reason) => (ToplevelOutcome::Failed, None, Some(reason)),
         };
-        let ended = ToplevelDragEnded {
+        let ended = self.record(ToplevelDragEnded {
+            seq: 0,
             window: current.window.clone(),
             source: current.source,
             outcome,
             target,
             payload: current.payload,
             reason,
-        };
-        lock(&self.results).insert(current.window, ended.clone());
+        });
         Some(ended)
+    }
+
+    /// Ends a drag that never started, for a caller that has already named the window it meant to drag: that window's page is told so it can put its contents back.
+    pub fn fail_unstarted(
+        &self,
+        source: &str,
+        window: &str,
+        payload: &Value,
+        reason: &str,
+    ) -> ToplevelDragEnded {
+        self.record(ToplevelDragEnded {
+            seq: 0,
+            window: window.to_string(),
+            source: source.to_string(),
+            outcome: ToplevelOutcome::Failed,
+            target: None,
+            payload: payload.clone(),
+            reason: Some(reason.to_string()),
+        })
+    }
+
+    /// Numbers a result and keeps it for the dragged window's page.
+    fn record(&self, mut ended: ToplevelDragEnded) -> ToplevelDragEnded {
+        ended.seq = self.seq.fetch_add(1, Ordering::Relaxed) + 1;
+        lock(&self.results).insert(ended.window.clone(), ended.clone());
+        ended
     }
 
     /// The labels of the windows a running drag involves, to end it when one of them is destroyed.
@@ -296,6 +326,26 @@ mod tests {
             .finish(Finish::Cancelled { after_drop: false })
             .is_none());
         assert!(!state.is_active());
+    }
+
+    #[test]
+    fn each_result_is_numbered() {
+        let state = begun();
+        let first = state.finish(Finish::Finished).unwrap();
+        state.begin("main-1", "main-2", &json!(null)).unwrap();
+        let second = state.finish(Finish::Finished).unwrap();
+        assert!(second.seq > first.seq);
+    }
+
+    #[test]
+    fn a_drag_that_never_started_still_tells_the_window_it_named() {
+        let state = State::default();
+        let ended = state.fail_unstarted("main-1", "main-2", &json!({"a": 1}), "no button");
+        assert_eq!(ended.outcome, ToplevelOutcome::Failed);
+        assert_eq!(ended.window, "main-2");
+        assert_eq!(ended.reason.as_deref(), Some("no button"));
+        assert_eq!(recipients(&ended), ["main-1", "main-2"]);
+        assert_eq!(state.take_result("main-2").unwrap().seq, ended.seq);
     }
 
     #[test]
