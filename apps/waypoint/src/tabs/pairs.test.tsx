@@ -6,7 +6,7 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOTICE_TOAST_MS } from '../app/NoticeToast';
-import { dismissNotice } from '../app/notices';
+import { dismissNotice, showNotice } from '../app/notices';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakeTabsStore } from '../services/fakeTabsStore';
 import { stubLayout } from '../test/browseHarness';
@@ -702,5 +702,112 @@ describe('the pane header', () => {
 		expect(second.querySelector('[data-pane-grip]')).not.toBeNull();
 		expect(within(second).getByRole('button', { name: 'Close pane docs' })).toBeInTheDocument();
 		expect(within(second).queryByText('Active')).toBeNull();
+	});
+});
+
+describe('review fixes', () => {
+	async function openJointMenu() {
+		fireEvent.contextMenu(joint());
+		return screen.findByRole('menu', { name: 'Split actions' });
+	}
+	const toast = () => document.querySelector<HTMLElement>('[data-notice]');
+
+	it('keeps an F6 focus request until the pane becomes active, however many renders come first', async () => {
+		const h = await renderWorkspace();
+		await joined(h);
+		const activate = h.tabs.activateTab.bind(h.tabs);
+		let release: () => void = () => {};
+		vi.spyOn(h.tabs, 'activateTab').mockImplementation(
+			(tab) =>
+				new Promise<void>((resolve) => {
+					release = () => void activate(tab).then(resolve);
+				}),
+		);
+		fireEvent.keyDown(window, { key: 'F6' });
+		// An unrelated render lands before the active tab changes.
+		await act(async () => {
+			await h.tabs.setTabColour(1, 'teal');
+		});
+		await act(async () => release());
+		await waitFor(() =>
+			expect(document.activeElement).toBe(within(panes()[1]!).getByRole('listbox')),
+		);
+	});
+
+	it('names every pane when a pair separates', async () => {
+		const h = await renderWorkspace();
+		await h.tabs.openTab(DOCS, { activate: false });
+		await h.tabs.openTab(MUSIC, { activate: false });
+		await h.tabs.joinPair([1, 2, 3], 'sideBySide');
+		await waitFor(() => expect(panes()).toHaveLength(3));
+		fireEvent.contextMenu(screen.getAllByRole('button', { name: /^Split: / })[0]!);
+		await screen.findByRole('menu', { name: 'Split actions' });
+		fireEvent.click(await item(/^Separate/));
+		await waitFor(() => expect(live()).toHaveTextContent('Separated test, docs and music'));
+	});
+
+	it('says so, and offers no focus change, when Undo cannot reopen the pane', async () => {
+		const h = await renderWorkspace();
+		await split();
+		fireEvent.keyDown(window, { key: 'F3' });
+		const undo = await screen.findByRole('button', { name: 'Undo' });
+		vi.spyOn(h.tabs, 'reopenTab').mockRejectedValue(new Error('gone'));
+		fireEvent.click(undo);
+		await waitFor(() =>
+			expect(screen.getByText('The closed pane could not be restored')).toBeInTheDocument(),
+		);
+	});
+
+	it('opens no copies and says so when a pane is missing from the latest snapshot', async () => {
+		const h = await renderWorkspace();
+		await joined(h);
+		await openJointMenu();
+		const real = h.tabs.getSnapshot.bind(h.tabs);
+		vi.spyOn(h.tabs, 'getSnapshot').mockImplementation(async () => {
+			const state = await real();
+			return { ...state, tabs: state.tabs.filter((tab) => tab.id !== 2) };
+		});
+		fireEvent.click(await item('Duplicate Split'));
+		await waitFor(() =>
+			expect(screen.getByText('The split could not be duplicated')).toBeInTheDocument(),
+		);
+		vi.restoreAllMocks();
+		expect((await snapshot(h)).tabs).toHaveLength(2);
+	});
+
+	it('closes the copies it opened when a later one fails', async () => {
+		const h = await renderWorkspace();
+		await joined(h);
+		await openJointMenu();
+		const open = h.tabs.openTab.bind(h.tabs);
+		let calls = 0;
+		vi.spyOn(h.tabs, 'openTab').mockImplementation((location, options) => {
+			calls += 1;
+			return calls === 2 ? Promise.reject(new Error('no')) : open(location, options);
+		});
+		fireEvent.click(await item('Duplicate Split'));
+		await waitFor(() =>
+			expect(screen.getByText('The split could not be duplicated')).toBeInTheDocument(),
+		);
+		await waitFor(async () => expect((await snapshot(h)).tabs).toHaveLength(2));
+	});
+
+	it('keeps the toast up under the pointer or focus when a new notice replaces it', async () => {
+		await renderWorkspace();
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		act(() => void showNotice('First'));
+		const dismiss = await screen.findByRole('button', { name: 'Dismiss' });
+		act(() => dismiss.focus());
+		act(() => void showNotice('Second'));
+		await screen.findByText('Second');
+		act(() => {
+			vi.advanceTimersByTime(NOTICE_TOAST_MS + 100);
+		});
+		expect(toast()).not.toBeNull();
+		act(() => screen.getByRole('button', { name: 'Dismiss' }).blur());
+		act(() => {
+			vi.advanceTimersByTime(NOTICE_TOAST_MS + 100);
+		});
+		await waitFor(() => expect(toast()).toBeNull());
 	});
 });

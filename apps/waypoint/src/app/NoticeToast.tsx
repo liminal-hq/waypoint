@@ -24,8 +24,10 @@ export function NoticeToast() {
 	const toast = useRef<HTMLDivElement | null>(null);
 	const id = notice?.id;
 
+	// A new notice keeps the hold the pointer or focus already has on the toast; only an empty
+	// region (the toast unmounted, with no leave or blur event) lets it go.
 	useEffect(() => {
-		setHeld(false);
+		if (id === undefined) setHeld(false);
 	}, [id]);
 
 	useEffect(() => {

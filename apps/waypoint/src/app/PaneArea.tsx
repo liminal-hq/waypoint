@@ -7,7 +7,7 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { FileView } from '../browse/FileView';
 import type { MenuRequest } from '../browse/useListInteractions';
 import type { ListingSession, SessionState } from '../browse/useListingSession';
@@ -17,7 +17,7 @@ import { useNavigation } from '../nav/useNavigation';
 import { useOpenEntry, type EntryAction, type EntryOpeners } from '../nav/useOpenEntry';
 import { PaneDivider } from '../tabs/PaneDivider';
 import { PaneHeader } from '../tabs/PaneHeader';
-import { clearPaneFocus, wantedPaneFocus } from '../tabs/paneFocus';
+import { clearPaneFocus, subscribePaneFocus, wantedPaneFocus } from '../tabs/paneFocus';
 import { equalSizes } from '../tabs/pairLayout';
 import { usePairActions } from '../tabs/pairActions';
 import { useTabActions } from '../tabs/tabActions';
@@ -91,10 +91,12 @@ export function PaneArea({
 	);
 
 	// F3 and F6 move focus with the active pane once its list is on screen.
+	const wanted = useSyncExternalStore(subscribePaneFocus, wantedPaneFocus);
 	useEffect(() => {
-		const wanted = wantedPaneFocus();
 		if (wanted === null) return;
-		if (wanted !== active || !panes.some((pane) => pane.id === wanted)) return clearPaneFocus();
+		// The session makes the pane active a moment after the request: keep waiting until it is
+		// (the request expires on its own if it never is).
+		if (wanted !== active || !panes.some((pane) => pane.id === wanted)) return;
 		// Wait for the listing: its list is what takes focus; a pane that failed to open takes it itself.
 		if (stateFor(wanted).status === 'opening') return;
 		const pane = area.current?.querySelector<HTMLElement>(`[data-pane="${wanted}"]`);

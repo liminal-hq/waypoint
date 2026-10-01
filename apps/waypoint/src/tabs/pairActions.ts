@@ -70,30 +70,50 @@ export function createPairActions(
 		return tab ? locationLabel(tab.location) : '';
 	};
 	const sentence = (pair: Pair) => pair.panes.map(title);
+	/** "a and b", or "a, b and c": every pane, however many there are. */
+	const named = (pair: Pair): string => {
+		const titles = sentence(pair);
+		const last = titles[titles.length - 1] ?? '';
+		return titles.length < 2 ? last : `${titles.slice(0, -1).join(', ')} ${t('pair.and')} ${last}`;
+	};
 	const pairSpeech = (pair: Pair): MoveSpeech => ({
 		newWindow: tf('pair.announce.movedWindow', {
-			titles: sentence(pair).join(` ${t('pair.and')} `),
+			titles: named(pair),
 		}),
 		toWindow: (window) =>
 			tf('pair.announce.movedToWindow', {
-				titles: sentence(pair).join(` ${t('pair.and')} `),
+				titles: named(pair),
 				window,
 			}),
 	});
 
 	/** Reopens the closed pane and joins it back with the pane it was split from. */
 	const undoClose = async (before: Pair, created: TabId) => {
-		const restored = await api.reopenTab(created);
-		if (restored === null) return announce(t('pair.announce.undoFailed'));
+		let restored: TabId | null;
 		try {
-			await api.joinPair(before.panes, before.layout);
-			const rejoined = (await api.getSnapshot()).pairs.find((pair) => pair.panes.includes(created));
+			restored = await api.reopenTab(created);
+		} catch (error) {
+			report(error);
+			restored = null;
+		}
+		if (restored === null) {
+			return showNotice(t('pair.announce.undoFailed'));
+		}
+		try {
+			// The reopened tab keeps its id today, but the pair is rebuilt from the id Rust returned.
+			await api.joinPair(
+				before.panes.map((pane) => (pane === created ? restored! : pane)),
+				before.layout,
+			);
+			const rejoined = (await api.getSnapshot()).pairs.find((pair) =>
+				pair.panes.includes(restored!),
+			);
 			if (rejoined) await api.setPairSizes(rejoined.id, before.sizes);
 		} catch (error) {
 			// The other pane was paired again in the meantime: the pane still comes back, on its own.
 			report(error);
 		}
-		requestPaneFocus(created);
+		requestPaneFocus(restored);
 		announce(tf('pair.announce.restored', { title: title(created) }));
 	};
 
@@ -101,9 +121,10 @@ export function createPairActions(
 		// The store closes the pane the toggle made, records it in Recently Closed with its history
 		// and leaves the other pane active when this one was.
 		const paneTitle = title(created);
-		await api.toggleSplit(created);
+		// Asked for before the change, so the render that shows the single tab already knows.
 		const keep = pair.panes.find((pane) => pane !== created);
 		if (keep !== undefined) requestPaneFocus(keep);
+		await api.toggleSplit(created);
 		showNotice(tf('pair.announce.closedPane', { title: paneTitle }), {
 			label: t('notice.undo'),
 			run: () => run(undoClose(pair, created)),
@@ -132,14 +153,9 @@ export function createPairActions(
 				return;
 			}
 			run(
-				api.separatePair(pair.id).then(() =>
-					announce(
-						tf('pair.announce.separated', {
-							first: title(pair.panes[0]!),
-							second: title(pair.panes[1]!),
-						}),
-					),
-				),
+				api
+					.separatePair(pair.id)
+					.then(() => announce(tf('pair.announce.separated', { titles: named(pair) }))),
 			);
 		},
 		splitWith: (tab, other) =>
@@ -152,14 +168,9 @@ export function createPairActions(
 			),
 		separate: (pair) =>
 			run(
-				api.separatePair(pair.id).then(() =>
-					announce(
-						tf('pair.announce.separated', {
-							first: title(pair.panes[0]!),
-							second: title(pair.panes[1]!),
-						}),
-					),
-				),
+				api
+					.separatePair(pair.id)
+					.then(() => announce(tf('pair.announce.separated', { titles: named(pair) }))),
 			),
 		swapPanes: (pair) =>
 			run(api.swapPanes(pair.id).then(() => announce(t('pair.announce.swapped')))),
@@ -188,7 +199,7 @@ export function createPairActions(
 				api.pinTab(lead, pinned).then(() =>
 					announce(
 						tf(pinned ? 'pair.announce.pinned' : 'pair.announce.unpinned', {
-							titles: sentence(pair).join(` ${t('pair.and')} `),
+							titles: named(pair),
 						}),
 					),
 				),
@@ -201,10 +212,10 @@ export function createPairActions(
 						colour
 							? tf('pair.announce.colour', {
 									colour: t(colourMessageId(colour)),
-									titles: sentence(pair).join(` ${t('pair.and')} `),
+									titles: named(pair),
 								})
 							: tf('pair.announce.colourCleared', {
-									titles: sentence(pair).join(` ${t('pair.and')} `),
+									titles: named(pair),
 								}),
 					),
 				),
@@ -212,18 +223,28 @@ export function createPairActions(
 		duplicate: (pair) =>
 			run(
 				(async () => {
+					const failed = () => {
+						showNotice(t('pair.announce.duplicateFailed'));
+					};
+					// The latest snapshot, not the one this object was built from, and every source is
+					// checked before a copy is opened so a missing one leaves nothing behind.
+					const latest = (await api.getSnapshot()).tabs;
+					const sources = pair.panes.map((pane) => latest.find((tab) => tab.id === pane));
 					let after = pair.panes[pair.panes.length - 1];
+					if (after === undefined || sources.some((source) => !source)) return failed();
 					const copies: TabId[] = [];
-					for (const pane of pair.panes) {
-						const source = tabs.find((candidate) => candidate.id === pane);
-						if (!source || after === undefined) return;
-						after = await api.openTab(source.location, { after, activate: false });
-						copies.push(after);
+					try {
+						for (const source of sources) {
+							after = await api.openTab(source!.location, { after, activate: false });
+							copies.push(after);
+						}
+						await api.joinPair(copies, pair.layout);
+					} catch (error) {
+						report(error);
+						for (const copy of copies) await api.closeTab(copy).catch(report);
+						return failed();
 					}
-					await api.joinPair(copies, pair.layout);
-					announce(
-						tf('pair.announce.duplicated', { titles: sentence(pair).join(` ${t('pair.and')} `) }),
-					);
+					announce(tf('pair.announce.duplicated', { titles: named(pair) }));
 				})(),
 			),
 		moveToNewWindow: (pair) =>
