@@ -8,7 +8,10 @@
 	flex-direction: row;
 	align-items: center;
 	gap: 8px;
-	max-width: 420px;
+	/* Sized by its text, never by the room left of the window's edge; near the right edge it slides left to stay whole. */
+	width: max-content;
+	max-width: min(420px, calc(100vw - 16px));
+	translate: min(0px, calc(100vw - var(--wp-drag-x, 0px) - 22px - 100%)) 0;
 	padding: 5px 10px;
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 999px;
