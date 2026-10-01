@@ -61,6 +61,15 @@ describe('ContextMenu', () => {
 		expect(item('Disabled')).toHaveAttribute('aria-disabled', 'true');
 	});
 
+	it('shows an item title as a tooltip, to explain a disabled row', () => {
+		setup({
+			items: [
+				{ type: 'action', id: 'soon', label: 'Soon', disabled: true, title: 'Arrives later' },
+			],
+		});
+		expect(item('Soon')).toHaveAttribute('title', 'Arrives later');
+	});
+
 	it('focuses the surface on open and the first item when opened by keyboard', () => {
 		const { unmount } = setup();
 		expect(screen.getByRole('menu')).toHaveFocus();

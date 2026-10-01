@@ -373,6 +373,7 @@ function MenuPanel({
 						className={classes}
 						role={role}
 						tabIndex={-1}
+						title={item.title}
 						aria-disabled={item.disabled || undefined}
 						aria-checked={item.type === 'checkbox' ? item.checked : undefined}
 						aria-haspopup={isSubmenu ? 'menu' : undefined}
