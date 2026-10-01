@@ -35,7 +35,7 @@ Assumed stack, matching the family: Tauri v2, React and Rust. The spec is writte
 1. Main browser: tabs, sidebar, path bar, toolbar, views, split pane, status bar
 2. Remote connect and browse
 3. Drag and drop system, including the Shelf
-4. Command palette
+4. Command palette (Ctrl+Shift+P)
 5. File operations queue, conflict resolver and verification
 6. Properties, preview and Quick Look
 7. Plugin manager
@@ -74,6 +74,7 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 
 - Uses the **unified Liminal title bar** (see `docs/shared-components.md`). Tabs are **not** in it; they get their own row.
 - Contents: app mark and menu button (left), window title with the current location (centre), Always on Top, Minimise, Maximise/Restore and Close (right).
+- **Application menu** (the menu button): New Window, New Tab, Undo and Redo (each with a history submenu), the View toggles (sidebar, inspector, hidden files, action bar), the command palette and Settings. It is the same list of commands the keys, the action bar and the palette use.
 - Double-click toggles maximise. The whole bar is a drag region except its controls.
 - On Windows 11 the controls follow the Win11 order and style (see §9). GNOME and KDE button layouts follow the OS setting.
 
@@ -195,7 +196,9 @@ Every item is a drop target. Hovering an item during a drag springs it open afte
 - **Columns (Miller):** hierarchical navigation with a preview column at the end.
 - **Disk usage:** a treemap or sunburst of the current folder, with list parity.
 - Selection works by click, Shift/Ctrl, rubber-band, and type-ahead (jump to a match; type `/` for an inline filter).
-- **Inline rename:** F2. The first selection stops before the extension. Changing the extension asks for confirmation.
+- **Inline rename:** F2. The first selection stops before the extension. Changing the extension asks for confirmation. Ctrl+F2 opens batch rename for a multi-selection.
+- **New items and duplicate:** F7 creates a New Folder and Shift+F7 a New File (each opens in inline rename, and the same entries are in the empty-space menu). Ctrl+Shift+D duplicates the selection beside the originals. Ctrl+Shift+N stays New Window.
+- **Clipboard:** Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste files; Delete moves the selection to the Trash and Shift+Delete deletes it permanently (always after a confirmation). Ctrl+Z and Ctrl+Shift+Z undo and redo. Pasting never overwrites without asking (§8).
 - **Quick Look:** Space or hover-to-peek (an optional setting). The arrow keys move through files while it's open.
 - **Empty states:** an empty folder, no search results, a remote disconnected (with reconnect), and permission denied (with "Open as administrator").
 
@@ -241,11 +244,11 @@ Full rules are in `docs/interactions.md` §3. Summary:
 
 | Feature                | Behaviour                                                                                                                                                                                                                            |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Shelf                  | A floating stash. Drop items on it, go anywhere, then drag them out. It persists across tabs, windows and restarts (as references, not copies).                                                                                      |
+| Shelf                  | A stash (docked at first; a floating Shelf comes later). Drop items on it, go anywhere, then drag them out. It persists across tabs, windows and restarts (as references, not copies).                                               |
 | Spring-loaded targets  | Folders, tabs, sidebar items and breadcrumb segments open after hovering for 600 ms (configurable). Leaving springs back unless you've dropped.                                                                                      |
 | Remote drops           | Dropping onto a remote folder or saved remote queues an upload. A cursor badge shows "Upload to host".                                                                                                                               |
 | Modifier action picker | Default rule: same volume moves, a different volume copies. Ctrl copies, Shift moves, Ctrl+Shift links, and Alt (or a right-drag) opens a radial or menu picker: Copy, Move, Link, Compress here, Extract here, plus plugin actions. |
-| Out to apps            | Drag files to a terminal to insert quoted paths, or to other apps as URIs. Hold Alt while dragging to the terminal drawer to `cd` there instead.                                                                                     |
+| Out to apps            | Drag files to other apps as URIs, and drop files from other apps into any folder. Drag files to a terminal to insert quoted paths. Hold Alt while dragging to the terminal drawer to `cd` there instead.                             |
 | Drag feedback          | A stack preview with a count, a live action badge, a target highlight and an invalid-target shake.                                                                                                                                   |
 
 ## 7. Remote & virtual locations
@@ -264,11 +267,11 @@ Full rules are in `docs/interactions.md` §3. Summary:
 
 ## 8. Operations
 
-- **Ops queue:** every copy, move, upload, extract, delete or verify is a job with progress, speed and an ETA. Jobs can be paused, resumed, cancelled, reordered and retried. The queue lives in a popover from the status bar and can be popped out into a window.
-- **Conflict resolver:** one dialog for a batch. It compares each pair side by side (thumbnail, size, date and a diff for text) with per-file or apply-to-all choices: Replace, Skip, Keep both (rename), Merge folders, or Replace if newer.
-- **Checksum verification:** an optional setting that verifies after each copy (BLAKE3 by default, or SHA-256). Results are recorded on the job.
-- **Undo/redo:** Ctrl+Z and Ctrl+Shift+Z for rename, move, copy (deletes the copies), trash (restores) and tag changes. The history is visible in the Edit menu.
-- **Trash:** restore to the original location, with "Empty items older than N days" and per-volume trash views.
+- **Ops queue:** every create, rename, duplicate, copy, move, trash, delete or verify is a job with progress, speed and an ETA, shown in a popover from the status bar that can be popped out into a window; later milestones add upload, extract and more. Jobs can be cancelled and retried; pausing, reordering, a speed limit and scheduling come after the first release of the queue.
+- **Conflict resolver:** before anything is written, one dialog covers the whole batch. Each clash is shown with its sizes and dates, with per-file or apply-to-all choices: Replace, Skip, Keep both (rename), Merge folders, or Replace if newer. Nothing is overwritten without a choice, and the default button is never Replace. Thumbnails and a text diff join the dialog with the previews in a later milestone. A failure during the run (permission denied, disk full) offers Retry, Skip, Skip all or Cancel.
+- **Checksum verification:** a setting, off by default, that verifies after each copy (BLAKE3 by default, or SHA-256). Results are recorded on the job.
+- **Undo/redo:** Ctrl+Z and Ctrl+Shift+Z for new items, rename, duplicate, move, copy (deletes the copies), trash (restores), and batch rename; tag changes join in a later milestone. Undo refuses, and says why, when the files have changed since. The history is kept across restarts (the last 50 operations, shared by all windows), is listed in the Edit menu, the application menu and the command palette, and any entry can be undone from there. If Waypoint stopped in the middle of an operation, the next start says so; it never resumes by itself.
+- **Trash:** moving to the Trash is undoable and, on Linux, shared with the other file managers. The Trash place lists what is in it (on every volume) with its original location and deletion date, and offers Restore (to the original location, asking when the name is taken), Delete Permanently and Empty Trash, with an optional "Empty items older than N days". On Windows it is the Recycle Bin.
 - **Batch rename:** find/replace, regex, a counter, case, and date tokens, with a live before/after table and conflict highlighting. Rename rule plugins add tokens.
 
 ## 9. Theming & platforms
@@ -286,9 +289,9 @@ Full detail is in `docs/plugins.md`. There are extension points for columns, con
 
 ## 11. Settings
 
-Settings open in a separate window using the same side-nav pattern as Emoji Nook.
+Settings open in a separate window using the same side-nav pattern as Emoji Nook. The window ships in milestone 4 with the General, Operations and Drag & drop pages; each other page arrives with the milestone it belongs to (Appearance, Transparency, Previews & thumbnails, Accessibility and Language & Region in milestone 5; Integrations in milestone 7; Plugins and Developer in milestone 8; Privacy in milestone 9; Keyboard and Tabs & windows in milestone 10).
 
-1. **General:** startup (restore session or open Home), default view, single or double click, confirm on delete, hidden files.
+1. **General:** startup (restore session or open Home; the "Open startup tabs" list arrives later), default view, single or double click, confirm on delete (off by default for the Trash; Delete Permanently always confirms), hidden files.
 2. **Appearance:** mode, theme source, accent, density, icon theme, thumbnail size, font scale.
 3. **Transparency:** enable, opacity, blur, per-region toggles, "Solid when unfocused", and a live preview.
 4. **Tabs & windows:** new-tab location, middle-click behaviour, tear-off, close last tab behaviour, groups.
@@ -323,7 +326,7 @@ Full detail in `docs/os-integrations.md`. Portals first, so Waypoint works as a 
 
 ### 5.9 Action bar
 
-A row below the toolbar (on by default, hideable) with common commands: New, Cut, Copy, Paste, Rename, Share, Delete, Sort, View, Group, Extract all (only when an archive is selected), Undo and Redo. Labels are shown by default. Right-click the bar to hide labels, customise items, or hide the bar; users can add, remove and reorder items. Plugins can add buttons. Also togglable from the View menu and the command palette.
+A row below the toolbar (on by default, hideable) with common commands. It ships in milestone 4 with New, Cut, Copy, Paste, Rename, Delete, Undo and Redo, and gains Share, Sort, View, Group and Extract all (only when an archive is selected) as those features arrive. Labels are shown by default. Right-click the bar to hide labels or hide the bar; adding, removing and reordering items and plugin buttons come later. Also togglable from the View menu and the command palette.
 
 ## 13a. Bundled plugins
 
@@ -335,7 +338,7 @@ Duplicate finding, Compare and Sync, Previous Versions, Network Sharing, Nearby 
 - **Context menu:** choose which file-menu items show and reorder them.
 - **Icon style:** Waypoint, Outline, Filled or Duotone for Waypoint's own icons.
 - **Window layouts:** save the tabs, pairs, groups and panes as a named layout and restore it later.
-- **Shared clipboard:** copy or cut in one window and paste in another, including the floating window.
+- **Shared clipboard:** copy or cut in one window and paste in another, including the floating window. It is the system clipboard, so files copied in Waypoint paste into other file managers and the reverse.
 - **Compare and Sync:** for a pair of tabs, list files that differ or exist on one side, choose copy left, copy right or skip for each, then synchronise as background jobs.
 - **Previous versions:** in Properties, restore a file from a snapshot as a copy.
 - **Terminal history:** commands are remembered per workspace.
