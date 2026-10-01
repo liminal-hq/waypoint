@@ -48,7 +48,9 @@ fn the_ghost_is_created_hidden_and_registered_for_the_denylist() {
     assert!(app.get_webview_window(DEFAULT_GHOST_LABEL).is_some());
 }
 
+// Windows always has a display, so the ghost exists and the features are available there.
 #[test]
+#[cfg_attr(windows, ignore = "Windows always has a display")]
 fn with_no_display_every_feature_reports_unavailable_with_reasons() {
     let app = app();
     let handle = app.handle().clone();
@@ -62,7 +64,9 @@ fn with_no_display_every_feature_reports_unavailable_with_reasons() {
     assert_eq!(status.unavailable.len(), 4);
 }
 
+// Windows always has a display, so the ghost exists and the features are available there.
 #[test]
+#[cfg_attr(windows, ignore = "Windows always has a display")]
 fn begin_without_a_ghost_reports_no_ghost_and_end_still_answers() {
     let app = app();
     let handle = app.handle().clone();
