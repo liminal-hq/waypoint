@@ -1,0 +1,67 @@
+.form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 8px 14px;
+}
+
+.field {
+	display: flex;
+	flex: 1 1 140px;
+	flex-direction: column;
+	gap: 4px;
+	min-inline-size: 0;
+}
+
+.label {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.input {
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: var(--wp-control-height);
+	padding: 0 8px;
+	color: var(--wp-text-primary);
+	background: var(--wp-field-bg);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.input:focus-visible,
+.check input:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+.mono {
+	font-family: var(--wp-font-mono);
+}
+
+.number {
+	max-inline-size: 120px;
+}
+
+.hint,
+.note {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.checks {
+	display: flex;
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+	gap: 6px 18px;
+}
+
+.check {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
