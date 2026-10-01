@@ -7,6 +7,7 @@ import { fileLocation } from '../services/fakeVfsClient';
 import { createDemoClient, DEMO_HOME } from '../browse/demoClient';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeTabsApi } from '../services/fakeTabsApi';
+import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
 import type { MainServices } from './mainServices';
 
@@ -29,6 +30,7 @@ export async function startDemoServices(): Promise<MainServices> {
 		tabsApi,
 		home: DEMO_HOME,
 		timeFormat: new FakeTimeFormatClient('h23'),
+		ops: createFakeOpsClient(),
 		demo: { client },
 	};
 }

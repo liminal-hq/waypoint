@@ -10,7 +10,9 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
+import { MainOps } from '../ops/MainOps';
 import { tabsApi } from '../services/tabsApi';
+import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriPlacesClient } from '../services/tauriPlacesClient';
 import { createTauriTearoffClient } from '../services/tauriTearoffClient';
 import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
@@ -49,6 +51,7 @@ function start(): Promise<MainServices> {
 		createPlacesClient: createTauriPlacesClient,
 		createTearoffClient: createTauriTearoffClient,
 		createTimeFormatClient: createTauriTimeFormatClient,
+		createOpsClient: createTauriOpsClient,
 	});
 }
 
@@ -97,10 +100,12 @@ export function MainScreen() {
 											/>
 										</Suspense>
 									)}
-									<Workspace
-										startup={{ view: startup.services.view, notice: startup.services.notice }}
-										tearoff={startup.services.tearoff}
-									/>
+									<MainOps client={startup.services.ops}>
+										<Workspace
+											startup={{ view: startup.services.view, notice: startup.services.notice }}
+											tearoff={startup.services.tearoff}
+										/>
+									</MainOps>
 								</main>
 							</TabsProvider>
 						</TimeFormatProvider>

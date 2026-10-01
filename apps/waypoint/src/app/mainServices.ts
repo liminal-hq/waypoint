@@ -6,6 +6,7 @@
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
+import type { OpsClient } from '../services/opsClient';
 import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
@@ -26,6 +27,8 @@ export interface MainServices {
 	tearoff?: TearoffClient;
 	/** The system's 12/24-hour setting; without it times follow the locale's own convention. */
 	timeFormat?: TimeFormatClient;
+	/** The operations queue behind the status bar ring; without it the window has no ring. */
+	ops?: OpsClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -37,6 +40,7 @@ export interface MainServicesDeps {
 	createPlacesClient(): PlacesClient;
 	createTearoffClient?(): TearoffClient;
 	createTimeFormatClient?(): TimeFormatClient;
+	createOpsClient?(): OpsClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -60,6 +64,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		tabsApi: deps.tabsApi,
 		tearoff: deps.createTearoffClient?.(),
 		timeFormat: deps.createTimeFormatClient?.(),
+		ops: deps.createOpsClient?.(),
 		home,
 	};
 }
