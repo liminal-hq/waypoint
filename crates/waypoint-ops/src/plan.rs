@@ -20,6 +20,9 @@ use crate::model::{
 use crate::names::{file_name_of, fold_name, is_within, same_name, same_path, unique_full_name};
 use crate::traits::{Protected, Providers, SelectionResolver, Trash};
 
+mod batch;
+pub use batch::{preview_batch, BatchPlan, BatchStep};
+
 /// What the planner needs from the world.
 pub struct PlanCtx<'a> {
     pub providers: &'a Providers,
@@ -82,6 +85,8 @@ pub struct Plan {
     /// Names already taken in the destination, or wanted twice by the request.
     pub conflicts: Vec<Conflict>,
     pub warnings: Vec<PlanWarning>,
+    /// What a batch rename adds: the renames in order, and what a redo needs.
+    pub batch: Option<BatchPlan>,
 }
 
 impl Plan {
@@ -102,7 +107,11 @@ impl Plan {
         }
         let trees: Vec<Location> = if matches!(
             self.kind,
-            JobKind::Delete | JobKind::Trash | JobKind::Move | JobKind::Rename
+            JobKind::Delete
+                | JobKind::Trash
+                | JobKind::Move
+                | JobKind::Rename
+                | JobKind::BatchRename
         ) {
             self.items
                 .iter()
@@ -209,9 +218,7 @@ pub fn plan_with_progress(
         JobKind::Restore => planner.restore(),
         JobKind::Delete => planner.delete(),
         JobKind::Copy | JobKind::Move | JobKind::Link => planner.transfer(),
-        JobKind::BatchRename => Err(OpsError::Unsupported {
-            what: "renaming in a batch".to_owned(),
-        }),
+        JobKind::BatchRename => planner.batch_rename(),
         JobKind::Undo { .. } | JobKind::Redo { .. } => Err(OpsError::Unsupported {
             what: "undo and redo".to_owned(),
         }),
@@ -282,6 +289,7 @@ impl Planner<'_, '_> {
             same_volume,
             conflicts,
             warnings: std::mem::take(&mut self.warnings),
+            batch: None,
         }
     }
 

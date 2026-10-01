@@ -82,10 +82,14 @@ pub fn populate(provider: &dyn Provider, root: &VfsPath, tree: &Tree) {
     }
 }
 
-/// The entries whose name is a partial file's, which a finished or cancelled job leaves none of.
+fn is_partial(name: &str) -> bool {
+    name.starts_with(".waypoint-partial-") || name.starts_with(crate::exec::TEMP_PREFIX)
+}
+
+/// The entries whose name is a partial file's (or a batch rename's temporary name), which a finished or cancelled job leaves none of.
 pub fn partials(tree: &Tree) -> Vec<String> {
     tree.keys()
-        .filter(|key| key.split('/').any(|n| n.starts_with(".waypoint-partial-")))
+        .filter(|key| key.split('/').any(is_partial))
         .cloned()
         .collect()
 }
@@ -93,7 +97,7 @@ pub fn partials(tree: &Tree) -> Vec<String> {
 /// The tree without the partial entries.
 pub fn without_partials(tree: &Tree) -> Tree {
     tree.iter()
-        .filter(|(key, _)| !key.split('/').any(|n| n.starts_with(".waypoint-partial-")))
+        .filter(|(key, _)| !key.split('/').any(is_partial))
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect()
 }

@@ -16,6 +16,7 @@ testing = ["waypoint-vfs/testing", "dep:serde_json"]
 
 [dependencies]
 blake3 = "1"
+regex = "1"
 serde = { workspace = true }
 sha2 = "0.10"
 serde_json = { workspace = true, optional = true }

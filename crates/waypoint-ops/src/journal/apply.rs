@@ -109,6 +109,7 @@ pub fn prepare_undo(
         same_volume: true,
         conflicts: Vec::new(),
         warnings: Vec::new(),
+        batch: None,
     };
     Ok(UndoPlan { entry, steps, plan })
 }
@@ -178,6 +179,9 @@ struct Around {
     made: Vec<Location>,
     /// The entries other steps remove, which a fingerprint of a folder holding them leaves out.
     removed: Vec<String>,
+    /// Where the steps already checked put entries, so a later step may start from there (a batch
+    /// rename that sent an entry aside under a temporary name, which the undo meets again).
+    arrives: Vec<Location>,
 }
 
 /// The entries a step removes that a fingerprint of the same entry has to leave out of the
@@ -209,6 +213,7 @@ impl Around {
                 .filter_map(removes)
                 .map(|l| l.uri.clone())
                 .collect(),
+            arrives: Vec::new(),
         }
     }
 }
@@ -284,7 +289,9 @@ fn check_step(
         }
         InverseStep::Rename { from, to } | InverseStep::MoveBack { from, to } => {
             let (from_path, provider) = providers.for_location(from)?;
-            if !exists(provider.as_ref(), &from_path)? {
+            let rule = provider.capabilities().case_rule;
+            if !exists(provider.as_ref(), &from_path)? && !listed(&from_path, &around.arrives, rule)
+            {
                 return Err(stale(from, StaleReason::Missing));
             }
             let (to_path, _) = providers.for_location(to)?;
@@ -385,9 +392,12 @@ pub fn check_steps(
     protected: &Protected,
     steps: &[InverseStep],
 ) -> Result<(), OpsError> {
-    let around = Around::of(steps);
+    let mut around = Around::of(steps);
     for step in steps {
         check_step(providers, trash, protected, step, &around)?;
+        if let InverseStep::Rename { to, .. } | InverseStep::MoveBack { to, .. } = step {
+            around.arrives.push(to.clone());
+        }
     }
     Ok(())
 }

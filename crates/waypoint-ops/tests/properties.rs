@@ -295,6 +295,7 @@ fn run_sequence<P: Provider + 'static>(
                     name: None,
                     options: JobOptions::default(),
                     origin_window: "main-1".to_owned(),
+                    rename: None,
                 };
                 expected = if !model.is_dir(&parent) {
                     // A missing parent, or one that became a file.

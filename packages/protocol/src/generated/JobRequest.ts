@@ -2,6 +2,7 @@
 import type { JobKind } from "./JobKind";
 import type { JobOptions } from "./JobOptions";
 import type { Location } from "./Location";
+import type { RenameSpec } from "./RenameSpec";
 import type { Sources } from "./Sources";
 
 /**
@@ -21,4 +22,8 @@ name: string | null, options: JobOptions,
 /**
  * The window label the request came from, which a selection handle belongs to.
  */
-originWindow: string, };
+originWindow: string, 
+/**
+ * The rules of a batch rename.
+ */
+rename?: RenameSpec, };

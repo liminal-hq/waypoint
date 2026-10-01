@@ -11,14 +11,14 @@ use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{ListingHandle, SelectionSpec};
 
 use crate::journal::{JournalEntrySummary, JournalId, JournalSnapshot, StaleReason};
+use crate::rename_rules::RenameSpec;
 
 /// Names a job. Global to the store and never reused while the store lives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct JobId(#[ts(type = "number")] pub u64);
 
-/// What a job does. `BatchRename`, `Undo` and `Redo` have no executor yet; running one reports a
-/// typed `Unsupported`.
+/// What a job does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
@@ -38,6 +38,7 @@ pub enum JobKind {
     Move,
     /// Makes a symbolic link in the destination to each source, which stays where it is.
     Link,
+    /// Renames many entries by a stack of rules, all or none (`JobRequest::rename` holds the rules).
     BatchRename,
     /// Reverses the journal entry `of`.
     Undo {
@@ -106,6 +107,10 @@ pub struct JobRequest {
     pub options: JobOptions,
     /// The window label the request came from, which a selection handle belongs to.
     pub origin_window: String,
+    /// The rules of a batch rename.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub rename: Option<RenameSpec>,
 }
 
 /// How far a job has got.

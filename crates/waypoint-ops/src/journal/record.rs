@@ -58,7 +58,10 @@ fn label_for(kind: JobKind, count: usize, names: &[String]) -> String {
         JobKind::Copy => items("Copy", ""),
         JobKind::Move => items("Move", ""),
         JobKind::Link => items("Link", ""),
-        JobKind::BatchRename => items("Rename", ""),
+        JobKind::BatchRename => match (count, names.first(), names.get(1)) {
+            (1, Some(old), Some(new)) => format!("Rename {} to {}", quoted(old), quoted(new)),
+            _ => items("Rename", ""),
+        },
         JobKind::Undo { .. } => items("Undo", ""),
         JobKind::Redo { .. } => items("Redo", ""),
     }
@@ -109,6 +112,23 @@ impl Recorded {
                 forward.name = Some(name_of(to));
                 names = vec![name_of(from), name_of(to)];
                 count = 1;
+            }
+            JobKind::BatchRename => {
+                let batch = plan.and_then(|p| p.batch.as_ref())?;
+                // A redo runs the rules over every entry the first run did, on the time it used.
+                forward.sources = Sources::Locations {
+                    locations: batch.sources.iter().map(VfsPath::to_location).collect(),
+                };
+                forward.destination = None;
+                forward.name = None;
+                if let Some(spec) = forward.rename.as_mut() {
+                    spec.now_ms = Some(batch.now_ms);
+                }
+                count = report.renamed.len().max(1);
+                names = match report.renamed.as_slice() {
+                    [(from, to)] => vec![name_of(from), name_of(to)],
+                    many => many.iter().map(|(from, _)| name_of(from)).collect(),
+                };
             }
             JobKind::Trash => {
                 let originals: Vec<Location> =

@@ -182,6 +182,7 @@ impl<P: Provider + 'static> Harness<P> {
             name: name.map(str::to_owned),
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
+            rename: None,
         }
     }
 

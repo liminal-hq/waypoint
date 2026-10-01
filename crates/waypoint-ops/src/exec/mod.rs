@@ -10,6 +10,7 @@
 // whole; a failure or a cancel removes what it made. A permanent delete cannot be atomic across a
 // tree, so it removes children before their folder and a failure leaves a smaller valid tree.
 
+mod batch;
 mod copy;
 mod copy_engine;
 mod copy_job;
@@ -24,6 +25,7 @@ use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{child_path, CancelToken, EntryKind, FileTimes, Provider};
 
+pub use batch::TEMP_PREFIX;
 pub use copy::{CopyFile, CopyRequest, SimpleCopy};
 pub use copy_engine::CHUNK_BYTES;
 pub(crate) use copy_engine::{copy_file_bytes, FileCopy};
@@ -153,6 +155,9 @@ impl Executor {
         if matches!(plan.kind, JobKind::Copy | JobKind::Move | JobKind::Link) {
             return copy_job::run(&self.env, job, plan, cancel, sink, options);
         }
+        if plan.kind == JobKind::BatchRename {
+            return batch::run(&self.env, job, plan, cancel, sink);
+        }
         let mut run = Run {
             env: &self.env,
             job,
@@ -167,10 +172,7 @@ impl Executor {
             report: ExecReport::default(),
         };
         let mut done = 0u64;
-        if matches!(
-            plan.kind,
-            JobKind::BatchRename | JobKind::Undo { .. } | JobKind::Redo { .. }
-        ) {
+        if matches!(plan.kind, JobKind::Undo { .. } | JobKind::Redo { .. }) {
             return Err(run.fail(
                 OpsError::Unsupported {
                     what: "this operation is not built yet".to_owned(),

@@ -425,6 +425,7 @@ fn a_selection_is_resolved_through_the_resolver() {
             name: None,
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
+            rename: None,
         };
         let planned = plan_ok(&h, &request);
         let order: Vec<_> = planned.items.iter().map(|i| i.source.clone()).collect();
@@ -451,6 +452,7 @@ fn a_source_that_is_not_a_location_or_has_no_provider_is_refused() {
             name: None,
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
+            rename: None,
         };
         assert!(matches!(plan_err(&h, &nonsense), OpsError::Io { .. }));
         let mut other = nonsense.clone();

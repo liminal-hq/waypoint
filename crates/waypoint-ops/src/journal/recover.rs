@@ -140,6 +140,7 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
     };
     let prefix = format!(".waypoint-partial-{}-", record.job.0);
     let aside_prefix = format!(".waypoint-replaced-{}-", record.job.0);
+    let rename_prefix = format!("{}{}-", crate::exec::TEMP_PREFIX, record.job.0);
     let mut visited: Vec<VfsPath> = Vec::new();
     for folder in &record.folders {
         let Ok((path, provider)) = providers.for_location(folder) else {
@@ -168,6 +169,14 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
                 match restore_replaced(provider.as_ref(), &path, &child, &name, rest) {
                     Ok(original) => done.restored.push(original),
                     Err(()) => done.left.push(child.to_location()),
+                }
+                continue;
+            }
+            if partial_rest(&name, &rename_prefix).is_some() {
+                // A batch rename's entry waiting under a temporary name is the entry itself, not
+                // rubbish: it is reported and left for the person to put back.
+                if let Ok(child) = path.join(&entry.name) {
+                    done.left.push(child.to_location());
                 }
                 continue;
             }

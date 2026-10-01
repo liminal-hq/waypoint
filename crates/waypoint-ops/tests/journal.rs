@@ -131,6 +131,7 @@ fn permanent_delete_and_restore_leave_no_entry() {
             name: None,
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
+            rename: None,
         };
         let run = h.run_journalled(request);
         done(&run, &h);

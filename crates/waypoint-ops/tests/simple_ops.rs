@@ -374,6 +374,7 @@ fn trash_and_restore_round_trip() {
             name: None,
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
+            rename: None,
         };
         let restored = done(request, &mut h);
         assert_eq!(restored.restored.len(), 2);
@@ -398,6 +399,7 @@ fn restore_never_replaces_what_took_the_name() {
             name: None,
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
+            rename: None,
         };
         let result = h.run(request);
         assert!(matches!(
@@ -434,6 +436,7 @@ fn trash_needs_a_trash_and_refuses_protected_places() {
                 name: None,
                 options: JobOptions::default(),
                 origin_window: "main-1".to_owned(),
+                rename: None,
             };
             assert!(matches!(
                 refused(request, &mut h),
@@ -498,6 +501,7 @@ fn delete_refuses_roots_the_home_folder_and_mount_points() {
                 name: None,
                 options: JobOptions::default(),
                 origin_window: "main-1".to_owned(),
+                rename: None,
             };
             assert!(matches!(
                 refused(request, &mut h),
@@ -583,12 +587,11 @@ fn a_source_that_changed_since_planning_is_reported() {
 }
 
 #[test]
-fn kinds_without_an_executor_report_unsupported_and_write_nothing() {
+fn undo_and_redo_are_the_journals_to_run_and_write_nothing_here() {
     each_provider!(|h, rule, links| {
         let _ = (rule, links);
         build(&h, &tree(&[("a", "x"), ("d/", "")]));
         for request in [
-            h.request(JobKind::BatchRename, &["a"], None, None),
             h.request(JobKind::Undo { of: JournalId(1) }, &[], None, None),
             h.request(JobKind::Redo { of: JournalId(1) }, &[], None, None),
         ] {
