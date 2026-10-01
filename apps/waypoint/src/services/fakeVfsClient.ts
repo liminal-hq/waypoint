@@ -157,10 +157,18 @@ export class FakeVfsClient implements VfsClient {
 	private openFailure: VfsError | null = null;
 	/** The locations that list the Trash: read only, with the Trash layout, and items named by id. */
 	private trashes = new Set<string>();
+	/** The locations nothing can be written to besides the Trash (an archive, a read-only share). */
+	private readOnly = new Set<string>();
 	/** The files `openEntry` was asked to open, in order, as `(handle, id)` pairs. */
 	readonly opened: Array<{ handle: ListingHandle; id: EntryId }> = [];
 
 	constructor(private options: FakeVfsOptions = {}) {}
+
+	/** Marks a folder as one nothing can be written to (the Trash, an archive); listings opened afterwards say so. */
+	setReadOnly(location: Location, readOnly = true): void {
+		if (readOnly) this.readOnly.add(location.uri);
+		else this.readOnly.delete(location.uri);
+	}
 
 	/** Defines (or replaces) the contents of a folder. Open listings of it are refreshed. */
 	setFolder(location: Location, entries: Entry[]): void {
@@ -248,7 +256,8 @@ export class FakeVfsClient implements VfsClient {
 			phase: 'ready',
 			sort: listing.sort,
 			filter: listing.filter,
-			readOnly: this.trashes.has(listing.location.uri),
+			readOnly:
+				this.trashes.has(listing.location.uri) || this.readOnly.has(listing.location.uri),
 			layout: this.trashes.has(listing.location.uri) ? 'trash' : 'folder',
 		};
 	}
