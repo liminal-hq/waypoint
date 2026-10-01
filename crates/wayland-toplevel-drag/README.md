@@ -29,7 +29,7 @@ fn main() {
 }
 ```
 
-Without them nothing breaks: `probe` reports `Unavailable::NoInterposer` and the caller falls back. The interposer changes no request, and records nothing where GDK is not on Wayland.
+With `libwayland-client` linked directly (what `wayland-sys` does without its `dlopen` feature) the linker exports the definition anyway, because the library defines the same symbol, so the arguments mattered on no machine tried; they make it certain, and are needed if the library is loaded with `dlopen` or the link order changes. Without them, and without the export, nothing breaks: `probe` reports `Unavailable::NoInterposer` and the caller falls back. The interposer changes no request, and records nothing where GDK is not on Wayland.
 
 ## Use
 
