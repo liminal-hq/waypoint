@@ -15,6 +15,7 @@ import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
 import { followHints } from '../browse/tabHints';
+import { onFlushHints } from '../services/flushHintsEvent';
 import {
 	createViewStore,
 	followView,
@@ -153,13 +154,18 @@ function WorkspaceBody({
 	activeId.current = snapshot?.active ?? null;
 	useEffect(
 		() =>
-			followHints(api, () => {
-				const tab = activeId.current;
-				const state = tab === null ? undefined : manager.stateFor(tab);
-				return tab !== null && state?.status === 'ready'
-					? { tab, session: state.session, mode: viewStore.getState().mode }
-					: null;
-			}),
+			followHints(
+				api,
+				() => {
+					const tab = activeId.current;
+					const state = tab === null ? undefined : manager.stateFor(tab);
+					return tab !== null && state?.status === 'ready'
+						? { tab, session: state.session, mode: viewStore.getState().mode }
+						: null;
+				},
+				undefined,
+				onFlushHints,
+			),
 		[api, manager, viewStore],
 	);
 

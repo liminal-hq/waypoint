@@ -126,6 +126,42 @@ describe('reporting hints', () => {
 		stop();
 	});
 
+	it('reports when the shell asks for a flush, until stopped', async () => {
+		const { manager } = setup();
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		const session = await ready(manager, 1);
+		const api = { setTabHints: vi.fn(async () => {}) };
+		let flush: (() => void) | null = null;
+		const unsubscribe = vi.fn();
+		const stop = followHints(
+			api,
+			() => ({ tab: 1, session, mode: 'list' }),
+			HINT_INTERVAL_MS,
+			(callback) => {
+				flush = callback;
+				return unsubscribe;
+			},
+		);
+		session.view.scrollTop = 42;
+		flush!();
+		expect(api.setTabHints).toHaveBeenLastCalledWith(1, { scrollTop: 42, focused: null });
+		stop();
+		expect(unsubscribe).toHaveBeenCalledTimes(1);
+	});
+
+	it('reports when the page is hidden or about to unload', async () => {
+		const { api, session, stop } = await reporting();
+		session.view.scrollTop = 5;
+		window.dispatchEvent(new Event('beforeunload'));
+		expect(api.setTabHints).toHaveBeenLastCalledWith(1, { scrollTop: 5, focused: null });
+		session.view.scrollTop = 6;
+		vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+		document.dispatchEvent(new Event('visibilitychange'));
+		expect(api.setTabHints).toHaveBeenLastCalledWith(1, { scrollTop: 6, focused: null });
+		vi.restoreAllMocks();
+		stop();
+	});
+
 	it('reports at once when the window loses focus or is going away', async () => {
 		const { api, session, stop } = await reporting();
 		session.view.scrollTop = 77;

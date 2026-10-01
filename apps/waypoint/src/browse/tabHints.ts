@@ -70,12 +70,15 @@ export interface ActiveView {
 
 /**
  * Reports the active tab's hints to the session: every `HINT_INTERVAL_MS` while they change, and
- * at once when the window loses focus or is going away. Returns the function that stops it.
+ * at once when the window loses focus, is hidden or is going away, and when `onFlush` calls back
+ * (the shell asks for a flush when the window is about to close, before the session is saved,
+ * which is earlier than `pagehide`). Returns the function that stops it.
  */
 export function followHints(
 	api: Pick<TabsApi, 'setTabHints'>,
 	active: () => ActiveView | null,
 	intervalMs: number = HINT_INTERVAL_MS,
+	onFlush?: (flush: () => void) => () => void,
 ): () => void {
 	const reported = new Map<TabId, TabHints>();
 	const report = () => {
@@ -92,9 +95,18 @@ export function followHints(
 	const timer = setInterval(report, intervalMs);
 	window.addEventListener('blur', report);
 	window.addEventListener('pagehide', report);
+	window.addEventListener('beforeunload', report);
+	const reportWhenHidden = () => {
+		if (document.visibilityState === 'hidden') report();
+	};
+	document.addEventListener('visibilitychange', reportWhenHidden);
+	const unsubscribe = onFlush?.(report);
 	return () => {
 		clearInterval(timer);
 		window.removeEventListener('blur', report);
 		window.removeEventListener('pagehide', report);
+		window.removeEventListener('beforeunload', report);
+		document.removeEventListener('visibilitychange', reportWhenHidden);
+		unsubscribe?.();
 	};
 }

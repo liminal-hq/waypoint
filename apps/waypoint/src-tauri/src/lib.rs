@@ -14,7 +14,7 @@ use tauri_plugin_waypoint_session::SessionDeps;
 use waypoint_protocol::WindowKind;
 use waypoint_session::StorePolicy;
 
-use persistence::Saver;
+use persistence::{CloseFlush, Intent, Saver};
 use windows::{GeometryCapture, TauriWindowFactory};
 
 /// The level floor applied to every log line — native Rust and forwarded
@@ -41,7 +41,7 @@ fn session_deps(saver: &Arc<Saver>) -> SessionDeps {
     );
     let on_change = Arc::clone(saver);
     deps.on_change = Some(Arc::new(move |store| {
-        on_change.save(|| Some(store.to_document()), false)
+        on_change.save(|| Some(store.to_document()), Intent::Change)
     }));
     let on_last = Arc::clone(saver);
     deps.on_last_window_closed = Some(Arc::new(move |app| {
@@ -108,12 +108,17 @@ pub fn run() {
         })
         .on_window_event({
             let saver = Arc::clone(&saver);
+            let flush = Arc::new(CloseFlush::default());
             move |window, event| {
                 if WindowKind::from_label(window.label()) != Some(WindowKind::Main) {
                     return;
                 }
                 geometry.on_event(window, event);
                 if matches!(event, WindowEvent::CloseRequested { .. }) {
+                    // The page reports its last hints first; the repeated request saves.
+                    if flush.on_close_requested(window, event) {
+                        return;
+                    }
                     saver.window_closing(window.app_handle());
                 }
             }
