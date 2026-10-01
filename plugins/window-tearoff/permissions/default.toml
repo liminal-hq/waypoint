@@ -1,0 +1,11 @@
+[default]
+description = "Default permissions for the window-tearoff plugin"
+permissions = [
+  "allow-get-status",
+  "allow-begin",
+  "allow-update",
+  "allow-end",
+  "allow-set-drop-regions",
+  "allow-get-cursor",
+  "allow-get-payload",
+]

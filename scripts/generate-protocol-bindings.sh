@@ -10,5 +10,5 @@
 # `packages/protocol/src/generated/` and each reusable plugin's in `guest-js/bindings/`.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-system-appearance -p tauri-plugin-window-manager
+cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-system-appearance -p tauri-plugin-window-manager -p tauri-plugin-window-tearoff
 echo "Regenerated the protocol and plugin bindings."

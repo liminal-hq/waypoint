@@ -1,0 +1,48 @@
+[package]
+name = "tauri-plugin-window-tearoff"
+version = "0.1.0"
+description = "Tauri plugin for dragging something out of a window: a click-through ghost that follows the cursor, and cross-window drop hit-testing"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-window-tearoff"
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Follows the cursor with GetCursorPos through tao and does not take focus; type-checked but not yet run on Windows" }
+linux = { level = "partial", notes = "Full ghost and hit-testing on X11 and XWayland; on Wayland the compositor reports no cursor and no window positions, so every feature reports unavailable and the caller falls back to an in-page preview" }
+macos = { level = "none", notes = "Reports every feature unavailable" }
+android = { level = "none", notes = "Desktop windows only" }
+ios = { level = "none", notes = "Desktop windows only" }
+
+[lib]
+name = "tauri_plugin_window_tearoff"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+log = { workspace = true }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gdk = "0.18"
+gtk = "0.18"
+
+# Matches the version Tauri resolves, so the types line up.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_UI_Input_KeyboardAndMouse",
+] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }

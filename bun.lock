@@ -15,6 +15,7 @@
       "dependencies": {
         "@liminal-hq/plugin-system-appearance": "workspace:*",
         "@liminal-hq/plugin-window-manager": "workspace:*",
+        "@liminal-hq/plugin-window-tearoff": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
         "@liminal-hq/waypoint-plugin-session": "workspace:*",
         "@liminal-hq/waypoint-plugin-vfs": "workspace:*",
@@ -116,6 +117,19 @@
     "plugins/window-manager": {
       "name": "@liminal-hq/plugin-window-manager",
       "version": "0.2.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/window-tearoff": {
+      "name": "@liminal-hq/plugin-window-tearoff",
+      "version": "0.1.0",
       "dependencies": {
         "@tauri-apps/api": "^2.10.0",
       },
@@ -235,6 +249,8 @@
     "@liminal-hq/plugin-system-appearance": ["@liminal-hq/plugin-system-appearance@workspace:plugins/system-appearance"],
 
     "@liminal-hq/plugin-window-manager": ["@liminal-hq/plugin-window-manager@workspace:plugins/window-manager"],
+
+    "@liminal-hq/plugin-window-tearoff": ["@liminal-hq/plugin-window-tearoff@workspace:plugins/window-tearoff"],
 
     "@liminal-hq/waypoint": ["@liminal-hq/waypoint@workspace:apps/waypoint"],
 
