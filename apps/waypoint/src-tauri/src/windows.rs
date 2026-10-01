@@ -165,6 +165,18 @@ pub struct GeometryCapture {
     pending: Arc<Mutex<HashSet<String>>>,
 }
 
+/// The position to store for a window: the inner origin that `set_position` will be given again,
+/// and nothing where the platform does not report one (Wayland returns (0, 0) for every window).
+pub fn captured_position(
+    position_applies: bool,
+    inner: Option<(i32, i32)>,
+) -> (Option<i32>, Option<i32>) {
+    match inner {
+        Some((x, y)) if position_applies => (Some(x), Some(y)),
+        _ => (None, None),
+    }
+}
+
 fn read_geometry<R: Runtime>(
     window: &WebviewWindow<R>,
     previous: Option<Geometry>,
@@ -191,14 +203,14 @@ fn read_geometry<R: Runtime>(
     if window.is_minimized().unwrap_or(false) {
         return None;
     }
-    let position = if applies {
-        window.outer_position().ok()
-    } else {
-        None
-    };
+    // `set_position` places the inner (client) origin of these frameless windows, so the inner
+    // position is the one that restores to the same place; `outer_position` sits a shadow inset
+    // above it on X11 and the window would climb by that much on every run.
+    let inner = window.inner_position().ok().map(|p| (p.x, p.y));
+    let (x, y) = captured_position(applies, inner);
     Some(Geometry {
-        x: position.map(|p| p.x),
-        y: position.map(|p| p.y),
+        x,
+        y,
         width: size.width,
         height: size.height,
         maximised: false,
@@ -300,6 +312,21 @@ mod tests {
         assert_eq!(fit.size, (1280, 1024));
         let no_position = fit_geometry(&geometry(None, None, 3000, 500), &[LEFT, RIGHT], true);
         assert_eq!(no_position.size, (1920, 500));
+    }
+
+    #[test]
+    fn the_captured_position_is_the_inner_origin_and_restores_unchanged() {
+        let (x, y) = captured_position(true, Some((120, 80)));
+        assert_eq!((x, y), (Some(120), Some(80)));
+        let g = geometry(x, y, 1200, 800);
+        let fit = fit_geometry(&g, &[LEFT], true);
+        assert_eq!(fit.position, Some((120, 80)), "a second run must not drift");
+    }
+
+    #[test]
+    fn no_position_is_captured_where_the_platform_has_none() {
+        assert_eq!(captured_position(false, Some((0, 0))), (None, None));
+        assert_eq!(captured_position(true, None), (None, None));
     }
 
     #[test]
