@@ -164,8 +164,13 @@ impl<R: Runtime> FileKeyValue<R> {
     /// Opens the store. `tauri-plugin-store` ignores a file it cannot parse and the next save
     /// would overwrite it, so a file that is not a JSON object is copied aside first.
     pub fn open(app: &AppHandle<R>) -> Result<Self, String> {
+        Self::open_file(app, FILE)
+    }
+
+    /// Opens the store file `file` in the app data directory, with the same care.
+    pub fn open_file(app: &AppHandle<R>, file: &str) -> Result<Self, String> {
         let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-        let path = dir.join(FILE);
+        let path = dir.join(file);
         let unreadable = std::fs::read(&path).is_ok_and(|bytes| {
             !matches!(
                 serde_json::from_slice::<Value>(&bytes),
@@ -173,13 +178,13 @@ impl<R: Runtime> FileKeyValue<R> {
             )
         });
         if unreadable {
-            log::warn!("the session file {} is not a JSON object", path.display());
+            log::warn!("the store file {} is not a JSON object", path.display());
             match copy_aside(&path) {
-                Some(name) => log::warn!("kept a copy of the session file as `{name}`"),
-                None => log::warn!("could not keep a copy of the unreadable session file"),
+                Some(name) => log::warn!("kept a copy of the store file as `{name}`"),
+                None => log::warn!("could not keep a copy of the unreadable store file"),
             }
         }
-        let store = app.store(FILE).map_err(|e| e.to_string())?;
+        let store = app.store(file).map_err(|e| e.to_string())?;
         Ok(Self {
             store,
             path,

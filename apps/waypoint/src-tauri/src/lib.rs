@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod ops;
 mod persistence;
 mod storage;
 mod windows;
@@ -142,6 +143,8 @@ pub fn run() {
         .plugin(tauri_plugin_trash::init())
         .plugin(tauri_plugin_native_dnd::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
+        // After the vfs and trash plugins its adapters reach, and after the store plugin it saves through.
+        .plugin(tauri_plugin_waypoint_ops::init_with(ops::deps))
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
         .manage(HoldNextWindow::default())
@@ -171,6 +174,12 @@ pub fn run() {
                         return;
                     }
                     saver.window_closing(window.app_handle());
+                    if let Some(ops) = window
+                        .app_handle()
+                        .try_state::<tauri_plugin_waypoint_ops::Ops<tauri::Wry>>()
+                    {
+                        ops.flush_journal();
+                    }
                 }
             }
         });
