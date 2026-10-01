@@ -24,7 +24,8 @@
 		"check:boundaries": "bash scripts/check-plugin-boundaries.sh",
 		"check:case": "bash scripts/check-case-collisions.test.sh && bash scripts/check-case-collisions.sh",
 		"build:plugins": "bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build",
-		"check:bindings": "bash scripts/check-bindings-drift.sh"
+		"check:bindings": "bash scripts/check-bindings-drift.sh",
+		"build:windows": "bash scripts/build-windows-remote-dev.sh"
 	},
 	"devDependencies": {
 		"@rollup/plugin-typescript": "^12.1.4",

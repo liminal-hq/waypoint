@@ -25,3 +25,6 @@ plugins/*/permissions/schemas/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Cross-built Windows exe staged for a remote machine (scripts/build-windows-remote-dev.sh)
+/dist-windows-remote-dev/
