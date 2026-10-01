@@ -234,6 +234,7 @@ impl Tearoff {
         lock(&self.regions).insert(label.to_string(), regions);
     }
 
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     /// The id of the region of `label` under (`x`, `y`) in logical pixels from the top-left of its content; the smallest wins an overlap.
     pub fn region_at(&self, label: &str, x: f64, y: f64) -> Option<String> {
         let regions = lock(&self.regions);
