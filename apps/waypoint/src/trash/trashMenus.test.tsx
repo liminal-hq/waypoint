@@ -39,7 +39,9 @@ describe('the Trash empty-space menu', () => {
 		expect(ids(full)).not.toContain('showHidden');
 		expect(ids(full).at(-1)).toBe('emptyTrash');
 		expect(find(full, 'emptyTrash')).toMatchObject({ danger: true, disabled: false });
-		expect(find(backgroundMenuItems(sort, false, { trash: { count: 0 } }), 'emptyTrash')).toMatchObject({
+		expect(
+			find(backgroundMenuItems(sort, false, { trash: { count: 0 } }), 'emptyTrash'),
+		).toMatchObject({
 			disabled: true,
 		});
 	});

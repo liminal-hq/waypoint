@@ -97,10 +97,7 @@ describe('where the keys belong to something else', () => {
 });
 
 describe('useFileShortcuts', () => {
-	function mount(
-		commands: Partial<FileCommands> | null,
-		options: FileShortcutOptions = {},
-	) {
+	function mount(commands: Partial<FileCommands> | null, options: FileShortcutOptions = {}) {
 		function Host() {
 			useFileShortcuts(commands as FileCommands | null, options);
 			return (

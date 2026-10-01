@@ -256,8 +256,7 @@ export class FakeVfsClient implements VfsClient {
 			phase: 'ready',
 			sort: listing.sort,
 			filter: listing.filter,
-			readOnly:
-				this.trashes.has(listing.location.uri) || this.readOnly.has(listing.location.uri),
+			readOnly: this.trashes.has(listing.location.uri) || this.readOnly.has(listing.location.uri),
 			layout: this.trashes.has(listing.location.uri) ? 'trash' : 'folder',
 		};
 	}
