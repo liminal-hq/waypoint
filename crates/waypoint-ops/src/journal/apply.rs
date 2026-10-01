@@ -18,10 +18,11 @@
 
 use waypoint_path::VfsPath;
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{CancelToken, EntryKind, Provider};
+use waypoint_vfs::{CancelToken, EntryKind, FileTimes, Permissions, Provider};
 
+use super::copyback::copy_back;
 use super::engine::Journal;
-use super::fingerprint::{fingerprint, verify};
+use super::fingerprint::{fingerprint_excluding, verify_excluding};
 use super::model::{InverseStep, JournalId, StaleReason};
 use crate::exec::{remove_all, ExecEnv, ExecSink, Executor};
 use crate::model::{Counts, JobId, JobKind, JobRequest, OpsError, Progress};
@@ -128,9 +129,84 @@ fn exists(provider: &dyn Provider, path: &VfsPath) -> Result<bool, OpsError> {
 /// Where a step's names are, for the check that the destination name is free.
 fn vacates(step: &InverseStep) -> Option<&Location> {
     match step {
-        InverseStep::Rename { from, .. } | InverseStep::MoveBack { from, .. } => Some(from),
-        InverseStep::RemoveCreated { location, .. } => Some(location),
+        InverseStep::Rename { from, .. }
+        | InverseStep::MoveBack { from, .. }
+        | InverseStep::CopyBack { from, .. } => Some(from),
+        InverseStep::RemoveCreated { location, .. } | InverseStep::RemoveEmptyDir { location } => {
+            Some(location)
+        }
         _ => None,
+    }
+}
+
+/// The folders the undo makes itself, which later steps may put entries into.
+fn made_by(step: &InverseStep) -> Option<&Location> {
+    match step {
+        InverseStep::CreateDir { location, .. } => Some(location),
+        _ => None,
+    }
+}
+
+fn listed(path: &VfsPath, list: &[Location], rule: waypoint_path::CaseRule) -> bool {
+    list.iter().any(|l| {
+        VfsPath::from_location(l)
+            .map(|p| same_path(&p, path, rule))
+            .unwrap_or(false)
+    })
+}
+
+/// What the whole list of steps vacates and makes, which each step is checked against.
+struct Around {
+    vacated: Vec<Location>,
+    made: Vec<Location>,
+    /// The entries other steps remove, which a fingerprint of a folder holding them leaves out.
+    removed: Vec<String>,
+}
+
+/// The entries a step removes that a fingerprint of the same entry has to leave out of the
+/// folders above them.
+fn removes(step: &InverseStep) -> Option<&Location> {
+    match step {
+        InverseStep::RemoveCreated { location, .. } => Some(location),
+        InverseStep::CopyBack { from, .. } => Some(from),
+        _ => None,
+    }
+}
+
+/// What lies strictly below `folder` among `all` (their `uri`s).
+fn below(folder: &Location, all: &[String]) -> Vec<String> {
+    let prefix = format!("{}/", folder.uri.trim_end_matches('/'));
+    all.iter()
+        .filter(|uri| uri.starts_with(&prefix))
+        .cloned()
+        .collect()
+}
+
+impl Around {
+    fn of(steps: &[InverseStep]) -> Self {
+        Self {
+            vacated: steps.iter().filter_map(vacates).cloned().collect(),
+            made: steps.iter().filter_map(made_by).cloned().collect(),
+            removed: steps
+                .iter()
+                .filter_map(removes)
+                .map(|l| l.uri.clone())
+                .collect(),
+        }
+    }
+}
+
+/// Checks that the folder `folder` is there, or is made by the undo.
+fn check_folder(
+    provider: &dyn Provider,
+    folder: &VfsPath,
+    around: &Around,
+) -> Result<(), OpsError> {
+    let rule = provider.capabilities().case_rule;
+    if exists(provider, folder)? || listed(folder, &around.made, rule) {
+        Ok(())
+    } else {
+        Err(stale(&folder.to_location(), StaleReason::Missing))
     }
 }
 
@@ -140,14 +216,12 @@ fn check_destination(
     providers: &Providers,
     from: &VfsPath,
     to: &Location,
-    vacated: &[Location],
+    around: &Around,
 ) -> Result<(), OpsError> {
     let (to_path, provider) = providers.for_location(to)?;
     let rule = provider.capabilities().case_rule;
     if let Some(folder) = to_path.parent() {
-        if !exists(provider.as_ref(), &folder)? {
-            return Err(stale(&folder.to_location(), StaleReason::Missing));
-        }
+        check_folder(provider.as_ref(), &folder, around)?;
     }
     let same_entry = same_path(from, &to_path, rule)
         || (from.parent() == to_path.parent()
@@ -158,12 +232,7 @@ fn check_destination(
     if same_entry || !exists(provider.as_ref(), &to_path)? {
         return Ok(());
     }
-    let going = vacated.iter().any(|v| {
-        VfsPath::from_location(v)
-            .map(|p| same_path(&p, &to_path, rule))
-            .unwrap_or(false)
-    });
-    if going {
+    if listed(&to_path, &around.vacated, rule) {
         Ok(())
     } else {
         Err(stale(to, StaleReason::NameTaken))
@@ -175,7 +244,7 @@ fn check_step(
     trash: &dyn Trash,
     protected: &Protected,
     step: &InverseStep,
-    vacated: &[Location],
+    around: &Around,
 ) -> Result<(), OpsError> {
     match step {
         InverseStep::RemoveCreated {
@@ -188,8 +257,13 @@ fn check_step(
                     location: location.clone(),
                 });
             }
-            verify(provider.as_ref(), &path, fingerprint.as_ref())
-                .map_err(|reason| stale(location, reason))
+            verify_excluding(
+                provider.as_ref(),
+                &path,
+                fingerprint.as_ref(),
+                &below(location, &around.removed),
+            )
+            .map_err(|reason| stale(location, reason))
         }
         InverseStep::Rename { from, to } | InverseStep::MoveBack { from, to } => {
             let (from_path, provider) = providers.for_location(from)?;
@@ -202,7 +276,48 @@ fn check_step(
                     what: "undoing across providers".to_owned(),
                 });
             }
-            check_destination(providers, &from_path, to, vacated)
+            check_destination(providers, &from_path, to, around)
+        }
+        InverseStep::CopyBack {
+            from,
+            to,
+            fingerprint,
+        } => {
+            let (from_path, provider) = providers.for_location(from)?;
+            if protected.contains(&from_path, provider.capabilities().case_rule) {
+                return Err(OpsError::Protected {
+                    location: from.clone(),
+                });
+            }
+            verify_excluding(
+                provider.as_ref(),
+                &from_path,
+                fingerprint.as_ref(),
+                &below(from, &around.removed),
+            )
+            .map_err(|reason| stale(from, reason))?;
+            let (to_path, to_provider) = providers.for_location(to)?;
+            if protected.contains(&to_path, to_provider.capabilities().case_rule) {
+                return Err(OpsError::Protected {
+                    location: to.clone(),
+                });
+            }
+            check_destination(providers, &from_path, to, around)?;
+            // A copy back never goes over what is there, even what is about to be moved away.
+            if exists(to_provider.as_ref(), &to_path)? {
+                return Err(stale(to, StaleReason::NameTaken));
+            }
+            Ok(())
+        }
+        InverseStep::CreateDir { location, .. } => {
+            let (path, provider) = providers.for_location(location)?;
+            if let Some(folder) = path.parent() {
+                check_folder(provider.as_ref(), &folder, around)?;
+            }
+            if exists(provider.as_ref(), &path)? {
+                return Err(stale(location, StaleReason::NameTaken));
+            }
+            Ok(())
         }
         InverseStep::RestoreTrashed { receipt } => {
             if !trash.contains(receipt)? {
@@ -229,8 +344,14 @@ fn check_step(
                 }
                 Err(error) => return Err(error.into()),
             }
+            let rule = provider.capabilities().case_rule;
             let children = provider.list(&path, &CancelToken::new(), 0, &mut |_| {})?;
-            if children.is_empty() {
+            let only_going = children.iter().all(|child| {
+                path.join(&child.name)
+                    .map(|p| listed(&p, &around.vacated, rule))
+                    .unwrap_or(false)
+            });
+            if only_going {
                 Ok(())
             } else {
                 Err(stale(location, StaleReason::Changed))
@@ -247,9 +368,9 @@ pub fn check_steps(
     protected: &Protected,
     steps: &[InverseStep],
 ) -> Result<(), OpsError> {
-    let vacated: Vec<Location> = steps.iter().filter_map(vacates).cloned().collect();
+    let around = Around::of(steps);
     for step in steps {
-        check_step(providers, trash, protected, step, &vacated)?;
+        check_step(providers, trash, protected, step, &around)?;
     }
     Ok(())
 }
@@ -258,14 +379,28 @@ pub fn check_steps(
 /// is committed. A fingerprint that cannot be taken stays `None`, which makes an undo of that step
 /// refuse rather than delete something it cannot vouch for.
 pub fn fingerprint_steps(providers: &Providers, steps: &mut [InverseStep]) {
+    // A folder is fingerprinted without the entries that other steps remove from inside it
+    // (something merged into a folder the same job made), so it matches whether or not they have
+    // gone when its turn comes.
+    let removed: Vec<String> = steps
+        .iter()
+        .filter_map(removes)
+        .map(|l| l.uri.clone())
+        .collect();
     for step in steps {
         if let InverseStep::RemoveCreated {
             location,
             fingerprint: slot @ None,
+        }
+        | InverseStep::CopyBack {
+            from: location,
+            fingerprint: slot @ None,
+            ..
         } = step
         {
             if let Ok((path, provider)) = providers.for_location(location) {
-                *slot = fingerprint(provider.as_ref(), &path).ok();
+                *slot = fingerprint_excluding(provider.as_ref(), &path, &below(location, &removed))
+                    .ok();
             }
         }
     }
@@ -293,7 +428,7 @@ pub struct UndoFailure {
 }
 
 /// The name an entry is moved aside under while a case-only rename goes through it.
-fn aside_path(env: &ExecEnv, job: JobId, from: &VfsPath) -> Result<VfsPath, OpsError> {
+pub(super) fn aside_path(env: &ExecEnv, job: JobId, from: &VfsPath) -> Result<VfsPath, OpsError> {
     let folder = from.parent().ok_or_else(|| OpsError::Protected {
         location: from.to_location(),
     })?;
@@ -309,20 +444,69 @@ fn aside_path(env: &ExecEnv, job: JobId, from: &VfsPath) -> Result<VfsPath, OpsE
         })
 }
 
-fn apply_step(env: &ExecEnv, job: JobId, step: &InverseStep) -> Result<(), OpsError> {
+/// Removes an entry the job made. A tree goes in two steps so that its place is either full or
+/// empty, never half: it is renamed to a partial name (the step is done once that works), and the
+/// rest is cleanup that a failure or a crash leaves for recovery.
+pub(super) fn remove_entry(env: &ExecEnv, job: JobId, location: &Location) -> Result<(), OpsError> {
+    let (path, provider) = env.providers.for_location(location)?;
+    match provider.stat(&path)?.kind {
+        EntryKind::Directory => {
+            let aside = aside_path(env, job, &path)?;
+            provider.rename(&path, &aside, false)?;
+            let _ = remove_all(provider.as_ref(), &aside);
+        }
+        _ => provider.remove_file(&path)?,
+    }
+    Ok(())
+}
+
+fn apply_step(
+    env: &ExecEnv,
+    job: JobId,
+    step: &InverseStep,
+    around: &Around,
+    cancel: &CancelToken,
+) -> Result<(), OpsError> {
     match step {
-        InverseStep::RemoveCreated { location, .. } => {
+        InverseStep::RemoveCreated { location, .. } => remove_entry(env, job, location),
+        InverseStep::CopyBack {
+            from,
+            to,
+            fingerprint,
+        } => copy_back(
+            env,
+            job,
+            from,
+            to,
+            fingerprint.as_ref(),
+            &below(from, &around.removed),
+            cancel,
+        ),
+        InverseStep::CreateDir {
+            location,
+            modified_ms,
+            mode,
+        } => {
             let (path, provider) = env.providers.for_location(location)?;
-            match provider.stat(&path)?.kind {
-                EntryKind::Directory => {
-                    // A tree goes in two steps so that its place is either full or empty, never
-                    // half: it is renamed to a partial name (the step is done once that works),
-                    // and the rest is cleanup that a failure or a crash leaves for recovery.
-                    let aside = aside_path(env, job, &path)?;
-                    provider.rename(&path, &aside, false)?;
-                    let _ = remove_all(provider.as_ref(), &aside);
-                }
-                _ => provider.remove_file(&path)?,
+            provider.create_dir(&path)?;
+            // The folder is there; its time and mode are best effort.
+            if let Some(ms) = modified_ms {
+                let _ = provider.set_times(
+                    &path,
+                    FileTimes {
+                        accessed: None,
+                        modified: Some(crate::exec::from_ms(*ms)),
+                    },
+                );
+            }
+            if let Some(mode) = mode {
+                let _ = provider.set_permissions(
+                    &path,
+                    Permissions {
+                        mode: Some(*mode),
+                        readonly: mode & 0o222 == 0,
+                    },
+                );
             }
             Ok(())
         }
@@ -386,7 +570,7 @@ impl Executor {
                 progress: progress.clone(),
             })
         };
-        let vacated: Vec<Location> = steps.iter().filter_map(vacates).cloned().collect();
+        let around = Around::of(steps);
         for (at, step) in steps.iter().enumerate() {
             sink.between_items();
             if cancel.is_cancelled() {
@@ -397,9 +581,9 @@ impl Executor {
                 env.trash.as_ref(),
                 &env.protected,
                 step,
-                &vacated,
+                &around,
             )
-            .and_then(|()| apply_step(env, job, step));
+            .and_then(|()| apply_step(env, job, step, &around, cancel));
             if let Err(error) = outcome {
                 return Err(stop(error, at, &progress));
             }

@@ -45,14 +45,26 @@ fn kind_code(kind: EntryKind) -> u64 {
 
 /// Reads a fingerprint of the entry at `path`, walking a folder (never following links).
 pub fn fingerprint(provider: &dyn Provider, path: &VfsPath) -> Result<Fingerprint, VfsError> {
+    fingerprint_excluding(provider, path, &[])
+}
+
+/// Like `fingerprint`, leaving out the entries at `excluded` below a folder: the ones that another
+/// step of the same undo removes first, so that the folder is still what it was when its turn
+/// comes whether or not they have gone yet.
+pub fn fingerprint_excluding(
+    provider: &dyn Provider,
+    path: &VfsPath,
+    excluded: &[String],
+) -> Result<Fingerprint, VfsError> {
     let entry = provider.stat(path)?;
-    describe(provider, path, &entry)
+    describe(provider, path, &entry, excluded)
 }
 
 fn describe(
     provider: &dyn Provider,
     path: &VfsPath,
     entry: &ScannedEntry,
+    excluded: &[String],
 ) -> Result<Fingerprint, VfsError> {
     match entry.kind {
         EntryKind::Directory => {
@@ -63,6 +75,13 @@ fn describe(
             let cancel = CancelToken::new();
             while let Some((folder, prefix)) = stack.pop() {
                 for child in provider.list(&folder, &cancel, 0, &mut |_| {})? {
+                    if !excluded.is_empty()
+                        && folder
+                            .join(&child.name)
+                            .is_ok_and(|p| excluded.contains(&p.to_location().uri))
+                    {
+                        continue;
+                    }
                     let name = child.name.to_string_lossy().into_owned();
                     let key = format!("{prefix}{name}");
                     let is_file = child.kind == EntryKind::File;
@@ -147,6 +166,16 @@ pub fn verify(
     path: &VfsPath,
     expected: Option<&Fingerprint>,
 ) -> Result<(), StaleReason> {
+    verify_excluding(provider, path, expected, &[])
+}
+
+/// Like `verify`, leaving out the entries at `excluded` (their `uri`s) below a folder.
+pub fn verify_excluding(
+    provider: &dyn Provider,
+    path: &VfsPath,
+    expected: Option<&Fingerprint>,
+    excluded: &[String],
+) -> Result<(), StaleReason> {
     let Some(expected) = expected else {
         return Err(StaleReason::Unverified);
     };
@@ -157,7 +186,7 @@ pub fn verify(
         }
         Err(_) => return Err(StaleReason::Changed),
     }
-    let now = fingerprint(provider, path).map_err(|_| StaleReason::Changed)?;
+    let now = fingerprint_excluding(provider, path, excluded).map_err(|_| StaleReason::Changed)?;
     if same(expected, &now) {
         Ok(())
     } else {

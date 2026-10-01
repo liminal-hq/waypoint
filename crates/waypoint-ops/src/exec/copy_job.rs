@@ -32,6 +32,7 @@ use waypoint_vfs::{child_path, CancelToken, EntryKind, Provider, ScannedEntry};
 use super::copy_engine::{copy_file_bytes, hash_file, FileCopy, CHUNK_BYTES};
 use super::copy_resolve::{action_for, Action, Resolutions};
 use super::{remove::remove_tree, ExecEnv, ExecFailure, ExecReport, ExecSink};
+use crate::journal::InverseStep;
 use crate::model::{
     Conflict, ConflictKind, ConflictPolicy, Counts, Decision, JobId, JobKind, JobOptions, OpsError,
     OpsSettings, Progress, Resolution, Verification, VerifyAlgorithm,
@@ -91,6 +92,46 @@ pub struct TransferReport {
     /// place (safe to delete), or that could not be put back after a replacement failed (the only
     /// copy of what the replaced entry held).
     pub leftovers: Vec<Location>,
+    /// The top-level sources of the plan that something was placed for, in order: what a redo
+    /// runs again.
+    pub placed_sources: Vec<Location>,
+    /// The policy that settled the clashes the job was not asked about one by one (the request's,
+    /// or the answer given as "apply to all"), which a redo runs with so it meets the same clashes
+    /// the same way.
+    pub policy: Option<ConflictPolicy>,
+    /// Why the job cannot be undone and so is not journalled, when it cannot (A52): a replaced
+    /// entry is gone for good once the job commits.
+    pub unjournalled: Option<String>,
+}
+
+/// How a unit came to be at its target, which decides how an undo reverses it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum How {
+    /// A copy or a link: the source was left where it was.
+    Created,
+    /// A move by rename: the entry is the very one that was at the source.
+    Renamed,
+    /// A move across volumes: a copy was made and the source removed.
+    Copied,
+}
+
+/// What a run did, in order, as far as an undo needs to know.
+#[derive(Debug, Clone)]
+enum Unit {
+    /// An entry in place at `target`, with everything below it.
+    Placed {
+        src: VfsPath,
+        target: VfsPath,
+        how: How,
+    },
+    /// A folder the job made at its destination that still stands, holding entries placed below.
+    MadeDir { target: VfsPath },
+    /// A source folder a move emptied and removed after merging it into another.
+    RemovedDir {
+        src: VfsPath,
+        modified_ms: Option<i64>,
+        mode: Option<u32>,
+    },
 }
 
 /// How an item or a step ended, short of an error.
@@ -210,9 +251,9 @@ struct Transfer<'a> {
     /// entry that lands on one of them (`a` after `A`) is known to clash with the job's own work
     /// and never replaces it.
     placed: HashSet<String>,
-    /// Every completed placement that is not inside a folder created by another one, as
-    /// `(source, target)`, in order.
-    units: Vec<(VfsPath, VfsPath)>,
+    /// Every completed placement that is not inside a folder created by another one, in order,
+    /// with the folders made and removed around them.
+    units: Vec<Unit>,
     /// While a folder replaced by a move is built as a copy: every source entry copied into it, as
     /// the job met it and in the order copied (children before their folder), so the source can be
     /// removed item by item afterwards and anything that changed meanwhile stays.
@@ -261,7 +302,12 @@ pub(super) fn run(
     for item in &plan.items {
         t.sink.between_items();
         let at = item_location(item);
-        let outcome = match t.top(item) {
+        let before = t.units.len();
+        let result = t.top(item);
+        if t.units.len() > before {
+            t.report.transfer.placed_sources.push(at.clone());
+        }
+        let outcome = match result {
             Ok(outcome) => outcome,
             Err(Flow::Cancelled) => return Err(t.fail(OpsError::Cancelled, Some(at), done)),
             Err(Flow::Fatal(error, location)) => return Err(t.fail(*error, Some(*location), done)),
@@ -292,18 +338,76 @@ fn name_error(name: &OsStr) -> OpsError {
 
 impl Transfer<'_> {
     fn finish_report(&mut self) {
+        let placed = self.units.iter().filter_map(|unit| match unit {
+            Unit::Placed { src, target, .. } => Some((src, target)),
+            _ => None,
+        });
         if self.moving {
-            self.report.renamed = self
-                .units
-                .iter()
+            self.report.renamed = placed
                 .map(|(from, to)| (from.to_location(), to.to_location()))
                 .collect();
         } else {
-            self.report.created = self.units.iter().map(|(_, to)| to.to_location()).collect();
+            self.report.created = placed.map(|(_, to)| to.to_location()).collect();
         }
         self.report.transfer.verified = self.manifest.as_ref().and_then(Manifest::snapshot);
         self.report.progress = self.meter.progress.clone();
         self.report.counts = self.meter.counts;
+        self.report.transfer.policy = self.resolutions.all();
+        self.report.inverse = self.inverse_steps();
+        self.report.transfer.unjournalled =
+            (!self.report.transfer.replaced.is_empty()).then(|| {
+                "an entry that was replaced is gone for good, so this cannot be undone".to_owned()
+            });
+    }
+
+    /// What reverses the run, in the order the originals were done. Empty when anything was
+    /// replaced: the replaced entry is removed once the job commits, and nothing can put it back.
+    fn inverse_steps(&self) -> Vec<InverseStep> {
+        if !self.report.transfer.replaced.is_empty() {
+            return Vec::new();
+        }
+        self.units
+            .iter()
+            .map(|unit| match unit {
+                Unit::Placed { target, how, .. } if *how == How::Created => {
+                    InverseStep::RemoveCreated {
+                        location: target.to_location(),
+                        fingerprint: None,
+                    }
+                }
+                Unit::Placed { src, target, how } if *how == How::Renamed => {
+                    InverseStep::MoveBack {
+                        from: target.to_location(),
+                        to: src.to_location(),
+                    }
+                }
+                Unit::Placed { src, target, .. } => InverseStep::CopyBack {
+                    from: target.to_location(),
+                    to: src.to_location(),
+                    fingerprint: None,
+                },
+                Unit::MadeDir { target } => InverseStep::RemoveEmptyDir {
+                    location: target.to_location(),
+                },
+                Unit::RemovedDir {
+                    src,
+                    modified_ms,
+                    mode,
+                } => InverseStep::CreateDir {
+                    location: src.to_location(),
+                    modified_ms: *modified_ms,
+                    mode: *mode,
+                },
+            })
+            .collect()
+    }
+
+    fn placed(&mut self, src: &VfsPath, target: &VfsPath, how: How) {
+        self.units.push(Unit::Placed {
+            src: src.clone(),
+            target: target.clone(),
+            how,
+        });
     }
 
     fn fail(&mut self, error: OpsError, item: Option<Location>, done: u64) -> Box<ExecFailure> {
@@ -884,7 +988,7 @@ impl Transfer<'_> {
                     if let Some(aside) = &aside {
                         self.drop_aside(dp.as_ref(), aside);
                     }
-                    self.leaf_placed(src, target, existing, size);
+                    self.leaf_placed(src, target, existing, size, How::Renamed);
                     return Ok(());
                 }
                 Err(error) => {
@@ -956,7 +1060,12 @@ impl Transfer<'_> {
         if let Some(copied) = self.copied.as_mut() {
             copied.push((src.clone(), entry.clone()));
         }
-        self.leaf_placed(src, target, existing, 0);
+        let how = if ctx.mode == Mode::Move {
+            How::Copied
+        } else {
+            How::Created
+        };
+        self.leaf_placed(src, target, existing, 0, how);
         Ok(())
     }
 
@@ -993,13 +1102,14 @@ impl Transfer<'_> {
         target: &VfsPath,
         existing: Option<&ScannedEntry>,
         renamed_bytes: u64,
+        how: How,
     ) {
         self.meter.progress.bytes_done += renamed_bytes;
         self.note_placed(target);
         if existing.is_some() {
             self.report.transfer.replaced.push(target.to_location());
         }
-        self.units.push((src.clone(), target.clone()));
+        self.placed(src, target, how);
         self.entry_done(file_name_of(target));
     }
 
@@ -1196,7 +1306,9 @@ impl Transfer<'_> {
                     self.move_dir_new(ctx, sp.as_ref(), src, dp.as_ref(), &target, entry, size)
                 }
             },
-            Placement::Merge(target) => self.merge_dir(ctx, sp.as_ref(), src, dp.as_ref(), &target),
+            Placement::Merge(target) => {
+                self.merge_dir(ctx, sp.as_ref(), src, dp.as_ref(), &target, entry)
+            }
             Placement::Replace(target, _) => {
                 self.replace_dir(ctx, sp.as_ref(), src, dp.as_ref(), &target, entry, size)
             }
@@ -1330,7 +1442,7 @@ impl Transfer<'_> {
                     copied.push((src.clone(), entry.clone()));
                 }
                 self.note_placed(target);
-                self.units.push((src.clone(), target.clone()));
+                self.placed(src, target, How::Created);
                 self.entry_done(file_name_of(target));
                 Ok(if whole {
                     Outcome::Done
@@ -1374,7 +1486,7 @@ impl Transfer<'_> {
                 Some(true) => {
                     self.account(entries, bytes);
                     self.note_placed(target);
-                    self.units.push((src.clone(), target.clone()));
+                    self.placed(src, target, How::Renamed);
                     self.meter.emit(self.sink);
                     return Ok(Outcome::Done);
                 }
@@ -1401,29 +1513,63 @@ impl Transfer<'_> {
             Err(flow) => {
                 // Stopped part way: what was moved stays moved. A folder that holds nothing is
                 // not left behind.
-                let _ = dp.remove_dir(target);
+                self.drop_or_note_dir(dp, target, mark);
                 return Err(flow);
             }
         };
         if !whole {
-            let _ = dp.remove_dir(target);
+            self.drop_or_note_dir(dp, target, mark);
             self.entry_done(file_name_of(target));
             return Ok(Outcome::Partial);
         }
-        let finished = self.attempt(&at, |_| {
+        let finished = match self.attempt(&at, |_| {
             copy_metadata(sp, src, dp, target, Some(entry.modified_ms))?;
             sp.remove_dir(src)?;
             Ok(())
-        })?;
+        }) {
+            Ok(finished) => finished,
+            Err(flow) => {
+                // The job stops here with the folder standing and what was moved into it.
+                self.units.insert(
+                    mark,
+                    Unit::MadeDir {
+                        target: target.clone(),
+                    },
+                );
+                return Err(flow);
+            }
+        };
         self.entry_done(file_name_of(target));
         match finished {
             Some(()) => {
                 // Everything went: the folder as a whole is what moved.
                 self.units.truncate(mark);
-                self.units.push((src.clone(), target.clone()));
+                self.placed(src, target, How::Copied);
                 Ok(Outcome::Done)
             }
-            None => Ok(Outcome::Partial),
+            None => {
+                // The folder stands with what was moved into it.
+                self.units.insert(
+                    mark,
+                    Unit::MadeDir {
+                        target: target.clone(),
+                    },
+                );
+                Ok(Outcome::Partial)
+            }
+        }
+    }
+
+    /// Removes the folder a move made at its destination if nothing was moved into it; otherwise
+    /// it stays and the run notes it, so an undo takes it away once what is in it is back.
+    fn drop_or_note_dir(&mut self, dp: &dyn Provider, target: &VfsPath, mark: usize) {
+        if dp.remove_dir(target).is_err() {
+            self.units.insert(
+                mark,
+                Unit::MadeDir {
+                    target: target.clone(),
+                },
+            );
         }
     }
 
@@ -1488,9 +1634,11 @@ impl Transfer<'_> {
         src: &VfsPath,
         dp: &dyn Provider,
         target: &VfsPath,
+        entry: &ScannedEntry,
     ) -> R<Outcome> {
         let at = src.to_location();
         self.report.transfer.merged.push(target.to_location());
+        let mode = sp.permissions(src).ok().and_then(|p| p.mode);
         let inside = Ctx {
             nested: true,
             ..ctx
@@ -1505,11 +1653,18 @@ impl Transfer<'_> {
             // Everything that was in the source folder is in the destination now. A folder that is
             // not empty (something arrived meanwhile) stays.
             let removed = self.attempt(&at, |_| match sp.remove_dir(src) {
-                Ok(()) | Err(VfsError::NotEmpty { .. }) => Ok(()),
+                Ok(()) => Ok(true),
+                Err(VfsError::NotEmpty { .. }) => Ok(false),
                 Err(error) => Err(error.into()),
             })?;
-            if removed.is_none() {
-                outcome = Outcome::Partial;
+            match removed {
+                None => outcome = Outcome::Partial,
+                Some(true) => self.units.push(Unit::RemovedDir {
+                    src: src.clone(),
+                    modified_ms: entry.modified_ms,
+                    mode,
+                }),
+                Some(false) => {}
             }
         }
         self.entry_done(file_name_of(target));
@@ -1562,7 +1717,7 @@ impl Transfer<'_> {
                     self.note_placed(target);
                     self.account(entries, bytes);
                     self.report.transfer.replaced.push(target.to_location());
-                    self.units.push((src.clone(), target.clone()));
+                    self.placed(src, target, How::Renamed);
                     self.meter.emit(self.sink);
                     return Ok(Outcome::Done);
                 }
@@ -1610,7 +1765,12 @@ impl Transfer<'_> {
         self.drop_aside(dp, &aside);
         self.note_placed(target);
         self.report.transfer.replaced.push(target.to_location());
-        self.units.push((src.clone(), target.clone()));
+        let how = if ctx.mode == Mode::Move {
+            How::Copied
+        } else {
+            How::Created
+        };
+        self.placed(src, target, how);
         self.entry_done(file_name_of(target));
         let mut outcome = if whole {
             Outcome::Done
@@ -1637,7 +1797,7 @@ impl Transfer<'_> {
 /// Gives the copy the original's modification time and permissions, where the provider has them
 /// (and not its owner). `known` is the time the original had when the job met it, for a folder
 /// whose own time moves as its entries are taken out (a move); `None` reads it now.
-fn copy_metadata(
+pub(crate) fn copy_metadata(
     sp: &dyn Provider,
     src: &VfsPath,
     dp: &dyn Provider,

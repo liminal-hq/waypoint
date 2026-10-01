@@ -43,8 +43,7 @@ pub struct Fingerprint {
 }
 
 /// One thing an undo does. They are stored in the order the job did the originals, and applied in
-/// reverse. The set grows with the operations (the copy and move engine adds its own), so match
-/// with a catch-all arm.
+/// reverse. The set grows with the operations, so match with a catch-all arm.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
@@ -64,9 +63,28 @@ pub enum InverseStep {
         location: Location,
         fingerprint: Option<Fingerprint>,
     },
+    /// Puts back an entry a move across volumes took away: copies the entry at `from` (what the
+    /// move left at its destination) to `to`, and removes `from` once the copy is in place. It is
+    /// refused unless `from` is still exactly what `fingerprint` says and `to` is free, and `from`
+    /// is checked again after the copy, so nothing is overwritten and nothing newer is lost.
+    CopyBack {
+        from: Location,
+        to: Location,
+        fingerprint: Option<Fingerprint>,
+    },
+    /// Makes a folder a move removed after emptying it into another, with the time and mode it
+    /// had, so the entries that go back have somewhere to be.
+    CreateDir {
+        location: Location,
+        #[ts(type = "number | null")]
+        modified_ms: Option<i64>,
+        #[ts(type = "number | null")]
+        mode: Option<u32>,
+    },
     /// Puts a trashed item back where it was.
     RestoreTrashed { receipt: TrashReceipt },
-    /// Removes a folder, which must be empty.
+    /// Removes a folder, which must be empty, apart from entries that earlier steps of the same
+    /// undo take out of it.
     RemoveEmptyDir { location: Location },
 }
 
@@ -76,7 +94,9 @@ impl InverseStep {
         match self {
             InverseStep::Rename { from, .. } | InverseStep::MoveBack { from, .. } => from.clone(),
             InverseStep::RemoveCreated { location, .. }
-            | InverseStep::RemoveEmptyDir { location } => location.clone(),
+            | InverseStep::RemoveEmptyDir { location }
+            | InverseStep::CreateDir { location, .. } => location.clone(),
+            InverseStep::CopyBack { from, .. } => from.clone(),
             InverseStep::RestoreTrashed { receipt } => receipt.original.clone(),
         }
     }

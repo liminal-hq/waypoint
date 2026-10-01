@@ -26,6 +26,8 @@ use waypoint_vfs::{child_path, CancelToken, EntryKind, FileTimes, Provider};
 
 pub use copy::{CopyFile, CopyRequest, SimpleCopy};
 pub use copy_engine::CHUNK_BYTES;
+pub(crate) use copy_engine::{copy_file_bytes, FileCopy};
+pub(crate) use copy_job::copy_metadata;
 pub use copy_job::{RunOptions, TransferReport};
 pub use copy_resolve::{action_for, Action, Resolutions};
 
@@ -235,7 +237,7 @@ fn item_location(item: &PlanItem) -> Location {
         .unwrap_or_else(|| Location::new("", ""))
 }
 
-fn from_ms(ms: i64) -> SystemTime {
+pub(crate) fn from_ms(ms: i64) -> SystemTime {
     if ms >= 0 {
         UNIX_EPOCH + Duration::from_millis(ms as u64)
     } else {

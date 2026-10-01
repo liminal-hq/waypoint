@@ -5,7 +5,6 @@ import type { TrashReceipt } from "./TrashReceipt";
 
 /**
  * One thing an undo does. They are stored in the order the job did the originals, and applied in
- * reverse. The set grows with the operations (the copy and move engine adds its own), so match
- * with a catch-all arm.
+ * reverse. The set grows with the operations, so match with a catch-all arm.
  */
-export type InverseStep = { "kind": "rename", from: Location, to: Location, } | { "kind": "moveBack", from: Location, to: Location, } | { "kind": "removeCreated", location: Location, fingerprint: Fingerprint | null, } | { "kind": "restoreTrashed", receipt: TrashReceipt, } | { "kind": "removeEmptyDir", location: Location, };
+export type InverseStep = { "kind": "rename", from: Location, to: Location, } | { "kind": "moveBack", from: Location, to: Location, } | { "kind": "removeCreated", location: Location, fingerprint: Fingerprint | null, } | { "kind": "copyBack", from: Location, to: Location, fingerprint: Fingerprint | null, } | { "kind": "createDir", location: Location, modifiedMs: number | null, mode: number | null, } | { "kind": "restoreTrashed", receipt: TrashReceipt, } | { "kind": "removeEmptyDir", location: Location, };

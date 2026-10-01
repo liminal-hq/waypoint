@@ -119,6 +119,21 @@ impl Recorded {
                     locations: originals,
                 };
             }
+            JobKind::Copy | JobKind::Move | JobKind::Link => {
+                // Only the sources something was placed for: a redo does what the job did, not
+                // what it skipped or failed on.
+                let placed = report.transfer.placed_sources.clone();
+                if !placed.is_empty() {
+                    forward.sources = Sources::Locations {
+                        locations: placed.clone(),
+                    };
+                }
+                // A redo meets the same clashes (a merge into a folder that is still there) and
+                // settles them as the job did.
+                forward.options.conflict = report.transfer.policy.or(request.options.conflict);
+                count = placed.len().max(1);
+                names = placed.iter().map(name_of).collect();
+            }
             _ => {
                 let done: Vec<Location> = match plan {
                     Some(plan) => locations_of(&plan.items),
@@ -242,6 +257,14 @@ impl PendingRecord {
             | InverseStep::RemoveEmptyDir { location } = step
             {
                 if let Some(place) = parent_of(location) {
+                    if !folders.contains(&place) {
+                        folders.push(place);
+                    }
+                }
+            }
+            if let InverseStep::CopyBack { from, to, .. } = step {
+                // The copy is built beside its place, and the original goes aside where it is.
+                for place in [parent_of(from), parent_of(to)].into_iter().flatten() {
                     if !folders.contains(&place) {
                         folders.push(place);
                     }
