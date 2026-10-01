@@ -4,10 +4,20 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import * as session from '@liminal-hq/waypoint-plugin-session';
+import type { Geometry } from '@liminal-hq/waypoint-protocol/generated/Geometry';
+import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
+import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { MoveTo } from '@liminal-hq/waypoint-protocol/generated/MoveTo';
+import type { MoveWhat } from '@liminal-hq/waypoint-protocol/generated/MoveWhat';
+import type { PairId } from '@liminal-hq/waypoint-protocol/generated/PairId';
+import type { PairLayout } from '@liminal-hq/waypoint-protocol/generated/PairLayout';
 import type { SessionEvent } from '@liminal-hq/waypoint-protocol/generated/SessionEvent';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
+import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
+import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
+import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { Unsubscribe } from './vfsClient';
 
 export interface OpenTabOptions {
@@ -34,20 +44,69 @@ export interface TabsApi {
 	navigate(tab: TabId, location: Location): Promise<void>;
 	back(tab: TabId): Promise<void>;
 	forward(tab: TabId): Promise<void>;
+
+	/** Pins or unpins a tab; a tab in a pair or group carries the whole pair or group with it. */
+	pinTab(tab: TabId, pinned: boolean): Promise<void>;
+	setTabColour(tab: TabId, colour: TabColour | null): Promise<void>;
+	setTabHints(tab: TabId, hints: TabHints): Promise<void>;
+	/** Reopens a closed tab (the newest when omitted); resolves to its id, or `null` when there was none. */
+	reopenTab(tab?: TabId): Promise<TabId | null>;
+
+	/** Groups the tabs (and the rest of their pairs); resolves to the new group's id. */
+	createGroup(tabs: TabId[], name?: string): Promise<GroupId>;
+	addToGroup(tab: TabId, group: GroupId): Promise<void>;
+	removeFromGroup(tab: TabId): Promise<void>;
+	renameGroup(group: GroupId, name: string): Promise<void>;
+	setGroupColour(group: GroupId, colour: TabColour | null): Promise<void>;
+	setGroupCollapsed(group: GroupId, collapsed: boolean): Promise<void>;
+	/** Collapses every other group in this window. */
+	collapseOtherGroups(group: GroupId): Promise<void>;
+	sortGroup(group: GroupId, by: GroupSort): Promise<void>;
+	/** Copies a group after itself; resolves to the copy's id. */
+	duplicateGroup(group: GroupId): Promise<GroupId>;
+	moveGroup(group: GroupId, index: number): Promise<void>;
+	ungroup(group: GroupId): Promise<void>;
+	closeGroup(group: GroupId): Promise<void>;
+
+	/** Pairs two or more tabs; resolves to the new pair's id. */
+	joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId>;
+	separatePair(pair: PairId): Promise<void>;
+	setPairLayout(pair: PairId, layout: PairLayout): Promise<void>;
+	/** One share per pane, in thousandths adding up to 1000. */
+	setPairSizes(pair: PairId, sizes: number[]): Promise<void>;
+	swapPanes(pair: PairId): Promise<void>;
+	/** Splits a tab into a pair with a copy of itself, or undoes such a split. */
+	toggleSplit(tab: TabId): Promise<void>;
+
+	/** Makes a window (with a first tab at `location` when given); resolves to its label. */
+	openWindow(location?: Location, geometry?: Geometry): Promise<string>;
+	/** Closes this window's session and the window, or the window named by `target`. */
+	closeWindow(target?: string): Promise<void>;
+	setGeometry(geometry: Geometry): Promise<void>;
+	setView(view: ViewPrefs): Promise<void>;
+	/**
+	 * Moves tabs, a group or a pair out of this window into an existing window or a new one (do
+	 * not name a label for a new window); resolves to the label of the window they went to.
+	 */
+	moveTabs(what: MoveWhat, to: MoveTo): Promise<string>;
+
 	/** Follows every change to this window's session. */
 	onEvent(listener: (event: SessionEvent) => void): Unsubscribe;
 }
 
 /**
- * Applies one event to a snapshot and returns the new snapshot. Events at or below the
+ * Applies one event to a snapshot and returns the new snapshot. The store sends a window only its
+ * own events but numbers them globally, so revisions have gaps; events at or below the
  * snapshot's revision are already included (a snapshot read after subscribing can overlap), so
- * they leave it unchanged.
+ * they leave it unchanged. Closing a tab emits no event for the closed list, which is why
+ * `closed` is only as fresh as the last snapshot.
  */
 export function applyTabsEvent(snapshot: SessionSnapshot, event: SessionEvent): SessionSnapshot {
 	if (event.revision <= snapshot.revision) return snapshot;
 	const next: SessionSnapshot = { ...snapshot, revision: event.revision };
 	switch (event.kind) {
 		case 'tabOpened':
+		case 'tabReopened':
 			next.tabs = [...snapshot.tabs];
 			next.tabs.splice(event.index, 0, event.tab);
 			break;
@@ -66,7 +125,39 @@ export function applyTabsEvent(snapshot: SessionSnapshot, event: SessionEvent): 
 			break;
 		}
 		case 'tabNavigated':
+		case 'tabChanged':
 			next.tabs = snapshot.tabs.map((t) => (t.id === event.tab.id ? event.tab : t));
+			break;
+		case 'groupCreated':
+			next.groups = [...snapshot.groups.filter((g) => g.id !== event.group.id), event.group];
+			break;
+		case 'groupChanged':
+			next.groups = snapshot.groups.map((g) => (g.id === event.group.id ? event.group : g));
+			break;
+		case 'groupRemoved':
+			next.groups = snapshot.groups.filter((g) => g.id !== event.group);
+			break;
+		case 'pairCreated':
+			next.pairs = [...snapshot.pairs.filter((p) => p.id !== event.pair.id), event.pair];
+			break;
+		case 'pairChanged':
+			next.pairs = snapshot.pairs.map((p) => (p.id === event.pair.id ? event.pair : p));
+			break;
+		case 'pairRemoved':
+			next.pairs = snapshot.pairs.filter((p) => p.id !== event.pair);
+			break;
+		case 'mruChanged':
+			next.mru = event.mru;
+			break;
+		case 'viewChanged':
+			next.view = event.view;
+			break;
+		case 'geometryChanged':
+			next.geometry = event.geometry;
+			break;
+		case 'windowOpened':
+		case 'windowClosed':
+			// Nothing in this window's own state changes; the revision still advances.
 			break;
 	}
 	return next;
@@ -87,6 +178,33 @@ export const tabsApi: TabsApi = {
 	navigate: (tab, location) => session.navigate(tab, location),
 	back: (tab) => session.back(tab),
 	forward: (tab) => session.forward(tab),
+	pinTab: (tab, pinned) => session.pinTab(tab, pinned),
+	setTabColour: (tab, colour) => session.setTabColour(tab, colour),
+	setTabHints: (tab, hints) => session.setTabHints(tab, hints),
+	reopenTab: (tab) => session.reopenTab(tab),
+	createGroup: (tabs, name) => session.createGroup(tabs, name),
+	addToGroup: (tab, group) => session.addToGroup(tab, group),
+	removeFromGroup: (tab) => session.removeFromGroup(tab),
+	renameGroup: (group, name) => session.renameGroup(group, name),
+	setGroupColour: (group, colour) => session.setGroupColour(group, colour),
+	setGroupCollapsed: (group, collapsed) => session.setGroupCollapsed(group, collapsed),
+	collapseOtherGroups: (group) => session.collapseOtherGroups(group),
+	sortGroup: (group, by) => session.sortGroup(group, by),
+	duplicateGroup: (group) => session.duplicateGroup(group),
+	moveGroup: (group, index) => session.moveGroup(group, index),
+	ungroup: (group) => session.ungroup(group),
+	closeGroup: (group) => session.closeGroup(group),
+	joinPair: (tabs, layout) => session.joinPair(tabs, layout),
+	separatePair: (pair) => session.separatePair(pair),
+	setPairLayout: (pair, layout) => session.setPairLayout(pair, layout),
+	setPairSizes: (pair, sizes) => session.setPairSizes(pair, sizes),
+	swapPanes: (pair) => session.swapPanes(pair),
+	toggleSplit: (tab) => session.toggleSplit(tab),
+	openWindow: (location, geometry) => session.openWindow(location, geometry),
+	closeWindow: (target) => session.closeWindow(target),
+	setGeometry: (geometry) => session.setGeometry(geometry),
+	setView: (view) => session.setView(view),
+	moveTabs: (what, to) => session.moveTabs(what, to),
 	onEvent: (listener) => {
 		let unlisten: (() => void) | undefined;
 		let stopped = false;
