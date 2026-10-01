@@ -112,7 +112,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 ## 4. Selection & naming
 
 - Type-ahead jumps to the first prefix match, and the timer resets after 800 ms. Typing `/` starts a filter chip in the path bar area.
-- Inline rename selects the basename only. If the extension changes, it asks "Change .jpg to .png?" with Keep or Use .png.
+- Inline rename (F2, or Rename in the item menu) selects the basename only, and the whole name of a folder or a dotfile. Enter renames, Escape or a click elsewhere cancels, and a bad or taken name stays in the field with the reason under it. If the extension changes, it asks "Change the extension from .jpg to .png?" with Keep .jpg (the default) or Use .png. With several items selected F2 renames the focused one; Ctrl+F2 is batch rename.
 - Batch rename (Ctrl+F2) is a dialog of rule stacks with a live preview table. Rules can be added, removed, reordered and changed to another type, and the table follows a moment after the last keystroke. Rows that clash are highlighted and say why in words (the highlight is a bar and bold text, not a colour alone), the summary line counts the problems, and the Apply button stays disabled until there are none and at least one name changes. Focus starts on the first rule's type, never on Apply; Esc cancels. A note appears when a rule changes a file extension. At most 500 rows are drawn, with a count of the rest.
 
 ## 5. Path bar
@@ -125,7 +125,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 Sections separated by rules, with an icon, a label, a right-aligned shortcut and a submenu chevron. Items can be checkboxes, and danger items (such as Delete) come last and in red. It's positioned to stay within the viewport and fully navigable by keyboard. Plugin actions go in a labelled section.
 
-Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu: New Folder (F7) · New File (Shift+F7) · Paste · Sort by · Show hidden files. In the Trash: Restore · Delete Permanently · Empty Trash.
+Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window | Add to Favourites (folders) · Copy Path | Rename (F2) · Duplicate (Ctrl+Shift+D) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
 
 ## 7. Tab groups and pairs
 
