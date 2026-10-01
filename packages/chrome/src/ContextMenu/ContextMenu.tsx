@@ -37,6 +37,8 @@ export interface ContextMenuProps {
 	returnFocusTo?: HTMLElement | null;
 	/** Focuses the first item on open instead of the menu surface. */
 	openedWithKeyboard?: boolean;
+	/** Opens the submenu with this id (and focuses its first item) as soon as the menu is up: how a mnemonic such as Alt+F lands in its menu. */
+	initialSubmenuId?: string;
 }
 
 type Placement = { kind: 'point'; position: MenuPosition } | { kind: 'anchor'; rect: Rect };
@@ -58,6 +60,7 @@ export function ContextMenu({
 	ariaLabel,
 	returnFocusTo,
 	openedWithKeyboard = false,
+	initialSubmenuId,
 }: ContextMenuProps) {
 	const [trigger] = useState<Element | null>(() => returnFocusTo ?? document.activeElement);
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -118,6 +121,7 @@ export function ContextMenu({
 				placement={{ kind: 'point', position }}
 				ariaLabel={ariaLabel}
 				focusTarget={openedWithKeyboard ? 'first' : 'panel'}
+				initialSubmenuId={initialSubmenuId}
 				nested={false}
 				onSelect={handleSelect}
 				onRequestClose={onClose}
@@ -133,6 +137,8 @@ interface MenuPanelProps {
 	placement: Placement;
 	ariaLabel?: string;
 	focusTarget: FocusTarget;
+	/** Opens this submenu once the panel has its final position. */
+	initialSubmenuId?: string | undefined;
 	nested: boolean;
 	onSelect: (item: SelectableMenuItem) => void;
 	/** Close just this panel (Escape, or ArrowLeft in a submenu). */
@@ -152,6 +158,7 @@ function MenuPanel({
 	placement,
 	ariaLabel,
 	focusTarget,
+	initialSubmenuId,
 	nested,
 	onSelect,
 	onRequestClose,
@@ -192,6 +199,26 @@ function MenuPanel({
 			else panelRef.current?.focus({ preventScroll: true });
 		}
 		// Only on mount: later item changes must not steal focus.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// The panel moves to its clamped position in a layout effect, so the submenu waits a frame to
+	// measure the row it opens from.
+	useEffect(() => {
+		if (!initialSubmenuId) return;
+		const open = () => {
+			const index = items.findIndex(
+				(item) => item.type === 'submenu' && item.id === initialSubmenuId && isNavigable(item),
+			);
+			if (index >= 0) openSubmenu(index, true);
+		};
+		if (typeof requestAnimationFrame !== 'function') {
+			const timer = setTimeout(open, 0);
+			return () => clearTimeout(timer);
+		}
+		const frame = requestAnimationFrame(open);
+		return () => cancelAnimationFrame(frame);
+		// Only on mount, like the focus above.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 

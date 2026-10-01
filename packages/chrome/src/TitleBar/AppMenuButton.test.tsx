@@ -1,0 +1,132 @@
+// Tests for the app menu button: opening by pointer, F10, a lone Alt and Alt plus a mnemonic, and focus on close
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import type { MenuItem } from '../ContextMenu/types';
+import { AppMenuButton } from './AppMenuButton';
+
+const items: MenuItem[] = [
+	{
+		type: 'submenu',
+		id: 'menu:file',
+		label: 'File',
+		items: [
+			{ type: 'action', id: 'new', label: 'New Tab', shortcut: 'Ctrl+T' },
+			{ type: 'action', id: 'close', label: 'Close Tab' },
+		],
+	},
+	{
+		type: 'submenu',
+		id: 'menu:edit',
+		label: 'Edit',
+		items: [{ type: 'action', id: 'undo', label: 'Undo' }],
+	},
+];
+
+const mnemonics = { f: 'menu:file', e: 'menu:edit' };
+
+function setup(props: Partial<Parameters<typeof AppMenuButton>[0]> = {}) {
+	const onSelect = vi.fn();
+	render(
+		<AppMenuButton
+			label="Waypoint"
+			items={items}
+			onSelect={onSelect}
+			mnemonics={mnemonics}
+			{...props}
+		/>,
+	);
+	return { onSelect, button: screen.getByRole('button', { name: 'Waypoint' }) };
+}
+
+const key = (init: KeyboardEventInit) => fireEvent.keyDown(window, init);
+
+describe('AppMenuButton', () => {
+	it('is a menu button that reports whether its menu is open', async () => {
+		const { button } = setup();
+		expect(button).toHaveAttribute('aria-haspopup', 'menu');
+		expect(button).toHaveAttribute('aria-expanded', 'false');
+		await userEvent.click(button);
+		expect(button).toHaveAttribute('aria-expanded', 'true');
+		expect(screen.getByRole('menu', { name: 'Waypoint' })).toBeInTheDocument();
+		await userEvent.click(button);
+		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+	});
+
+	it('opens on F10 with the first item focused, and Escape returns focus to the button', async () => {
+		const { button } = setup();
+		key({ key: 'F10' });
+		const first = await screen.findByRole('menuitem', { name: 'File' });
+		expect(first).toHaveFocus();
+		fireEvent.keyDown(first, { key: 'Escape' });
+		await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+		expect(button).toHaveFocus();
+	});
+
+	it('opens on a lone Alt press but not when Alt is part of a chord', async () => {
+		setup();
+		key({ key: 'Alt', altKey: true });
+		fireEvent.keyUp(window, { key: 'Alt' });
+		expect(await screen.findByRole('menu')).toBeInTheDocument();
+	});
+
+	it('does not open on Alt used with another key', () => {
+		setup();
+		key({ key: 'Alt', altKey: true });
+		key({ key: '3', altKey: true });
+		fireEvent.keyUp(window, { key: 'Alt' });
+		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+	});
+
+	it('opens the menu named by an Alt mnemonic with its first item focused', async () => {
+		setup();
+		key({ key: 'f', altKey: true });
+		const newTab = await screen.findByRole('menuitem', { name: /New Tab/ });
+		expect(newTab).toHaveFocus();
+		expect(screen.getByRole('menu', { name: 'File' })).toBeInTheDocument();
+	});
+
+	it('opens a different menu for each mnemonic, in either case', async () => {
+		setup();
+		key({ key: 'E', altKey: true });
+		expect(await screen.findByRole('menuitem', { name: 'Undo' })).toHaveFocus();
+	});
+
+	it('leaves Alt plus an unbound letter, and the chords with Ctrl or Shift, alone', () => {
+		setup();
+		key({ key: 'h', altKey: true });
+		key({ key: 'f', altKey: true, ctrlKey: true });
+		key({ key: 'f', altKey: true, shiftKey: true });
+		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+	});
+
+	it('ignores every accelerator when they are switched off', () => {
+		setup({ acceleratorKeys: false });
+		key({ key: 'F10' });
+		key({ key: 'f', altKey: true });
+		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+	});
+
+	it('reports the chosen item and closes', async () => {
+		const { onSelect } = setup();
+		key({ key: 'f', altKey: true });
+		await userEvent.click(await screen.findByRole('menuitem', { name: /Close Tab/ }));
+		expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'close' }));
+		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+	});
+
+	it('navigates into a submenu with ArrowRight and back with ArrowLeft', async () => {
+		setup();
+		key({ key: 'F10' });
+		const file = await screen.findByRole('menuitem', { name: 'File' });
+		fireEvent.keyDown(file, { key: 'ArrowRight' });
+		const inner = await screen.findByRole('menuitem', { name: /New Tab/ });
+		expect(inner).toHaveFocus();
+		fireEvent.keyDown(inner, { key: 'ArrowLeft' });
+		await waitFor(() => expect(screen.getByRole('menuitem', { name: 'File' })).toHaveFocus());
+	});
+});
