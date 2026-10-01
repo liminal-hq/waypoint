@@ -68,6 +68,10 @@ A window's snapshot (`getSnapshot`) is its own tabs, `active`, `mru`, `groups`, 
 
 `FakeTabsApi` is a handle on a `FakeTabsStore`, the TypeScript twin of the Rust store. `new FakeTabsApi()` is the milestone 2 single window; to test a hand-off, share one store: `const store = new FakeTabsStore(); const one = new FakeTabsApi(store, 'main-1'); const two = new FakeTabsApi(store, 'main-2');`. `FakeTabsStore` takes a `createWindow` hook (throwing undoes the change, like a failing `WindowFactory`) and an `onLastWindowClosed` hook. The scripted scenarios in `crates/waypoint-session/tests/conformance/*.json` run against both the Rust store and the fake (`tabsConformance.test.ts`), so the two cannot drift; when they disagree the Rust store is right and the fake changes.
 
+### Panes and `ListingManager.sync` (milestone 3)
+
+`ListingManager.sync(tabs, visible)` takes the set of tabs that are on screen: the active tab, or every pane of the active tab's pair (`visibleTabs` in `tabs/pairLayout.ts`). Each visible tab has a live listing of its own, with its own selection and scroll in its own `ListingSession`; a tab that leaves the screen is a background tab and evicts as before (A29). The focused pane is the active tab, so `useNavigation`, the path bar, the sidebar and the status bar follow it unchanged; a pane passes its own tab id to `useNavigation(tabId)` so opening a folder there navigates that pane's tab even in the moment before the session has activated it. `app/PaneArea.tsx` renders one pane or a pair's panes; a divider drag resizes in memory and `setPairSizes` is written on release (`PaneDivider`).
+
 ## 5. Front-end structure
 
 ```

@@ -140,8 +140,9 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Drag                     | Pair joint                     | Move both; out of the window tears off both                                                                                                |
 | Double-click             | Pair joint                     | Reset pane sizes                                                                                                                           |
 | Right-click              | Pair joint                     | Separate, Swap Panes, Layout, Reset Sizes, Sync Navigation, Compare Folders, Pin, Colour, Group, Duplicate, Move to New Window, Close Both |
-| F3                       | Anywhere                       | Split with a new tab, or separate if already split                                                                                         |
-| F6                       | Split                          | Move focus to the next pane                                                                                                                |
+| F3                       | Anywhere                       | Split with a new tab (focused); on a toggled split closes the pane it made (Undo toast), on a joined pair separates                        |
+| F6, Shift+F6             | Split                          | Move focus to the next, or previous, pane                                                                                                  |
+| Arrow keys, Enter        | Pane divider (focused)         | Move it 2% (10% with Shift) along its axis; Enter resets to equal sizes                                                                    |
 | Alt+Enter                | Selection or current folder    | Floating Properties window                                                                                                                 |
 | Right-click → Properties | Item or empty space            | Inspector on the Properties tab                                                                                                            |
 
