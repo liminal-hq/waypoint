@@ -127,6 +127,10 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Click                    | Group label                    | Collapse or expand                                                                                                                         |
 | Double-click             | Group label                    | Rename in place                                                                                                                            |
 | Right-click              | Group label                    | Group menu (see SPEC §5.2)                                                                                                                 |
+| Enter, Space             | Focused group label            | Collapse or expand                                                                                                                         |
+| F2                       | Focused group label            | Rename in place (Enter commits, Esc cancels, an empty name keeps the old one)                                                              |
+| Menu key, Shift+F10      | Focused group label            | Group menu                                                                                                                                 |
+| Ctrl+Shift+Left or Right | Focused group label            | Move the whole group one place along the strip                                                                                             |
 | Drag                     | Group label                    | Move the group along the strip; out of the window tears it off                                                                             |
 | Drag tab onto            | Group label                    | Add the tab (and its pair) to the group                                                                                                    |
 | Drag tab out             | Beyond the group's span        | Remove it from the group                                                                                                                   |
