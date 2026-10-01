@@ -114,7 +114,7 @@ pub fn run() {
                 }
                 geometry.on_event(window, event);
                 if matches!(event, WindowEvent::CloseRequested { .. }) {
-                    saver.flush_now(window.app_handle());
+                    saver.window_closing(window.app_handle());
                 }
             }
         });

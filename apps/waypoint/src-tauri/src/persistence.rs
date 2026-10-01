@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //
 // Saves come from three places: the session plugin's debounced `on_change` hook (a second after a
-// burst of changes), `flush_now` when a main window asks to close, and `finish` when the app quits.
+// burst of changes), `window_closing` when a main window asks to close (the last one freezes the session as it is), and `finish` when the app quits.
 // They share one lock, so the last writer is always the newest document, and `finish` freezes the
 // saver: windows closing while the app exits must not overwrite the session being kept.
 
@@ -100,9 +100,17 @@ impl Saver {
         store.map(|s| s.to_document())
     }
 
-    /// Saves now, on the caller's thread, and keeps saving afterwards.
-    pub fn flush_now(&self, app: &AppHandle) {
-        self.save(|| Self::current(app, LOCK_WAIT), false);
+    /// A main window asked to close. Closing the last one quits the app, so it is the session to
+    /// bring back next time: it is saved as it is, with that window's tabs, and the saver freezes
+    /// before the window's session ends. Closing any other window just saves.
+    pub fn window_closing(&self, app: &AppHandle) {
+        self.save(|| Self::current(app, LOCK_WAIT), Self::is_last_window(app));
+    }
+
+    fn is_last_window(app: &AppHandle) -> bool {
+        app.try_state::<Sessions<Wry>>()
+            .and_then(|s| s.try_clone_store(LOCK_WAIT))
+            .is_some_and(|s| s.windows().len() <= 1)
     }
 
     /// The final save as the app quits. Later saves are ignored.
