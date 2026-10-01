@@ -109,6 +109,7 @@ struct Inner {
     failures: Vec<Failure>,
     calls: HashMap<MemOp, usize>,
     fast_copy: bool,
+    read_only: bool,
 }
 
 /// A whole file system in memory. Cloning shares it.
@@ -255,6 +256,7 @@ impl MemoryProvider {
             failures: Vec::new(),
             calls: HashMap::new(),
             fast_copy: false,
+            read_only: false,
         };
         inner.clock = 0;
         Self {
@@ -309,6 +311,12 @@ impl MemoryProvider {
     /// returns `None`.
     pub fn enable_fast_copy(&self, on: bool) {
         self.lock().fast_copy = on;
+    }
+
+    /// Makes `read_only()` report `read_only`, as a provider that cannot write does. The write
+    /// primitives themselves are not blocked; the flag is for what a listing tells the UI.
+    pub fn set_read_only(&self, read_only: bool) {
+        self.lock().read_only = read_only;
     }
 
     /// Makes the next call of `op` fail with `error`.
@@ -585,6 +593,10 @@ impl Provider for MemoryProvider {
             watch: false,
             case_rule: self.lock().rule,
         }
+    }
+
+    fn read_only(&self) -> bool {
+        self.lock().read_only
     }
 
     fn stat(&self, path: &VfsPath) -> Result<ScannedEntry, VfsError> {
