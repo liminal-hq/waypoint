@@ -7,7 +7,12 @@ import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import { useEffect, useRef } from 'react';
 import type { DragHover, MergeHover, TearoffClient } from '../services/tearoffClient';
-import { createMergeLanding, type MergeLandingStore, type StripMeasure } from './mergeLanding';
+import {
+	createMergeLanding,
+	LANDING_DRAG_STALE_MS,
+	type MergeLandingStore,
+	type StripMeasure,
+} from './mergeLanding';
 import { measureSpans } from './groupLayout';
 import type { Span } from './reorder';
 import { parseTearPayload } from './tearOffPayload';
@@ -78,7 +83,7 @@ export function useMergeLanding(
 			client.onMergeLeave(() => landing.leave()),
 			client.onDragHover((hover) => {
 				const mapped = hoverFromPlugin(hover);
-				if (mapped) landing.hover(mapped);
+				if (mapped) landing.hover(mapped, LANDING_DRAG_STALE_MS);
 			}),
 			client.onDragLeave(() => landing.leave()),
 			// The tabs arrived: the strip has them now.

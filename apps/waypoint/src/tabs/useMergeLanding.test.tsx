@@ -160,6 +160,31 @@ describe('useMergeLanding', () => {
 		expect(store.getState().view).toBeNull();
 	});
 
+	it('keeps a window drag hover over a still pointer, which sends nothing, until its leave', () => {
+		vi.useFakeTimers();
+		try {
+			const client = new FakeTearoffClient();
+			const { store } = mount(client);
+			act(() =>
+				client.fireDragHover({
+					window: 'main-2',
+					x: 160,
+					y: 10,
+					region: 'slot:2',
+					payload: payload(),
+				}),
+			);
+			act(() => {
+				vi.advanceTimersByTime(5000);
+			});
+			expect(store.getState().view).not.toBeNull();
+			act(() => client.fireDragLeave({ window: 'main-2' }));
+			expect(store.getState().view).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('clears a hover that is not refreshed', () => {
 		vi.useFakeTimers();
 		try {

@@ -35,6 +35,9 @@ export const HIT_POLL_MS = 80;
 /** The least time between two `merge-hover` events to another window: the slot is sent when it changes, and no faster than this. */
 export const HOVER_SEND_MS = 50;
 
+/** A hover still over the same slot is sent again this often, so the other window does not take a still pointer for a drag that has gone (it drops a hover not refreshed for 400 ms). */
+export const HOVER_REFRESH_MS = 250;
+
 /** How long the window list read for the merge label is trusted: windows open and close mid-drag. */
 export const WINDOWS_TTL_MS = 1000;
 
@@ -142,7 +145,7 @@ type Phase =
  * release outside the strip opens a window the compositor places.
  *
  * While the ghost is over another window's strip that window is told, with `merge-hover`, the region
- * (so the slot) the cursor is over, whenever it changes and at most every `HOVER_SEND_MS`, and with
+ * (so the slot) the cursor is over, whenever it changes (at most every `HOVER_SEND_MS`, and again every `HOVER_REFRESH_MS` while it stays, so a still pointer is not mistaken for a gone drag), and with
  * `merge-leave` when the cursor moves off, and when the drag ends. The window draws the line there.
  *
  * A release asks the plugin where the cursor was and which drop region it was over. A region of
@@ -223,11 +226,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 
 	/** Tells another window where the ghost is over its strip, when the slot is not the one it was last told. */
 	const showLanding = (hit: NonNullable<DropReport['hit']>, unit: Unit) => {
-		if (shown?.window === hit.window && shown.region === hit.region) return;
 		const at = now();
+		const same = shown?.window === hit.window && shown.region === hit.region;
+		if (same && at - lastHoverSend < HOVER_REFRESH_MS) return;
 		if (shown && shown.window !== hit.window) hideLanding();
 		// A slot that comes too soon is told at the next poll, which asks again.
-		else if (at - lastHoverSend < HOVER_SEND_MS) return;
+		else if (!same && at - lastHoverSend < HOVER_SEND_MS) return;
 		lastHoverSend = at;
 		shown = { window: hit.window, region: hit.region };
 		deps.client

@@ -16,6 +16,13 @@ import type { Span } from './reorder';
 /** How long a hover stays when no newer one arrives: a drag that ended or moved away without saying so (a crashed window, a missed event). */
 export const LANDING_STALE_MS = 400;
 
+/**
+ * How long a hover from the plugin's window drag stays without a newer one. The compositor's drag
+ * sends motion only when the pointer moves, so a pointer held still sends nothing, and the plugin
+ * guarantees a `drag-leave`; this is only the safety net for a leave that never came.
+ */
+export const LANDING_DRAG_STALE_MS = 15000;
+
 /** What the strip draws: the line's place in the tablist's own coordinates, and what it stands for. */
 export interface LandingView {
 	left: number;
@@ -113,7 +120,8 @@ export function createMergeLanding(deps: MergeLandingDeps) {
 	};
 
 	return {
-		hover(hover: MergeHover): void {
+		/** `staleOverride` replaces `staleMs` how long this hover stays without a refresh. */
+		hover(hover: MergeHover, staleOverride?: number): void {
 			const strip = deps.measure();
 			if (!strip) return;
 			const landing = landingFor(hover, strip);
@@ -140,7 +148,7 @@ export function createMergeLanding(deps: MergeLandingDeps) {
 				deps.store.setState({ view });
 			}
 			stopTimer();
-			timer = setTimer(clear, staleMs);
+			timer = setTimer(clear, staleOverride ?? staleMs);
 		},
 
 		leave: clear,

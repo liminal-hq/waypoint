@@ -648,6 +648,18 @@ describe('telling the other window where the ghost is', () => {
 		expect(h.client.leavesSent).toEqual([]);
 	});
 
+	it('repeats the hover every 250 ms while the ghost stays, so the other window keeps showing it', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'));
+		await hover(h, source, over('slot:1'), 100);
+		await hover(h, source, over('slot:1'), 100);
+		expect(h.client.hoverSent).toHaveLength(1);
+		await hover(h, source, over('slot:1'), 100);
+		expect(h.client.hoverSent).toHaveLength(2);
+		expect(h.client.hoverSent[1]!.hover.region).toBe('slot:1');
+	});
+
 	it('sends no faster than every 50 ms, and catches up at the next poll', async () => {
 		// A poll interval shorter than the send interval, so the send gate is the one that holds.
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true }, { hitPollMs: 10 });
