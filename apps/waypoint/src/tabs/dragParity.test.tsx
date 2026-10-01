@@ -12,7 +12,7 @@ import { stubLayout } from '../test/browseHarness';
 import { DOCS, MUSIC, renderWorkspace } from '../test/workspaceHarness';
 import { pairTabItems } from './pairMenus';
 import { NON_POINTER_PATHS, type TabDragOutcome } from './tabDrag';
-import { tabMenuItems } from './tabMenus';
+import { tabMenuItems } from './tabMenuModel';
 
 /** Every outcome, written out so that adding one to `TabDragOutcome` fails to compile until it is here. */
 const OUTCOMES = [
