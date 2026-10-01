@@ -1,0 +1,120 @@
+.shell {
+	display: grid;
+	grid-template-columns: var(--wp-settings-nav-width) minmax(0, 1fr);
+	box-sizing: border-box;
+	block-size: 100%;
+	min-block-size: 0;
+	color: var(--wp-text-primary);
+	background: var(--wp-bg-raised);
+	font-size: 13px;
+}
+
+.collapsed {
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
+}
+
+.nav {
+	box-sizing: border-box;
+	padding: 12px 8px;
+	overflow-y: auto;
+	background: var(--wp-bg-chrome);
+	border-inline-end: 1px solid var(--wp-border-subtle);
+}
+
+.navList {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.navItem {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: var(--wp-control-height);
+	padding: 0 10px;
+	color: var(--wp-text-secondary);
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	font: inherit;
+	text-align: start;
+	cursor: default;
+}
+
+.navItem:hover {
+	background: var(--wp-control-bg);
+}
+
+.navItemActive,
+.navItemActive:hover {
+	color: var(--wp-accent-contrast);
+	background: var(--wp-accent);
+}
+
+.navItem:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.navItemActive:focus-visible {
+	outline-color: var(--wp-focus-ring-on-accent);
+}
+
+.navIcon {
+	display: inline-flex;
+	flex: none;
+	inline-size: 16px;
+	block-size: 16px;
+}
+
+.navLabel {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.select {
+	padding: 8px 16px;
+	background: var(--wp-bg-chrome);
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.selectField {
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: var(--wp-control-height);
+	padding: 0 8px;
+	color: var(--wp-text-primary);
+	background: var(--wp-field-bg);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.content {
+	box-sizing: border-box;
+	min-inline-size: 0;
+	padding: 16px 24px 24px;
+	overflow-y: auto;
+}
+
+.collapsed .content {
+	padding-inline: 16px;
+}
+
+.toolbar {
+	margin-block-end: 12px;
+}
+
+.heading {
+	margin: 0 0 16px;
+	font-size: 18px;
+	font-weight: 600;
+}

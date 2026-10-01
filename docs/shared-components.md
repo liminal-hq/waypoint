@@ -31,3 +31,56 @@ Source: `ScottMorris/liminal-notes` (Editor ContextMenu) and `liminal-hq/jar` (C
 ## Settings shell
 
 Same as Emoji Nook's SettingsPanel: a side-nav of sections with grouped rows (label, description, control), so every Liminal app shares one settings pattern.
+
+Both components are controlled, own no persistence, import nothing from Waypoint, and read only `--wp-*` tokens (defaults in `packages/chrome/src/tokens.css`). Import each from its own file, for example `@liminal-hq/waypoint-chrome/SettingsShell/SettingsShell`.
+
+### SettingsShell
+
+`SettingsShell` takes `sections: SettingsSectionDef[]` (`{ id, label, icon?, render }`, from `SettingsShell/types`), a controlled `activeId` with `onSelect(id)`, an optional `collapseBelow` width in pixels (default 640), a `toolbar` slot above the page heading (reserved for a search box, nothing is built into it), and partial `labels` for translation. Only the active section's `render()` is called, and an unknown `activeId` falls back to the first section.
+
+- Nav: a `nav` of buttons with an optional 16 px icon, `aria-current="page"` on the active one and a roving tab stop. Up, Down, Home and End move focus (Down and Up wrap); Enter and Space activate, so arrowing through the list does not swap pages under the reader.
+- Collapse: a `ResizeObserver` on the shell turns the nav into a select above the page when the shell is narrower than `collapseBelow`. Without a `ResizeObserver` the nav stays expanded. The width is a prop because CSS custom properties cannot be used in a size query.
+- Page: a `main` named by its `h2` heading; groups use `h3`.
+- Sizing: controls are `--wp-control-height` high (28 px by default). A host raises that token to 44 px for touch mode, and rows grow with it. Rows use logical properties, so right-to-left mirrors without extra rules.
+
+`SettingsSection` wraps a page body (optional `description`, then groups). `SettingsGroup` is a titled `role="group"` card of rows (`title`, optional `description`).
+
+Every row is a `SettingsRow`: `label`, `description?`, `disabled?`, `unavailableReason?` and a control slot. The row wires the label, description and reason line to its control by id (`useSettingsRowControl()` hands a custom control the same ids). `disabled` dims the row and disables the control. `unavailableReason` does the same and adds an "Unavailable: …" line, which is the Services-panel convention for an option this system cannot offer; an app that hides such options simply omits the row.
+
+| Row            | Control                                     | Props beyond the row's own                                                         |
+| -------------- | ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `ToggleRow`    | a switch (`role="switch"`, `aria-checked`)  | `checked`, `onChange(checked)`                                                     |
+| `SelectRow`    | a native select                             | `value`, `options: { value, label, disabled? }[]`, `onChange(value)`               |
+| `NumberRow`    | a number field with an optional unit suffix | `value`, `onChange(n)`, `min`, `max`, `step`, `unit`                               |
+| `SegmentedRow` | a radio group of buttons with arrow keys    | `value`, `options: { value, label, disabled? }[]`, `onChange(value)`               |
+| `ButtonRow`    | one action button (the label describes it)  | `actionLabel`, `onAction`, `danger?`                                               |
+| `LinkRow`      | the whole row is a link with a chevron      | `href`, `onActivate?` (cancels navigation so the app can open it), no control slot |
+
+`NumberRow` reports in-range edits as they are typed and clamps anything else when the field loses focus or Enter is pressed; an empty field reverts.
+
+### Dialog
+
+`Dialog` is a controlled modal over the native `<dialog>` element, opened with `showModal()`, so the top layer, the inert page and Esc come from the platform. It renders nothing while `open` is false.
+
+| Prop            | Meaning                                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| `open`          | Whether the dialog is shown. The app owns it; nothing closes until the app sets it false.            |
+| `onClose`       | `(reason: 'escape' \| 'cancel' \| 'backdrop' \| 'action') => void`, asked for, never forced.         |
+| `title`         | The heading and the accessible name (`aria-labelledby`).                                             |
+| `description`   | Optional supporting text, wired up as `aria-describedby`.                                            |
+| `size`          | `small`, `medium` (default) or `large`, from the `--wp-dialog-width-*` tokens.                       |
+| `footer`        | The button row, usually `DialogActions`.                                                             |
+| `initialFocus`  | A ref or a selector inside the dialog.                                                               |
+| `dismissible`   | Default true. False makes Esc and a backdrop click do nothing, for a question that must be answered. |
+| `returnFocusTo` | Where focus goes on close; defaults to the element focused at open.                                  |
+
+- Default focus: the first field in the body, otherwise a footer button that is never a danger button (Cancel when a danger button exists, otherwise the primary one). With only a danger button the dialog surface takes focus.
+- Dismissal: `escape` for Esc, `cancel` for a native cancel request that was not the Esc key, `backdrop` only when both the press and the release land on the backdrop, so dragging a text selection out of a field does not close the dialog. `action` comes from a `DialogButton` with `closes`.
+- Stacking: a dialog rendered inside another is in front; only the front one answers Esc and Tab, and closing it returns focus to where it came from.
+- Scroll lock: a reference-counted lock on the root element that pads by the scrollbar width, so the page does not shift.
+- Motion: a short fade and rise, off under `prefers-reduced-motion`.
+- Transparency: the surface is `--wp-bg-raised` mixed with transparent by `--wp-dialog-opacity` (1 by default), the same hook the other surfaces use.
+- Fallback: when `showModal` is missing or throws, the dialog opens with the `open` attribute, draws its own scrim and keeps its own Tab trap. The Tab trap also runs on the native path, where it agrees with the platform.
+- No live regions: the native dialog role and name are the announcement; an app that wants more announces through its own live-region store.
+
+`DialogActions` lays out footer buttons at the end edge. `DialogButton` takes `variant` (`primary`, `secondary` default, `danger`) and `closes`. `ConfirmDialog` takes `open`, `title`, `message`, `confirmLabel`, `cancelLabel` (default "Cancel"), `danger`, `size` (default small), `onConfirm` and `onCancel`; Esc and the backdrop call `onCancel`, and focus starts on Cancel when `danger` is set.

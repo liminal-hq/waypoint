@@ -46,8 +46,8 @@ export function trapTab(event: KeyboardEvent, dialog: HTMLElement, fallback: HTM
 		fallback.focus();
 		return true;
 	}
-	const first = items[0];
-	const last = items[items.length - 1];
+	const first = items[0] as HTMLElement;
+	const last = items[items.length - 1] as HTMLElement;
 	const active = document.activeElement;
 	const inside = active instanceof HTMLElement && dialog.contains(active);
 	if (event.shiftKey && (!inside || active === first || active === fallback)) {

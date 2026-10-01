@@ -1,0 +1,199 @@
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	box-sizing: border-box;
+	min-block-size: calc(var(--wp-control-height) + 2 * var(--wp-settings-row-padding));
+	padding: var(--wp-settings-row-padding) 14px;
+}
+
+.text {
+	display: flex;
+	flex: 1 1 220px;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.label {
+	line-height: 1.3;
+}
+
+.description {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.reason {
+	color: var(--wp-text-muted);
+	font-size: 12px;
+	font-style: italic;
+	line-height: 1.4;
+}
+
+.control {
+	display: flex;
+	flex: none;
+	align-items: center;
+	max-inline-size: 100%;
+}
+
+.off .label,
+.off .description,
+.off .control {
+	opacity: 0.55;
+}
+
+.field {
+	box-sizing: border-box;
+	min-block-size: var(--wp-control-height);
+	max-inline-size: 100%;
+	padding: 0 8px;
+	color: var(--wp-text-primary);
+	background: var(--wp-field-bg);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.field:focus-visible,
+.switch:focus-visible,
+.segment:focus-visible,
+.button:focus-visible,
+.linkRow:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+.numberWrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.number {
+	inline-size: 88px;
+	text-align: end;
+}
+
+.unit {
+	color: var(--wp-text-muted);
+}
+
+.switch {
+	position: relative;
+	box-sizing: border-box;
+	inline-size: 40px;
+	block-size: 22px;
+	padding: 0;
+	background: var(--wp-switch-off);
+	border: 0;
+	border-radius: 11px;
+	cursor: default;
+	transition: background var(--wp-dialog-motion);
+}
+
+/* Taller hit area in touch mode without growing the drawn track. */
+.switch::before {
+	content: '';
+	position: absolute;
+	inset-block: calc((22px - var(--wp-control-height)) / 2);
+	inset-inline: -4px;
+}
+
+.switch[aria-checked='true'] {
+	background: var(--wp-accent);
+}
+
+.thumb {
+	position: absolute;
+	inset-block-start: 2px;
+	inset-inline-start: 2px;
+	inline-size: 18px;
+	block-size: 18px;
+	background: var(--wp-switch-thumb);
+	border-radius: 50%;
+	transition: inset-inline-start var(--wp-dialog-motion);
+}
+
+.switch[aria-checked='true'] .thumb {
+	inset-inline-start: 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.switch,
+	.thumb {
+		transition: none;
+	}
+}
+
+.segments {
+	display: inline-flex;
+	padding: 2px;
+	background: var(--wp-field-bg);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+}
+
+.segment {
+	box-sizing: border-box;
+	min-block-size: calc(var(--wp-control-height) - 4px);
+	padding: 0 12px;
+	color: var(--wp-text-secondary);
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	font: inherit;
+	cursor: default;
+}
+
+.segment:disabled {
+	opacity: 0.45;
+}
+
+.segmentOn {
+	color: var(--wp-accent-contrast);
+	background: var(--wp-accent);
+}
+
+.button {
+	box-sizing: border-box;
+	min-block-size: var(--wp-control-height);
+	padding: 0 14px;
+	color: var(--wp-text-primary);
+	background: var(--wp-control-bg);
+	border: 1px solid transparent;
+	border-radius: 6px;
+	font: inherit;
+	cursor: default;
+}
+
+.button:hover:not(:disabled) {
+	background: var(--wp-control-bg-hover);
+}
+
+.buttonDanger {
+	color: var(--wp-danger);
+}
+
+.linkRow {
+	flex-wrap: nowrap;
+	color: inherit;
+	text-decoration: none;
+}
+
+a.linkRow:hover {
+	background: var(--wp-control-bg);
+}
+
+.chevron {
+	flex: none;
+	color: var(--wp-text-muted);
+}
+
+.linkRow .chevron:dir(rtl) {
+	transform: scaleX(-1);
+}

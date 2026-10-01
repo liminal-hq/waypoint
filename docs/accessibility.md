@@ -18,6 +18,8 @@ Status: prototype review, 2026-09-29. Findings are from reading the markup and b
 1. **File rows need roles.** Rows are plain elements. Give the list role=listbox with aria-multiselectable, each row role=option with aria-selected, and announce the selection count.
 2. **Menus.** Context menus need role=menu and menuitem, arrow-key focus, and to return focus to the trigger on close.
 3. **Dialogs.** Give them role=dialog with a label, trap focus, and restore it on close. Escape already closes them.
+   - The shared `Dialog` (`docs/shared-components.md`) gives role=dialog (native) named by its title, focus into the dialog on open (never on a destructive button), a Tab and Shift+Tab trap, Esc, focus restored to the opener, and a non-dismissible mode for questions that must be answered.
+   - Checklist for each dialog the app builds on it: the title says what the dialog is about; destructive confirmations use `ConfirmDialog` with `danger`; a dialog that cannot be dismissed offers a visible way out or an answer to every question; stacked dialogs return focus to the one beneath.
 4. **Drag and drop.** Provide a non-pointer path for every drop: Copy To… and Move To… cover files; the tab menu covers splitting. Announce drop targets and results in the live region.
 5. **Progress.** Announce job start, completion and failure through the status region, not only visually.
 6. **Focus order.** Title bar, tab strip, toolbar, action bar, sidebar, files, inspector, status bar. Confirm with a keyboard-only pass.

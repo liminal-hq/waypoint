@@ -22,6 +22,18 @@ Every export maps to the file that defines it.
 | `@liminal-hq/waypoint-chrome/Dialog/DialogActions`                      | `DialogActions` and `DialogButton` for the footer                                                  |
 | `@liminal-hq/waypoint-chrome/Dialog/ConfirmDialog`                      | `ConfirmDialog`: title, message, confirm and cancel                                                |
 | `@liminal-hq/waypoint-chrome/Dialog/dialogContext`                      | `DialogCloseReason` type                                                                           |
+| `@liminal-hq/waypoint-chrome/SettingsShell/SettingsShell`               | `SettingsShell` and `SETTINGS_COLLAPSE_WIDTH`: side nav and page, collapsing to a select           |
+| `@liminal-hq/waypoint-chrome/SettingsShell/types`                       | `SettingsSectionDef`                                                                               |
+| `@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection`             | `SettingsSection`                                                                                  |
+| `@liminal-hq/waypoint-chrome/SettingsShell/SettingsGroup`               | `SettingsGroup`                                                                                    |
+| `@liminal-hq/waypoint-chrome/SettingsShell/SettingsRow`                 | `SettingsRow` and `useSettingsRowControl`                                                          |
+| `@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow`                   | `ToggleRow`                                                                                        |
+| `@liminal-hq/waypoint-chrome/SettingsShell/SelectRow`                   | `SelectRow`                                                                                        |
+| `@liminal-hq/waypoint-chrome/SettingsShell/NumberRow`                   | `NumberRow`                                                                                        |
+| `@liminal-hq/waypoint-chrome/SettingsShell/SegmentedRow`                | `SegmentedRow`                                                                                     |
+| `@liminal-hq/waypoint-chrome/SettingsShell/ButtonRow`                   | `ButtonRow`                                                                                        |
+| `@liminal-hq/waypoint-chrome/SettingsShell/LinkRow`                     | `LinkRow`                                                                                          |
+| `@liminal-hq/waypoint-chrome/SettingsShell/labels`                      | `SettingsLabels` and defaults                                                                      |
 | `@liminal-hq/waypoint-chrome/WindowMenu`                                | `WindowMenu`, the window menu bound to the provider's controls                                     |
 | `@liminal-hq/waypoint-chrome/WindowMenu/windowMenuModel`                | `buildWindowMenuModel()`, the pure menu model                                                      |
 | `@liminal-hq/waypoint-chrome/labels`                                    | `ChromeLabels` and `defaultChromeLabels`                                                           |
