@@ -8,6 +8,7 @@
 
 mod model;
 mod names;
+mod plan;
 mod traits;
 
 pub use model::*;
@@ -15,6 +16,7 @@ pub use names::{
     file_name_of, fold_name, is_within, same_name, same_path, split_name, unique_full_name,
     unique_name,
 };
+pub use plan::{plan, plan_with_progress, Plan, PlanCtx, PlanItem, PlanProgress, PlanWarning};
 pub use traits::{
     Clock, CounterIds, IdSource, Protected, Providers, SelectionResolver, SettingsReader,
     StaticSettings, SystemClock, Trash, TrashReceipt,
