@@ -4,6 +4,7 @@ permissions = [
   "allow-get-status",
   "allow-get-snapshot",
   "allow-plan",
+  "allow-preview-batch-rename",
   "allow-submit",
   "allow-pause",
   "allow-resume",

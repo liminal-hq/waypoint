@@ -33,6 +33,15 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function plan(request) {
         return cmd('plan', { request });
     }
+    /**
+     * What a batch rename would do, found without queueing it: `request` is the `batchRename` request
+     * that `submit` takes (its sources and its `rename` rules). The answer has a row for each entry
+     * with its new name and what is wrong with it, and `nowMs`, the time "today" meant, which goes back
+     * in the submitted request's `rename.nowMs` so the job writes the names that were previewed.
+     */
+    function previewBatchRename(request) {
+        return cmd('preview_batch_rename', { request });
+    }
     /** Puts a request on the queue and returns the job's id. */
     function submit(request) {
         return cmd('submit', { request });
@@ -161,6 +170,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.onRecovered = onRecovered;
     exports.pause = pause;
     exports.plan = plan;
+    exports.previewBatchRename = previewBatchRename;
     exports.redo = redo;
     exports.reorder = reorder;
     exports.resolve = resolve;

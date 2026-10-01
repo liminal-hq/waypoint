@@ -7,6 +7,7 @@ const COMMANDS: &[&str] = &[
     "get_status",
     "get_snapshot",
     "plan",
+    "preview_batch_rename",
     "submit",
     "pause",
     "resume",

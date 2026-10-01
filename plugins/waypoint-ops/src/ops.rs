@@ -19,11 +19,11 @@ use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Runtime};
 use waypoint_ops::{
-    plan, Clock, Decision, ExecEnv, IdSource, JobId, JobKind, JobRequest, JobSnapshot, JobState,
-    Journal, JournalDeps, JournalDocument, JournalEntrySummary, JournalId, JournalStorage, Loaded,
-    OpsError, OpsEvent, OpsSettings, OpsSnapshot, OpsStore, PlanCtx, PlanWarning, Prepared,
-    QueueError, RecoveryReport, Resolution, SaveRequest, SelectionResolver, SettingsReader,
-    SimpleCopy, Sources, StorageError,
+    plan, preview_batch, BatchPreview, Clock, Decision, ExecEnv, IdSource, JobId, JobKind,
+    JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument, JournalEntrySummary,
+    JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings, OpsSnapshot, OpsStore,
+    PlanCtx, PlanWarning, Prepared, QueueError, RecoveryReport, Resolution, SaveRequest,
+    SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::CancelToken;
@@ -592,6 +592,30 @@ impl<R: Runtime> Shared<R> {
             .ok_or(Error::Queue(QueueError::UnknownJob(id)))
     }
 
+    /// What a batch rename of the request's sources would do: a row for each entry, with the
+    /// clashes among the results. Reads only. The time "today" means is fixed here (from the
+    /// injected clock) and returned, so a job submitted from the preview writes the same names.
+    pub(crate) fn preview_batch(&self, request: &JobRequest) -> Result<BatchPreview, Error> {
+        let mut request = request.clone();
+        self.freeze_now(&mut request);
+        let cancel = CancelToken::new();
+        let ctx = PlanCtx {
+            providers: &self.env.providers,
+            resolver: self.resolver.as_ref(),
+            trash: self.env.trash.as_ref(),
+            protected: &self.env.protected,
+            cancel: &cancel,
+        };
+        Ok(preview_batch(&request, &ctx)?)
+    }
+
+    /// Gives a batch rename the time "today" means, when the request has not fixed one.
+    fn freeze_now(&self, request: &mut JobRequest) {
+        if let Some(spec) = request.rename.as_mut() {
+            spec.now_ms.get_or_insert_with(|| self.clock.now_ms());
+        }
+    }
+
     /// A dry-run plan of a request, for the drag's default action and the conflict dialog. Writes
     /// nothing and does not touch the queue.
     pub(crate) fn preview(&self, request: &JobRequest) -> Result<PlanPreview, Error> {
@@ -653,8 +677,19 @@ impl<R: Runtime> Ops<R> {
             let locations = self.shared.resolver.resolve(*handle, spec, window)?;
             request.sources = Sources::Locations { locations };
         }
+        self.shared.freeze_now(&mut request);
         let mut core = self.shared.lock();
         Ok(self.shared.enqueue(&mut core, request))
+    }
+
+    /// What a batch rename would do, without queueing it.
+    pub fn preview_batch_rename(
+        &self,
+        window: &str,
+        mut request: JobRequest,
+    ) -> Result<BatchPreview, Error> {
+        request.origin_window = window.to_owned();
+        self.shared.preview_batch(&request)
     }
 
     /// What a request would do, without queueing it.

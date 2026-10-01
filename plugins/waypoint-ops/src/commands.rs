@@ -10,8 +10,8 @@
 use tauri::ipc::Channel;
 use tauri::{Runtime, State, WebviewWindow};
 use waypoint_ops::{
-    ConflictPolicy, Decision, JobId, JobRequest, JournalEntrySummary, JournalId, OpsSettings,
-    OpsSnapshot, RecoveryReport, Resolution,
+    BatchPreview, ConflictPolicy, Decision, JobId, JobRequest, JournalEntrySummary, JournalId,
+    OpsSettings, OpsSnapshot, RecoveryReport, Resolution,
 };
 use waypoint_protocol::{Location, PluginStatus};
 
@@ -56,6 +56,22 @@ pub async fn plan<R: Runtime>(
     let ops = ops.inner().clone();
     let label = window.label().to_owned();
     tauri::async_runtime::spawn_blocking(move || ops.plan(&label, request))
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?
+}
+
+/// What a batch rename would do, without queueing it: `request` is the `BatchRename` request that
+/// `submit` takes (its sources and `rename` rules), and the answer has a row for each entry with
+/// its new name and what is wrong with it, if anything.
+#[tauri::command]
+pub async fn preview_batch_rename<R: Runtime>(
+    window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    request: JobRequest,
+) -> Result<BatchPreview, Error> {
+    let ops = ops.inner().clone();
+    let label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || ops.preview_batch_rename(&label, request))
         .await
         .map_err(|e| Error::Internal(e.to_string()))?
 }

@@ -1215,3 +1215,155 @@ fn a_job_says_which_journal_entry_it_made() {
     // A job that is not in the queue has none.
     assert_eq!(env.ops().journal_entry_of(waypoint_ops::JobId(9999)), None);
 }
+
+fn batch_request(
+    env: &Env,
+    sources: &[&str],
+    rules: Vec<waypoint_ops::RenameRule>,
+) -> waypoint_ops::JobRequest {
+    let mut request = env.request(JobKind::BatchRename, sources, None, None);
+    request.rename = Some(waypoint_ops::RenameSpec {
+        rules,
+        utc_offset_minutes: 0,
+        now_ms: None,
+    });
+    request
+}
+
+fn preview_of(env: &Env, request: waypoint_ops::JobRequest) -> waypoint_ops::BatchPreview {
+    tauri::async_runtime::block_on(commands::preview_batch_rename(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        request,
+    ))
+    .expect("the preview is made")
+}
+
+fn counter(start: u32) -> waypoint_ops::RenameRule {
+    waypoint_ops::RenameRule::Counter {
+        start,
+        step: 1,
+        width: 3,
+        position: waypoint_ops::RulePosition::Prefix,
+        separator: "_".to_owned(),
+    }
+}
+
+#[test]
+fn a_batch_rename_previews_then_runs_as_one_journalled_job() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    env.write("keep.txt", b"keep");
+    let request = batch_request(&env, &["b.txt", "a.txt"], vec![counter(1)]);
+    let preview = preview_of(&env, request.clone());
+    let pairs: Vec<(&str, &str)> = preview
+        .rows
+        .iter()
+        .map(|r| (r.from.as_str(), r.to.as_str()))
+        .collect();
+    assert_eq!(pairs, [("b.txt", "001_b.txt"), ("a.txt", "002_a.txt")]);
+    assert!(preview.ready());
+    assert!(preview.now_ms > 0, "the preview fixes the time it used");
+    assert_eq!(
+        env.names(""),
+        ["a.txt", "b.txt", "keep.txt"],
+        "a preview writes nothing"
+    );
+    assert!(env.snapshot().jobs.is_empty());
+
+    // The job the dialog submits carries the preview's time.
+    let mut submitted = request;
+    submitted.rename.as_mut().unwrap().now_ms = Some(preview.now_ms);
+    let id = env.submit("main-1", submitted);
+    env.wait_done(id);
+    assert_eq!(env.names(""), ["001_b.txt", "002_a.txt", "keep.txt"]);
+    assert!(env.job(id).undoable);
+    let summaries = env.ops().journal_summaries();
+    assert_eq!(summaries.len(), 1, "one entry for the whole batch");
+    assert_eq!(summaries[0].label, "Rename 2 items");
+
+    let undo = tauri::async_runtime::block_on(commands::undo(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        None,
+    ))
+    .unwrap();
+    env.wait_done(undo);
+    assert_eq!(env.names(""), ["a.txt", "b.txt", "keep.txt"]);
+    assert_eq!(env.read("a.txt"), b"alpha");
+}
+
+#[test]
+fn a_batch_preview_reports_clashes_and_a_job_with_one_is_refused() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    env.write("001_a.txt", b"in the way");
+    let request = batch_request(&env, &["a.txt", "b.txt"], vec![counter(1)]);
+    let preview = preview_of(&env, request.clone());
+    assert!(!preview.ready());
+    assert_eq!(preview.problems, 1);
+    assert!(preview.rows[0]
+        .problems
+        .contains(&waypoint_ops::Problem::ExistsInFolder));
+    // A rule that cannot work is a problem of the stack, not an error of the command.
+    let broken = batch_request(
+        &env,
+        &["a.txt"],
+        vec![waypoint_ops::RenameRule::FindReplace {
+            find: "(".to_owned(),
+            replace: String::new(),
+            regex: true,
+            case_sensitive: true,
+            scope: waypoint_ops::RenameScope::Stem,
+            all: true,
+        }],
+    );
+    let preview = preview_of(&env, broken);
+    assert_eq!(preview.rule_errors.len(), 1);
+    assert!(!preview.ready());
+
+    let id = env.submit("main-1", request);
+    let state = env.wait_state(id, "failed", |s| matches!(s, JobState::Failed { .. }));
+    assert!(matches!(
+        state,
+        JobState::Failed {
+            error: OpsError::NameInUse { .. },
+            ..
+        }
+    ));
+    assert_eq!(env.names(""), ["001_a.txt", "a.txt", "b.txt"]);
+    assert!(env.ops().journal_summaries().is_empty());
+    // A preview of something that is not there is the engine's typed refusal.
+    let missing = tauri::async_runtime::block_on(commands::preview_batch_rename(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        batch_request(&env, &["missing"], vec![counter(1)]),
+    ));
+    assert!(matches!(
+        missing,
+        Err(tauri_plugin_waypoint_ops::Error::Ops(
+            OpsError::NotFound { .. }
+        ))
+    ));
+}
+
+#[test]
+fn a_batch_preview_reads_a_selection_through_the_injected_resolver() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    *env.resolver.0.lock().unwrap() = vec![env.loc("b.txt")];
+    let mut request = batch_request(&env, &[], vec![counter(7)]);
+    request.sources = waypoint_ops::Sources::Selection {
+        handle: waypoint_vfs::ListingHandle(1),
+        spec: waypoint_vfs::SelectionSpec::AllExcept { ids: vec![] },
+    };
+    let preview = preview_of(&env, request.clone());
+    assert_eq!(preview.rows.len(), 1);
+    assert_eq!(preview.rows[0].to, "007_b.txt");
+    let id = env.submit("main-1", request);
+    env.wait_done(id);
+    assert_eq!(env.names(""), ["007_b.txt", "a.txt"]);
+}

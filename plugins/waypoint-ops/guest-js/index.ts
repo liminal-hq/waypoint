@@ -5,6 +5,7 @@
 
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { BatchPreview } from '@liminal-hq/waypoint-protocol/generated/BatchPreview';
 import type { Clipboard } from '@liminal-hq/waypoint-protocol/generated/Clipboard';
 import type { ClipboardMode } from '@liminal-hq/waypoint-protocol/generated/ClipboardMode';
 import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
@@ -24,9 +25,15 @@ import type { PlanNote } from '@liminal-hq/waypoint-protocol/generated/PlanNote'
 import type { PlanPreview } from '@liminal-hq/waypoint-protocol/generated/PlanPreview';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import type { RecoveryReport } from '@liminal-hq/waypoint-protocol/generated/RecoveryReport';
+import type { RenameRule } from '@liminal-hq/waypoint-protocol/generated/RenameRule';
+import type { RenameSpec } from '@liminal-hq/waypoint-protocol/generated/RenameSpec';
 import type { Resolution } from '@liminal-hq/waypoint-protocol/generated/Resolution';
+import type { PreviewRow } from '@liminal-hq/waypoint-protocol/generated/PreviewRow';
+import type { Problem } from '@liminal-hq/waypoint-protocol/generated/Problem';
+import type { RuleError } from '@liminal-hq/waypoint-protocol/generated/RuleError';
 
 export type {
+	BatchPreview,
 	Clipboard,
 	ClipboardMode,
 	ConflictPolicy,
@@ -45,8 +52,13 @@ export type {
 	PlanNote,
 	PlanPreview,
 	PluginStatus,
+	PreviewRow,
+	Problem,
 	RecoveryReport,
+	RenameRule,
+	RenameSpec,
 	Resolution,
+	RuleError,
 };
 
 const PREFIX = 'plugin:waypoint-ops|';
@@ -91,6 +103,16 @@ export function getSnapshot(): Promise<OpsSnapshot> {
  */
 export function plan(request: JobRequest): Promise<PlanPreview> {
 	return cmd<PlanPreview>('plan', { request });
+}
+
+/**
+ * What a batch rename would do, found without queueing it: `request` is the `batchRename` request
+ * that `submit` takes (its sources and its `rename` rules). The answer has a row for each entry
+ * with its new name and what is wrong with it, and `nowMs`, the time "today" meant, which goes back
+ * in the submitted request's `rename.nowMs` so the job writes the names that were previewed.
+ */
+export function previewBatchRename(request: JobRequest): Promise<BatchPreview> {
+	return cmd<BatchPreview>('preview_batch_rename', { request });
 }
 
 /** Puts a request on the queue and returns the job's id. */

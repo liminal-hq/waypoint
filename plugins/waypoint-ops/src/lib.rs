@@ -53,6 +53,7 @@ pub fn init_with<R: Runtime>(
             commands::get_status,
             commands::get_snapshot,
             commands::plan,
+            commands::preview_batch_rename,
             commands::submit,
             commands::pause,
             commands::resume,
