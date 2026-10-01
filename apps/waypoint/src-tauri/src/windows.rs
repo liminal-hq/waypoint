@@ -290,6 +290,28 @@ fn monitors<R: Runtime>(app: &AppHandle<R>) -> Vec<Area> {
         .collect()
 }
 
+/// What to do with a window's position once it is shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AfterShow {
+    At((i32, i32)),
+    Centre,
+    /// Nothing: a maximised window already fills its monitor.
+    Leave,
+}
+
+/// Moving an already-maximised window can un-maximise it (X11, Windows) or be ignored, and the
+/// session would then restore a normal window at the saved origin; the origin a maximised window
+/// returns to is not set here anyway. So a maximised fit leaves the position alone.
+pub fn after_show(fit: Option<&Fit>) -> AfterShow {
+    match fit {
+        Some(f) if f.maximised => AfterShow::Leave,
+        Some(Fit {
+            position: Some(at), ..
+        }) => AfterShow::At(*at),
+        _ => AfterShow::Centre,
+    }
+}
+
 /// Builds a main window with `label`, placed from `geometry` when there is one.
 pub fn build_main_window<R: Runtime>(
     app: &AppHandle<R>,
@@ -322,11 +344,12 @@ pub fn build_main_window<R: Runtime>(
         fit = Some(applied);
     }
     window.show().map_err(fail)?;
-    match fit.and_then(|f| f.position) {
-        Some(at) => place_position(&window, at, cfg!(windows)),
-        None => {
+    match after_show(fit.as_ref()) {
+        AfterShow::At(at) => place_position(&window, at, cfg!(windows)),
+        AfterShow::Centre => {
             let _ = window.center();
         }
+        AfterShow::Leave => {}
     }
     Ok(window)
 }
@@ -575,6 +598,27 @@ mod tests {
         // A size error never asks for an empty window.
         let tiny = correction((10, 10), None, Some((10, 40)), None);
         assert_eq!(tiny.size, Some((10, 1)));
+    }
+
+    #[test]
+    fn a_maximised_window_is_not_moved_after_it_is_shown() {
+        let mut g = geometry(Some(100), Some(80), 1000, 700);
+        g.maximised = true;
+        let fit = fit_geometry(&g, &[LEFT], true);
+        assert!(
+            fit.position.is_some(),
+            "the saved origin is still on a monitor"
+        );
+        assert_eq!(after_show(Some(&fit)), AfterShow::Leave);
+    }
+
+    #[test]
+    fn a_normal_window_is_moved_to_its_origin_or_centred() {
+        let on = fit_geometry(&geometry(Some(100), Some(80), 1000, 700), &[LEFT], true);
+        assert_eq!(after_show(Some(&on)), AfterShow::At((100, 80)));
+        let off = fit_geometry(&geometry(Some(5000), Some(80), 1000, 700), &[LEFT], true);
+        assert_eq!(after_show(Some(&off)), AfterShow::Centre);
+        assert_eq!(after_show(None), AfterShow::Centre);
     }
 
     #[test]
