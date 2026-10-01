@@ -25,6 +25,7 @@ mod sys;
 #[cfg(windows)]
 #[path = "sys_windows.rs"]
 mod sys;
+mod trash;
 mod watch;
 mod write;
 
@@ -42,5 +43,10 @@ pub use order::natural_key;
 pub use places::*;
 pub use provider::*;
 pub use space::free_space;
+#[cfg(any(test, feature = "testing"))]
+pub use trash::MemoryTrashSource;
+pub use trash::{
+    TrashInfo, TrashProvider, TrashSource, TrashedItem, POLL_INTERVAL as TRASH_POLL_INTERVAL,
+};
 pub use watch::{WatchMode, WatchOptions};
 pub use write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};

@@ -15,7 +15,7 @@ use crate::model::{
     SortKey, SortSpec,
 };
 use crate::order::{compare, natural_key, Sortable};
-use crate::provider::{Change, ScannedEntry};
+use crate::provider::{Change, ScannedEntry, TrashedMeta};
 
 /// Above this many changes in one batch the view is rebuilt and the patch is a `Reset`: editing a
 /// huge view in place costs more than sorting it again.
@@ -37,6 +37,8 @@ pub(crate) struct Record {
     size: Option<u64>,
     modified_ms: Option<i64>,
     hidden: bool,
+    /// Set for an item in the Trash, whose `name` is an id and whose sort key is its original name.
+    trashed: Option<Box<TrashedMeta>>,
 }
 
 /// The first 16 bytes of `bytes` as a big-endian number, zero-padded.
@@ -49,7 +51,10 @@ fn prefix_of(bytes: &[u8]) -> u128 {
 
 impl From<ScannedEntry> for Record {
     fn from(entry: ScannedEntry) -> Self {
-        let key = natural_key(&entry.name);
+        let key = match &entry.trashed {
+            Some(meta) => natural_key(OsStr::new(&meta.display_name)),
+            None => natural_key(&entry.name),
+        };
         Self {
             prefix: prefix_of(&key),
             key,
@@ -61,20 +66,31 @@ impl From<ScannedEntry> for Record {
             size: entry.size,
             modified_ms: entry.modified_ms,
             hidden: entry.hidden,
+            trashed: entry.trashed,
         }
     }
 }
 
 impl Record {
+    /// The name people read: the original name of a trashed item, the entry's own otherwise.
+    fn label(&self) -> &OsStr {
+        match &self.trashed {
+            Some(meta) => OsStr::new(&meta.display_name),
+            None => &self.name,
+        }
+    }
+
     fn sortable(&self) -> Sortable<'_> {
         Sortable {
             name: &self.name,
+            label: self.label(),
             key: &self.key,
             kind: self.kind,
             link_target: self.link_target,
             group: self.group as u8,
             size: self.size,
             modified_ms: self.modified_ms,
+            deleted_ms: self.trashed.as_ref().map(|t| t.deleted_ms),
         }
     }
 
@@ -100,9 +116,12 @@ impl Record {
             SortKey::Modified => {
                 u128::from((self.modified_ms.unwrap_or(i64::MIN) as u64) ^ (1 << 63))
             }
+            SortKey::Deleted => u128::from(
+                (self.trashed.as_ref().map_or(i64::MIN, |t| t.deleted_ms) as u64) ^ (1 << 63),
+            ),
             SortKey::Kind => {
                 let mut ext = [0u8; 8];
-                let raw = extension(self.name.as_encoded_bytes());
+                let raw = extension(self.label().as_encoded_bytes());
                 let take = raw.len().min(8);
                 ext[..take].copy_from_slice(&raw[..take]);
                 ext.make_ascii_lowercase();
@@ -119,13 +138,18 @@ impl Record {
     fn to_entry(&self, id: u32) -> Entry {
         Entry {
             id: EntryId(id),
-            name: self.name.to_string_lossy().into_owned(),
+            name: match &self.trashed {
+                Some(meta) => meta.display_name.clone(),
+                None => self.name.to_string_lossy().into_owned(),
+            },
             kind: self.kind,
             link_target: self.link_target,
             group: self.group,
             size: self.size,
             modified_ms: self.modified_ms,
             hidden: self.hidden,
+            original_path: self.trashed.as_ref().map(|t| t.original_path.clone()),
+            deleted_ms: self.trashed.as_ref().map(|t| t.deleted_ms),
         }
     }
 
@@ -139,6 +163,7 @@ impl Record {
             size: self.size,
             modified_ms: self.modified_ms,
             hidden: self.hidden,
+            trashed: self.trashed.clone(),
         }
     }
 }
@@ -619,6 +644,7 @@ mod tests {
             size: Some(size),
             modified_ms: Some(0),
             hidden: name.starts_with('.'),
+            trashed: None,
         }
     }
 

@@ -45,6 +45,9 @@ impl LocalProvider {
 fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
     match path {
         VfsPath::File(path) => Ok(path),
+        other => Err(VfsError::Unsupported {
+            what: format!("the {} scheme in the local provider", other.scheme()),
+        }),
     }
 }
 
@@ -125,6 +128,7 @@ fn build(
         size: shown.as_ref().filter(|_| shows_size).map(Metadata::len),
         modified_ms: shown.as_ref().and_then(|m| m.modified().ok()).map(to_ms),
         hidden,
+        trashed: None,
     }
 }
 

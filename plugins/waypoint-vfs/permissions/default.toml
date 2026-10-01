@@ -2,6 +2,7 @@
 description = "Default permissions for the waypoint-vfs plugin"
 permissions = [
   "allow-get-status",
+  "allow-get-trash-info",
   "allow-open-listing",
   "allow-get-range",
   "allow-set-sort",

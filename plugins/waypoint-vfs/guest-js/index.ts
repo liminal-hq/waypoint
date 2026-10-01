@@ -18,6 +18,7 @@ import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/Plugi
 import type { Places } from '@liminal-hq/waypoint-protocol/generated/Places';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/SelectionSummary';
+import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInfo';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
@@ -37,7 +38,8 @@ export interface OpenOptions {
 
 /**
  * Reports whether the file system plugin works here, and which features: `listing`, `watch`,
- * `places`, and `polling-fallback` while a listing is kept up to date by polling.
+ * `places`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
+ * kept up to date by polling.
  */
 export function getStatus(): Promise<PluginStatus> {
 	return cmd<PluginStatus>('get_status');
@@ -119,6 +121,14 @@ export function openEntry(handle: ListingHandle, id: EntryId): Promise<void> {
 	return cmd<void>('open_entry', { handle, id });
 }
 
+/**
+ * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
+ * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+ */
+export function getTrashInfo(): Promise<TrashInfo> {
+	return cmd<TrashInfo>('get_trash_info');
+}
+
 /** Home, the user folders that exist, and the favourites. */
 export function listPlaces(): Promise<Places> {
 	return cmd<Places>('list_places');
@@ -169,5 +179,6 @@ export type {
 	SelectionSpec,
 	SelectionSummary,
 	SortSpec,
+	TrashInfo,
 	VolumeSpace,
 };

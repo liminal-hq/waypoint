@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use waypoint_path::{FilePath, PathError, VfsPath};
+use waypoint_path::{FilePath, PathError, TrashPath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 
 use crate::model::{Breadcrumb, LocationInfo};
@@ -36,6 +36,12 @@ pub fn parse_location(input: &str, base: &Location, home: &Path) -> Result<Locat
     let text = input.trim();
     if text.is_empty() || text.contains('\0') {
         return Err(invalid(input));
+    }
+    // `trash:/` has no `//`, so it is not a scheme `scheme_of` sees.
+    if TrashPath::is_trash_uri(text) {
+        return VfsPath::from_uri(text)
+            .map(|path| path.to_location())
+            .map_err(|_| invalid(input));
     }
     if let Some(scheme) = scheme_of(text) {
         if !scheme.eq_ignore_ascii_case("file") {
@@ -73,6 +79,9 @@ pub fn parse_location(input: &str, base: &Location, home: &Path) -> Result<Locat
 /// The parent and the breadcrumb segments of a location, from its root to itself. The root segment
 /// is labelled as the platform writes it (`/`, `C:\`, `\\server\share\`).
 pub fn describe_location(location: &Location) -> Result<LocationInfo, VfsError> {
+    if TrashPath::is_trash_uri(&location.uri) {
+        return describe_trash(location);
+    }
     let path = FilePath::from_location(location).map_err(|_| invalid(&location.uri))?;
     let mut segments = Vec::new();
     let mut current = Some(path);
@@ -94,6 +103,31 @@ pub fn describe_location(location: &Location) -> Result<LocationInfo, VfsError> 
         n => Some(segments[n - 2].location.clone()),
     };
     Ok(LocationInfo { parent, segments })
+}
+
+/// The Trash is one level: its root, and below that the items.
+fn describe_trash(location: &Location) -> Result<LocationInfo, VfsError> {
+    let path = TrashPath::from_uri(&location.uri).map_err(|_| invalid(&location.uri))?;
+    let root = Breadcrumb {
+        label: TrashPath::Root.display(),
+        location: VfsPath::Trash(TrashPath::Root).to_location(),
+    };
+    match path {
+        TrashPath::Root => Ok(LocationInfo {
+            parent: None,
+            segments: vec![root],
+        }),
+        TrashPath::Item(id) => Ok(LocationInfo {
+            parent: Some(root.location.clone()),
+            segments: vec![
+                root,
+                Breadcrumb {
+                    label: id.clone(),
+                    location: VfsPath::Trash(TrashPath::Item(id)).to_location(),
+                },
+            ],
+        }),
+    }
 }
 
 #[cfg(all(test, unix))]
@@ -164,6 +198,22 @@ mod tests {
         assert_eq!(info.parent, None);
         assert_eq!(info.segments.len(), 1);
         assert_eq!(info.segments[0].label, "/");
+    }
+
+    #[test]
+    fn the_trash_parses_and_is_described_from_its_root() {
+        for text in ["trash:/", "trash:", " TRASH:/ "] {
+            let location = parse_location(text, &at("/srv"), Path::new("/h")).unwrap();
+            assert_eq!(location, Location::new("Trash", "trash:/"), "{text}");
+        }
+        let root = describe_location(&Location::new("Trash", "trash:/")).unwrap();
+        assert_eq!(root.parent, None);
+        assert_eq!(root.segments.len(), 1);
+        assert_eq!(root.segments[0].label, "Trash");
+        let item = describe_location(&Location::new("x", "trash:/a%7Cb")).unwrap();
+        assert_eq!(item.parent.unwrap().uri, "trash:/");
+        assert_eq!(item.segments[1].label, "a|b");
+        assert!(describe_location(&Location::new("x", "trash:/a/b")).is_err());
     }
 
     #[test]

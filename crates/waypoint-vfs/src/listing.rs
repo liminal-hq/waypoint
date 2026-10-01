@@ -193,6 +193,8 @@ impl Listing {
             phase: state.phase,
             sort: state.index.sort(),
             filter: state.index.filter(),
+            read_only: self.provider.read_only(),
+            layout: self.provider.layout(),
         }
     }
 

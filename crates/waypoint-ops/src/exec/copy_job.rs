@@ -1129,7 +1129,12 @@ impl Transfer<'_> {
         self.check()?;
         if self.linking {
             // The link holds where the source is, as an absolute path.
-            let VfsPath::File(file) = src;
+            let VfsPath::File(file) = src else {
+                return Err(VfsError::Unsupported {
+                    what: "a link to something that is not a local file".to_owned(),
+                }
+                .into());
+            };
             dp.symlink(partial, file.as_path().as_os_str())?;
             return Ok(());
         }

@@ -37,6 +37,18 @@ pub struct ScannedEntry {
     pub size: Option<u64>,
     pub modified_ms: Option<i64>,
     pub hidden: bool,
+    /// What only an item in the Trash has; `None` for every other entry.
+    pub trashed: Option<Box<TrashedMeta>>,
+}
+
+/// What a trashed item adds to its entry: the name it had before it was trashed (the entry's own
+/// name is the id that names it in the Trash), where it was, and when it was trashed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrashedMeta {
+    pub display_name: String,
+    /// The folder it was trashed from, as people read it.
+    pub original_path: String,
+    pub deleted_ms: i64,
 }
 
 /// What a provider can do at a location, so the UI hides what does not work (A9, A17).
@@ -97,6 +109,16 @@ pub trait Provider: Send + Sync {
     fn scheme(&self) -> &'static str;
 
     fn capabilities(&self) -> Capabilities;
+
+    /// Whether this provider changes nothing, so a view of it offers no way to. Default `false`.
+    fn read_only(&self) -> bool {
+        false
+    }
+
+    /// What the entries of this provider's listings look like. Default: ordinary folders.
+    fn layout(&self) -> crate::ListingLayout {
+        crate::ListingLayout::Folder
+    }
 
     /// Describes one entry without listing its folder.
     fn stat(&self, path: &VfsPath) -> Result<ScannedEntry, VfsError>;

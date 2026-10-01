@@ -90,6 +90,7 @@ fn synthetic(count: usize) -> Vec<ScannedEntry> {
                 size: (!folder).then_some((r >> 24) % 50_000_000),
                 modified_ms: Some(1_600_000_000_000 + ((r >> 40) % 100_000_000) as i64 * 1000),
                 hidden: r.is_multiple_of(29),
+                trashed: None,
             }
         })
         .collect()
@@ -249,6 +250,7 @@ fn sorting_paging_and_patching_a_500_000_entry_listing_stay_inside_the_budgets()
             size: Some(1),
             modified_ms: Some(0),
             hidden: false,
+            trashed: None,
         }),
         Change::Remove(OsString::from("report-000000-0.txt")),
     ]);

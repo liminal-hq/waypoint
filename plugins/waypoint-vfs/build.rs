@@ -5,6 +5,7 @@
 
 const COMMANDS: &[&str] = &[
     "get_status",
+    "get_trash_info",
     "open_listing",
     "get_range",
     "set_sort",

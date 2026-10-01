@@ -13,7 +13,8 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     }
     /**
      * Reports whether the file system plugin works here, and which features: `listing`, `watch`,
-     * `places`, and `polling-fallback` while a listing is kept up to date by polling.
+     * `places`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
+     * kept up to date by polling.
      */
     function getStatus() {
         return cmd('get_status');
@@ -76,6 +77,13 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     function openEntry(handle, id) {
         return cmd('open_entry', { handle, id });
     }
+    /**
+     * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
+     * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+     */
+    function getTrashInfo() {
+        return cmd('get_trash_info');
+    }
     /** Home, the user folders that exist, and the favourites. */
     function listPlaces() {
         return cmd('list_places');
@@ -113,6 +121,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     exports.getHome = getHome;
     exports.getRange = getRange;
     exports.getStatus = getStatus;
+    exports.getTrashInfo = getTrashInfo;
     exports.listPlaces = listPlaces;
     exports.moveFavourite = moveFavourite;
     exports.onListingEvent = onListingEvent;

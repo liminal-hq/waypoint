@@ -54,6 +54,14 @@ pub struct Entry {
     #[ts(type = "number | null")]
     pub modified_ms: Option<i64>,
     pub hidden: bool,
+    /// For an item in the Trash, the folder it was trashed from, as people read it (lossy).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub original_path: Option<String>,
+    /// For an item in the Trash, when it was trashed, in milliseconds since the Unix epoch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(type = "number | null", optional)]
+    pub deleted_ms: Option<i64>,
 }
 
 /// The column a listing is sorted by.
@@ -65,6 +73,8 @@ pub enum SortKey {
     Size,
     Modified,
     Kind,
+    /// When an item was trashed (Trash listings only; elsewhere every entry ties).
+    Deleted,
 }
 
 /// How a listing is ordered.
@@ -129,6 +139,19 @@ pub enum ListingPhase {
     Failed,
 }
 
+/// Which columns and actions a listing's entries make sense with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ListingLayout {
+    /// Ordinary folder contents: size, modified time and kind.
+    #[default]
+    Folder,
+    /// The Trash: the original location and the deletion date, items that cannot be opened or
+    /// changed in place.
+    Trash,
+}
+
 /// The state of a listing at one revision. Returned when a listing opens and whenever the
 /// sort or filter changes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -144,6 +167,9 @@ pub struct ListingSnapshot {
     pub phase: ListingPhase,
     pub sort: SortSpec,
     pub filter: Filter,
+    /// The provider writes nothing here, so the view offers no new, rename, paste or drop.
+    pub read_only: bool,
+    pub layout: ListingLayout,
 }
 
 /// One edit to the current view, in view positions.

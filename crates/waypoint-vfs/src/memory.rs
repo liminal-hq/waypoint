@@ -269,9 +269,11 @@ impl MemoryProvider {
 
     /// The path components below the root, or `NotFound` for a path outside it.
     fn comps(&self, path: &VfsPath) -> Result<Vec<OsString>, VfsError> {
-        let VfsPath::File(file) = path;
         let outside = || VfsError::NotFound {
             location: path.to_location(),
+        };
+        let VfsPath::File(file) = path else {
+            return Err(outside());
         };
         let below = file
             .as_path()
@@ -430,6 +432,7 @@ impl MemoryProvider {
             size,
             modified_ms: Some(to_ms(shown.modified)),
             hidden: name.as_encoded_bytes().first() == Some(&b'.'),
+            trashed: None,
         }
     }
 

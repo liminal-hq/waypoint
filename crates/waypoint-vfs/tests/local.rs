@@ -115,7 +115,9 @@ fn entries_take_their_ids_from_the_scan_and_resolve_to_paths() {
     touch(dir.path(), "a.txt", 1);
     let listing = open(&dir);
     let entry = &all(&listing)[0];
-    let VfsPath::File(path) = listing.path_of(entry.id).unwrap();
+    let VfsPath::File(path) = listing.path_of(entry.id).unwrap() else {
+        panic!("a local listing has local paths");
+    };
     assert_eq!(path.as_path(), dir.path().join("a.txt"));
     assert!(matches!(
         listing.path_of(EntryId(99)),
@@ -398,7 +400,9 @@ fn names_that_are_not_utf8_sort_deterministically_and_resolve_to_their_real_path
     assert_eq!(entries[2].name, "caf\u{fffd}.txt");
     assert_eq!(entries[2].group, IconGroup::Document);
     let path = listing.path_of(entries[2].id).unwrap();
-    let VfsPath::File(file) = path;
+    let VfsPath::File(file) = path else {
+        panic!("a local listing has local paths");
+    };
     assert_eq!(
         file.as_path().file_name().unwrap().as_bytes(),
         raw.as_bytes()

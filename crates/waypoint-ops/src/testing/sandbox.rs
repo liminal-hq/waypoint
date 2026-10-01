@@ -28,7 +28,9 @@ pub struct SandboxProvider<P> {
 
 impl<P: Provider> SandboxProvider<P> {
     pub fn new(inner: P, root: &VfsPath) -> Self {
-        let VfsPath::File(root) = root;
+        let VfsPath::File(root) = root else {
+            panic!("a sandbox is rooted in a local path");
+        };
         Self {
             inner,
             root: root.clone(),
@@ -61,7 +63,9 @@ impl<P: Provider> SandboxProvider<P> {
         if links > MAX_LINKS {
             self.escape(path, "passes through too many symlinks");
         }
-        let VfsPath::File(file) = path;
+        let VfsPath::File(file) = path else {
+            self.escape(path, "is not a local path");
+        };
         let Ok(relative) = file.as_path().strip_prefix(self.root.as_path()) else {
             self.escape(path, "is outside the sandbox");
         };

@@ -48,8 +48,10 @@ pub fn is_within(path: &VfsPath, ancestor: &VfsPath, rule: CaseRule) -> bool {
 
 /// The last component of a path.
 pub fn file_name_of(path: &VfsPath) -> Option<OsString> {
-    let VfsPath::File(file) = path;
-    file.file_name()
+    match path {
+        VfsPath::File(file) => file.file_name(),
+        VfsPath::Trash(trash) => trash.id().map(OsString::from),
+    }
 }
 
 /// Splits a name into the part to number and the extension to keep after the number. The

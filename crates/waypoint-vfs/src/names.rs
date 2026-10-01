@@ -84,7 +84,11 @@ pub fn child_path(parent: &VfsPath, name: &OsStr, rule: CaseRule) -> Result<VfsP
 
 /// Checks the final component of a path about to be created or renamed to.
 pub(crate) fn validate_new_path(path: &VfsPath, rule: CaseRule) -> Result<(), VfsError> {
-    let VfsPath::File(file) = path;
+    let VfsPath::File(file) = path else {
+        return Err(VfsError::Unsupported {
+            what: format!("creating in the {} scheme", path.scheme()),
+        });
+    };
     match file.file_name() {
         Some(name) => validate_name(&name, rule),
         None => Err(VfsError::InvalidName {
