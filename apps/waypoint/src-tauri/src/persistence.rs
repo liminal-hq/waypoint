@@ -284,13 +284,13 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
     });
     let mut created = 0;
     for (label, geometry) in &windows {
-        match build_main_window(app, label, geometry.as_ref()) {
+        match build_main_window(app, label, geometry.as_ref(), false) {
             Ok(_) => created += 1,
             Err(e) => log::warn!("could not restore the window `{label}`: {e}"),
         }
     }
     if created == 0 {
-        if let Err(e) = build_main_window(app, "main-1", None) {
+        if let Err(e) = build_main_window(app, "main-1", None, false) {
             log::error!("could not open the first window: {e}");
         }
     }

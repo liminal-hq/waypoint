@@ -33,6 +33,7 @@ ts-rs = "12"
 [target.'cfg(target_os = "linux")'.dependencies]
 gdk = "0.18"
 gtk = "0.18"
+wayland-toplevel-drag = { path = "../../crates/wayland-toplevel-drag" }
 
 # Matches the version Tauri resolves, so the types line up.
 [target.'cfg(target_os = "windows")'.dependencies]

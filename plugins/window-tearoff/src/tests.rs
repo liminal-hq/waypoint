@@ -12,7 +12,8 @@ use tauri::{
 use crate::{
     commands, init,
     models::{
-        BeginState, DropReport, Hit, Options, Outcome, Point, Region, Size, DEFAULT_GHOST_LABEL,
+        BeginState, DropReport, Hit, Options, Outcome, Point, Region, Size, ToplevelBeginState,
+        DEFAULT_GHOST_LABEL,
     },
     session::Tearoff,
 };
@@ -61,7 +62,40 @@ fn with_no_display_every_feature_reports_unavailable_with_reasons() {
     .unwrap();
     assert!(!status.available);
     assert!(status.features.is_empty());
-    assert_eq!(status.unavailable.len(), 4);
+    assert_eq!(status.unavailable.len(), 5);
+    assert!(status
+        .unavailable
+        .iter()
+        .any(|entry| entry.feature == "toplevel_drag" && !entry.reason.is_empty()));
+}
+
+#[test]
+fn a_toplevel_drag_without_the_feature_says_so_and_starts_nothing() {
+    let app = app();
+    let handle = app.handle().clone();
+    let window = handle.get_webview_window("main").unwrap();
+    let report = tauri::async_runtime::block_on(commands::begin_toplevel_drag(
+        handle.clone(),
+        window.clone(),
+        handle.state::<Tearoff>(),
+        json!({ "tabs": [1] }),
+        "main-2".into(),
+        Point { x: 10.0, y: 5.0 },
+    ))
+    .unwrap();
+    assert_eq!(report.state, ToplevelBeginState::Unavailable);
+    assert!(report.reason.is_some_and(|reason| !reason.is_empty()));
+    assert!(!handle.state::<Tearoff>().toplevel().is_active());
+    // Ending, and reading a result, are harmless with no drag.
+    tauri::async_runtime::block_on(commands::end_toplevel_drag(
+        handle.clone(),
+        handle.state::<Tearoff>(),
+    ))
+    .unwrap();
+    assert_eq!(
+        commands::take_toplevel_drag_result(window, handle.state::<Tearoff>()).unwrap(),
+        None
+    );
 }
 
 // Windows always has a display, so the ghost exists and the features are available there.

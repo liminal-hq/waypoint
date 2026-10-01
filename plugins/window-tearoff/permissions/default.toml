@@ -9,4 +9,7 @@ permissions = [
   "allow-get-cursor",
   "allow-get-payload",
   "allow-hit-test",
+  "allow-begin-toplevel-drag",
+  "allow-end-toplevel-drag",
+  "allow-take-toplevel-drag-result",
 ]

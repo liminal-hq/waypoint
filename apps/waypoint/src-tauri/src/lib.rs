@@ -15,7 +15,7 @@ use waypoint_protocol::WindowKind;
 use waypoint_session::StorePolicy;
 
 use persistence::{CloseFlush, Intent, Saver};
-use windows::{GeometryCapture, TauriWindowFactory};
+use windows::{GeometryCapture, HoldNextWindow, TauriWindowFactory};
 
 /// The label of the tear-off ghost; `WindowKind::TearGhost` routes it to `TearGhostScreen`.
 const GHOST_LABEL: &str = "tear-ghost";
@@ -31,6 +31,9 @@ fn log_level() -> log::LevelFilter {
     }
 }
 
+/// The type a tab drag offers the compositor on Wayland, which every main window accepts a drop of.
+const TAB_MIME: &str = "application/x-waypoint-tab";
+
 /// The tear-off ghost: one shared window the plugin creates once the event loop runs (never
 /// `tauri.conf.json`), which loads the app bundle and is routed to `TearGhostScreen` by its label.
 /// No window-state plugin is registered, so the ghost needs no denylist entry; add
@@ -40,6 +43,7 @@ fn tear_off_options() -> tauri_plugin_window_tearoff::Options {
         ghost_label: GHOST_LABEL.into(),
         ghost_url: "index.html".into(),
         ghost_size: (240.0, 84.0),
+        toplevel_drag_mime: TAB_MIME.into(),
     }
 }
 
@@ -70,6 +74,12 @@ fn session_deps(saver: &Arc<Saver>) -> SessionDeps {
 #[tauri::command]
 fn take_restore_notice(saver: tauri::State<'_, Arc<Saver>>) -> Option<String> {
     saver.take_notice()
+}
+
+/// Keeps the next window the session makes hidden (`on`), or stops doing so; see `HoldNextWindow`.
+#[tauri::command]
+fn hold_next_window(hold: tauri::State<'_, HoldNextWindow>, on: bool) {
+    hold.set(on);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -114,7 +124,11 @@ pub fn run() {
         .plugin(tauri_plugin_waypoint_vfs::init())
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
-        .invoke_handler(tauri::generate_handler![take_restore_notice])
+        .manage(HoldNextWindow::default())
+        .invoke_handler(tauri::generate_handler![
+            take_restore_notice,
+            hold_next_window
+        ])
         .setup({
             let saver = Arc::clone(&saver);
             move |app| {

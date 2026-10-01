@@ -10,6 +10,7 @@
 // draws its own on Linux, D89), the minimum size, and the drag-and-drop handler off (A36).
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -312,11 +313,33 @@ pub fn after_show(fit: Option<&Fit>) -> AfterShow {
     }
 }
 
-/// Builds a main window with `label`, placed from `geometry` when there is one.
+
+/// Whether the next window the factory makes is kept hidden. A page sets it just before it moves
+/// tabs to a new window it is about to drag with the compositor (the Wayland tear-off): the
+/// window must not be mapped before the drag attaches it, and the plugin shows it then. The
+/// factory takes the flag, so it applies to one window; the page clears it again once the move
+/// has returned, whatever the result.
+#[derive(Default, Clone)]
+pub struct HoldNextWindow(Arc<AtomicBool>);
+
+impl HoldNextWindow {
+    pub fn set(&self, on: bool) {
+        self.0.store(on, Ordering::SeqCst);
+    }
+
+    /// Reads the flag and clears it.
+    pub fn take(&self) -> bool {
+        self.0.swap(false, Ordering::SeqCst)
+    }
+}
+
+/// Builds a main window with `label`, placed from `geometry` when there is one. A `hidden` window
+/// gets its size and is left unmapped, for something else to show.
 pub fn build_main_window<R: Runtime>(
     app: &AppHandle<R>,
     label: &str,
     geometry: Option<&Geometry>,
+    hidden: bool,
 ) -> Result<WebviewWindow<R>, WindowError> {
     let fail = |e: tauri::Error| WindowError::Failed(e.to_string());
     // Hidden until the geometry is applied, so the window never shows at the wrong size.
@@ -342,6 +365,9 @@ pub fn build_main_window<R: Runtime>(
             let _ = window.maximize();
         }
         fit = Some(applied);
+    }
+    if hidden {
+        return Ok(window);
     }
     window.show().map_err(fail)?;
     match after_show(fit.as_ref()) {
@@ -369,7 +395,10 @@ impl<R: Runtime> WindowFactory<R> for TauriWindowFactory {
             Some(_) => None,
             None => opener.and_then(|opener| cascaded(app, opener)),
         };
-        build_main_window(app, label, geometry.or(placed.as_ref())).map(drop)
+        let hidden = app
+            .try_state::<HoldNextWindow>()
+            .is_some_and(|hold| hold.take());
+        build_main_window(app, label, geometry.or(placed.as_ref()), hidden).map(drop)
     }
 }
 

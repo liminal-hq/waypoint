@@ -22,12 +22,14 @@ use crate::{
     ghost, main_thread,
     models::{
         BeginReport, BeginState, DropReport, Hit, Options, Outcome, PluginStatus, Point, Region,
-        Size, CURSOR_STALE_EVENT, FEATURE_CURSOR_FOLLOW, FEATURE_GHOST, FEATURE_HIT_TEST,
+        Size, ToplevelBeginReport, ToplevelBeginState, ToplevelDragEnded, CURSOR_STALE_EVENT,
+        FEATURE_CURSOR_FOLLOW, FEATURE_GHOST, FEATURE_HIT_TEST, FEATURE_TOPLEVEL_DRAG,
         PAYLOAD_EVENT, TIMEOUT_EVENT,
     },
     platform,
     regions::{self, WindowGeometry},
     status::{self, Probes},
+    toplevel::{self, Finish},
 };
 
 /// A drag in progress.
@@ -56,6 +58,7 @@ pub struct Tearoff {
     regions: Mutex<HashMap<String, Vec<Region>>>,
     active: Mutex<Option<Active>>,
     payload: Mutex<Option<Value>>,
+    toplevel: Arc<toplevel::State>,
 }
 
 /// Locks, recovering the data if another thread panicked while holding the lock: the state stays usable and a drag can still be ended.
@@ -82,7 +85,67 @@ impl Tearoff {
             regions: Mutex::new(HashMap::new()),
             active: Mutex::new(None),
             payload: Mutex::new(None),
+            toplevel: Arc::new(toplevel::State::default()),
         }
+    }
+
+    /// The toplevel drag's state, shared with the drop targets on the windows.
+    pub fn toplevel(&self) -> &Arc<toplevel::State> {
+        &self.toplevel
+    }
+
+    /// The MIME type a toplevel drag carries its payload under.
+    pub fn toplevel_mime(&self) -> &str {
+        &self.options.toplevel_drag_mime
+    }
+
+    /// Starts dragging `window` (a real window, hidden or not) with the pointer, from the press in `source`; the compositor moves it and reports how the drag ends as `toplevel-drag-ended`. `grab_offset` is where the pointer holds the window, in logical pixels from its top left. Returns `Unavailable` without starting anything where the system cannot do it.
+    pub async fn begin_toplevel_drag<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        source: &WebviewWindow<R>,
+        window: String,
+        payload: Value,
+        grab_offset: Point,
+    ) -> ToplevelBeginReport {
+        let status = self.status(app).await;
+        if !has(&status, FEATURE_TOPLEVEL_DRAG) {
+            let reason = status
+                .unavailable
+                .iter()
+                .find(|entry| entry.feature == FEATURE_TOPLEVEL_DRAG)
+                .map(|entry| entry.reason.clone());
+            return ToplevelBeginReport {
+                state: ToplevelBeginState::Unavailable,
+                reason,
+            };
+        }
+        let (state, mime, source) = (
+            self.toplevel.clone(),
+            self.options.toplevel_drag_mime.clone(),
+            source.label().to_string(),
+        );
+        let handle = app.clone();
+        let grab = (grab_offset.x.round() as i32, grab_offset.y.round() as i32);
+        main_thread::run(app, move || {
+            toplevel::begin(&handle, &state, &source, &window, &payload, grab, &mime)
+        })
+        .await
+        .unwrap_or(ToplevelBeginReport {
+            state: ToplevelBeginState::Failed,
+            reason: Some("the event loop is gone".into()),
+        })
+    }
+
+    /// Cancels the toplevel drag in progress, if any: the dragged window snaps back and the drag ends as `cancelled`.
+    pub async fn end_toplevel_drag<R: Runtime>(&self, app: &AppHandle<R>) {
+        let (state, handle) = (self.toplevel.clone(), app.clone());
+        main_thread::run(app, move || cancel_toplevel(&handle, &state)).await;
+    }
+
+    /// The result of the toplevel drag that moved `window`, once, for a page that was not listening when it ended.
+    pub fn take_toplevel_result(&self, window: &str) -> Option<ToplevelDragEnded> {
+        self.toplevel.take_result(window)
     }
 
     /// Creates the shared ghost window; see `ghost::create`.
@@ -106,6 +169,7 @@ impl Tearoff {
                 ghost_created: false,
                 window_position: false,
                 hit_test: false,
+                toplevel_drag: status::ToplevelProbe::NotChecked,
             };
         }
         let probes = ghost::probe(app, self.ghost_label()).await;
@@ -145,6 +209,11 @@ impl Tearoff {
     /// Forgets a destroyed window's regions, and ends the drag if that window began it.
     pub fn window_destroyed<R: Runtime>(&self, app: &AppHandle<R>, label: &str) {
         lock(&self.regions).remove(label);
+        self.toplevel.forget(label);
+        if self.toplevel.involves(label) {
+            // A window of the drag is gone: a destroyed window cannot take part in it.
+            cancel_toplevel(app, &self.toplevel);
+        }
         if let EndTake::Ended(_) = self.take_for_end(label) {
             self.clear_drag(app);
         }
@@ -384,6 +453,14 @@ impl Tearoff {
             cursor_stale: stale,
             hit,
         }
+    }
+}
+
+/// Cancels the toplevel drag through the tracker, which reports the end; if the tracker has no drag (it ended already, or never started) the state is ended here so it cannot stick. Must run on the main thread.
+fn cancel_toplevel<R: Runtime>(app: &AppHandle<R>, state: &toplevel::State) {
+    toplevel::cancel();
+    if let Some(ended) = state.finish(Finish::Cancelled { after_drop: false }) {
+        toplevel::emit_ended(app, &ended);
     }
 }
 

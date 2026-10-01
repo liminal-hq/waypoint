@@ -12,6 +12,9 @@ const COMMANDS: &[&str] = &[
     "get_cursor",
     "get_payload",
     "hit_test",
+    "begin_toplevel_drag",
+    "end_toplevel_drag",
+    "take_toplevel_drag_result",
 ];
 
 fn main() {

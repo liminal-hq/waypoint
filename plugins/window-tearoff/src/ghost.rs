@@ -10,7 +10,13 @@ use tauri::{
     AppHandle, Manager, PhysicalPosition, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
-use crate::{main_thread, models::Options, platform, status, status::Probes, Error};
+use crate::{
+    main_thread,
+    models::Options,
+    platform, status,
+    status::{Probes, ToplevelProbe},
+    toplevel, Error,
+};
 
 /// Where the realise-then-click-through sequence parks the ghost, well off any screen.
 const PARKING: (i32, i32) = (-5000, -5000);
@@ -141,16 +147,18 @@ pub async fn probe<R: Runtime>(app: &AppHandle<R>, ghost_label: &str) -> Probes 
             if let Some(ghost) = ghost.as_ref().filter(|_| !platform.trusts_probes()) {
                 show(ghost);
             }
-            (platform, ghost.is_some())
+            // Wayland reports no cursor and no positions, so the real-window drag is its tear-off; the probe also sets it up.
+            (platform, ghost.is_some(), toplevel::probe(&app, platform))
         }
     })
     .await;
-    let Some((platform, ghost_created)) = setup else {
+    let Some((platform, ghost_created, toplevel_drag)) = setup else {
         return Probes {
             platform: status::Platform::Unsupported,
             ghost_created: false,
             window_position: false,
             hit_test: false,
+            toplevel_drag: ToplevelProbe::NotChecked,
         };
     };
     if platform.trusts_probes() {
@@ -162,6 +170,7 @@ pub async fn probe<R: Runtime>(app: &AppHandle<R>, ghost_label: &str) -> Probes 
             ghost_created,
             window_position: false,
             hit_test: false,
+            toplevel_drag,
         };
     }
 
@@ -207,6 +216,7 @@ pub async fn probe<R: Runtime>(app: &AppHandle<R>, ghost_label: &str) -> Probes 
         ghost_created,
         window_position,
         hit_test,
+        toplevel_drag,
     };
     info!("window-tearoff: probed {probes:?}");
     probes

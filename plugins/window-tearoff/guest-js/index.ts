@@ -11,10 +11,16 @@ import type { BeginState } from './bindings/BeginState';
 import type { DropReport } from './bindings/DropReport';
 import type { Hit } from './bindings/Hit';
 import type { Outcome } from './bindings/Outcome';
+import type { PayloadDropped } from './bindings/PayloadDropped';
 import type { PluginStatus } from './bindings/PluginStatus';
 import type { Point } from './bindings/Point';
 import type { Region } from './bindings/Region';
 import type { Size } from './bindings/Size';
+import type { ToplevelBeginReport } from './bindings/ToplevelBeginReport';
+import type { ToplevelBeginState } from './bindings/ToplevelBeginState';
+import type { ToplevelDragEnded } from './bindings/ToplevelDragEnded';
+import type { ToplevelDragStarted } from './bindings/ToplevelDragStarted';
+import type { ToplevelOutcome } from './bindings/ToplevelOutcome';
 import type { UnavailableFeature } from './bindings/UnavailableFeature';
 
 const PREFIX = 'plugin:window-tearoff|';
@@ -26,8 +32,15 @@ export const TIMEOUT_EVENT = 'window-tearoff://timeout';
 /** Sent to the window that began a drag when the cursor value froze (`true`) or moved again (`false`). */
 export const CURSOR_STALE_EVENT = 'window-tearoff://cursor-stale';
 
+/** Sent to the window that began a toplevel drag once the compositor has taken it: it gets no pointer events until the drag ends. */
+export const TOPLEVEL_DRAG_STARTED_EVENT = 'window-tearoff://toplevel-drag-started';
+/** Sent, when a toplevel drag ends however it ends, to the window that began it and to the window that was dragged. */
+export const TOPLEVEL_DRAG_ENDED_EVENT = 'window-tearoff://toplevel-drag-ended';
+/** Sent to the window a toplevel drag's payload was dropped on. */
+export const PAYLOAD_DROPPED_EVENT = 'window-tearoff://tab-dropped';
+
 /** The features `getStatus` can report. */
-export type Feature = 'ghost' | 'cursor_follow' | 'window_position' | 'hit_test';
+export type Feature = 'ghost' | 'cursor_follow' | 'window_position' | 'hit_test' | 'toplevel_drag';
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -91,6 +104,58 @@ export function getPayload<T = unknown>(): Promise<T | null> {
 	return cmd<T | null>('get_payload');
 }
 
+/**
+ * Drags the window labelled `windowLabel` with the pointer through the compositor (feature `toplevel_drag`), from the press in the calling window.
+ * The window follows the pointer even outside every window, stays where it is dropped and snaps back on cancel.
+ * It may be the caller itself, or another window created hidden for the drag.
+ * `payload` is opaque JSON that a window it is dropped on receives (`onPayloadDropped`); `grabOffset` is where the pointer holds the window, in logical pixels from its top-left.
+ * Resolves to `{ state: 'unavailable' }` where the system cannot do it, and nothing starts.
+ * Once the compositor has taken the drag the caller gets `onToplevelDragStarted`, then no pointer events until it ends; `onToplevelDragEnded` says how.
+ */
+export function beginToplevelDrag(
+	payload: unknown,
+	windowLabel: string,
+	grabOffset: Point,
+): Promise<ToplevelBeginReport> {
+	return cmd<ToplevelBeginReport>('begin_toplevel_drag', { payload, windowLabel, grabOffset });
+}
+
+/** Cancels the toplevel drag in progress, if any; it ends as `cancelled`. */
+export function endToplevelDrag(): Promise<void> {
+	return cmd<void>('end_toplevel_drag');
+}
+
+/** How the toplevel drag that moved the calling window ended, once, for a page that was still loading when it did. */
+export function takeToplevelDragResult(): Promise<ToplevelDragEnded | null> {
+	return cmd<ToplevelDragEnded | null>('take_toplevel_drag_result');
+}
+
+/** Listens, in the window that began a toplevel drag, for the compositor taking it. */
+export function onToplevelDragStarted(
+	handler: (_started: ToplevelDragStarted) => void,
+): Promise<UnlistenFn> {
+	return getCurrentWebviewWindow().listen<ToplevelDragStarted>(
+		TOPLEVEL_DRAG_STARTED_EVENT,
+		(event) => handler(event.payload),
+	);
+}
+
+/** Listens, in the window that began a toplevel drag or the one dragged, for its end. */
+export function onToplevelDragEnded(
+	handler: (_ended: ToplevelDragEnded) => void,
+): Promise<UnlistenFn> {
+	return getCurrentWebviewWindow().listen<ToplevelDragEnded>(TOPLEVEL_DRAG_ENDED_EVENT, (event) =>
+		handler(event.payload),
+	);
+}
+
+/** Listens, in any window, for a toplevel drag's payload being dropped on it. */
+export function onPayloadDropped(handler: (_dropped: PayloadDropped) => void): Promise<UnlistenFn> {
+	return getCurrentWebviewWindow().listen<PayloadDropped>(PAYLOAD_DROPPED_EVENT, (event) =>
+		handler(event.payload),
+	);
+}
+
 /** Listens, in the ghost window, for the drag's payload as it is sent and updated; `null` means the drag ended and the card should clear. */
 export function onPayload<T = unknown>(handler: (_payload: T) => void): Promise<UnlistenFn> {
 	return getCurrentWebviewWindow().listen<T>(PAYLOAD_EVENT, (event) => handler(event.payload));
@@ -114,9 +179,15 @@ export type {
 	DropReport,
 	Hit,
 	Outcome,
+	PayloadDropped,
 	PluginStatus,
 	Point,
 	Region,
 	Size,
+	ToplevelBeginReport,
+	ToplevelBeginState,
+	ToplevelDragEnded,
+	ToplevelDragStarted,
+	ToplevelOutcome,
 	UnavailableFeature,
 };

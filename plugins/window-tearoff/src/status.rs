@@ -5,7 +5,7 @@
 
 use crate::models::{
     PluginStatus, UnavailableFeature, FEATURE_CURSOR_FOLLOW, FEATURE_GHOST, FEATURE_HIT_TEST,
-    FEATURE_WINDOW_POSITION,
+    FEATURE_TOPLEVEL_DRAG, FEATURE_WINDOW_POSITION,
 };
 
 /// The windowing system the app is running under.
@@ -29,6 +29,48 @@ impl Platform {
     }
 }
 
+/// Whether a real window can follow the pointer through `xdg-toplevel-drag`, and if not, why.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToplevelProbe {
+    Available,
+    /// Not Linux, or not a Wayland display.
+    NotWayland,
+    /// Turned off with `WINDOW_TEAROFF_DISABLE_TOPLEVEL_DRAG`.
+    Disabled,
+    /// The compositor does not offer `xdg_toplevel_drag_manager_v1`.
+    NoProtocol,
+    /// The compositor offers no seat or data device manager, or the seat has no pointer.
+    NoSeat,
+    /// The proxy interposer is not exported by this executable, or GTK has made no data device.
+    NoInterposer,
+    /// The Wayland connection could not be shared, or GDK's handles could not be read.
+    Failed,
+    /// The probe has not run: a platform that is trusted without probing, or a drag in progress.
+    NotChecked,
+}
+
+impl ToplevelProbe {
+    /// Why the feature is unavailable, or `None` when it works.
+    pub fn reason(self) -> Option<&'static str> {
+        match self {
+            ToplevelProbe::Available => None,
+            ToplevelProbe::NotWayland => Some("the display is not Wayland"),
+            ToplevelProbe::Disabled => {
+                Some("turned off with WINDOW_TEAROFF_DISABLE_TOPLEVEL_DRAG")
+            }
+            ToplevelProbe::NoProtocol => {
+                Some("the compositor does not support xdg-toplevel-drag (xdg_toplevel_drag_manager_v1)")
+            }
+            ToplevelProbe::NoSeat => Some("the compositor offers no pointer seat or data device"),
+            ToplevelProbe::NoInterposer => Some(
+                "the app was not linked with the Wayland proxy interposer (-rdynamic and --undefined=wl_proxy_marshal_flags)",
+            ),
+            ToplevelProbe::Failed => Some("the Wayland connection could not be shared with GTK"),
+            ToplevelProbe::NotChecked => Some("not checked on this platform"),
+        }
+    }
+}
+
 /// What the plugin learned about this system at runtime, cached for the session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Probes {
@@ -38,6 +80,7 @@ pub struct Probes {
     pub window_position: bool,
     /// Another window's inner position can be read.
     pub hit_test: bool,
+    pub toplevel_drag: ToplevelProbe,
 }
 
 impl Probes {
@@ -48,6 +91,7 @@ impl Probes {
             ghost_created,
             window_position: true,
             hit_test: true,
+            toplevel_drag: ToplevelProbe::NotChecked,
         }
     }
 }
@@ -106,6 +150,7 @@ pub fn status_for(probes: &Probes) -> PluginStatus {
         (FEATURE_CURSOR_FOLLOW, follow_reason),
         (FEATURE_WINDOW_POSITION, position_reason),
         (FEATURE_HIT_TEST, hit_reason),
+        (FEATURE_TOPLEVEL_DRAG, probes.toplevel_drag.reason()),
     ];
     let features = entries
         .iter()
@@ -152,6 +197,7 @@ mod tests {
             ghost_created: true,
             window_position: true,
             hit_test: true,
+            toplevel_drag: ToplevelProbe::NotWayland,
         });
         assert!(status.available);
         assert_eq!(status.reason, None);
@@ -159,7 +205,9 @@ mod tests {
             feature_names(&status),
             ["ghost", "cursor_follow", "window_position", "hit_test"]
         );
-        assert!(status.unavailable.is_empty());
+        // The real-window drag is a Wayland feature, and says why it is off elsewhere.
+        assert_eq!(status.unavailable.len(), 1);
+        assert_eq!(status.unavailable[0].feature, "toplevel_drag");
     }
 
     #[test]
@@ -169,10 +217,11 @@ mod tests {
             ghost_created: true,
             window_position: false,
             hit_test: false,
+            toplevel_drag: ToplevelProbe::NoProtocol,
         });
         assert!(!status.available);
         assert!(status.features.is_empty());
-        assert_eq!(status.unavailable.len(), 4);
+        assert_eq!(status.unavailable.len(), 5);
         assert!(status.reason.as_deref().unwrap().contains("(0, 0)"));
         assert!(status
             .unavailable
@@ -185,7 +234,9 @@ mod tests {
         let probes = Probes::trusted(Platform::Windows, true);
         assert!(Platform::Windows.trusts_probes());
         assert!(!Platform::X11.trusts_probes());
-        assert_eq!(status_for(&probes).features.len(), 4);
+        let status = status_for(&probes);
+        assert_eq!(status.features.len(), 4);
+        assert_eq!(status.unavailable[0].feature, "toplevel_drag");
     }
 
     #[test]
@@ -195,9 +246,10 @@ mod tests {
             ghost_created: false,
             window_position: false,
             hit_test: false,
+            toplevel_drag: ToplevelProbe::NotWayland,
         });
         assert!(!status.available);
-        assert_eq!(status.unavailable.len(), 4);
+        assert_eq!(status.unavailable.len(), 5);
         assert!(status.reason.unwrap().contains("not supported"));
     }
 
@@ -208,6 +260,7 @@ mod tests {
             ghost_created: false,
             window_position: true,
             hit_test: true,
+            toplevel_drag: ToplevelProbe::NotWayland,
         });
         assert!(status.available);
         assert_eq!(
@@ -215,6 +268,38 @@ mod tests {
             ["cursor_follow", "window_position", "hit_test"]
         );
         assert_eq!(status.unavailable[0].feature, "ghost");
+    }
+
+    #[test]
+    fn a_wayland_compositor_with_the_protocol_reports_only_the_real_window_drag() {
+        let status = status_for(&Probes {
+            platform: Platform::Wayland,
+            ghost_created: true,
+            window_position: false,
+            hit_test: false,
+            toplevel_drag: ToplevelProbe::Available,
+        });
+        assert!(status.available);
+        assert_eq!(status.reason, None);
+        assert_eq!(feature_names(&status), ["toplevel_drag"]);
+        // The other four still say why they are off.
+        assert_eq!(status.unavailable.len(), 4);
+    }
+
+    #[test]
+    fn every_unavailable_toplevel_probe_has_a_reason() {
+        for probe in [
+            ToplevelProbe::NotWayland,
+            ToplevelProbe::Disabled,
+            ToplevelProbe::NoProtocol,
+            ToplevelProbe::NoSeat,
+            ToplevelProbe::NoInterposer,
+            ToplevelProbe::Failed,
+            ToplevelProbe::NotChecked,
+        ] {
+            assert!(probe.reason().is_some_and(|reason| !reason.is_empty()));
+        }
+        assert_eq!(ToplevelProbe::Available.reason(), None);
     }
 
     #[test]

@@ -8,7 +8,10 @@ use tauri::{AppHandle, Runtime, State, WebviewWindow};
 
 use crate::{
     error::Error,
-    models::{BeginReport, DropReport, Hit, Outcome, PluginStatus, Point, Region, Size},
+    models::{
+        BeginReport, DropReport, Hit, Outcome, PluginStatus, Point, Region, Size,
+        ToplevelBeginReport, ToplevelDragEnded,
+    },
     session::Tearoff,
 };
 
@@ -89,4 +92,38 @@ pub async fn hit_test<R: Runtime>(
     state: State<'_, Tearoff>,
 ) -> Result<Option<Hit>, Error> {
     Ok(state.peek_hit(&app).await)
+}
+
+/// Drags the window labelled `window_label` with the pointer through the compositor (`toplevel_drag`), from the press in the calling window; the window follows the pointer outside every window, stays where it is dropped and snaps back on cancel. The window may be the caller itself, or another one created hidden for the drag. `payload` is opaque JSON that a window it is dropped on receives as `payload-dropped`. `grab_offset` is where the pointer holds the window, in logical pixels from its top-left. The caller gets `toplevel-drag-started` once the compositor has taken the drag, then no pointer events until the drag ends; `toplevel-drag-ended` (also sent to the dragged window) says how it ended.
+#[tauri::command]
+pub async fn begin_toplevel_drag<R: Runtime>(
+    app: AppHandle<R>,
+    window: WebviewWindow<R>,
+    state: State<'_, Tearoff>,
+    payload: Value,
+    window_label: String,
+    grab_offset: Point,
+) -> Result<ToplevelBeginReport, Error> {
+    Ok(state
+        .begin_toplevel_drag(&app, &window, window_label, payload, grab_offset)
+        .await)
+}
+
+/// Cancels the toplevel drag in progress, if any; it ends as `cancelled`.
+#[tauri::command]
+pub async fn end_toplevel_drag<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, Tearoff>,
+) -> Result<(), Error> {
+    state.end_toplevel_drag(&app).await;
+    Ok(())
+}
+
+/// How the toplevel drag that moved the calling window ended, if it ended and the window has not read it. For a page that was still loading when the drag ended.
+#[tauri::command]
+pub fn take_toplevel_drag_result<R: Runtime>(
+    window: WebviewWindow<R>,
+    state: State<'_, Tearoff>,
+) -> Result<Option<ToplevelDragEnded>, Error> {
+    Ok(state.take_toplevel_result(window.label()))
 }

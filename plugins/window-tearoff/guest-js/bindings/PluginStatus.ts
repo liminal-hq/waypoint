@@ -14,7 +14,7 @@ available: boolean,
  */
 reason: string | null, 
 /**
- * The features that work: `ghost`, `cursor_follow`, `window_position` and `hit_test`.
+ * The features that work: `ghost`, `cursor_follow`, `window_position`, `hit_test` and `toplevel_drag`.
  */
 features: Array<string>, 
 /**

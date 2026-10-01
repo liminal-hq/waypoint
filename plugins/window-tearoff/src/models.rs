@@ -13,6 +13,13 @@ pub const TIMEOUT_EVENT: &str = "window-tearoff://timeout";
 /// Emitted to the window that began a drag, with a `bool` payload, when the cursor value stops changing while a button is held (`true`) and when it changes again (`false`).
 pub const CURSOR_STALE_EVENT: &str = "window-tearoff://cursor-stale";
 
+/// Emitted to the window that began a toplevel drag, with a `ToplevelDragStarted` payload, once the compositor has taken the drag. The page gets no pointer events from then until the pointer comes back over it, so this is its cue to reset its own drag state.
+pub const TOPLEVEL_DRAG_STARTED_EVENT: &str = "window-tearoff://toplevel-drag-started";
+/// Emitted to the window that began a toplevel drag and to the window that was dragged, with a `ToplevelDragEnded` payload, when the drag ends however it ends.
+pub const TOPLEVEL_DRAG_ENDED_EVENT: &str = "window-tearoff://toplevel-drag-ended";
+/// Emitted to the window a toplevel drag was dropped on, with a `PayloadDropped` payload.
+pub const TAB_DROPPED_EVENT: &str = "window-tearoff://tab-dropped";
+
 /// The label the plugin gives the ghost window unless `Options` says otherwise.
 pub const DEFAULT_GHOST_LABEL: &str = "tear-ghost";
 
@@ -21,6 +28,11 @@ pub const FEATURE_GHOST: &str = "ghost";
 pub const FEATURE_CURSOR_FOLLOW: &str = "cursor_follow";
 pub const FEATURE_WINDOW_POSITION: &str = "window_position";
 pub const FEATURE_HIT_TEST: &str = "hit_test";
+/// Linux, on a Wayland compositor with `xdg_toplevel_drag_manager_v1`: a real window follows the pointer for the whole drag.
+pub const FEATURE_TOPLEVEL_DRAG: &str = "toplevel_drag";
+
+/// The MIME type the toplevel drag offers unless `Options` says otherwise.
+pub const DEFAULT_TOPLEVEL_DRAG_MIME: &str = "application/x-window-tearoff";
 
 /// A point in physical pixels on the virtual screen, or in logical pixels where a field says so.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, TS)]
@@ -129,7 +141,7 @@ pub struct PluginStatus {
     pub available: bool,
     /// Why nothing works, when `available` is false.
     pub reason: Option<String>,
-    /// The features that work: `ghost`, `cursor_follow`, `window_position` and `hit_test`.
+    /// The features that work: `ghost`, `cursor_follow`, `window_position`, `hit_test` and `toplevel_drag`.
     pub features: Vec<String>,
     /// The features that do not work, each with its reason.
     pub unavailable: Vec<UnavailableFeature>,
@@ -144,6 +156,8 @@ pub struct Options {
     pub ghost_url: String,
     /// The ghost's initial logical size; `begin` resizes it per drag.
     pub ghost_size: (f64, f64),
+    /// The MIME type a toplevel drag carries its payload under. A drop on any window of the app that offers it hands the payload to that window's page.
+    pub toplevel_drag_mime: String,
 }
 
 impl Default for Options {
@@ -152,6 +166,7 @@ impl Default for Options {
             ghost_label: DEFAULT_GHOST_LABEL.into(),
             ghost_url: "index.html".into(),
             ghost_size: (240.0, 80.0),
+            toplevel_drag_mime: DEFAULT_TOPLEVEL_DRAG_MIME.into(),
         }
     }
 }
@@ -161,4 +176,87 @@ impl Options {
     pub fn window_state_denylist(&self) -> Vec<String> {
         vec![self.ghost_label.clone()]
     }
+}
+
+/// What `begin_toplevel_drag` did.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub enum ToplevelBeginState {
+    /// The compositor took the drag: the window follows the pointer.
+    Started,
+    /// This system cannot drag a real window (see `get_status`); nothing started.
+    Unavailable,
+    /// A toplevel drag is already running.
+    AlreadyActive,
+    /// The drag could not start, for example because the button was already released; nothing moved.
+    Failed,
+}
+
+/// The result of `begin_toplevel_drag`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct ToplevelBeginReport {
+    pub state: ToplevelBeginState,
+    /// Why nothing started, when `state` is not `started`.
+    pub reason: Option<String>,
+}
+
+/// How a toplevel drag ended.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub enum ToplevelOutcome {
+    /// Released over another window of the app that took the payload; the dragged window stays where it is.
+    DroppedOnWindow,
+    /// Released over nothing that took it; the dragged window stays where the compositor left it.
+    DroppedElsewhere,
+    /// Abandoned (Escape); the dragged window is back where it was.
+    Cancelled,
+    /// The drag could not run.
+    Failed,
+}
+
+/// Sent to the window that began a toplevel drag when the compositor has taken it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct ToplevelDragStarted {
+    /// The label of the window being dragged.
+    pub window: String,
+    /// The drag's opaque payload, as `begin_toplevel_drag` was given it.
+    #[ts(type = "unknown")]
+    pub payload: serde_json::Value,
+}
+
+/// Sent when a toplevel drag ends, to the window that began it and to the window that was dragged. A late listener can ask for it with `take_toplevel_drag_result`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct ToplevelDragEnded {
+    /// The label of the window that was dragged.
+    pub window: String,
+    /// The label of the window that began the drag.
+    pub source: String,
+    pub outcome: ToplevelOutcome,
+    /// The window the payload was dropped on, for `dropped-on-window`.
+    pub target: Option<String>,
+    /// The drag's opaque payload, as `begin_toplevel_drag` was given it.
+    #[ts(type = "unknown")]
+    pub payload: serde_json::Value,
+    /// Why the drag failed, for `failed`.
+    pub reason: Option<String>,
+}
+
+/// Sent to a window when a toplevel drag's payload is dropped on it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct PayloadDropped {
+    /// The label of the window the payload was dropped on (the receiver).
+    pub window: String,
+    /// The drag's payload, parsed from what the source offered.
+    #[ts(type = "unknown")]
+    pub payload: serde_json::Value,
 }

@@ -12,6 +12,7 @@ pub mod models;
 pub mod regions;
 mod session;
 pub mod status;
+mod toplevel;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -53,10 +54,19 @@ pub fn init<R: Runtime>(options: Options) -> TauriPlugin<R> {
             commands::get_cursor,
             commands::get_payload,
             commands::hit_test,
+            commands::begin_toplevel_drag,
+            commands::end_toplevel_drag,
+            commands::take_toplevel_drag_result,
         ])
         .setup(move |app, _api| {
             app.manage(Tearoff::new(options));
             Ok(())
+        })
+        // Every window of the app can take a toplevel drag's payload.
+        .on_webview_ready(|webview| {
+            if let Some(state) = webview.try_state::<Tearoff>() {
+                toplevel::install_drop_target(&webview.window(), state.toplevel_mime());
+            }
         })
         .on_event(|app, event| match event {
             // The ghost is created after the event loop is running, and from another thread's request rather than inside this callback: Tauri holds its plugin store locked while it calls a plugin's setup and event hooks, and building a window takes that lock again, so a window built here (even on the main thread) deadlocks. Asking the main thread from the async runtime runs the build once the hook has returned.
