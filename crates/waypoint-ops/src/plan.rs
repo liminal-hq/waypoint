@@ -208,7 +208,7 @@ pub fn plan_with_progress(
         JobKind::Trash => planner.trash(),
         JobKind::Restore => planner.restore(),
         JobKind::Delete => planner.delete(),
-        JobKind::Copy | JobKind::Move => planner.transfer(),
+        JobKind::Copy | JobKind::Move | JobKind::Link => planner.transfer(),
         JobKind::BatchRename => Err(OpsError::Unsupported {
             what: "renaming in a batch".to_owned(),
         }),
@@ -543,6 +543,9 @@ impl Planner<'_, '_> {
 
     fn transfer(&mut self) -> Result<Plan, OpsError> {
         let moving = self.request.kind == JobKind::Move;
+        // A link is made beside nothing it reads: no tree is walked, nothing is copied, and a link
+        // to a folder can sit inside that folder.
+        let linking = self.request.kind == JobKind::Link;
         let (dest, dest_provider) = self.destination()?;
         let rule = dest_provider.capabilities().case_rule;
         let sources = self.sources()?;
@@ -564,7 +567,8 @@ impl Planner<'_, '_> {
                 reason: "a root has no name to copy".to_owned(),
             })?;
             validate_name(&name, rule)?;
-            if entry.kind == EntryKind::Directory
+            if !linking
+                && entry.kind == EntryKind::Directory
                 && provider.scheme() == dest_provider.scheme()
                 && lands_inside(
                     provider.as_ref(),
@@ -576,10 +580,15 @@ impl Planner<'_, '_> {
             {
                 return Err(OpsError::IntoItself);
             }
+            if linking && provider.scheme() != dest_provider.scheme() {
+                return Err(OpsError::Unsupported {
+                    what: "a link to something on another kind of location".to_owned(),
+                });
+            }
             let in_place = source
                 .parent()
                 .is_some_and(|parent| same_path(&parent, &dest, rule));
-            if in_place && !(keep_both && !moving) {
+            if in_place && !linking && !(keep_both && !moving) {
                 self.warnings.push(PlanWarning::AlreadyThere {
                     location: source.to_location(),
                 });
@@ -614,26 +623,42 @@ impl Planner<'_, '_> {
             let in_place = source
                 .parent()
                 .is_some_and(|parent| same_path(&parent, &dest, rule));
+            // A link to a folder is a link whatever the folder is, so a clash with it is a clash of
+            // like with like: Replace may replace a link, never a folder.
+            let clash_entry = if linking {
+                ScannedEntry {
+                    kind: EntryKind::Symlink,
+                    ..entry.clone()
+                }
+            } else {
+                entry.clone()
+            };
             if in_place {
-                // A copy of an entry into its own folder with `KeepBoth`: it gets a free name.
+                // A copy of an entry into its own folder with `KeepBoth`, or a link to it: it gets
+                // a free name (`Link to name` for a link).
+                let wanted = if linking {
+                    format!("Link to {}", name.to_string_lossy())
+                } else {
+                    name.to_string_lossy().into_owned()
+                };
                 let unique = unique_full_name(
                     &mut |n| {
                         let k = fold_name(OsStr::new(n), rule);
                         existing.contains_key(&k) || claimed.contains_key(&k)
                     },
-                    &name.to_string_lossy(),
+                    &wanted,
                 );
                 target = child_path(&dest, OsStr::new(&unique), rule)?;
                 claimed.insert(fold_name(OsStr::new(&unique), rule), target.clone());
             } else if let Some(clash) = clash {
-                conflicts.push(Self::conflict(&source, &entry, &target, clash, false));
+                conflicts.push(Self::conflict(&source, &clash_entry, &target, clash, false));
             } else if let Some(first) = claimed.get(&key) {
                 let first_target = first.clone();
                 conflicts.push(Conflict {
                     source: source.to_location(),
                     existing: first_target.to_location(),
                     name: name.to_string_lossy().into_owned(),
-                    kind: Self::kind_of(&entry, None),
+                    kind: Self::kind_of(&clash_entry, None),
                     within_batch: true,
                     source_size: entry.size,
                     existing_size: None,
@@ -651,7 +676,11 @@ impl Planner<'_, '_> {
                 _ => false,
             };
             same_volume &= known_same;
-            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry, false)?;
+            let (entries, bytes) = if linking {
+                (1, 0)
+            } else {
+                self.measure(provider.as_ref(), &source, &entry, false)?
+            };
             items.push(PlanItem {
                 source: Some(source),
                 target: Some(target),
@@ -663,7 +692,7 @@ impl Planner<'_, '_> {
             });
         }
         let total_bytes: u64 = items.iter().map(|i| i.bytes).sum();
-        if !(moving && same_volume) {
+        if !linking && !(moving && same_volume) {
             Self::enough_space(dest_provider.as_ref(), &dest, total_bytes)?;
         }
         Ok(self.finish(items, Some(dest), same_volume, conflicts))

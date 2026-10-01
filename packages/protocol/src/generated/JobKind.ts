@@ -5,4 +5,4 @@ import type { JobId } from "./JobId";
  * What a job does. `BatchRename`, `Undo` and `Redo` have no executor yet; running one reports a
  * typed `Unsupported`.
  */
-export type JobKind = { "kind": "createFolder" } | { "kind": "createFile" } | { "kind": "rename" } | { "kind": "duplicate" } | { "kind": "trash" } | { "kind": "restore" } | { "kind": "delete" } | { "kind": "copy" } | { "kind": "move" } | { "kind": "batchRename" } | { "kind": "undo", of: JobId, } | { "kind": "redo", of: JobId, };
+export type JobKind = { "kind": "createFolder" } | { "kind": "createFile" } | { "kind": "rename" } | { "kind": "duplicate" } | { "kind": "trash" } | { "kind": "restore" } | { "kind": "delete" } | { "kind": "copy" } | { "kind": "move" } | { "kind": "link" } | { "kind": "batchRename" } | { "kind": "undo", of: JobId, } | { "kind": "redo", of: JobId, };

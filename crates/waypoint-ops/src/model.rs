@@ -34,6 +34,8 @@ pub enum JobKind {
     Delete,
     Copy,
     Move,
+    /// Makes a symbolic link in the destination to each source, which stays where it is.
+    Link,
     BatchRename,
     /// Reverses the job `of`.
     Undo {

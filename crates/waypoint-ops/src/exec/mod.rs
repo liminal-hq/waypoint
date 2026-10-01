@@ -144,7 +144,7 @@ impl Executor {
         sink: &mut dyn ExecSink,
         options: RunOptions,
     ) -> Result<ExecReport, Box<ExecFailure>> {
-        if matches!(plan.kind, JobKind::Copy | JobKind::Move) {
+        if matches!(plan.kind, JobKind::Copy | JobKind::Move | JobKind::Link) {
             return copy_job::run(&self.env, job, plan, cancel, sink, options);
         }
         let mut run = Run {

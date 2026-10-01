@@ -143,6 +143,8 @@ type R<T> = Result<T, Flow>;
 enum Mode {
     Copy,
     Move,
+    /// A symbolic link to each source, which is left where it is.
+    Link,
 }
 
 /// What a step inherits from the item above it.
@@ -194,6 +196,7 @@ struct Transfer<'a> {
     sink: &'a mut dyn ExecSink,
     destination: Option<VfsPath>,
     moving: bool,
+    linking: bool,
     verify: Option<VerifyAlgorithm>,
     chunk: usize,
     resolutions: Resolutions,
@@ -223,6 +226,7 @@ pub(super) fn run(
         sink,
         destination: plan.destination.clone(),
         moving: plan.kind == JobKind::Move,
+        linking: plan.kind == JobKind::Link,
         verify: options.verify,
         chunk: options.chunk_bytes.max(1),
         resolutions: options.resolutions,
@@ -376,6 +380,15 @@ impl Transfer<'_> {
         self.meter.emit(self.sink);
     }
 
+    /// The bytes a file counts for in the plan: none when only a link to it is made.
+    fn bytes_of(&self, entry: &ScannedEntry) -> u64 {
+        if self.linking {
+            0
+        } else {
+            entry.size.unwrap_or(0)
+        }
+    }
+
     /// Counts an entry that will not be placed as done, so progress still reaches the end.
     fn account(&mut self, entries: u64, bytes: u64) {
         self.meter.progress.items_done += entries;
@@ -467,7 +480,13 @@ impl Transfer<'_> {
             return Ok(Outcome::Skipped);
         };
         let ctx = Ctx {
-            mode: if self.moving { Mode::Move } else { Mode::Copy },
+            mode: if self.moving {
+                Mode::Move
+            } else if self.linking {
+                Mode::Link
+            } else {
+                Mode::Copy
+            },
             rename_ok: self.moving
                 && self.same_volume(sp.as_ref(), &volume_probe(src, &entry), dp.as_ref()),
             nested: false,
@@ -495,6 +514,8 @@ impl Transfer<'_> {
         self.check()?;
         match entry.kind {
             EntryKind::File | EntryKind::Symlink => self.leaf(ctx, src, want, entry),
+            // A link to a folder is made like a link to a file.
+            EntryKind::Directory if ctx.mode == Mode::Link => self.leaf(ctx, src, want, entry),
             EntryKind::Directory => self.dir(ctx, src, want, entry, size),
             EntryKind::Other => {
                 let at = src.to_location();
@@ -519,8 +540,10 @@ impl Transfer<'_> {
         entry: &ScannedEntry,
         target: &VfsPath,
         existing: &ScannedEntry,
+        linking: bool,
     ) -> Conflict {
-        let src_dir = entry.kind == EntryKind::Directory;
+        // A link to a folder is a link, not a folder, so only a like clash replaces it.
+        let src_dir = entry.kind == EntryKind::Directory && !linking;
         let dst_dir = existing.kind == EntryKind::Directory;
         Conflict {
             source: src.to_location(),
@@ -582,7 +605,8 @@ impl Transfer<'_> {
                 Err(VfsError::NotFound { .. }) => return Ok(Placement::Free(target)),
                 Err(error) => return Err(error.into()),
             };
-            let conflict = Self::conflict_of(src, entry, &target, &existing);
+            let conflict =
+                Self::conflict_of(src, entry, &target, &existing, ctx.mode == Mode::Link);
             let mut policy = match chosen.or_else(|| self.resolutions.policy_for(&conflict.source))
             {
                 Some(policy) => policy,
@@ -712,13 +736,13 @@ impl Transfer<'_> {
         match attempted {
             Some(outcome) => {
                 if outcome == Outcome::Skipped {
-                    self.account(1, entry.size.unwrap_or(0));
+                    self.account(1, self.bytes_of(entry));
                     self.meter.emit(self.sink);
                 }
                 Ok(outcome)
             }
             None => {
-                self.account(1, entry.size.unwrap_or(0));
+                self.account(1, self.bytes_of(entry));
                 Ok(Outcome::Skipped)
             }
         }
@@ -929,6 +953,12 @@ impl Transfer<'_> {
         same_provider: bool,
     ) -> R<()> {
         self.check()?;
+        if self.linking {
+            // The link holds where the source is, as an absolute path.
+            let VfsPath::File(file) = src;
+            dp.symlink(partial, file.as_path().as_os_str())?;
+            return Ok(());
+        }
         if entry.kind == EntryKind::Symlink {
             let text = sp.read_link(src)?;
             dp.symlink(partial, &text)?;
@@ -1060,7 +1090,8 @@ impl Transfer<'_> {
                 Ok(Outcome::Skipped)
             }
             Placement::Free(target) => match ctx.mode {
-                Mode::Copy => {
+                // (A folder is never placed in link mode; it is made like a file.)
+                Mode::Copy | Mode::Link => {
                     self.copy_dir_new(sp.as_ref(), src, dp.as_ref(), &target, entry, size)
                 }
                 Mode::Move => {
