@@ -1,0 +1,80 @@
+.wrap {
+	position: relative;
+	display: block;
+	min-width: 0;
+	flex: 1;
+}
+
+.field {
+	box-sizing: border-box;
+	width: 100%;
+	height: calc(var(--wp-row-height) - 6px);
+	margin: 0;
+	padding: 0 6px;
+	border: 1px solid var(--wp-focus-ring);
+	border-radius: 4px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-primary);
+	font: inherit;
+	user-select: text;
+	cursor: text;
+}
+
+.field[aria-invalid='true'] {
+	border-color: var(--wp-danger);
+}
+
+.field:focus {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 0;
+}
+
+.field[aria-invalid='true']:focus {
+	outline-color: var(--wp-danger);
+}
+
+.field[aria-busy='true'] {
+	opacity: 0.7;
+}
+
+/* The grid's field is as wide as its cell and centres its text under the icon. */
+.wrap[data-variant='grid'] .field {
+	height: 24px;
+	text-align: center;
+}
+
+/* The problem sits under the field, over the rows below it, and is always in the page for a live region. */
+.problem {
+	position: absolute;
+	z-index: 2;
+	top: calc(100% + 2px);
+	left: 0;
+	min-width: 100%;
+	width: max-content;
+	max-width: min(320px, 90vw);
+	padding: 4px 8px;
+	border: 1px solid var(--wp-danger);
+	border-radius: 4px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-danger);
+	font-size: 12px;
+	line-height: 1.3;
+	white-space: normal;
+	box-shadow: var(--wp-ops-popover-shadow);
+}
+
+.problem:empty {
+	display: none;
+}
+
+.srOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}

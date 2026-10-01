@@ -15,7 +15,9 @@ import {
 } from 'react';
 import { useStore } from 'zustand';
 import { t, tf, tn } from '../i18n/messages';
+import { useFileCommands } from '../ops/FileCommandsContext';
 import { FileIcon } from './FileIcon';
+import { InlineRename } from './InlineRename';
 import { cappedGrid, cellFor, columnsFor, gridMove } from './gridLayout';
 import styles from './GridView.module.css';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
@@ -87,9 +89,13 @@ function GridBody({
 	const selection = useStore(store, (state) => state.selection);
 	const focus = useStore(store, (state) => state.focus);
 	const touched = useStore(store, (state) => state.touched);
+	const renaming = useStore(store, (state) => state.renaming);
+	const scrollRequest = useStore(store, (state) => state.scrollRequest);
+	const commands = useFileCommands();
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
+	const listbox = useRef<HTMLDivElement | null>(null);
 	const [width, setWidth] = useState(0);
 	const cell = cellFor(size);
 	const columns = columnsFor(width, cell);
@@ -187,6 +193,11 @@ function GridBody({
 	const scrollToItem = (position: number) =>
 		virtualizer.scrollToIndex(Math.floor(Math.max(0, position) / columns), { align: 'auto' });
 
+	// A command that made or found an entry asks for it to be brought into sight.
+	useEffect(() => {
+		if (scrollRequest) scrollToItem(scrollRequest.position);
+	}, [scrollRequest]);
+
 	const pageRows = () =>
 		Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / cell.height) - 1);
 	const { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu } =
@@ -246,6 +257,7 @@ function GridBody({
 					onContextMenu={onBackgroundContextMenu}
 				>
 					<div
+						ref={listbox}
 						role="listbox"
 						tabIndex={0}
 						aria-label={t('browse.list.label')}
@@ -305,7 +317,17 @@ function GridBody({
 												{entry ? (
 													<>
 														<FileIcon group={entry.group} className={styles.glyph} />
-														<span className={styles.label}>{entry.name}</span>
+														{commands && renaming === entry.id ? (
+															<InlineRename
+																entry={entry}
+																session={session}
+																commands={commands}
+																variant="grid"
+																onFinish={() => listbox.current?.focus()}
+															/>
+														) : (
+															<span className={styles.label}>{entry.name}</span>
+														)}
 													</>
 												) : (
 													<>

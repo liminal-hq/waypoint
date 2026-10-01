@@ -19,7 +19,9 @@ import {
 } from 'react';
 import { useStore } from 'zustand';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
+import { useFileCommands } from '../ops/FileCommandsContext';
 import { FileIcon } from './FileIcon';
+import { InlineRename } from './InlineRename';
 import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
 import { useHourCycle } from './TimeFormatContext';
@@ -131,10 +133,14 @@ function ListingBody({
 	const selection = useStore(store, (state) => state.selection);
 	const focus = useStore(store, (state) => state.focus);
 	const touched = useStore(store, (state) => state.touched);
+	const renaming = useStore(store, (state) => state.renaming);
+	const scrollRequest = useStore(store, (state) => state.scrollRequest);
+	const commands = useFileCommands();
 	const hourCycle = useHourCycle();
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
+	const listbox = useRef<HTMLDivElement | null>(null);
 	const [rowHeight, setRowHeight] = useState(DEFAULT_ROW_HEIGHT);
 
 	// The scroll position as the top of the viewport and the row under it. It is the anchor patches
@@ -240,6 +246,11 @@ function ListingBody({
 
 	const scrollToRow = (position: number) =>
 		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, position)), { align: 'auto' });
+
+	// A command that made or found an entry asks for it to be brought into sight.
+	useEffect(() => {
+		if (scrollRequest) scrollToRow(scrollRequest.position);
+	}, [scrollRequest]);
 
 	const page = () => Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / rowHeight) - 1);
 	const interactions = useListInteractions({
@@ -354,6 +365,7 @@ function ListingBody({
 					onContextMenu={onBackgroundContextMenu}
 				>
 					<div
+						ref={listbox}
 						role="listbox"
 						tabIndex={0}
 						aria-label={t('browse.list.label')}
@@ -402,7 +414,17 @@ function ListingBody({
 										<>
 											<span className={styles.name}>
 												<FileIcon group={entry.group} />
-												<span className={styles.nameText}>{entry.name}</span>
+												{commands && renaming === entry.id ? (
+													<InlineRename
+														entry={entry}
+														session={session}
+														commands={commands}
+														variant="list"
+														onFinish={() => listbox.current?.focus()}
+													/>
+												) : (
+													<span className={styles.nameText}>{entry.name}</span>
+												)}
 											</span>
 											{trash ? (
 												<>

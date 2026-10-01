@@ -76,6 +76,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 
 	const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
 		if (event.nativeEvent.isComposing) return;
+		// A key typed in a field inside the list (the rename field) is the field's, not the list's.
+		if (event.target !== event.currentTarget) return;
 		const state = store.getState();
 		const modifier = event.ctrlKey || event.metaKey;
 		const from = state.focus;
