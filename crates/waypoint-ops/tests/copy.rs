@@ -447,3 +447,72 @@ fn local_provider_fast_path_copies_real_files() {
     assert_eq!(read_bytes(&h, "dst/f"), pattern(300_000, 9));
     let _ = is_file;
 }
+
+#[test]
+fn names_windows_cannot_hold_are_refused_before_any_write_under_the_insensitive_rule() {
+    // The fixtures bypass the provider's own name checks, as a folder from another system would.
+    for (name, bad) in [
+        ("aux.txt", true),
+        ("CON", true),
+        ("what?.txt", true),
+        ("trailing.", true),
+        ("fine.txt", false),
+    ] {
+        for rule in [CaseRule::Sensitive, CaseRule::Insensitive] {
+            let (mut h, _dir) = memory_harness(rule);
+            h.provider.create_dir(&h.path("src")).unwrap();
+            h.provider.create_dir(&h.path("dst")).unwrap();
+            memory(&h).put_file(&h.path("src").join(name).unwrap(), b"x");
+            h.provider.reset();
+            let refused = bad && rule == CaseRule::Insensitive;
+            for kind in [JobKind::Copy, JobKind::Move] {
+                let result = go(&mut h, kind, &[&format!("src/{name}")], "dst", None);
+                if refused {
+                    assert!(
+                        matches!(error_of(&result.state), OpsError::InvalidName { .. }),
+                        "{name} {kind:?}: {:?}",
+                        result.state
+                    );
+                    assert_eq!(h.provider.write_calls(), 0, "{name} {kind:?}");
+                } else {
+                    done(&result);
+                    // Put the file back for the next kind.
+                    if kind == JobKind::Move {
+                        memory(&h).put_file(&h.path("src").join(name).unwrap(), b"x");
+                    }
+                    h.provider
+                        .remove_file(&h.path("dst").join(name).unwrap())
+                        .unwrap();
+                    h.provider.reset();
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_name_inside_a_folder_that_the_destination_cannot_hold_fails_that_entry_only() {
+    let (mut h, _dir) = memory_harness(CaseRule::Insensitive);
+    h.provider.create_dir(&h.path("dst")).unwrap();
+    for name in ["top/nul", "top/ok", "top/sub/also?bad", "top/sub/fine"] {
+        memory(&h).put_file(&h.path(&format!("src/{name}")), b"x");
+    }
+    h.provider.reset();
+    // No answer: the job fails at the entry, and nothing is left under a name.
+    let result = go(&mut h, JobKind::Copy, &["src/top"], "dst", None);
+    assert!(matches!(
+        error_of(&result.state),
+        OpsError::InvalidName { .. }
+    ));
+    assert!(tree_of(h.provider.as_ref(), &h.path("dst")).is_empty());
+    // Skipped: the rest of the folder arrives.
+    let mut answers = Answers::always(None, Some(Decision::SkipAll));
+    let request = req(&h, JobKind::Copy, &["src/top"], "dst", None);
+    let result = run(&mut h, request, &mut answers);
+    done(&result);
+    assert_eq!(result.report.unwrap().counts.failed, 2);
+    h.provider.reset();
+    let now = tree_of(h.provider.as_ref(), &h.path("dst"));
+    let keys: Vec<&String> = now.keys().collect();
+    assert_eq!(keys, vec!["top", "top/ok", "top/sub", "top/sub/fine"]);
+}

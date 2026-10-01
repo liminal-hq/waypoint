@@ -1351,7 +1351,16 @@ impl Transfer<'_> {
                 match sp.rename(src, target, false) {
                     Ok(()) => Ok(Some(aside)),
                     Err(error) => {
-                        t.put_back(dp, &aside, target);
+                        if !t.put_back(dp, &aside, target) {
+                            // Stranded under its waiting name: stop rather than go on with an
+                            // empty name.
+                            return Err(Flow::item(OpsError::Io {
+                                message: format!(
+                                    "{} could not be put back after a failed replace",
+                                    target.display()
+                                ),
+                            }));
+                        }
                         match error {
                             VfsError::CrossesDevices { .. } => Ok(None),
                             other => Err(other.into()),
