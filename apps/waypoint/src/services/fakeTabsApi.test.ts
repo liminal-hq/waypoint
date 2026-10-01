@@ -132,7 +132,10 @@ describe('FakeTabsApi', () => {
 		await api.closeTab(a);
 		expect(events.map((e) => e.revision)).toEqual(events.map((_, i) => i + 1));
 		for (const event of events) mirror = applyTabsEvent(mirror, event);
-		expect(mirror).toEqual(await api.getSnapshot());
+		const snapshot = await api.getSnapshot();
+		// Closing a tab emits no event for the closed list: a menu reads a fresh snapshot for it.
+		expect(snapshot.closed.length).toBe(2);
+		expect({ ...mirror, closed: [] }).toEqual({ ...snapshot, closed: [] });
 	});
 
 	it('applyTabsEvent ignores an event the snapshot already includes', async () => {
