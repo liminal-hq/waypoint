@@ -279,7 +279,8 @@ function ListingBody({
 			}
 		},
 	});
-	const { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu } = interactions;
+	const { onKeyDown, onItemClick, onItemDoubleClick, onItemContextMenu, onBackgroundContextMenu } =
+		interactions;
 
 	const onSort = (key: SortKey) => {
 		const { sort } = model;
@@ -398,7 +399,7 @@ function ListingBody({
 									data-active={focus === item.index ? '' : undefined}
 									onClick={(event) => onItemClick(event, item.index, entry)}
 									onContextMenu={(event) => onItemContextMenu(event, item.index, entry)}
-									onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
+									onDoubleClick={() => onItemDoubleClick(entry)}
 									onMouseDown={(event) => {
 										// Stops middle-click from starting the platform's autoscroll.
 										if (event.button === 1) event.preventDefault();

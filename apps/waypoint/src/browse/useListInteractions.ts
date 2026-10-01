@@ -6,6 +6,7 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { useSettings } from '../settings/SettingsContext';
 import { isSelected } from './selection';
 import type { ListingSession } from './useListingSession';
 import { findByPrefix, TypeAheadBuffer } from './typeAhead';
@@ -46,6 +47,8 @@ export interface InteractionOptions {
 export interface Interactions {
 	onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 	onItemClick: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
+	/** A double click on an entry: opens it, unless the settings open with a single click (which already did). */
+	onItemDoubleClick: (entry: Entry | undefined) => void;
 	onItemContextMenu: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
 	onBackgroundContextMenu: (event: MouseEvent) => void;
 }
@@ -58,6 +61,7 @@ export interface Interactions {
 export function useListInteractions(options: InteractionOptions): Interactions {
 	const { session, itemId, shown, move, scrollTo, onOpen, onMenu } = options;
 	const { model, store } = session;
+	const clickMode = useSettings((settings) => settings.general.clickMode);
 	const typeAhead = useRef(new TypeAheadBuffer());
 	const typeAheadEpoch = useRef(0);
 
@@ -166,7 +170,17 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		if (event.shiftKey) void state.extendTo(position, modifier);
 		else if (!entry) return;
 		else if (modifier) state.toggleAt(position, entry.id);
-		else state.click(position, entry.id);
+		else {
+			state.click(position, entry.id);
+			// A plain click opens when the settings say so, except in a field inside the row (a
+			// rename in progress), which a click only places the caret in.
+			const inField = event.target instanceof Element && event.target.closest('input, textarea');
+			if (clickMode === 'single' && !inField) onOpen?.(entry, model.handle);
+		}
+	};
+
+	const onItemDoubleClick = (entry: Entry | undefined) => {
+		if (clickMode === 'double' && entry) onOpen?.(entry, model.handle);
 	};
 
 	// Right-click selects the entry first unless it is already part of the selection, as file
@@ -196,5 +210,5 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		});
 	};
 
-	return { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu };
+	return { onKeyDown, onItemClick, onItemDoubleClick, onItemContextMenu, onBackgroundContextMenu };
 }

@@ -15,11 +15,90 @@ export const enMessages = {
 	'window.main.description': 'The tabbed file browser — coming soon.',
 	'window.main.startFailed': 'Waypoint could not start the file browser.',
 	'window.settings.title': 'Waypoint — Settings',
-	'window.settings.description': 'Application settings — coming soon.',
 	'window.properties.title': 'Waypoint — Properties',
 	'window.properties.description': 'File properties — coming soon.',
 	'window.ops.title': 'Waypoint — Operations',
 	'window.tearGhost.title': 'Waypoint — Tab preview',
+
+	'settings.nav.label': 'Settings sections',
+	'settings.unavailable': 'Unavailable',
+	'settings.section.general': 'General',
+	'settings.section.operations': 'Operations',
+	'settings.section.dnd': 'Drag & drop',
+	'settings.loading': 'Loading settings…',
+	'settings.group.startup': 'Start-up',
+	'settings.group.browsing': 'Browsing',
+	'settings.group.deleting': 'Deleting',
+	'settings.group.copying': 'Copying',
+	'settings.group.queue': 'Queue',
+	'settings.group.trash': 'Trash',
+	'settings.group.dropping': 'Dropping',
+	'settings.group.shelf': 'Shelf',
+	'settings.ops.unreadable':
+		'The operations settings could not be read, so they cannot be changed right now: {reason}',
+	'settings.error.range': 'Choose a value between {min} and {max}.',
+	'settings.error.saveFailed': 'The change could not be saved: {reason}',
+	'settings.error.generic': 'something went wrong',
+	'settings.general.startup.label': 'When Waypoint starts',
+	'settings.general.startup.description':
+		'Bring back the windows and tabs from last time, or open one window at Home. Takes effect the next time Waypoint starts.',
+	'settings.general.startup.restore': 'Restore session',
+	'settings.general.startup.home': 'Open Home',
+	'settings.general.defaultView.label': 'Default view',
+	'settings.general.defaultView.description':
+		'How a new window shows a folder. Windows that are already open keep their view.',
+	'settings.general.defaultView.list': 'List',
+	'settings.general.defaultView.grid': 'Grid',
+	'settings.general.clickMode.label': 'Open items with',
+	'settings.general.clickMode.description':
+		'Open files and folders with a single click or a double click.',
+	'settings.general.clickMode.single': 'Single click',
+	'settings.general.clickMode.double': 'Double click',
+	'settings.general.showHidden.label': 'Show hidden files by default',
+	'settings.general.showHidden.description':
+		'A new window lists hidden files. Windows that are already open keep their choice.',
+	'settings.general.confirmTrash.label': 'Confirm before moving to the Trash',
+	'settings.general.confirmTrash.description':
+		'Moving to the Trash can be undone, so it does not ask unless you turn this on. Delete Permanently always asks.',
+	'settings.operations.verify.label': 'Verify copies after writing',
+	'settings.operations.verify.description':
+		'Reads each copied file back and compares it with the original. Slower, and worth it for removable drives.',
+	'settings.operations.algorithm.label': 'Checksum algorithm',
+	'settings.operations.algorithm.description': 'The checksum that verification compares.',
+	'settings.operations.algorithm.needsVerify':
+		'Turn on “Verify copies after writing” to choose one.',
+	'settings.operations.algorithm.blake3': 'BLAKE3 (faster)',
+	'settings.operations.algorithm.sha256': 'SHA-256',
+	'settings.operations.concurrency.label': 'Operations running at once',
+	'settings.operations.concurrency.description':
+		'How many copies, moves and deletes run together; the rest wait in the queue. A change applies to the next operation.',
+	'settings.operations.undoDepth.label': 'Undo history depth',
+	'settings.operations.undoDepth.description': 'How many operations Undo can step back through.',
+	'settings.operations.trashExpiry.label': 'Empty old items from the Trash',
+	'settings.operations.trashExpiry.description':
+		'Permanently deletes items that have been in the Trash longer than the number of days below. It runs when Waypoint starts, and is off by default.',
+	'settings.operations.trashDays.label': 'Delete Trash items older than',
+	'settings.operations.trashDays.description':
+		'Counted from the day an item was moved to the Trash.',
+	'settings.operations.trashDays.needsExpiry':
+		'Turn on “Empty old items from the Trash” to set this.',
+	'settings.operations.trashDays.unit': 'days',
+	'settings.dnd.unavailable': 'Dragging files out to other applications is unavailable: {reason}',
+	'settings.dnd.unavailable.noReason': 'this system does not support it.',
+	'settings.dnd.rule.label': 'Default drop action',
+	'settings.dnd.rule.description':
+		'What dropping files does when no modifier key is held. Ctrl copies, Shift moves and Alt opens the action picker, whatever this says.',
+	'settings.dnd.rule.byVolume': 'Move on the same volume, copy otherwise',
+	'settings.dnd.rule.alwaysCopy': 'Always copy',
+	'settings.dnd.rule.alwaysAsk': 'Always ask',
+	'settings.dnd.spring.label': 'Spring-load delay',
+	'settings.dnd.spring.description':
+		'How long a drag hovers over a folder, tab or sidebar item before it opens, from 200 to 2000 milliseconds.',
+	'settings.dnd.spring.unit': 'ms',
+	'settings.dnd.shelf.label': 'Keep the Shelf between sessions',
+	'settings.dnd.shelf.description':
+		'The Shelf keeps its items when Waypoint quits and starts again.',
+	'settings.open.failed': 'Could not open the Settings window.',
 
 	'browse.list.label': 'Files',
 	'browse.column.name': 'Name',

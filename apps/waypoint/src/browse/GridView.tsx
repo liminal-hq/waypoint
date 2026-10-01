@@ -200,7 +200,7 @@ function GridBody({
 
 	const pageRows = () =>
 		Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / cell.height) - 1);
-	const { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu } =
+	const { onKeyDown, onItemClick, onItemDoubleClick, onItemContextMenu, onBackgroundContextMenu } =
 		useListInteractions({
 			session,
 			itemId: (position) => `${listId}-item-${position}`,
@@ -302,7 +302,7 @@ function GridBody({
 												data-active={focus === position ? '' : undefined}
 												onClick={(event) => onItemClick(event, position, entry)}
 												onContextMenu={(event) => onItemContextMenu(event, position, entry)}
-												onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
+												onDoubleClick={() => onItemDoubleClick(entry)}
 												onMouseDown={(event) => {
 													// Stops middle-click from starting the platform's autoscroll.
 													if (event.button === 1) event.preventDefault();
