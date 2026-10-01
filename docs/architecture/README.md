@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **proposed** (nothing here is built yet) · companion to `SPEC.md` · decisions logged as A-numbers in `decisions.md`
+Status: milestones 0 to 2 are built and merged and milestone 3 is built and in review (§6); the rest is **proposed** · companion to `SPEC.md` · decisions logged as A-numbers in `decisions.md`
 
 This is the structural architecture under the hood. `SPEC.md` and `docs/decisions.md` own product behaviour; this folder owns how the code is split up, how the parts talk, and in what order they get built. The design prototype's code is reference only and is deliberately not mirrored.
 
@@ -99,6 +99,8 @@ Each milestone scaffolds only what it needs.
 | 7   | **Search, terminal, tags**                    | `waypoint-search`, reusable `pty`, tags/xattr                                                                                                                                                                     |
 | 8   | **Extensions**                                | `waypoint-ext` registry, manifest, permission model; bundled features re-expressed as first-party extensions; runtime decision (A7)                                                                               |
 | 9   | **Windows 11 parity, packaging, release**     | Windows modules for each plugin, MSI/portable/AppImage/deb/rpm, `release.yml`                                                                                                                                     |
+
+Status: milestones 0 (the listing spike and the milestone 3 spikes), 1 and 2 are merged; milestone 3 is built as a stack of 13 pull requests under review (parking issue #58); milestones 4 to 9 have not started.
 
 Windows modules are written alongside each Linux module from milestone 2 onward, not deferred to milestone 9; milestone 9 is the parity audit and packaging.
 

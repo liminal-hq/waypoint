@@ -1,6 +1,6 @@
 # Crates and plugins
 
-Status: **proposed** · see `README.md` for the model and `decisions.md` for the reasoning (A1–A6)
+Status: **partly built** (built so far: the crates `waypoint-protocol`, `waypoint-path`, `waypoint-vfs`, `waypoint-session` and `wayland-toplevel-drag`; the plugins `system-appearance`, `window-manager`, `window-tearoff`, `waypoint-vfs` and `waypoint-session`; everything else below is planned) · see `README.md` for the model and `decisions.md` for the reasoning (A1–A6)
 
 Work is split by concern. The more generic a concern, the more reusable its plugin should be; Waypoint-specific behaviour is composed on top in the app.
 
