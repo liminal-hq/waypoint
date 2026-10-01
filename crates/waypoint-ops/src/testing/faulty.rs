@@ -136,7 +136,12 @@ struct State {
     deferred: Vec<VfsPath>,
     /// The reads (counted from 1, over all streams) whose first byte is flipped.
     corrupt_reads: Vec<usize>,
+    /// Calls that fail every time, whichever the path says.
+    always: Vec<(Op, FaultKind, PathTest)>,
 }
+
+/// Which paths a standing fault applies to.
+pub type PathTest = Arc<dyn Fn(&VfsPath) -> bool + Send + Sync>;
 
 #[derive(Default)]
 struct Shared {
@@ -163,7 +168,11 @@ impl Shared {
         if op.is_write() {
             state.writes += 1;
         }
-        let mut failure = None;
+        let mut failure = state
+            .always
+            .iter()
+            .find(|(o, _, applies)| *o == op && applies(path))
+            .map(|(_, kind, _)| kind.error(path));
         for rule in &mut state.rules {
             if rule.fired {
                 continue;
@@ -240,6 +249,21 @@ impl<P: Provider> FaultyProvider<P> {
     /// tree.
     pub fn vanish_at(&self, n: usize, path: &VfsPath) {
         self.add(Trigger::Global(n), Action::Vanish(path.clone()));
+    }
+
+    /// Fails every call of `op` on a path for which `applies` is true, as a volume boundary
+    /// would: a rename out of `src` with `CrossesDevices` sends a move down the copy path on any
+    /// provider, the local one included.
+    pub fn fail_always_where(
+        &self,
+        op: Op,
+        kind: FaultKind,
+        applies: impl Fn(&VfsPath) -> bool + Send + Sync + 'static,
+    ) {
+        self.shared
+            .lock()
+            .always
+            .push((op, kind, Arc::new(applies)));
     }
 
     /// Flips the first byte that the nth next `read` call (1 is the first, over every stream)

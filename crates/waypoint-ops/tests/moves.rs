@@ -543,3 +543,31 @@ fn a_moved_link_stays_a_link_across_volumes() {
     // The folder the link pointed at is untouched.
     assert_eq!(src_tree(&h), tree(&[("real/", ""), ("real/x", "x")]));
 }
+
+#[test]
+fn a_folder_moved_by_copy_keeps_the_time_it_had_though_emptying_it_changes_it() {
+    // On a real file system taking entries out of a folder changes its time, so the time to give
+    // the copy is the one the folder had when the job met it.
+    let (mut h, _dir) = local_harness();
+    build(
+        &h,
+        &tree(&[
+            ("src/", ""),
+            ("src/d/", ""),
+            ("src/d/a", "a"),
+            ("src/d/sub/", ""),
+            ("src/d/sub/b", "b"),
+            ("dst/", ""),
+        ]),
+    );
+    set_mtime(&h, "src/d/sub", 600_000_000_000);
+    set_mtime(&h, "src/d", 610_000_000_000);
+    // The move's own rename of the folder is refused as crossing volumes, so it copies.
+    h.provider
+        .fail_nth(Op::Rename, 1, FaultKind::CrossesDevices);
+    let result = go(&mut h, JobKind::Move, &["src/d"], "dst", None);
+    done(&result);
+    assert!(src_tree(&h).is_empty());
+    assert_eq!(mtime_of(&h, "dst/d"), Some(610_000_000_000));
+    assert_eq!(mtime_of(&h, "dst/d/sub"), Some(600_000_000_000));
+}

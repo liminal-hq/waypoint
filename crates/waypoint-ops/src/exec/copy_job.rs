@@ -916,7 +916,7 @@ impl Transfer<'_> {
             )?;
         }
         self.meter.progress.bytes_done = base + copied.bytes;
-        copy_metadata(sp, src, dp, partial)?;
+        copy_metadata(sp, src, dp, partial, None)?;
         Ok(())
     }
 
@@ -1092,7 +1092,7 @@ impl Transfer<'_> {
         let built = (|| -> R<Option<bool>> {
             let whole = self.place_children(ctx, sp, src, dp, &partial)?;
             let finished = self.attempt(&at, |_| {
-                copy_metadata(sp, src, dp, &partial)?;
+                copy_metadata(sp, src, dp, &partial, Some(entry.modified_ms))?;
                 Ok(())
             })?;
             Ok(finished.map(|()| whole))
@@ -1216,7 +1216,7 @@ impl Transfer<'_> {
             return Ok(Outcome::Partial);
         }
         let finished = self.attempt(&at, |_| {
-            copy_metadata(sp, src, dp, target)?;
+            copy_metadata(sp, src, dp, target, Some(entry.modified_ms))?;
             sp.remove_dir(src)?;
             Ok(())
         })?;
@@ -1365,16 +1365,21 @@ impl Transfer<'_> {
 }
 
 /// Gives the copy the original's modification time and permissions, where the provider has them
-/// (and not its owner).
+/// (and not its owner). `known` is the time the original had when the job met it, for a folder
+/// whose own time moves as its entries are taken out (a move); `None` reads it now.
 fn copy_metadata(
     sp: &dyn Provider,
     src: &VfsPath,
     dp: &dyn Provider,
     target: &VfsPath,
+    known: Option<Option<i64>>,
 ) -> Result<(), VfsError> {
     use waypoint_vfs::FileTimes;
-    let entry = sp.stat(src)?;
-    if let Some(ms) = entry.modified_ms {
+    let modified_ms = match known {
+        Some(ms) => ms,
+        None => sp.stat(src)?.modified_ms,
+    };
+    if let Some(ms) = modified_ms {
         match dp.set_times(
             target,
             FileTimes {

@@ -704,9 +704,18 @@ fn random_copies_and_moves_equal_the_model_on_the_local_provider() {
         let s = scenario(seed, rule, cfg!(unix));
         let (mut h, _dir) = local_harness();
         setup(&h, &s, cfg!(unix));
+        if s.cross {
+            // A rename out of `src` is refused as crossing volumes, so a move copies and removes
+            // on the real file system as it would between two drives.
+            let src = h.path("src").display();
+            h.provider
+                .fail_always_where(Op::Rename, FaultKind::CrossesDevices, move |p| {
+                    p.display().starts_with(&src)
+                });
+        }
         let tag = format!(
-            "local seed {seed} {:?} {:?} verify={}",
-            s.kind, s.policy, s.verify
+            "local seed {seed} {:?} {:?} cross={} verify={}",
+            s.kind, s.policy, s.cross, s.verify
         );
         let r = request(&h, &s);
         let result = run_transfer(&mut h, r, &mut answers(), &small(), &mut |_, _| {});
@@ -848,7 +857,7 @@ fn a_planner_refusal_never_reaches_the_provider_for_writing() {
 // ---- faults ----
 
 /// A fixed scenario with a clash, a merge, a replace and a new folder.
-fn fault_scenario(kind: JobKind, policy: ConflictPolicy, cross: bool) -> Scenario {
+fn fault_scenario(kind: JobKind, policy: ConflictPolicy, cross: bool, links: bool) -> Scenario {
     let file = |bytes: Vec<u8>, mtime: i64| E::File {
         bytes,
         mtime,
@@ -912,6 +921,12 @@ fn fault_scenario(kind: JobKind, policy: ConflictPolicy, cross: bool) -> Scenari
     ]
     .into_iter()
     .collect();
+    let mut src = src;
+    if !links {
+        if let Some(E::Dir { kids, .. }) = src.get_mut("tree") {
+            kids.remove("ln");
+        }
+    }
     Scenario {
         src,
         dst,
@@ -929,8 +944,8 @@ fn fault_scenario(kind: JobKind, policy: ConflictPolicy, cross: bool) -> Scenari
 /// `double` says a second failure was scripted into the cleanup of the first, which can leave a
 /// partial or an aside behind (the cleanup itself failed); those are set apart, and everything
 /// under a name is still held to the same rule.
-fn assert_consistent(
-    h: &Harness<MemoryProvider>,
+fn assert_consistent<P: Provider + 'static>(
+    h: &Harness<P>,
     s: &Scenario,
     rule: CaseRule,
     double: bool,
@@ -1069,69 +1084,148 @@ fn content_eq(a: &E, b: &E) -> bool {
     }
 }
 
+/// Builds the world a scenario runs in, once per run.
+type World<'a, P> = &'a dyn Fn(&Scenario) -> (Harness<P>, tempfile::TempDir);
+
+fn memory_world(
+    rule: CaseRule,
+) -> impl Fn(&Scenario) -> (Harness<MemoryProvider>, tempfile::TempDir) {
+    move |s| {
+        let (h, dir) = memory_harness(rule);
+        volumes_then_setup(&h, s);
+        (h, dir)
+    }
+}
+
+/// The local provider, with a rename out of `src` refused as crossing volumes when the scenario
+/// is a cross-volume one, so a move copies and removes on the real file system.
+fn local_world(s: &Scenario) -> (Harness<LocalProvider>, tempfile::TempDir) {
+    let (h, dir) = local_harness();
+    setup(&h, s, cfg!(unix));
+    if s.cross {
+        let src = h.path("src").display();
+        h.provider
+            .fail_always_where(Op::Rename, FaultKind::CrossesDevices, move |p| {
+                p.display().starts_with(&src)
+            });
+    }
+    (h, dir)
+}
+
+/// A clean run agrees with the model; then a failure at every call index, in turn, leaves each
+/// item moved or untouched with nothing half written.
+fn fault_sweep<P: Provider + 'static>(
+    world: World<'_, P>,
+    s: &Scenario,
+    rule: CaseRule,
+    label: &str,
+) {
+    let (mut h, _dir) = world(s);
+    let r = request(&h, s);
+    let result = run_transfer(&mut h, r, &mut answers(), &small(), &mut |_, _| {});
+    assert_eq!(result.state, JobState::Done, "{label}");
+    let calls = h.provider.calls();
+    h.provider.reset();
+    check(
+        &h,
+        s,
+        rule,
+        cfg!(unix) || label.starts_with("memory"),
+        &format!("clean {label}"),
+    );
+    // Every step is hit, with the three kinds of failure taking turns (the cross product of kinds
+    // is swept on a smaller scenario in `moves.rs`).
+    let kinds = [
+        FaultKind::PermissionDenied,
+        FaultKind::StorageFull,
+        FaultKind::Interrupted,
+    ];
+    for step in 1..=calls {
+        let fault = kinds[(step + s.policy as usize) % 3];
+        let (mut h, _dir) = world(s);
+        h.provider.fail_at(step, fault);
+        // Sometimes a second failure lands in the cleanup after the first.
+        let double = step % 3 == 0;
+        if double {
+            h.provider.fail_at(step + 1, fault);
+        }
+        let r = request(&h, s);
+        // Half of the runs answer errors with Skip, so the job goes on.
+        let mut a = answers();
+        if step % 2 == 0 {
+            a.errors = Box::new(|_, _| Some(Decision::Skip));
+        }
+        let result = run_transfer(&mut h, r, &mut a, &small(), &mut |_, _| {});
+        h.provider.reset();
+        let at = format!("{label} {fault:?} at {step}/{calls}");
+        assert!(
+            matches!(
+                result.state,
+                JobState::Done | JobState::Failed { .. } | JobState::Waiting { .. }
+            ),
+            "{at}: {:?}",
+            result.state
+        );
+        assert_consistent(&h, s, rule, double, &at);
+    }
+}
+
+/// A cancel at every call index, in turn, leaves each item moved or untouched.
+fn cancel_sweep<P: Provider + 'static>(
+    world: World<'_, P>,
+    s: &Scenario,
+    rule: CaseRule,
+    label: &str,
+) {
+    let (mut h, _dir) = world(s);
+    let r = request(&h, s);
+    let result = run_transfer(&mut h, r, &mut answers(), &small(), &mut |_, _| {});
+    assert_eq!(result.state, JobState::Done, "{label}");
+    let calls = h.provider.calls();
+    let mut cancelled = 0;
+    for step in 1..=calls {
+        let (mut h, _dir) = world(s);
+        let r = request(&h, s);
+        let result = run_transfer(&mut h, r, &mut answers(), &small(), &mut |h, token| {
+            h.provider.cancel_at(step, token)
+        });
+        h.provider.reset();
+        let at = format!("{label} cancel at {step}/{calls}");
+        match &result.state {
+            JobState::Cancelled => cancelled += 1,
+            JobState::Done => {}
+            other => panic!("{at}: {other:?}"),
+        }
+        assert_consistent(&h, s, rule, false, &at);
+        // A job that was cancelled before it finished left nothing running, and the store agrees.
+        assert!(h.store.violations().is_empty(), "{at}");
+    }
+    assert!(cancelled > calls / 2, "{label}: {cancelled}/{calls}");
+}
+
 #[test]
 fn a_fault_at_any_step_leaves_each_item_moved_or_untouched_whatever_the_policy() {
     for rule in [CaseRule::Sensitive, CaseRule::Insensitive] {
         for kind in [JobKind::Copy, JobKind::Move] {
             for cross in [false, true] {
                 for policy in POLICIES {
-                    let s = fault_scenario(kind, policy, cross);
-                    // A clean run counts the calls and agrees with the model.
-                    let (mut h, _dir) = memory_harness(rule);
-                    volumes_then_setup(&h, &s);
-                    let r = request(&h, &s);
-                    let result = run_transfer(&mut h, r, &mut answers(), &small(), &mut |_, _| {});
-                    assert_eq!(result.state, JobState::Done, "{kind:?} {policy:?}");
-                    let calls = h.provider.calls();
-                    h.provider.reset();
-                    check(
-                        &h,
-                        &s,
-                        rule,
-                        true,
-                        &format!("clean {rule:?} {kind:?} {policy:?} cross={cross}"),
-                    );
-                    // Every step is hit, with the three kinds of failure taking turns (the cross
-                    // product of kinds is swept on a smaller scenario in `moves.rs`).
-                    let kinds = [
-                        FaultKind::PermissionDenied,
-                        FaultKind::StorageFull,
-                        FaultKind::Interrupted,
-                    ];
-                    {
-                        for step in 1..=calls {
-                            let fault = kinds[(step + policy as usize) % 3];
-                            let (mut h, _dir) = memory_harness(rule);
-                            volumes_then_setup(&h, &s);
-                            h.provider.fail_at(step, fault);
-                            // Sometimes a second failure lands in the cleanup after the first.
-                            let double = step % 3 == 0;
-                            if double {
-                                h.provider.fail_at(step + 1, fault);
-                            }
-                            let r = request(&h, &s);
-                            // Half of the runs answer errors with Skip, so the job goes on.
-                            let mut a = answers();
-                            if step % 2 == 0 {
-                                a.errors = Box::new(|_, _| Some(Decision::Skip));
-                            }
-                            let result = run_transfer(&mut h, r, &mut a, &small(), &mut |_, _| {});
-                            h.provider.reset();
-                            let at = format!("{rule:?} {kind:?} {policy:?} cross={cross} {fault:?} at {step}/{calls}");
-                            assert!(
-                                matches!(
-                                    result.state,
-                                    JobState::Done
-                                        | JobState::Failed { .. }
-                                        | JobState::Waiting { .. }
-                                ),
-                                "{at}: {:?}",
-                                result.state
-                            );
-                            assert_consistent(&h, &s, rule, double, &at);
-                        }
-                    }
+                    let s = fault_scenario(kind, policy, cross, true);
+                    let label = format!("memory {rule:?} {kind:?} {policy:?} cross={cross}");
+                    fault_sweep(&memory_world(rule), &s, rule, &label);
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_fault_at_any_step_leaves_each_item_moved_or_untouched_on_the_local_provider() {
+    for kind in [JobKind::Copy, JobKind::Move] {
+        for cross in [false, true] {
+            for policy in [ConflictPolicy::Replace, ConflictPolicy::MergeFolders] {
+                let s = fault_scenario(kind, policy, cross, cfg!(unix));
+                let label = format!("local {kind:?} {policy:?} cross={cross}");
+                fault_sweep(&local_world, &s, CaseRule::NATIVE, &label);
             }
         }
     }
@@ -1142,39 +1236,27 @@ fn a_cancel_at_any_step_leaves_each_item_moved_or_untouched_whatever_the_policy(
     for kind in [JobKind::Copy, JobKind::Move] {
         for cross in [false, true] {
             for policy in POLICIES {
-                let rule = CaseRule::Sensitive;
-                let s = fault_scenario(kind, policy, cross);
-                let (mut h, _dir) = memory_harness(rule);
-                volumes_then_setup(&h, &s);
-                let r = request(&h, &s);
-                let result = run_transfer(&mut h, r, &mut answers(), &small(), &mut |_, _| {});
-                assert_eq!(result.state, JobState::Done);
-                let calls = h.provider.calls();
-                let mut cancelled = 0;
-                for step in 1..=calls {
-                    let (mut h, _dir) = memory_harness(rule);
-                    volumes_then_setup(&h, &s);
-                    let r = request(&h, &s);
-                    let result =
-                        run_transfer(&mut h, r, &mut answers(), &small(), &mut |h, token| {
-                            h.provider.cancel_at(step, token)
-                        });
-                    h.provider.reset();
-                    let at = format!("{kind:?} {policy:?} cross={cross} cancel at {step}/{calls}");
-                    match &result.state {
-                        JobState::Cancelled => cancelled += 1,
-                        JobState::Done => {}
-                        other => panic!("{at}: {other:?}"),
-                    }
-                    assert_consistent(&h, &s, rule, false, &at);
-                    // A job that was cancelled before it finished left nothing running, and the
-                    // store agrees.
-                    assert!(h.store.violations().is_empty(), "{at}");
-                }
-                assert!(
-                    cancelled > calls / 2,
-                    "{kind:?} {policy:?}: {cancelled}/{calls}"
+                let s = fault_scenario(kind, policy, cross, true);
+                let label = format!("memory {kind:?} {policy:?} cross={cross}");
+                cancel_sweep(
+                    &memory_world(CaseRule::Sensitive),
+                    &s,
+                    CaseRule::Sensitive,
+                    &label,
                 );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_cancel_at_any_step_leaves_each_item_moved_or_untouched_on_the_local_provider() {
+    for kind in [JobKind::Copy, JobKind::Move] {
+        for cross in [false, true] {
+            for policy in [ConflictPolicy::Replace, ConflictPolicy::MergeFolders] {
+                let s = fault_scenario(kind, policy, cross, cfg!(unix));
+                let label = format!("local {kind:?} {policy:?} cross={cross}");
+                cancel_sweep(&local_world, &s, CaseRule::NATIVE, &label);
             }
         }
     }
@@ -1184,7 +1266,7 @@ fn a_cancel_at_any_step_leaves_each_item_moved_or_untouched_whatever_the_policy(
 fn enospc_after_n_bytes_leaves_no_partial_and_a_whole_destination() {
     // The nth write fails with a full disk, for every n across several files.
     for kind in [JobKind::Copy, JobKind::Move] {
-        let s = fault_scenario(kind, ConflictPolicy::KeepBoth, true);
+        let s = fault_scenario(kind, ConflictPolicy::KeepBoth, true, true);
         let (mut h, _dir) = memory_harness(CaseRule::Sensitive);
         volumes_then_setup(&h, &s);
         let r = request(&h, &s);
