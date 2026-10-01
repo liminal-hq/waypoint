@@ -4310,6 +4310,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-waypoint-ops"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ts-rs",
+ "waypoint-ops",
+ "waypoint-path",
+ "waypoint-protocol",
+ "waypoint-vfs",
+]
+
+[[package]]
 name = "tauri-plugin-waypoint-session"
 version = "0.1.0"
 dependencies = [
@@ -5200,12 +5218,16 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-system-appearance",
  "tauri-plugin-trash",
+ "tauri-plugin-waypoint-ops",
  "tauri-plugin-waypoint-session",
  "tauri-plugin-waypoint-vfs",
  "tauri-plugin-window-manager",
  "tauri-plugin-window-tearoff",
+ "waypoint-ops",
+ "waypoint-path",
  "waypoint-protocol",
  "waypoint-session",
+ "waypoint-vfs",
 ]
 
 [[package]]

@@ -1,0 +1,27 @@
+# tauri-plugin-waypoint-ops
+
+Waypoint's operations plugin: it holds the job queue and the undo journal of the `waypoint-ops` crate behind one lock, runs the jobs on a worker pool, asks the person the questions a job meets, and tells every window what happened (A46, A55, A56).
+
+This is a domain plugin, private to Waypoint (see `docs/architecture/crates-and-plugins.md`). Its JavaScript API is the `@liminal-hq/waypoint-plugin-ops` package in `guest-js/`; the app reaches the plugin only through it, and its wire types come from `@liminal-hq/waypoint-protocol`.
+
+## How it works
+
+- **One state, one lock.** `Ops<R>` (Tauri state) holds an `OpsStore`, a `Journal`, the clipboard and the progress channels behind one `Mutex`. A command or a worker locks it, changes it, and sends the events before unlocking, so a window receives them in revision order. A worker never holds the lock while it touches a file system.
+- **A job's life.** `submit` adds it (`Planning`); a worker plans it with the lock released (cancellable, with progress); it waits `Queued` until `next_runnable` names it; a worker starts it, asks about any clash the planner found (`Waiting { conflicts }`), stores the journal's write-ahead record, and runs the executor; the entry is committed, the job ends, and `undoable` is set.
+- **Questions park a worker.** A clash met in a merge, or an item that failed, becomes `Waiting`; the worker parks on a condition variable, holding its slot, until `resolve(job, decisions, applyToAll)`, `resolve_error(job, decision)` or a cancel answers. Pause takes hold at the next chunk or item and holds the slot too.
+- **The pool** is the concurrency setting plus one thread (default 2 + 1), started as needed, so a new job can be planned while every slot is parked on a question.
+- **Events go to every window**, not to one: the queue is shared. `waypoint-ops://event` carries `OpsEvent`s (`jobAdded`, `jobChanged`, `jobRemoved`, `queueReordered`, and `journalChanged` with the journal's own revision); `waypoint-ops://clipboard` carries the `Clipboard`; `waypoint-ops://recovered` carries the start-up `RecoveryReport`. Progress is not an event: `subscribe_progress` gives a window a `Channel<JobProgress>` fed at the rate of the queue's gate, so the revisions a window sees have gaps.
+- **Commands** are `get_status`, `get_snapshot`, `plan` (a dry-run preview: counts, clashes, `sameVolume`), `submit`, `pause`, `resume`, `cancel`, `retry`, `dismiss`, `dismiss_finished`, `reorder`, `resolve`, `resolve_error`, `undo`, `redo`, `journal_summaries`, `subscribe_progress`, `unsubscribe_progress`, `set_clipboard`, `get_clipboard`, `jobs_targeting`, `get_settings`, `set_settings` and `take_recovery_report`. A request's `originWindow` is always the caller's label. Every error is `{ kind, message }`, with the engine's typed `error` when `kind` is `ops`.
+- **Permissions.** `waypoint-ops:default` allows every command. The app grants it to the `main-*` windows and the `ops` window only (`apps/waypoint/src-tauri/capabilities/ops.json`).
+- **Injected dependencies.** `init(OpsDeps)`, or `init_with(|app| OpsDeps)` when the dependencies need the app handle:
+  - `providers`, `trash`, `resolver` (selection to locations), `clock` and `protected` (paths no operation removes or moves) are the engine's seams.
+  - `journal_storage: Arc<dyn JournalStorage>` is where the journal is kept. At start the plugin opens it and recovers (cleaning up partial files, never resuming); a report worth showing is kept for `take_recovery_report` and sent on `waypoint-ops://recovered`.
+  - `settings: Arc<dyn SettingsStorage>` loads the `OpsSettings` once at start and saves on every change. The next job reads the new values.
+  - `on_change` is called with the events of each change, under the lock.
+  - `save_delay` (default one second) debounces journal writes.
+- **The shared clipboard.** `set_clipboard(mode, items)` replaces the Cut or Copy set for every window, bumps its revision and tells them; an empty list clears it.
+- **Lifecycle.** A window that closes stops hearing progress and the journal is written; its jobs carry on. On exit, running jobs are cancelled so they remove their partial files, the plugin waits up to `exit_wait` (three seconds) for them, and writes the journal.
+
+## Tests
+
+The mock-runtime tests are in `tests/` and run in a temporary directory behind a sandbox, over a provider that can hold or fail a chosen write; the Trash is a fake. They do not run on Windows CI (the test binary lacks the Common Controls manifest); `cargo test -p tauri-plugin-waypoint-ops --lib` does. The app's own test (`apps/waypoint/src-tauri/src/ops.rs`) checks which windows the capability files let call the plugin.

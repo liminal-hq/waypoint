@@ -127,6 +127,20 @@
         "typescript": "^5.9.3",
       },
     },
+    "plugins/waypoint-ops": {
+      "name": "@liminal-hq/waypoint-plugin-ops",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liminal-hq/waypoint-protocol": "workspace:*",
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
     "plugins/waypoint-session": {
       "name": "@liminal-hq/waypoint-plugin-session",
       "version": "0.0.0",
@@ -302,6 +316,8 @@
     "@liminal-hq/waypoint": ["@liminal-hq/waypoint@workspace:apps/waypoint"],
 
     "@liminal-hq/waypoint-chrome": ["@liminal-hq/waypoint-chrome@workspace:packages/chrome"],
+
+    "@liminal-hq/waypoint-plugin-ops": ["@liminal-hq/waypoint-plugin-ops@workspace:plugins/waypoint-ops"],
 
     "@liminal-hq/waypoint-plugin-session": ["@liminal-hq/waypoint-plugin-session@workspace:plugins/waypoint-session"],
 

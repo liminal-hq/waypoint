@@ -1,0 +1,28 @@
+[default]
+description = "Default permissions for the waypoint-ops plugin"
+permissions = [
+  "allow-get-status",
+  "allow-get-snapshot",
+  "allow-plan",
+  "allow-submit",
+  "allow-pause",
+  "allow-resume",
+  "allow-cancel",
+  "allow-retry",
+  "allow-dismiss",
+  "allow-dismiss-finished",
+  "allow-reorder",
+  "allow-resolve",
+  "allow-resolve-error",
+  "allow-undo",
+  "allow-redo",
+  "allow-journal-summaries",
+  "allow-subscribe-progress",
+  "allow-unsubscribe-progress",
+  "allow-set-clipboard",
+  "allow-get-clipboard",
+  "allow-jobs-targeting",
+  "allow-get-settings",
+  "allow-set-settings",
+  "allow-take-recovery-report",
+]

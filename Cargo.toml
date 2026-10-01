@@ -13,6 +13,7 @@ members = [
   "plugins/trash",
   "plugins/window-manager",
   "plugins/window-tearoff",
+  "plugins/waypoint-ops",
   "plugins/waypoint-session",
   "plugins/waypoint-vfs",
 ]

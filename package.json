@@ -24,7 +24,7 @@
 		"check:boundaries": "bash scripts/check-plugin-boundaries.sh",
 		"check:ops-sandbox": "bash scripts/check-ops-sandbox.sh",
 		"check:case": "bash scripts/check-case-collisions.test.sh && bash scripts/check-case-collisions.sh",
-		"build:plugins": "bun run --cwd plugins/os-prefs build && bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/trash build && bun run --cwd plugins/native-dnd build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build",
+		"build:plugins": "bun run --cwd plugins/os-prefs build && bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/trash build && bun run --cwd plugins/native-dnd build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build && bun run --cwd plugins/waypoint-ops build",
 		"check:bindings": "bash scripts/check-bindings-drift.sh",
 		"build:windows": "bash scripts/build-windows-remote-dev.sh"
 	},
