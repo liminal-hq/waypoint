@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/waypoint-path",
+  "crates/waypoint-ops",
   "crates/waypoint-protocol",
   "crates/waypoint-session",
   "crates/waypoint-vfs",

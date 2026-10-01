@@ -6,3 +6,9 @@ slow-timeout = { period = "30s", terminate-after = 2 }
 retries = 2
 failure-output = "immediate-final"
 junit = { path = "junit.xml" }
+
+# The operations property tests replay many random sequences, which a debug build on Windows
+# runs well past the default 60 seconds while the other test binaries compete for the cores.
+[[profile.default.overrides]]
+filter = "package(waypoint-ops) & kind(test)"
+slow-timeout = { period = "60s", terminate-after = 10 }

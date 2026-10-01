@@ -253,7 +253,7 @@ jobs:
         id: tests
         run: >-
           cargo nextest run --no-fail-fast
-          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash
+          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash
           -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash)))"
 
       - name: Job summary
@@ -264,5 +264,5 @@ jobs:
             echo "## Windows tests"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash)))\"\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash)))\"\` |"
           } >> "${GITHUB_STEP_SUMMARY}"

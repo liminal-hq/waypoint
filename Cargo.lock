@@ -5155,6 +5155,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "waypoint-ops"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ts-rs",
+ "waypoint-ops",
+ "waypoint-path",
+ "waypoint-protocol",
+ "waypoint-vfs",
+]
+
+[[package]]
 name = "waypoint-path"
 version = "0.1.0"
 dependencies = [
