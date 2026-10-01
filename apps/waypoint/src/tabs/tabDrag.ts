@@ -638,7 +638,10 @@ export function createTabDragHandlers(deps: TabDragDeps): TabDragHandlers {
 					const fresh = await api.getSnapshot();
 					const made = fresh.pairs.find((candidate) => candidate.panes.includes(active));
 					const created = made?.origin.kind === 'toggle' ? made.origin.created : undefined;
-					if (!made || created === undefined) return;
+					if (!made || created === undefined) {
+						deps.announce(t('pair.announce.duplicateFailed'));
+						return;
+					}
 					if (made.layout !== layout) await api.setPairLayout(made.id, layout);
 					// The copy is the new pane: it leads on the left and the top, and follows on the others.
 					const leads = made.panes[0] === created;

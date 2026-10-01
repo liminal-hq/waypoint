@@ -610,9 +610,10 @@ describe('split a pane', () => {
 		const h = await setup();
 		h.press({ tab: h.ids.a! }, { x: 50 });
 		h.move(100, 400);
-		// A few pixels above the area, or across a border, keeps the region it was in.
+		// Across a border keeps the region it was in; just above the area is the strip's reorder.
 		h.move(100, 197);
-		expect(h.state().target).toEqual({ outcome: 'splitPane', edge: 'left' });
+		expect(h.state().target?.outcome).toBe('reorder');
+		h.move(100, 400);
 		h.move(1000 / 3 + 3, 400);
 		expect(h.state().target).toEqual({ outcome: 'splitPane', edge: 'left' });
 		h.move(1000 / 3 + 12, 400);

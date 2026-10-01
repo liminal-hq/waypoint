@@ -60,7 +60,8 @@ function within(rect: Rect, point: Point, slack = 0): boolean {
 /**
  * The region the pointer is in, or null outside the file area. `previous` is the region it was in
  * a moment ago: it is kept while the pointer is within `slack` of it, so a pointer riding a border
- * (or the area's edge, where the strip's reorder is the other choice) does not flicker.
+ * between regions does not flicker. The area's own edge has no slack: outside it a release is the
+ * strip's reorder, not a split.
  */
 export function zoneAt(
 	area: Rect,
@@ -69,9 +70,7 @@ export function zoneAt(
 	slack: number = SPLIT_ZONE_SLACK_PX,
 ): Edge | null {
 	if (area.right - area.left <= 0 || area.bottom - area.top <= 0) return null;
-	if (previous && within(area, point, slack) && within(zoneRect(area, previous), point, slack)) {
-		return previous;
-	}
 	if (!within(area, point)) return null;
+	if (previous && within(zoneRect(area, previous), point, slack)) return previous;
 	return SPLIT_EDGES.find((edge) => within(zoneRect(area, edge), point)) ?? null;
 }

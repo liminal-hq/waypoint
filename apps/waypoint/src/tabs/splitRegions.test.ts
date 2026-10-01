@@ -39,12 +39,12 @@ describe('zoneAt', () => {
 		expect(zoneAt({ left: 0, top: 0, right: 0, bottom: 0 }, { x: 0, y: 0 })).toBeNull();
 	});
 
-	it('keeps the previous region within the slack of its border and of the area', () => {
+	it('keeps the previous region within the slack of its border, never past the area', () => {
 		// Just into the centre column, but still the left region's while the slack covers it.
 		expect(zoneAt(area, { x: 304, y: 300 }, 'left', 6)).toBe('left');
 		expect(zoneAt(area, { x: 310, y: 300 }, 'left', 6)).toBe('top');
-		// Just past the area's own edge.
-		expect(zoneAt(area, { x: 96, y: 300 }, 'left', 6)).toBe('left');
+		// Past the area's own edge there is no slack: a release there is not a split.
+		expect(zoneAt(area, { x: 96, y: 300 }, 'left', 6)).toBeNull();
 		expect(zoneAt(area, { x: 90, y: 300 }, 'left', 6)).toBeNull();
 		// Entering from outside has no slack: a pointer just outside is not in.
 		expect(zoneAt(area, { x: 96, y: 300 }, null, 6)).toBeNull();
