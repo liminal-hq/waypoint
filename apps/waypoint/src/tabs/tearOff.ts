@@ -119,6 +119,10 @@ type Phase = 'idle' | 'starting' | 'following' | 'degraded';
  * another window merges the tabs into that window, at the slot the region names; no region opens
  * a new window under the cursor; a cursor the plugin cannot vouch for (stale, or none) opens one
  * without geometry, which cascades from this window. Every move flushes the tabs' hints first.
+ *
+ * The plugin's `cursor-stale` event is not acted on: a pointer held still for a second looks the
+ * same as a frozen cursor, and the merge label and a merge by region should survive a pause. The
+ * report's `cursorStale` is what keeps a window from being placed at a position that may be old.
  */
 export function createTearOff(deps: TearOffDeps): TearOff {
 	const now = deps.now ?? (() => Date.now());
@@ -129,10 +133,15 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 	let source: TabDragSource | null = null;
 	let mergeName: string | null = null;
 	let windows: WindowSummary[] | null = null;
-	let stale = false;
 	let polling = false;
 	let lastPoll = 0;
 	let sent = '';
+	/** Asks which region the cursor is over while the ghost follows: the page gets no pointer events outside its window. */
+	let watching: ReturnType<typeof setInterval> | undefined;
+	const stopWatching = () => {
+		if (watching !== undefined) clearInterval(watching);
+		watching = undefined;
+	};
 
 	const payload = (unit: Unit, withLabel: boolean): GhostPayload => ({
 		title: unit.title,
@@ -162,12 +171,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 	};
 
 	const reset = () => {
+		stopWatching();
 		generation++;
 		phase = 'idle';
 		source = null;
 		mergeName = null;
 		windows = null;
-		stale = false;
 		sent = '';
 		showCard(null);
 	};
@@ -193,8 +202,7 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 			try {
 				const hit = await deps.client.hitTest();
 				let name: string | null = null;
-				// A frozen cursor says nothing about where the pointer is.
-				if (hit && !stale && parseRegionId(hit.region)) {
+				if (hit && parseRegionId(hit.region)) {
 					windows ??= await deps.api.listWindows().catch(() => []);
 					const target = windows.find((window) => window.label === hit.window);
 					if (target && !target.active) name = windowName(target);
@@ -223,7 +231,10 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 					return;
 				}
 				phase = result === 'following' ? 'following' : 'degraded';
-				if (phase === 'following') showCard(null);
+				if (phase === 'following') {
+					showCard(null);
+					watching = setInterval(pollHit, pollMs);
+				}
 			},
 			(error: unknown) => {
 				console.warn('could not start the tear-off ghost', error);
@@ -342,16 +353,8 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				deps.announce(t('drag.announce.timedOut'));
 				deps.cancelDrag();
 			});
-			const stopStale = deps.client.onCursorStale((value) => {
-				stale = value;
-				if (value) {
-					mergeName = null;
-					pushGhost();
-				}
-			});
 			return () => {
 				stopTimeout();
-				stopStale();
 				const was = phase;
 				reset();
 				if (was === 'following') void deps.client.end('cancel').catch(() => {});

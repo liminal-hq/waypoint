@@ -198,6 +198,27 @@ describe('the ghost', () => {
 		expect(h.client.updates.at(-1)).toMatchObject({ label: 'Release to open in a new window' });
 	});
 
+	it('keeps asking while the ghost follows even though the page gets no pointer events', async () => {
+		vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+		try {
+			const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+			await dragOut(h, { tab: h.ids.a! });
+			h.client.hit = { window: 'main-2', region: 'strip' };
+			h.tick();
+			vi.advanceTimersByTime(HIT_POLL_MS);
+			await settle();
+			expect(h.client.updates.at(-1)).toMatchObject({ label: 'Release to merge into music' });
+			// Putting the ghost away stops the asking.
+			h.hook.leave();
+			const asked = h.client.calls.filter((call) => call === 'hitTest').length;
+			h.tick();
+			vi.advanceTimersByTime(HIT_POLL_MS * 5);
+			expect(h.client.calls.filter((call) => call === 'hitTest')).toHaveLength(asked);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('does not ask where the cursor is more often than the poll interval', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
@@ -436,20 +457,34 @@ describe('the plugin events', () => {
 		expect(h.cancelled()).toBe(0);
 	});
 
-	it('does not trust the merge label while the cursor is frozen, and falls back on a release', async () => {
-		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true, windowPosition: true });
+	it('keeps the merge label while the pointer is held still, and does not place a window by a stale cursor', async () => {
+		const h = await setup({
+			ghost: true,
+			cursorFollow: true,
+			hitTest: true,
+			windowPosition: true,
+		});
 		const stopListening = h.hook.connect();
 		const source = await dragOut(h, { tab: h.ids.a! });
 		h.client.hit = { window: 'main-2', region: 'strip' };
 		h.tick();
 		h.hook.update(OUTSIDE, source);
 		await settle();
-		expect(h.hook.update(OUTSIDE, source)).toMatchObject({ kind: 'merge' });
+		// A motionless pointer makes the plugin report a stale cursor; the label stays.
 		h.client.fireStale(true);
-		expect(h.hook.update(OUTSIDE, source)).toMatchObject({ kind: 'window' });
-		h.client.report = { ...reportAt(1500, 400, 1), cursorStale: true };
+		expect(h.hook.update(OUTSIDE, source)).toMatchObject({ kind: 'merge' });
+		h.client.report = {
+			...reportAt(1500, 400, 1, { window: 'main-2', region: 'strip' }),
+			cursorStale: true,
+		};
 		await h.hook.drop(OUTSIDE, source);
-		expect(h.moveTabs.mock.calls[0]![1]).toEqual({
+		expect(h.moveTabs.mock.calls[0]![1]).toMatchObject({ kind: 'existingWindow' });
+		h.client.report = { ...reportAt(1500, 400, 1), cursorStale: true };
+
+		await h.refresh();
+		const again = await dragOut(h, { tab: h.ids.c! });
+		await h.hook.drop(OUTSIDE, again);
+		expect(h.moveTabs.mock.calls[1]![1]).toEqual({
 			kind: 'newWindow',
 			label: null,
 			geometry: null,
