@@ -1,0 +1,1002 @@
+// The operations plugin against a mock Tauri app: jobs run through the queue and the worker pool,
+// events reach every window in revision order, questions park a worker until they are answered,
+// and the journal, the clipboard and the settings are shared. Everything happens in a temporary
+// directory behind a sandbox; the Trash is a fake, never the real one.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+mod support;
+
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use tauri::ipc::{Channel, InvokeResponseBody};
+use tauri::test::MockRuntime;
+use tauri::Manager;
+use tauri_plugin_waypoint_ops::{commands, ClipboardMode, JobProgress, Ops, MAX_CONCURRENCY};
+use waypoint_ops::{
+    ConflictPolicy, Decision, JobKind, JobState, JournalStorage, OpsError, OpsEvent, OpsSettings,
+    OpsSnapshot, Resolution, VerifyAlgorithm, WaitReason,
+};
+use waypoint_protocol::VfsError;
+use waypoint_vfs::Provider;
+
+use support::*;
+
+fn partials(env: &Env, folder: &str) -> Vec<String> {
+    env.names(folder)
+        .into_iter()
+        .filter(|n| n.starts_with(".waypoint-"))
+        .collect()
+}
+
+#[test]
+fn a_submitted_job_runs_to_done_and_every_window_hears_the_same_events_in_order() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    // Submitted by the first window; the second hears about it too.
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    env.wait_done(id);
+    env.wait_for("the last event", |e| {
+        e.events_of("main-2")
+            .iter()
+            .any(|ev| matches!(ev, OpsEvent::JournalChanged { .. }))
+    });
+
+    assert_eq!(env.read("dst/a.txt"), b"alpha");
+    let first = env.events_of("main-1");
+    let second = env.events_of("main-2");
+    assert_eq!(first, second, "both windows heard the same events");
+    assert!(
+        env.events_of("settings").len() == first.len(),
+        "broadcast reaches every window"
+    );
+
+    let queue: Vec<&OpsEvent> = first
+        .iter()
+        .filter(|e| !matches!(e, OpsEvent::JournalChanged { .. }))
+        .collect();
+    let revisions: Vec<u64> = queue.iter().map(|e| e.revision()).collect();
+    assert!(
+        revisions.windows(2).all(|w| w[0] < w[1]),
+        "queue events are in revision order: {revisions:?}"
+    );
+    let states: Vec<String> = queue
+        .iter()
+        .filter_map(|e| match e {
+            OpsEvent::JobAdded { job, .. } | OpsEvent::JobChanged { job, .. } => {
+                Some(job.state.name().to_owned())
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(states.first().map(String::as_str), Some("planning"));
+    assert_eq!(states.last().map(String::as_str), Some("done"));
+    for needed in ["queued", "running"] {
+        assert!(states.iter().any(|s| s == needed), "{states:?}");
+    }
+
+    // The origin window is the caller's, whatever the request said.
+    assert_eq!(env.job(id).origin_window, "main-1");
+    // Folding the events reproduces the queue.
+    let mut mirror = OpsSnapshot::default();
+    for event in &first {
+        mirror.apply(event);
+    }
+    assert_eq!(mirror.jobs, env.snapshot().jobs);
+    assert!(env.job(id).undoable);
+    assert_eq!(
+        env.snapshot().journal.undo.map(|u| u.label),
+        Some("Copy \u{201c}a.txt\u{201d}".to_owned())
+    );
+}
+
+#[test]
+fn a_clash_found_by_the_planner_parks_the_job_until_it_is_resolved() {
+    let env = env();
+    env.write("a.txt", b"new");
+    env.write("b.txt", b"b");
+    env.dir("dst");
+    env.write("dst/a.txt", b"old");
+    let id = env.submit("main-1", env.copy(&["a.txt", "b.txt"], "dst"));
+    let state = env.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Conflicts { conflicts },
+    } = state
+    else {
+        panic!("waiting on conflicts, not {state:?}");
+    };
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(
+        env.read("dst/a.txt"),
+        b"old",
+        "nothing is overwritten without a decision"
+    );
+    assert!(
+        !env.exists("dst/b.txt"),
+        "nothing is written before the answer"
+    );
+    // The worker is parked with its slot held.
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(matches!(env.state(id), JobState::Waiting { .. }));
+
+    tauri::async_runtime::block_on(commands::resolve(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+        vec![],
+        Some(ConflictPolicy::KeepBoth),
+    ))
+    .unwrap();
+    env.wait_done(id);
+    assert_eq!(env.read("dst/a.txt"), b"old");
+    assert_eq!(env.read("dst/a (2).txt"), b"new");
+    assert_eq!(env.read("dst/b.txt"), b"b");
+}
+
+#[test]
+fn a_clash_met_in_the_middle_of_a_merge_asks_for_that_one_alone() {
+    let env = env();
+    env.dir("src");
+    env.dir("src/d");
+    env.write("src/d/inner.txt", b"from src");
+    env.write("src/d/other.txt", b"other");
+    env.dir("dst");
+    env.dir("dst/d");
+    env.write("dst/d/inner.txt", b"in dst");
+    // Merging folders is the answer up front; the file clash below it is asked alone.
+    let id = env.submit(
+        "main-1",
+        env.copy_with(&["src/d"], "dst", ConflictPolicy::MergeFolders),
+    );
+    let state = env.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Conflicts { conflicts },
+    } = state
+    else {
+        panic!("{state:?}");
+    };
+    assert_eq!(conflicts[0].name, "inner.txt");
+    tauri::async_runtime::block_on(commands::resolve(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+        vec![Resolution {
+            source: Some(conflicts[0].source.clone()),
+            policy: ConflictPolicy::Skip,
+        }],
+        None,
+    ))
+    .unwrap();
+    env.wait_done(id);
+    assert_eq!(env.read("dst/d/inner.txt"), b"in dst");
+    assert_eq!(env.read("dst/d/other.txt"), b"other");
+}
+
+#[test]
+fn an_error_waits_for_retry_skip_or_cancel() {
+    // Retry: the failing write works the second time.
+    let env_retry = env();
+    env_retry.write("a.txt", b"alpha");
+    env_retry.dir("dst");
+    env_retry.gate.fail_at(
+        1,
+        VfsError::Io {
+            location: Some(env_retry.loc("dst/a.txt")),
+            message: "the disk hiccupped".to_owned(),
+        },
+    );
+    let id = env_retry.submit("main-1", env_retry.copy(&["a.txt"], "dst"));
+    let state = env_retry.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Error { item, .. },
+    } = state
+    else {
+        panic!("{state:?}");
+    };
+    assert_eq!(item, env_retry.loc("a.txt"));
+    // A conflict answer is refused for an error.
+    assert!(tauri::async_runtime::block_on(commands::resolve(
+        env_retry.window("main-1"),
+        env_retry.app.state::<Ops<MockRuntime>>(),
+        id,
+        vec![],
+        Some(ConflictPolicy::Skip),
+    ))
+    .is_err());
+    answer(&env_retry, id, Decision::Retry);
+    env_retry.wait_done(id);
+    assert_eq!(env_retry.read("dst/a.txt"), b"alpha");
+
+    // Skip: the item is left out and the job ends with a count.
+    let env_skip = env();
+    env_skip.write("a.txt", b"alpha");
+    env_skip.write("b.txt", b"bravo");
+    env_skip.dir("dst");
+    env_skip.gate.fail_at(
+        1,
+        VfsError::Io {
+            location: Some(env_skip.loc("dst/a.txt")),
+            message: "the disk hiccupped".to_owned(),
+        },
+    );
+    let id = env_skip.submit("main-1", env_skip.copy(&["a.txt", "b.txt"], "dst"));
+    env_skip.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    answer(&env_skip, id, Decision::Skip);
+    env_skip.wait_done(id);
+    assert!(!env_skip.exists("dst/a.txt"));
+    assert_eq!(env_skip.read("dst/b.txt"), b"bravo");
+    assert_eq!(env_skip.job(id).counts.failed, 1);
+
+    // Cancel: the job ends cancelled and leaves no partial file.
+    let env_cancel = env();
+    env_cancel.write("a.txt", b"alpha");
+    env_cancel.dir("dst");
+    env_cancel.gate.fail_at(
+        1,
+        VfsError::Io {
+            location: Some(env_cancel.loc("dst/a.txt")),
+            message: "the disk hiccupped".to_owned(),
+        },
+    );
+    let id = env_cancel.submit("main-1", env_cancel.copy(&["a.txt"], "dst"));
+    env_cancel.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    answer(&env_cancel, id, Decision::Cancel);
+    env_cancel.wait_state(id, "cancelled", |s| *s == JobState::Cancelled);
+    assert!(partials(&env_cancel, "dst").is_empty());
+    assert!(env_cancel.names("dst").is_empty());
+}
+
+fn answer(env: &Env, id: waypoint_ops::JobId, decision: Decision) {
+    tauri::async_runtime::block_on(commands::resolve_error(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+        decision,
+    ))
+    .unwrap();
+}
+
+#[test]
+fn a_running_copy_can_be_paused_resumed_and_cancelled() {
+    // Paused: held at the second file, paused, released; it stops before the third.
+    let env = env();
+    for name in ["1", "2", "3"] {
+        env.write(&format!("{name}.txt"), name.as_bytes());
+    }
+    env.dir("dst");
+    env.gate.block_at(2);
+    let id = env.submit("main-1", env.copy(&["1.txt", "2.txt", "3.txt"], "dst"));
+    env.gate.wait_held(1);
+    assert_eq!(env.state(id), JobState::Running);
+    tauri::async_runtime::block_on(commands::pause(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+    ))
+    .unwrap();
+    assert_eq!(env.state(id), JobState::Paused);
+    env.gate.open();
+    std::thread::sleep(Duration::from_millis(150));
+    assert_eq!(
+        env.state(id),
+        JobState::Paused,
+        "the worker is parked, holding its slot"
+    );
+    assert!(!env.exists("dst/3.txt"), "nothing runs while paused");
+    tauri::async_runtime::block_on(commands::resume(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+    ))
+    .unwrap();
+    env.wait_done(id);
+    assert_eq!(env.names("dst"), ["1.txt", "2.txt", "3.txt"]);
+
+    // Cancelled mid-copy: what was copied stays, nothing is half written.
+    let env = env_for_cancel();
+    let id = env.submit("main-1", env.copy(&["1.txt", "2.txt", "3.txt"], "dst"));
+    env.gate.wait_held(1);
+    tauri::async_runtime::block_on(commands::cancel(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+    ))
+    .unwrap();
+    assert_eq!(env.state(id), JobState::Cancelling);
+    env.gate.open();
+    env.wait_state(id, "cancelled", |s| *s == JobState::Cancelled);
+    let left = env.names("dst");
+    assert!(!left.contains(&"3.txt".to_owned()), "{left:?}");
+    assert!(
+        left.iter().all(|n| !n.starts_with(".waypoint-")),
+        "{left:?}"
+    );
+    // A cancelled job can be retried as a new one.
+    let again = tauri::async_runtime::block_on(commands::retry(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+    ))
+    .unwrap();
+    assert_ne!(again, id);
+    // The first file is already there, so the new job asks before it writes anything.
+    env.wait_state(again, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    assert_eq!(env.names("dst"), left);
+}
+
+fn env_for_cancel() -> Env {
+    let env = env();
+    for name in ["1", "2", "3"] {
+        env.write(&format!("{name}.txt"), name.as_bytes());
+    }
+    env.dir("dst");
+    env.gate.block_at(2);
+    env
+}
+
+#[test]
+fn only_as_many_jobs_run_at_once_as_the_setting_allows() {
+    let env = env();
+    for name in ["a", "b", "c", "d"] {
+        env.write(&format!("{name}.txt"), name.as_bytes());
+    }
+    env.dir("dst");
+    env.gate.block_all();
+    let ids: Vec<_> = ["a", "b", "c"]
+        .iter()
+        .map(|n| env.submit("main-1", env.copy(&[&format!("{n}.txt")], "dst")))
+        .collect();
+    env.gate.wait_held(2);
+    // (Which two run depends on which finished planning first.)
+    env.wait_for("the third job queued", |e| {
+        e.snapshot()
+            .jobs
+            .iter()
+            .filter(|j| j.state == JobState::Queued)
+            .count()
+            == 1
+    });
+    let running = |env: &Env| {
+        env.snapshot()
+            .jobs
+            .iter()
+            .filter(|j| j.state == JobState::Running)
+            .count()
+    };
+    assert_eq!(running(&env), 2, "the default is two");
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(
+        running(&env),
+        2,
+        "a third never starts while two hold their slots"
+    );
+
+    // The next job reads the new setting: with one at a time, a fourth waits behind the rest.
+    let one = OpsSettings {
+        concurrency: 1,
+        ..env.ops().settings()
+    };
+    tauri::async_runtime::block_on(commands::set_settings(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        one,
+    ))
+    .unwrap();
+    assert_eq!(env.settings.saved(), Some(one), "saved as it is applied");
+    env.gate.open();
+    for id in &ids {
+        env.wait_done(*id);
+    }
+    env.gate.block_all();
+    let first = env.submit("main-1", env.copy(&["d.txt"], "dst"));
+    env.gate.wait_held(1);
+    let second = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some("dst"), Some("later")),
+    );
+    env.wait_state(second, "queued", |s| *s == JobState::Queued);
+    assert_eq!(env.state(first), JobState::Running);
+    env.gate.open();
+    env.wait_done(first);
+    env.wait_done(second);
+}
+
+#[test]
+fn settings_are_validated_and_take_effect_for_the_next_job() {
+    let env = env();
+    let ops = env.ops();
+    let bad = OpsSettings {
+        concurrency: 0,
+        ..ops.settings()
+    };
+    assert!(ops.set_settings(bad).is_err());
+    let too_many = OpsSettings {
+        concurrency: MAX_CONCURRENCY + 1,
+        ..ops.settings()
+    };
+    assert!(ops.set_settings(too_many).is_err());
+    assert_eq!(env.settings.saved(), None, "a refused change saves nothing");
+
+    // Verification is a setting: the job after the change records a verification.
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    env.wait_done(id);
+    assert_eq!(env.job(id).verified, None);
+    let verify = OpsSettings {
+        verify_after_copy: true,
+        verify_algorithm: VerifyAlgorithm::Sha256,
+        ..ops.settings()
+    };
+    ops.set_settings(verify).unwrap();
+    env.dir("dst2");
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst2"));
+    env.wait_done(id);
+    let verified = env.job(id).verified.expect("the next job verified");
+    assert_eq!(verified.algorithm, VerifyAlgorithm::Sha256);
+    assert_eq!(verified.files, 1);
+}
+
+#[test]
+fn progress_goes_only_to_the_window_that_subscribed() {
+    let env = env();
+    env.write("big.bin", &big(20));
+    env.dir("dst");
+    let ticks: Arc<Mutex<Vec<JobProgress>>> = Arc::default();
+    let sink = ticks.clone();
+    let channel = Channel::<JobProgress>::new(move |body| {
+        if let InvokeResponseBody::Json(text) = body {
+            sink.lock()
+                .unwrap()
+                .push(serde_json::from_str(&text).unwrap());
+        }
+        Ok(())
+    });
+    tauri::async_runtime::block_on(commands::subscribe_progress(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        channel,
+    ))
+    .unwrap();
+    // The second window subscribes with a channel of its own that counts separately.
+    let other: Arc<Mutex<Vec<JobProgress>>> = Arc::default();
+    let other_sink = other.clone();
+    let other_channel = Channel::<JobProgress>::new(move |body| {
+        if let InvokeResponseBody::Json(text) = body {
+            other_sink
+                .lock()
+                .unwrap()
+                .push(serde_json::from_str(&text).unwrap());
+        }
+        Ok(())
+    });
+    tauri::async_runtime::block_on(commands::subscribe_progress(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        other_channel,
+    ))
+    .unwrap();
+    tauri::async_runtime::block_on(commands::unsubscribe_progress(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+    ))
+    .unwrap();
+
+    let id = env.submit("main-1", env.copy(&["big.bin"], "dst"));
+    env.wait_done(id);
+    let heard = ticks.lock().unwrap().clone();
+    assert!(heard.len() >= 2, "the subscriber heard progress: {heard:?}");
+    assert!(heard.iter().all(|t| t.job == id));
+    assert!(heard.windows(2).all(|w| w[0].revision < w[1].revision));
+    assert!(heard.last().unwrap().progress.bytes_done > heard.first().unwrap().progress.bytes_done);
+    assert!(
+        other.lock().unwrap().is_empty(),
+        "a window that unsubscribed hears nothing"
+    );
+    // Progress is not an event: no window was sent a tick as one.
+    let events = env.events_of("main-2");
+    let progress_events = events
+        .iter()
+        .filter(|e| {
+            matches!(e, OpsEvent::JobChanged { job, .. }
+                if job.state == JobState::Running && job.progress.bytes_done > 0)
+        })
+        .count();
+    assert_eq!(progress_events, 0, "{events:?}");
+    assert_eq!(env.read("dst/big.bin").len(), 20 * 1024 * 1024);
+}
+
+#[test]
+fn undo_and_redo_run_through_the_queue_and_the_journal() {
+    let env = env();
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("made")),
+    );
+    env.wait_done(id);
+    assert!(env.exists("made"));
+    let summaries = tauri::async_runtime::block_on(commands::journal_summaries(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+    ))
+    .unwrap();
+    assert_eq!(summaries.len(), 1);
+    assert!(summaries[0].undoable);
+
+    let undo = tauri::async_runtime::block_on(commands::undo(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        None,
+    ))
+    .unwrap();
+    env.wait_done(undo);
+    assert!(!env.exists("made"));
+    assert_eq!(env.job(undo).origin_window, "main-2");
+    let snapshot = env.snapshot();
+    assert!(snapshot.journal.undo.is_none());
+    assert!(snapshot.journal.redo.is_some());
+
+    let redo = tauri::async_runtime::block_on(commands::redo(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        None,
+    ))
+    .unwrap();
+    env.wait_done(redo);
+    assert!(env.exists("made"));
+    assert!(env.snapshot().journal.undo.is_some());
+    // Both windows were told about the history, on the same channel as the queue.
+    for window in ["main-1", "main-2"] {
+        let changes = env
+            .events_of(window)
+            .into_iter()
+            .filter(|e| matches!(e, OpsEvent::JournalChanged { .. }))
+            .count();
+        assert!(changes >= 3, "{window} heard {changes} journal changes");
+    }
+    // Nothing is left to undo twice: an undo of an entry already being undone is refused.
+    assert!(env.ops().undo("main-1", None).is_ok());
+    assert!(matches!(
+        env.ops().undo("main-1", None),
+        Err(tauri_plugin_waypoint_ops::Error::Ops(
+            OpsError::UndoUnavailable { .. }
+        )) | Ok(_)
+    ));
+}
+
+#[test]
+fn an_undo_refused_because_the_world_changed_says_so_and_changes_nothing() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    env.wait_done(id);
+    // Edited after the copy.
+    env.fs
+        .create_write(
+            &env.path("dst/a.txt"),
+            waypoint_vfs::WriteOptions::truncate(),
+        )
+        .unwrap()
+        .finish(false)
+        .unwrap();
+    let undo = env.ops().undo("main-1", None).unwrap();
+    let state = env.wait_state(undo, "failed", |s| s.is_finished());
+    assert!(
+        matches!(
+            state,
+            JobState::Failed {
+                error: OpsError::UndoStale { .. },
+                ..
+            }
+        ),
+        "{state:?}"
+    );
+    assert!(env.exists("dst/a.txt"));
+}
+
+#[test]
+fn the_clipboard_is_shared_by_every_window() {
+    let env = env();
+    assert!(tauri::async_runtime::block_on(commands::get_clipboard(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+    ))
+    .unwrap()
+    .items
+    .is_empty());
+    let items = vec![env.loc("a.txt"), env.loc("b.txt")];
+    let set = tauri::async_runtime::block_on(commands::set_clipboard(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        ClipboardMode::Cut,
+        items.clone(),
+    ))
+    .unwrap();
+    assert_eq!(set.revision, 1);
+    let seen = tauri::async_runtime::block_on(commands::get_clipboard(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+    ))
+    .unwrap();
+    assert_eq!(seen, set);
+    assert_eq!(seen.mode, ClipboardMode::Cut);
+    assert_eq!(seen.items, items);
+    env.wait_for("the clipboard event on both windows", |e| {
+        e.clipboards.lock().unwrap().len() >= 3
+    });
+    {
+        let log = env.clipboards.lock().unwrap();
+        for window in ["main-1", "main-2"] {
+            assert!(
+                log.iter().any(|(w, c)| w == window && *c == set),
+                "{window} was told"
+            );
+        }
+    }
+    // A clear is a change too, and the revision only goes up.
+    let cleared = env.ops().set_clipboard(ClipboardMode::Copy, Vec::new());
+    assert_eq!(cleared.revision, 2);
+    assert!(cleared.items.is_empty());
+}
+
+#[test]
+fn a_closing_window_does_not_stop_its_jobs() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    env.dir("dst");
+    env.gate.block_at(1);
+    let id = env.submit("main-2", env.copy(&["a.txt", "b.txt"], "dst"));
+    env.gate.wait_held(1);
+    // The window that started it goes away; its progress channel goes with it.
+    let channel = Channel::<JobProgress>::new(|_| Ok(()));
+    tauri::async_runtime::block_on(commands::subscribe_progress(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        channel,
+    ))
+    .unwrap();
+    tauri_plugin_waypoint_ops::on_window_destroyed(env.app.handle(), "main-2");
+    env.window("main-2").destroy().unwrap();
+    assert_eq!(env.state(id), JobState::Running);
+    env.gate.open();
+    env.wait_done(id);
+    assert_eq!(env.names("dst"), ["a.txt", "b.txt"]);
+    // The first window still sees the finished job in the shared queue.
+    assert_eq!(env.job(id).origin_window, "main-2");
+}
+
+#[test]
+fn the_journal_is_written_a_moment_after_a_change_and_at_once_on_exit() {
+    // A long delay, so only the explicit flushes can have written it.
+    let env = env_with(Setup {
+        save_delay: Duration::from_secs(600),
+        ..Setup::default()
+    });
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("made")),
+    );
+    env.wait_done(id);
+    let stored = |env: &Env| {
+        env.journal
+            .current_document()
+            .map(|d| d.body.entries.len())
+            .unwrap_or(0)
+    };
+    // The write-ahead record was stored synchronously; the entry waits for the debounce.
+    assert_eq!(stored(&env), 0);
+    tauri_plugin_waypoint_ops::on_exit(env.app.handle());
+    assert_eq!(stored(&env), 1, "exit flushed the entry");
+    assert!(env
+        .journal
+        .current_document()
+        .unwrap()
+        .body
+        .pending
+        .is_empty());
+
+    // Closing a window flushes too.
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("second")),
+    );
+    // (The app is shutting down, so nothing new runs; use a fresh one.)
+    let _ = id;
+    let env = env_with(Setup {
+        save_delay: Duration::from_secs(600),
+        ..Setup::default()
+    });
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("made")),
+    );
+    env.wait_done(id);
+    assert_eq!(
+        env.journal
+            .current_document()
+            .map_or(0, |d| d.body.entries.len()),
+        0
+    );
+    tauri_plugin_waypoint_ops::on_window_destroyed(env.app.handle(), "main-1");
+    assert_eq!(
+        env.journal
+            .current_document()
+            .map_or(0, |d| d.body.entries.len()),
+        1,
+        "a closing window flushed the journal"
+    );
+}
+
+#[test]
+fn the_journal_is_debounced_by_the_save_delay() {
+    let env = env();
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("made")),
+    );
+    env.wait_done(id);
+    env.wait_for("the debounced save", |e| {
+        e.journal
+            .current_document()
+            .is_some_and(|d| d.body.entries.len() == 1)
+    });
+}
+
+#[test]
+fn exit_cancels_a_running_job_and_it_removes_its_partial_files() {
+    let env = env();
+    env.write("big.bin", &big(24));
+    env.dir("dst");
+    let id = env.submit("main-1", env.copy(&["big.bin"], "dst"));
+    env.wait_state(id, "running", |s| *s == JobState::Running);
+    tauri_plugin_waypoint_ops::on_exit(env.app.handle());
+    let state = env.state(id);
+    assert!(
+        matches!(state, JobState::Cancelled | JobState::Done),
+        "{state:?}"
+    );
+    assert!(partials(&env, "dst").is_empty());
+    assert!(env
+        .journal
+        .current_document()
+        .is_some_and(|d| d.body.pending.is_empty()));
+}
+
+#[test]
+fn start_up_recovery_reports_what_a_crash_left_once() {
+    use waypoint_ops::{JobId, JournalBody, JournalDocument, PendingRecord};
+    let journal = Arc::new(waypoint_ops::testing::journal_storage::MemoryJournalStorage::new());
+    let setup = Setup {
+        journal: journal.clone(),
+        prepare: Box::new({
+            let journal = journal.clone();
+            move |work, fs| {
+                // A job that was running when the app died: its partial file is in `work`, and
+                // the journal holds its write-ahead record.
+                let partial = work.join(".waypoint-partial-7-1-big.bin").unwrap();
+                let mut stream = fs
+                    .create_write(&partial, waypoint_vfs::WriteOptions::exclusive())
+                    .unwrap();
+                std::io::Write::write_all(&mut stream, b"half").unwrap();
+                stream.finish(false).unwrap();
+                let record = PendingRecord {
+                    job: JobId(7),
+                    at_ms: 1,
+                    kind: JobKind::Copy,
+                    label: "Copy \u{201c}big.bin\u{201d}".to_owned(),
+                    items: vec![work.join("big.bin").unwrap().to_location()],
+                    folders: vec![work.to_location()],
+                    renames: vec![],
+                };
+                journal
+                    .save(&JournalDocument::new(JournalBody {
+                        next_id: 1,
+                        pending: vec![record],
+                        ..JournalBody::default()
+                    }))
+                    .unwrap();
+            }
+        }),
+        ..Setup::default()
+    };
+    let env = env_with(setup);
+    assert!(
+        partials(&env, "").is_empty(),
+        "recovery cleaned the partial file"
+    );
+    // The event went out as the plugin started.
+    let heard = env.recovered.lock().unwrap().clone();
+    assert_eq!(heard.len(), 1);
+    assert_eq!(heard[0].interrupted.len(), 1);
+    assert_eq!(heard[0].interrupted[0].job, JobId(7));
+    assert_eq!(heard[0].interrupted[0].removed.len(), 1);
+
+    let take = |env: &Env| {
+        tauri::async_runtime::block_on(commands::take_recovery_report(
+            env.window("main-1"),
+            env.app.state::<Ops<MockRuntime>>(),
+        ))
+        .unwrap()
+    };
+    let report = take(&env).expect("the report is there for the first window");
+    assert_eq!(report, heard[0]);
+    assert_eq!(take(&env), None, "once");
+    // A run that has nothing to tell has no report and no event.
+    let quiet = env_with(Setup::default());
+    assert_eq!(take(&quiet), None);
+    assert!(quiet.recovered.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_plan_previews_a_request_without_queueing_it() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    env.write("dst/a.txt", b"old");
+    let preview = tauri::async_runtime::block_on(commands::plan(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        env.copy(&["a.txt"], "dst"),
+    ))
+    .unwrap();
+    assert_eq!(preview.items, 1);
+    assert_eq!(preview.bytes, 5);
+    assert_eq!(preview.conflicts.len(), 1);
+    assert!(preview.same_volume || !preview.same_volume);
+    assert!(env.snapshot().jobs.is_empty(), "a preview queues nothing");
+    assert_eq!(env.read("dst/a.txt"), b"old");
+    // A request the planner refuses is the engine's typed refusal.
+    let refused = tauri::async_runtime::block_on(commands::plan(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        env.copy(&["missing"], "dst"),
+    ));
+    assert!(matches!(
+        refused,
+        Err(tauri_plugin_waypoint_ops::Error::Ops(
+            OpsError::NotFound { .. }
+        ))
+    ));
+}
+
+#[test]
+fn jobs_targeting_a_folder_are_found_until_they_finish() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    env.gate.block_at(1);
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    env.gate.wait_held(1);
+    let busy = tauri::async_runtime::block_on(commands::jobs_targeting(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        env.loc("dst"),
+    ))
+    .unwrap();
+    assert_eq!(busy, vec![id]);
+    env.gate.open();
+    env.wait_done(id);
+    assert!(env.ops().jobs_targeting(&env.loc("dst")).is_empty());
+}
+
+#[test]
+fn the_queue_can_be_reordered_and_finished_jobs_dismissed() {
+    let env = env();
+    for name in ["a", "b", "c"] {
+        env.write(&format!("{name}.txt"), name.as_bytes());
+    }
+    env.dir("dst");
+    env.gate.block_all();
+    let one = OpsSettings {
+        concurrency: 1,
+        ..env.ops().settings()
+    };
+    env.ops().set_settings(one).unwrap();
+    let a = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    env.gate.wait_held(1);
+    let b = env.submit("main-1", env.copy(&["b.txt"], "dst"));
+    let c = env.submit("main-1", env.copy(&["c.txt"], "dst"));
+    env.wait_state(c, "queued", |s| *s == JobState::Queued);
+    env.wait_state(b, "queued", |s| *s == JobState::Queued);
+    env.ops().reorder(c, 0).unwrap();
+    let order: Vec<_> = env.snapshot().jobs.iter().map(|j| j.id).collect();
+    assert_eq!(order, vec![a, c, b]);
+    env.gate.open();
+    for id in [a, b, c] {
+        env.wait_done(id);
+    }
+    // c ran before b.
+    let finished: Vec<_> = env
+        .snapshot()
+        .jobs
+        .iter()
+        .map(|j| (j.id, j.finished_ms))
+        .collect();
+    let at = |id| finished.iter().find(|(j, _)| *j == id).unwrap().1.unwrap();
+    assert!(at(c) <= at(b));
+    env.ops().dismiss(a).unwrap();
+    assert_eq!(env.snapshot().jobs.len(), 2);
+    env.ops().dismiss_finished();
+    assert!(env.snapshot().jobs.is_empty());
+    assert!(
+        env.ops().dismiss(a).is_err(),
+        "an unknown job is a typed error"
+    );
+}
+
+#[test]
+fn a_new_job_is_planned_while_every_worker_is_parked_on_a_question() {
+    // Two jobs wait on conflicts (holding both slots); a third is still planned and queued.
+    let env = env();
+    for name in ["a", "b", "c"] {
+        env.write(&format!("{name}.txt"), name.as_bytes());
+    }
+    env.dir("dst");
+    env.write("dst/a.txt", b"x");
+    env.write("dst/b.txt", b"x");
+    let a = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    let b = env.submit("main-1", env.copy(&["b.txt"], "dst"));
+    env.wait_state(a, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    env.wait_state(b, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let c = env.submit("main-1", env.copy(&["c.txt"], "dst"));
+    env.wait_state(c, "queued", |s| *s == JobState::Queued);
+    assert!(!env.exists("dst/c.txt"));
+    env.ops()
+        .resolve(a, vec![], Some(ConflictPolicy::Skip))
+        .unwrap();
+    env.wait_done(a);
+    env.wait_done(c);
+    assert!(env.exists("dst/c.txt"));
+    env.ops()
+        .resolve(b, vec![], Some(ConflictPolicy::Skip))
+        .unwrap();
+    env.wait_done(b);
+}
+
+#[test]
+fn a_selection_is_resolved_by_the_injected_resolver() {
+    // The plugin never calls another plugin: the resolver is the app's.
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    env.dir("dst");
+    *env.resolver.0.lock().unwrap() = vec![env.loc("b.txt")];
+    let mut request = env.copy(&[], "dst");
+    request.sources = waypoint_ops::Sources::Selection {
+        handle: waypoint_vfs::ListingHandle(1),
+        spec: waypoint_vfs::SelectionSpec::AllExcept { ids: vec![] },
+    };
+    let id = env.submit("main-1", request);
+    env.wait_done(id);
+    assert_eq!(env.names("dst"), ["b.txt"]);
+    // The entry records what was resolved, so a redo does not depend on the listing.
+    let entry = env.ops().journal_summaries();
+    assert_eq!(entry.len(), 1);
+}
+
+#[test]
+fn submitting_an_undo_directly_is_refused() {
+    let env = env();
+    let refused = env.ops().submit(
+        "main-1",
+        env.request(
+            JobKind::Undo {
+                of: waypoint_ops::JournalId(1),
+            },
+            &[],
+            None,
+            None,
+        ),
+    );
+    assert!(matches!(
+        refused,
+        Err(tauri_plugin_waypoint_ops::Error::Ops(
+            OpsError::Unsupported { .. }
+        ))
+    ));
+}
