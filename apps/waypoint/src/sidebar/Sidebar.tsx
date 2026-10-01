@@ -9,6 +9,7 @@ import { t, tf, type MessageId } from '../i18n/messages';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { useNavigation } from '../nav/useNavigation';
 import { useTabActions } from '../tabs/tabActions';
+import { useWindowActions } from '../tabs/windowActions';
 import { FavouriteList } from './FavouriteList';
 import { FolderTree } from './FolderTree';
 import type { ItemActions, ItemMenuRequest } from './itemGestures';
@@ -113,6 +114,12 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const places = usePlaces(placesClient);
 	const navigation = useNavigation();
 	const { openInBackground } = useTabActions();
+	const { openInNewWindow } = useWindowActions();
+	const openInNewTab = useCallback(
+		(location: Location, inNewWindow = false) =>
+			void (inNewWindow ? openInNewWindow(location) : openInBackground(location)),
+		[openInNewWindow, openInBackground],
+	);
 	const { goTo } = navigation;
 	const currentLocation = navigation.tab?.location;
 	const currentUri = currentLocation?.uri;
@@ -124,8 +131,8 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const [announcement, setAnnouncement] = useState('');
 
 	const actions: ItemActions = useMemo(
-		() => ({ open: goTo, openInNewTab: openInBackground, openMenu: setMenu }),
-		[goTo, openInBackground],
+		() => ({ open: goTo, openInNewTab, openMenu: setMenu }),
+		[goTo, openInNewTab],
 	);
 
 	const favourites = useMemo(() => places?.favourites ?? [], [places]);
@@ -157,7 +164,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const menuActions = useMemo(
 		() => ({
 			open: goTo,
-			openInNewTab: openInBackground,
+			openInNewTab,
 			startRename: (location: Location) => setRenaming(location.uri),
 			remove: (location: Location) => void placesClient.removeFavourite(location).catch(fail),
 			move: (location: Location, by: number) => {
@@ -166,7 +173,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 			},
 			add: (location: Location) => void placesClient.addFavourite(location).catch(fail),
 		}),
-		[goTo, openInBackground, placesClient, favourites, move, fail],
+		[goTo, openInNewTab, placesClient, favourites, move, fail],
 	);
 
 	const menuIndex = menu

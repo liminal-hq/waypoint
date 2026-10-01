@@ -11,7 +11,7 @@ import type { ItemMenuRequest } from './itemGestures';
 
 export interface MenuActions {
 	open(location: Location): void;
-	openInNewTab(location: Location): void;
+	openInNewTab(location: Location, inNewWindow?: boolean): void;
 	startRename(location: Location): void;
 	remove(location: Location): void;
 	move(location: Location, by: number): void;
@@ -45,6 +45,7 @@ export function SidebarMenu({
 	const items: MenuItem[] = [
 		{ type: 'action', id: 'open', label: t('menu.open') },
 		{ type: 'action', id: 'openInNewTab', label: t('menu.openInNewTab') },
+		{ type: 'action', id: 'openInNewWindow', label: t('menu.openInNewWindow') },
 	];
 	if (kind === 'favourite') {
 		items.push(
@@ -88,6 +89,8 @@ export function SidebarMenu({
 						return actions.open(location);
 					case 'openInNewTab':
 						return actions.openInNewTab(location);
+					case 'openInNewWindow':
+						return actions.openInNewTab(location, true);
 					case 'rename':
 						return actions.startRename(location);
 					case 'moveUp':

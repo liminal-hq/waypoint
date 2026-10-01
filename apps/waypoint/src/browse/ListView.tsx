@@ -29,7 +29,12 @@ import { mapPosition, isReset } from './patch';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
 import { isSelected, selectedCount } from './selection';
 import { useVfsClient } from './VfsClientContext';
-import { useListInteractions, type MenuRequest, type OpenHandler } from './useListInteractions';
+import {
+	useListInteractions,
+	type MenuRequest,
+	type OpenHandler,
+	type OpenInNewHandler,
+} from './useListInteractions';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
@@ -58,7 +63,7 @@ export function ListView({ location, onOpen }: ListViewProps) {
 interface ListingViewProps {
 	state: SessionState;
 	onOpen?: OpenHandler | undefined;
-	onOpenInNewTab?: OpenHandler | undefined;
+	onOpenInNewTab?: OpenInNewHandler | undefined;
 	/** Right-click, the menu key and Shift+F10. The host renders the menu. */
 	onMenu?: ((request: MenuRequest) => void) | undefined;
 	/** Whether the list announces selection changes itself; a host with a status bar does that. */
@@ -92,7 +97,7 @@ export function ListingView({
 interface ListingBodyProps {
 	session: ListingSession;
 	onOpen: OpenHandler | undefined;
-	onOpenInNewTab: OpenHandler | undefined;
+	onOpenInNewTab: OpenInNewHandler | undefined;
 	onMenu: ((request: MenuRequest) => void) | undefined;
 	announceSelection: boolean;
 }
@@ -357,7 +362,7 @@ function ListingBody({
 									onAuxClick={(event) => {
 										if (event.button === 1 && entry) {
 											event.preventDefault();
-											onOpenInNewTab?.(entry, model.handle);
+											onOpenInNewTab?.(entry, model.handle, event.ctrlKey);
 										}
 									}}
 								>

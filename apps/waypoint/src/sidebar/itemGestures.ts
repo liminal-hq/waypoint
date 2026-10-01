@@ -23,8 +23,8 @@ export interface ItemMenuRequest {
 
 export interface ItemActions {
 	open(location: Location): void;
-	/** Middle-click: the folder opens in a tab beside this one, in the background. */
-	openInNewTab(location: Location): void;
+	/** Middle-click: the folder opens in a tab beside this one, in the background, or in a new window with Ctrl. */
+	openInNewTab(location: Location, inNewWindow?: boolean): void;
 	openMenu(request: ItemMenuRequest): void;
 }
 
@@ -55,7 +55,7 @@ export function itemGestures(
 		onAuxClick: (event) => {
 			if (event.button !== 1) return;
 			event.preventDefault();
-			actions.openInNewTab(item.location);
+			actions.openInNewTab(item.location, event.ctrlKey);
 		},
 		onContextMenu: (event) => {
 			event.preventDefault();

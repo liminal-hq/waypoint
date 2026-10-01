@@ -77,6 +77,24 @@ export const enMessages = {
 	'tabs.scrollLeft': 'Scroll tabs left',
 	'tabs.scrollRight': 'Scroll tabs right',
 	'tabs.moved': 'Moved {title} to position {position} of {count}',
+	'tabs.count.one': '{count} tab',
+	'tabs.count.other': '{count} tabs',
+	'tabs.menu.label': 'Tab actions',
+	'tabs.menu.moveToNewWindow': 'Move to New Window',
+	'tabs.menu.moveToWindow': 'Move to Window',
+	'tabs.menu.windowEntry': '{title} — {tabs}',
+	'tabs.menu.untitledWindow': 'Window',
+	'tabs.announce.movedNewWindow': 'Moved to a new window',
+	'tabs.announce.movedToWindow': 'Moved {name} to {window}',
+	'tabs.announce.movedHere': 'Moved {name} to this window',
+	'tabs.announce.movedManyHere.one': 'Moved {count} tab to this window',
+	'tabs.announce.movedManyHere.other': 'Moved {count} tabs to this window',
+
+	'window.notice.many':
+		'Many windows are open. Each one uses memory, so close the ones you are done with.',
+	'window.notice.limit': 'Waypoint cannot open more than {limit} windows. Close one first.',
+	'window.notice.openFailed': 'Could not open a new window.',
+	'window.notice.moveFailed': 'Could not move the tab.',
 
 	'status.bar.label': 'Status bar',
 	'status.items.one': '{count} item',
@@ -88,6 +106,7 @@ export const enMessages = {
 	'menu.entry.label': 'Item actions',
 	'menu.open': 'Open',
 	'menu.openInNewTab': 'Open in New Tab',
+	'menu.openInNewWindow': 'Open in New Window',
 	'menu.copyPath': 'Copy Path',
 
 	'view.switcher.label': 'View',

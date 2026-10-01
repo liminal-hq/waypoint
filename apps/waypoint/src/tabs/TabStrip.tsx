@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import {
@@ -26,8 +27,10 @@ import {
 	PlusIcon,
 } from '../icons/AppIcons';
 import { useLocationInfo } from '../nav/locationInfo';
+import { announce, useAnnouncement } from './announcer';
 import { dropIndex, shiftFor, type Span } from './reorder';
 import { tabDomId, TAB_PANEL_ID } from './tabIds';
+import { TabContextMenu } from './TabContextMenu';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
 import styles from './TabStrip.module.css';
@@ -43,6 +46,16 @@ interface DragState {
 	dragging: boolean;
 	spans: Span[];
 	to: number;
+}
+
+/** A press of the Menu key may also raise a `contextmenu` event; the second within this long is ignored. */
+const KEYBOARD_MENU_DEBOUNCE_MS = 100;
+
+interface TabMenuState {
+	tab: TabId;
+	position: MenuPosition;
+	keyboard: boolean;
+	returnTo: HTMLElement | null;
 }
 
 export function TabStrip() {
@@ -61,7 +74,9 @@ export function TabStrip() {
 		dragRef.current = next;
 		setDragState(next);
 	};
-	const [announcement, setAnnouncement] = useState('');
+	const announcement = useAnnouncement();
+	const [menu, setMenu] = useState<TabMenuState | null>(null);
+	const lastKeyboardMenu = useRef(0);
 	const suppressClick = useRef(false);
 
 	// A tab made active by any other route (Ctrl+Tab, Alt+digit, a click) takes the focus stop back.
@@ -128,7 +143,7 @@ export function TabStrip() {
 					const target = Math.max(0, Math.min(last, index + delta));
 					if (target !== index) {
 						actions.move(tab.id, target);
-						setAnnouncement(
+						announce(
 							tf('tabs.moved', {
 								title: tab.location.display,
 								position: target + 1,
@@ -151,7 +166,33 @@ export function TabStrip() {
 			case 'Delete':
 				event.preventDefault();
 				return actions.close(tab.id);
+			case 'ContextMenu':
+			case 'F10': {
+				if (event.key === 'F10' && !event.shiftKey) return;
+				event.preventDefault();
+				const rect = event.currentTarget.getBoundingClientRect();
+				lastKeyboardMenu.current = Date.now();
+				setMenu({
+					tab: tab.id,
+					position: { x: rect.left, y: rect.bottom },
+					keyboard: true,
+					returnTo: event.currentTarget as HTMLElement,
+				});
+				return;
+			}
 		}
+	};
+
+	const onTabContextMenu = (event: MouseEvent, tab: TabSnapshot) => {
+		event.preventDefault();
+		// The Menu key can raise a `contextmenu` event as well as the key press; the key's menu stands.
+		if (Date.now() - lastKeyboardMenu.current < KEYBOARD_MENU_DEBOUNCE_MS) return;
+		setMenu({
+			tab: tab.id,
+			position: { x: event.clientX, y: event.clientY },
+			keyboard: false,
+			returnTo: document.getElementById(tabDomId(tab.id)),
+		});
 	};
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>, id: TabId, index: number) => {
@@ -271,6 +312,7 @@ export function TabStrip() {
 									if (event.button === 1) event.preventDefault();
 								}}
 								onAuxClick={(event) => onAuxClick(event, tab.id)}
+								onContextMenu={(event) => onTabContextMenu(event, tab)}
 								onClick={() => onSlotClick(tab.id)}
 							>
 								<TabButton
@@ -317,6 +359,15 @@ export function TabStrip() {
 			<div className={styles.srOnly} role="status" aria-live="polite">
 				{announcement}
 			</div>
+			{menu && tabs.some((tab) => tab.id === menu.tab) ? (
+				<TabContextMenu
+					tab={tabs.find((tab) => tab.id === menu.tab)!}
+					position={menu.position}
+					openedWithKeyboard={menu.keyboard}
+					returnFocusTo={menu.returnTo}
+					onClose={() => setMenu(null)}
+				/>
+			) : null}
 		</div>
 	);
 }

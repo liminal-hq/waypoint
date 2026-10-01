@@ -14,7 +14,7 @@ import type { MenuRequest } from '../browse/useListInteractions';
 import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
-import { followHints } from '../browse/tabHints';
+import { followHints, HINT_INTERVAL_MS } from '../browse/tabHints';
 import { onFlushHints } from '../services/flushHintsEvent';
 import {
 	createViewStore,
@@ -44,7 +44,9 @@ import { ViewSwitcher } from '../status/ViewSwitcher';
 import { TabStrip } from '../tabs/TabStrip';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
+import { onNotice } from '../tabs/notices';
 import { useTabShortcuts } from '../tabs/useTabShortcuts';
+import { useWindowShortcuts } from '../tabs/windowActions';
 import styles from './Workspace.module.css';
 
 const OPENING: SessionState = { status: 'opening' };
@@ -137,6 +139,9 @@ function WorkspaceBody({
 	useSidebarShortcuts(sidebarStore, navigation.tab?.location, pinCurrent);
 	const sidebarOpen = useSidebarState((state) => state.open);
 	useTabShortcuts();
+	useWindowShortcuts();
+	// Messages from code with no route to the status bar (a window that could not open).
+	useEffect(() => onNotice(notify), [notify]);
 	useViewShortcuts(viewStore);
 	const mode = useViewState((view) => view.mode);
 	const gridSize = useViewState((view) => view.gridSize);
@@ -163,8 +168,14 @@ function WorkspaceBody({
 						? { tab, session: state.session, mode: viewStore.getState().mode }
 						: null;
 				},
-				undefined,
-				undefined,
+				HINT_INTERVAL_MS,
+				(tab) => {
+					// Any tab with an open listing, so a tab can report just before it leaves for another window.
+					const state = manager.stateFor(tab);
+					return state?.status === 'ready'
+						? { tab, session: state.session, mode: viewStore.getState().mode }
+						: null;
+				},
 				onFlushHints,
 			),
 		[api, manager, viewStore],
