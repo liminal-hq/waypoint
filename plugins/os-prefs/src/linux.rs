@@ -122,7 +122,18 @@ pub fn watch(changed: UnboundedSender<()>) -> Watcher {
             (guards, Readiness::Signal(ready))
         }
         // This starts a child process whose subscription cannot be observed.
-        Desktop::Cinnamon => (gsettings::watch_cinnamon(changed), Readiness::Unconfirmed),
+        Desktop::Cinnamon => {
+            let guards = gsettings::watch_cinnamon(changed);
+            // No guard means `gsettings monitor` could not start, so nothing is watching.
+            let readiness = if guards.is_empty() {
+                Readiness::Unavailable(
+                    "gsettings monitor could not start; the setting is read on demand".to_string(),
+                )
+            } else {
+                Readiness::Unconfirmed
+            };
+            (guards, readiness)
+        }
         Desktop::Other => (
             Vec::new(),
             Readiness::Unavailable(
