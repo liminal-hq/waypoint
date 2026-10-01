@@ -269,3 +269,7 @@ Peak memory during that run was 1168 MB RSS and 787 MB PSS (Rust process 298 MB 
 - RemoteDesktop keyboard events did not reach the webview in the headless session (no keyboard focus), so Escape during an in-page drag was driven with in-page key events; Escape did cancel a compositor-held window drag.
 - Under GNOME's Mutter a cancelled `xdg-toplevel-drag` logged a critical assertion (`meta_dnd_actor_drag_finish`) and, once, the headless Mutter aborted about 13 s later in its cursor-theme code; it did not recur in later runs and is a compositor-side fault.
 - KDE, native X11 with server-side decorations and macOS were not run.
+
+## Milestone 4: outbound drag and the file clipboard
+
+_Results to be added from the slice 00 spike._
