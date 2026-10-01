@@ -127,6 +127,26 @@ describe('FakeVfsClient selection, space and opening', () => {
 		expect(await client.getFreeSpace(home)).toBeNull();
 	});
 
+	it('checks a folder: a folder is one that can be written to unless marked, a file is not, and a missing path is not found', async () => {
+		const { client } = setup();
+		expect(await client.checkFolder(home)).toEqual({ isFolder: true, writable: true });
+		expect(await client.checkFolder(fileLocation('/home/scott/docs'))).toEqual({
+			isFolder: true,
+			writable: true,
+		});
+		expect(await client.checkFolder(fileLocation('/home/scott/a.txt'))).toEqual({
+			isFolder: false,
+			writable: false,
+		});
+		await expect(client.checkFolder(fileLocation('/home/scott/gone'))).rejects.toMatchObject({
+			kind: 'notFound',
+		});
+		client.setReadOnly(home);
+		expect(await client.checkFolder(home)).toEqual({ isFolder: true, writable: false });
+		client.failOpening(home, { kind: 'permissionDenied', location: home });
+		await expect(client.checkFolder(home)).rejects.toMatchObject({ kind: 'permissionDenied' });
+	});
+
 	it('records the files it opens, and fails like Rust for an unknown entry or on request', async () => {
 		const { client } = setup();
 		const { handle } = await client.openListing(home);

@@ -40,6 +40,7 @@ export function createTauriVfsClient(): VfsClient {
 		entryLocation: (handle, id) => call(vfs.entryLocation(handle, id)),
 		summariseSelection: (handle, selection) => call(vfs.summariseSelection(handle, selection)),
 		getFreeSpace: (location) => call(vfs.getFreeSpace(location)),
+		checkFolder: (location) => call(vfs.checkFolder(location)),
 		openEntry: (handle, id) => call(vfs.openEntry(handle, id)),
 		onListingEvent(listener: (event: ListingEvent) => void): Unsubscribe {
 			let stopped = false;

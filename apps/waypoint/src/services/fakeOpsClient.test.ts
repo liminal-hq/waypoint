@@ -7,7 +7,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { JobState } from '@liminal-hq/waypoint-protocol/generated/JobState';
 import { describe, expect, it } from 'vitest';
-import { createFakeOpsClient, isLegalTransition, LEGAL_TRANSITIONS } from './fakeOpsClient';
+import {
+	createFakeOpsClient,
+	FakeOpsClient,
+	isLegalTransition,
+	LEGAL_TRANSITIONS,
+} from './fakeOpsClient';
+import type { Clipboard } from './opsClient';
 import { request } from '../test/opsHarness';
 import { fileLocation } from './fakeVfsClient';
 
@@ -216,6 +222,32 @@ describe('FakeOpsClient', () => {
 		journal = (await fake.snapshot()).journal;
 		expect(journal.undo?.label).toBe('Copy 1 item');
 		expect(journal.redo).toBeNull();
+	});
+
+	it('keeps a shared clipboard with its source, clears it, and refuses an empty selection', async () => {
+		const fake = new FakeOpsClient({
+			resolveSelection: (_handle, spec) =>
+				spec.ids.map((id) => ({ display: `/a/${id}`, uri: `file:///a/${id}` })),
+		});
+		const heard: Clipboard[] = [];
+		fake.onClipboard((c) => heard.push(c));
+		expect(await fake.getClipboard()).toEqual({
+			mode: 'copy',
+			items: [],
+			source: 'app',
+			revision: 0,
+		});
+		const set = await fake.setClipboardFromSelection(1, { kind: 'some', ids: [7, 8] }, 'cut');
+		expect(set).toMatchObject({ mode: 'cut', source: 'app', revision: 1 });
+		expect(set.items.map((item) => item.uri)).toEqual(['file:///a/7', 'file:///a/8']);
+		const adopted = await fake.setClipboard('copy', set.items, 'os');
+		expect(adopted).toMatchObject({ source: 'os', revision: 2 });
+		await fake.setClipboard('copy', []);
+		expect(heard.map((c) => c.revision)).toEqual([1, 2, 3]);
+		await expect(
+			fake.setClipboardFromSelection(1, { kind: 'some', ids: [] }, 'copy'),
+		).rejects.toMatchObject({ kind: 'ops', error: { kind: 'unsupported' } });
+		expect((await fake.getClipboard()).revision).toBe(3);
 	});
 
 	it('hands over the recovery report once', async () => {

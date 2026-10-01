@@ -23,6 +23,7 @@ const plugin = vi.hoisted(() => ({
 	entryLocation: vi.fn(),
 	summariseSelection: vi.fn(),
 	getFreeSpace: vi.fn(),
+	checkFolder: vi.fn(),
 	openEntry: vi.fn(),
 	onListingEvent: vi.fn(),
 }));
@@ -93,6 +94,15 @@ describe('createTauriVfsClient', () => {
 		expect(await client.getFreeSpace(home)).toBeNull();
 		await client.openEntry(1, 7);
 		expect(plugin.openEntry).toHaveBeenCalledWith(1, 7);
+	});
+
+	it('checks a folder through the plugin and rejects with the typed error', async () => {
+		const client = createTauriVfsClient();
+		plugin.checkFolder.mockResolvedValue({ isFolder: true, writable: false });
+		expect(await client.checkFolder(home)).toEqual({ isFolder: true, writable: false });
+		expect(plugin.checkFolder).toHaveBeenCalledWith(home);
+		plugin.checkFolder.mockRejectedValue({ kind: 'notFound', location: home });
+		await expect(client.checkFolder(home)).rejects.toMatchObject({ kind: 'notFound' });
 	});
 
 	it('rejects navigation failures with the typed error', async () => {

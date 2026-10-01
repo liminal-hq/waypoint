@@ -13,6 +13,7 @@ import type { Progress } from '@liminal-hq/waypoint-protocol/generated/Progress'
 import type {
 	Clipboard,
 	ClipboardMode,
+	ClipboardSource,
 	ConflictPolicy,
 	Decision,
 	JobId,
@@ -20,6 +21,7 @@ import type {
 	JobRequest,
 	JournalEntrySummary,
 	JournalId,
+	ListingHandle,
 	Location,
 	OpsClient,
 	OpsEvent,
@@ -28,6 +30,7 @@ import type {
 	PlanPreview,
 	RecoveryReport,
 	Resolution,
+	SelectionSpec,
 } from './opsClient';
 
 /**
@@ -62,6 +65,14 @@ export interface FakeOpsOptions {
 	autoStart?: boolean;
 	/** The wall clock, in milliseconds. */
 	now?: () => number;
+	/**
+	 * What a selection of a listing covers, which Rust's resolver works out in the app. Without it
+	 * putting a selection on the clipboard is refused.
+	 */
+	resolveSelection?: (
+		handle: ListingHandle,
+		spec: SelectionSpec,
+	) => Location[] | Promise<Location[]>;
 	/** What the planner would find for a request. */
 	totals?: (request: JobRequest) => { items: number; bytes: number };
 }
@@ -108,7 +119,7 @@ export class FakeOpsClient implements OpsClient {
 	private readonly progressListeners = new Set<(progress: JobProgress) => void>();
 	private readonly clipboardListeners = new Set<(clipboard: Clipboard) => void>();
 	private readonly recoveredListeners = new Set<(report: RecoveryReport) => void>();
-	private clipboard: Clipboard = { mode: 'copy', items: [], revision: 0 };
+	private clipboard: Clipboard = { mode: 'copy', items: [], source: 'app', revision: 0 };
 	private settings: OpsSettings = {
 		concurrency: 2,
 		verifyAfterCopy: false,
@@ -119,8 +130,8 @@ export class FakeOpsClient implements OpsClient {
 	};
 	private recovery: RecoveryReport | null = null;
 	private mute = 0;
-	private readonly options: Required<Omit<FakeOpsOptions, 'totals'>> &
-		Pick<FakeOpsOptions, 'totals'>;
+	private readonly options: Required<Omit<FakeOpsOptions, 'totals' | 'resolveSelection'>> &
+		Pick<FakeOpsOptions, 'totals' | 'resolveSelection'>;
 
 	/** Every command the UI sent, in order, for assertions: `[name, ...arguments]`. */
 	readonly calls: unknown[][] = [];
@@ -132,6 +143,7 @@ export class FakeOpsClient implements OpsClient {
 			autoStart: options.autoStart ?? false,
 			now: options.now ?? (() => Date.now()),
 			totals: options.totals,
+			resolveSelection: options.resolveSelection,
 		};
 	}
 
@@ -368,10 +380,31 @@ export class FakeOpsClient implements OpsClient {
 		return structuredClone(this.clipboard);
 	}
 
-	async setClipboard(mode: ClipboardMode, items: Location[]): Promise<Clipboard> {
-		this.clipboard = { mode, items, revision: this.clipboard.revision + 1 };
+	async setClipboard(
+		mode: ClipboardMode,
+		items: Location[],
+		source: ClipboardSource = 'app',
+	): Promise<Clipboard> {
+		this.calls.push(['setClipboard', mode, items, source]);
+		this.clipboard = { mode, items, source, revision: this.clipboard.revision + 1 };
 		this.clipboardListeners.forEach((listener) => listener(structuredClone(this.clipboard)));
 		return structuredClone(this.clipboard);
+	}
+
+	async setClipboardFromSelection(
+		handle: ListingHandle,
+		spec: SelectionSpec,
+		mode: ClipboardMode,
+	): Promise<Clipboard> {
+		this.calls.push(['setClipboardFromSelection', handle, spec, mode]);
+		const items = (await this.options.resolveSelection?.(handle, spec)) ?? [];
+		if (items.length === 0) {
+			throw refusal('copying an empty selection', 'ops', {
+				kind: 'unsupported',
+				what: 'copying an empty selection',
+			});
+		}
+		return this.setClipboard(mode, items, 'app');
 	}
 
 	async getSettings(): Promise<OpsSettings> {

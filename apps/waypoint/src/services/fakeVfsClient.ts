@@ -8,6 +8,7 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { EntryKind } from '@liminal-hq/waypoint-protocol/generated/EntryKind';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
+import type { FolderCheck } from '@liminal-hq/waypoint-protocol/generated/FolderCheck';
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
@@ -406,6 +407,22 @@ export class FakeVfsClient implements VfsClient {
 		return this.options.freeSpace === undefined
 			? { freeBytes: 120_000_000_000, totalBytes: 500_000_000_000 }
 			: this.options.freeSpace;
+	}
+
+	async checkFolder(location: Location): Promise<FolderCheck> {
+		await this.delay();
+		const failure = this.failures.get(location.uri);
+		if (failure) throw failure;
+		const writable = !this.trashes.has(location.uri) && !this.readOnly.has(location.uri);
+		if (this.folders.has(location.uri)) return { isFolder: true, writable };
+		// Not a folder this client knows: it may be a file in one that it does.
+		const path = pathOf(location);
+		const cut = path.lastIndexOf('/');
+		const parent = this.folders.get(fileLocation(cut <= 0 ? '/' : path.slice(0, cut)).uri);
+		const entry = parent?.find((candidate) => candidate.name === path.slice(cut + 1));
+		if (!entry) throw { kind: 'notFound', location } satisfies VfsError;
+		const folder = entry.kind === 'directory' || entry.linkTarget === 'directory';
+		return { isFolder: folder, writable: folder && writable };
 	}
 
 	async openEntry(handle: ListingHandle, id: EntryId): Promise<void> {

@@ -6,6 +6,7 @@
 import type {
 	Clipboard,
 	ClipboardMode,
+	ClipboardSource,
 	ConflictPolicy,
 	Decision,
 	JobId,
@@ -13,6 +14,7 @@ import type {
 	JobRequest,
 	JournalEntrySummary,
 	JournalId,
+	ListingHandle,
 	Location,
 	OpsCommandError,
 	OpsEvent,
@@ -21,12 +23,14 @@ import type {
 	PlanPreview,
 	RecoveryReport,
 	Resolution,
+	SelectionSpec,
 } from '@liminal-hq/waypoint-plugin-ops';
 import type { Unsubscribe } from './vfsClient';
 
 export type {
 	Clipboard,
 	ClipboardMode,
+	ClipboardSource,
 	ConflictPolicy,
 	Decision,
 	JobId,
@@ -34,6 +38,7 @@ export type {
 	JobRequest,
 	JournalEntrySummary,
 	JournalId,
+	ListingHandle,
 	Location,
 	OpsCommandError,
 	OpsEvent,
@@ -42,6 +47,7 @@ export type {
 	PlanPreview,
 	RecoveryReport,
 	Resolution,
+	SelectionSpec,
 };
 
 /**
@@ -82,7 +88,18 @@ export interface OpsClient {
 	subscribeProgress(listener: (progress: JobProgress) => void): Promise<() => void>;
 
 	getClipboard(): Promise<Clipboard>;
-	setClipboard(mode: ClipboardMode, items: Location[]): Promise<Clipboard>;
+	/** Replaces the shared clipboard; an empty list clears it. `source` is `app` when omitted. */
+	setClipboard(
+		mode: ClipboardMode,
+		items: Location[],
+		source?: ClipboardSource,
+	): Promise<Clipboard>;
+	/** Puts what a selection of a listing this window opened covers on the clipboard; Rust resolves the locations. */
+	setClipboardFromSelection(
+		handle: ListingHandle,
+		spec: SelectionSpec,
+		mode: ClipboardMode,
+	): Promise<Clipboard>;
 	getSettings(): Promise<OpsSettings>;
 	setSettings(settings: OpsSettings): Promise<OpsSettings>;
 	/** What start-up recovery found, once; `null` when there was nothing to tell and after the first call. */
