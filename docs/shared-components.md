@@ -56,7 +56,7 @@ Every row is a `SettingsRow`: `label`, `description?`, `disabled?`, `unavailable
 | `ButtonRow`    | one action button (the label describes it)  | `actionLabel`, `onAction`, `danger?`                                               |
 | `LinkRow`      | the whole row is a link with a chevron      | `href`, `onActivate?` (cancels navigation so the app can open it), no control slot |
 
-`NumberRow` reports in-range edits as they are typed and clamps anything else when the field loses focus or Enter is pressed; an empty field reverts.
+`NumberRow` reports in-range edits as they are typed and clamps anything else when the field loses focus or Enter is pressed; an empty field reverts. With `commitOn="commit"` it reports nothing until the field is left or Enter is pressed, for a setting that must not take the half-typed values on the way to the one meant. Any row takes `error`: the app's sentence for a refused change, shown under the description as an `alert` that the control's accessible description includes, with number and select fields marked `aria-invalid` while it shows.
 
 ### Dialog
 
