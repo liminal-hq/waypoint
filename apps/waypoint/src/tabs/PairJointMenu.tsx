@@ -6,10 +6,13 @@
 import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import { useEffect, useState } from 'react';
 import { t } from '../i18n/messages';
 import { usePairActions } from './pairActions';
 import { pairJointItems, runPairMenuItem } from './pairMenus';
 import { useTabsSnapshot } from './TabsContext';
+import { useWindowActions } from './windowActions';
 
 interface PairJointMenuProps {
 	pair: Pair;
@@ -24,12 +27,25 @@ interface PairJointMenuProps {
 export function PairJointMenu({ pair, ...rest }: PairJointMenuProps) {
 	const actions = usePairActions();
 	const tabs = useTabsSnapshot()?.tabs ?? [];
+	const windows = useWindowActions();
+	const [others, setOthers] = useState<WindowSummary[] | null>(null);
+	// The other windows are read fresh when the menu opens: they come and go unheard.
+	useEffect(() => {
+		let current = true;
+		void windows.otherWindows().then((list) => {
+			if (current) setOthers(list);
+		});
+		return () => {
+			current = false;
+		};
+	}, [windows]);
+	if (others === null) return null;
 	return (
 		<ContextMenu
 			{...rest}
 			ariaLabel={t('pair.menu.label')}
-			items={pairJointItems(pair, tabs)}
-			onSelect={(item) => runPairMenuItem(item, { actions, pair })}
+			items={pairJointItems(pair, tabs, [], others)}
+			onSelect={(item) => runPairMenuItem(item, { actions, pair, others })}
 		/>
 	);
 }

@@ -344,6 +344,7 @@ describe('the joint menu', () => {
 			'Colour',
 			'Duplicate Split',
 			'Move to New Window',
+			'Move to Window',
 			'Close Both',
 		]);
 		expect(screen.queryByRole('menuitem', { name: /Sync Navigation|Compare Folders/ })).toBeNull();
@@ -459,9 +460,7 @@ describe('the joint menu', () => {
 	it('says so, and changes nothing, when the new window cannot be made', async () => {
 		const h = await renderWorkspace();
 		await joined(h);
-		const move = vi
-			.spyOn(h.tabs, 'moveTabs')
-			.mockRejectedValue('could not create the window: creating windows is not available yet');
+		const move = vi.spyOn(h.tabs, 'moveTabs').mockRejectedValue('could not create the window');
 		vi.spyOn(console, 'warn').mockImplementation(() => {});
 		await openJointMenu();
 		fireEvent.click(await item('Move to New Window'));
@@ -471,10 +470,39 @@ describe('the joint menu', () => {
 				{ kind: 'newWindow', label: null, geometry: null },
 			),
 		);
-		expect(
-			await screen.findByText('The split could not be moved to a new window.'),
-		).toBeInTheDocument();
+		expect(await screen.findByRole('alert')).toHaveTextContent('Could not move the tab.');
 		expect((await snapshot(h)).pairs).toHaveLength(1);
+	});
+
+	it('moves the pair to a new window and says so', async () => {
+		const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
+		const h = await renderWorkspace(undefined, new FakeTabsApi(store, 'main-1'));
+		await h.tabs.openTab(MUSIC);
+		await joined(h);
+		await openJointMenu();
+		fireEvent.click(await item('Move to New Window'));
+		await waitFor(() => expect(store.windowLabels()).toEqual(['main-1', 'main-2']));
+		expect(store.window('main-2')!.pairs).toHaveLength(1);
+		expect(store.window('main-2')!.pairs[0]!.panes).toEqual([1, 2]);
+		expect(store.closed()).toEqual([]);
+		await waitFor(() => expect(live()).toHaveTextContent('Moved test and music to a new window'));
+	});
+
+	it('moves the pair to another window, keeping it a pair, and says so', async () => {
+		const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
+		const h = await renderWorkspace(undefined, new FakeTabsApi(store, 'main-1'));
+		await h.tabs.openTab(MUSIC);
+		await joined(h);
+		const other = new FakeTabsApi(store, 'main-2');
+		await other.openTab(DOCS);
+		await openJointMenu();
+		fireEvent.click(await item('Move to Window'));
+		fireEvent.click(await screen.findByRole('menuitem', { name: /— 1 tab$/ }));
+		await waitFor(() => expect(store.window('main-2')!.pairs).toHaveLength(1));
+		expect(store.window('main-2')!.tabs).toHaveLength(3);
+		expect(store.window('main-1')!.pairs).toEqual([]);
+		expect(store.closed()).toEqual([]);
+		await waitFor(() => expect(live()).toHaveTextContent('Moved test and music to'));
 	});
 });
 

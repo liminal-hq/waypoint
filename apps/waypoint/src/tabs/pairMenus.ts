@@ -8,11 +8,13 @@ import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { PairLayout } from '@liminal-hq/waypoint-protocol/generated/PairLayout';
 import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { createElement } from 'react';
 import { t } from '../i18n/messages';
 import type { PairActions } from './pairActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
 import { TabColourSwatch } from './TabColourSwatch';
+import { runWindowMoveChoice, windowMoveItems } from './windowMoveMenu';
 import { locationLabel } from './tabTitle';
 
 const PAIR_PREFIX = 'pair:';
@@ -59,6 +61,7 @@ export function pairJointItems(
 	pair: Pair,
 	tabs: readonly TabSnapshot[],
 	groupItems: MenuItem[] = [],
+	others: readonly WindowSummary[] = [],
 ): MenuItem[] {
 	const lead = tabs.find((tab) => tab.id === pair.panes[0]);
 	const colour = sharedColour(pair, tabs);
@@ -97,7 +100,10 @@ export function pairJointItems(
 		...groupItems,
 		{ type: 'separator', id: 'sep-pair-copy' },
 		{ type: 'action', id: 'pair:duplicate', label: t('pair.menu.duplicate') },
-		{ type: 'action', id: 'pair:moveToNewWindow', label: t('pair.menu.moveToNewWindow') },
+		...windowMoveItems(others, {
+			newWindow: t('pair.menu.moveToNewWindow'),
+			toWindow: t('pair.menu.moveToWindow'),
+		}),
 		{ type: 'separator', id: 'sep-pair-close' },
 		{ type: 'action', id: 'pair:closeBoth', label: t('pair.menu.closeBoth') },
 	];
@@ -158,6 +164,8 @@ function colourFrom(name: string): TabColour | null {
 interface RunContext {
 	actions: PairActions;
 	pair: Pair | undefined;
+	/** The other windows the pair can move to (the joint menu's Move to Window items). */
+	others?: readonly WindowSummary[];
 	/** The tab the menu was opened on, when it was a tab's menu. */
 	tab?: TabSnapshot;
 }
@@ -165,8 +173,19 @@ interface RunContext {
 /** Runs a pair item; false when `item` is not one, so the tab menu handles it. */
 export function runPairMenuItem(
 	item: SelectableMenuItem,
-	{ actions, pair, tab }: RunContext,
+	{ actions, pair, tab, others = [] }: RunContext,
 ): boolean {
+	// Only the joint menu carries window items; the tab menu's own move one tab.
+	if (
+		pair &&
+		!tab &&
+		runWindowMoveChoice(item, others, {
+			toNewWindow: () => actions.moveToNewWindow(pair),
+			toWindow: (target) => actions.moveToWindow(pair, target),
+		})
+	) {
+		return true;
+	}
 	if (item.id.startsWith(SPLIT_WITH_PREFIX)) {
 		const other = Number(item.id.slice(SPLIT_WITH_PREFIX.length));
 		if (tab) actions.splitWith(tab.id, other);
@@ -208,9 +227,6 @@ export function runPairMenuItem(
 			break;
 		case 'pair:duplicate':
 			actions.duplicate(pair);
-			break;
-		case 'pair:moveToNewWindow':
-			actions.moveToNewWindow(pair);
 			break;
 		case 'pair:closeBoth':
 			actions.closeBoth(pair);

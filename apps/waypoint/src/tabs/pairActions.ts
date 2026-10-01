@@ -8,6 +8,7 @@ import type { PairLayout } from '@liminal-hq/waypoint-protocol/generated/PairLay
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { useMemo } from 'react';
 import { showNotice } from '../app/notices';
 import { t, tf } from '../i18n/messages';
@@ -19,6 +20,7 @@ import { requestPaneFocus } from './paneFocus';
 import type { TabActions } from './tabActions';
 import { useTabActions } from './tabActions';
 import { useTabsApi, useTabsSnapshot } from './TabsContext';
+import { useWindowActions, type MoveSpeech, type WindowActions } from './windowActions';
 import { locationLabel } from './tabTitle';
 
 export interface PairActions {
@@ -41,6 +43,8 @@ export interface PairActions {
 	/** Opens a copy of each pane after the pair and joins the copies. */
 	duplicate(pair: Pair): void;
 	moveToNewWindow(pair: Pair): void;
+	/** Hands the pair to the end of another window's strip. */
+	moveToWindow(pair: Pair, target: WindowSummary): void;
 	/** Closes one pane's tab; the pair separates and the other pane stays as a single tab. */
 	closePane(tab: TabId): void;
 	closeBoth(pair: Pair): void;
@@ -56,6 +60,7 @@ export function createPairActions(
 	api: TabsApi,
 	snapshot: SessionSnapshot | null,
 	tabActions: Pick<TabActions, 'close' | 'activate'>,
+	windows: Pick<WindowActions, 'moveMany'>,
 ): PairActions {
 	const tabs = snapshot?.tabs ?? [];
 	const pairs = snapshot?.pairs ?? [];
@@ -65,6 +70,16 @@ export function createPairActions(
 		return tab ? locationLabel(tab.location) : '';
 	};
 	const sentence = (pair: Pair) => pair.panes.map(title);
+	const pairSpeech = (pair: Pair): MoveSpeech => ({
+		newWindow: tf('pair.announce.movedWindow', {
+			titles: sentence(pair).join(` ${t('pair.and')} `),
+		}),
+		toWindow: (window) =>
+			tf('pair.announce.movedToWindow', {
+				titles: sentence(pair).join(` ${t('pair.and')} `),
+				window,
+			}),
+	});
 
 	/** Reopens the closed pane and joins it back with the pane it was split from. */
 	const undoClose = async (before: Pair, created: TabId) => {
@@ -83,14 +98,12 @@ export function createPairActions(
 	};
 
 	const closeCreatedPane = async (pair: Pair, created: TabId) => {
-		const keep = pair.panes.find((pane) => pane !== created);
-		if (keep === undefined) return;
-		// The pane is closed as a tab, so it lands in Recently Closed with its history; the other
-		// pane takes over first so the session does not pick a neighbour to activate.
-		if (snapshot?.active !== keep) await api.activateTab(keep);
+		// The store closes the pane the toggle made, records it in Recently Closed with its history
+		// and leaves the other pane active when this one was.
 		const paneTitle = title(created);
-		await api.closeTab(created);
-		requestPaneFocus(keep);
+		await api.toggleSplit(created);
+		const keep = pair.panes.find((pane) => pane !== created);
+		if (keep !== undefined) requestPaneFocus(keep);
 		showNotice(tf('pair.announce.closedPane', { title: paneTitle }), {
 			label: t('notice.undo'),
 			run: () => run(undoClose(pair, created)),
@@ -214,19 +227,9 @@ export function createPairActions(
 				})(),
 			),
 		moveToNewWindow: (pair) =>
-			run(
-				api
-					.moveTabs(
-						{ kind: 'pair', value: pair.id },
-						{ kind: 'newWindow', label: null, geometry: null },
-					)
-					.catch((error: unknown) => {
-						// The window factory arrives with the tear-off slices; until then Rust answers with a typed error.
-						report(error);
-						// The toast is a live region, so it is also what is announced.
-						showNotice(t('pair.moveFailed'));
-					}),
-			),
+			void windows.moveMany({ kind: 'pair', value: pair.id }, pair.panes, null, pairSpeech(pair)),
+		moveToWindow: (pair, target) =>
+			void windows.moveMany({ kind: 'pair', value: pair.id }, pair.panes, target, pairSpeech(pair)),
 		closePane: (tab) => {
 			const pair = pairOfTab(pairs, tab);
 			// D29 (ask first when the other pane is the target of a running operation) waits for the
@@ -266,5 +269,9 @@ export function usePairActions(): PairActions {
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const tabActions = useTabActions();
-	return useMemo(() => createPairActions(api, snapshot, tabActions), [api, snapshot, tabActions]);
+	const windows = useWindowActions();
+	return useMemo(
+		() => createPairActions(api, snapshot, tabActions, windows),
+		[api, snapshot, tabActions, windows],
+	);
 }
