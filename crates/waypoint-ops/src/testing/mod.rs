@@ -7,6 +7,8 @@
 
 pub mod faulty;
 pub mod harness;
+pub mod journal_harness;
+pub mod journal_storage;
 pub mod sandbox;
 pub mod transfer;
 pub mod trash;

@@ -148,6 +148,10 @@ impl Trash for FakeTrash {
         Ok(removed)
     }
 
+    fn contains(&self, receipt: &TrashReceipt) -> Result<bool, OpsError> {
+        Ok(self.entries.lock().unwrap().contains_key(&receipt.id))
+    }
+
     fn receipt_for(&self, trashed: &Location) -> Result<TrashReceipt, OpsError> {
         self.entries
             .lock()

@@ -132,6 +132,9 @@ struct State {
     per_op: HashMap<Op, usize>,
     total: usize,
     writes: usize,
+    /// From this call on, every call fails (not with a retryable error, which a copy loop would
+    /// spin on forever): the process died here.
+    crashed_from: Option<usize>,
     /// Paths to remove at the next call on the provider itself (a stream cannot reach it).
     deferred: Vec<VfsPath>,
     /// The reads (counted from 1, over all streams) whose first byte is flipped.
@@ -178,6 +181,9 @@ impl Shared {
             .iter()
             .find(|(o, _, applies)| *o == op && applies(path))
             .map(|(_, kind, _)| kind.error(path));
+        if state.crashed_from.is_some_and(|from| total >= from) {
+            failure = Some(FaultKind::PermissionDenied.error(path));
+        }
         for rule in &mut state.rules {
             if rule.fired {
                 continue;
@@ -242,6 +248,19 @@ impl<P: Provider> FaultyProvider<P> {
     /// Fails the nth call of any kind (1 is the first) with `kind`.
     pub fn fail_at(&self, n: usize, kind: FaultKind) {
         self.add(Trigger::Global(n), Action::Fail(kind));
+    }
+
+    /// Simulates the process dying at the nth call of any kind: that call and every later one
+    /// fail, so nothing after it runs, not even the cleanup a failure would do. `reset` is the
+    /// restart.
+    pub fn crash_at(&self, n: usize) {
+        self.shared.lock().crashed_from = Some(n);
+    }
+
+    /// Whether a `crash_at` call has been reached.
+    pub fn is_crashed(&self) -> bool {
+        let state = self.shared.lock();
+        state.crashed_from.is_some_and(|from| state.total >= from)
     }
 
     /// Flips `token` at the nth call of any kind; that call and the ones after go on as normal.

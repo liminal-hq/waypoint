@@ -12,12 +12,13 @@ publish = false
 [features]
 # `FaultyProvider`, `SandboxProvider`, `FakeTrash` and the other fixtures, for tests of this crate
 # and of the plugin built on it.
-testing = ["waypoint-vfs/testing"]
+testing = ["waypoint-vfs/testing", "dep:serde_json"]
 
 [dependencies]
 blake3 = "1"
 serde = { workspace = true }
 sha2 = "0.10"
+serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 waypoint-path = { path = "../waypoint-path" }
