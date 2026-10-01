@@ -113,7 +113,7 @@ export class FakeOpsClient implements OpsClient {
 		concurrency: 2,
 		verifyAfterCopy: false,
 		verifyAlgorithm: 'blake3',
-		confirmTrash: true,
+		confirmTrash: false,
 		undoDepth: 50,
 		trashExpiryDays: null,
 	};
@@ -565,6 +565,10 @@ export class FakeOpsClient implements OpsClient {
 	}
 
 	private summarise(request: JobRequest): JobSnapshot['sources'] {
+		// A create has no source; the planner reports the name it made, which the fake takes as asked.
+		if (request.kind.kind === 'createFolder' || request.kind.kind === 'createFile') {
+			return { count: 0, first: request.name };
+		}
 		if (request.sources.kind === 'locations') {
 			const first = request.sources.locations[0];
 			return {

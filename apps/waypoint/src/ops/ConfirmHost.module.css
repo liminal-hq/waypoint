@@ -1,0 +1,28 @@
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.message {
+	display: block;
+}
+
+.items {
+	margin: 0;
+	padding: 6px 10px;
+	list-style: none;
+	background: var(--wp-bg-window);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+}
+
+.item {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.note {
+	color: var(--wp-text-secondary);
+}

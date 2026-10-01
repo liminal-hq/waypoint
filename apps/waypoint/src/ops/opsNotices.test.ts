@@ -9,7 +9,8 @@ import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import type { RecoveryReport } from '../services/opsClient';
 import { request } from '../test/opsHarness';
-import { recoveryText, runUndo, showRecoveryNotice, startUndoNotices } from './opsNotices';
+import { recoveryText, runRedo, runUndo, showRecoveryNotice, startUndoNotices } from './opsNotices';
+import { errorText } from './jobText';
 import { createOpsStore } from './opsStore';
 
 type Shown = { text: string; action?: NoticeAction };
@@ -90,6 +91,70 @@ describe('the undo toast', () => {
 		const { handle, shown, show } = await setup();
 		expect(await runUndo(handle, show)).toBeNull();
 		expect(shown[0]!.text).toBe('Could not undo: There is nothing to undo');
+	});
+});
+
+describe('a refused undo or redo', () => {
+	const gone = fileLocation('/home/a/report.pdf');
+	// The fake starts undo and redo jobs as the label 'fake'; the real plugin stamps the asking window's.
+
+	it('says why in plain words when the undo job fails because the files changed', async () => {
+		const { fake, handle, shown, show } = await setup();
+		startUndoNotices(handle, { windowLabel: 'fake', show });
+		const first = await fake.submit(request());
+		fake.start(first);
+		fake.done(first, 'Move “report.pdf” to Trash');
+		shown.length = 0;
+		const undo = await fake.undo();
+		fake.start(undo);
+		fake.fail(undo, { kind: 'undoStale', location: gone, reason: 'trashEmptied' });
+		expect(shown.map((n) => n.text)).toEqual([
+			'Could not undo: report.pdf is no longer in the Trash',
+		]);
+	});
+
+	it('words each reason, and says "redo" for a redo', async () => {
+		const { fake, handle, shown, show } = await setup();
+		startUndoNotices(handle, { windowLabel: 'fake', show });
+		const first = await fake.submit(request());
+		fake.start(first);
+		fake.done(first, 'Rename');
+		const undo = await fake.undo();
+		fake.start(undo);
+		fake.done(undo);
+		const redo = await fake.redo();
+		fake.start(redo);
+		fake.fail(redo, { kind: 'undoStale', location: gone, reason: 'nameTaken' });
+		expect(shown.at(-1)!.text).toBe(
+			'Could not redo: something else now has the name report.pdf had',
+		);
+		expect(errorText({ kind: 'undoStale', location: gone, reason: 'missing' })).toBe(
+			'report.pdf is no longer where it was',
+		);
+		expect(errorText({ kind: 'undoStale', location: gone, reason: 'changed' })).toBe(
+			'report.pdf has been changed since',
+		);
+		expect(errorText({ kind: 'undoStale', location: gone, reason: 'unverified' })).toBe(
+			'report.pdf could not be checked, so it was left alone',
+		);
+	});
+
+	it('says nothing for an undo another window started', async () => {
+		const { fake, handle, shown, show } = await setup();
+		startUndoNotices(handle, { windowLabel: 'main-2', show });
+		const first = await fake.submit(request());
+		fake.start(first);
+		fake.done(first, 'Rename');
+		const undo = await fake.undo();
+		fake.start(undo);
+		fake.fail(undo, { kind: 'undoStale', location: gone, reason: 'missing' });
+		expect(shown).toEqual([]);
+	});
+
+	it('says why a redo with nothing to redo was refused', async () => {
+		const { handle, shown, show } = await setup();
+		expect(await runRedo(handle, show)).toBeNull();
+		expect(shown[0]!.text).toBe('Could not redo: There is nothing to undo');
 	});
 });
 

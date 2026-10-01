@@ -246,3 +246,34 @@ export const CloseToRightIcon = (props: IconProps) => (
 		<path d="M2.5 8h7M7 5.5L9.5 8 7 10.5M13 3v10" />
 	</Glyph>
 );
+
+export const RedoIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M10.5 3l3 3-3 3M13.5 6h-7a3.5 3.5 0 0 0 0 7H10" />
+	</Glyph>
+);
+
+export const NewFolderIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 13V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1V13a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 2 13zM8 7.5v4M6 9.5h4" />
+	</Glyph>
+);
+
+export const NewFileIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M9.5 2.5h-5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-7zM9.5 2.5v3h3M8 7.5v4M6 9.5h4" />
+	</Glyph>
+);
+
+export const DuplicateIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
+		<path d="M9.5 8v3.5M7.75 9.75h3.5M10.5 5.5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v5.5a1 1 0 0 0 1 1h1.5" />
+	</Glyph>
+);
+
+export const DeleteForeverIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2.5 4.5h11M6 4.5V3h4v1.5M3.8 4.5l.7 8.5a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.7-8.5M6.5 7.5l3 3M9.5 7.5l-3 3" />
+	</Glyph>
+);

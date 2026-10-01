@@ -66,7 +66,7 @@ export async function runRedo(handle: OpsHandle, show: Show = showNotice, entry?
 	try {
 		return await handle.redo(entry);
 	} catch (error) {
-		show(tf('ops.undo.failed', { reason: commandErrorText(error) }));
+		show(tf('ops.redo.failed', { reason: commandErrorText(error) }));
 		return null;
 	}
 }
@@ -78,7 +78,7 @@ export interface UndoNoticeOptions {
 }
 
 /**
- * Shows "Copied 3 items" with an Undo button when a job this window started ends and the journal
+ * A refused undo or redo job this window started shows why. Shows "Copied 3 items" with an Undo button when a job this window started ends and the journal
  * holds an entry for it (the job's `undoable`, which the plugin sets once the entry is committed).
  * Jobs already finished when it starts, and those that end in any other way, get none. Returns what
  * stops it.
@@ -99,6 +99,17 @@ export function startUndoNotices(handle: OpsHandle, options: UndoNoticeOptions):
 			const kind = job.kind.kind;
 			if (kind === 'undo' || kind === 'redo') {
 				if (job.state.state === 'done') noticed.add(job.id);
+				else if (job.state.state === 'failed') {
+					// A refused undo (the files changed since) says why, in plain words, and nowhere else would.
+					noticed.add(job.id);
+					if (job.originWindow === options.windowLabel) {
+						show(
+							tf(kind === 'undo' ? 'ops.undo.failed' : 'ops.redo.failed', {
+								reason: errorText(job.state.error),
+							}),
+						);
+					}
+				}
 				continue;
 			}
 			if (job.state.state === 'done' && job.undoable) {

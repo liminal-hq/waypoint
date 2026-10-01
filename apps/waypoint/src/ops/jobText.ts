@@ -13,6 +13,9 @@ import { isFinished, jobFraction, type JobWithProgress } from './opsSelectors';
 /** The kinds this area words itself; the others show the title Rust made. */
 const WORDED = new Set(['copy', 'move', 'link', 'trash', 'delete', 'duplicate', 'restore']);
 
+/** Kinds that act on one entry and are worded only by its name (a create has no source, so `first` is what it made). */
+const NAMED_ONLY = new Set(['createFolder', 'createFile', 'rename']);
+
 export type JobAction =
 	'pause' | 'resume' | 'cancel' | 'retry' | 'dismiss' | 'resolve' | 'showInFolder';
 
@@ -55,8 +58,11 @@ function sourcesText(job: JobSnapshot): string {
 
 function wordedTitle(prefix: 'ops.title' | 'ops.done', job: JobSnapshot): string | null {
 	const kind = job.kind.kind;
-	if (!WORDED.has(kind)) return null;
 	const { count, first } = job.sources;
+	if (NAMED_ONLY.has(kind)) {
+		return first ? tf(`${prefix}.${kind}.named` as MessageId, { name: first }) : null;
+	}
+	if (!WORDED.has(kind)) return null;
 	if (count === 1 && first) return tf(`${prefix}.${kind}.named` as MessageId, { name: first });
 	if (count !== null) return tn(`${prefix}.${kind}` as PluralId, count);
 	return null;
@@ -82,8 +88,11 @@ export function errorText(error: OpsError): string {
 		case 'changedSince':
 		case 'verifyFailed':
 		case 'cannotReplace':
-		case 'undoStale':
 			return tf(key, { name: baseName(error.location.display) });
+		case 'undoStale':
+			return tf(`ops.error.undoStale.${error.reason}` as MessageId, {
+				name: baseName(error.location.display),
+			});
 		case 'invalidName':
 			return tf(key, { name: error.name });
 		default:

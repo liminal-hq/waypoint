@@ -16,6 +16,43 @@ const views = (fake: ReturnType<typeof createFakeOpsClient>, canShow = true) =>
 		canShow,
 	);
 
+describe('the words for creating and renaming', () => {
+	it('name what was made, and what was renamed, because a create has no source', async () => {
+		const fake = createFakeOpsClient();
+		const where = fileLocation('/home/a');
+		await fake.submit({
+			kind: { kind: 'createFolder' },
+			sources: { kind: 'locations', locations: [] },
+			destination: where,
+			name: 'untitled folder',
+			options: { conflict: 'keepBoth', verify: null },
+			originWindow: 'main-1',
+		});
+		await fake.submit({
+			kind: { kind: 'createFile' },
+			sources: { kind: 'locations', locations: [] },
+			destination: where,
+			name: 'untitled file',
+			options: { conflict: 'keepBoth', verify: null },
+			originWindow: 'main-1',
+		});
+		await fake.submit({
+			kind: { kind: 'rename' },
+			sources: { kind: 'locations', locations: [fileLocation('/home/a/old.txt')] },
+			destination: null,
+			name: 'new.txt',
+			options: { conflict: null, verify: null },
+			originWindow: 'main-1',
+		});
+		const [folder, file, rename] = fake.jobs();
+		expect(jobTitle(folder!)).toBe('Creating folder untitled folder');
+		expect(jobDoneText(folder!)).toBe('Created folder untitled folder');
+		expect(jobDoneText(file!)).toBe('Created file untitled file');
+		expect(jobTitle(rename!)).toBe('Renaming old.txt');
+		expect(jobDoneText(rename!)).toBe('Renamed old.txt');
+	});
+});
+
 describe('job words', () => {
 	it('words a single item by its name and several by their count', async () => {
 		const fake = createFakeOpsClient();
