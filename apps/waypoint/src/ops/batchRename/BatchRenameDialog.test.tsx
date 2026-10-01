@@ -6,9 +6,9 @@
 import type { Sources } from '@liminal-hq/waypoint-protocol/generated/Sources';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { ROW_CAP } from './batchRenameModel';
-import { BatchRenameDialog } from './BatchRenameDialog';
+import { BatchRenameDialog, type BatchRenameResult } from './BatchRenameDialog';
 import { FakeBatchRenameApi, previewOf } from './fakeBatchRenameApi';
 
 const sources: Sources = {
@@ -20,13 +20,13 @@ function setup(
 	options: {
 		api?: FakeBatchRenameApi;
 		debounceMs?: number;
-		onClose?: ReturnType<typeof vi.fn>;
-		announce?: ReturnType<typeof vi.fn>;
+		onClose?: Mock<(result: BatchRenameResult) => void>;
+		announce?: Mock<(message: string) => void>;
 	} = {},
 ) {
 	const api = options.api ?? new FakeBatchRenameApi();
-	const onClose = options.onClose ?? vi.fn();
-	const announce = options.announce ?? vi.fn();
+	const onClose = options.onClose ?? vi.fn<(result: BatchRenameResult) => void>();
+	const announce = options.announce ?? vi.fn<(message: string) => void>();
 	const user = userEvent.setup();
 	const utils = render(
 		<BatchRenameDialog

@@ -1,12 +1,14 @@
-// Runs a batch rename: the planned renames in their planned order, all or none (A47). A rename is
-// one atomic provider call that never overwrites, so at every moment each entry is under its old
-// name, a temporary name or its new one. If a step fails or the job is cancelled, the steps already
-// done are undone in reverse order (ignoring the cancel, as cleanup always does), and the job ends
-// as if it had not run. Only when an undo step itself fails does something stay renamed; the report
-// then says exactly which entries, and the journal records them, so Undo can finish the work.
+// Runs a batch rename: the planned renames in their planned order, all or none (A47).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+//
+// A rename is one atomic provider call that never overwrites, so at every moment each entry is under
+// its old name, a temporary name or its new one. If a step fails or the job is cancelled, the steps
+// already done are undone in reverse order (ignoring the cancel, as cleanup always does), and the
+// job ends as if it had not run. Only when an undo step itself fails does something stay renamed;
+// the report then says exactly which entries, and the journal records them, so Undo can finish the
+// work.
 //
 // A temporary name is `.waypoint-rename-{job}-{n}-{name}` beside the entry. It is not a partial
 // file: recovery after a crash reports one it finds and never removes it, because it holds the
