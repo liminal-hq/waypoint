@@ -6,7 +6,9 @@
 
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ts_rs::TS;
 use waypoint_protocol::Location;
 
 use crate::diff::store_events;
@@ -22,7 +24,9 @@ mod tabs;
 mod windows;
 
 /// How a group's tabs are ordered by `SortGroup`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum GroupSort {
     /// By the last part of the location's display path, ignoring case.
     Name,
@@ -32,8 +36,11 @@ pub enum GroupSort {
     LocalFirst,
 }
 
-/// What `MoveTabs` moves.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What `MoveTabs` moves. On the wire it is `{ kind, value }` (`value` is the list of tabs, the
+/// group or the pair).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum MoveWhat {
     /// These tabs. A pair or group whose members all travel keeps its identity; otherwise the
     /// tabs that travel leave it.
@@ -45,7 +52,9 @@ pub enum MoveWhat {
 }
 
 /// Where `MoveTabs` puts them.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum MoveTo {
     /// Another existing window, at `index` in its tab order (clamped).
     ExistingWindow { label: String, index: usize },
@@ -203,6 +212,12 @@ pub enum Command {
         location: Option<Location>,
         geometry: Option<Geometry>,
     },
+    /// Makes an empty window under `label` (`main-{n}`), for a window that already exists outside
+    /// the store, such as the one the app starts with. Fails when the label is taken or is not a
+    /// main window label; later `OpenWindow` labels stay above it.
+    RegisterWindow {
+        label: String,
+    },
     /// Closes the window; its tabs go to the closed list.
     CloseWindow,
     SetGeometry {
@@ -281,6 +296,7 @@ pub(crate) fn reduce(
         | Command::SwapPanes { .. }
         | Command::ToggleSplit { .. } => pairs::apply(&mut next, window, command)?,
         Command::OpenWindow { .. }
+        | Command::RegisterWindow { .. }
         | Command::CloseWindow
         | Command::SetGeometry { .. }
         | Command::SetView { .. }

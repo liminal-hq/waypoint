@@ -5,6 +5,8 @@
 
 use std::collections::HashSet;
 
+use waypoint_protocol::WindowKind;
+
 use crate::model::{ClosedTab, Geometry, GroupId, PairId, TabId, TabSnapshot, WindowState};
 use crate::reducer::{
     expand_units, remove_tabs, unknown_tab, Command, MoveTo, MoveWhat, SessionError,
@@ -32,6 +34,12 @@ pub(crate) fn apply(store: &mut Store, window: &str, command: Command) -> Result
                 });
                 w.active = Some(id);
             }
+        }
+        Command::RegisterWindow { label } => {
+            if WindowKind::from_label(&label) != Some(WindowKind::Main) {
+                return Err(SessionError::Invalid("not a main window label"));
+            }
+            new_window(store, Some(label), None)?;
         }
         Command::CloseWindow => {
             let wi = store.window_index(window)?;

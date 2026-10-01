@@ -479,3 +479,45 @@ fn closing_a_window_sends_its_tabs_to_the_closed_list_and_tells_listeners() {
     assert_eq!(s.closed().len(), 2);
     assert!(s.dispatch(W, Command::CloseWindow).is_err());
 }
+
+#[test]
+fn registering_a_window_makes_it_under_its_label_and_keeps_later_labels_above_it() {
+    let mut store = waypoint_session::Store::new();
+    let outcome = store
+        .dispatch(
+            "main-3",
+            Command::RegisterWindow {
+                label: "main-3".into(),
+            },
+        )
+        .unwrap();
+    assert_eq!(outcome.windows_opened(), vec!["main-3".to_string()]);
+    assert!(store.window("main-3").is_some_and(|w| w.tabs.is_empty()));
+    let next = store
+        .dispatch(
+            "main-3",
+            Command::OpenWindow {
+                location: None,
+                geometry: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(next.windows_opened(), vec!["main-4".to_string()]);
+    assert_ok(&store);
+}
+
+#[test]
+fn registering_a_taken_or_foreign_label_is_an_error_and_changes_nothing() {
+    let mut store = store_with(&["a"]);
+    let before = store.clone();
+    for label in ["main-1", "settings", "nonsense"] {
+        let result = store.dispatch(
+            "main-1",
+            Command::RegisterWindow {
+                label: label.into(),
+            },
+        );
+        assert!(result.is_err(), "{label}");
+        assert_eq!(store, before);
+    }
+}
