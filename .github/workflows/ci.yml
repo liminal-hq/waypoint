@@ -67,6 +67,11 @@ jobs:
         id: boundaries
         run: bash scripts/check-plugin-boundaries.sh
 
+      # Two modules that differ only by case are one file on Windows and macOS (A11).
+      - name: Check module names for case collisions
+        id: case
+        run: bash scripts/check-case-collisions.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -75,6 +80,7 @@ jobs:
             echo "- Result: \`${{ steps.boundaries.outcome }}\`"
             echo "- Command: \`bash scripts/check-plugin-boundaries.sh\`"
             echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
+            echo "- Case collisions: \`${{ steps.case.outcome }}\` (\`bash scripts/check-case-collisions.sh\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   frontend-tests:
@@ -232,6 +238,8 @@ jobs:
           bun-version: latest
       # The Tauri build script needs the built frontend (`frontendDist`).
       - run: bun install --frozen-lockfile
+      # `bun run build` runs `tsc` first, so a module-name collision that only a case-insensitive file
+      # system sees (`TabMenus.tsx` beside `tabMenus.ts`) fails here, before Cargo embeds a stale `dist`.
       - run: bun run build
       - uses: Swatinem/rust-cache@v2
 
