@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use waypoint_session::{
     Command, Document, DocumentError, GroupId, MoveTo, MoveWhat, PairLayout, SessionStorage,
-    StorageError, Store, TabColour, TabHints, TabId, DOCUMENT_VERSION,
+    StorageError, Store, TabColour, TabHints, TabId, WorkspaceId, DOCUMENT_VERSION,
 };
 
 mod common;
@@ -281,4 +281,154 @@ fn the_storage_trait_is_enough_to_save_and_restore() {
     storage.save(&store.to_document()).unwrap();
     let (restored, _) = Store::from_document(storage.load().unwrap().unwrap()).unwrap();
     assert_eq!(restored, store);
+}
+
+#[test]
+fn workspaces_and_the_active_one_survive_a_round_trip() {
+    let mut s = store_with(&["a", "b"]);
+    run(
+        &mut s,
+        W,
+        Command::CreateGroup {
+            tabs: vec![TabId(1), TabId(2)],
+            name: Some("Site".into()),
+        },
+    );
+    run(
+        &mut s,
+        W,
+        Command::SaveGroupAsWorkspace {
+            group: GroupId(1),
+            name: None,
+        },
+    );
+    run(
+        &mut s,
+        W,
+        Command::SetActiveWorkspace {
+            workspace: Some(WorkspaceId(1)),
+        },
+    );
+    let json = serde_json::to_string(&s.to_document()).unwrap();
+    let doc: Document = serde_json::from_str(&json).unwrap();
+    let (mut restored, notes) = Store::from_document(doc).unwrap();
+    assert!(notes.is_empty(), "{notes:?}");
+    assert_eq!(restored, s);
+    assert_eq!(restored.window(W).unwrap().workspace, Some(WorkspaceId(1)));
+    // The counter is restored, so a new workspace does not reuse the id.
+    run(
+        &mut restored,
+        W,
+        Command::SaveGroupAsWorkspace {
+            group: GroupId(1),
+            name: Some("Other".into()),
+        },
+    );
+    assert_eq!(restored.workspaces()[1].id, WorkspaceId(2));
+}
+
+#[test]
+fn a_document_written_before_workspaces_still_loads() {
+    let store = busy_store();
+    let mut json: serde_json::Value = serde_json::to_value(store.to_document()).unwrap();
+    let body = json["body"].as_object_mut().unwrap();
+    body.remove("workspaces");
+    body.remove("nextWorkspace");
+    for w in body["windows"].as_array_mut().unwrap() {
+        w.as_object_mut().unwrap().remove("workspace");
+    }
+    assert_eq!(json["version"], DOCUMENT_VERSION);
+    let doc: Document = serde_json::from_value(json).unwrap();
+    let (restored, notes) = Store::from_document(doc).unwrap();
+    assert!(notes.is_empty(), "{notes:?}");
+    assert_eq!(restored, store);
+    assert!(restored.workspaces().is_empty());
+}
+
+#[test]
+fn a_repeated_workspace_name_or_a_missing_active_workspace_is_repaired() {
+    let mut s = store_with(&["a"]);
+    run(
+        &mut s,
+        W,
+        Command::CreateGroup {
+            tabs: vec![TabId(1)],
+            name: Some("G".into()),
+        },
+    );
+    run(
+        &mut s,
+        W,
+        Command::SaveGroupAsWorkspace {
+            group: GroupId(1),
+            name: None,
+        },
+    );
+    let mut doc = s.to_document();
+    let mut twin = doc.body.workspaces[0].clone();
+    twin.id = WorkspaceId(7);
+    twin.name = " g ".into();
+    doc.body.workspaces.push(twin);
+    doc.body.windows[0].workspace = Some(WorkspaceId(42));
+    let (restored, notes) = Store::from_document(doc).unwrap();
+    assert_eq!(notes.len(), 2, "{notes:?}");
+    assert_eq!(restored.workspaces().len(), 1);
+    assert_eq!(restored.window(W).unwrap().workspace, None);
+    assert_ok(&restored);
+}
+
+#[test]
+fn deleting_the_active_workspace_sends_every_window_back_to_the_bookmarks() {
+    let mut s = store_with(&["a"]);
+    run(
+        &mut s,
+        W,
+        Command::CreateGroup {
+            tabs: vec![TabId(1)],
+            name: Some("G".into()),
+        },
+    );
+    run(
+        &mut s,
+        W,
+        Command::SaveGroupAsWorkspace {
+            group: GroupId(1),
+            name: None,
+        },
+    );
+    run(
+        &mut s,
+        "",
+        Command::OpenWindow {
+            location: Some(loc("w")),
+            geometry: None,
+        },
+    );
+    for label in [W, "main-2"] {
+        run(
+            &mut s,
+            label,
+            Command::SetActiveWorkspace {
+                workspace: Some(WorkspaceId(1)),
+            },
+        );
+    }
+    let out = run(
+        &mut s,
+        W,
+        Command::DeleteWorkspace {
+            workspace: WorkspaceId(1),
+        },
+    );
+    for label in [W, "main-2"] {
+        assert!(out.events_for(label).any(|e| matches!(
+            e,
+            waypoint_session::SessionEvent::WorkspaceActivated {
+                workspace: None,
+                ..
+            }
+        )));
+        assert_eq!(s.window(label).unwrap().workspace, None);
+    }
+    assert_ok(&s);
 }

@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
-use crate::model::{StoreSnapshot, TabId, TabSnapshot, WindowState};
-use crate::store::{equal_sizes, Store, StorePolicy, CLOSED_LIMIT};
+use crate::model::{StoreSnapshot, TabId, TabSnapshot, WindowState, Workspace};
+use crate::store::{equal_sizes, workspace_key, Store, StorePolicy, CLOSED_LIMIT};
 use waypoint_protocol::WindowKind;
 
 /// The document format this build writes and reads.
@@ -95,6 +95,8 @@ impl Store {
         store.next_group = body.next_group.max(1);
         store.next_pair = body.next_pair.max(1);
         store.next_window = body.next_window.max(1);
+        store.next_workspace = body.next_workspace.max(1);
+        repair_workspaces(&mut store, body.workspaces, &mut notes);
 
         let mut labels: HashSet<String> = HashSet::new();
         let mut tabs: HashSet<TabId> = HashSet::new();
@@ -112,6 +114,12 @@ impl Store {
                 continue;
             }
             repair_window(&mut w, &mut tabs, &mut groups, &mut pairs, &mut notes);
+            if w.workspace
+                .is_some_and(|id| store.workspaces.iter().all(|x| x.id != id))
+            {
+                w.workspace = None;
+                notes.push(format!("{}: its active workspace is gone", w.label));
+            }
             if w.tabs.is_empty() {
                 notes.push(format!("dropped the empty window {}", w.label));
                 continue;
@@ -232,6 +240,25 @@ fn repair_window(
         .collect();
 }
 
+/// Keeps the workspaces that have an id and a name nobody else has, each folder once.
+fn repair_workspaces(store: &mut Store, workspaces: Vec<Workspace>, notes: &mut Vec<String>) {
+    let mut ids = HashSet::new();
+    let mut names = HashSet::new();
+    for mut ws in workspaces {
+        ws.name = ws.name.trim().to_string();
+        if ws.name.is_empty() || !ids.insert(ws.id) || !names.insert(workspace_key(&ws.name)) {
+            notes.push(format!(
+                "dropped workspace {}: no name, or a repeat",
+                ws.id.0
+            ));
+            continue;
+        }
+        let mut uris = HashSet::new();
+        ws.locations.retain(|l| uris.insert(l.uri.clone()));
+        store.workspaces.push(ws);
+    }
+}
+
 /// Makes every counter exceed every id in use, so new ids never collide with restored ones.
 fn raise_counters(store: &mut Store) {
     let mut tab = 0;
@@ -255,4 +282,6 @@ fn raise_counters(store: &mut Store) {
     store.next_group = store.next_group.max(group + 1);
     store.next_pair = store.next_pair.max(pair + 1);
     store.next_window = store.next_window.max(window + 1);
+    let workspace = store.workspaces.iter().map(|w| w.id.0).max().unwrap_or(0);
+    store.next_workspace = store.next_workspace.max(workspace + 1);
 }

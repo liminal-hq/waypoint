@@ -118,6 +118,8 @@ pub fn replay(s: &mut SessionSnapshot, event: &SessionEvent) {
         SessionEvent::MruChanged { mru, .. } => s.mru = mru.clone(),
         SessionEvent::ViewChanged { view, .. } => s.view = *view,
         SessionEvent::GeometryChanged { geometry, .. } => s.geometry = Some(*geometry),
+        SessionEvent::WorkspacesChanged { workspaces, .. } => s.workspaces = workspaces.clone(),
+        SessionEvent::WorkspaceActivated { workspace, .. } => s.workspace = *workspace,
         SessionEvent::WindowOpened { .. } | SessionEvent::WindowClosed { .. } => {}
     }
 }

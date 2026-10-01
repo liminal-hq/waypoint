@@ -24,6 +24,24 @@ pub struct GroupId(pub u32);
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct PairId(pub u32);
 
+/// Names a workspace. Global to the store and never reused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct WorkspaceId(pub u32);
+
+/// A named, ordered set of folders that stands in for the sidebar's Favourites while it is the
+/// window's active workspace. Global to the store: every window sees the same list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct Workspace {
+    pub id: WorkspaceId,
+    /// Unique among workspaces, ignoring case and surrounding space.
+    pub name: String,
+    /// The folders, in sidebar order, each location once.
+    pub locations: Vec<Location>,
+}
+
 /// A colour label for a tab or a group. The theme decides the actual shade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -190,6 +208,11 @@ pub struct WindowState {
     pub pairs: Vec<Pair>,
     pub geometry: Option<Geometry>,
     pub view: ViewPrefs,
+    /// The workspace whose folders this window's sidebar shows as its Favourites; `None` shows the
+    /// shared bookmarks. Per window, so one window can work in a workspace while another keeps
+    /// the everyday list.
+    #[serde(default)]
+    pub workspace: Option<WorkspaceId>,
 }
 
 impl WindowState {
@@ -203,6 +226,7 @@ impl WindowState {
             pairs: Vec::new(),
             geometry: None,
             view: ViewPrefs::default(),
+            workspace: None,
         }
     }
 }
@@ -271,6 +295,10 @@ pub struct SessionSnapshot {
     /// The store's recently closed tabs, newest first, as of this snapshot. Closing a tab emits no
     /// event for it, so a menu that shows the list reads a fresh snapshot.
     pub closed: Vec<ClosedTab>,
+    /// Every workspace in the store (they are global), in creation order.
+    pub workspaces: Vec<Workspace>,
+    /// This window's active workspace.
+    pub workspace: Option<WorkspaceId>,
 }
 
 impl SessionSnapshot {
@@ -286,6 +314,8 @@ impl SessionSnapshot {
             geometry: None,
             view: ViewPrefs::default(),
             closed: Vec::new(),
+            workspaces: Vec::new(),
+            workspace: None,
         }
     }
 }
@@ -400,6 +430,20 @@ pub enum SessionEvent {
         #[ts(type = "number")]
         revision: u64,
     },
+    /// The store's workspaces changed (saved, renamed, deleted, or their folders edited); the list
+    /// is whole. Workspaces are global, so every window gets this event.
+    WorkspacesChanged {
+        workspaces: Vec<Workspace>,
+        #[ts(type = "number")]
+        revision: u64,
+    },
+    /// This window's active workspace changed; `None` is the shared bookmarks. A deleted workspace
+    /// that was active ends with this event for each window that had it.
+    WorkspaceActivated {
+        workspace: Option<WorkspaceId>,
+        #[ts(type = "number")]
+        revision: u64,
+    },
 }
 
 impl SessionEvent {
@@ -422,7 +466,9 @@ impl SessionEvent {
             | Self::PairRemoved { revision, .. }
             | Self::MruChanged { revision, .. }
             | Self::ViewChanged { revision, .. }
-            | Self::GeometryChanged { revision, .. } => *revision,
+            | Self::GeometryChanged { revision, .. }
+            | Self::WorkspacesChanged { revision, .. }
+            | Self::WorkspaceActivated { revision, .. } => *revision,
         }
     }
 
@@ -445,7 +491,9 @@ impl SessionEvent {
             | Self::PairRemoved { revision, .. }
             | Self::MruChanged { revision, .. }
             | Self::ViewChanged { revision, .. }
-            | Self::GeometryChanged { revision, .. } => *revision = value,
+            | Self::GeometryChanged { revision, .. }
+            | Self::WorkspacesChanged { revision, .. }
+            | Self::WorkspaceActivated { revision, .. } => *revision = value,
         }
     }
 }
@@ -473,4 +521,9 @@ pub struct StoreSnapshot {
     pub next_group: u32,
     pub next_pair: u32,
     pub next_window: u32,
+    /// Absent from documents written before workspaces existed, which load with none.
+    #[serde(default)]
+    pub workspaces: Vec<Workspace>,
+    #[serde(default)]
+    pub next_workspace: u32,
 }

@@ -5,7 +5,7 @@
 
 use crate::model::{
     ClosedTab, SessionEvent, SessionSnapshot, StoreSnapshot, TabId, WindowEvent, WindowState,
-    WindowSummary,
+    WindowSummary, Workspace,
 };
 use crate::reducer::{reduce, Command, SessionError};
 
@@ -78,6 +78,9 @@ pub struct Store {
     pub(crate) next_group: u32,
     pub(crate) next_pair: u32,
     pub(crate) next_window: u32,
+    /// Global, in creation order.
+    pub(crate) workspaces: Vec<Workspace>,
+    pub(crate) next_workspace: u32,
     pub(crate) policy: StorePolicy,
 }
 
@@ -102,6 +105,8 @@ impl Store {
             next_group: 1,
             next_pair: 1,
             next_window: 1,
+            workspaces: Vec::new(),
+            next_workspace: 1,
             policy,
         }
     }
@@ -147,6 +152,11 @@ impl Store {
         &self.closed
     }
 
+    /// Every workspace, in creation order.
+    pub fn workspaces(&self) -> &[Workspace] {
+        &self.workspaces
+    }
+
     /// The window `tab` is in.
     pub fn window_of(&self, tab: TabId) -> Option<&WindowState> {
         self.windows.iter().find(|w| w.index_of(tab).is_some())
@@ -165,6 +175,8 @@ impl Store {
             geometry: w.geometry,
             view: w.view,
             closed: self.closed.clone(),
+            workspaces: self.workspaces.clone(),
+            workspace: w.workspace,
         })
     }
 
@@ -187,6 +199,8 @@ impl Store {
             next_group: self.next_group,
             next_pair: self.next_pair,
             next_window: self.next_window,
+            workspaces: self.workspaces.clone(),
+            next_workspace: self.next_workspace,
         }
     }
 
@@ -227,6 +241,34 @@ impl Store {
                 }
             }
         }
+        let mut workspace_ids = std::collections::HashSet::new();
+        let mut workspace_names = std::collections::HashSet::new();
+        for ws in &self.workspaces {
+            if !workspace_ids.insert(ws.id) {
+                out.push(format!("workspace {} is not unique", ws.id.0));
+            }
+            if ws.id.0 >= self.next_workspace {
+                out.push(format!(
+                    "workspace {} is at or above next_workspace",
+                    ws.id.0
+                ));
+            }
+            if !workspace_names.insert(workspace_key(&ws.name)) || ws.name.trim().is_empty() {
+                out.push(format!(
+                    "workspace {} has an empty or repeated name",
+                    ws.id.0
+                ));
+            }
+            let mut uris = std::collections::HashSet::new();
+            if !ws.locations.iter().all(|l| uris.insert(l.uri.as_str())) {
+                out.push(format!("workspace {} repeats a folder", ws.id.0));
+            }
+        }
+        for w in &self.windows {
+            if w.workspace.is_some_and(|id| !workspace_ids.contains(&id)) {
+                out.push(format!("{}: the active workspace does not exist", w.label));
+            }
+        }
         if self.closed.len() > CLOSED_LIMIT {
             out.push("too many closed tabs".to_string());
         }
@@ -243,6 +285,13 @@ impl Store {
 
     /// Brings every window into a legal shape after a command: prunes what dangles, then orders.
     pub(crate) fn settle(&mut self) {
+        let workspace_ids: std::collections::HashSet<_> =
+            self.workspaces.iter().map(|w| w.id).collect();
+        for w in &mut self.windows {
+            if w.workspace.is_some_and(|id| !workspace_ids.contains(&id)) {
+                w.workspace = None;
+            }
+        }
         for w in &mut self.windows {
             let live: std::collections::HashSet<TabId> = w.tabs.iter().map(|t| t.id).collect();
             // Panes that no longer exist leave their pair; a pair of fewer than two is gone.
@@ -295,4 +344,9 @@ pub(crate) fn equal_sizes(n: usize) -> Vec<u32> {
     let base = 1000 / n as u32;
     let extra = (1000 % n as u32) as usize;
     (0..n).map(|i| base + u32::from(i < extra)).collect()
+}
+
+/// What makes two workspace names the same: they match ignoring case and surrounding space.
+pub(crate) fn workspace_key(name: &str) -> String {
+    name.trim().to_lowercase()
 }

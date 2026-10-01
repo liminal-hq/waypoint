@@ -26,6 +26,9 @@
 //   joinPair  { tabs: [id], layout?: "sideBySide" | "stacked" }      separatePair | swapPanes { pair }
 //   setPairSizes { pair, sizes: [n] }
 //   openWindow { location? }      closeWindow
+//   saveGroupAsWorkspace { group, name?: string }      renameWorkspace { workspace, name }
+//   deleteWorkspace { workspace }      setActiveWorkspace { workspace: id | null }
+//   setWorkspaceLocations { workspace, locations: [path] }
 //   moveTabs  { what: { kind: "tabs" | "group" | "pair", value }, to: { kind: "existingWindow", label, index }
 //                                                                  | { kind: "newWindow" } }
 //
@@ -40,11 +43,13 @@
 //   mru        ids, most recent first
 //   groups     [ { id, name, collapsed, tabs: [id] } ] in the window's group order
 //   pairs      [ { id, panes: [id], layout, sizes: [n] } ] in the window's pair order
+//   workspace  the id of the window's active workspace, or null
 //
 // and these are about the store and other windows:
 //
 //   closed     ids of the recently closed tabs, newest first
 //   windows    the window labels, in store order
+//   workspaces [ { id, name, locations: [path] } ] in creation order (they are global)
 //   others     { "<label>": { ...the window facts above... } }
 //
 // A step with `"error": true` must fail and leave the state as it was. Revisions and events are not
@@ -53,7 +58,7 @@
 use serde_json::{json, Value};
 use waypoint_session::{
     Command, GroupId, GroupSort, MoveTo, MoveWhat, PairId, PairLayout, Store, TabColour, TabId,
-    WindowState,
+    WindowState, WorkspaceId,
 };
 
 mod common;
@@ -76,6 +81,10 @@ fn tabs_of(op: &Value, key: &str) -> Vec<TabId> {
 
 fn group(op: &Value) -> GroupId {
     GroupId(op["group"].as_u64().expect("group") as u32)
+}
+
+fn workspace(op: &Value) -> WorkspaceId {
+    WorkspaceId(op["workspace"].as_u64().expect("workspace") as u32)
 }
 
 fn pair(op: &Value) -> PairId {
@@ -176,6 +185,29 @@ fn command(op: &Value) -> Command {
                 .map(|l| loc(l.as_str().expect("location").trim_start_matches('/'))),
             geometry: None,
         },
+        "saveGroupAsWorkspace" => Command::SaveGroupAsWorkspace {
+            group: group(op),
+            name: op.get("name").and_then(Value::as_str).map(String::from),
+        },
+        "renameWorkspace" => Command::RenameWorkspace {
+            workspace: workspace(op),
+            name: op["name"].as_str().expect("name").to_string(),
+        },
+        "deleteWorkspace" => Command::DeleteWorkspace {
+            workspace: workspace(op),
+        },
+        "setActiveWorkspace" => Command::SetActiveWorkspace {
+            workspace: op["workspace"].as_u64().map(|w| WorkspaceId(w as u32)),
+        },
+        "setWorkspaceLocations" => Command::SetWorkspaceLocations {
+            workspace: workspace(op),
+            locations: op["locations"]
+                .as_array()
+                .expect("locations")
+                .iter()
+                .map(|l| loc(l.as_str().expect("location").trim_start_matches('/')))
+                .collect(),
+        },
         "closeWindow" => Command::CloseWindow,
         "moveTabs" => Command::MoveTabs {
             what: wire::<MoveWhat>(&op["what"]),
@@ -194,7 +226,7 @@ fn paths(locations: &[waypoint_protocol::Location]) -> Value {
     )
 }
 
-const WINDOW_FACTS: [&str; 8] = [
+const WINDOW_FACTS: [&str; 9] = [
     "tabs",
     "active",
     "locations",
@@ -203,6 +235,7 @@ const WINDOW_FACTS: [&str; 8] = [
     "mru",
     "groups",
     "pairs",
+    "workspace",
 ];
 
 fn ids_value(ids: impl Iterator<Item = u32>) -> Value {
@@ -259,6 +292,13 @@ fn check_window(w: &WindowState, expect: &Value, at: &str) {
             .collect();
         assert_eq!(&Value::Array(got), want, "{at}: groups");
     }
+    if let Some(want) = expect.get("workspace") {
+        assert_eq!(
+            &Value::from(w.workspace.map(|x| x.0)),
+            want,
+            "{at}: workspace"
+        );
+    }
     if let Some(want) = expect.get("pairs") {
         let got: Vec<Value> = w
             .pairs
@@ -286,6 +326,14 @@ fn check(store: &Store, window: &str, expect: &Value, at: &str) {
     if let Some(want) = expect.get("closed") {
         let got = ids_value(store.closed().iter().map(|c| c.tab.id.0));
         assert_eq!(&got, want, "{at}: closed");
+    }
+    if let Some(want) = expect.get("workspaces") {
+        let got: Vec<Value> = store
+            .workspaces()
+            .iter()
+            .map(|w| json!({ "id": w.id.0, "name": w.name, "locations": paths(&w.locations) }))
+            .collect();
+        assert_eq!(&Value::Array(got), want, "{at}: workspaces");
     }
     if let Some(want) = expect.get("windows") {
         let got: Vec<Value> = store
@@ -349,6 +397,11 @@ fn groups_and_pairs() {
         "groups_and_pairs",
         include_str!("conformance/groups_and_pairs.json"),
     );
+}
+
+#[test]
+fn workspaces() {
+    run_scenario("workspaces", include_str!("conformance/workspaces.json"));
 }
 
 #[test]

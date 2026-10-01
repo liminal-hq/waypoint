@@ -329,6 +329,7 @@ fn random_store_sequences_hold_every_invariant() {
     use common::Mirror;
     use waypoint_session::{
         GroupId, GroupSort, MoveTo, MoveWhat, PairId, PairLayout, Store, TabColour, TabHints,
+        WorkspaceId,
     };
 
     let mut stats = std::collections::BTreeMap::<&'static str, u32>::new();
@@ -364,9 +365,17 @@ fn random_store_sequences_hold_every_invariant() {
                 }
                 _ => PairId(5000),
             };
+            let known: Vec<WorkspaceId> = store.workspaces().iter().map(|x| x.id).collect();
+            let workspace = |rng: &mut Lcg| {
+                if !known.is_empty() && rng.next(12) != 0 {
+                    known[rng.next(known.len())]
+                } else {
+                    WorkspaceId(5000)
+                }
+            };
             let tabs =
                 |rng: &mut Lcg| -> Vec<TabId> { (0..1 + rng.next(3)).map(|_| tab(rng)).collect() };
-            let command = match rng.next(40) {
+            let command = match rng.next(47) {
                 0..=3 => Command::Open {
                     location: loc(&format!("p{}", rng.next(6))),
                     after: if rng.next(2) == 0 {
@@ -484,6 +493,34 @@ fn random_store_sequences_hold_every_invariant() {
                     };
                     Command::MoveTabs { what, to }
                 }
+                40..=41 => Command::SaveGroupAsWorkspace {
+                    group: group(&mut rng),
+                    name: if rng.next(2) == 0 {
+                        None
+                    } else {
+                        Some(format!("ws{}", rng.next(5)))
+                    },
+                },
+                42 => Command::RenameWorkspace {
+                    workspace: workspace(&mut rng),
+                    name: format!("WS{}", rng.next(5)),
+                },
+                43 => Command::DeleteWorkspace {
+                    workspace: workspace(&mut rng),
+                },
+                44..=45 => Command::SetActiveWorkspace {
+                    workspace: if rng.next(5) == 0 {
+                        None
+                    } else {
+                        Some(workspace(&mut rng))
+                    },
+                },
+                46 => Command::SetWorkspaceLocations {
+                    workspace: workspace(&mut rng),
+                    locations: (0..rng.next(4))
+                        .map(|_| loc(&format!("p{}", rng.next(3))))
+                        .collect(),
+                },
                 _ => unreachable!(),
             };
             if matches!(
@@ -529,6 +566,8 @@ fn random_store_sequences_hold_every_invariant() {
                     SessionEvent::TabMoved { .. } => "tabMoved",
                     SessionEvent::GroupRemoved { .. } => "groupRemoved",
                     SessionEvent::PairRemoved { .. } => "pairRemoved",
+                    SessionEvent::WorkspacesChanged { .. } => "workspacesChanged",
+                    SessionEvent::WorkspaceActivated { .. } => "workspaceActivated",
                     _ => continue,
                 };
                 *stats.entry(name).or_default() += 1;
@@ -562,6 +601,8 @@ fn random_store_sequences_hold_every_invariant() {
         "tabMoved",
         "groupRemoved",
         "pairRemoved",
+        "workspacesChanged",
+        "workspaceActivated",
     ] {
         assert!(
             stats.get(key).copied().unwrap_or(0) > 50,

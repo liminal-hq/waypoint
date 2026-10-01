@@ -14,7 +14,7 @@ use waypoint_protocol::Location;
 use crate::diff::store_events;
 use crate::model::{
     Geometry, GroupId, PairId, PairLayout, SessionEvent, SessionSnapshot, TabColour, TabHints,
-    TabId, ViewPrefs, WindowState,
+    TabId, ViewPrefs, WindowState, WorkspaceId,
 };
 use crate::store::{Outcome, Store, StorePolicy, CLOSED_LIMIT};
 
@@ -22,6 +22,7 @@ mod groups;
 mod pairs;
 mod tabs;
 mod windows;
+mod workspaces;
 
 /// How a group's tabs are ordered by `SortGroup`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -206,6 +207,33 @@ pub enum Command {
         tab: TabId,
     },
 
+    // Workspaces (global: every window sees them; the active one is per window).
+    /// Saves the group's folders, in strip order and each once, as a new workspace named `name`
+    /// (the group's name when `None`). Fails with `WorkspaceNameTaken` when the name is in use.
+    SaveGroupAsWorkspace {
+        group: GroupId,
+        name: Option<String>,
+    },
+    RenameWorkspace {
+        workspace: WorkspaceId,
+        name: String,
+    },
+    /// Deletes a workspace; every window that had it active goes back to the shared bookmarks.
+    DeleteWorkspace {
+        workspace: WorkspaceId,
+    },
+    /// Makes the window's sidebar show a workspace's folders as its Favourites, or the shared
+    /// bookmarks again with `None`.
+    SetActiveWorkspace {
+        workspace: Option<WorkspaceId>,
+    },
+    /// Replaces a workspace's folders (add, remove and reorder are all this); a folder listed
+    /// twice is kept once, at its first place.
+    SetWorkspaceLocations {
+        workspace: WorkspaceId,
+        locations: Vec<Location>,
+    },
+
     // Windows.
     /// Makes a window `main-{n}`, with a first tab at `location` when given.
     OpenWindow {
@@ -244,6 +272,11 @@ pub enum SessionError {
     UnknownPair(u32),
     #[error("no such window: {0}")]
     UnknownWindow(String),
+    #[error("no such workspace: {0}")]
+    UnknownWorkspace(u32),
+    /// Workspace names are compared ignoring case and surrounding space.
+    #[error("a workspace named \"{0}\" already exists")]
+    WorkspaceNameTaken(String),
     #[error("tab {0} is already in a pair")]
     AlreadyPaired(u32),
     #[error("invalid command: {0}")]
@@ -295,6 +328,11 @@ pub(crate) fn reduce(
         | Command::SetPairSizes { .. }
         | Command::SwapPanes { .. }
         | Command::ToggleSplit { .. } => pairs::apply(&mut next, window, command)?,
+        Command::SaveGroupAsWorkspace { .. }
+        | Command::RenameWorkspace { .. }
+        | Command::DeleteWorkspace { .. }
+        | Command::SetActiveWorkspace { .. }
+        | Command::SetWorkspaceLocations { .. } => workspaces::apply(&mut next, window, command)?,
         Command::OpenWindow { .. }
         | Command::RegisterWindow { .. }
         | Command::CloseWindow
@@ -373,7 +411,16 @@ pub(crate) fn store_from_snapshot(snapshot: &SessionSnapshot) -> Store {
         pairs: snapshot.pairs.clone(),
         geometry: snapshot.geometry,
         view: snapshot.view,
+        workspace: snapshot.workspace,
     });
+    store.workspaces = snapshot.workspaces.clone();
+    store.next_workspace = snapshot
+        .workspaces
+        .iter()
+        .map(|w| w.id.0)
+        .max()
+        .unwrap_or(0)
+        + 1;
     let max = |it: &mut dyn Iterator<Item = u32>| it.max().unwrap_or(0) + 1;
     store.next_tab = max(&mut snapshot
         .tabs

@@ -27,6 +27,9 @@ pub(crate) fn store_events(
                 for event in window_events(old, new, reopened) {
                     push(&old.label, event);
                 }
+                if before.workspaces != after.workspaces {
+                    push(&old.label, workspaces_changed(after));
+                }
             }
             None => {
                 for tab in &old.tabs {
@@ -62,8 +65,18 @@ pub(crate) fn store_events(
         for event in window_events(&WindowState::new(new.label.clone()), new, reopened) {
             push(&new.label, event);
         }
+        if !after.workspaces.is_empty() {
+            push(&new.label, workspaces_changed(after));
+        }
     }
     out
+}
+
+fn workspaces_changed(after: &Store) -> SessionEvent {
+    SessionEvent::WorkspacesChanged {
+        workspaces: after.workspaces.clone(),
+        revision: 0,
+    }
 }
 
 fn navigated(a: &TabSnapshot, b: &TabSnapshot) -> bool {
@@ -204,6 +217,12 @@ fn window_events(
     if after.view != before.view {
         out.push(SessionEvent::ViewChanged {
             view: after.view,
+            revision: r,
+        });
+    }
+    if after.workspace != before.workspace {
+        out.push(SessionEvent::WorkspaceActivated {
+            workspace: after.workspace,
             revision: r,
         });
     }

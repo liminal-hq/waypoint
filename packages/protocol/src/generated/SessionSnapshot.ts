@@ -6,6 +6,8 @@ import type { Pair } from "./Pair";
 import type { TabId } from "./TabId";
 import type { TabSnapshot } from "./TabSnapshot";
 import type { ViewPrefs } from "./ViewPrefs";
+import type { Workspace } from "./Workspace";
+import type { WorkspaceId } from "./WorkspaceId";
 
 /**
  * One window's session at one global revision. An empty `tabs` with no `active` is a valid state.
@@ -29,4 +31,12 @@ active: TabId | null, mru: Array<TabId>, groups: Array<Group>, pairs: Array<Pair
  * The store's recently closed tabs, newest first, as of this snapshot. Closing a tab emits no
  * event for it, so a menu that shows the list reads a fresh snapshot.
  */
-closed: Array<ClosedTab>, };
+closed: Array<ClosedTab>, 
+/**
+ * Every workspace in the store (they are global), in creation order.
+ */
+workspaces: Array<Workspace>, 
+/**
+ * This window's active workspace.
+ */
+workspace: WorkspaceId | null, };

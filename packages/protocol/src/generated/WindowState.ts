@@ -5,6 +5,7 @@ import type { Pair } from "./Pair";
 import type { TabId } from "./TabId";
 import type { TabSnapshot } from "./TabSnapshot";
 import type { ViewPrefs } from "./ViewPrefs";
+import type { WorkspaceId } from "./WorkspaceId";
 
 /**
  * Everything one window holds.
@@ -25,4 +26,10 @@ active: TabId | null,
 /**
  * Tabs that were explicitly activated, most recent first (see the crate docs).
  */
-mru: Array<TabId>, groups: Array<Group>, pairs: Array<Pair>, geometry: Geometry | null, view: ViewPrefs, };
+mru: Array<TabId>, groups: Array<Group>, pairs: Array<Pair>, geometry: Geometry | null, view: ViewPrefs, 
+/**
+ * The workspace whose folders this window's sidebar shows as its Favourites; `None` shows the
+ * shared bookmarks. Per window, so one window can work in a workspace while another keeps
+ * the everyday list.
+ */
+workspace: WorkspaceId | null, };
