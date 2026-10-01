@@ -499,10 +499,16 @@ export function createTabDragHandlers(
 		control: DragControl<TabDragSource, TabDragTarget>,
 		point: Point,
 	): Promise<void> => {
-		const target = control.target();
+		const held = control.target();
 		const snapshot = deps.snapshot();
 		const source = control.source;
-		if (!target || !snapshot) return;
+		if (!held || !snapshot) return;
+		// A hold that has not finished its ring promised a reorder (the pill says so), so that is what
+		// a release commits; only an armed one pairs the tabs.
+		const target: TabDragTarget =
+			held.outcome === 'holdSplit' && !held.armed
+				? { outcome: 'reorder', to: held.to, preview: held.preview }
+				: held;
 		const { api } = deps;
 		const tabs = snapshot.tabs;
 		const lead = tabs.find((tab) => tab.id === source.lead);

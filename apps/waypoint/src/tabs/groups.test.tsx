@@ -548,8 +548,8 @@ describe('reordering around groups', () => {
 		await withGroup(h);
 		const slot = tabs()[0]!.parentElement!;
 		fireEvent.pointerDown(slot, { button: 0, clientX: 50, pointerId: 1 });
-		fireEvent.pointerMove(slot, { clientX: 150, pointerId: 1 });
-		fireEvent.pointerUp(slot, { clientX: 150, pointerId: 1 });
+		fireEvent.pointerMove(slot, { clientX: 170, pointerId: 1 });
+		fireEvent.pointerUp(slot, { clientX: 170, pointerId: 1 });
 		// Dragged to the group's last place it stays in the group.
 		await waitFor(async () =>
 			expect((await snapshot(h)).tabs.map((tab) => tab.id)).toEqual([2, 1, 3]),

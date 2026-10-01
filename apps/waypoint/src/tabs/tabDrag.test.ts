@@ -250,6 +250,19 @@ describe('hold to split', () => {
 		expect(h.live).toContain('Split a and b');
 	});
 
+	it('commits a reorder, not a pair, when released before the hold completes', async () => {
+		const h = await setup();
+		h.press({ tab: h.ids.a! }, { x: 50 });
+		h.move(150);
+		expect(h.state().target).toMatchObject({ outcome: 'holdSplit', armed: false, to: 0 });
+		h.clock.advance(HOLD_SPLIT_MS - 1);
+		h.up(150);
+		await h.settle();
+		expect(h.snapshot().pairs).toHaveLength(0);
+		expect(order(h.snapshot())).toEqual(['a', 'b', 'c', 'd', 'e']);
+		expect(h.live).not.toContain('Split');
+	});
+
 	it('puts the dragged tab after the held one when it came from the right', async () => {
 		const h = await setup();
 		h.press({ tab: h.ids.c! }, { x: 250 });
@@ -396,6 +409,20 @@ describe('drop on a group label', () => {
 		expect(h.snapshot().tabs.map((tab) => tab.group)).toEqual([group, group, group, null, null]);
 		expect(order(h.snapshot())).toEqual(['a', 'b', 'd', 'c', 'e']);
 		expect(h.live).toContain('Added d to Group 1, now 3 tabs');
+	});
+
+	it('takes a pair in together and counts both panes', async () => {
+		const h = await setup();
+		const group = await h.api.createGroup([h.ids.a!, h.ids.b!]);
+		await h.api.joinPair([h.ids.d!, h.ids.e!], 'sideBySide');
+		await h.refresh();
+		h.press({ tab: h.ids.d! }, { x: 450 });
+		h.move(30, 20);
+		h.up(30, 20);
+		await h.settle();
+		const grouped = h.snapshot().tabs.filter((tab) => tab.group === group);
+		expect(grouped.map((tab) => tab.id)).toEqual([h.ids.a, h.ids.b, h.ids.d, h.ids.e]);
+		expect(h.live).toContain('Added d to Group 1, now 4 tabs');
 	});
 
 	it('does nothing over the chip of the group the tab is already in', async () => {
