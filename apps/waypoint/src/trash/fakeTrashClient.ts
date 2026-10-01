@@ -105,6 +105,9 @@ export class FakeTrashClient implements TrashClient {
 			},
 			subscribeProgress: async () => () => {},
 			onEvent: (listener) => this.onEvent(listener),
+			// The clipboard is not what these tests are about: an empty one that never changes.
+			getClipboard: async () => ({ mode: 'copy', items: [], revision: 0, source: 'app' }),
+			onClipboard: () => () => {},
 		};
 		return new Proxy(client, {
 			get: (target, name) =>
