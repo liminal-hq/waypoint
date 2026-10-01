@@ -36,3 +36,4 @@ tauri-plugin = { workspace = true, features = ["build"] }
 serde_json = { workspace = true }
 tauri = { workspace = true, features = ["test"] }
 tempfile = "3"
+waypoint-vfs = { path = "../../crates/waypoint-vfs", features = ["testing"] }

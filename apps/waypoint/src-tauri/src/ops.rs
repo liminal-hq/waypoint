@@ -13,19 +13,25 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
-use tauri::{AppHandle, Manager, Wry};
-use tauri_plugin_trash::{RestoreTarget, TrashError, TrashExt, FEATURE_TRASH};
-use tauri_plugin_waypoint_ops::{OpsDeps, SettingsStorage};
+use tauri::{AppHandle, Manager, Runtime, Wry};
+use tauri_plugin_trash::{
+    RestoreTarget, TrashError, TrashExt, FEATURE_EXPIRY, FEATURE_LIST, FEATURE_TRASH,
+};
+use tauri_plugin_waypoint_ops::{Ops, OpsDeps, SettingsStorage};
 use tauri_plugin_waypoint_vfs::Vfs;
 use waypoint_ops::{
-    JournalDocument, JournalStorage, Loaded, OpsError, OpsSettings, Protected, Providers,
-    SelectionResolver, StorageError, SystemClock, Trash, TrashReceipt,
+    JobId, JobKind, JobOptions, JobRequest, JournalDocument, JournalStorage, Loaded, OpsError,
+    OpsSettings, Protected, Providers, SelectionResolver, Sources, StorageError, SystemClock,
+    Trash, TrashReceipt,
 };
-use waypoint_path::{FilePath, VfsPath};
+use waypoint_path::{FilePath, TrashPath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{ListingHandle, LocalProvider, SelectionSpec};
+use waypoint_vfs::{
+    ListingHandle, LocalProvider, SelectionSpec, TrashProvider, TrashSource, TrashedItem,
+};
 
 use crate::storage::{FileKeyValue, KeyValue};
 
@@ -55,14 +61,41 @@ pub fn deps(app: &AppHandle<Wry>) -> OpsDeps {
             Arc::new(tauri_plugin_waypoint_ops::MemorySettings::default())
         }
     };
+    compose(app, journal_storage, settings, protected(app))
+}
+
+/// The operations plugin's dependencies over the plugins that are set up in `app`, with the given
+/// journal, settings and protected paths. One `TrashAdapter` serves the engine (`Trash`) and the
+/// Trash view (`TrashSource`), so they share its short-lived list; the vfs plugin was set up first
+/// and is given the view's half here.
+pub fn compose<R: Runtime>(
+    app: &AppHandle<R>,
+    journal_storage: Arc<dyn JournalStorage>,
+    settings: Arc<dyn SettingsStorage>,
+    protected: Protected,
+) -> OpsDeps {
+    let trash = Arc::new(TrashAdapter::new(app.clone()));
+    let mut providers = Providers::single(Arc::new(LocalProvider::new()));
+    match app.try_state::<Vfs>() {
+        Some(vfs) => {
+            vfs.set_trash_source(trash.clone());
+            if let Some(provider) = vfs.trash_provider() {
+                providers.register(provider);
+            }
+        }
+        None => {
+            log::warn!("the file system plugin is not set up, so the Trash cannot be browsed");
+            providers.register(Arc::new(TrashProvider::new(trash.clone())));
+        }
+    }
     OpsDeps::new(
-        Providers::single(Arc::new(LocalProvider::new())),
-        Arc::new(TrashAdapter { app: app.clone() }),
+        providers,
+        trash,
         Arc::new(VfsSelectionResolver { app: app.clone() }),
         journal_storage,
         settings,
         Arc::new(SystemClock),
-        protected(app),
+        protected,
     )
 }
 
@@ -99,10 +132,59 @@ impl KeyValue for MemoryKv {
 
 // ---- the Trash ----
 
-/// The `trash` plugin behind the engine's `Trash`. The engine's workers are plain threads, so a
-/// call blocks one of them on the plugin's async API without touching the async runtime's threads.
-pub struct TrashAdapter {
-    app: AppHandle<Wry>,
+/// How long the list of the Trash is kept for lookups, so restoring a thousand items is one list and
+/// not a thousand. Anything this app does to the Trash drops it, and another program's change shows
+/// within a second.
+const LIST_TTL: Duration = Duration::from_secs(1);
+
+/// The `trash` plugin behind the engine's `Trash` and the Trash view's `TrashSource` (A4: this is
+/// where the plugins meet). The engine's workers are plain threads, so a call blocks one of them on
+/// the plugin's async API without touching the async runtime's threads.
+pub struct TrashAdapter<R: Runtime = Wry> {
+    app: AppHandle<R>,
+    listed: Mutex<Option<(Instant, Arc<Vec<tauri_plugin_trash::TrashedItem>>)>>,
+}
+
+impl<R: Runtime> TrashAdapter<R> {
+    pub fn new(app: AppHandle<R>) -> Self {
+        Self {
+            app,
+            listed: Mutex::new(None),
+        }
+    }
+
+    fn forget_list(&self) {
+        *self.listed.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Everything in the Trash, from the plugin or from a list taken a moment ago.
+    fn items(&self) -> Result<Arc<Vec<tauri_plugin_trash::TrashedItem>>, TrashError> {
+        {
+            let listed = self.listed.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((at, items)) = &*listed {
+                if at.elapsed() < LIST_TTL {
+                    return Ok(items.clone());
+                }
+            }
+        }
+        let items = Arc::new(tauri::async_runtime::block_on(self.app.trash().list())?);
+        *self.listed.lock().unwrap_or_else(|e| e.into_inner()) =
+            Some((Instant::now(), items.clone()));
+        Ok(items)
+    }
+
+    /// Whether a feature of the plugin works here, and if not why.
+    fn feature(&self, name: &str) -> Result<(), String> {
+        let status = self.app.trash().get_status();
+        match status.features.iter().find(|f| f.name == name) {
+            Some(feature) if feature.available => Ok(()),
+            Some(feature) => Err(feature
+                .reason
+                .clone()
+                .unwrap_or_else(|| format!("the Trash cannot do this here ({name})"))),
+            None => Err("the Trash is not available".to_owned()),
+        }
+    }
 }
 
 fn file_path(location: &Location) -> Result<PathBuf, OpsError> {
@@ -141,10 +223,37 @@ pub fn ops_error(error: TrashError, at: &Location) -> OpsError {
         TrashError::OriginExists { path } => OpsError::NameInUse {
             location: location_of(&path).unwrap_or_else(|_| at.clone()),
         },
-        TrashError::OriginMissingParent { path } => OpsError::NotFound {
+        TrashError::OriginMissingParent { path } => OpsError::OriginMissingParent {
             location: location_of(&path).unwrap_or_else(|_| at.clone()),
         },
         TrashError::Io { message } => OpsError::Io { message },
+    }
+}
+
+/// What the Trash view says for something the plugin refused, for the item at `at`.
+fn vfs_error(error: TrashError, at: &Location) -> VfsError {
+    match error {
+        TrashError::NotFound => VfsError::NotFound {
+            location: at.clone(),
+        },
+        TrashError::PermissionDenied => VfsError::PermissionDenied {
+            location: at.clone(),
+        },
+        TrashError::OriginExists { path } => VfsError::AlreadyExists {
+            location: location_of(&path).unwrap_or_else(|_| at.clone()),
+        },
+        TrashError::OriginMissingParent { path } => VfsError::NotFound {
+            location: location_of(&path).unwrap_or_else(|_| at.clone()),
+        },
+        TrashError::TrashUnavailable { reason } => VfsError::Unsupported { what: reason },
+        TrashError::Unsupported => VfsError::Unsupported {
+            what: "the Trash is not supported on this system".to_owned(),
+        },
+        TrashError::Refused { reason } => VfsError::Unsupported { what: reason },
+        TrashError::Io { message } => VfsError::Io {
+            message,
+            location: Some(at.clone()),
+        },
     }
 }
 
@@ -164,17 +273,30 @@ fn plugin_receipt(receipt: &TrashReceipt) -> Result<tauri_plugin_trash::TrashRec
     })
 }
 
-impl Trash for TrashAdapter {
+/// The location the Trash view gives the item with this id.
+fn trashed_location(id: &str) -> Location {
+    VfsPath::Trash(TrashPath::Item(id.to_owned())).to_location()
+}
+
+/// The item as the Trash view lists it: its original name, and the folder it was in.
+fn view_item(item: &tauri_plugin_trash::TrashedItem) -> TrashedItem {
+    TrashedItem {
+        id: item.receipt.trash_id.clone(),
+        name: item.name.clone(),
+        original_path: item
+            .original_path
+            .parent()
+            .map(|folder| folder.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        deleted_ms: item.deleted_at.saturating_mul(1000),
+        size: item.size,
+        is_dir: item.is_dir,
+    }
+}
+
+impl<R: Runtime> Trash for TrashAdapter<R> {
     fn available(&self) -> Result<(), String> {
-        let status = self.app.trash().get_status();
-        match status.features.iter().find(|f| f.name == FEATURE_TRASH) {
-            Some(feature) if feature.available => Ok(()),
-            Some(feature) => Err(feature
-                .reason
-                .clone()
-                .unwrap_or_else(|| "the Trash is not available".to_owned())),
-            None => Err("the Trash is not available".to_owned()),
-        }
+        self.feature(FEATURE_TRASH)
     }
 
     fn trash(&self, items: &[Location]) -> Vec<Result<TrashReceipt, OpsError>> {
@@ -185,6 +307,7 @@ impl Trash for TrashAdapter {
             .filter_map(|p| p.as_ref().ok().cloned())
             .collect();
         let mut results = tauri::async_runtime::block_on(self.app.trash().trash(batch)).into_iter();
+        self.forget_list();
         items
             .iter()
             .zip(paths)
@@ -205,39 +328,198 @@ impl Trash for TrashAdapter {
         let given = plugin_receipt(receipt)?;
         let restored = tauri::async_runtime::block_on(
             self.app.trash().restore(&given, RestoreTarget::Original),
-        )
-        .map_err(|e| ops_error(e, &receipt.original))?;
+        );
+        self.forget_list();
+        let restored = restored.map_err(|e| ops_error(e, &receipt.original))?;
+        location_of(&restored.original_path)
+    }
+
+    fn restore_to(&self, receipt: &TrashReceipt, target: &Location) -> Result<Location, OpsError> {
+        let given = plugin_receipt(receipt)?;
+        let path = file_path(target)?;
+        let restored = tauri::async_runtime::block_on(
+            self.app
+                .trash()
+                .restore(&given, RestoreTarget::Path { path }),
+        );
+        self.forget_list();
+        let restored = restored.map_err(|e| ops_error(e, target))?;
         location_of(&restored.original_path)
     }
 
     fn delete(&self, receipt: &TrashReceipt) -> Result<(), OpsError> {
         let given = plugin_receipt(receipt)?;
-        tauri::async_runtime::block_on(self.app.trash().delete(&given))
-            .map_err(|e| ops_error(e, &receipt.original))
+        let deleted = tauri::async_runtime::block_on(self.app.trash().delete(&given));
+        self.forget_list();
+        deleted.map_err(|e| ops_error(e, &trashed_location(&receipt.id)))
     }
 
     fn empty(&self, older_than_days: Option<u32>) -> Result<u64, OpsError> {
-        let at = Location::new("", "");
-        let report = tauri::async_runtime::block_on(self.app.trash().empty(older_than_days))
-            .map_err(|e| ops_error(e, &at))?;
+        let at = trashed_location("");
+        let report = tauri::async_runtime::block_on(self.app.trash().empty(older_than_days));
+        self.forget_list();
+        let report = report.map_err(|e| ops_error(e, &at))?;
+        for failed in &report.failed {
+            log::warn!(
+                "the Trash could not remove `{}`: {}",
+                failed.trash_id,
+                failed.error
+            );
+        }
         Ok(u64::from(report.removed))
     }
 
     /// Whether the item is still in the Trash, by its id, from the plugin's list.
     fn contains(&self, receipt: &TrashReceipt) -> Result<bool, OpsError> {
         let at = &receipt.original;
-        let items = tauri::async_runtime::block_on(self.app.trash().list())
-            .map_err(|e| ops_error(e, at))?;
+        let items = self.items().map_err(|e| ops_error(e, at))?;
         Ok(items.iter().any(|i| i.receipt.trash_id == receipt.id))
     }
 
+    /// The receipt of the item the Trash view shows at `trash:/{id}`, read from the Trash itself so
+    /// it carries the item's real original path and date.
     fn receipt_for(&self, trashed: &Location) -> Result<TrashReceipt, OpsError> {
-        // The Trash has no location of its own yet (the browsable Trash view is a later slice), so
-        // there is nothing a location could name.
-        let _ = trashed;
-        Err(OpsError::Unsupported {
-            what: "restoring from a location in the Trash".to_owned(),
+        let Ok(VfsPath::Trash(TrashPath::Item(id))) = VfsPath::from_location(trashed) else {
+            return Err(OpsError::NotFound {
+                location: trashed.clone(),
+            });
+        };
+        let items = self.items().map_err(|e| ops_error(e, trashed))?;
+        match items.iter().find(|item| item.receipt.trash_id == id) {
+            Some(item) => engine_receipt(item.receipt.clone()),
+            None => Err(OpsError::NotFound {
+                location: trashed.clone(),
+            }),
+        }
+    }
+
+    fn is_trashed(&self, location: &Location) -> bool {
+        matches!(
+            VfsPath::from_location(location),
+            Ok(VfsPath::Trash(TrashPath::Item(_)))
+        )
+    }
+}
+
+impl<R: Runtime> TrashSource for TrashAdapter<R> {
+    /// The Trash view needs the plugin to list; where it cannot (a sandbox's portal only trashes)
+    /// the reason is the plugin's own.
+    fn available(&self) -> Result<(), String> {
+        self.feature(FEATURE_LIST)
+    }
+
+    fn list(&self) -> Result<Vec<TrashedItem>, VfsError> {
+        let at = trashed_location("");
+        let items = self.items().map_err(|e| vfs_error(e, &at))?;
+        Ok(items.iter().map(view_item).collect())
+    }
+
+    fn restore(&self, id: &str) -> Result<Location, VfsError> {
+        let at = trashed_location(id);
+        let receipt = self.receipt_for(&at).map_err(|_| VfsError::NotFound {
+            location: at.clone(),
+        })?;
+        Trash::restore(self, &receipt).map_err(|e| match e {
+            OpsError::NameInUse { location } => VfsError::AlreadyExists { location },
+            OpsError::NotFound { location } | OpsError::OriginMissingParent { location } => {
+                VfsError::NotFound { location }
+            }
+            other => VfsError::Io {
+                message: other.to_string(),
+                location: Some(at.clone()),
+            },
         })
+    }
+
+    fn delete(&self, id: &str) -> Result<(), VfsError> {
+        let at = trashed_location(id);
+        let receipt = self.receipt_for(&at).map_err(|_| VfsError::NotFound {
+            location: at.clone(),
+        })?;
+        Trash::delete(self, &receipt).map_err(|e| VfsError::Io {
+            message: e.to_string(),
+            location: Some(at),
+        })
+    }
+
+    fn empty(&self, older_than_days: Option<u32>) -> Result<u64, VfsError> {
+        Trash::empty(self, older_than_days).map_err(|e| VfsError::Io {
+            message: e.to_string(),
+            location: None,
+        })
+    }
+}
+
+/// The job that empties what has been in the Trash for `days` days or more.
+pub fn sweep_request(days: u32) -> JobRequest {
+    JobRequest {
+        kind: JobKind::EmptyTrash {
+            older_than_days: Some(days),
+        },
+        sources: Sources::Locations { locations: vec![] },
+        destination: None,
+        name: None,
+        options: JobOptions::default(),
+        origin_window: SWEEP_ORIGIN.to_owned(),
+    }
+}
+
+/// The label a job the app starts for itself comes from. No window has it.
+const SWEEP_ORIGIN: &str = "app";
+
+/// Queues the Trash sweep when the setting asks for one, and says whether it did. It is an
+/// ordinary job: it shows in the queue, can be cancelled, and reports its own failure.
+pub fn submit_sweep<R: Runtime>(ops: &Ops<R>) -> Option<JobId> {
+    let days = ops.settings().trash_expiry_days?;
+    match ops.submit(SWEEP_ORIGIN, sweep_request(days)) {
+        Ok(id) => Some(id),
+        Err(error) => {
+            log::warn!("could not queue the Trash sweep: {error}");
+            None
+        }
+    }
+}
+
+/// How long start-up waits for a window to be on screen before the sweep goes ahead anyway.
+const SWEEP_WAIT: Duration = Duration::from_secs(20);
+
+/// Runs the Trash sweep once, after the first window is shown, on a thread of its own so nothing
+/// waits for it. Does nothing when the setting is off or this system cannot expire items.
+pub fn start_trash_sweep(app: &AppHandle<Wry>) {
+    let app = app.clone();
+    let spawned = std::thread::Builder::new()
+        .name("trash-sweep".to_owned())
+        .spawn(move || {
+            let Some(ops) = app.try_state::<Ops<Wry>>() else {
+                return;
+            };
+            if ops.settings().trash_expiry_days.is_none() {
+                return;
+            }
+            let started = Instant::now();
+            while started.elapsed() < SWEEP_WAIT
+                && !app
+                    .webview_windows()
+                    .values()
+                    .any(|w| w.is_visible().unwrap_or(false))
+            {
+                std::thread::sleep(Duration::from_millis(250));
+            }
+            let status = app.trash().get_status();
+            let can_expire = status
+                .features
+                .iter()
+                .any(|f| f.name == FEATURE_EXPIRY && f.available);
+            if !can_expire {
+                log::info!("the Trash sweep is on but this system cannot expire Trash items");
+                return;
+            }
+            if let Some(id) = submit_sweep(&ops) {
+                log::info!("queued the Trash sweep as job {}", id.0);
+            }
+        });
+    if let Err(error) = spawned {
+        log::warn!("could not start the Trash sweep: {error}");
     }
 }
 
@@ -245,11 +527,11 @@ impl Trash for TrashAdapter {
 
 /// The vfs plugin's listings behind the engine's `SelectionResolver` (A47): a selection is a
 /// handle and a range spec, never a list of paths.
-pub struct VfsSelectionResolver {
-    app: AppHandle<Wry>,
+pub struct VfsSelectionResolver<R: Runtime = Wry> {
+    app: AppHandle<R>,
 }
 
-impl SelectionResolver for VfsSelectionResolver {
+impl<R: Runtime> SelectionResolver for VfsSelectionResolver<R> {
     fn resolve(
         &self,
         handle: ListingHandle,
@@ -428,6 +710,10 @@ impl<K: KeyValue> SettingsStorage for SettingsPersistence<K> {
         self.kv.save()
     }
 }
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "ops_trash_tests.rs"]
+mod trash_tests;
 
 #[cfg(test)]
 mod tests {

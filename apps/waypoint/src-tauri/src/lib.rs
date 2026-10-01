@@ -197,6 +197,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building the Waypoint application")
         .run(move |app, event| match event {
+            // The event loop is running and the first windows are on their way: the Trash sweep
+            // waits for one to be shown, on its own thread, so start-up never does.
+            RunEvent::Ready => ops::start_trash_sweep(app),
             RunEvent::ExitRequested { code, api, .. } => {
                 if code.is_none() {
                     // Every window is gone. The session plugin is still closing the last one's
