@@ -7,7 +7,7 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useMemo } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
-import { usePlacesClient } from '../sidebar/PlacesClientContext';
+import { useAddFavourite } from '../sidebar/useAddFavourite';
 import { useTabActions } from '../tabs/tabActions';
 import { useWindowActions } from '../tabs/windowActions';
 import type { Navigation } from './useNavigation';
@@ -54,7 +54,7 @@ export function useOpenEntry(
 	onFailure: (entry: Entry, action: EntryAction) => void = ignoreFailure,
 ): EntryOpeners {
 	const client = useVfsClient();
-	const places = usePlacesClient();
+	const addFavourite = useAddFavourite();
 	const tabs = useTabActions();
 	const { goTo } = navigation;
 	const { openInBackground } = tabs;
@@ -87,11 +87,8 @@ export function useOpenEntry(
 			},
 			addToFavourites: (entry, handle) => {
 				if (!isFolder(entry)) return;
-				client
-					.entryLocation(handle, entry.id)
-					.then((location) => places.addFavourite(location))
-					.catch(fail(entry, 'favourite'));
+				client.entryLocation(handle, entry.id).then(addFavourite).catch(fail(entry, 'favourite'));
 			},
 		};
-	}, [client, places, goTo, openInBackground, openInNewWindow, onFailure]);
+	}, [client, addFavourite, goTo, openInBackground, openInNewWindow, onFailure]);
 }

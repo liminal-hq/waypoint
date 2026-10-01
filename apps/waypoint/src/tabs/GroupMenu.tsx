@@ -103,8 +103,6 @@ export function groupMenuItems(
 			type: 'action',
 			id: 'saveWorkspace',
 			label: t('groups.menu.saveWorkspace'),
-			disabled: true,
-			title: t('groups.menu.saveWorkspaceHint'),
 		},
 		...windowMoveItems(others, {
 			newWindow: t('groups.menu.moveWindow'),
@@ -156,6 +154,8 @@ export function runGroupMenuItem(
 			return actions.setPinned(group, false);
 		case 'duplicate':
 			return actions.duplicate(group);
+		case 'saveWorkspace':
+			return actions.saveAsWorkspace(group);
 		case 'ungroup':
 			return actions.ungroup(group);
 		case 'close':

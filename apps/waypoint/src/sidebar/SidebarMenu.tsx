@@ -24,6 +24,8 @@ interface SidebarMenuProps {
 	favouritePosition: { index: number; count: number } | null;
 	/** Whether the item's folder is already a favourite, which leaves nothing to add. */
 	pinned: boolean;
+	/** Whether a favourite can be renamed (not in a workspace). */
+	canRename: boolean;
 	actions: MenuActions;
 	onClose: () => void;
 }
@@ -38,6 +40,7 @@ export function SidebarMenu({
 	request,
 	favouritePosition,
 	pinned,
+	canRename,
 	actions,
 	onClose,
 }: SidebarMenuProps) {
@@ -50,7 +53,9 @@ export function SidebarMenu({
 	if (kind === 'favourite') {
 		items.push(
 			{ type: 'separator' },
-			{ type: 'action', id: 'rename', label: t('menu.rename'), shortcut: 'F2' },
+			...(canRename
+				? [{ type: 'action' as const, id: 'rename', label: t('menu.rename'), shortcut: 'F2' }]
+				: []),
 			{
 				type: 'action',
 				id: 'moveUp',

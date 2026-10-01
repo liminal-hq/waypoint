@@ -13,7 +13,7 @@ import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSna
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { t, tf, tn } from '../i18n/messages';
-import type { TabsApi } from '../services/tabsApi';
+import { isWorkspaceNameTaken, type TabsApi } from '../services/tabsApi';
 import { announce } from './announcer';
 import { GROUP_SOFT_LIMIT, groupStepTarget, groupTabs } from './groupLayout';
 import { colourMessageId } from './tabColours';
@@ -36,6 +36,11 @@ export interface GroupActions {
 	setPinned(group: Group, pinned: boolean): void;
 	sort(group: Group, by: GroupSort): void;
 	duplicate(group: Group): void;
+	/**
+	 * Saves the group's folders as a workspace named `name`, or after the group when omitted. A name
+	 * already in use asks for another through the chip's name field instead of failing.
+	 */
+	saveAsWorkspace(group: Group, name?: string): void;
 	/** Hands the group to a window of its own. */
 	moveToNewWindow(group: Group): void;
 	/** Hands the group to the end of another window's strip. */
@@ -58,6 +63,32 @@ function report(error: unknown): void {
 
 function tabCount(count: number): string {
 	return tn('groups.tabCount', count);
+}
+
+// The group whose workspace name is being asked for, on its chip, after the name it first tried
+// (its own) was taken. Shared the same way as `renaming` below.
+let namingWorkspace: GroupId | null = null;
+const namingListeners = new Set<() => void>();
+
+function setNamingWorkspace(group: GroupId | null): void {
+	namingWorkspace = group;
+	namingListeners.forEach((listener) => listener());
+}
+
+/** Closes the workspace name field without saving. */
+export function endWorkspaceNaming(): void {
+	setNamingWorkspace(null);
+}
+
+/** The group whose chip is asking for a workspace name, if any. */
+export function useNamingWorkspace(): GroupId | null {
+	return useSyncExternalStore(
+		(listener) => {
+			namingListeners.add(listener);
+			return () => namingListeners.delete(listener);
+		},
+		() => namingWorkspace,
+	);
 }
 
 // The group whose name is open for editing is one piece of state shared by the chip (which edits
@@ -217,6 +248,24 @@ export function createGroupActions(
 					.duplicateGroup(group.id)
 					.then(() => announce(tf('groups.announce.duplicated', { name: group.name }))),
 			),
+		saveAsWorkspace: (group, name) => {
+			const chosen = name?.trim() || group.name;
+			setNamingWorkspace(null);
+			run(
+				api.saveGroupAsWorkspace(group.id, chosen).then(
+					() => announce(tf('workspaces.announce.saved', { name: chosen })),
+					(error: unknown) => {
+						if (isWorkspaceNameTaken(error)) {
+							announce(tf('workspaces.announce.nameTaken', { name: chosen }));
+							setNamingWorkspace(group.id);
+							return;
+						}
+						report(error);
+						announce(tf('workspaces.announce.saveFailed', { name: chosen }));
+					},
+				),
+			);
+		},
 		moveToNewWindow: (group) =>
 			void windows.moveMany(groupMove(group), memberIds(group), null, groupSpeech(group)),
 		moveToWindow: (group, target) =>

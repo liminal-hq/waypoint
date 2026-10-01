@@ -24,6 +24,8 @@ interface FavouriteListProps {
 	onRenameCancel(): void;
 	/** Moves a favourite to index `to` of the list. */
 	onMove(location: Location, to: number): void;
+	/** Whether F2 renames a row; the favourites of a workspace have no labels to edit. */
+	canRename?: boolean;
 }
 
 export function FavouriteList({
@@ -35,6 +37,7 @@ export function FavouriteList({
 	onRenameCommit,
 	onRenameCancel,
 	onMove,
+	canRename = true,
 }: FavouriteListProps) {
 	const [dragging, setDragging] = useState<string | null>(null);
 	const [dropOn, setDropOn] = useState<string | null>(null);
@@ -57,7 +60,13 @@ export function FavouriteList({
 			event.preventDefault();
 			const to = index + (event.key === 'ArrowDown' ? 1 : -1);
 			if (to >= 0 && to < favourites.length) onMove(favourite.location, to);
-		} else if (event.key === 'F2' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+		} else if (
+			canRename &&
+			event.key === 'F2' &&
+			!event.altKey &&
+			!event.ctrlKey &&
+			!event.metaKey
+		) {
 			event.preventDefault();
 			refocus.current = favourite.location.uri;
 			onRenameStart(favourite.location);
@@ -78,6 +87,7 @@ export function FavouriteList({
 						<li key={uri}>
 							<RenameField
 								label={favourite.label}
+								ariaLabel={t('sidebar.rename.label')}
 								onCommit={(label, viaKeyboard) => {
 									if (viaKeyboard) refocus.current = uri;
 									onRenameCommit(favourite.location, label);
@@ -142,12 +152,14 @@ export function FavouriteList({
 
 interface RenameFieldProps {
 	label: string;
+	/** What the field is called for assistive technology. */
+	ariaLabel: string;
 	onCommit(label: string | null, viaKeyboard: boolean): void;
 	onCancel(): void;
 }
 
 /** Enter commits, Escape cancels, and leaving the field commits, like a file manager's inline rename. */
-function RenameField({ label, onCommit, onCancel }: RenameFieldProps) {
+export function RenameField({ label, ariaLabel, onCommit, onCancel }: RenameFieldProps) {
 	const input = useRef<HTMLInputElement | null>(null);
 	const done = useRef(false);
 	useEffect(() => {
@@ -167,7 +179,7 @@ function RenameField({ label, onCommit, onCancel }: RenameFieldProps) {
 			ref={input}
 			className={styles.renameField}
 			defaultValue={label}
-			aria-label={t('sidebar.rename.label')}
+			aria-label={ariaLabel}
 			spellCheck={false}
 			onKeyDown={(event) => {
 				event.stopPropagation();

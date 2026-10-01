@@ -250,7 +250,7 @@ describe('menus without the window list', () => {
 });
 
 describe('the group menu', () => {
-	it('lists SPEC section 5.2 in order, with Save as Workspace disabled and explained', async () => {
+	it('lists SPEC section 5.2 in order, with Save as Workspace enabled', async () => {
 		const h = await renderWorkspace();
 		await withGroup(h);
 		const menu = await openGroupMenu();
@@ -271,8 +271,7 @@ describe('the group menu', () => {
 			'Close Group',
 		]);
 		const save = await item('Save Group as Workspace');
-		expect(save).toHaveAttribute('aria-disabled', 'true');
-		expect(save).toHaveAttribute('title', 'Arrives with workspaces');
+		expect(save).not.toHaveAttribute('aria-disabled');
 		expect(await item('Collapse All Other Groups')).toHaveAttribute('aria-disabled', 'true');
 	});
 

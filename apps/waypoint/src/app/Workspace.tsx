@@ -32,7 +32,7 @@ import {
 	useSidebarState,
 	type SidebarStore,
 } from '../sidebar/sidebarStore';
-import { usePlacesClient } from '../sidebar/PlacesClientContext';
+import { useAddFavourite } from '../sidebar/useAddFavourite';
 import { useSidebarShortcuts } from '../sidebar/useSidebarShortcuts';
 import { NavigationBar } from '../nav/NavigationBar';
 import { useNavigation } from '../nav/useNavigation';
@@ -182,17 +182,17 @@ function WorkspaceBody({
 			}),
 		[],
 	);
-	const places = usePlacesClient();
+	const addFavourite = useAddFavourite();
 	// A message from the sidebar, numbered like the others so a repeat restarts the timer.
 	const notify = useCallback((text: string) => setNotice({ id: ++noticeCount.current, text }), []);
 	const pinCurrent = useCallback(
 		(location: Location) => {
-			places.addFavourite(location).catch((error: unknown) => {
+			addFavourite(location).catch((error: unknown) => {
 				console.warn('could not add the favourite', error);
 				notify(t('sidebar.favourites.failed'));
 			});
 		},
-		[places, notify],
+		[addFavourite, notify],
 	);
 	useSidebarShortcuts(sidebarStore, navigation.tab?.location, pinCurrent);
 	const sidebarOpen = useSidebarState((state) => state.open);

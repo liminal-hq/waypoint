@@ -14,7 +14,7 @@ import {
 } from 'react';
 import { t, tf, tn } from '../i18n/messages';
 import { PinIcon } from '../icons/AppIcons';
-import { endRename } from './groupActions';
+import { endRename, endWorkspaceNaming, useGroupActions, useNamingWorkspace } from './groupActions';
 import { GROUP_SOFT_LIMIT, type ChipItem } from './groupLayout';
 import styles from './GroupChip.module.css';
 
@@ -83,16 +83,19 @@ export function GroupChip({
 	// The state before the click that began a double-click toggled it, so the rename can restore it.
 	const collapsedBeforeClick = useRef<boolean | null>(null);
 	const wasRenaming = useRef(false);
+	const actions = useGroupActions();
+	const namingWorkspace = useNamingWorkspace() === group.id;
 	// Whether the name field ended from the keyboard (Enter or Escape) rather than by focus leaving.
 	const endedByKey = useRef(false);
 
 	// Ending the name field with the keyboard hands the focus back to the chip; leaving it by
 	// clicking elsewhere keeps the focus where that click put it.
+	const editing = renaming || namingWorkspace;
 	useEffect(() => {
-		if (wasRenaming.current && !renaming && endedByKey.current) button.current?.focus();
-		if (!renaming) endedByKey.current = false;
-		wasRenaming.current = renaming;
-	}, [renaming]);
+		if (wasRenaming.current && !editing && endedByKey.current) button.current?.focus();
+		if (!editing) endedByKey.current = false;
+		wasRenaming.current = editing;
+	}, [editing]);
 
 	return (
 		<div
@@ -112,9 +115,25 @@ export function GroupChip({
 			}}
 			onContextMenu={onContextMenu}
 		>
-			{renaming ? (
+			{namingWorkspace ? (
 				<RenameField
 					name={group.name}
+					label={t('workspaces.save.label')}
+					onCommit={(name, byKey) => {
+						endedByKey.current = byKey;
+						// An empty name is a cancel here: the group's own name is the one that was taken.
+						if (name.trim() === '') endWorkspaceNaming();
+						else actions.saveAsWorkspace(group, name);
+					}}
+					onCancel={() => {
+						endedByKey.current = true;
+						endWorkspaceNaming();
+					}}
+				/>
+			) : renaming ? (
+				<RenameField
+					name={group.name}
+					label={t('groups.rename.label')}
 					onCommit={(name, byKey) => {
 						endedByKey.current = byKey;
 						onRename(name);
@@ -174,10 +193,13 @@ export function GroupChip({
 /** Enter commits, Escape cancels, and leaving the field commits what was typed. An empty name keeps the old one. */
 function RenameField({
 	name,
+	label,
 	onCommit,
 	onCancel,
 }: {
 	name: string;
+	/** What the field is called for assistive technology. */
+	label: string;
 	onCommit: (name: string, byKey: boolean) => void;
 	onCancel: () => void;
 }) {
@@ -199,7 +221,7 @@ function RenameField({
 			ref={input}
 			className={styles.input}
 			value={value}
-			aria-label={t('groups.rename.label')}
+			aria-label={label}
 			size={Math.max(6, value.length + 1)}
 			onChange={(event) => setValue(event.target.value)}
 			onBlur={() => finish(true, false)}
