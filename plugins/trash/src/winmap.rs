@@ -64,8 +64,9 @@ pub fn join_original(location: &str, name: &str) -> String {
     }
 }
 
-/// The name an item had. Explorer hides known extensions in display names, but the item's file in the bin (`$R1A2B3C.txt`) keeps the original extension, so put it back when the display name lacks it.
+/// The name an item had. The Recycle Bin's display name is the item's whole original path, and Explorer hides known extensions in it, but the item's file in the bin (`$R1A2B3C.txt`) keeps the original extension, so put it back when the display name lacks it.
 pub fn original_name(display: &str, bin_path: &str) -> String {
+    let display = display.rsplit('\\').next().unwrap_or(display);
     let bin_name = bin_path.rsplit('\\').next().unwrap_or(bin_path);
     let extension = match bin_name.rfind('.') {
         Some(dot) if dot > 0 && dot + 1 < bin_name.len() => &bin_name[dot..],
@@ -186,6 +187,12 @@ mod tests {
             "folder"
         );
         assert_eq!(original_name("x", "C:\\$Recycle.Bin\\S-1\\$R1A2B3C."), "x");
+        // The shell gives the whole original path as the display name.
+        assert_eq!(original_name("C:\\Users\\me\\notes", bin), "notes.txt");
+        assert_eq!(
+            original_name("C:\\Users\\me\\a folder", "C:\\$Recycle.Bin\\S-1\\$R9"),
+            "a folder"
+        );
     }
 
     #[test]
