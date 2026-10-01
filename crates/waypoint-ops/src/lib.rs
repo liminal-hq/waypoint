@@ -9,6 +9,7 @@
 mod model;
 mod names;
 mod plan;
+mod queue;
 mod traits;
 
 pub use model::*;
@@ -17,6 +18,7 @@ pub use names::{
     unique_name,
 };
 pub use plan::{plan, plan_with_progress, Plan, PlanCtx, PlanItem, PlanProgress, PlanWarning};
+pub use queue::{is_legal, OpsStore, ProgressGate, QueueError};
 pub use traits::{
     Clock, CounterIds, IdSource, Protected, Providers, SelectionResolver, SettingsReader,
     StaticSettings, SystemClock, Trash, TrashReceipt,
