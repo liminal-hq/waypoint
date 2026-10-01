@@ -10,6 +10,19 @@ import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColou
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { createElement } from 'react';
+import { CloseSmallIcon, FolderTabIcon, PinIcon } from '../icons/AppIcons';
+import {
+	CircleIcon,
+	ColumnsIcon,
+	CopyIcon,
+	LayoutIcon,
+	PaletteIcon,
+	PinOffIcon,
+	ResetIcon,
+	RowsIcon,
+	SeparateIcon,
+	SwapIcon,
+} from '../icons/MenuIcons';
 import { t } from '../i18n/messages';
 import type { PairActions } from './pairActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
@@ -26,9 +39,10 @@ const TAB_COLOUR_PREFIX = 'colour:';
 const LAYOUTS: Array<{
 	layout: PairLayout;
 	label: 'pair.layout.sideBySide' | 'pair.layout.stacked';
+	icon: typeof ColumnsIcon;
 }> = [
-	{ layout: 'sideBySide', label: 'pair.layout.sideBySide' },
-	{ layout: 'stacked', label: 'pair.layout.stacked' },
+	{ layout: 'sideBySide', label: 'pair.layout.sideBySide', icon: ColumnsIcon },
+	{ layout: 'stacked', label: 'pair.layout.stacked', icon: RowsIcon },
 ];
 
 function layoutItem(pair: Pair): MenuItem {
@@ -36,10 +50,12 @@ function layoutItem(pair: Pair): MenuItem {
 		type: 'submenu',
 		id: 'pair:layout',
 		label: t('pair.menu.layout'),
-		items: LAYOUTS.map(({ layout, label }) => ({
+		icon: createElement(LayoutIcon),
+		items: LAYOUTS.map(({ layout, label, icon }) => ({
 			type: 'checkbox' as const,
 			id: `${LAYOUT_PREFIX}${layout}`,
 			label: t(label),
+			icon: createElement(icon),
 			checked: pair.layout === layout,
 		})),
 	};
@@ -66,25 +82,38 @@ export function pairJointItems(
 	const lead = tabs.find((tab) => tab.id === pair.panes[0]);
 	const colour = sharedColour(pair, tabs);
 	return [
-		{ type: 'action', id: 'pair:separate', label: t('pair.menu.separate') },
-		{ type: 'action', id: 'pair:swap', label: t('pair.menu.swap') },
+		{
+			type: 'action',
+			id: 'pair:separate',
+			label: t('pair.menu.separate'),
+			icon: createElement(SeparateIcon),
+		},
+		{ type: 'action', id: 'pair:swap', label: t('pair.menu.swap'), icon: createElement(SwapIcon) },
 		layoutItem(pair),
-		{ type: 'action', id: 'pair:resetSizes', label: t('pair.menu.resetSizes') },
+		{
+			type: 'action',
+			id: 'pair:resetSizes',
+			label: t('pair.menu.resetSizes'),
+			icon: createElement(ResetIcon),
+		},
 		{ type: 'separator', id: 'sep-pair-look' },
 		{
 			type: 'action',
 			id: lead?.pinned ? 'pair:unpin' : 'pair:pin',
 			label: t(lead?.pinned ? 'tabs.menu.unpin' : 'tabs.menu.pin'),
+			icon: createElement(lead?.pinned ? PinOffIcon : PinIcon),
 		},
 		{
 			type: 'submenu',
 			id: 'pair:colour',
 			label: t('tabs.menu.colour'),
+			icon: createElement(PaletteIcon),
 			items: [
 				{
 					type: 'checkbox',
 					id: `${COLOUR_PREFIX}none`,
 					label: t('tabs.colour.none'),
+					icon: createElement(CircleIcon),
 					checked: colour === null,
 				},
 				...TAB_COLOURS.map((name) => ({
@@ -99,13 +128,23 @@ export function pairJointItems(
 		// Extension point: the group menu's "Add to Group ▸" items are passed in here.
 		...groupItems,
 		{ type: 'separator', id: 'sep-pair-copy' },
-		{ type: 'action', id: 'pair:duplicate', label: t('pair.menu.duplicate') },
+		{
+			type: 'action',
+			id: 'pair:duplicate',
+			label: t('pair.menu.duplicate'),
+			icon: createElement(CopyIcon),
+		},
 		...windowMoveItems(others, {
 			newWindow: t('pair.menu.moveToNewWindow'),
 			toWindow: t('pair.menu.moveToWindow'),
 		}),
 		{ type: 'separator', id: 'sep-pair-close' },
-		{ type: 'action', id: 'pair:closeBoth', label: t('pair.menu.closeBoth') },
+		{
+			type: 'action',
+			id: 'pair:closeBoth',
+			label: t('pair.menu.closeBoth'),
+			icon: createElement(CloseSmallIcon),
+		},
 	];
 }
 
@@ -123,11 +162,31 @@ export function pairTabItems(
 	if (pair) {
 		return [
 			{ type: 'separator', id: 'sep-pair' },
-			{ type: 'action', id: 'pair:separate', label: t('pair.menu.separateTabs') },
-			{ type: 'action', id: 'pair:swap', label: t('pair.menu.swap') },
+			{
+				type: 'action',
+				id: 'pair:separate',
+				label: t('pair.menu.separateTabs'),
+				icon: createElement(SeparateIcon),
+			},
+			{
+				type: 'action',
+				id: 'pair:swap',
+				label: t('pair.menu.swap'),
+				icon: createElement(SwapIcon),
+			},
 			layoutItem(pair),
-			{ type: 'action', id: 'pair:resetSizes', label: t('pair.menu.resetSizes') },
-			{ type: 'action', id: 'pair:closeBoth', label: t('pair.menu.closeBoth') },
+			{
+				type: 'action',
+				id: 'pair:resetSizes',
+				label: t('pair.menu.resetSizes'),
+				icon: createElement(ResetIcon),
+			},
+			{
+				type: 'action',
+				id: 'pair:closeBoth',
+				label: t('pair.menu.closeBoth'),
+				icon: createElement(CloseSmallIcon),
+			},
 		];
 	}
 	const candidates = tabs.filter(
@@ -140,11 +199,13 @@ export function pairTabItems(
 			type: 'submenu',
 			id: 'splitWith',
 			label: t('pair.menu.splitWith'),
+			icon: createElement(ColumnsIcon),
 			disabled: candidates.length === 0,
 			items: candidates.map((other) => ({
 				type: 'action' as const,
 				id: `${SPLIT_WITH_PREFIX}${other.id}`,
 				label: locationLabel(other.location),
+				icon: createElement(FolderTabIcon),
 			})),
 		},
 	];

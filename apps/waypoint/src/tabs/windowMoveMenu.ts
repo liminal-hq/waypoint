@@ -6,6 +6,8 @@
 import type { MenuItem, SelectableMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import { createElement } from 'react';
+import { ExternalLinkIcon, WindowIcon, WindowsIcon } from '../icons/MenuIcons';
 import { t } from '../i18n/messages';
 import { windowMenuLabel, type WindowActions } from './windowActions';
 
@@ -26,16 +28,23 @@ export function windowMoveItems(
 	},
 ): MenuItem[] {
 	return [
-		{ type: 'action', id: 'moveToNewWindow', label: labels.newWindow },
+		{
+			type: 'action',
+			id: 'moveToNewWindow',
+			label: labels.newWindow,
+			icon: createElement(ExternalLinkIcon),
+		},
 		{
 			type: 'submenu',
 			id: 'moveToWindow',
 			label: labels.toWindow,
+			icon: createElement(WindowsIcon),
 			disabled: others.length === 0,
 			items: others.map((window) => ({
 				type: 'action' as const,
 				id: `${WINDOW_PREFIX}${window.label}`,
 				label: windowMenuLabel(window),
+				icon: createElement(WindowIcon),
 			})),
 		},
 	];

@@ -7,6 +7,21 @@ import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTa
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { MenuItem, SelectableMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
+import { CloseSmallIcon, FolderTabIcon, HomeIcon, PinIcon, PlusIcon } from '../icons/AppIcons';
+import {
+	CircleIcon,
+	CloseOthersIcon,
+	CloseToRightIcon,
+	CopyIcon,
+	GroupIcon,
+	HistoryIcon,
+	NewTabIcon,
+	PaletteIcon,
+	PinOffIcon,
+	UndoIcon,
+	UngroupIcon,
+	WindowIcon,
+} from '../icons/MenuIcons';
 import { t, tf } from '../i18n/messages';
 import type { GroupActions } from './groupActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
@@ -32,17 +47,20 @@ export function closedTabItems(closed: readonly ClosedTab[]): MenuItem[] {
 			id: 'reopen',
 			label: t('tabs.menu.reopen'),
 			shortcut: REOPEN_SHORTCUT,
+			icon: createElement(UndoIcon),
 			disabled: closed.length === 0,
 		},
 		{
 			type: 'submenu',
 			id: 'recentlyClosed',
 			label: t('tabs.menu.recentlyClosed'),
+			icon: createElement(HistoryIcon),
 			disabled: closed.length === 0,
 			items: closed.map((entry) => ({
 				type: 'action' as const,
 				id: `${CLOSED_PREFIX}${entry.tab.id}`,
 				label: locationLabel(entry.tab.location),
+				icon: createElement(FolderTabIcon),
 			})),
 		},
 	];
@@ -69,16 +87,19 @@ export function tabMenuItems(
 			type: 'action',
 			id: tab.pinned ? 'unpin' : 'pin',
 			label: pinWording(tab.pinned),
+			icon: createElement(tab.pinned ? PinOffIcon : PinIcon),
 		},
 		{
 			type: 'submenu',
 			id: 'colour',
 			label: t('tabs.menu.colour'),
+			icon: createElement(PaletteIcon),
 			items: [
 				{
 					type: 'checkbox',
 					id: `${COLOUR_PREFIX}none`,
 					label: t('tabs.colour.none'),
+					icon: createElement(CircleIcon),
 					checked: tab.colour === null,
 				},
 				...TAB_COLOURS.map((colour) => ({
@@ -94,6 +115,7 @@ export function tabMenuItems(
 			type: 'submenu',
 			id: 'addToGroup',
 			label: t('tabs.menu.addToGroup'),
+			icon: createElement(GroupIcon),
 			items: [
 				...groups
 					.filter((group) => group.id !== tab.group)
@@ -103,25 +125,58 @@ export function tabMenuItems(
 						label: group.name,
 						icon: group.colour
 							? createElement(TabColourSwatch, { colour: group.colour })
-							: undefined,
+							: createElement(GroupIcon),
 					})),
 				...(groups.some((group) => group.id !== tab.group)
 					? [{ type: 'separator' as const, id: 'sep-new-group' }]
 					: []),
-				{ type: 'action' as const, id: 'newGroup', label: t('tabs.menu.newGroup') },
+				{
+					type: 'action' as const,
+					id: 'newGroup',
+					label: t('tabs.menu.newGroup'),
+					icon: createElement(PlusIcon),
+				},
 			],
 		},
 		...(own
-			? [{ type: 'action' as const, id: 'removeFromGroup', label: t('tabs.menu.removeFromGroup') }]
+			? [
+					{
+						type: 'action' as const,
+						id: 'removeFromGroup',
+						label: t('tabs.menu.removeFromGroup'),
+						icon: createElement(UngroupIcon),
+					},
+				]
 			: []),
 		{ type: 'separator', id: 'sep-copy' },
-		{ type: 'action', id: 'duplicate', label: t('tabs.menu.duplicate') },
+		{
+			type: 'action',
+			id: 'duplicate',
+			label: t('tabs.menu.duplicate'),
+			icon: createElement(CopyIcon),
+		},
 		{ type: 'separator', id: 'sep-window' },
 		...windowMoveItems(others),
 		{ type: 'separator', id: 'sep-close' },
-		{ type: 'action', id: 'close', label: t('tabs.menu.close'), shortcut: 'Ctrl+W' },
-		{ type: 'action', id: 'closeOthers', label: t('tabs.menu.closeOthers') },
-		{ type: 'action', id: 'closeRight', label: t('tabs.menu.closeRight') },
+		{
+			type: 'action',
+			id: 'close',
+			label: t('tabs.menu.close'),
+			shortcut: 'Ctrl+W',
+			icon: createElement(CloseSmallIcon),
+		},
+		{
+			type: 'action',
+			id: 'closeOthers',
+			label: t('tabs.menu.closeOthers'),
+			icon: createElement(CloseOthersIcon),
+		},
+		{
+			type: 'action',
+			id: 'closeRight',
+			label: t('tabs.menu.closeRight'),
+			icon: createElement(CloseToRightIcon),
+		},
 		{ type: 'separator', id: 'sep-closed' },
 		...closedTabItems(closed),
 	];
@@ -129,13 +184,25 @@ export function tabMenuItems(
 
 export function plusMenuItems(closed: readonly ClosedTab[]): MenuItem[] {
 	return [
-		{ type: 'action', id: 'newTab', label: t('tabs.plusMenu.newTab'), shortcut: 'Ctrl+T' },
-		{ type: 'action', id: 'newTabHome', label: t('tabs.plusMenu.newTabHome') },
+		{
+			type: 'action',
+			id: 'newTab',
+			label: t('tabs.plusMenu.newTab'),
+			shortcut: 'Ctrl+T',
+			icon: createElement(NewTabIcon),
+		},
+		{
+			type: 'action',
+			id: 'newTabHome',
+			label: t('tabs.plusMenu.newTabHome'),
+			icon: createElement(HomeIcon),
+		},
 		{
 			type: 'action',
 			id: 'newWindow',
 			label: t('tabs.plusMenu.newWindow'),
 			shortcut: 'Ctrl+Shift+N',
+			icon: createElement(WindowIcon),
 		},
 		{ type: 'separator', id: 'sep-closed' },
 		...closedTabItems(closed),

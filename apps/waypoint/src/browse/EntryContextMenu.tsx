@@ -9,6 +9,8 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { t } from '../i18n/messages';
 import { isFolder } from '../nav/useOpenEntry';
+import { StarIcon } from '../icons/AppIcons';
+import { FolderOpenIcon, LinkIcon, NewTabIcon, WindowIcon } from '../icons/MenuIcons';
 
 interface EntryContextMenuProps {
 	entry: Entry;
@@ -20,6 +22,47 @@ interface EntryContextMenuProps {
 	onOpenInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
 	onCopyPath: (entry: Entry, handle: ListingHandle) => void;
 	onAddToFavourites: (entry: Entry, handle: ListingHandle) => void;
+}
+
+/** The entry menu's items; Open in New Tab and Add to Favourites are for folders only. */
+export function entryMenuItems(entry: Entry): MenuItem[] {
+	return [
+		{
+			type: 'action',
+			id: 'open',
+			label: t('menu.open'),
+			shortcut: 'Enter',
+			icon: <FolderOpenIcon />,
+		},
+		...(isFolder(entry)
+			? [
+					{
+						type: 'action',
+						id: 'openInNewTab',
+						label: t('menu.openInNewTab'),
+						icon: <NewTabIcon />,
+					} as const,
+					{
+						type: 'action',
+						id: 'openInNewWindow',
+						label: t('menu.openInNewWindow'),
+						icon: <WindowIcon />,
+					} as const,
+				]
+			: []),
+		{ type: 'separator' },
+		...(isFolder(entry)
+			? [
+					{
+						type: 'action',
+						id: 'addToFavourites',
+						label: t('menu.addToFavourites'),
+						icon: <StarIcon />,
+					} as const,
+				]
+			: []),
+		{ type: 'action', id: 'copyPath', label: t('menu.copyPath'), icon: <LinkIcon /> },
+	];
 }
 
 /**
@@ -37,20 +80,7 @@ export function EntryContextMenu({
 	onCopyPath,
 	onAddToFavourites,
 }: EntryContextMenuProps) {
-	const items: MenuItem[] = [
-		{ type: 'action', id: 'open', label: t('menu.open'), shortcut: 'Enter' },
-		...(isFolder(entry)
-			? [
-					{ type: 'action', id: 'openInNewTab', label: t('menu.openInNewTab') } as const,
-					{ type: 'action', id: 'openInNewWindow', label: t('menu.openInNewWindow') } as const,
-				]
-			: []),
-		{ type: 'separator' },
-		...(isFolder(entry)
-			? [{ type: 'action', id: 'addToFavourites', label: t('menu.addToFavourites') } as const]
-			: []),
-		{ type: 'action', id: 'copyPath', label: t('menu.copyPath') },
-	];
+	const items = entryMenuItems(entry);
 	return (
 		<ContextMenu
 			items={items}

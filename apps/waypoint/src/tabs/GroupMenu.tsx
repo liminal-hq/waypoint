@@ -12,7 +12,23 @@ import type {
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
+import { CloseSmallIcon, FolderTabIcon, PinIcon } from '../icons/AppIcons';
+import {
+	BookmarkIcon,
+	CircleIcon,
+	CollapseIcon,
+	CopyIcon,
+	DriveIcon,
+	EditIcon,
+	ExpandIcon,
+	NewTabIcon,
+	PaletteIcon,
+	PinOffIcon,
+	SortIcon,
+	TextIcon,
+	UngroupIcon,
+} from '../icons/MenuIcons';
 import { t } from '../i18n/messages';
 import { useGroupActions, type GroupActions } from './groupActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
@@ -27,10 +43,11 @@ const SORT_PREFIX = 'sort:';
 const SORTS: {
 	by: GroupSort;
 	message: 'groups.menu.sortName' | 'groups.menu.sortLocation' | 'groups.menu.sortLocal';
+	icon: ReactNode;
 }[] = [
-	{ by: 'name', message: 'groups.menu.sortName' },
-	{ by: 'location', message: 'groups.menu.sortLocation' },
-	{ by: 'localFirst', message: 'groups.menu.sortLocal' },
+	{ by: 'name', message: 'groups.menu.sortName', icon: <TextIcon /> },
+	{ by: 'location', message: 'groups.menu.sortLocation', icon: <FolderTabIcon /> },
+	{ by: 'localFirst', message: 'groups.menu.sortLocal', icon: <DriveIcon /> },
 ];
 
 /** What the menu needs to know beyond the group itself. */
@@ -48,16 +65,24 @@ export function groupMenuItems(
 	others: readonly WindowSummary[] = [],
 ): MenuItem[] {
 	return [
-		{ type: 'action', id: 'rename', label: t('groups.menu.rename'), shortcut: 'F2' },
+		{
+			type: 'action',
+			id: 'rename',
+			label: t('groups.menu.rename'),
+			shortcut: 'F2',
+			icon: <EditIcon />,
+		},
 		{
 			type: 'submenu',
 			id: 'colour',
 			label: t('groups.menu.colour'),
+			icon: <PaletteIcon />,
 			items: [
 				{
 					type: 'checkbox',
 					id: `${COLOUR_PREFIX}none`,
 					label: t('tabs.colour.none'),
+					icon: <CircleIcon />,
 					checked: group.colour === null,
 				},
 				...TAB_COLOURS.map((colour) => ({
@@ -73,44 +98,56 @@ export function groupMenuItems(
 			type: 'action',
 			id: group.collapsed ? 'expand' : 'collapse',
 			label: t(group.collapsed ? 'groups.menu.expand' : 'groups.menu.collapse'),
+			icon: group.collapsed ? <ExpandIcon /> : <CollapseIcon />,
 		},
 		{
 			type: 'action',
 			id: 'collapseOthers',
 			label: t('groups.menu.collapseOthers'),
+			icon: <CollapseIcon />,
 			disabled: !hasOthers,
 		},
 		{ type: 'separator', id: 'sep-tabs' },
-		{ type: 'action', id: 'newTab', label: t('groups.menu.newTab') },
+		{ type: 'action', id: 'newTab', label: t('groups.menu.newTab'), icon: <NewTabIcon /> },
 		{
 			type: 'action',
 			id: pinned ? 'unpin' : 'pin',
 			label: t(pinned ? 'groups.menu.unpin' : 'groups.menu.pin'),
+			icon: pinned ? <PinOffIcon /> : <PinIcon />,
 		},
 		{
 			type: 'submenu',
 			id: 'sort',
 			label: t('groups.menu.sort'),
-			items: SORTS.map(({ by, message }) => ({
+			icon: <SortIcon />,
+			items: SORTS.map(({ by, message, icon }) => ({
 				type: 'action' as const,
 				id: `${SORT_PREFIX}${by}`,
 				label: t(message),
+				icon,
 			})),
 		},
 		{ type: 'separator', id: 'sep-copy' },
-		{ type: 'action', id: 'duplicate', label: t('groups.menu.duplicate') },
+		{ type: 'action', id: 'duplicate', label: t('groups.menu.duplicate'), icon: <CopyIcon /> },
 		{
 			type: 'action',
 			id: 'saveWorkspace',
 			label: t('groups.menu.saveWorkspace'),
+			icon: <BookmarkIcon />,
 		},
 		...windowMoveItems(others, {
 			newWindow: t('groups.menu.moveWindow'),
 			toWindow: t('groups.menu.moveToWindow'),
 		}),
 		{ type: 'separator', id: 'sep-close' },
-		{ type: 'action', id: 'ungroup', label: t('groups.menu.ungroup') },
-		{ type: 'action', id: 'close', label: t('groups.menu.close'), danger: true },
+		{ type: 'action', id: 'ungroup', label: t('groups.menu.ungroup'), icon: <UngroupIcon /> },
+		{
+			type: 'action',
+			id: 'close',
+			label: t('groups.menu.close'),
+			danger: true,
+			icon: <CloseSmallIcon />,
+		},
 	];
 }
 
