@@ -11,16 +11,16 @@ Pure Rust crates that hold Waypoint's domain logic. They have **no `tauri` depen
 
 ## Crates
 
-| Crate                                                | Status  | What it is                                                                                                                                                                          |
-| ---------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`waypoint-protocol`](waypoint-protocol)             | Built   | Shared wire-format types (`PluginStatus`, `WindowKind`) and the `ts-rs` generation that feeds the front end                                                                         |
-| [`waypoint-path`](waypoint-path)                     | Built   | The common path and URI type: local paths (including Windows drive letters and long paths) are built; `sftp://`, `smb://`, `davs://`, `s3://`, `git+file://` and archive URIs       |
-| [`waypoint-vfs`](waypoint-vfs)                       | Partial | The `Provider` trait, the local provider and listing handles with sorted and filtered indexes, and the local watcher are built; the provider registry, and tags and comments follow |
-| `waypoint-provider-{sftp,smb,webdav,s3,archive,git}` | Planned | One crate per protocol behind Cargo features, so heavy dependencies stay optional                                                                                                   |
-| `waypoint-ops`                                       | Planned | The operations engine: queue, conflicts, verification, resumable jobs and the undo journal                                                                                          |
-| `waypoint-session`                                   | Planned | Windows, tabs, groups, split layouts, saved layouts, session restore and the tab hand-off used by tear-off                                                                          |
-| `waypoint-search`                                    | Planned | Scoped search, filters, content and regular-expression search, and smart folders                                                                                                    |
-| `waypoint-ext`                                       | Planned | The extension host: manifests, permissions, lifecycle and the extension-point registry                                                                                              |
+| Crate                                                | Status  | What it is                                                                                                                                                                              |
+| ---------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`waypoint-protocol`](waypoint-protocol)             | Built   | Shared wire-format types (`PluginStatus`, `WindowKind`) and the `ts-rs` generation that feeds the front end                                                                             |
+| [`waypoint-path`](waypoint-path)                     | Built   | The common path and URI type: local paths (including Windows drive letters and long paths) are built; `sftp://`, `smb://`, `davs://`, `s3://`, `git+file://` and archive URIs           |
+| [`waypoint-vfs`](waypoint-vfs)                       | Partial | The `Provider` trait, the local provider and listing handles with sorted and filtered indexes, and the local watcher are built; the provider registry, and tags and comments follow     |
+| `waypoint-provider-{sftp,smb,webdav,s3,archive,git}` | Planned | One crate per protocol behind Cargo features, so heavy dependencies stay optional                                                                                                       |
+| [`waypoint-ops`](waypoint-ops)                       | Partial | The operations engine: the model, planner, queue and the executors for create, rename, duplicate, trash, restore and delete are built; the journal, the plugin and copy and move follow |
+| `waypoint-session`                                   | Planned | Windows, tabs, groups, split layouts, saved layouts, session restore and the tab hand-off used by tear-off                                                                              |
+| `waypoint-search`                                    | Planned | Scoped search, filters, content and regular-expression search, and smart folders                                                                                                        |
+| `waypoint-ext`                                       | Planned | The extension host: manifests, permissions, lifecycle and the extension-point registry                                                                                                  |
 
 Only add a crate when a milestone needs it. The full split, including which concerns become reusable plugins instead, is in [`docs/architecture/crates-and-plugins.md`](../docs/architecture/crates-and-plugins.md).
 
