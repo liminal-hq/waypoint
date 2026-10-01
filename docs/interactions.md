@@ -113,7 +113,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 - Type-ahead jumps to the first prefix match, and the timer resets after 800 ms. Typing `/` starts a filter chip in the path bar area.
 - Inline rename selects the basename only. If the extension changes, it asks "Change .jpg to .png?" with Keep or Use .png.
-- Batch rename (Ctrl+F2) is a dialog of rule stacks with a live preview table. Rows that clash are highlighted and the Apply button stays disabled until they're resolved.
+- Batch rename (Ctrl+F2) is a dialog of rule stacks with a live preview table. Rules can be added, removed, reordered and changed to another type, and the table follows a moment after the last keystroke. Rows that clash are highlighted and say why in words (the highlight is a bar and bold text, not a colour alone), the summary line counts the problems, and the Apply button stays disabled until there are none and at least one name changes. Focus starts on the first rule's type, never on Apply; Esc cancels. A note appears when a rule changes a file extension. At most 500 rows are drawn, with a count of the rest.
 
 ## 5. Path bar
 
