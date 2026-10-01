@@ -10,8 +10,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use waypoint_protocol::WindowKind;
 use waypoint_session::{
-    Command, MoveTo, Outcome, SessionEvent, SessionSnapshot, SessionStorage, Store, TabId,
-    WindowSummary,
+    Command, MoveTo, MoveWhat, Outcome, SessionEvent, SessionSnapshot, SessionStorage, Store,
+    TabId, WindowSummary,
 };
 
 use crate::deps::SessionDeps;
@@ -145,7 +145,7 @@ impl<R: Runtime> Sessions<R> {
         if register {
             self.ensure_window(app, &mut store, label)?;
         }
-        if opens_window(&command) && store.windows().len() >= MAX_WINDOWS {
+        if grows_windows(&store, label, &command) && store.windows().len() >= MAX_WINDOWS {
             log::warn!("refusing to open a window: {MAX_WINDOWS} are open");
             return Err(Error::TooManyWindows { limit: MAX_WINDOWS });
         }
@@ -299,16 +299,34 @@ impl<R: Runtime> Sessions<R> {
     }
 }
 
-/// Whether a command makes a window, which the window cap counts.
-fn opens_window(command: &Command) -> bool {
-    matches!(
-        command,
-        Command::OpenWindow { .. }
-            | Command::MoveTabs {
-                to: MoveTo::NewWindow { .. },
-                ..
-            }
-    )
+/// Whether a command adds to the number of open windows, which the window cap counts. A move to a
+/// new window that takes every tab of a window which closes when it is empty swaps one window for
+/// another, so it does not.
+fn grows_windows(store: &Store, label: &str, command: &Command) -> bool {
+    match command {
+        Command::OpenWindow { .. } => true,
+        Command::MoveTabs {
+            what,
+            to: MoveTo::NewWindow { .. },
+        } => !(store.policy().close_window_on_last_tab && empties_window(store, label, what)),
+        _ => false,
+    }
+}
+
+/// Whether moving `what` leaves the window `label` with no tabs.
+fn empties_window(store: &Store, label: &str, what: &MoveWhat) -> bool {
+    let Some(w) = store.window(label) else {
+        return false;
+    };
+    let moving: HashSet<TabId> = match what {
+        MoveWhat::Tabs(tabs) => tabs.iter().copied().collect(),
+        MoveWhat::Group(group) => w.group_tabs(*group).into_iter().collect(),
+        MoveWhat::Pair(pair) => w
+            .pair(*pair)
+            .map(|p| p.panes.iter().copied().collect())
+            .unwrap_or_default(),
+    };
+    !w.tabs.is_empty() && w.tabs.iter().all(|t| moving.contains(&t.id))
 }
 
 /// The window a `MoveTabs` hands the tabs to: the label of an existing window, or the window the

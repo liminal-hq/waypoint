@@ -673,6 +673,42 @@ fn open_window(app: &App, from: &str) -> Result<String, Error> {
 }
 
 #[test]
+fn moving_the_only_tab_of_a_window_to_a_new_window_is_allowed_at_the_cap() {
+    // With the app's policy the emptied window closes, so the count does not grow.
+    let t = setup_with(StorePolicy::default(), |_| {}, &["main-1"]);
+    let only = open_tab(&t.app, "main-1", "a").unwrap();
+    for _ in 1..crate::MAX_WINDOWS {
+        open_window(&t.app, "main-1").unwrap();
+    }
+    assert_eq!(sessions(&t.app).with_store(|s| s.windows().len()), 12);
+    let moved = tauri::async_runtime::block_on(commands::move_tabs(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        MoveWhat::Tabs(vec![only]),
+        MoveTo::NewWindow {
+            label: None,
+            geometry: None,
+        },
+    ));
+    assert!(moved.is_ok(), "{moved:?}");
+    assert_eq!(sessions(&t.app).with_store(|s| s.windows().len()), 12);
+    assert!(sessions(&t.app).with_store(|s| s.window("main-1").is_none()));
+
+    // A window that keeps a tab would make a thirteenth, so that is still refused.
+    let extra = open_tab(&t.app, "main-2", "y").unwrap();
+    let refused = tauri::async_runtime::block_on(commands::move_tabs(
+        window(&t.app, "main-2"),
+        sessions(&t.app),
+        MoveWhat::Tabs(vec![extra]),
+        MoveTo::NewWindow {
+            label: None,
+            geometry: None,
+        },
+    ));
+    assert!(matches!(refused, Err(Error::TooManyWindows { .. })));
+}
+
+#[test]
 fn the_thirteenth_window_is_refused_with_a_typed_error_and_nothing_changes() {
     let t = setup(&["main-1"]);
     open_tab(&t.app, "main-1", "a").unwrap();

@@ -167,6 +167,28 @@ describe('FakeTabsStore with several windows', () => {
 		expect(store.window('main-1')!.groups.map((g) => g.name)).toEqual(['Group 2', 'Group 3']);
 	});
 
+	it('lets the only tab of a window move to a new window at the window cap', async () => {
+		const store = new FakeTabsStore();
+		const one = new FakeTabsApi(store, 'main-1');
+		const only = await one.openTab(loc('a'));
+		for (let i = 1; i < 12; i += 1) await one.openWindow(loc('w'));
+		expect(store.windowLabels()).toHaveLength(12);
+		await one.moveTabs(
+			{ kind: 'tabs', value: [only] },
+			{ kind: 'newWindow', label: null, geometry: null },
+		);
+		expect(store.windowLabels()).toHaveLength(12);
+		expect(store.windowLabels()).not.toContain('main-1');
+		const two = new FakeTabsApi(store, 'main-2');
+		const extra = await two.openTab(loc('b'));
+		await expect(
+			two.moveTabs(
+				{ kind: 'tabs', value: [extra] },
+				{ kind: 'newWindow', label: null, geometry: null },
+			),
+		).rejects.toMatchObject({ kind: 'tooManyWindows', limit: 12 });
+	});
+
 	it("returns the ids the plugin returns and rejects with Rust's messages", async () => {
 		const api = new FakeTabsApi();
 		const a = await api.openTab(loc('a'));

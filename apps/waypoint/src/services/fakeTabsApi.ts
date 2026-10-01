@@ -254,8 +254,9 @@ export class FakeTabsApi implements TabsApi {
 			// A window's label is the store's to allocate; a caller cannot pick one.
 			throw `internal error: a new window cannot be given the label \`${to.label}\``;
 		}
-		if (to.kind === 'newWindow') this.checkWindowCap();
 		const moving = this.movingTabs(what);
+		// A move that empties a window which closes when empty swaps it for the new one: no growth.
+		if (to.kind === 'newWindow' && !this.emptiesWindow(moving)) this.checkWindowCap();
 		const outcome = this.run({ kind: 'moveTabs', what, to });
 		if (to.kind === 'existingWindow') {
 			this.store.notifyHandoff(to.label, { tabs: moving, from: this.label });
@@ -266,6 +267,16 @@ export class FakeTabsApi implements TabsApi {
 		)[0];
 		if (opened === undefined) throw 'internal error: moving tabs produced no target window';
 		return opened;
+	}
+
+	private emptiesWindow(moving: readonly TabId[]): boolean {
+		const w = this.store.window(this.label);
+		return (
+			this.store.policy.closeWindowOnLastTab &&
+			w !== undefined &&
+			w.tabs.length > 0 &&
+			w.tabs.every((t) => moving.includes(t.id))
+		);
 	}
 
 	/** The tabs a move takes, as the plugin reports them to the window they arrive in. */
