@@ -9,16 +9,29 @@ import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSna
 import type { OpenOptions, VfsClient } from '../services/vfsClient';
 import { openListingModel, toVfsError } from './listingModel';
 import { applyHints } from './tabHints';
-import { createListingSession, type SessionState } from './useListingSession';
+import { createListingSession, type ListingSession, type SessionState } from './useListingSession';
 import type { ViewMode } from './viewStore';
 
 /** How long a tab can be in the background before it drops the pages it has cached. */
 export const BACKGROUND_EVICT_DELAY_MS = 15_000;
 
+/** A released hold keeps its listing this long, so a tab springing back to it finds the very session. */
+export const RETAIN_GRACE_MS = 1000;
+
+interface Held {
+	tab: TabId;
+	uri: string;
+	holds: number;
+	/** Set while nobody holds the listing and it waits out the grace period. */
+	timer: ReturnType<typeof setTimeout> | null;
+}
+
 export interface ListingManagerOptions {
 	/** What a newly opened listing starts with; `inherited` is the sort of the listing it replaces (used as is when omitted). */
 	openOptions?: (inherited: SortSpec | undefined) => OpenOptions;
 	evictDelayMs?: number;
+	/** How long a listing nobody holds any more is kept for the tab that left it to come back (`retain`). */
+	retainGraceMs?: number;
 	/** The layout in use, which decides which scroll offset a restored tab's hint belongs to. */
 	viewMode?: () => ViewMode;
 }
@@ -51,6 +64,8 @@ export class ListingManager {
 	private hinted = new Set<TabId>();
 	/** The latest hidden-files choice, applied to listings that become ready after it was made. */
 	private wantedHidden: boolean | null = null;
+	/** Sessions someone holds on to (a file drag's sources), by session, with how many hold each. */
+	private retained = new Map<ListingSession, Held>();
 
 	constructor(
 		private client: VfsClient,
@@ -98,6 +113,47 @@ export class ListingManager {
 		}
 	}
 
+	/**
+	 * Keeps the listing a tab shows open until the returned function is called, even when the tab
+	 * navigates away: a file drag's sources are a handle into that listing, and spring-loading a
+	 * folder navigates the pane the drag began in. When the tab comes back to the same folder during
+	 * the hold, or just after it (`retainGraceMs`), it gets the very session back, its selection and
+	 * scroll with it, so a drag that is cancelled leaves the pane as it was. Returns `null` when
+	 * the tab has no ready listing.
+	 */
+	retain(tab: TabId): (() => void) | null {
+		const slot = this.slots.get(tab);
+		if (!slot || slot.state.status !== 'ready') return null;
+		const session = slot.state.session;
+		const held = this.retained.get(session) ?? { tab, uri: slot.uri, holds: 0, timer: null };
+		if (held.timer) clearTimeout(held.timer);
+		held.timer = null;
+		held.holds += 1;
+		this.retained.set(session, held);
+		let released = false;
+		return () => {
+			if (released) return;
+			released = true;
+			held.holds -= 1;
+			if (held.holds > 0) return;
+			if (this.isLive(held.tab, session)) {
+				this.retained.delete(session);
+				return;
+			}
+			// Not the tab's listing now: it is kept a moment longer, in case the tab is on its way back.
+			held.timer = setTimeout(() => {
+				held.timer = null;
+				this.retained.delete(session);
+				if (!this.isLive(held.tab, session)) session.model.dispose();
+			}, this.options.retainGraceMs ?? RETAIN_GRACE_MS);
+		};
+	}
+
+	private isLive(tab: TabId, session: ListingSession): boolean {
+		const current = this.slots.get(tab)?.state;
+		return current?.status === 'ready' && current.session === session;
+	}
+
 	/** Applies the hidden-files choice to every open listing; listings opened later take it from `openOptions`. */
 	setShowHidden(showHidden: boolean): void {
 		this.wantedHidden = showHidden;
@@ -117,6 +173,12 @@ export class ListingManager {
 	/** Closes every listing. The manager can be used again: the next `sync` reopens what is shown. */
 	dispose(): void {
 		for (const id of [...this.slots.keys()]) this.release(id);
+		// Nothing is left to come back to: what was only being kept goes too.
+		for (const [session, held] of [...this.retained]) {
+			if (held.timer) clearTimeout(held.timer);
+			this.retained.delete(session);
+			session.model.dispose();
+		}
 	}
 
 	/** How many tabs hold a listing, for tests. */
@@ -132,6 +194,24 @@ export class ListingManager {
 			this.release(tab.id);
 			// The tab moved on from the listing its hints described.
 			this.hinted.add(tab.id);
+		}
+
+		// A drag still holds the session of this very folder (the pane was sprung away and came back).
+		for (const [session, held] of this.retained) {
+			if (held.tab !== tab.id || held.uri !== tab.location.uri) continue;
+			// Adopted: the hold, if any is left, now only guards a listing that is the tab's own.
+			if (held.timer) clearTimeout(held.timer);
+			held.timer = null;
+			if (held.holds === 0) this.retained.delete(session);
+			this.slots.set(tab.id, {
+				uri: tab.location.uri,
+				state: { status: 'ready', session },
+				evictTimer: null,
+				evicted: false,
+				background: false,
+			});
+			this.changed();
+			return;
 		}
 
 		const slot: Slot = {
@@ -177,7 +257,9 @@ export class ListingManager {
 		if (!slot) return;
 		this.stopEvicting(slot);
 		this.slots.delete(tab);
-		if (slot.state.status === 'ready') slot.state.session.model.dispose();
+		if (slot.state.status === 'ready' && !this.retained.has(slot.state.session)) {
+			slot.state.session.model.dispose();
+		}
 		this.changed();
 	}
 
