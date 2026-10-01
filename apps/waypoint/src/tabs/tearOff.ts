@@ -324,6 +324,8 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		const mine = generation;
 		void (async () => {
 			let target: string | null = null;
+			/** The window made hidden for this drag, which nothing shows unless the drag starts. */
+			let hidden: string | null = null;
 			try {
 				const windows = await deps.api.listWindows();
 				const own = windows.find((window) => window.active)?.label;
@@ -358,6 +360,7 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 					} finally {
 						await deps.client.holdNextWindow(false).catch(() => {});
 					}
+					hidden = target;
 				}
 				// The pointer holds the window where it holds this one: the new window opens over the old.
 				const view = deps.viewport();
@@ -370,6 +373,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				else if (phase === 'tearing' && mine === generation) phase = 'blocked';
 			} catch (error) {
 				console.warn('could not start the window drag', error);
+				// The plugin tells the page of the window it was to drag when a drag it answered does not
+				// start, and that page puts the tabs back. A call that failed outright never reached it, so
+				// the tabs would stay in a window nothing shows: show it, where they can be used.
+				if (hidden) {
+					await deps.client.showWindow(hidden).catch(() => {});
+				}
 				if (phase === 'tearing' && mine === generation) {
 					phase = 'blocked';
 					refuse(error, 'window.notice.moveFailed');

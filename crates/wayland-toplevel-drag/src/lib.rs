@@ -21,6 +21,11 @@
 //! GTK's own `wl_data_device` is reused for the drag: a second device on the seat makes some
 //! compositors (Mutter) send drops to the wrong one.
 //!
+//! How a drag ends is told from the order of the data source's events: `dnd_drop_performed` then
+//! `cancelled` is a release over no target (the window stays where it was dropped), a bare
+//! `cancelled` is Escape or the compositor aborting (it snaps back). That reading is verified on
+//! Mutter; see [`Event::Cancelled`] for the assumption about other compositors.
+//!
 //! Everything must run on the thread that runs GTK's main loop. Where GDK is not on Wayland, the
 //! interposer is not exported, or the compositor has no `xdg_toplevel_drag_manager_v1`, [`probe`]
 //! says why and nothing else is used. On other operating systems the crate is an empty stub.

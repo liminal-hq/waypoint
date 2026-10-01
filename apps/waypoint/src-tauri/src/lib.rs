@@ -76,10 +76,27 @@ fn take_restore_notice(saver: tauri::State<'_, Arc<Saver>>) -> Option<String> {
     saver.take_notice()
 }
 
-/// Keeps the next window the session makes hidden (`on`), or stops doing so; see `HoldNextWindow`.
+/// Keeps the next window the calling window makes hidden (`on`), or stops doing so; see `HoldNextWindow`.
 #[tauri::command]
-fn hold_next_window(hold: tauri::State<'_, HoldNextWindow>, on: bool) {
-    hold.set(on);
+fn hold_next_window(
+    window: tauri::WebviewWindow,
+    hold: tauri::State<'_, HoldNextWindow>,
+    on: bool,
+) {
+    hold.set(window.label(), on, std::time::Instant::now());
+}
+
+/// Shows a main window made hidden for a drag that then could not start, so the tabs in it are not lost.
+#[tauri::command]
+fn show_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    use tauri::Manager;
+    if !label.starts_with("main-") {
+        return Err(format!("`{label}` is not a main window"));
+    }
+    let window = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("no window `{label}`"))?;
+    window.show().map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -127,7 +144,8 @@ pub fn run() {
         .manage(HoldNextWindow::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
-            hold_next_window
+            hold_next_window,
+            show_window
         ])
         .setup({
             let saver = Arc::clone(&saver);

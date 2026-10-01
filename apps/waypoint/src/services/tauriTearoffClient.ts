@@ -60,6 +60,7 @@ export function createTauriTearoffClient(): TearoffClient {
 		onCursorStale: (listener) => subscribe(tearoff.onCursorStale(listener)),
 		// The app's own command (the session's window factory is the app's), not the plugin's.
 		holdNextWindow: (on) => invoke<void>('hold_next_window', { on }),
+		showWindow: (label) => invoke<void>('show_window', { label }),
 		beginToplevelDrag: (payload, windowLabel, grabOffset) =>
 			tearoff.beginToplevelDrag(payload, windowLabel, grabOffset),
 		endToplevelDrag: () => tearoff.endToplevelDrag(),

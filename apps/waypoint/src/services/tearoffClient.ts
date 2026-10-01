@@ -82,6 +82,8 @@ export interface TearoffClient {
 
 	/** Keeps the next window the session makes hidden (`true`), or stops doing so; the toplevel drag shows it. */
 	holdNextWindow(on: boolean): Promise<void>;
+	/** Shows a main window that was made hidden for a drag that then could not start, so what it holds is not lost. */
+	showWindow(label: string): Promise<void>;
 	/** Drags the window `windowLabel` with the compositor, from the press in this window. */
 	beginToplevelDrag(
 		payload: unknown,

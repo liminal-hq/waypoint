@@ -55,6 +55,10 @@ export class FakeTearoffClient implements TearoffClient {
 	pendingResult: ToplevelDragEnded | null = null;
 	/** The values `holdNextWindow` was given, in order. */
 	holds: boolean[] = [];
+	/** The windows `showWindow` was asked to show. */
+	shown: string[] = [];
+	/** When set, `beginToplevelDrag` rejects with it, as a failed call to the plugin does. */
+	toplevelBeginError: Error | null = null;
 	private startedListeners = new Set<(started: ToplevelDragStarted) => void>();
 	private endedListeners = new Set<(ended: ToplevelDragEnded) => void>();
 	private droppedListeners = new Set<(dropped: PayloadDropped) => void>();
@@ -113,6 +117,11 @@ export class FakeTearoffClient implements TearoffClient {
 		this.holds.push(on);
 	}
 
+	async showWindow(label: string): Promise<void> {
+		this.calls.push(`show:${label}`);
+		this.shown.push(label);
+	}
+
 	async beginToplevelDrag(
 		payload: unknown,
 		windowLabel: string,
@@ -121,6 +130,7 @@ export class FakeTearoffClient implements TearoffClient {
 		this.calls.push('beginToplevel');
 		this.toplevelBegins.push({ payload, windowLabel, grabOffset });
 		await this.gate;
+		if (this.toplevelBeginError) throw this.toplevelBeginError;
 		if (this.toplevelBegin.state === 'started') {
 			for (const listener of [...this.startedListeners]) listener({ window: windowLabel, payload });
 		}

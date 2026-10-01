@@ -51,7 +51,7 @@ fn map_unavailable(error: &Unavailable) -> ToplevelProbe {
         Unavailable::NoToplevelDrag => ToplevelProbe::NoProtocol,
         Unavailable::NoSeatOrDataDevice => ToplevelProbe::NoSeat,
         Unavailable::NoInterposer => ToplevelProbe::NoInterposer,
-        Unavailable::Connection(_) => ToplevelProbe::Failed,
+        Unavailable::Connection(_) | Unavailable::InterposerOverflow(_) => ToplevelProbe::Failed,
     }
 }
 

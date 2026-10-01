@@ -20,6 +20,12 @@ pub enum Event {
     /// The drag did not complete. `after_drop` is true when the button was released first, with no
     /// target to take the payload (a drop on the bare desktop: the attached window stays where
     /// it was dropped). It is false for a cancel, such as Escape: the window snaps back.
+    ///
+    /// The two are told apart by whether `wl_data_source.dnd_drop_performed` came before
+    /// `cancelled`. That is what Mutter sends for a release over empty desktop (checked live), and
+    /// the protocol's own wording for a drop nothing accepted. A compositor that sends a bare
+    /// `cancelled` for such a release cannot be told from Escape, and would have the window snap
+    /// back; none has been seen, so the behaviour is not changed for it without evidence.
     Cancelled { after_drop: bool },
     /// The drag could not run.
     Failed(String),
@@ -36,4 +42,6 @@ pub enum Unavailable {
     Connection(String),
     #[error("the proxy interposer is not installed in this executable (link with `-rdynamic` and `-Wl,--undefined=wl_proxy_marshal_flags`) or GTK has made no data device yet")]
     NoInterposer,
+    #[error("the proxy interposer could not record {0} of GDK's Wayland objects (out of memory), so some windows cannot be dragged")]
+    InterposerOverflow(u64),
 }

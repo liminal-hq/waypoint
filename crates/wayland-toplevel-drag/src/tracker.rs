@@ -76,7 +76,10 @@ pub fn probe(display: RawDisplay) -> Result<(), Unavailable> {
     if !ffi::interposer_active() || ffi::gtk_data_device().is_none() {
         return Err(Unavailable::NoInterposer);
     }
-    Ok(())
+    match ffi::interposer_overflows() {
+        0 => Ok(()),
+        lost => Err(Unavailable::InterposerOverflow(lost)),
+    }
 }
 
 /// Why a drag did not start.

@@ -153,6 +153,25 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_cancel_is_escape_and_a_cancel_after_a_drop_is_a_release_on_nothing() {
+        // The assumption about the compositor (see `Event::Cancelled`): the order of events is the
+        // only thing that tells the two apart, so each is pinned here as the whole sequence.
+        let mut escape = machine();
+        escape.feed(Input::Target(None));
+        assert_eq!(
+            escape.feed(Input::Cancelled),
+            [Event::Cancelled { after_drop: false }]
+        );
+        let mut release = machine();
+        release.feed(Input::Target(None));
+        assert_eq!(release.feed(Input::DropPerformed), [Event::DropPerformed]);
+        assert_eq!(
+            release.feed(Input::Cancelled),
+            [Event::Cancelled { after_drop: true }]
+        );
+    }
+
+    #[test]
     fn a_cancel_right_after_finished_is_ignored() {
         let mut drag = machine();
         drag.feed(Input::DropPerformed);

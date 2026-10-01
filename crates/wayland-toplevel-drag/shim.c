@@ -17,6 +17,8 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct wl_proxy;
@@ -53,19 +55,49 @@ union wl_argument {
 extern const struct wl_interface *wl_proxy_get_interface(struct wl_proxy *proxy) __attribute__((weak));
 
 #define WTD_MARSHAL_FLAG_DESTROY 1
-#define MAXN 512
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 // xdg_surface -> wl_surface
-static struct wl_proxy *xs[MAXN], *xs_surf[MAXN];
+static struct wl_proxy **xs, **xs_surf;
 // xdg_toplevel -> xdg_surface
-static struct wl_proxy *xt[MAXN], *xt_xs[MAXN];
-static int nxs, nxt;
+static struct wl_proxy **xt, **xt_xs;
+static int nxs, nxt, capxs, capxt;
 static struct wl_proxy *gtk_dd;
 static unsigned long hits;
+// Proxies that could not be recorded because memory ran out: their windows cannot be dragged.
+static unsigned long overflows;
 
 typedef struct wl_proxy *(*marshal_array_fn)(struct wl_proxy *, uint32_t, const struct wl_interface *, uint32_t,
                                               uint32_t, union wl_argument *);
+
+// Makes room for one more entry in a pair of parallel arrays; false (and counted) when memory is short.
+static int grow(struct wl_proxy ***a, struct wl_proxy ***b, int *cap, int n) {
+  if (n < *cap) return 1;
+  int next = *cap ? *cap * 2 : 64;
+  struct wl_proxy **na = realloc(*a, (size_t)next * sizeof **a);
+  if (na) *a = na;
+  struct wl_proxy **nb = na ? realloc(*b, (size_t)next * sizeof **b) : NULL;
+  if (nb) *b = nb;
+  if (!na || !nb) {
+    overflows++;
+    return 0;
+  }
+  *cap = next;
+  return 1;
+}
+
+// The function GDK means to call, resolved once. Looked up eagerly so a process that cannot be served says so at start.
+static marshal_array_fn resolve_real(void) {
+  static marshal_array_fn real;
+  if (!real) real = (marshal_array_fn)dlsym(RTLD_NEXT, "wl_proxy_marshal_array_flags");
+  return real;
+}
+
+__attribute__((constructor)) static void wtd_init(void) {
+  if (!resolve_real() && getenv("WAYLAND_DISPLAY")) {
+    fprintf(stderr, "wayland-toplevel-drag: `wl_proxy_marshal_array_flags` is not available; Wayland requests cannot be forwarded\n");
+  }
+}
 
 static void forget(struct wl_proxy *p) {
   for (int i = 0; i < nxs; i++) {
@@ -89,9 +121,14 @@ static void forget(struct wl_proxy *p) {
 
 struct wl_proxy *wl_proxy_marshal_flags(struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface,
                                         uint32_t version, uint32_t flags, ...) {
-  static marshal_array_fn real;
-  if (!real) real = (marshal_array_fn)dlsym(RTLD_NEXT, "wl_proxy_marshal_array_flags");
-  if (!real || !wl_proxy_get_interface) return NULL;
+  marshal_array_fn real = resolve_real();
+  // This function replaces GDK's own call, so returning without forwarding would silently break the request for the
+  // whole process. Without these two symbols nothing here can be forwarded: say so and stop, rather than carry on wrong.
+  if (!real || !wl_proxy_get_interface) {
+    fprintf(stderr, "wayland-toplevel-drag: cannot forward a Wayland request (`wl_proxy_marshal_array_flags`%s); aborting\n",
+            real ? " found, `wl_proxy_get_interface` missing" : " missing");
+    abort();
+  }
   const struct wl_interface *pi = wl_proxy_get_interface(proxy);
   const char *sig = pi->methods[opcode].signature;
   union wl_argument args[20];
@@ -122,12 +159,16 @@ struct wl_proxy *wl_proxy_marshal_flags(struct wl_proxy *proxy, uint32_t opcode,
   hits++;
   if (flags & WTD_MARSHAL_FLAG_DESTROY) forget(proxy);
   if (ret && interface && interface->name) {
-    if (!strcmp(interface->name, "xdg_surface") && nxs < MAXN) {
-      xs[nxs] = ret;
-      xs_surf[nxs++] = (struct wl_proxy *)args[1].o;
-    } else if (!strcmp(interface->name, "xdg_toplevel") && nxt < MAXN) {
-      xt[nxt] = ret;
-      xt_xs[nxt++] = proxy;
+    if (!strcmp(interface->name, "xdg_surface")) {
+      if (grow(&xs, &xs_surf, &capxs, nxs)) {
+        xs[nxs] = ret;
+        xs_surf[nxs++] = (struct wl_proxy *)args[1].o;
+      }
+    } else if (!strcmp(interface->name, "xdg_toplevel")) {
+      if (grow(&xt, &xt_xs, &capxt, nxt)) {
+        xt[nxt] = ret;
+        xt_xs[nxt++] = proxy;
+      }
     } else if (!strcmp(interface->name, "wl_data_device")) {
       // The latest one: a single seat is assumed.
       gtk_dd = ret;
@@ -143,6 +184,14 @@ unsigned long wtd_interposer_hits(void) {
   unsigned long h = hits;
   pthread_mutex_unlock(&lock);
   return h;
+}
+
+// How many proxies could not be recorded (memory ran out): non-zero means some window cannot be dragged.
+unsigned long wtd_interposer_overflows(void) {
+  pthread_mutex_lock(&lock);
+  unsigned long n = overflows;
+  pthread_mutex_unlock(&lock);
+  return n;
 }
 
 // The `xdg_toplevel` GDK made for `wl_surface`, or NULL.

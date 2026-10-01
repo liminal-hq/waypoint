@@ -10,9 +10,8 @@
 // draws its own on Linux, D89), the minimum size, and the drag-and-drop handler off (A36).
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tauri::{
     AppHandle, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewUrl, WebviewWindow,
@@ -313,23 +312,50 @@ pub fn after_show(fit: Option<&Fit>) -> AfterShow {
     }
 }
 
+/// How long a hold waits for its window before it lapses: the move that makes the window follows
+/// the hold within moments, so a hold that is still there after this was never used.
+pub const HOLD_TTL: Duration = Duration::from_secs(10);
 
-/// Whether the next window the factory makes is kept hidden. A page sets it just before it moves
-/// tabs to a new window it is about to drag with the compositor (the Wayland tear-off): the
-/// window must not be mapped before the drag attaches it, and the plugin shows it then. The
-/// factory takes the flag, so it applies to one window; the page clears it again once the move
-/// has returned, whatever the result.
+/// A hold on one window's next new window, until `until`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Hold {
+    opener: String,
+    until: Instant,
+}
+
+/// Whether the next window a given window makes is kept hidden. A page sets it just before it
+/// moves tabs to a new window it is about to drag with the compositor (the Wayland tear-off): the
+/// window must not be mapped before the drag attaches it, and the plugin shows it then. The hold
+/// belongs to the window that set it (the factory is told which window a command came from), so a
+/// window another window opens in the meantime is not caught by it; it applies to one window, and it
+/// lapses after `HOLD_TTL`. The page clears it again once the move has returned, whatever the result.
 #[derive(Default, Clone)]
-pub struct HoldNextWindow(Arc<AtomicBool>);
+pub struct HoldNextWindow(Arc<Mutex<Option<Hold>>>);
 
 impl HoldNextWindow {
-    pub fn set(&self, on: bool) {
-        self.0.store(on, Ordering::SeqCst);
+    /// Holds (`on`) or releases `opener`'s next new window.
+    pub fn set(&self, opener: &str, on: bool, now: Instant) {
+        let mut hold = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        *hold = on.then(|| Hold {
+            opener: opener.to_string(),
+            until: now + HOLD_TTL,
+        });
     }
 
-    /// Reads the flag and clears it.
-    pub fn take(&self) -> bool {
-        self.0.swap(false, Ordering::SeqCst)
+    /// Whether a window made for `opener` is held; takes the hold when it is.
+    pub fn take(&self, opener: Option<&str>, now: Instant) -> bool {
+        let mut hold = self.0.lock().unwrap_or_else(|p| p.into_inner());
+        match hold.as_ref() {
+            Some(held) if now >= held.until => {
+                *hold = None;
+                false
+            }
+            Some(held) if Some(held.opener.as_str()) == opener => {
+                *hold = None;
+                true
+            }
+            _ => false,
+        }
     }
 }
 
@@ -397,7 +423,7 @@ impl<R: Runtime> WindowFactory<R> for TauriWindowFactory {
         };
         let hidden = app
             .try_state::<HoldNextWindow>()
-            .is_some_and(|hold| hold.take());
+            .is_some_and(|hold| hold.take(opener, Instant::now()));
         build_main_window(app, label, geometry.or(placed.as_ref()), hidden).map(drop)
     }
 }
@@ -746,5 +772,29 @@ mod tests {
         let next = cascade(&geometry(Some(100), Some(80), 1000, 700), 1.0, &[LEFT]);
         let fit = fit_geometry(&next, &[LEFT], true);
         assert_eq!(fit.position, Some((130, 110)));
+    }
+
+    #[test]
+    fn a_hold_is_taken_only_by_the_window_that_set_it() {
+        let hold = HoldNextWindow::default();
+        let now = Instant::now();
+        hold.set("main-1", true, now);
+        // A window another one opens, or one with no opener, does not take it.
+        assert!(!hold.take(Some("main-2"), now));
+        assert!(!hold.take(None, now));
+        assert!(hold.take(Some("main-1"), now));
+        // One window only.
+        assert!(!hold.take(Some("main-1"), now));
+    }
+
+    #[test]
+    fn a_hold_lapses_and_can_be_released() {
+        let hold = HoldNextWindow::default();
+        let now = Instant::now();
+        hold.set("main-1", true, now);
+        assert!(!hold.take(Some("main-1"), now + HOLD_TTL));
+        hold.set("main-1", true, now);
+        hold.set("main-1", false, now);
+        assert!(!hold.take(Some("main-1"), now));
     }
 }

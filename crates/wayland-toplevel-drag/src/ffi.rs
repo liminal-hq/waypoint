@@ -28,6 +28,7 @@ use wayland_client::{Connection, Proxy};
 
 extern "C" {
     fn wtd_interposer_hits() -> libc::c_ulong;
+    fn wtd_interposer_overflows() -> libc::c_ulong;
     fn wtd_find_xdg_toplevel(wl_surface: *mut c_void) -> *mut c_void;
     fn wtd_find_data_device() -> *mut c_void;
 }
@@ -88,6 +89,13 @@ pub unsafe fn wl_surface_of_gdk_window(gdk_window: *mut c_void) -> Option<RawPro
 pub fn interposer_active() -> bool {
     // SAFETY: a counter read under the interposer's own lock.
     unsafe { wtd_interposer_hits() > 0 }
+}
+
+/// How many of GDK's proxies the interposer could not record (it grows as windows open, so only
+/// running out of memory counts), which leaves those windows undraggable.
+pub fn interposer_overflows() -> u64 {
+    // SAFETY: a counter read under the interposer's own lock.
+    unsafe { wtd_interposer_overflows() as u64 }
 }
 
 /// GTK's `wl_data_device`, as the interposer saw GDK create it.

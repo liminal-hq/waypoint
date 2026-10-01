@@ -254,6 +254,25 @@ describe('when it cannot start', () => {
 		expect(h.client.toplevelBegins).toHaveLength(2);
 	});
 
+	it('shows the hidden window when the call to start the drag itself fails, so the tabs are not lost', async () => {
+		const h = await setup();
+		h.client.toplevelBeginError = new Error('ipc closed');
+		await tearOut(h, { tab: h.ids.a! });
+		await settle();
+		const hidden = h.client.toplevelBegins[0]!.windowLabel;
+		expect(hidden).not.toBe('main-1');
+		expect(h.client.shown).toEqual([hidden]);
+		expect(notices).toHaveLength(1);
+		expect(h.hook.handsOff()).toBe(false);
+	});
+
+	it('shows nothing when the plugin answers that the drag did not start: the window’s page puts the tabs back', async () => {
+		const h = await setup();
+		h.client.toplevelBegin = { state: 'failed', reason: 'no button is held' };
+		await tearOut(h, { tab: h.ids.a! });
+		expect(h.client.shown).toEqual([]);
+	});
+
 	it('does not drag, and says why, when the session refuses the new window', async () => {
 		const h = await setup();
 		h.moveTabs.mockImplementation(async () => {
