@@ -1,0 +1,10 @@
+[default]
+description = "Default permissions for the trash plugin: report its status, move files to the trash, list it, restore from it, delete from it and empty it"
+permissions = [
+  "allow-get-status",
+  "allow-trash",
+  "allow-list",
+  "allow-restore",
+  "allow-delete",
+  "allow-empty",
+]

@@ -8,6 +8,7 @@ members = [
   "apps/waypoint/src-tauri",
   "plugins/os-prefs",
   "plugins/system-appearance",
+  "plugins/trash",
   "plugins/window-manager",
   "plugins/window-tearoff",
   "plugins/waypoint-session",

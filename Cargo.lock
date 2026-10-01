@@ -4238,6 +4238,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-trash"
+version = "0.1.0"
+dependencies = [
+ "ashpd",
+ "chrono",
+ "libc",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "tauri-plugin-waypoint-session"
 version = "0.1.0"
 dependencies = [
@@ -5126,6 +5145,7 @@ dependencies = [
  "tauri-plugin-os-prefs",
  "tauri-plugin-store",
  "tauri-plugin-system-appearance",
+ "tauri-plugin-trash",
  "tauri-plugin-waypoint-session",
  "tauri-plugin-waypoint-vfs",
  "tauri-plugin-window-manager",

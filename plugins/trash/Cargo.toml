@@ -1,0 +1,58 @@
+[package]
+name = "tauri-plugin-trash"
+version = "0.1.0"
+description = "Tauri plugin for the trash: move files to it, list it, restore from it, empty it and expire old items, on the freedesktop.org Trash and the Windows Recycle Bin"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-trash"
+keywords = ["tauri", "plugin", "trash", "recycle-bin", "freedesktop"]
+categories = ["api-bindings", "filesystem"]
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Trashes through IFileOperation, lists and restores through the Recycle Bin shell folder, and empties with SHEmptyRecycleBinW; cross-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the plugin's ignored `live_recycle_bin` test" }
+linux = { level = "full", notes = "Reads and writes the freedesktop.org Trash layout itself (home trash and per-volume trashes), so the trash is shared with Nemo, Nautilus and Dolphin; in Flatpak it can only trash, through the Trash portal" }
+macos = { level = "none", notes = "Reports every feature unavailable" }
+android = { level = "none", notes = "Desktop only" }
+ios = { level = "none", notes = "Desktop only" }
+
+[lib]
+name = "tauri_plugin_trash"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+log = { workspace = true }
+ts-rs = "12"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The same version and features as the `os-prefs` plugin, so the portal stack is built once.
+ashpd = { version = "0.9", default-features = false, features = ["tokio"] }
+libc = "0.2"
+
+# Matches the version Tauri resolves, so the types line up.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_Shell_PropertiesSystem",
+] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros", "sync"] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
