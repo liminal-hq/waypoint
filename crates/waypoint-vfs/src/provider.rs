@@ -3,13 +3,21 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::sync::Arc;
 
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::VfsError;
 
-use crate::{CancelToken, EntryKind, IconGroup};
+use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
+use crate::{CancelToken, EntryKind, IconGroup, VolumeSpace};
+
+/// The error a write primitive a provider does not implement returns.
+pub(crate) fn unsupported<T>(what: &str) -> Result<T, VfsError> {
+    Err(VfsError::Unsupported {
+        what: what.to_owned(),
+    })
+}
 
 /// One entry as a provider reports it, before a listing gives it an `EntryId`.
 ///
@@ -122,5 +130,130 @@ pub trait Provider: Send + Sync {
         Err(VfsError::Unsupported {
             what: "watching this location".to_owned(),
         })
+    }
+
+    // The write primitives (A45). Each defaults to `Unsupported`, so a read-only provider stays
+    // valid and a capability check can hide what it cannot do. None of them follows a symlink in the
+    // final component of a path unless it says so: a link is always the thing acted on.
+
+    /// Creates a folder whose parent exists. `AlreadyExists` when the name is taken (even by a
+    /// file), `NotFound` when the parent is missing, `InvalidName` for a name the provider's case
+    /// rule forbids.
+    fn create_dir(&self, path: &VfsPath) -> Result<(), VfsError> {
+        let _ = path;
+        unsupported("creating folders here")
+    }
+
+    /// Creates an empty file, exclusively: `AlreadyExists` when the name is taken.
+    fn create_file(&self, path: &VfsPath) -> Result<(), VfsError> {
+        let _ = path;
+        unsupported("creating files here")
+    }
+
+    /// Renames or moves an entry within one volume, atomically. A symlink is renamed, never
+    /// followed. With `overwrite` false it fails with `AlreadyExists` when `to` exists (the check
+    /// and the rename are one atomic step where the platform allows it); with it true, a file
+    /// replaces a file and a folder replaces an empty folder, as `rename(2)` does. A rename that
+    /// would have to cross volumes fails with `CrossesDevices` and changes nothing, so the caller
+    /// falls back to copy and remove.
+    fn rename(&self, from: &VfsPath, to: &VfsPath, overwrite: bool) -> Result<(), VfsError> {
+        let _ = (from, to, overwrite);
+        unsupported("renaming here")
+    }
+
+    /// Removes a file or a symlink (the link, never its target). A folder is `IsADirectory`.
+    fn remove_file(&self, path: &VfsPath) -> Result<(), VfsError> {
+        let _ = path;
+        unsupported("removing files here")
+    }
+
+    /// Removes an empty folder. `NotEmpty` when it holds entries, `NotADirectory` for a file or a
+    /// symlink (a link to a folder is removed with `remove_file`).
+    fn remove_dir(&self, path: &VfsPath) -> Result<(), VfsError> {
+        let _ = path;
+        unsupported("removing folders here")
+    }
+
+    /// Opens a file for streaming reads.
+    fn open_read(&self, path: &VfsPath) -> Result<ReadStream, VfsError> {
+        let _ = path;
+        unsupported("reading files here")
+    }
+
+    /// Opens a file for streaming writes, creating it. See `WriteOptions` for the exclusive mode.
+    fn create_write(
+        &self,
+        path: &VfsPath,
+        options: WriteOptions,
+    ) -> Result<Box<dyn WriteStream>, VfsError> {
+        let _ = (path, options);
+        unsupported("writing files here")
+    }
+
+    /// Sets the access and modification times of an entry itself (a symlink's own times, not its
+    /// target's).
+    fn set_times(&self, path: &VfsPath, times: FileTimes) -> Result<(), VfsError> {
+        let _ = (path, times);
+        unsupported("setting times here")
+    }
+
+    /// The permissions of a file or folder (a symlink reports its target's, as it has none of its
+    /// own on Linux).
+    fn permissions(&self, path: &VfsPath) -> Result<Permissions, VfsError> {
+        let _ = path;
+        unsupported("reading permissions here")
+    }
+
+    /// Sets permissions: the Unix mode bits where `mode` is given and the platform has them,
+    /// otherwise just the read-only state. A symlink is `Unsupported` (Linux symlinks carry no
+    /// permissions, and changing the target would be acting through the link).
+    fn set_permissions(&self, path: &VfsPath, permissions: Permissions) -> Result<(), VfsError> {
+        let _ = (path, permissions);
+        unsupported("setting permissions here")
+    }
+
+    /// Creates a symlink at `link` holding the text `target`, which is stored as given (relative
+    /// stays relative) and need not exist. On Windows this needs the privilege to create symlinks
+    /// and otherwise is `PermissionDenied`.
+    fn symlink(&self, link: &VfsPath, target: &OsStr) -> Result<(), VfsError> {
+        let _ = (link, target);
+        unsupported("creating symlinks here")
+    }
+
+    /// The text a symlink holds.
+    fn read_link(&self, path: &VfsPath) -> Result<OsString, VfsError> {
+        let _ = path;
+        unsupported("reading symlinks here")
+    }
+
+    /// The volume the location is on, or `None` when the provider has no such notion or cannot
+    /// tell. To ask about something not yet created, ask about its parent.
+    fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
+        let _ = path;
+        None
+    }
+
+    /// Free and total space on the volume holding the location (what an ordinary user may use), or
+    /// `None` when unknown.
+    fn free_space(&self, path: &VfsPath) -> Option<VolumeSpace> {
+        let _ = path;
+        None
+    }
+
+    /// An optional fast path for copying one file's bytes within this provider (a reflink, a
+    /// server-side copy, `copy_file_range`, `CopyFileExW`): creates `dst` exclusively and returns
+    /// the bytes copied. `None` means "not handled, nothing was touched; use `open_read` and
+    /// `create_write`", and is the default. `Some(Err(_))` leaves no `dst` behind (a cancel is
+    /// `Cancelled`). `progress` receives the bytes copied so far; `cancel` is checked between
+    /// chunks. Only the data is promised: the caller sets times and permissions itself.
+    fn copy_file_within(
+        &self,
+        src: &VfsPath,
+        dst: &VfsPath,
+        progress: &mut dyn FnMut(u64),
+        cancel: &CancelToken,
+    ) -> Option<Result<u64, VfsError>> {
+        let _ = (src, dst, progress, cancel);
+        None
     }
 }

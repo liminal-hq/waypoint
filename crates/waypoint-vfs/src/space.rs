@@ -20,7 +20,7 @@ pub fn free_space(location: &Location) -> Option<VolumeSpace> {
 // are needed there even though they are no-ops on Linux x86_64.
 #[cfg(unix)]
 #[allow(clippy::useless_conversion, clippy::unnecessary_cast)]
-fn query(path: &FilePath) -> Option<VolumeSpace> {
+pub(crate) fn query(path: &FilePath) -> Option<VolumeSpace> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
 
@@ -47,7 +47,7 @@ fn query(path: &FilePath) -> Option<VolumeSpace> {
 }
 
 #[cfg(windows)]
-fn query(path: &FilePath) -> Option<VolumeSpace> {
+pub(crate) fn query(path: &FilePath) -> Option<VolumeSpace> {
     use std::os::windows::ffi::OsStrExt;
 
     use windows::core::PCWSTR;

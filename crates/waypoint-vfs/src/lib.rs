@@ -11,22 +11,32 @@ mod index;
 mod listing;
 mod local;
 mod model;
+mod names;
 mod navigation;
 mod order;
 mod places;
 mod provider;
 mod space;
+#[cfg(unix)]
+#[path = "sys_unix.rs"]
+mod sys;
+#[cfg(windows)]
+#[path = "sys_windows.rs"]
+mod sys;
 mod watch;
+mod write;
 
 pub use cancel::CancelToken;
-pub use error::from_io;
+pub use error::{from_io, from_io_pair, InjectedError};
 pub use icon::group_for;
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
 pub use model::*;
+pub use names::{child_path, validate_name};
 pub use navigation::{describe_location, parse_location};
 pub use order::natural_key;
 pub use places::*;
 pub use provider::*;
 pub use space::free_space;
 pub use watch::{WatchMode, WatchOptions};
+pub use write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
