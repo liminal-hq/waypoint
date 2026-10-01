@@ -87,6 +87,10 @@ apps/waypoint/src/
   sidebar/        places, favourites and the folder tree
   status/         status bar, view switcher, selection summary and free space
   services/       typed wrappers over plugin guest-js APIs and their fakes (VfsClient, TabsApi, PlacesClient), the logger
+  ops/            (planned, milestone 4) the ops client and its fake, the ops store, queue ring, popover and panel, the conflict, error, confirm, destination and batch-rename dialogs, inline rename, entry and background menus and the file-command shortcuts
+  shelf/          (planned, milestone 4) the Shelf panel over the session's shelf state
+  settings/       (planned, milestone 4) the Settings window entry for the `settings` label and its pages
+  commands/       (planned, milestone 4) the command registry that keys, menus, the action bar, the application menu and the command palette share; the palette lists the undo history
   theme/          tokens, scheme/accent/density/transparency application
   i18n/           message catalogue, chrome labels
   icons/          the app's icon set
@@ -95,7 +99,9 @@ apps/waypoint/src/
 packages/chrome/  title bar, window menu, context menu, settings shell (shared, domain-free)
 ```
 
-The layout is one folder per area at the top of `src/`, not a `features/` folder. Later milestones add areas the same way (`dnd/` for the drag engine, then `shelf/`, `search/`, `ops/`, `terminal/`, `inspector/`, `settings/` and `extensions/` as they arrive); each area owns its components, hooks, store and tests.
+The layout is one folder per area at the top of `src/`, not a `features/` folder. Later milestones add areas the same way (`dnd/` for the drag engine, then `ops/`, `shelf/`, `settings/` and `commands/` in milestone 4, then `search/`, `terminal/`, `inspector/` and `extensions/` as they arrive); each area owns its components, hooks, store and tests.
+
+**File drags (planned, milestone 4).** `dnd/fileDrag.ts` is the first consumer of `dragSession` for files: it supplies the handlers, drop targets (folders, tabs, sidebar items, breadcrumbs, the Shelf), spring-loading, the default action rule and modifiers, the `ActionPicker` and the drag ghost. Drops from other apps arrive through `native-dnd` (A54) and feed the same targets, and a drag that leaves the window becomes an OS drag. Every outcome also has a non-pointer path.
 
 **The drag engine (milestone 3).** `apps/waypoint/src/dnd/dragSession.ts` is the generic part and knows nothing about tabs: `createDragSession<Source, Target>({ startThresholdPx, announce, clock?, reducedMotion?, sameTarget? })` gives a session whose `begin(start, handlers)` takes `{ pointerId, clientX, clientY, element, source }` and `{ start?, move, drop, cancel? }`. It owns the press (`pending` until the threshold), pointer capture once the drag starts, `Esc` in the capture phase, `pointercancel`, injectable-clock hold timers (`control.hold(key, ms, fn)`), `consumeClick()` for the click that follows a drag, and a vanilla `zustand` store `{ phase: idle | pending | dragging | cancelled | dropped, pill, target, source }` that changes only when the phase, the pill or the target does. The pointer goes to `--wp-drag-x`, `--wp-drag-y`, `--wp-drag-dx` and `--wp-drag-dy` on the root, so what follows the pointer moves without a React render. A pill's text is announced when it changes. Milestone 4's file drags supply their own handlers.
 
