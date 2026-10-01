@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakePlacesClient } from '../services/fakePlacesClient';
+import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
 import { fileLocation, FakeVfsClient } from '../services/fakeVfsClient';
 import { startMainServices } from './mainServices';
 
@@ -69,5 +70,12 @@ describe('startMainServices', () => {
 			deps({ getRestoreNotice: vi.fn(async () => Promise.reject(new Error('no command'))) }),
 		);
 		expect(services.notice).toBeNull();
+	});
+
+	it('carries the system time format client when there is one', async () => {
+		const timeFormat = new FakeTimeFormatClient('h23');
+		const services = await startMainServices(deps({ createTimeFormatClient: () => timeFormat }));
+		expect(services.timeFormat).toBe(timeFormat);
+		expect((await startMainServices(deps())).timeFormat).toBeUndefined();
 	});
 });

@@ -22,6 +22,7 @@ import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { FileIcon } from './FileIcon';
 import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
+import { useHourCycle } from './TimeFormatContext';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
 import type { ListingSession, SessionState } from './useListingSession';
 import { useListingSession } from './useListingSession';
@@ -114,6 +115,7 @@ function ListingBody({
 	const selection = useStore(store, (state) => state.selection);
 	const focus = useStore(store, (state) => state.focus);
 	const touched = useStore(store, (state) => state.touched);
+	const hourCycle = useHourCycle();
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
@@ -378,7 +380,7 @@ function ListingBody({
 											<span className={styles.cell} data-column="modified">
 												{entry.modifiedMs === null
 													? t('browse.value.none')
-													: formatModified(entry.modifiedMs)}
+													: formatModified(entry.modifiedMs, undefined, hourCycle)}
 											</span>
 											<span className={styles.cell} data-column="kind">
 												{t(`browse.group.${entry.group}`)}

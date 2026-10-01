@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { HourCycle } from '../services/timeFormatClient';
+
 const UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte', 'petabyte'] as const;
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
@@ -45,12 +47,20 @@ export function formatSize(bytes: number, locale?: string): string {
 	return sizeFormat(locale, UNITS[unit]!, digits).format(value);
 }
 
-/** A modification time (milliseconds since the Unix epoch) as a short date and time. */
-export function formatModified(modifiedMs: number, locale?: string): string {
-	const key = locale ?? '';
+/**
+ * A modification time (milliseconds since the Unix epoch) as a short date and time. `hourCycle` is
+ * the system's 12/24-hour setting; without it the locale decides, which is wrong for a person whose
+ * clock setting differs from their locale's convention (`en-CA` defaults to 12-hour).
+ */
+export function formatModified(modifiedMs: number, locale?: string, hourCycle?: HourCycle): string {
+	const key = `${locale ?? ''}|${hourCycle ?? ''}`;
 	let format = dateFormats.get(key);
 	if (!format) {
-		format = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' });
+		format = new Intl.DateTimeFormat(locale, {
+			dateStyle: 'medium',
+			timeStyle: 'short',
+			hourCycle,
+		});
 		dateFormats.set(key, format);
 	}
 	return format.format(new Date(modifiedMs));

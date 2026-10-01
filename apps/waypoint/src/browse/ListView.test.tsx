@@ -13,6 +13,8 @@ import { clientWith, FOLDER, hugeClient, stubLayout, withOverrides } from '../te
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ListView } from './ListView';
+import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
+import { TimeFormatProvider } from './TimeFormatContext';
 import { VfsClientProvider } from './VfsClientContext';
 
 let restoreLayout: () => void;
@@ -115,6 +117,28 @@ describe('listing', () => {
 		expect(docs).toHaveTextContent('—');
 		expect(docs.querySelector('svg[data-group="folder"]')).not.toBeNull();
 		expect(photo.querySelector('svg[data-group="image"]')).not.toBeNull();
+	});
+
+	it('shows the modified time on the 24-hour clock the system is set to, and follows a change', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(FOLDER, [
+			makeEntry(1, 'photo.jpg', { size: 10, modifiedMs: new Date(2026, 9, 1, 13, 5).getTime() }),
+		]);
+		const timeFormat = new FakeTimeFormatClient('h23');
+		render(
+			<VfsClientProvider client={client}>
+				<TimeFormatProvider client={timeFormat}>
+					<ListView location={FOLDER} />
+				</TimeFormatProvider>
+			</VfsClientProvider>,
+		);
+		const photo = await screen.findByRole('option', { name: /photo\.jpg/ });
+		await waitFor(() => expect(photo).toHaveTextContent('13:05'));
+		act(() => timeFormat.set('h12'));
+		await waitFor(() => expect(photo).not.toHaveTextContent('13:05'));
+		expect(photo).toHaveTextContent(/\b1:05/);
+		act(() => timeFormat.set('h23'));
+		await waitFor(() => expect(photo).toHaveTextContent('13:05'));
 	});
 
 	it('measures the row height once the scroller appears after an empty first render', async () => {
