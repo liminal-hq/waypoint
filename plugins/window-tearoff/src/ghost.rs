@@ -52,12 +52,21 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, options: &Options) {
     }
 }
 
+/// Shows the ghost without taking activation or keyboard focus from the window being dragged from. Must run on the main thread.
+pub fn show<R: Runtime>(ghost: &WebviewWindow<R>) {
+    if platform::platform().needs_show_without_activating() {
+        platform::show_without_activating(ghost);
+    } else {
+        let _ = ghost.show();
+    }
+}
+
 /// Makes the ghost click-through. Must run on the main thread.
 ///
 /// `set_ignore_cursor_events` on a window that was never shown aborts the process on Linux (`tao` unwraps the unrealised GTK window), so the ghost is shown once off-screen first. The calls are queued in order on the event loop, so they need no sleeps, and click-through is in place before the first real `show`.
 pub fn realise<R: Runtime>(ghost: &WebviewWindow<R>) {
     let _ = ghost.set_position(PhysicalPosition::new(PARKING.0, PARKING.1));
-    let _ = ghost.show();
+    show(ghost);
     if let Err(error) = ghost.set_ignore_cursor_events(true) {
         warn!("window-tearoff: cannot make the ghost click-through: {error}");
     }
@@ -74,7 +83,7 @@ pub fn show_at<R: Runtime>(
     if let Some((width, height)) = size {
         let _ = ghost.set_size(tauri::LogicalSize::new(width, height));
     }
-    let _ = ghost.show();
+    show(ghost);
     let _ = ghost.set_position(PhysicalPosition::new(position.0, position.1));
 }
 
@@ -130,7 +139,7 @@ pub async fn probe<R: Runtime>(app: &AppHandle<R>, ghost_label: &str) -> Probes 
             let platform = platform::platform();
             let ghost = app.get_webview_window(&label);
             if let Some(ghost) = ghost.as_ref().filter(|_| !platform.trusts_probes()) {
-                let _ = ghost.show();
+                show(ghost);
             }
             (platform, ghost.is_some())
         }

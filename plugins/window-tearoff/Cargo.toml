@@ -11,7 +11,7 @@ build = "build.rs"
 links = "tauri-plugin-window-tearoff"
 
 [package.metadata.platforms.support]
-windows = { level = "partial", notes = "Follows the cursor with GetCursorPos through tao and does not take focus; type-checked but not yet run on Windows" }
+windows = { level = "partial", notes = "Follows the cursor with GetCursorPos through tao and shows the ghost with SW_SHOWNOACTIVATE so it does not take activation or focus; run on Windows 11 in the milestone 3 verification" }
 linux = { level = "partial", notes = "Full ghost and hit-testing on X11 and XWayland; on Wayland the compositor reports no cursor and no window positions, so every feature reports unavailable and the caller falls back to an in-page preview" }
 macos = { level = "none", notes = "Reports every feature unavailable" }
 android = { level = "none", notes = "Desktop windows only" }
@@ -39,6 +39,7 @@ gtk = "0.18"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 [build-dependencies]

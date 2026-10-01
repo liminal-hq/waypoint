@@ -174,3 +174,12 @@ fn wire_types_use_camel_case() {
         json!("noGhost")
     );
 }
+
+#[test]
+fn only_windows_shows_the_ghost_without_activating_it() {
+    use crate::status::Platform;
+    assert!(Platform::Windows.needs_show_without_activating());
+    for platform in [Platform::X11, Platform::Wayland, Platform::Unsupported] {
+        assert!(!platform.needs_show_without_activating(), "{platform:?}");
+    }
+}

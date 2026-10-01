@@ -114,12 +114,12 @@ Hit-testing uses each window's inner (content) position and size, never its oute
 
 ## Platforms
 
-| Platform      | `ghost` | `cursor_follow` | `window_position` | `hit_test` | Notes                                                                                                                          |
-| ------------- | ------- | --------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Linux X11     | probed  | `true`          | probed            | probed     | XWayland counts as X11. Shows the ghost before positioning it, because a position set before `show` is overridden at map time. |
-| Linux Wayland | `false` | `false`         | `false`           | `false`    | No cursor, no window positions. Take the in-page preview path.                                                                 |
-| Windows       | `true`  | `true`          | `true`            | `true`     | Reported without probing; type-checked but not yet run on Windows.                                                             |
-| Other         | `false` | `false`         | `false`           | `false`    | macOS, Android and iOS report the plugin unavailable.                                                                          |
+| Platform      | `ghost` | `cursor_follow` | `window_position` | `hit_test` | Notes                                                                                                                                                                                                                                                                                                              |
+| ------------- | ------- | --------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Linux X11     | probed  | `true`          | probed            | probed     | XWayland counts as X11. Shows the ghost before positioning it, because a position set before `show` is overridden at map time.                                                                                                                                                                                     |
+| Linux Wayland | `false` | `false`         | `false`           | `false`    | No cursor, no window positions. Take the in-page preview path.                                                                                                                                                                                                                                                     |
+| Windows       | `true`  | `true`          | `true`            | `true`     | Reported without probing. Run on Windows 11 in the milestone 3 verification. Every ghost show is `SW_SHOWNOACTIVATE`: `tao` only does that for a window's first show, and a later `SW_SHOW` would activate the ghost despite `WS_EX_NOACTIVATE`, so the source window would blur and Escape would reach the ghost. |
+| Other         | `false` | `false`         | `false`           | `false`    | macOS, Android and iOS report the plugin unavailable.                                                                                                                                                                                                                                                              |
 
 ## Types
 

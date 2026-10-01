@@ -47,6 +47,11 @@ pub fn buttons_held() -> bool {
     held().unwrap_or(true)
 }
 
+/// Only Windows shows the ghost without activating it (`Platform::needs_show_without_activating`); elsewhere this is a plain show.
+pub fn show_without_activating<R: tauri::Runtime>(ghost: &tauri::WebviewWindow<R>) {
+    let _ = ghost.show();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -22,6 +22,11 @@ impl Platform {
     pub fn trusts_probes(self) -> bool {
         matches!(self, Platform::Windows)
     }
+
+    /// Whether showing the ghost has to be asked not to activate it. `tao` shows a `focused(false)` window with `SW_SHOWNOACTIVATE` only the first time; every later `show` is `SW_SHOW`, which activates the window despite `WS_EX_NOACTIVATE`, so the source window loses focus and Escape goes to the ghost.
+    pub fn needs_show_without_activating(self) -> bool {
+        matches!(self, Platform::Windows)
+    }
 }
 
 /// What the plugin learned about this system at runtime, cached for the session.
