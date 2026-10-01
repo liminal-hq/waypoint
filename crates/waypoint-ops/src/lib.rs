@@ -6,12 +6,19 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+pub mod exec;
 mod model;
 mod names;
 mod plan;
 mod queue;
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
 mod traits;
 
+pub use exec::{
+    remove_all, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport, ExecSink, Executor,
+    NullSink, SimpleCopy,
+};
 pub use model::*;
 pub use names::{
     file_name_of, fold_name, is_within, same_name, same_path, split_name, unique_full_name,
