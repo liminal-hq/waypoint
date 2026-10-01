@@ -236,7 +236,7 @@ export function createGroupActions(
 					.then(() => announce(tf('groups.announce.closed', { name: group.name }))),
 			),
 		moveBy: (group, delta) => {
-			const target = groupStepTarget(tabs, group.id, delta);
+			const target = groupStepTarget(tabs, group.id, delta, snapshot?.pairs);
 			if (target === null) return;
 			const position = target + 1;
 			run(

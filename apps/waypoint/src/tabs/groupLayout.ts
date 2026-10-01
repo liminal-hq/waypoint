@@ -5,6 +5,7 @@
 
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
 import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
+import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
@@ -129,13 +130,28 @@ export function measureSpans(root: ParentNode, tabs: readonly TabSnapshot[]): Sp
 	});
 }
 
-/** The session's own order rules, for a list of tabs: pinned first, each group gathered at its first tab. */
-function settle(tabs: readonly TabSnapshot[]): TabSnapshot[] {
+/** The tabs that travel with `tab`: its pair's panes in strip order, or the tab alone. */
+function unitOf(tabs: readonly TabSnapshot[], pairs: readonly Pair[], tab: TabId): TabSnapshot[] {
+	const pair = pairs.find((candidate) => candidate.panes.includes(tab));
+	if (!pair) return tabs.filter((candidate) => candidate.id === tab);
+	return tabs.filter((candidate) => pair.panes.includes(candidate.id));
+}
+
+/**
+ * The session's own order rules, for a list of tabs: a pair's panes stay together as one unit at
+ * the unit's first place, each group gathers at its first tab, and pinned blocks come first.
+ */
+function settle(tabs: readonly TabSnapshot[], pairs: readonly Pair[]): TabSnapshot[] {
+	const seen = new Set<TabId>();
 	const blocks: { group: GroupId | null; pinned: boolean; tabs: TabSnapshot[] }[] = [];
 	for (const tab of tabs) {
-		const block = tab.group === null ? undefined : blocks.find((b) => b.group === tab.group);
-		if (block) block.tabs.push(tab);
-		else blocks.push({ group: tab.group, pinned: tab.pinned, tabs: [tab] });
+		if (seen.has(tab.id)) continue;
+		const unit = unitOf(tabs, pairs, tab.id).filter((member) => !seen.has(member.id));
+		unit.forEach((member) => seen.add(member.id));
+		const lead = unit[0] ?? tab;
+		const block = lead.group === null ? undefined : blocks.find((b) => b.group === lead.group);
+		if (block) block.tabs.push(...unit);
+		else blocks.push({ group: lead.group, pinned: lead.pinned, tabs: unit });
 	}
 	return [
 		...blocks.filter((b) => b.pinned).flatMap((b) => b.tabs),
@@ -147,16 +163,17 @@ function settle(tabs: readonly TabSnapshot[]): TabSnapshot[] {
  * Where the session leaves `moving` (one tab, or a whole group's tabs, in order) when asked to
  * put its first tab at `index` among the other tabs: a grouped tab stays inside its own group's
  * run, and anything else dropped inside another group's run, or across the pinned boundary, is
- * settled to the nearest legal place. Pairs are not modelled here: a pair moves as one unit in the
- * session, and the pair UI supplies that.
+ * settled to the nearest legal place. A pair is a unit: moving either pane moves both, and a drop
+ * between a pair's panes settles after the pair, as the session does.
  */
 export function settledOrder(
 	tabs: readonly TabSnapshot[],
 	moving: readonly TabId[],
 	index: number,
 	within: GroupId | null,
+	pairs: readonly Pair[] = [],
 ): TabSnapshot[] {
-	const wanted = new Set(moving);
+	const wanted = new Set(moving.flatMap((id) => unitOf(tabs, pairs, id).map((tab) => tab.id)));
 	const block = tabs.filter((tab) => wanted.has(tab.id));
 	const rest = tabs.filter((tab) => !wanted.has(tab.id));
 	let at = Math.max(0, Math.min(index, rest.length));
@@ -166,33 +183,55 @@ export function settledOrder(
 		const last = positions[positions.length - 1];
 		if (first !== undefined && last !== undefined) at = Math.max(first, Math.min(last + 1, at));
 	}
-	return settle([...rest.slice(0, at), ...block, ...rest.slice(at)]);
+	return settle([...rest.slice(0, at), ...block, ...rest.slice(at)], pairs);
 }
 
-/** The index tab `from` ends up at when dropped at `to`, after the session's rules have settled it. */
-export function landingIndex(tabs: readonly TabSnapshot[], from: number, to: number): number {
+/**
+ * The index the unit of tab `from` ends up at (its first tab, which is what `Move` takes) when
+ * dropped at `to`, after the session's rules have settled it. For a tab outside a pair that is
+ * the tab's own index.
+ */
+export function landingIndex(
+	tabs: readonly TabSnapshot[],
+	from: number,
+	to: number,
+	pairs: readonly Pair[] = [],
+): number {
 	const tab = tabs[from];
 	if (!tab) return from;
-	const order = settledOrder(tabs, [tab.id], to, tab.group);
-	return order.findIndex((candidate) => candidate.id === tab.id);
+	const order = settledOrder(tabs, [tab.id], to, tab.group, pairs);
+	const lead = unitOf(tabs, pairs, tab.id)[0] ?? tab;
+	return order.findIndex((candidate) => candidate.id === lead.id);
 }
 
 /**
  * Where one keyboard step (`delta` of -1 or 1) puts tab `from`, as an index after the move. A tab
- * outside any group steps over a whole neighbouring group (collapsed or not) in one go, and a
- * grouped tab stays within its group: leaving one is Remove from Group.
+ * outside any group steps over a whole neighbouring group (collapsed or not) in one go, anything
+ * steps over a whole neighbouring pair, and a grouped tab stays within its group: leaving one is
+ * Remove from Group.
  */
-export function stepTarget(tabs: readonly TabSnapshot[], from: number, delta: -1 | 1): number {
+export function stepTarget(
+	tabs: readonly TabSnapshot[],
+	from: number,
+	delta: -1 | 1,
+	pairs: readonly Pair[] = [],
+): number {
 	const tab = tabs[from];
-	const next = tabs[from + delta];
-	if (!tab || !next) return from;
-	let to = from + delta;
-	if (tab.group === null && next.group !== null) {
-		const run = tabs.flatMap((candidate, i) => (candidate.group === next.group ? [i] : []));
-		const edge = delta > 0 ? Math.max(...run) : Math.min(...run);
-		to = edge;
-	}
-	return landingIndex(tabs, from, to);
+	if (!tab) return from;
+	const indexOfTab = (id: TabId) => tabs.findIndex((candidate) => candidate.id === id);
+	const own = unitOf(tabs, pairs, tab.id).map((member) => indexOfTab(member.id));
+	const firstOwn = Math.min(...own);
+	const lastOwn = Math.max(...own);
+	const next = tabs[delta > 0 ? lastOwn + 1 : firstOwn - 1];
+	if (!next) return from;
+	const run =
+		tab.group === null && next.group !== null
+			? tabs.flatMap((candidate, i) => (candidate.group === next.group ? [i] : []))
+			: unitOf(tabs, pairs, next.id).map((member) => indexOfTab(member.id));
+	const to = delta > 0 ? firstOwn + run.length : Math.min(...run);
+	const landed = landingIndex(tabs, from, to, pairs);
+	// A step the session settles back to where the unit already is changes nothing.
+	return landed === firstOwn ? from : landed;
 }
 
 /**
@@ -203,6 +242,7 @@ export function groupStepTarget(
 	tabs: readonly TabSnapshot[],
 	group: GroupId,
 	delta: -1 | 1,
+	pairs: readonly Pair[] = [],
 ): number | null {
 	const members = groupTabs(tabs, group);
 	const first = tabs.findIndex((tab) => tab.id === members[0]?.id);
@@ -220,6 +260,7 @@ export function groupStepTarget(
 		members.map((member) => member.id),
 		to,
 		null,
+		pairs,
 	);
 	const landed = order.findIndex((tab) => tab.id === members[0]?.id);
 	return landed === first ? null : landed;

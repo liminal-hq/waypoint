@@ -4,9 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
+import type { Pair } from '@liminal-hq/waypoint-protocol/generated/Pair';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { describe, expect, it } from 'vitest';
+import { FakeTabsApi } from '../services/fakeTabsApi';
+import { FakeTabsStore } from '../services/fakeTabsStore';
+import { fileLocation } from '../services/fakeVfsClient';
 import {
 	buildStrip,
 	groupStepTarget,
@@ -132,5 +136,78 @@ describe('where a move lands', () => {
 		const groups = [tab(1, 1), tab(2, 1), tab(3, 2)];
 		expect(groupStepTarget(groups, 1, 1)).toBe(1);
 		expect(groupStepTarget(groups, 1, -1)).toBeNull();
+	});
+});
+
+describe('where a move lands around pairs', () => {
+	const pair = (id: number, ...panes: number[]): Pair =>
+		({ id, panes, layout: 'sideBySide', sizes: [500, 500], origin: { kind: 'joined' } }) as Pair;
+
+	it('moves both panes when either one is moved', () => {
+		// 1 | pair 2 3 | 4 | 5
+		const tabs = [tab(1), tab(2), tab(3), tab(4), tab(5)];
+		const pairs = [pair(1, 2, 3)];
+		expect(ids(settledOrder(tabs, [3], 0, null, pairs))).toEqual([2, 3, 1, 4, 5]);
+		expect(ids(settledOrder(tabs, [2], 4, null, pairs))).toEqual([1, 4, 5, 2, 3]);
+		// The index it reports is the unit's first tab, whichever pane was dragged.
+		expect(landingIndex(tabs, 2, 0, pairs)).toBe(0);
+		expect(landingIndex(tabs, 1, 4, pairs)).toBe(3);
+	});
+
+	it('settles a tab dropped between the panes of a pair to after the pair', () => {
+		const tabs = [tab(1), tab(2), tab(3), tab(4), tab(5)];
+		const pairs = [pair(1, 2, 3)];
+		expect(ids(settledOrder(tabs, [4], 2, null, pairs))).toEqual([1, 2, 3, 4, 5]);
+		expect(ids(settledOrder(tabs, [1], 2, null, pairs))).toEqual([2, 3, 1, 4, 5]);
+	});
+
+	it('keeps a pair beside a group whole, and inside a group it stays in the group', () => {
+		// 1 | G1: 2 3 (pair) 4 | 5
+		const tabs = [tab(1), tab(2, 1), tab(3, 1), tab(4, 1), tab(5)];
+		const pairs = [pair(1, 2, 3)];
+		expect(ids(settledOrder(tabs, [1], 2, null, pairs))).toEqual([2, 3, 4, 1, 5]);
+		// A grouped pair dragged out of its group's run stays at the run's edge.
+		expect(ids(settledOrder(tabs, [2], 4, 1, pairs))).toEqual([1, 4, 2, 3, 5]);
+		expect(ids(settledOrder(tabs, [3], 0, 1, pairs))).toEqual([1, 2, 3, 4, 5]);
+	});
+
+	it('steps over a whole neighbouring pair, and a pair steps as one', () => {
+		const tabs = [tab(1), tab(2), tab(3), tab(4)];
+		const pairs = [pair(1, 2, 3)];
+		expect(stepTarget(tabs, 0, 1, pairs)).toBe(2);
+		expect(stepTarget(tabs, 3, -1, pairs)).toBe(1);
+		// Either pane steps the pair one tab along; at the end nothing moves.
+		expect(stepTarget(tabs, 1, 1, pairs)).toBe(2);
+		expect(stepTarget(tabs, 2, 1, pairs)).toBe(2);
+		expect(stepTarget(tabs, 1, -1, pairs)).toBe(0);
+		expect(stepTarget(tabs, 1, -1, [pair(1, 1, 2)])).toBe(1);
+	});
+
+	it('moves a group past a pair that is beside it as one unit', () => {
+		const tabs = [tab(1, 1), tab(2, 1), tab(3), tab(4)];
+		const pairs = [pair(1, 3, 4)];
+		expect(groupStepTarget(tabs, 1, 1, pairs)).toBe(2);
+	});
+
+	it('agrees with the session store on where a pair lands', async () => {
+		// The TypeScript order rules mirror the Rust reducer; the store is the arbiter.
+		for (const [dragged, to] of [
+			[2, 0],
+			[3, 4],
+			[4, 2],
+			[1, 2],
+			[5, 1],
+		] as const) {
+			const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
+			const api = new FakeTabsApi(store, 'main-1');
+			for (let n = 1; n <= 5; n += 1)
+				await api.openTab(fileLocation(`/t${n}`), { activate: false });
+			await api.joinPair([2, 3], 'sideBySide');
+			const before = (await api.getSnapshot()).tabs;
+			const pairs = (await api.getSnapshot()).pairs;
+			const expected = settledOrder(before, [dragged], to, null, pairs).map((entry) => entry.id);
+			await api.moveTab(dragged, to);
+			expect((await api.getSnapshot()).tabs.map((entry) => entry.id)).toEqual(expected);
+		}
 	});
 });

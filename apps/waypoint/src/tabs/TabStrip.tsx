@@ -304,7 +304,7 @@ export function TabStrip() {
 					event.preventDefault();
 					// The session keeps a tab on its own side of the pinned boundary and a grouped tab
 					// inside its group; a tab outside groups steps over a neighbouring group whole.
-					const target = stepTarget(tabs, index, delta);
+					const target = stepTarget(tabs, index, delta, snapshot?.pairs);
 					if (target !== index) {
 						actions.move(tab.id, target);
 						announce(
@@ -380,7 +380,12 @@ export function TabStrip() {
 		const centre = origin ? (origin.left + origin.right) / 2 + dx : event.clientX;
 		// Where the session will really leave the tab: it stays on its side of the pinned boundary,
 		// a grouped tab stays in its group, and a drop into another group's run lands beside the group.
-		const to = landingIndex(tabs, drag.from, dropIndex(drag.spans, drag.from, centre));
+		const to = landingIndex(
+			tabs,
+			drag.from,
+			dropIndex(drag.spans, drag.from, centre),
+			snapshot?.pairs,
+		);
 		setDrag({ ...drag, dx, dragging, to });
 	};
 
