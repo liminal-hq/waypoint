@@ -6,6 +6,8 @@
 mod ops;
 mod ops_window;
 mod persistence;
+mod settings;
+mod settings_window;
 mod storage;
 mod windows;
 
@@ -144,6 +146,9 @@ pub fn run() {
         .plugin(tauri_plugin_trash::init())
         .plugin(tauri_plugin_native_dnd::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
+        // After the store plugin it saves through; the session reads its choices (start-up, the view
+        // of a new window) from it in `setup`.
+        .plugin(tauri_plugin_waypoint_settings::init_with(settings::storage))
         // After the vfs and trash plugins its adapters reach, and after the store plugin it saves through.
         .plugin(tauri_plugin_waypoint_ops::init_with(ops::deps))
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
@@ -153,11 +158,13 @@ pub fn run() {
             take_restore_notice,
             hold_next_window,
             show_window,
-            ops_window::open_ops_window
+            ops_window::open_ops_window,
+            settings_window::open_settings_window
         ])
         .setup({
             let saver = Arc::clone(&saver);
             move |app| {
+                settings::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
             }

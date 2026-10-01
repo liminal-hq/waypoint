@@ -262,7 +262,15 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
         Err(e) => log::warn!("could not open the session file: {e}"),
     }
     let sessions = app.state::<Sessions<Wry>>();
-    match saver.storage.load() {
+    // "Open Home" (General settings) leaves the saved session alone until the first save of this
+    // run replaces it, and starts with the one window a first run gets.
+    let loaded = if crate::settings::restores_session(&crate::settings::current(app)) {
+        saver.storage.load()
+    } else {
+        log::info!("the start-up setting is Home: not restoring the last session");
+        Ok(None)
+    };
+    match loaded {
         Ok(Some(document)) => match Store::from_document(document) {
             Ok((store, notes)) => {
                 for note in notes {

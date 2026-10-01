@@ -1116,15 +1116,31 @@ mod tests {
                 assert!(answer.is_ok(), "{label} may call {command}: {answer:?}");
             }
         }
-        for label in ["settings", "properties-1", "tear-ghost"] {
+        for label in ["properties-1", "tear-ghost"] {
             let window = open(label);
-            for command in ["get_clipboard", "submit", "undo", "set_settings"] {
+            for command in [
+                "get_clipboard",
+                "submit",
+                "undo",
+                "get_settings",
+                "set_settings",
+            ] {
                 let refused = call(&window, command).expect_err("a refused call");
                 assert!(
                     refused.to_string().contains("not allowed"),
                     "{label} may not call {command}: {refused}"
                 );
             }
+        }
+        // The Settings window edits the operations settings and nothing else of the plugin.
+        let window = open("settings");
+        assert!(call(&window, "get_settings").is_ok());
+        for command in ["get_clipboard", "get_snapshot", "submit", "undo"] {
+            let refused = call(&window, command).expect_err("a refused call");
+            assert!(
+                refused.to_string().contains("not allowed"),
+                "settings may not call {command}: {refused}"
+            );
         }
     }
 }
