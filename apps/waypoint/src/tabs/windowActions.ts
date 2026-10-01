@@ -69,7 +69,10 @@ export function windowMenuLabel(window: WindowSummary): string {
 }
 
 /** Says why a window could not be opened or a tab moved, in the status bar. */
-function refuse(error: unknown, fallback: 'window.notice.openFailed' | 'window.notice.moveFailed') {
+export function refuse(
+	error: unknown,
+	fallback: 'window.notice.openFailed' | 'window.notice.moveFailed',
+) {
 	const limit = windowLimitOf(error);
 	if (limit !== null) {
 		postNotice(tf('window.notice.limit', { limit }));

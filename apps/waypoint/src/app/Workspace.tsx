@@ -12,7 +12,7 @@ import { BackgroundContextMenu } from '../browse/BackgroundContextMenu';
 import type { SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
-import { followHints, HINT_INTERVAL_MS } from '../browse/tabHints';
+import { flushHints, followHints, HINT_INTERVAL_MS } from '../browse/tabHints';
 import { onFlushHints } from '../services/flushHintsEvent';
 import {
 	createViewStore,
@@ -39,7 +39,14 @@ import { useNavigation } from '../nav/useNavigation';
 import type { EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
-import { TabDragProvider } from '../tabs/TabDragContext';
+import type { TearoffClient } from '../services/tearoffClient';
+import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
+import { announce } from '../tabs/announcer';
+import { createTearCardStore } from '../tabs/tearOffCard';
+import { TearOffCard } from '../tabs/TearOffCard';
+import { createTearOff } from '../tabs/tearOff';
+import { sessionSignature } from '../tabs/tabDrag';
+import { useDropRegions, useTearoffFeatures } from '../tabs/useTearoff';
 import { TabStrip } from '../tabs/TabStrip';
 import { activePair, visibleTabs } from '../tabs/pairLayout';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
@@ -65,17 +72,61 @@ export interface WorkspaceStartup {
 	notice?: string | null;
 }
 
-/** The browsing area. It owns the window's view choices (list or grid, icon size, hidden files). */
-export function Workspace({ startup }: { startup?: WorkspaceStartup }) {
+/** The transparent margin the window frame draws around the content, in logical pixels (0 where the OS draws the frame). */
+function frameMargin(): number {
+	const value = getComputedStyle(document.documentElement).getPropertyValue(
+		'--wp-window-shadow-margin',
+	);
+	const margin = Number.parseFloat(value);
+	return Number.isFinite(margin) ? margin : 0;
+}
+
+/**
+ * The browsing area. It owns the window's view choices (list or grid, icon size, hidden files),
+ * and the tear-off hook that the tab drag's new-window phase runs on: without a `tearoff` client
+ * (the in-memory demo) a release outside the strip does nothing.
+ */
+export function Workspace({
+	startup,
+	tearoff,
+}: {
+	startup?: WorkspaceStartup;
+	tearoff?: TearoffClient;
+}) {
 	const [viewStore] = useState(() =>
 		createViewStore(startup?.view ? viewFromPrefs(startup.view) : {}),
 	);
 	const [sidebarStore] = useState(() => createSidebarStore());
+	const api = useTabsApi();
+	const snapshot = useTabsSnapshot();
+	const { features, live } = useTearoffFeatures(tearoff);
+	useDropRegions(tearoff, features.hitTest, sessionSignature(snapshot));
+	const [card] = useState(createTearCardStore);
+	const latest = useRef(snapshot);
+	latest.current = snapshot;
+	// The hook is made once with the drag session; it reads what changes through these.
+	const makeTearOff = useCallback<TearOffFactory>(
+		(control) =>
+			createTearOff({
+				client: tearoff as TearoffClient,
+				features: () => live.current,
+				api,
+				snapshot: () => latest.current,
+				flush: flushHints,
+				announce,
+				cancelDrag: control.cancel,
+				card,
+				viewport: () => ({ width: window.innerWidth, height: window.innerHeight }),
+				frameMargin,
+			}),
+		[tearoff, live, api, card],
+	);
 	return (
 		<ViewStoreContext.Provider value={viewStore}>
 			<SidebarStoreContext.Provider value={sidebarStore}>
 				{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
-				<TabDragProvider>
+				<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
+					<TearOffCard store={card} />
 					<WorkspaceBody
 						viewStore={viewStore}
 						sidebarStore={sidebarStore}

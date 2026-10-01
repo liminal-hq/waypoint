@@ -85,9 +85,9 @@ export type TabDragTarget =
 	| { outcome: 'newWindow' };
 
 /**
- * The seam for the new-window phase (slice 10 of milestone 3). The engine raises it once the
- * pointer is more than `TEAR_OFF_PX` out of the strip and not over a file-area edge zone. Until
- * something implements it the phase shows no pill and a release does nothing.
+ * The seam for the new-window phase (`tearOff.ts`). The engine raises it once the pointer is more
+ * than `TEAR_OFF_PX` out of the strip and not over a file-area edge zone. Without one the phase
+ * shows no pill and a release does nothing.
  */
 export interface TearOffHook {
 	/** The pointer is out of the strip; returns the pill to show, or null for none. */
@@ -96,6 +96,8 @@ export interface TearOffHook {
 	leave?(): void;
 	/** A release in the new-window phase; resolve true when the hook took the tabs. */
 	drop?(point: Point, source: TabDragSource): boolean | Promise<boolean>;
+	/** Called once while the window is live; returns what undoes it. */
+	connect?(): () => void;
 }
 
 export interface TabDragDeps {

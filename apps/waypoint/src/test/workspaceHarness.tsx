@@ -9,6 +9,7 @@ import { VfsClientProvider } from '../browse/VfsClientContext';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
+import type { TearoffClient } from '../services/tearoffClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { TabsProvider } from '../tabs/TabsContext';
 
@@ -32,19 +33,19 @@ export function createTree(): FakeVfsClient {
 	return client;
 }
 
-/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`). */
+/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`; `options.tearoff` is the tear-off plugin). */
 export async function renderWorkspace(
 	client: FakeVfsClient = createTree(),
 	tabs: FakeTabsApi = new FakeTabsApi(),
 	places: FakePlacesClient = new FakePlacesClient({ places: fakePlaces('/home/test') }),
-	options: { sidebar?: boolean } = {},
+	options: { sidebar?: boolean; tearoff?: TearoffClient } = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
 	const view = render(
 		<VfsClientProvider client={client}>
 			<PlacesClientProvider client={places}>
 				<TabsProvider api={tabs} home={HOME}>
-					<Workspace />
+					<Workspace tearoff={options.tearoff} />
 				</TabsProvider>
 			</PlacesClientProvider>
 		</VfsClientProvider>,

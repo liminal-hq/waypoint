@@ -11,6 +11,7 @@ import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { tabsApi } from '../services/tabsApi';
 import { createTauriPlacesClient } from '../services/tauriPlacesClient';
+import { createTauriTearoffClient } from '../services/tauriTearoffClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
 import { TabsProvider } from '../tabs/TabsContext';
@@ -44,6 +45,7 @@ function start(): Promise<MainServices> {
 		getRestoreNotice: () => invoke<string | null>('take_restore_notice'),
 		createClient: createTauriVfsClient,
 		createPlacesClient: createTauriPlacesClient,
+		createTearoffClient: createTauriTearoffClient,
 	});
 }
 
@@ -93,6 +95,7 @@ export function MainScreen() {
 								)}
 								<Workspace
 									startup={{ view: startup.services.view, notice: startup.services.notice }}
+									tearoff={startup.services.tearoff}
 								/>
 							</main>
 						</TabsProvider>

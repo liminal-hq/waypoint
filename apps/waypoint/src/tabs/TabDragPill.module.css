@@ -22,6 +22,8 @@
 
 /* The outcomes that change something get the accent, so a move reads as quieter than a split. */
 .pill[data-kind='split'],
+.pill[data-kind='window'],
+.pill[data-kind='merge'],
 .pill[data-kind='group'],
 .pill[data-kind='add'],
 .pill[data-kind='leave'],

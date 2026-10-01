@@ -5,38 +5,74 @@
 
 import type { PairId } from '@liminal-hq/waypoint-protocol/generated/PairId';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
+import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import { useRef, type PointerEvent } from 'react';
 import type { DragHandlers } from '../dnd/dragSession';
 import { t, tf } from '../i18n/messages';
 import type { TabsApi } from '../services/tabsApi';
 import { announce } from './announcer';
 import { distanceFromStrip, type Rect } from './dragLayout';
-import { useSeparateSession } from './TabDragContext';
+import { TEAR_OFF_PX } from './dragTiming';
+import type { TabDragSource, TearOffHook } from './tabDrag';
+import { useSeparateSession, useTearOffHook } from './TabDragContext';
 import { useTabsApi, useTabsSnapshot } from './TabsContext';
 import { locationLabel } from './tabTitle';
 
-/** What was grabbed: a pair's pane header, and where the strip it is dragged to was. */
+/** What was grabbed: one pane's header of a pair, and where the strip it is dragged to was. */
 export interface SeparateSource {
 	pair: PairId;
+	/** The pane whose header was grabbed; tearing it off takes this tab alone. */
+	tab: TabId;
 	strip: Rect;
 }
 
-export interface SeparateTarget {
-	outcome: 'separate';
+export type SeparateTarget = { outcome: 'separate' } | { outcome: 'newWindow' };
+
+/** The drag of one pane as the tear-off hook sees it: that tab alone, with nothing of the strip measured. */
+function paneSource(source: SeparateSource): TabDragSource {
+	return {
+		kind: 'tab',
+		unit: [source.tab],
+		lead: source.tab,
+		group: null,
+		extent: { left: 0, right: 0 },
+		measure: {
+			spans: [],
+			chips: [],
+			strip: source.strip,
+			tablistLeft: 0,
+			area: null,
+		},
+		signature: '',
+	};
 }
 
 /**
- * Over the strip a release separates the pair, as Separate Tabs does; anywhere else a release does
- * nothing. Tearing one half off into a window is the new-window phase (slice 10 of milestone 3),
- * which a later change adds here the way `tabDrag.ts` has it.
+ * Over the strip a release separates the pair, as Separate Tabs does. More than `TEAR_OFF_PX` out
+ * of it is the new-window phase (`tearOff.ts`) for that one pane: a release opens it in a window of
+ * its own, or merges it into another window, while its partner stays a single tab here. In
+ * between a release does nothing.
  */
 export function createSeparateHandlers(deps: {
 	api: TabsApi;
 	snapshot(): SessionSnapshot | null;
+	tearOff?: TearOffHook;
 }): DragHandlers<SeparateSource, SeparateTarget> {
+	let out = false;
 	return {
 		move: (control, point) => {
-			if (distanceFromStrip(control.source.strip, point.y) === 0) {
+			const away = distanceFromStrip(control.source.strip, point.y);
+			if (away > TEAR_OFF_PX) {
+				out = true;
+				control.setTarget({ outcome: 'newWindow' });
+				control.setPill(deps.tearOff?.update?.(point, paneSource(control.source)) ?? null);
+				return;
+			}
+			if (out) {
+				out = false;
+				deps.tearOff?.leave?.();
+			}
+			if (away === 0) {
 				control.setTarget({ outcome: 'separate' });
 				control.setPill({
 					kind: 'separate',
@@ -48,7 +84,11 @@ export function createSeparateHandlers(deps: {
 				control.setPill(null);
 			}
 		},
-		drop: async (control) => {
+		drop: async (control, point) => {
+			if (control.target()?.outcome === 'newWindow') {
+				await deps.tearOff?.drop?.(point, paneSource(control.source));
+				return;
+			}
 			if (control.target()?.outcome !== 'separate') return;
 			const snapshot = deps.snapshot();
 			const pair = snapshot?.pairs.find((candidate) => candidate.id === control.source.pair);
@@ -67,20 +107,25 @@ export function createSeparateHandlers(deps: {
 				}),
 			);
 		},
-		cancel: (control) => control.announce(t('drag.announce.cancelled')),
+		cancel: (control) => {
+			if (out) deps.tearOff?.leave?.();
+			out = false;
+			control.announce(t('drag.announce.cancelled'));
+		},
 	};
 }
 
 /** Starts the separate drag from a pane header's grip. */
 export function useSeparateDrag(
 	pair: PairId | undefined,
-): (event: PointerEvent<HTMLElement>) => void {
+): (event: PointerEvent<HTMLElement>, tab: TabId) => void {
 	const session = useSeparateSession();
+	const tearOff = useTearOffHook();
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const latest = useRef(snapshot);
 	latest.current = snapshot;
-	return (event) => {
+	return (event, tab) => {
 		const strip = document.querySelector('[data-strip]');
 		if (event.button !== 0 || pair === undefined || !strip) return;
 		const { left, top, right, bottom } = strip.getBoundingClientRect();
@@ -90,9 +135,9 @@ export function useSeparateDrag(
 				clientX: event.clientX,
 				clientY: event.clientY,
 				element: event.currentTarget,
-				source: { pair, strip: { left, top, right, bottom } },
+				source: { pair, tab, strip: { left, top, right, bottom } },
 			},
-			createSeparateHandlers({ api, snapshot: () => latest.current }),
+			createSeparateHandlers({ api, snapshot: () => latest.current, tearOff }),
 		);
 	};
 }

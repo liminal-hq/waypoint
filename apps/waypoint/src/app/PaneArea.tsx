@@ -153,7 +153,7 @@ export function PaneArea({
 						onMenu={onMenu}
 						onActivate={tabActions.activate}
 						onClose={pairs.closePane}
-						onGrip={grip}
+						onGrip={(event) => grip(event, tab.id)}
 					/>
 				</Fragment>
 			))}

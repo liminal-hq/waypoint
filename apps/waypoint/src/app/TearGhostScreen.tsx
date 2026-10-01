@@ -5,14 +5,8 @@
 
 import { getPayload, onPayload } from '@liminal-hq/plugin-window-tearoff';
 import { useEffect, useState } from 'react';
-import styles from './TearGhostScreen.module.css';
-
-/** What a drag sends the ghost; every field is optional so a partial payload still draws. */
-export interface GhostPayload {
-	title?: string;
-	count?: number;
-	label?: string;
-}
+import type { GhostPayload } from '../services/tearoffClient';
+import { TearCard } from './TearCard';
 
 /** Narrows an opaque payload to the fields the card draws, dropping anything of the wrong type. */
 export function readGhostPayload(raw: unknown): GhostPayload | null {
@@ -55,13 +49,5 @@ export function TearGhostScreen() {
 
 	if (!payload) return null;
 
-	return (
-		<div className={styles.card} data-testid="tear-ghost-card">
-			{payload.count !== undefined && <span className={styles.count}>{payload.count}</span>}
-			<div className={styles.text}>
-				{payload.title !== undefined && <span className={styles.title}>{payload.title}</span>}
-				{payload.label !== undefined && <span className={styles.label}>{payload.label}</span>}
-			</div>
-		</div>
-	);
+	return <TearCard payload={payload} testId="tear-ghost-card" />;
 }

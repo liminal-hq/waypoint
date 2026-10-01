@@ -25,9 +25,12 @@ interface TabDragContextValue {
 
 const TabDragContext = createContext<TabDragContextValue | null>(null);
 
+/** Makes the window's tear-off hook once its drag session exists; `cancel` ends the drag in progress. */
+export type TearOffFactory = (control: { cancel(): void }) => TearOffHook;
+
 interface TabDragProviderProps {
-	/** Implements the new-window phase of a drag; none until tear-off is wired. */
-	tearOff?: TearOffHook;
+	/** Implements the new-window phase of a drag; without one a release outside the strip does nothing. */
+	tearOff?: TearOffHook | TearOffFactory;
 	children: ReactNode;
 }
 
@@ -47,6 +50,17 @@ export function TabDragProvider({ tearOff, children }: TabDragProviderProps) {
 			sameTarget: (a, b) => a.outcome === b.outcome,
 		}),
 	);
+	const [hook] = useState<TearOffHook | undefined>(() =>
+		typeof tearOff === 'function'
+			? tearOff({
+					cancel: () => {
+						session.cancel();
+						separate.cancel();
+					},
+				})
+			: tearOff,
+	);
+	useEffect(() => hook?.connect?.(), [hook]);
 	useEffect(
 		() => () => {
 			session.dispose();
@@ -55,7 +69,7 @@ export function TabDragProvider({ tearOff, children }: TabDragProviderProps) {
 		[session, separate],
 	);
 	return (
-		<TabDragContext.Provider value={{ session, separate, tearOff }}>
+		<TabDragContext.Provider value={{ session, separate, tearOff: hook }}>
 			{children}
 		</TabDragContext.Provider>
 	);

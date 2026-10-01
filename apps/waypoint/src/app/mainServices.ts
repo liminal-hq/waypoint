@@ -8,6 +8,7 @@ import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPref
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
+import type { TearoffClient } from '../services/tearoffClient';
 import type { VfsClient } from '../services/vfsClient';
 
 export interface MainServices {
@@ -20,6 +21,8 @@ export interface MainServices {
 	view?: ViewPrefs;
 	/** A sentence to show once when the last session could not be restored. */
 	notice?: string | null;
+	/** The tear-off plugin for the new-window phase of a tab drag; without it a release outside the strip does nothing. */
+	tearoff?: TearoffClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -29,6 +32,7 @@ export interface MainServicesDeps {
 	tabsApi: TabsApi;
 	createClient(): VfsClient;
 	createPlacesClient(): PlacesClient;
+	createTearoffClient?(): TearoffClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -50,6 +54,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		client: deps.createClient(),
 		placesClient: deps.createPlacesClient(),
 		tabsApi: deps.tabsApi,
+		tearoff: deps.createTearoffClient?.(),
 		home,
 	};
 }
