@@ -17,6 +17,8 @@ The copies have drifted. Spindle, Cadence, Threshold and Jar each have their own
 
 Slots: `start` (mark and menu) · `center` (title and app content) · `end` (app actions) · `controls` (window buttons).
 
+`AppMenuButton` takes `items` (a menu with submenus), `onSelect`, `acceleratorKeys` (F10 and a lone Alt, on by default) and `mnemonics`, a map from a lower-case letter to the id of a top-level submenu item: Alt plus the letter opens the menu with that submenu open and its first row focused (Alt with Ctrl, Shift or Meta is left alone). The `start` slot sits after any window buttons the layout puts on the start side, so the menu never collides with the controls on either side; pressing the button while its menu is open closes it. Waypoint's `AppMenu` builds the items from the command registry (`apps/waypoint/src/commands/`), so rows are hidden, disabled with a reason as the tooltip, or checked from the window's state.
+
 ## Context menu
 
 Source: `ScottMorris/liminal-notes` (Editor ContextMenu) and `liminal-hq/jar` (ContextMenu module).

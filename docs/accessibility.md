@@ -5,6 +5,7 @@ Status: prototype review, 2026-09-29. Findings are from reading the markup and b
 ## What is in place
 
 - **Landmarks:** the tab strip is a tablist (each tab has aria-selected), the toolbar is a toolbar, the sidebar is a navigation region, the file area is the main region, and the status bar is a polite live region.
+- **Menu bar and Action bar:** the application menu is a menu button (`aria-haspopup`, `aria-expanded`) opened by F10, a lone Alt or Alt plus F, E, V or W, with arrow keys, Escape and focus returning to the button; disabled rows are `aria-disabled` with the reason as their title. The Action bar is a `toolbar` with a roving tab stop (Left, Right, Home, End), its buttons are 28 px targets named by their label (also when labels are hidden), a disabled button stays focusable, is `aria-disabled` and is described by its reason, and it moves its trailing buttons into a More menu rather than clipping them. It only transitions when motion is allowed.
 - **Keyboard:** every action has a keyboard path (see the shortcut list, press ?). Shortcuts can be rebound in Settings → Keyboard, with conflict detection.
 - **Focus:** a setting turns on a thick, always-visible focus ring.
 - **Motion:** a setting turns off all animation and transitions, including drag feedback.
