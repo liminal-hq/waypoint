@@ -19,34 +19,34 @@
 
 ## 2. Keyboard (default "Waypoint" preset)
 
-| Keys                      | Action                                                    |
-| ------------------------- | --------------------------------------------------------- |
-| Ctrl+T / Ctrl+W           | New tab / close tab                                       |
-| Ctrl+Shift+T              | Reopen closed tab                                         |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                  |
-| Alt+1…9                   | Go to tab                                                 |
-| Ctrl+Shift+N              | New window (one tab at Home)                              |
-| F7 / Shift+F7             | New folder / new file                                     |
-| Ctrl+Shift+D              | Duplicate                                                 |
-| Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸) |
-| Ctrl+K or Ctrl+Shift+P    | Command palette (commands, and the undo history)          |
-| Ctrl+L                    | Edit path                                                 |
-| Ctrl+F                    | Search · `/` inline filter                                |
-| F2                        | Rename · Ctrl+F2 batch rename                             |
-| F3                        | Toggle split                                              |
-| F4                        | Terminal drawer                                           |
-| F5 / Shift+F5             | Copy / move to the other pane                             |
-| F6                        | Switch the active pane                                    |
-| F9                        | Sidebar · F11 inspector                                   |
-| Space                     | Quick Look                                                |
-| Ctrl+C / Ctrl+X / Ctrl+V  | Copy / cut / paste files (the system clipboard)           |
-| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                               |
-| Ctrl+H                    | Hidden files                                              |
-| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage                  |
-| Ctrl+D                    | Bookmark                                                  |
-| Ctrl+B                    | Toggle the Shelf                                          |
-| Delete / Shift+Delete     | Trash / delete permanently                                |
-| Alt+Enter                 | Properties                                                |
+| Keys                      | Action                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Ctrl+T / Ctrl+W           | New tab / close tab                                                                                      |
+| Ctrl+Shift+T              | Reopen closed tab                                                                                        |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                                                                 |
+| Alt+1…9                   | Go to tab                                                                                                |
+| Ctrl+Shift+N              | New window (one tab at Home)                                                                             |
+| F7 / Shift+F7             | New folder / new file                                                                                    |
+| Ctrl+Shift+D              | Duplicate                                                                                                |
+| Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸)                                                |
+| Ctrl+K or Ctrl+Shift+P    | Command palette (commands, and the undo history)                                                         |
+| Ctrl+L                    | Edit path                                                                                                |
+| Ctrl+F                    | Search · `/` inline filter                                                                               |
+| F2                        | Rename · Ctrl+F2 batch rename                                                                            |
+| F3                        | Toggle split                                                                                             |
+| F4                        | Terminal drawer                                                                                          |
+| F5 / Shift+F5             | Copy / move to the other pane (Copy To… / Move To… when there is no pair or the other pane is read-only) |
+| F6                        | Switch the active pane                                                                                   |
+| F9                        | Sidebar · F11 inspector                                                                                  |
+| Space                     | Quick Look                                                                                               |
+| Ctrl+C / Ctrl+X / Ctrl+V  | Copy / cut / paste files (the shared and system clipboard)                                               |
+| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                                                                              |
+| Ctrl+H                    | Hidden files                                                                                             |
+| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage                                                                 |
+| Ctrl+D                    | Bookmark                                                                                                 |
+| Ctrl+B                    | Toggle the Shelf                                                                                         |
+| Delete / Shift+Delete     | Trash / delete permanently                                                                               |
+| Alt+Enter                 | Properties                                                                                               |
 
 Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highlight down the most-recently-used list (the active tab first), Shift+Tab moves it up, and releasing Ctrl activates the highlighted tab once, so the tabs passed on the way do not enter the MRU list. Escape cancels. Menu key or Shift+F10 on a focused tab, or on the + button, opens its menu; pressing and holding the + button opens its menu too. Delete or Ctrl+W close a pinned tab; a middle-click does not.
 
@@ -125,7 +125,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 Sections separated by rules, with an icon, a label, a right-aligned shortcut and a submenu chevron. Items can be checkboxes, and danger items (such as Delete) come last and in red. It's positioned to stay within the viewport and fully navigable by keyboard. Plugin actions go in a labelled section.
 
-Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window | Add to Favourites (folders) · Copy Path | Rename (F2) · Duplicate (Ctrl+Shift+D) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
+Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window | Cut (Ctrl+X) · Copy (Ctrl+C) · Paste (Ctrl+V; Paste Into Folder on a folder) · Add to Favourites (folders) · Copy Path | Rename (F2) · Rename Selected… (Ctrl+F2, several selected) · Duplicate (Ctrl+Shift+D) | Copy To… · Move To… · Copy to Other Pane (F5) · Move to Other Pane (Shift+F5; the last two only in a pair) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Cut, Paste, Move To… and the other-pane move are hidden in a read-only location while Copy, Copy To… and Copy to Other Pane stay; Paste and Paste Into Folder are disabled while the clipboard is empty, and the other-pane items while the other pane's folder cannot be written to (F5 then opens the dialog). Paste is in the empty-space menu directly after New. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
 
 ## 7. Tab groups and pairs
 
