@@ -8,6 +8,8 @@ import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/Wind
 import { tf } from '../i18n/messages';
 import type { TearoffClient, ToplevelDragEnded } from '../services/tearoffClient';
 import type { TabsApi } from '../services/tabsApi';
+import { parseRegionId } from './dropRegions';
+import { rawSlotOf } from './landing';
 import { parseTearPayload, type TearPayload } from './tearOffPayload';
 import { refuse, windowName } from './windowActions';
 
@@ -25,7 +27,7 @@ export interface TearHandoffDeps {
  * them (a window's session is the only one it can change). That is the new window made for the drag
  * (`mode: 'tabs'`), or the window itself when the tabs were all it had (`mode: 'window'`):
  *
- * - `dropped-on-window`: the tabs go to the end of that window's strip, and this window closes
+ * - `dropped-on-window`: the tabs go to the slot of that window's strip the pointer was over (`region`), or the end, and this window closes
  *   (it has none left).
  * - `cancelled`, `failed`: the tabs go back to where they came from, when that window still
  *   exists; otherwise they stay here. A window that was the whole drag stays as it is.
@@ -64,8 +66,9 @@ export function createTearHandoff(deps: TearHandoffDeps) {
 		if (ended.outcome === 'dropped-on-window' && ended.target) {
 			const target = windows.find((window) => window.label === ended.target);
 			if (!target || target.active) return;
-			// The end of the strip: the page cannot tell where in it the pointer let go.
-			await moveTo(payload, target, target.tabCount);
+			// The slot of the region the pointer let go over (the one the target's line showed), or the end.
+			const slot = ended.region ? parseRegionId(ended.region) : null;
+			await moveTo(payload, target, slot ? rawSlotOf(slot, target.tabCount) : target.tabCount);
 			return;
 		}
 		if ((ended.outcome === 'cancelled' || ended.outcome === 'failed') && payload.mode === 'tabs') {

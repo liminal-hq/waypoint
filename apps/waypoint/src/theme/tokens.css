@@ -52,6 +52,10 @@
 	--wp-split-zone-label: var(--wp-text-secondary);
 	--wp-split-zone-label-active: var(--wp-accent);
 
+	/* The tab strip while tabs dragged from another window are over it: a faint wash and an outline, with the accent line at the slot. */
+	--wp-merge-landing-fill: color-mix(in srgb, var(--wp-accent) 8%, transparent);
+	--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 45%, transparent);
+
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
 	--wp-row-height: 28px;
 }
@@ -87,6 +91,8 @@
 		--wp-split-zone-outline: color-mix(in srgb, var(--wp-accent) 60%, transparent);
 		--wp-split-zone-fill: color-mix(in srgb, var(--wp-accent) 24%, transparent);
 		--wp-split-zone-label: var(--wp-text-primary);
+		--wp-merge-landing-fill: color-mix(in srgb, var(--wp-accent) 14%, transparent);
+		--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 55%, transparent);
 	}
 }
 

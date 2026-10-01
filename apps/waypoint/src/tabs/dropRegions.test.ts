@@ -36,6 +36,35 @@ describe('buildDropRegions', () => {
 		]);
 	});
 
+	it('puts an expanded group chip before the group, and halves a collapsed one around the whole group', () => {
+		const regions = buildDropRegions(
+			STRIP,
+			[{ index: 0, left: 10, right: 110 }],
+			[
+				{ firstIndex: 1, count: 2, collapsed: false, left: 110, right: 150 },
+				{ firstIndex: 3, count: 4, collapsed: true, left: 150, right: 250 },
+			],
+		);
+		expect(regions.slice(3)).toEqual([
+			{ id: 'slot:1', x: 110, y: 5, width: 40, height: 30 },
+			{ id: 'slot:3', x: 150, y: 5, width: 50, height: 30 },
+			{ id: 'slot:7', x: 200, y: 5, width: 50, height: 30 },
+		]);
+	});
+
+	it('clips a chip to the strip and drops one that is scrolled out of it', () => {
+		const regions = buildDropRegions(
+			STRIP,
+			[],
+			[
+				{ firstIndex: 0, count: 1, collapsed: false, left: -50, right: 30 },
+				{ firstIndex: 4, count: 1, collapsed: false, left: -90, right: -10 },
+			],
+		);
+		expect(regions.map((region) => region.id)).toEqual(['strip', 'slot:0']);
+		expect(regions[1]).toMatchObject({ x: 10, width: 20 });
+	});
+
 	it('registers nothing for a strip with no area', () => {
 		expect(buildDropRegions({ left: 0, top: 0, right: 0, bottom: 30 }, [])).toEqual([]);
 	});

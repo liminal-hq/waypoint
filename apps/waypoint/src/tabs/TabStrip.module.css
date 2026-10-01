@@ -17,6 +17,13 @@
 	scrollbar-width: none;
 }
 
+/* Tabs from another window are over the strip: it reads as a drop target, and the line (a `.marker`) shows the slot. */
+.scroller[data-landing] {
+	background: var(--wp-merge-landing-fill);
+	box-shadow: inset 0 0 0 1px var(--wp-merge-landing-outline);
+	border-radius: 6px;
+}
+
 .tablist {
 	position: relative;
 	display: flex;

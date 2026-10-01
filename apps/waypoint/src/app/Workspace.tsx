@@ -46,6 +46,9 @@ import { createTearCardStore } from '../tabs/tearOffCardModel';
 import { TearOffCard } from '../tabs/TearOffCard';
 import { createTearOff } from '../tabs/tearOff';
 import { sessionSignature } from '../tabs/tabDrag';
+import { MergeLandingContext } from '../tabs/MergeLandingContext';
+import { createMergeLandingStore } from '../tabs/mergeLanding';
+import { useMergeLanding } from '../tabs/useMergeLanding';
 import { useDropRegions, useTearHandoff, useTearoffFeatures } from '../tabs/useTearoff';
 import { TabStrip } from '../tabs/TabStrip';
 import { activePair, visibleTabs } from '../tabs/pairLayout';
@@ -100,7 +103,10 @@ export function Workspace({
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const { features, live } = useTearoffFeatures(tearoff);
-	useDropRegions(tearoff, features.hitTest, sessionSignature(snapshot));
+	// The regions are what a drop on this window merges at, for a ghost's hit test and for a window drag the compositor runs.
+	useDropRegions(tearoff, features.hitTest || features.toplevelDrag, sessionSignature(snapshot));
+	const [landing] = useState(createMergeLandingStore);
+	useMergeLanding(tearoff, landing, announce, snapshot);
 	useTearHandoff(tearoff, { api, flush: flushHints, announce });
 	const [card] = useState(createTearCardStore);
 	const latest = useRef(snapshot);
@@ -127,12 +133,14 @@ export function Workspace({
 			<SidebarStoreContext.Provider value={sidebarStore}>
 				{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
 				<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
-					<TearOffCard store={card} />
-					<WorkspaceBody
-						viewStore={viewStore}
-						sidebarStore={sidebarStore}
-						startupNotice={startup?.notice ?? null}
-					/>
+					<MergeLandingContext.Provider value={landing}>
+						<TearOffCard store={card} />
+						<WorkspaceBody
+							viewStore={viewStore}
+							sidebarStore={sidebarStore}
+							startupNotice={startup?.notice ?? null}
+						/>
+					</MergeLandingContext.Provider>
 				</TabDragProvider>
 			</SidebarStoreContext.Provider>
 		</ViewStoreContext.Provider>

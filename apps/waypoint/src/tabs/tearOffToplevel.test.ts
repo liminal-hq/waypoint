@@ -126,6 +126,7 @@ function ended(h: Harness, over: Partial<ToplevelDragEnded>): ToplevelDragEnded 
 		source: 'main-1',
 		outcome: 'cancelled',
 		target: null,
+		region: null,
 		payload: call.payload,
 		reason: null,
 		...over,
@@ -351,6 +352,7 @@ describe('how it ends, for the window that began it', () => {
 			source: 'main-3',
 			outcome: 'cancelled',
 			target: null,
+			region: null,
 			payload: null,
 			reason: null,
 		});
@@ -489,6 +491,28 @@ describe('the hand-off in the window that holds the tabs', () => {
 		expect(h.store.window('main-2')!.tabs.filter((tab) => tab.id === h.ids.a)).toHaveLength(1);
 	});
 
+	it('merges at the slot of the region the drop was over, the one the target showed', async () => {
+		const { h, handoff } = await torn();
+		await handoff.resolve(
+			ended(h, { outcome: 'dropped-on-window', target: 'main-2', region: 'slot:1' }),
+		);
+		const tabs = h.store.window('main-2')!.tabs.map((tab) => tab.id);
+		expect(tabs.indexOf(h.ids.a!)).toBe(1);
+	});
+
+	it('merges at the end for a drop over no region, or a slot past the end', async () => {
+		const first = await torn();
+		await first.handoff.resolve(
+			ended(first.h, { outcome: 'dropped-on-window', target: 'main-2', region: null }),
+		);
+		expect(first.h.store.window('main-2')!.tabs.at(-1)!.id).toBe(first.h.ids.a);
+		const second = await torn();
+		await second.handoff.resolve(
+			ended(second.h, { outcome: 'dropped-on-window', target: 'main-2', region: 'slot:99' }),
+		);
+		expect(second.h.store.window('main-2')!.tabs.at(-1)!.id).toBe(second.h.ids.a);
+	});
+
 	it('merges a whole window into the one it was dropped on, and closes', async () => {
 		const { h, handoff } = await torn('whole');
 		await handoff.resolve(
@@ -533,7 +557,7 @@ describe('the hand-off in the window that holds the tabs', () => {
 			name: 'a',
 			source: { window: 'main-1', index: 0 },
 		};
-		h.client.fireDropped({ window: 'main-2', payload });
+		h.client.fireDropped({ window: 'main-2', payload, x: 0, y: 0, region: null });
 		await settle();
 		stop();
 		expect(said).toHaveLength(1);
@@ -541,7 +565,7 @@ describe('the hand-off in the window that holds the tabs', () => {
 		// A drop from somewhere else carries no tear payload and is not announced.
 		said.length = 0;
 		handoff.connect();
-		h.client.fireDropped({ window: 'main-2', payload: { hello: 1 } });
+		h.client.fireDropped({ window: 'main-2', payload: { hello: 1 }, x: 0, y: 0, region: null });
 		await settle();
 		expect(said).toEqual([]);
 	});

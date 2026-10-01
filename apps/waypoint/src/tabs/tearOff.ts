@@ -32,6 +32,9 @@ import { refuse, windowName } from './windowActions';
 /** The least time between two asks of the plugin which region the cursor is over. */
 export const HIT_POLL_MS = 80;
 
+/** The least time between two `merge-hover` events to another window: the slot is sent when it changes, and no faster than this. */
+export const HOVER_SEND_MS = 50;
+
 /** How long the window list read for the merge label is trusted: windows open and close mid-drag. */
 export const WINDOWS_TTL_MS = 1000;
 
@@ -65,6 +68,8 @@ interface Unit {
 	count: number | undefined;
 	name: string;
 	what: MoveWhat;
+	/** The tabs are pinned where they are, so they land on the pinned side of another strip. */
+	pinned: boolean;
 }
 
 function describeUnit(snapshot: SessionSnapshot | null, source: TabDragSource): Unit {
@@ -74,6 +79,7 @@ function describeUnit(snapshot: SessionSnapshot | null, source: TabDragSource): 
 	};
 	const count = source.unit.length > 1 ? source.unit.length : undefined;
 	const title = label(source.unit[0] ?? source.lead);
+	const pinned = !!snapshot?.tabs.find((candidate) => candidate.id === source.lead)?.pinned;
 	if (source.kind === 'group' && source.group !== null) {
 		const group = snapshot?.groups.find((candidate) => candidate.id === source.group);
 		const members = snapshot ? groupTabs(snapshot.tabs, source.group).map((tab) => tab.id) : [];
@@ -82,6 +88,7 @@ function describeUnit(snapshot: SessionSnapshot | null, source: TabDragSource): 
 			count: count ?? members.length,
 			name: group?.name ?? title,
 			what: { kind: 'group', value: source.group },
+			pinned,
 		};
 	}
 	const pair =
@@ -94,6 +101,7 @@ function describeUnit(snapshot: SessionSnapshot | null, source: TabDragSource): 
 			count,
 			name: pairName(pair, snapshot),
 			what: { kind: 'pair', value: pair.id },
+			pinned,
 		};
 	}
 	return {
@@ -101,6 +109,7 @@ function describeUnit(snapshot: SessionSnapshot | null, source: TabDragSource): 
 		count,
 		name: label(source.lead),
 		what: { kind: 'tabs', value: [...source.unit] },
+		pinned,
 	};
 }
 
@@ -132,8 +141,13 @@ type Phase =
  * window's strip; where it does not (Wayland, D94) the card and the pill are all there is, and a
  * release outside the strip opens a window the compositor places.
  *
+ * While the ghost is over another window's strip that window is told, with `merge-hover`, the region
+ * (so the slot) the cursor is over, whenever it changes and at most every `HOVER_SEND_MS`, and with
+ * `merge-leave` when the cursor moves off, and when the drag ends. The window draws the line there.
+ *
  * A release asks the plugin where the cursor was and which drop region it was over. A region of
- * another window merges the tabs into that window, at the slot the region names; no region opens
+ * another window merges the tabs into that window, at the slot the region names (the one the line
+ * showed, when the cursor is still over the same window); no region opens
  * a new window under the cursor; a cursor the plugin cannot vouch for (stale, or none) opens one
  * without geometry, which cascades from this window. Every move flushes the tabs' hints first.
  *
@@ -160,6 +174,9 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 	let polling = false;
 	let lastPoll = 0;
 	let sent = '';
+	/** The window and region the last `merge-hover` told of: where the line is showing, and so where a release merges. */
+	let shown: { window: string; region: string } | null = null;
+	let lastHoverSend = 0;
 	/** Asks which region the cursor is over while the ghost follows: the page gets no pointer events outside its window. */
 	let watching: ReturnType<typeof setInterval> | undefined;
 	const stopWatching = () => {
@@ -194,7 +211,38 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		deps.card.setState({ payload: next });
 	};
 
+	/** Tells the window the line was showing in that the drag has left it. */
+	const hideLanding = () => {
+		if (!shown) return;
+		const { window } = shown;
+		shown = null;
+		deps.client
+			.sendMergeLeave(window)
+			.catch((error: unknown) => console.debug('could not tell a window the drag left', error));
+	};
+
+	/** Tells another window where the ghost is over its strip, when the slot is not the one it was last told. */
+	const showLanding = (hit: NonNullable<DropReport['hit']>, unit: Unit) => {
+		if (shown?.window === hit.window && shown.region === hit.region) return;
+		const at = now();
+		if (shown && shown.window !== hit.window) hideLanding();
+		// A slot that comes too soon is told at the next poll, which asks again.
+		else if (at - lastHoverSend < HOVER_SEND_MS) return;
+		lastHoverSend = at;
+		shown = { window: hit.window, region: hit.region };
+		deps.client
+			.sendMergeHover(hit.window, {
+				x: hit.x,
+				y: hit.y,
+				region: hit.region,
+				count: unit.count ?? 1,
+				pinned: unit.pinned,
+			})
+			.catch((error: unknown) => console.debug('could not tell a window where the drag is', error));
+	};
+
 	const reset = () => {
+		hideLanding();
 		stopWatching();
 		generation++;
 		phase = 'idle';
@@ -226,6 +274,7 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 			try {
 				const hit = await deps.client.hitTest();
 				let name: string | null = null;
+				let landing: NonNullable<typeof hit> | null = null;
 				if (hit && parseRegionId(hit.region)) {
 					// A failed read is not remembered, and a good one only for a moment.
 					if (!windows || now() - windows.at > WINDOWS_TTL_MS) {
@@ -233,10 +282,16 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 						if (list) windows = { list, at: now() };
 					}
 					const target = windows?.list.find((window) => window.label === hit.window);
-					if (target && !target.active) name = windowName(target);
+					if (target && !target.active) {
+						name = windowName(target);
+						landing = hit;
+					}
 				}
 				if (mine !== generation) return;
 				mergeName = name;
+				const unit = source ? describeUnit(deps.snapshot(), source) : null;
+				if (landing && unit) showLanding(landing, unit);
+				else hideLanding();
 				pushGhost();
 			} catch (error) {
 				console.debug('could not hit-test the drop regions', error);
@@ -346,6 +401,7 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 					what: unit.what,
 					tabs: [...dragged.unit],
 					name: unit.name,
+					pinned: unit.pinned,
 					source: { window: own, index },
 				};
 				target = own;
@@ -461,6 +517,8 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 			const features = deps.features();
 			const was = phase;
 			const unit = describeUnit(deps.snapshot(), dragged);
+			// What the other window showed is where the release merges, if the pointer is still over that window.
+			const landing = shown;
 			reset();
 			let report: DropReport | null = null;
 			// Where the cursor was is known wherever it is live, even for a drag that never left this window.
@@ -472,7 +530,9 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				}
 			}
 			const hit = report?.hit ?? null;
-			const slot = hit ? parseRegionId(hit.region) : null;
+			const slot = hit
+				? parseRegionId(landing && landing.window === hit.window ? landing.region : hit.region)
+				: null;
 			if (hit && slot) {
 				const merged = await merge(unit, dragged.unit, hit, slot);
 				// The window under the cursor has gone since the regions were registered: the tabs

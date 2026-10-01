@@ -10,7 +10,7 @@ import {
 	type TearoffClient,
 	type TearoffFeatures,
 } from '../services/tearoffClient';
-import { buildDropRegions, sameRegions, type StripSlot } from './dropRegions';
+import { buildDropRegions, sameRegions, type StripChip, type StripSlot } from './dropRegions';
 import { createTearHandoff, type TearHandoffDeps } from './tearOffHandoff';
 
 /** How long a burst of layout changes settles before the regions are sent. */
@@ -58,8 +58,16 @@ export function measureDropRegions(root: ParentNode = document): Region[] {
 		const { left, right } = slot.getBoundingClientRect();
 		slots.push({ index, left, right });
 	}
+	const chips: StripChip[] = [];
+	for (const chip of strip.querySelectorAll<HTMLElement>('[data-chip][data-first]')) {
+		const firstIndex = Number(chip.dataset.first);
+		const count = Number(chip.dataset.members);
+		if (!Number.isFinite(firstIndex) || !Number.isFinite(count)) continue;
+		const { left, right } = chip.getBoundingClientRect();
+		chips.push({ firstIndex, count, collapsed: chip.hasAttribute('data-collapsed'), left, right });
+	}
 	const { left, top, right, bottom } = strip.getBoundingClientRect();
-	return buildDropRegions({ left, top, right, bottom }, slots);
+	return buildDropRegions({ left, top, right, bottom }, slots, chips);
 }
 
 /**
@@ -132,7 +140,7 @@ export function useDropRegions(
 						childList: true,
 						subtree: true,
 						attributes: true,
-						attributeFilter: ['data-index', 'data-group', 'hidden'],
+						attributeFilter: ['data-index', 'data-group', 'hidden', 'data-first', 'data-collapsed'],
 					});
 				}
 			}

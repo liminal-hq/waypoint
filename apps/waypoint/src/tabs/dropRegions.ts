@@ -35,13 +35,31 @@ export interface StripSlot {
 	right: number;
 }
 
+/** A group's chip on screen: the tabs it heads (a collapsed group's are hidden) and its extent in the window's coordinates. */
+export interface StripChip {
+	/** The session index of the group's first tab. */
+	firstIndex: number;
+	/** How many tabs the group has, hidden or not. */
+	count: number;
+	collapsed: boolean;
+	left: number;
+	right: number;
+}
+
 /**
  * The regions a window registers: the whole strip (merge at the end), under a half of each visible
  * tab (merge next to that tab: the left half puts the tabs before it, the right half after it).
- * Tabs are clipped to the strip, since a scrolled strip hides part of them, and the plugin picks
- * the smallest region under the cursor, so a tab's half wins over the strip behind it.
+ * A group's chip is before its first tab, or, for a collapsed group, its left half is before the
+ * whole group and its right half after it. Tabs are clipped to the strip, since a scrolled strip
+ * hides part of them, and the plugin picks the smallest region under the cursor, so a tab's half
+ * wins over the strip behind it. The cuts are the ones `rawSlotAt` makes (`landing.ts`), which the
+ * strip uses for the line it shows, so the slot of a hit is the slot that was shown.
  */
-export function buildDropRegions(strip: Rect, slots: readonly StripSlot[]): Region[] {
+export function buildDropRegions(
+	strip: Rect,
+	slots: readonly StripSlot[],
+	chips: readonly StripChip[] = [],
+): Region[] {
 	const height = strip.bottom - strip.top;
 	const width = strip.right - strip.left;
 	if (width <= 0 || height <= 0) return [];
@@ -56,6 +74,20 @@ export function buildDropRegions(strip: Rect, slots: readonly StripSlot[]): Regi
 		regions.push(
 			...region(slotRegionId(slot.index), left, Math.min(Math.max(middle, left), right)),
 			...region(slotRegionId(slot.index + 1), Math.min(Math.max(middle, left), right), right),
+		);
+	}
+	for (const chip of chips) {
+		const left = Math.max(chip.left, strip.left);
+		const right = Math.min(chip.right, strip.right);
+		if (right <= left) continue;
+		if (!chip.collapsed) {
+			regions.push(...region(slotRegionId(chip.firstIndex), left, right));
+			continue;
+		}
+		const middle = Math.min(Math.max((chip.left + chip.right) / 2, left), right);
+		regions.push(
+			...region(slotRegionId(chip.firstIndex), left, middle),
+			...region(slotRegionId(chip.firstIndex + chip.count), middle, right),
 		);
 	}
 	return regions;

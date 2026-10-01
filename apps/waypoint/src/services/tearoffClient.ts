@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type {
+	DragHover,
+	DragLeave,
 	DropReport,
 	Hit,
 	PayloadDropped,
@@ -17,6 +19,8 @@ import type {
 import type { Unsubscribe } from './vfsClient';
 
 export type {
+	DragHover,
+	DragLeave,
 	DropReport,
 	Hit,
 	PayloadDropped,
@@ -64,6 +68,26 @@ export interface GhostPayload {
 
 export type BeginResult = 'following' | 'noGhost' | 'alreadyActive';
 
+/** The Tauri events one window sends another so it can show where a tab dragged from the first would land. */
+export const MERGE_HOVER_EVENT = 'waypoint://merge-hover';
+export const MERGE_LEAVE_EVENT = 'waypoint://merge-leave';
+
+/**
+ * Where a drag from another window is over this one, as the window it is over hears of it. `x` and
+ * `y` are the pointer in logical pixels from the top-left of the page; `region` is the drop region
+ * (`dropRegions.ts`) the plugin found under it, which is what a release merges at, and null for a
+ * pointer over the window but over no region.
+ */
+export interface MergeHover {
+	x: number;
+	y: number;
+	region: string | null;
+	/** How many tabs the drag carries. */
+	count: number;
+	/** Whether they are pinned where they come from, which decides which side of the pinned boundary they land on. */
+	pinned: boolean;
+}
+
 /** Everything the new-window phase of a tab drag asks of the tear-off plugin. */
 export interface TearoffClient {
 	/** The probed features. The first call can take a second on Wayland, so it is asked once and kept. */
@@ -79,6 +103,17 @@ export interface TearoffClient {
 	onTimeout(listener: () => void): Unsubscribe;
 	/** The cursor froze while a button was held (`true`) or moved again (`false`). */
 	onCursorStale(listener: (stale: boolean) => void): Unsubscribe;
+
+	/** Tells another window a ghost drag is over its strip (`merge-hover`); the caller sends it on a change of slot, not on every poll. */
+	sendMergeHover(window: string, hover: MergeHover): Promise<void>;
+	/** Tells another window the drag it was told of has left it, or ended. */
+	sendMergeLeave(window: string): Promise<void>;
+	/** A ghost drag from another window is over this one. */
+	onMergeHover(listener: (hover: MergeHover) => void): Unsubscribe;
+	onMergeLeave(listener: () => void): Unsubscribe;
+	/** A toplevel drag's payload is over this window (the plugin's own events; the compositor's drag gives the page no pointer events). */
+	onDragHover(listener: (hover: DragHover) => void): Unsubscribe;
+	onDragLeave(listener: (leave: DragLeave) => void): Unsubscribe;
 
 	/** Keeps the next window the session makes hidden (`true`), or stops doing so; the toplevel drag shows it. */
 	holdNextWindow(on: boolean): Promise<void>;

@@ -102,6 +102,8 @@ export function GroupChip({
 			role="presentation"
 			className={styles.wrap}
 			data-chip={group.id}
+			data-first={item.firstIndex}
+			data-members={item.members.length}
 			data-pinned={pinned ? '' : undefined}
 			data-colour={group.colour ?? undefined}
 			data-collapsed={group.collapsed ? '' : undefined}

@@ -23,6 +23,8 @@ export interface TearPayload {
 	tabs: TabId[];
 	/** What the announcements call it. */
 	name: string;
+	/** The tabs are pinned where they come from, which a window showing where they would land needs to know. Absent from a payload made before it was carried; read as unpinned. */
+	pinned?: boolean;
 	/** The window the tabs came from, and where in its strip the first one sat. */
 	source: { window: string; index: number };
 }
@@ -34,7 +36,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** The payload as a drag carried it, or null for anything else (a drop from elsewhere). */
 export function parseTearPayload(value: unknown): TearPayload | null {
 	if (!isRecord(value) || value.v !== 1) return null;
-	const { mode, what, tabs, name, source } = value;
+	const { mode, what, tabs, name, source, pinned } = value;
 	if (mode !== 'tabs' && mode !== 'window') return null;
 	if (!isRecord(what) || typeof what.kind !== 'string') return null;
 	if (!Array.isArray(tabs) || !tabs.every((tab) => typeof tab === 'number')) return null;
@@ -48,6 +50,7 @@ export function parseTearPayload(value: unknown): TearPayload | null {
 		what: what as unknown as MoveWhat,
 		tabs: tabs as TabId[],
 		name,
+		pinned: pinned === true,
 		source: { window: source.window, index: source.index },
 	};
 }

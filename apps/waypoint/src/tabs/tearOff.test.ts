@@ -39,7 +39,10 @@ function layout(snapshot: SessionSnapshot): StripMeasure {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** `main-1` holds tabs a, b, c, d; `main-2` holds docs and music. */
-async function setup(features: ConstructorParameters<typeof FakeTearoffClient>[0] = {}) {
+async function setup(
+	features: ConstructorParameters<typeof FakeTearoffClient>[0] = {},
+	options: { hitPollMs?: number } = {},
+) {
 	const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
 	const api = new FakeTabsApi(store, 'main-1');
 	const other = new FakeTabsApi(store, 'main-2');
@@ -76,6 +79,7 @@ async function setup(features: ConstructorParameters<typeof FakeTearoffClient>[0
 		viewport: () => VIEW,
 		frameMargin: () => 8,
 		now: () => clock,
+		hitPollMs: options.hitPollMs,
 	});
 	moveTabs.mockImplementation(async (what, to) => {
 		order.push('move');
@@ -181,7 +185,7 @@ describe('the ghost', () => {
 	it('says what a release would do when the cursor is over another window strip', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.hit = { window: 'main-2', region: 'strip' };
+		h.client.hit = { window: 'main-2', region: 'strip', x: 10, y: 10 };
 		h.tick();
 		h.hook.update(OUTSIDE, source);
 		await settle();
@@ -199,7 +203,7 @@ describe('the ghost', () => {
 	it('does not remember a failed window list, and refreshes a good one after a moment', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.hit = { window: 'main-2', region: 'strip' };
+		h.client.hit = { window: 'main-2', region: 'strip', x: 10, y: 10 };
 		const list = vi.spyOn(h.api, 'listWindows');
 		list.mockRejectedValueOnce(new Error('offline'));
 		h.tick();
@@ -228,7 +232,7 @@ describe('the ghost', () => {
 		try {
 			const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 			await dragOut(h, { tab: h.ids.a! });
-			h.client.hit = { window: 'main-2', region: 'strip' };
+			h.client.hit = { window: 'main-2', region: 'strip', x: 10, y: 10 };
 			h.tick();
 			vi.advanceTimersByTime(HIT_POLL_MS);
 			await settle();
@@ -256,11 +260,11 @@ describe('the ghost', () => {
 	it('does not say merge for a region of its own window or one it cannot read', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.hit = { window: 'main-1', region: 'strip' };
+		h.client.hit = { window: 'main-1', region: 'strip', x: 10, y: 10 };
 		h.tick();
 		h.hook.update(OUTSIDE, source);
 		await settle();
-		h.client.hit = { window: 'main-2', region: 'something-else' };
+		h.client.hit = { window: 'main-2', region: 'something-else', x: 10, y: 10 };
 		h.tick();
 		h.hook.update(OUTSIDE, source);
 		await settle();
@@ -358,7 +362,7 @@ describe('a release', () => {
 	it('merges at the end of the strip it was released over', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true, windowPosition: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.report = reportAt(1500, 400, 1, { window: 'main-2', region: 'strip' });
+		h.client.report = reportAt(1500, 400, 1, { window: 'main-2', region: 'strip', x: 10, y: 10 });
 		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(true);
 		expect(h.moveTabs).toHaveBeenCalledWith(
 			{ kind: 'tabs', value: [h.ids.a] },
@@ -373,7 +377,7 @@ describe('a release', () => {
 	it('merges next to the tab whose half it was released over', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.report = reportAt(0, 0, 1, { window: 'main-2', region: 'slot:1' });
+		h.client.report = reportAt(0, 0, 1, { window: 'main-2', region: 'slot:1', x: 10, y: 10 });
 		await h.hook.drop(OUTSIDE, source);
 		expect(h.moveTabs.mock.calls[0]![1]).toEqual({
 			kind: 'existingWindow',
@@ -388,7 +392,7 @@ describe('a release', () => {
 	it('commits nothing, and says so, for a region of its own window', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.report = reportAt(0, 0, 1, { window: 'main-1', region: 'strip' });
+		h.client.report = reportAt(0, 0, 1, { window: 'main-1', region: 'strip', x: 10, y: 10 });
 		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(false);
 		expect(h.moveTabs).not.toHaveBeenCalled();
 		expect(h.said).toEqual(['Drag cancelled']);
@@ -397,7 +401,7 @@ describe('a release', () => {
 	it('opens a new window when the window it was released over has gone', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.report = reportAt(0, 0, 1, { window: 'main-9', region: 'strip' });
+		h.client.report = reportAt(0, 0, 1, { window: 'main-9', region: 'strip', x: 10, y: 10 });
 		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(true);
 		expect(h.moveTabs.mock.calls[0]![1]).toMatchObject({ kind: 'newWindow' });
 		expect(h.said.at(-1)).toBe('Moved a to a new window');
@@ -497,7 +501,7 @@ describe('the plugin events', () => {
 		});
 		const stopListening = h.hook.connect();
 		const source = await dragOut(h, { tab: h.ids.a! });
-		h.client.hit = { window: 'main-2', region: 'strip' };
+		h.client.hit = { window: 'main-2', region: 'strip', x: 10, y: 10 };
 		h.tick();
 		h.hook.update(OUTSIDE, source);
 		await settle();
@@ -505,7 +509,7 @@ describe('the plugin events', () => {
 		h.client.fireStale(true);
 		expect(h.hook.update(OUTSIDE, source)).toMatchObject({ kind: 'merge' });
 		h.client.report = {
-			...reportAt(1500, 400, 1, { window: 'main-2', region: 'strip' }),
+			...reportAt(1500, 400, 1, { window: 'main-2', region: 'strip', x: 10, y: 10 }),
 			cursorStale: true,
 		};
 		await h.hook.drop(OUTSIDE, source);
@@ -592,5 +596,145 @@ describe('over the drag engine', () => {
 		expect(h.said.at(-1)).toBe('Moved a to a new window');
 		await h.refresh();
 		expect(h.store.window('main-1')!.tabs.map((tab) => tab.id)).not.toContain(h.ids.a);
+	});
+});
+
+describe('telling the other window where the ghost is', () => {
+	const over = (region: string, window = 'main-2') => ({ window, region, x: 120, y: 12 });
+
+	async function hover(
+		h: Harness,
+		source: TabDragSource,
+		hit: ReturnType<typeof over> | null,
+		ms?: number,
+	) {
+		h.client.hit = hit;
+		h.tick(ms);
+		h.hook.update(OUTSIDE, source);
+		await settle();
+	}
+
+	it('sends the region, the pointer and what travels when the ghost is over another strip', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'));
+		expect(h.client.hoverSent).toEqual([
+			{
+				window: 'main-2',
+				hover: { x: 120, y: 12, region: 'slot:1', count: 1, pinned: false },
+			},
+		]);
+	});
+
+	it('says how many tabs a pair or a group brings, and that pinned ones are pinned', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		await h.api.joinPair([h.ids.a!, h.ids.b!], 'sideBySide');
+		await h.api.pinTab(h.ids.a!, true);
+		await h.refresh();
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('strip'));
+		expect(h.client.hoverSent[0]!.hover).toMatchObject({ count: 2, pinned: true });
+	});
+
+	it('sends only when the slot changes, however long the ghost stays and however it moves inside a region', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'));
+		await hover(h, source, { ...over('slot:1'), x: 130 });
+		await hover(h, source, { ...over('slot:1'), x: 140 });
+		expect(h.client.hoverSent).toHaveLength(1);
+		await hover(h, source, over('slot:2'));
+		expect(h.client.hoverSent.map((sent) => sent.hover.region)).toEqual(['slot:1', 'slot:2']);
+		expect(h.client.leavesSent).toEqual([]);
+	});
+
+	it('sends no faster than every 50 ms, and catches up at the next poll', async () => {
+		// A poll interval shorter than the send interval, so the send gate is the one that holds.
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true }, { hitPollMs: 10 });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'), 11);
+		await hover(h, source, over('slot:2'), 20);
+		expect(h.client.hoverSent.map((sent) => sent.hover.region)).toEqual(['slot:1']);
+		await hover(h, source, over('slot:2'), 35);
+		expect(h.client.hoverSent.map((sent) => sent.hover.region)).toEqual(['slot:1', 'slot:2']);
+	});
+
+	it('tells the first window it has left when the ghost moves to another, and again when it moves off every strip', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const third = new FakeTabsApi(h.store, 'main-3');
+		await third.openTab(fileLocation('/home/test/third'));
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'));
+		await hover(h, source, over('strip', 'main-3'));
+		expect(h.client.leavesSent).toEqual(['main-2']);
+		expect(h.client.hoverSent.map((sent) => sent.window)).toEqual(['main-2', 'main-3']);
+		await hover(h, source, null);
+		expect(h.client.leavesSent).toEqual(['main-2', 'main-3']);
+		// Nothing more to leave.
+		await hover(h, source, null);
+		expect(h.client.leavesSent).toHaveLength(2);
+	});
+
+	it('does not tell its own window, or a region it cannot read', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('strip', 'main-1'));
+		await hover(h, source, over('something-else'));
+		expect(h.client.hoverSent).toEqual([]);
+	});
+
+	it('tells the window it has left when the drag is cancelled by coming back, and when it times out', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		const stop = h.hook.connect();
+		await hover(h, source, over('slot:1'));
+		h.hook.leave();
+		await settle();
+		expect(h.client.leavesSent).toEqual(['main-2']);
+
+		const again = await dragOut(h, { tab: h.ids.b! });
+		await hover(h, again, over('slot:1'));
+		h.client.fireTimeout();
+		await settle();
+		expect(h.client.leavesSent).toEqual(['main-2', 'main-2']);
+		stop();
+	});
+
+	it('tells the window it has left when the drag is released, and merges at the slot that was shown', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'));
+		// The pointer moved on a little before the release: the line still showed slot 1.
+		h.client.report = reportAt(0, 0, 1, over('slot:2'));
+		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(true);
+		expect(h.client.leavesSent).toEqual(['main-2']);
+		expect(h.moveTabs.mock.calls[0]![1]).toEqual({
+			kind: 'existingWindow',
+			label: 'main-2',
+			index: 1,
+		});
+	});
+
+	it('merges where the cursor is when it is over another window than the one that was shown', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const third = new FakeTabsApi(h.store, 'main-3');
+		await third.openTab(fileLocation('/home/test/third'));
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await hover(h, source, over('slot:1'));
+		h.client.report = reportAt(0, 0, 1, over('slot:0', 'main-3'));
+		await h.hook.drop(OUTSIDE, source);
+		expect(h.moveTabs.mock.calls[0]![1]).toEqual({
+			kind: 'existingWindow',
+			label: 'main-3',
+			index: 0,
+		});
+	});
+
+	it('shows nothing and sends nothing for a release that is not over a strip', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		await h.hook.drop(OUTSIDE, source);
+		expect(h.client.hoverSent).toEqual([]);
+		expect(h.client.leavesSent).toEqual([]);
 	});
 });

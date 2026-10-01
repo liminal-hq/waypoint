@@ -44,6 +44,7 @@ import { pairOfTab } from './pairLayout';
 import { PairJoint, pairName, pairSlotAttributes } from './PairPill';
 import { tabDomId, TAB_PANEL_ID } from './tabIds';
 import { TabDragPill } from './TabDragPill';
+import { useLandingView } from './MergeLandingContext';
 import { useTabDrag } from './useTabDrag';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
@@ -90,6 +91,8 @@ export function TabStrip() {
 	const [focused, setFocused] = useState<TabId | null>(null);
 	// Dragging is the engine's (`tabDrag.ts`); the strip only starts it and draws what it reports.
 	const drag = useTabDrag(scroller);
+	// A drag from another window is over this strip: where its tabs would land.
+	const landing = useLandingView();
 	const announcement = useAnnouncement();
 	const layout = buildStrip(snapshot);
 	const groupActions = useGroupActions();
@@ -374,6 +377,7 @@ export function TabStrip() {
 				className={styles.scroller}
 				// A pane header's drag to the strip finds it here.
 				data-strip=""
+				data-landing={landing ? '' : undefined}
 
 				style={{ '--wp-pinned-width': `${layout.pinSlots * PINNED_STRIDE_PX}px` } as CSSProperties}
 				onScroll={measureOverflow}
@@ -482,6 +486,15 @@ export function TabStrip() {
 							data-kind={drag.view.marker.kind}
 							aria-hidden="true"
 							style={{ left: drag.view.marker.left, width: drag.view.marker.width || undefined }}
+						/>
+					) : null}
+					{landing ? (
+						<span
+							className={styles.marker}
+							data-kind="line"
+							data-landing=""
+							aria-hidden="true"
+							style={{ left: landing.left }}
 						/>
 					) : null}
 				</div>

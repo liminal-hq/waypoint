@@ -119,6 +119,9 @@ export const enMessages = {
 	'drag.announce.timedOut': 'Drag ended because it ran too long',
 	'drag.announce.movedNewWindow': 'Moved {name} to a new window',
 	'drag.announce.merged': 'Merged {name} into {window}',
+	'drag.announce.landing': 'A tab is being dragged here: release to add it at position {position}',
+	'drag.announce.landingMany':
+		'{count} tabs are being dragged here: release to add them from position {position}',
 	'tabs.pinned': 'Pinned',
 	'tabs.pinnedBadge': 'Pinned tab',
 	'tabs.colourDescription': 'Colour: {colour}',

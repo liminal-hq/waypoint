@@ -6,9 +6,12 @@
 import {
 	NO_TEAROFF,
 	type BeginResult,
+	type DragHover,
+	type DragLeave,
 	type DropReport,
 	type GhostPayload,
 	type Hit,
+	type MergeHover,
 	type PayloadDropped,
 	type Point,
 	type Region,
@@ -59,9 +62,18 @@ export class FakeTearoffClient implements TearoffClient {
 	shown: string[] = [];
 	/** When set, `beginToplevelDrag` rejects with it, as a failed call to the plugin does. */
 	toplevelBeginError: Error | null = null;
+	/** What `sendMergeHover` and `sendMergeLeave` were asked to tell other windows, in order. */
+	hoverSent: { window: string; hover: MergeHover }[] = [];
+	leavesSent: string[] = [];
+	/** Called for each send, so two fake windows can be linked into one. */
+	onSend: ((message: { window: string; hover: MergeHover | null }) => void) | null = null;
 	private startedListeners = new Set<(started: ToplevelDragStarted) => void>();
 	private endedListeners = new Set<(ended: ToplevelDragEnded) => void>();
 	private droppedListeners = new Set<(dropped: PayloadDropped) => void>();
+	private mergeHoverListeners = new Set<(hover: MergeHover) => void>();
+	private mergeLeaveListeners = new Set<() => void>();
+	private dragHoverListeners = new Set<(hover: DragHover) => void>();
+	private dragLeaveListeners = new Set<(leave: DragLeave) => void>();
 	private timeoutListeners = new Set<() => void>();
 	private staleListeners = new Set<(stale: boolean) => void>();
 
@@ -110,6 +122,54 @@ export class FakeTearoffClient implements TearoffClient {
 	onCursorStale(listener: (stale: boolean) => void): () => void {
 		this.staleListeners.add(listener);
 		return () => this.staleListeners.delete(listener);
+	}
+
+	async sendMergeHover(window: string, hover: MergeHover): Promise<void> {
+		this.calls.push(`mergeHover:${window}`);
+		this.hoverSent.push({ window, hover });
+		this.onSend?.({ window, hover });
+	}
+
+	async sendMergeLeave(window: string): Promise<void> {
+		this.calls.push(`mergeLeave:${window}`);
+		this.leavesSent.push(window);
+		this.onSend?.({ window, hover: null });
+	}
+
+	onMergeHover(listener: (hover: MergeHover) => void): () => void {
+		this.mergeHoverListeners.add(listener);
+		return () => this.mergeHoverListeners.delete(listener);
+	}
+
+	onMergeLeave(listener: () => void): () => void {
+		this.mergeLeaveListeners.add(listener);
+		return () => this.mergeLeaveListeners.delete(listener);
+	}
+
+	onDragHover(listener: (hover: DragHover) => void): () => void {
+		this.dragHoverListeners.add(listener);
+		return () => this.dragHoverListeners.delete(listener);
+	}
+
+	onDragLeave(listener: (leave: DragLeave) => void): () => void {
+		this.dragLeaveListeners.add(listener);
+		return () => this.dragLeaveListeners.delete(listener);
+	}
+
+	fireMergeHover(hover: MergeHover): void {
+		for (const listener of [...this.mergeHoverListeners]) listener(hover);
+	}
+
+	fireMergeLeave(): void {
+		for (const listener of [...this.mergeLeaveListeners]) listener();
+	}
+
+	fireDragHover(hover: DragHover): void {
+		for (const listener of [...this.dragHoverListeners]) listener(hover);
+	}
+
+	fireDragLeave(leave: DragLeave): void {
+		for (const listener of [...this.dragLeaveListeners]) listener(leave);
 	}
 
 	async holdNextWindow(on: boolean): Promise<void> {

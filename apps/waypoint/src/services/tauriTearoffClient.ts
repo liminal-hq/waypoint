@@ -4,8 +4,17 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { invoke } from '@tauri-apps/api/core';
+import { emitTo } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import * as tearoff from '@liminal-hq/plugin-window-tearoff';
-import { NO_TEAROFF, type TearoffClient, type TearoffFeatures } from './tearoffClient';
+import {
+	MERGE_HOVER_EVENT,
+	MERGE_LEAVE_EVENT,
+	NO_TEAROFF,
+	type MergeHover,
+	type TearoffClient,
+	type TearoffFeatures,
+} from './tearoffClient';
 import type { Unsubscribe } from './vfsClient';
 
 /** Turns a listener registration that resolves later into an unsubscribe that works at once. */
@@ -58,6 +67,18 @@ export function createTauriTearoffClient(): TearoffClient {
 		setDropRegions: (regions) => tearoff.setDropRegions(regions),
 		onTimeout: (listener) => subscribe(tearoff.onTimeout(listener)),
 		onCursorStale: (listener) => subscribe(tearoff.onCursorStale(listener)),
+		sendMergeHover: (window, hover) => emitTo(window, MERGE_HOVER_EVENT, hover),
+		sendMergeLeave: (window) => emitTo(window, MERGE_LEAVE_EVENT),
+		onMergeHover: (listener) =>
+			subscribe(
+				getCurrentWebviewWindow().listen<MergeHover>(MERGE_HOVER_EVENT, (event) =>
+					listener(event.payload),
+				),
+			),
+		onMergeLeave: (listener) =>
+			subscribe(getCurrentWebviewWindow().listen(MERGE_LEAVE_EVENT, () => listener())),
+		onDragHover: (listener) => subscribe(tearoff.onDragHover(listener)),
+		onDragLeave: (listener) => subscribe(tearoff.onDragLeave(listener)),
 		// The app's own command (the session's window factory is the app's), not the plugin's.
 		holdNextWindow: (on) => invoke<void>('hold_next_window', { on }),
 		showWindow: (label) => invoke<void>('show_window', { label }),
