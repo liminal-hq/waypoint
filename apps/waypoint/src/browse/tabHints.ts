@@ -1,4 +1,4 @@
-// Scroll position and focused entry: reported to the session for a restore, applied once when a restored tab's listing opens
+// Scroll position and focused entry: reported to the session for a restore or hand-off, applied once when a restored or arriving tab's listing opens
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -68,30 +68,59 @@ export interface ActiveView {
 	mode: ViewMode;
 }
 
+type Flusher = (tab: TabId) => Promise<void>;
+
+/** The reporters running in this window; `flushHints` asks each of them. */
+const flushers = new Set<Flusher>();
+
+/**
+ * Sends the tab's current scroll offset and focused entry to the session now, whatever the timer
+ * is doing, and resolves once the session has them (or could not take them: a failed report is
+ * logged and does not stop the caller). A tab about to leave the window calls this first, so the
+ * window that receives it can put it back where it was.
+ */
+export async function flushHints(tab: TabId): Promise<void> {
+	await Promise.all([...flushers].map((flush) => flush(tab)));
+}
+
 /**
  * Reports the active tab's hints to the session: every `HINT_INTERVAL_MS` while they change, and
  * at once when the window loses focus, is hidden or is going away, and when `onFlush` calls back
  * (the shell asks for a flush when the window is about to close, before the session is saved,
- * which is earlier than `pagehide`). Returns the function that stops it.
+ * which is earlier than `pagehide`). `viewOf` finds any tab's view, which `flushHints` needs for a
+ * tab that is not the active one (it defaults to the active view alone). Returns the function
+ * that stops it.
  */
 export function followHints(
 	api: Pick<TabsApi, 'setTabHints'>,
 	active: () => ActiveView | null,
 	intervalMs: number = HINT_INTERVAL_MS,
+	viewOf: (tab: TabId) => ActiveView | null = (tab) => {
+		const view = active();
+		return view?.tab === tab ? view : null;
+	},
 	onFlush?: (flush: () => void) => () => void,
 ): () => void {
 	const reported = new Map<TabId, TabHints>();
-	const report = () => {
-		const view = active();
-		if (!view) return;
+	const send = (view: ActiveView): Promise<void> => {
 		const hints = readHints(view.session, view.mode);
-		const last = reported.get(view.tab);
-		if (last && sameHints(last, hints)) return;
 		reported.set(view.tab, hints);
-		api.setTabHints(view.tab, hints).catch((error: unknown) => {
+		return api.setTabHints(view.tab, hints).catch((error: unknown) => {
 			console.warn('could not save the tab hints', error);
 		});
 	};
+	const report = () => {
+		const view = active();
+		if (!view) return;
+		const last = reported.get(view.tab);
+		if (last && sameHints(last, readHints(view.session, view.mode))) return;
+		void send(view);
+	};
+	const flush: Flusher = async (tab) => {
+		const view = viewOf(tab);
+		if (view) await send(view);
+	};
+	flushers.add(flush);
 	const timer = setInterval(report, intervalMs);
 	window.addEventListener('blur', report);
 	window.addEventListener('pagehide', report);
@@ -102,6 +131,7 @@ export function followHints(
 	document.addEventListener('visibilitychange', reportWhenHidden);
 	const unsubscribe = onFlush?.(report);
 	return () => {
+		flushers.delete(flush);
 		clearInterval(timer);
 		window.removeEventListener('blur', report);
 		window.removeEventListener('pagehide', report);

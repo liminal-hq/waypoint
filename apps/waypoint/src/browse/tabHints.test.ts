@@ -7,7 +7,7 @@ import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSna
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import { ListingManager } from './listingManager';
-import { followHints, HINT_INTERVAL_MS, readHints } from './tabHints';
+import { flushHints, followHints, HINT_INTERVAL_MS, readHints } from './tabHints';
 import type { ListingSession } from './useListingSession';
 
 const FOLDER = fileLocation('/a');
@@ -137,6 +137,7 @@ describe('reporting hints', () => {
 			api,
 			() => ({ tab: 1, session, mode: 'list' }),
 			HINT_INTERVAL_MS,
+			undefined,
 			(callback) => {
 				flush = callback;
 				return unsubscribe;
@@ -174,5 +175,141 @@ describe('reporting hints', () => {
 		session.view.scrollTop = 99;
 		window.dispatchEvent(new Event('blur'));
 		expect(api.setTabHints).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('flushing hints', () => {
+	it('sends the tab’s hints now and resolves only once the session has them', async () => {
+		const { manager } = setup();
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		const session = await ready(manager, 1);
+		let accept: () => void = () => {};
+		const setTabHints = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					accept = resolve;
+				}),
+		);
+		const stop = followHints({ setTabHints }, () => ({ tab: 1, session, mode: 'list' }));
+		session.view.scrollTop = 321;
+		let settled = false;
+		const flushed = flushHints(1).then(() => {
+			settled = true;
+		});
+		expect(setTabHints).toHaveBeenCalledWith(1, { scrollTop: 321, focused: null });
+		await settle();
+		expect(settled).toBe(false);
+		accept();
+		await flushed;
+		expect(settled).toBe(true);
+		stop();
+	});
+
+	it('finds a tab that is not the active one, and sends even hints it already reported', async () => {
+		const { manager } = setup();
+		manager.sync(
+			[tab(1, { scrollTop: 0, focused: null }), tab(2, { scrollTop: 0, focused: null }, OTHER)],
+			1,
+		);
+		const first = await ready(manager, 1);
+		const api = { setTabHints: vi.fn(async () => {}) };
+		const stop = followHints(
+			api,
+			() => ({ tab: 1, session: first, mode: 'list' }),
+			HINT_INTERVAL_MS,
+			(id) => (id === 1 ? { tab: 1, session: first, mode: 'list' } : null),
+		);
+		await flushHints(1);
+		await flushHints(1);
+		expect(api.setTabHints).toHaveBeenCalledTimes(2);
+		await flushHints(2);
+		expect(api.setTabHints).toHaveBeenCalledTimes(2);
+		stop();
+	});
+
+	it('resolves when the session cannot take the hints, and when nothing is reporting', async () => {
+		await expect(flushHints(9)).resolves.toBeUndefined();
+		const { manager } = setup();
+		manager.sync([tab(1, { scrollTop: 0, focused: null })], 1);
+		const session = await ready(manager, 1);
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const stop = followHints(
+			{ setTabHints: vi.fn(async () => Promise.reject(new Error('gone'))) },
+			() => ({ tab: 1, session, mode: 'list' }),
+		);
+		await expect(flushHints(1)).resolves.toBeUndefined();
+		expect(warn).toHaveBeenCalled();
+		stop();
+		await flushHints(1);
+	});
+});
+
+describe('a tab handed to a window that is running', () => {
+	const arriving = (hints: TabSnapshot['hints']) => tab(7, hints);
+
+	it('opens its listing in the target, applies the hints, and the source lets its own listing go', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(FOLDER, [
+			makeEntry(1, 'alpha.txt'),
+			makeEntry(2, 'beta.txt'),
+			makeEntry(3, 'gamma.txt'),
+		]);
+		client.setFolder(OTHER, [makeEntry(1, 'other.txt')]);
+		const source = new ListingManager(client, { viewMode: () => 'list' });
+		const target = new ListingManager(client, { viewMode: () => 'list' });
+		source.sync(
+			[tab(7, { scrollTop: 0, focused: null }), tab(8, { scrollTop: 0, focused: null }, OTHER)],
+			7,
+		);
+		target.sync([tab(9, { scrollTop: 0, focused: null }, OTHER)], 9);
+		await ready(source, 7);
+		await settle();
+		expect(client.openCount).toBe(2);
+
+		// The hand-off: the target gains the tab (with the hints the source just reported), the
+		// source loses it.
+		const moved = arriving({ scrollTop: 240, focused: 'beta.txt' });
+		target.sync([tab(9, { scrollTop: 0, focused: null }, OTHER), moved], 7);
+		source.sync([tab(8, { scrollTop: 0, focused: null }, OTHER)], 8);
+		const session = await ready(target, 7);
+		await settle();
+
+		expect(source.stateFor(7)).toBeUndefined();
+		expect(target.openCount).toBe(2);
+		// The source's listing for tab 7 closed and the target's opened; tab 8 opened in the source.
+		expect(source.openCount).toBe(1);
+		expect(client.openCount).toBe(3);
+		expect(session.view.scrollTop).toBe(240);
+		expect(session.view.pendingScroll).toBe(240);
+		const focus = session.store.getState().focus;
+		expect(focus === null ? null : session.model.entryAt(focus)?.name).toBe('beta.txt');
+	});
+
+	it('keeps the hints for a tab that arrives in the background until its listing opens', async () => {
+		const { manager } = setup();
+		manager.sync([tab(9, { scrollTop: 0, focused: null }, OTHER)], 9);
+		await ready(manager, 9);
+		manager.sync(
+			[tab(9, { scrollTop: 0, focused: null }, OTHER), arriving({ scrollTop: 90, focused: null })],
+			9,
+		);
+		expect(manager.stateFor(7)).toBeUndefined();
+		manager.sync(
+			[tab(9, { scrollTop: 0, focused: null }, OTHER), arriving({ scrollTop: 90, focused: null })],
+			7,
+		);
+		const session = await ready(manager, 7);
+		expect(session.view.scrollTop).toBe(90);
+	});
+
+	it('applies the hints again when a tab leaves and comes back', async () => {
+		const { manager } = setup();
+		const hints = { scrollTop: 60, focused: null };
+		manager.sync([tab(7, hints)], 7);
+		await ready(manager, 7);
+		manager.sync([], null);
+		manager.sync([tab(7, { scrollTop: 130, focused: null })], 7);
+		const session = await ready(manager, 7);
+		expect(session.view.scrollTop).toBe(130);
 	});
 });

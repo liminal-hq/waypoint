@@ -164,6 +164,7 @@ function WorkspaceBody({
 						: null;
 				},
 				undefined,
+				undefined,
 				onFlushHints,
 			),
 		[api, manager, viewStore],
