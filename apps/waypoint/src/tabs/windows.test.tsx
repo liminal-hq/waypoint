@@ -231,6 +231,20 @@ describe('the hand-off', () => {
 		expect(store.windowLabels()).toEqual(['main-1', 'main-2']);
 	});
 
+	it('reports the hints of every tab of a group or a pair before it moves them', async () => {
+		const { store, one } = twoWindows();
+		const a = await one.openTab(DOCS);
+		const b = await one.openTab(MUSIC);
+		const flushed: number[] = [];
+		const actions = createWindowActions(one, HOME, async (id) => void flushed.push(id));
+		await actions.moveMany({ kind: 'tabs', value: [a, b] }, [a, b], null, {
+			newWindow: 'Moved two',
+			toWindow: () => '',
+		});
+		expect(flushed).toEqual([a, b]);
+		expect(store.window('main-2')!.tabs.map((tab) => tab.id)).toEqual([a, b]);
+	});
+
 	it('still moves the tab when reporting its hints fails', async () => {
 		const { store, one } = twoWindows();
 		const id = await one.openTab(DOCS);

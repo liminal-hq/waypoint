@@ -6,10 +6,11 @@
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
 import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
-import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { MoveWhat } from '@liminal-hq/waypoint-protocol/generated/MoveWhat';
 import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { t, tf, tn } from '../i18n/messages';
 import type { TabsApi } from '../services/tabsApi';
@@ -17,7 +18,8 @@ import { announce } from './announcer';
 import { GROUP_SOFT_LIMIT, groupStepTarget, groupTabs } from './groupLayout';
 import { colourMessageId } from './tabColours';
 import { locationLabel } from './tabTitle';
-import { useHomeLocation, useTabsApi, useTabsSnapshot } from './TabsContext';
+import { useTabsApi, useTabsSnapshot } from './TabsContext';
+import { useWindowActions, type MoveSpeech, type WindowActions } from './windowActions';
 
 export interface GroupActions {
 	/** Puts `tab` in a new group, named "Group N", and opens its name for editing. */
@@ -34,8 +36,10 @@ export interface GroupActions {
 	setPinned(group: Group, pinned: boolean): void;
 	sort(group: Group, by: GroupSort): void;
 	duplicate(group: Group): void;
-	/** Hands the group to a new window; says so, quietly, when windows cannot be made yet. */
+	/** Hands the group to a window of its own. */
 	moveToNewWindow(group: Group): void;
+	/** Hands the group to the end of another window's strip. */
+	moveToWindow(group: Group, target: WindowSummary): void;
 	ungroup(group: Group): void;
 	close(group: Group): void;
 	/** The keyboard counterpart of dragging the chip: one place along the strip. */
@@ -87,15 +91,21 @@ export function useRenaming(): GroupId | null {
 	);
 }
 
-/** Builds the group commands over `api` for the session state in `snapshot` and a `home` location. */
+/** Builds the group commands over `api` for the session state in `snapshot`; `windows` moves groups. */
 export function createGroupActions(
 	api: TabsApi,
 	snapshot: SessionSnapshot | null,
-	home: Location,
+	windows: Pick<WindowActions, 'moveMany'>,
 ): GroupActions {
 	const tabs = snapshot?.tabs ?? [];
 	const run = (work: Promise<unknown>) => void work.catch(report);
 	const sizeOf = (group: Group) => groupTabs(tabs, group.id).length;
+	const memberIds = (group: Group) => groupTabs(tabs, group.id).map((tab) => tab.id);
+	const groupMove = (group: Group): MoveWhat => ({ kind: 'group', value: group.id });
+	const groupSpeech = (group: Group): MoveSpeech => ({
+		newWindow: tf('groups.announce.movedWindow', { name: group.name }),
+		toWindow: (window) => tf('groups.announce.movedToWindow', { name: group.name, window }),
+	});
 	return {
 		newGroup: (tab) =>
 			run(
@@ -208,39 +218,22 @@ export function createGroupActions(
 					.then(() => announce(tf('groups.announce.duplicated', { name: group.name }))),
 			),
 		moveToNewWindow: (group) =>
-			run(
-				api
-					.moveTabs(
-						{ kind: 'group', value: group.id },
-						{ kind: 'newWindow', label: null, geometry: null },
-					)
-					.then(() => announce(tf('groups.announce.movedWindow', { name: group.name })))
-					.catch((error: unknown) => {
-						// The window factory refuses until the window work lands; that is not a fault.
-						const unavailable = /not available/i.test(String(error));
-						announce(
-							tf(unavailable ? 'groups.announce.moveUnavailable' : 'groups.announce.moveFailed', {
-								name: group.name,
-							}),
-						);
-						if (!unavailable) report(error);
-					}),
-			),
+			void windows.moveMany(groupMove(group), memberIds(group), null, groupSpeech(group)),
+		moveToWindow: (group, target) =>
+			void windows.moveMany(groupMove(group), memberIds(group), target, groupSpeech(group)),
 		ungroup: (group) =>
 			run(
 				api
 					.ungroup(group.id)
 					.then(() => announce(tf('groups.announce.ungrouped', { name: group.name }))),
 			),
+		// Closing every tab of a window closes the window (D91): the session decides, and the tabs
+		// go to Recently Closed.
 		close: (group) =>
 			run(
-				(async () => {
-					// A window always keeps a tab: closing every tab leaves a fresh one at Home.
-					const current = await api.getSnapshot();
-					if (current.tabs.every((tab) => tab.group === group.id)) await api.openTab(home);
-					await api.closeGroup(group.id);
-					announce(tf('groups.announce.closed', { name: group.name }));
-				})(),
+				api
+					.closeGroup(group.id)
+					.then(() => announce(tf('groups.announce.closed', { name: group.name }))),
 			),
 		moveBy: (group, delta) => {
 			const target = groupStepTarget(tabs, group.id, delta);
@@ -262,8 +255,8 @@ export function createGroupActions(
 export function useGroupActions(): GroupActions {
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
-	const home = useHomeLocation();
-	return useMemo(() => createGroupActions(api, snapshot, home), [api, snapshot, home]);
+	const windows = useWindowActions();
+	return useMemo(() => createGroupActions(api, snapshot, windows), [api, snapshot, windows]);
 }
 
 /**

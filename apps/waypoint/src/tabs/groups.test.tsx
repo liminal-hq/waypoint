@@ -227,6 +227,7 @@ describe('the group menu', () => {
 			'Duplicate Group',
 			'Save Group as Workspace',
 			'Move Group to New Window',
+			'Move Group to Window',
 			'Ungroup',
 			'Close Group',
 		]);
@@ -357,20 +358,23 @@ describe('the group menu', () => {
 		expect(live()).toHaveTextContent('Ungrouped Group 1');
 	});
 
-	it('closing every tab of the window with Close Group leaves a tab at Home', async () => {
-		const h = await renderWorkspace();
+	it('closing every tab of the window with Close Group closes the window and keeps the tabs', async () => {
+		const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
+		const one = new FakeTabsApi(store, 'main-1');
+		const two = new FakeTabsApi(store, 'main-2');
+		const h = await renderWorkspace(undefined, one);
+		await two.openTab(HOME);
 		await h.tabs.createGroup([1]);
 		await waitFor(() => expect(chip(/^Group 1,/)).toBeInTheDocument());
 		await openGroupMenu();
 		fireEvent.click(await item('Close Group'));
-		await waitFor(async () => {
-			const current = await snapshot(h);
-			expect(current.tabs).toHaveLength(1);
-			expect(current.tabs[0]!.group).toBeNull();
-		});
+		await waitFor(() => expect(store.windowLabels()).toEqual(['main-2']));
+		// No Home tab was opened on the way out, and the tab is in Recently Closed.
+		expect(store.window('main-2')!.tabs).toHaveLength(1);
+		expect(store.closed().map((entry) => entry.tab.id)).toEqual([1]);
 	});
 
-	it('moves the group to a new window when the factory makes one', async () => {
+	it('moves the group to a new window, keeping its name', async () => {
 		const made: string[] = [];
 		const store = new FakeTabsStore({ createWindow: (label) => void made.push(label) });
 		const h = await renderWorkspace(undefined, new FakeTabsApi(store, 'main-1'));
@@ -380,12 +384,32 @@ describe('the group menu', () => {
 		await waitFor(() => expect(made).toHaveLength(1));
 		await waitFor(() => expect(screen.queryByRole('button', { name: /tab group/ })).toBeNull());
 		expect(live()).toHaveTextContent('Moved group Group 1 to a new window');
+		expect(store.window('main-2')!.groups.map((group) => group.name)).toEqual(['Group 1']);
+		expect(store.closed()).toEqual([]);
 	});
 
-	it('says so, without failing, when windows cannot be made yet', async () => {
+	it('moves the group to another window', async () => {
+		const store = new FakeTabsStore({ policy: { closeWindowOnLastTab: true } });
+		const one = new FakeTabsApi(store, 'main-1');
+		const two = new FakeTabsApi(store, 'main-2');
+		const h = await renderWorkspace(undefined, one);
+		await withGroup(h);
+		await two.openTab(MUSIC);
+		await openGroupMenu();
+		fireEvent.click(await item('Move Group to Window'));
+		fireEvent.click(await screen.findByRole('menuitem', { name: /— 1 tab$/ }));
+		await waitFor(() => expect(screen.queryByRole('button', { name: /tab group/ })).toBeNull());
+		expect(live()).toHaveTextContent('Moved group Group 1 to');
+		const target = store.window('main-2')!;
+		expect(target.groups).toHaveLength(1);
+		expect(target.tabs.filter((tab) => tab.group !== null)).toHaveLength(2);
+		expect(store.closed()).toEqual([]);
+	});
+
+	it('says why, in a notice, when a group cannot be moved', async () => {
 		const store = new FakeTabsStore({
 			createWindow: () => {
-				throw 'creating windows is not available yet';
+				throw 'refused';
 			},
 		});
 		const h = await renderWorkspace(undefined, new FakeTabsApi(store, 'main-1'));
@@ -393,10 +417,8 @@ describe('the group menu', () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		await openGroupMenu();
 		fireEvent.click(await item('Move Group to New Window'));
-		await waitFor(() =>
-			expect(live()).toHaveTextContent('Moving Group 1 to a new window is not available yet'),
-		);
-		expect(warn).not.toHaveBeenCalled();
+		expect(await screen.findByRole('alert')).toHaveTextContent('Could not move the tab.');
+		expect(warn).toHaveBeenCalled();
 		expect(chip(/^Group 1,/)).toBeInTheDocument();
 		expect((await snapshot(h)).groups).toHaveLength(1);
 	});

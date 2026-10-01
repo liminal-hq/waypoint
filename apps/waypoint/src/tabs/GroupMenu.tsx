@@ -11,11 +11,14 @@ import type {
 } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
-import { createElement } from 'react';
+import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import { createElement, useEffect, useState } from 'react';
 import { t } from '../i18n/messages';
 import { useGroupActions, type GroupActions } from './groupActions';
 import { colourMessageId, TAB_COLOURS } from './tabColours';
 import { TabColourSwatch } from './TabColourSwatch';
+import { useWindowActions } from './windowActions';
+import { runWindowMoveChoice, windowMoveItems } from './windowMoveMenu';
 
 const COLOUR_PREFIX = 'colour:';
 const SORT_PREFIX = 'sort:';
@@ -38,7 +41,11 @@ export interface GroupMenuState {
 }
 
 /** The group menu's items, in SPEC order. */
-export function groupMenuItems(group: Group, { pinned, hasOthers }: GroupMenuState): MenuItem[] {
+export function groupMenuItems(
+	group: Group,
+	{ pinned, hasOthers }: GroupMenuState,
+	others: readonly WindowSummary[] = [],
+): MenuItem[] {
 	return [
 		{ type: 'action', id: 'rename', label: t('groups.menu.rename'), shortcut: 'F2' },
 		{
@@ -98,7 +105,10 @@ export function groupMenuItems(group: Group, { pinned, hasOthers }: GroupMenuSta
 			disabled: true,
 			title: t('groups.menu.saveWorkspaceHint'),
 		},
-		{ type: 'action', id: 'moveWindow', label: t('groups.menu.moveWindow') },
+		...windowMoveItems(others, {
+			newWindow: t('groups.menu.moveWindow'),
+			toWindow: t('groups.menu.moveToWindow'),
+		}),
 		{ type: 'separator', id: 'sep-close' },
 		{ type: 'action', id: 'ungroup', label: t('groups.menu.ungroup') },
 		{ type: 'action', id: 'close', label: t('groups.menu.close'), danger: true },
@@ -111,7 +121,13 @@ export function runGroupMenuItem(
 	group: Group,
 	actions: GroupActions,
 	startRename: () => void,
+	others: readonly WindowSummary[] = [],
 ): void {
+	const moved = runWindowMoveChoice(item, others, {
+		toNewWindow: () => actions.moveToNewWindow(group),
+		toWindow: (target) => actions.moveToWindow(group, target),
+	});
+	if (moved) return;
 	if (item.id.startsWith(COLOUR_PREFIX)) {
 		const name = item.id.slice(COLOUR_PREFIX.length);
 		actions.setColour(group, TAB_COLOURS.find((candidate) => candidate === name) ?? null);
@@ -139,8 +155,6 @@ export function runGroupMenuItem(
 			return actions.setPinned(group, false);
 		case 'duplicate':
 			return actions.duplicate(group);
-		case 'moveWindow':
-			return actions.moveToNewWindow(group);
 		case 'ungroup':
 			return actions.ungroup(group);
 		case 'close':
@@ -161,12 +175,25 @@ interface GroupMenuProps extends GroupMenuState {
 /** Opened by right-click, or by the Menu key or Shift+F10 on a focused chip. */
 export function GroupMenu({ group, pinned, hasOthers, onRename, ...rest }: GroupMenuProps) {
 	const actions = useGroupActions();
+	const windows = useWindowActions();
+	const [others, setOthers] = useState<WindowSummary[] | null>(null);
+	// The other windows are read fresh when the menu opens: they come and go unheard.
+	useEffect(() => {
+		let current = true;
+		void windows.otherWindows().then((list) => {
+			if (current) setOthers(list);
+		});
+		return () => {
+			current = false;
+		};
+	}, [windows]);
+	if (others === null) return null;
 	return (
 		<ContextMenu
 			{...rest}
 			ariaLabel={t('groups.menu.label')}
-			items={groupMenuItems(group, { pinned, hasOthers })}
-			onSelect={(item) => runGroupMenuItem(item, group, actions, onRename)}
+			items={groupMenuItems(group, { pinned, hasOthers }, others)}
+			onSelect={(item) => runGroupMenuItem(item, group, actions, onRename, others)}
 		/>
 	);
 }

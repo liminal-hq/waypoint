@@ -166,8 +166,7 @@ export const enMessages = {
 	'groups.announce.sorted': 'Sorted {name} {by}',
 	'groups.announce.duplicated': 'Duplicated group {name}',
 	'groups.announce.movedWindow': 'Moved group {name} to a new window',
-	'groups.announce.moveUnavailable': 'Moving {name} to a new window is not available yet',
-	'groups.announce.moveFailed': 'Could not move {name} to a new window',
+	'groups.announce.movedToWindow': 'Moved group {name} to {window}',
 	'groups.announce.ungrouped': 'Ungrouped {name}',
 	'groups.announce.closed': 'Closed group {name}',
 	'groups.announce.moved': 'Moved group {name} to position {position} of {count}',
@@ -188,6 +187,7 @@ export const enMessages = {
 	'groups.menu.saveWorkspace': 'Save Group as Workspace',
 	'groups.menu.saveWorkspaceHint': 'Arrives with workspaces',
 	'groups.menu.moveWindow': 'Move Group to New Window',
+	'groups.menu.moveToWindow': 'Move Group to Window',
 	'groups.menu.ungroup': 'Ungroup',
 	'groups.menu.close': 'Close Group',
 

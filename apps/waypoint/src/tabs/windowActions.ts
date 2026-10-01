@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { MoveWhat } from '@liminal-hq/waypoint-protocol/generated/MoveWhat';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { useEffect, useMemo } from 'react';
@@ -25,8 +26,37 @@ export interface WindowActions {
 	moveToNewWindow(tab: TabSnapshot): Promise<void>;
 	/** Hands `tab` to the end of another window's strip. */
 	moveToWindow(tab: TabSnapshot, target: WindowSummary): Promise<void>;
+	/**
+	 * Hands `what` (a group or a pair, whose tabs are `tabIds`) to a window of its own, or to the end
+	 * of `target`'s strip. It flushes every tab's hints first and says `say` aloud when it is done.
+	 */
+	moveMany(
+		what: MoveWhat,
+		tabIds: readonly number[],
+		target: WindowSummary | null,
+		say: MoveSpeech,
+	): Promise<void>;
 	/** The other windows of the session, for the Move to Window menu. */
 	otherWindows(): Promise<WindowSummary[]>;
+}
+
+/** What a move says aloud: to a new window, or to the window named by its menu label. */
+export interface MoveSpeech {
+	newWindow: string;
+	toWindow(windowName: string): string;
+}
+
+const tabMove = (tab: TabSnapshot): MoveWhat => ({ kind: 'tabs', value: [tab.id] });
+
+const tabSpeech = (tab: TabSnapshot): MoveSpeech => ({
+	newWindow: t('tabs.announce.movedNewWindow'),
+	toWindow: (window) =>
+		tf('tabs.announce.movedToWindow', { name: locationLabel(tab.location), window }),
+});
+
+/** The title a window goes by in announcements. */
+export function windowName(window: WindowSummary): string {
+	return window.title === '' ? t('tabs.menu.untitledWindow') : window.title;
 }
 
 /** The text a menu shows for a window: its folder and how many tabs it holds. */
@@ -76,6 +106,26 @@ export function createWindowActions(
 		await warnIfMany();
 		return true;
 	};
+	const moveMany = async (
+		what: MoveWhat,
+		tabIds: readonly number[],
+		target: WindowSummary | null,
+		say: MoveSpeech,
+	): Promise<void> => {
+		try {
+			for (const id of tabIds) await flush(id);
+			await api.moveTabs(
+				what,
+				target
+					? { kind: 'existingWindow', label: target.label, index: target.tabCount }
+					: { kind: 'newWindow', label: null, geometry: null },
+			);
+		} catch (error) {
+			return refuse(error, 'window.notice.moveFailed');
+		}
+		announce(target ? say.toWindow(windowName(target)) : say.newWindow);
+		if (!target) await warnIfMany();
+	};
 	return {
 		newWindow: async () => {
 			if (await open(home)) announce(t('tabs.announce.openedWindow'));
@@ -83,36 +133,9 @@ export function createWindowActions(
 		openInNewWindow: async (location) => {
 			await open(location);
 		},
-		moveToNewWindow: async (tab) => {
-			try {
-				await flush(tab.id);
-				await api.moveTabs(
-					{ kind: 'tabs', value: [tab.id] },
-					{ kind: 'newWindow', label: null, geometry: null },
-				);
-			} catch (error) {
-				return refuse(error, 'window.notice.moveFailed');
-			}
-			announce(t('tabs.announce.movedNewWindow'));
-			await warnIfMany();
-		},
-		moveToWindow: async (tab, target) => {
-			try {
-				await flush(tab.id);
-				await api.moveTabs(
-					{ kind: 'tabs', value: [tab.id] },
-					{ kind: 'existingWindow', label: target.label, index: target.tabCount },
-				);
-			} catch (error) {
-				return refuse(error, 'window.notice.moveFailed');
-			}
-			announce(
-				tf('tabs.announce.movedToWindow', {
-					name: locationLabel(tab.location),
-					window: target.title === '' ? t('tabs.menu.untitledWindow') : target.title,
-				}),
-			);
-		},
+		moveToNewWindow: (tab) => moveMany(tabMove(tab), [tab.id], null, tabSpeech(tab)),
+		moveToWindow: (tab, target) => moveMany(tabMove(tab), [tab.id], target, tabSpeech(tab)),
+		moveMany,
 		otherWindows: async () => {
 			try {
 				return (await api.listWindows()).filter((window) => !window.active);
