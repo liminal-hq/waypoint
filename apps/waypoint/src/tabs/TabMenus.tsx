@@ -13,7 +13,7 @@ import { t } from '../i18n/messages';
 import { useTabActions } from './tabActions';
 import { useTabExtras } from './tabExtras';
 import { useWindowActions } from './windowActions';
-import { plusMenuItems, runPlusMenuItem, runTabMenuItem, tabMenuItems } from './tabMenus';
+import { plusMenuItems, runPlusMenuItem, runTabMenuItem, tabMenuItems } from './tabMenuModel';
 
 interface MenuProps {
 	position: MenuPosition;
