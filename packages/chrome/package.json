@@ -39,6 +39,10 @@
 		"!src/test"
 	],
 	"exports": {
+		"./Dialog/ConfirmDialog": "./src/Dialog/ConfirmDialog.tsx",
+		"./Dialog/Dialog": "./src/Dialog/Dialog.tsx",
+		"./Dialog/DialogActions": "./src/Dialog/DialogActions.tsx",
+		"./Dialog/dialogContext": "./src/Dialog/dialogContext.ts",
 		"./ContextMenu": "./src/ContextMenu/ContextMenu.tsx",
 		"./ContextMenu/types": "./src/ContextMenu/types.ts",
 		"./ContextMenu/expectEveryItemHasIcon": "./src/ContextMenu/expectEveryItemHasIcon.ts",

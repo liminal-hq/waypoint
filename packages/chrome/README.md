@@ -18,6 +18,10 @@ Every export maps to the file that defines it.
 | `@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls`              | `createTauriWindowControls()` and a shared `tauriWindowControls` built on `@tauri-apps/api/window` |
 | `@liminal-hq/waypoint-chrome/ContextMenu`                               | Controlled `ContextMenu`                                                                           |
 | `@liminal-hq/waypoint-chrome/ContextMenu/types`                         | `MenuItem` and related types                                                                       |
+| `@liminal-hq/waypoint-chrome/Dialog/Dialog`                             | `Dialog`: controlled modal over the native `<dialog>`                                              |
+| `@liminal-hq/waypoint-chrome/Dialog/DialogActions`                      | `DialogActions` and `DialogButton` for the footer                                                  |
+| `@liminal-hq/waypoint-chrome/Dialog/ConfirmDialog`                      | `ConfirmDialog`: title, message, confirm and cancel                                                |
+| `@liminal-hq/waypoint-chrome/Dialog/dialogContext`                      | `DialogCloseReason` type                                                                           |
 | `@liminal-hq/waypoint-chrome/WindowMenu`                                | `WindowMenu`, the window menu bound to the provider's controls                                     |
 | `@liminal-hq/waypoint-chrome/WindowMenu/windowMenuModel`                | `buildWindowMenuModel()`, the pure menu model                                                      |
 | `@liminal-hq/waypoint-chrome/labels`                                    | `ChromeLabels` and `defaultChromeLabels`                                                           |
