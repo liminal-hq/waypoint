@@ -15,7 +15,7 @@ import { itemGestures, type ItemActions } from './itemGestures';
 import { ITEM_ATTRIBUTE, moveFocusInList } from './itemList';
 import styles from './Sidebar.module.css';
 
-const LABELS: Record<PlaceKind, MessageId> = {
+export const LABELS: Record<PlaceKind, MessageId> = {
 	home: 'sidebar.place.home',
 	desktop: 'sidebar.place.desktop',
 	documents: 'sidebar.place.documents',

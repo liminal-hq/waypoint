@@ -116,6 +116,47 @@ describe('the conflict resolver messages', () => {
 	});
 });
 
+describe('the clipboard and pane operation messages', () => {
+	it('have a one and an other form for everything counted', () => {
+		expect(tn('files.copied', 1, 'en-CA')).toBe('Copied 1 item');
+		expect(tn('files.copied', 3, 'en-CA')).toBe('Copied 3 items');
+		expect(tn('files.cut', 1, 'en-CA')).toBe('Cut 1 item');
+		expect(tn('files.cut', 1200, 'en-CA')).toBe('Cut 1,200 items');
+		expect(tn('destination.title.copy', 1, 'en-CA')).toBe('Copy 1 item to…');
+		expect(tn('destination.title.copy', 2, 'en-CA')).toBe('Copy 2 items to…');
+		expect(tn('destination.title.move', 1, 'en-CA')).toBe('Move 1 item to…');
+		expect(tn('destination.title.move', 5, 'en-CA')).toBe('Move 5 items to…');
+	});
+
+	it('name the folder or the reason in the sentences that need one', () => {
+		expect(tf('destination.check.ok', { name: 'docs' })).toBe('Ready: docs can be written to.');
+		expect(tf('destination.check.notFound', { name: 'docs' })).toBe('“docs” does not exist.');
+		expect(tf('destination.check.notFolder', { name: 'a.txt' })).toBe('“a.txt” is not a folder.');
+		expect(tf('destination.check.readOnly', { name: 'docs' })).toBe('“docs” cannot be written to.');
+		expect(tf('destination.check.invalid', { input: '??' })).toBe('“??” is not a location.');
+		expect(tf('destination.newFolder.failed', { reason: 'no room' })).toBe(
+			'Could not make the folder: no room',
+		);
+		expect(tf('destination.newFolder.made', { name: 'untitled folder' })).toBe(
+			'Made “untitled folder” and chose it.',
+		);
+	});
+
+	it('use the same words in the menus and the dialog, and the keys’ names in the menus', () => {
+		expect(t('destination.copy')).toBe(t('menu.copy'));
+		expect(t('menu.copyTo')).toBe('Copy To…');
+		expect(t('menu.moveTo')).toBe('Move To…');
+		expect(t('menu.pasteInto')).toBe('Paste Into Folder');
+		expect(t('menu.copyToOtherPane')).toBe('Copy to Other Pane');
+		expect(t('menu.moveToOtherPane')).toBe('Move to Other Pane');
+		expect(t('destination.move')).toBe('Move');
+	});
+
+	it('say the same thing for the planner’s refusals as the dialog does for a move into the same folder', () => {
+		expect(t('destination.check.sameFolder')).toBe(`${t('ops.error.sameFolder')}.`);
+	});
+});
+
 describe('chromeLabels', () => {
 	it('provides every label the chrome uses, from the catalogue', () => {
 		const labels = chromeLabels();
