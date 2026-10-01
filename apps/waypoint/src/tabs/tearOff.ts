@@ -29,6 +29,9 @@ import { refuse, windowName } from './windowActions';
 /** The least time between two asks of the plugin which region the cursor is over. */
 export const HIT_POLL_MS = 80;
 
+/** How long the window list read for the merge label is trusted: windows open and close mid-drag. */
+export const WINDOWS_TTL_MS = 1000;
+
 export interface TearOffDeps {
 	client: TearoffClient;
 	/** What the plugin reported at start-up; every feature off until it has. */
@@ -132,7 +135,7 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 	let generation = 0;
 	let source: TabDragSource | null = null;
 	let mergeName: string | null = null;
-	let windows: WindowSummary[] | null = null;
+	let windows: { list: WindowSummary[]; at: number } | null = null;
 	let polling = false;
 	let lastPoll = 0;
 	let sent = '';
@@ -203,8 +206,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 				const hit = await deps.client.hitTest();
 				let name: string | null = null;
 				if (hit && parseRegionId(hit.region)) {
-					windows ??= await deps.api.listWindows().catch(() => []);
-					const target = windows.find((window) => window.label === hit.window);
+					// A failed read is not remembered, and a good one only for a moment.
+					if (!windows || now() - windows.at > WINDOWS_TTL_MS) {
+						const list = await deps.api.listWindows().catch(() => null);
+						if (list) windows = { list, at: now() };
+					}
+					const target = windows?.list.find((window) => window.label === hit.window);
 					if (target && !target.active) name = windowName(target);
 				}
 				if (mine !== generation) return;
@@ -261,16 +268,21 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 		return true;
 	};
 
+	/** Merges into the window the region belongs to; null when that window has gone, so the caller can fall back. */
 	const merge = async (
 		unit: Unit,
 		tabs: readonly TabId[],
 		hit: NonNullable<DropReport['hit']>,
 		slot: DropSlot,
-	): Promise<boolean> => {
+	): Promise<boolean | null> => {
 		const list = await deps.api.listWindows().catch(() => [] as WindowSummary[]);
 		const target = list.find((window) => window.label === hit.window);
-		// A window that has gone, or this one (a release over its own strip is a reorder, not a merge).
-		if (!target || target.active) return false;
+		if (!target) return null;
+		// This window (a release over its own strip is a reorder, not a merge): nothing moves, and it says so.
+		if (target.active) {
+			deps.announce(t('drag.announce.cancelled'));
+			return false;
+		}
 		const index = slot.kind === 'slot' ? Math.min(slot.index, target.tabCount) : target.tabCount;
 		return move(
 			unit,
@@ -325,7 +337,12 @@ export function createTearOff(deps: TearOffDeps): TearOff {
 			}
 			const hit = report?.hit ?? null;
 			const slot = hit ? parseRegionId(hit.region) : null;
-			if (hit && slot) return merge(unit, dragged.unit, hit, slot);
+			if (hit && slot) {
+				const merged = await merge(unit, dragged.unit, hit, slot);
+				// The window under the cursor has gone since the regions were registered: the tabs
+				// open a window of their own rather than the drag being lost.
+				if (merged !== null) return merged;
+			}
 
 			const inner = deps.viewport();
 			const geometry =

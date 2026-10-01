@@ -64,24 +64,38 @@ export function measureDropRegions(root: ParentNode = document): Region[] {
 /**
  * Registers this window's drop regions with the plugin while hit-testing works, and keeps them in
  * step with the strip: a throttled update on a resize, a scroll, and whenever `layoutKey` changes
- * (the tabs, their groups and their collapsed state). They are cleared when the window goes.
+ * (the tabs, their groups and their collapsed state). A new set replaces the old in one call, so a
+ * hit test between two sets never sees none; the regions are cleared only when hit-testing goes off
+ * or the window goes. A strip that is not mounted yet is waited for, and listeners attach when it is.
  */
 export function useDropRegions(
 	client: TearoffClient | undefined,
 	enabled: boolean,
 	layoutKey: string,
 ): void {
+	const sent = useRef<Region[]>([]);
+	const push = useRef<(() => void) | null>(null);
+
+	// Clears the plugin's set only for good: not on a layout change.
 	useEffect(() => {
 		if (!client || !enabled) return;
-		let sent: Region[] = [];
-		let timer: ReturnType<typeof setTimeout> | undefined;
+		return () => {
+			sent.current = [];
+			client.setDropRegions([]).catch(() => {});
+		};
+	}, [client, enabled]);
+
+	// Attaches the strip's listeners once, and waits for the strip when it is not there yet.
+	useEffect(() => {
+		if (!client || !enabled) return;
 		let active = true;
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		const send = () => {
 			timer = undefined;
 			if (!active) return;
 			const regions = measureDropRegions();
-			if (sameRegions(regions, sent)) return;
-			sent = regions;
+			if (sameRegions(regions, sent.current)) return;
+			sent.current = regions;
 			client
 				.setDropRegions(regions)
 				.catch((error: unknown) => console.warn('could not register the drop regions', error));
@@ -89,32 +103,65 @@ export function useDropRegions(
 		const schedule = () => {
 			if (timer === undefined) timer = setTimeout(send, REGION_DELAY_MS);
 		};
+		push.current = send;
 		send();
-		const strip = document.querySelector('[data-strip]');
-		strip?.addEventListener('scroll', schedule, { passive: true });
 		window.addEventListener('resize', schedule);
-		const observer =
-			strip && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
-		if (strip) observer?.observe(strip);
-		// A tab arriving, closing or sliding changes its slot, which the resize of the strip does not see.
-		const tablist = strip?.querySelector('[role="tablist"]');
-		const mutations =
-			tablist && typeof MutationObserver !== 'undefined' ? new MutationObserver(schedule) : null;
-		if (tablist)
-			mutations?.observe(tablist, {
-				childList: true,
-				subtree: true,
-				attributes: true,
-				attributeFilter: ['data-index', 'data-group', 'hidden'],
+		let strip: Element | null = null;
+		let tablist: Element | null = null;
+		let observer: ResizeObserver | null = null;
+		let mutations: MutationObserver | null = null;
+		let waiter: MutationObserver | null = null;
+		const attach = () => {
+			if (!strip) {
+				strip = document.querySelector('[data-strip]');
+				if (strip) {
+					strip.addEventListener('scroll', schedule, { passive: true });
+					if (typeof ResizeObserver !== 'undefined') {
+						observer = new ResizeObserver(schedule);
+						observer.observe(strip);
+					}
+				}
+			}
+			// A tab arriving, closing or sliding changes its slot, which the resize of the strip does not see.
+			if (strip && !tablist) {
+				tablist = strip.querySelector('[role="tablist"]');
+				if (tablist && typeof MutationObserver !== 'undefined') {
+					mutations = new MutationObserver(schedule);
+					mutations.observe(tablist, {
+						childList: true,
+						subtree: true,
+						attributes: true,
+						attributeFilter: ['data-index', 'data-group', 'hidden'],
+					});
+				}
+			}
+			return strip !== null && tablist !== null;
+		};
+		if (!attach() && typeof MutationObserver !== 'undefined') {
+			waiter = new MutationObserver(() => {
+				const done = attach();
+				schedule();
+				if (done) {
+					waiter?.disconnect();
+					waiter = null;
+				}
 			});
+			waiter.observe(document.body, { childList: true, subtree: true });
+		}
 		return () => {
 			active = false;
+			push.current = null;
 			if (timer !== undefined) clearTimeout(timer);
 			strip?.removeEventListener('scroll', schedule);
 			window.removeEventListener('resize', schedule);
 			observer?.disconnect();
 			mutations?.disconnect();
-			client.setDropRegions([]).catch(() => {});
+			waiter?.disconnect();
 		};
-	}, [client, enabled, layoutKey]);
+	}, [client, enabled]);
+
+	// A change of layout sends the new set at once, replacing the old.
+	useEffect(() => {
+		push.current?.();
+	}, [layoutKey]);
 }

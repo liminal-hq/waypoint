@@ -21,7 +21,7 @@ import {
 	type TabDragTarget,
 } from './tabDrag';
 import { createTearCardStore } from './tearOffCardModel';
-import { createTearOff, HIT_POLL_MS, type TearOff } from './tearOff';
+import { createTearOff, HIT_POLL_MS, WINDOWS_TTL_MS, type TearOff } from './tearOff';
 
 const VIEW = { width: 1000, height: 700 };
 const STRIP = { left: 0, top: 0, right: 1000, bottom: 30 };
@@ -198,6 +198,33 @@ describe('the ghost', () => {
 		expect(h.client.updates.at(-1)).toMatchObject({ label: 'Release to open in a new window' });
 	});
 
+	it('does not remember a failed window list, and refreshes a good one after a moment', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		h.client.hit = { window: 'main-2', region: 'strip' };
+		const list = vi.spyOn(h.api, 'listWindows');
+		list.mockRejectedValueOnce(new Error('offline'));
+		h.tick();
+		h.hook.update(OUTSIDE, source);
+		await settle();
+		expect(h.hook.update(OUTSIDE, source)).toMatchObject({ kind: 'window' });
+		// The next poll reads again, and the label appears.
+		h.tick();
+		h.hook.update(OUTSIDE, source);
+		await settle();
+		expect(h.hook.update(OUTSIDE, source)).toMatchObject({ kind: 'merge' });
+		const reads = list.mock.calls.length;
+		h.tick();
+		h.hook.update(OUTSIDE, source);
+		await settle();
+		expect(list.mock.calls.length).toBe(reads);
+		// Past the time to live it asks again, so a window that opened or closed is seen.
+		h.tick(WINDOWS_TTL_MS + 1);
+		h.hook.update(OUTSIDE, source);
+		await settle();
+		expect(list.mock.calls.length).toBe(reads + 1);
+	});
+
 	it('keeps asking while the ghost follows even though the page gets no pointer events', async () => {
 		vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
 		try {
@@ -360,15 +387,22 @@ describe('a release', () => {
 		expect(tabs[1]!.id).toBe(h.ids.a);
 	});
 
-	it('commits nothing for a region of its own window or of a window that has gone', async () => {
+	it('commits nothing, and says so, for a region of its own window', async () => {
 		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
-		let source = await dragOut(h, { tab: h.ids.a! });
+		const source = await dragOut(h, { tab: h.ids.a! });
 		h.client.report = reportAt(0, 0, 1, { window: 'main-1', region: 'strip' });
 		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(false);
-		source = await dragOut(h, { tab: h.ids.a! });
-		h.client.report = reportAt(0, 0, 1, { window: 'main-9', region: 'strip' });
-		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(false);
 		expect(h.moveTabs).not.toHaveBeenCalled();
+		expect(h.said).toEqual(['Drag cancelled']);
+	});
+
+	it('opens a new window when the window it was released over has gone', async () => {
+		const h = await setup({ ghost: true, cursorFollow: true, hitTest: true });
+		const source = await dragOut(h, { tab: h.ids.a! });
+		h.client.report = reportAt(0, 0, 1, { window: 'main-9', region: 'strip' });
+		await expect(h.hook.drop(OUTSIDE, source)).resolves.toBe(true);
+		expect(h.moveTabs.mock.calls[0]![1]).toMatchObject({ kind: 'newWindow' });
+		expect(h.said.at(-1)).toBe('Moved a to a new window');
 	});
 
 	it('moves a group or a pair as one, and a single half of a pair alone', async () => {

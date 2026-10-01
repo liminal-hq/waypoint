@@ -3,7 +3,15 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ReactNode,
+} from 'react';
 import { useStore } from 'zustand';
 import { createDragSession, type DragSession, type DragState } from '../dnd/dragSession';
 import { announce } from './announcer';
@@ -50,17 +58,38 @@ export function TabDragProvider({ tearOff, children }: TabDragProviderProps) {
 			sameTarget: (a, b) => a.outcome === b.outcome,
 		}),
 	);
-	const [hook] = useState<TearOffHook | undefined>(() =>
-		typeof tearOff === 'function'
-			? tearOff({
-					cancel: () => {
-						session.cancel();
-						separate.cancel();
+	// The factory is run again when its inputs change (the client, the API, the card), so a later
+	// change is not ignored; the hook the drag holds is a stable one that forwards to the newest.
+	const built = useRef<{ source: typeof tearOff; hook: TearOffHook | undefined } | null>(null);
+	if (built.current === null || built.current.source !== tearOff) {
+		built.current = {
+			source: tearOff,
+			hook:
+				typeof tearOff === 'function'
+					? tearOff({
+							cancel: () => {
+								session.cancel();
+								separate.cancel();
+							},
+						})
+					: tearOff,
+		};
+	}
+	const current = built.current!.hook;
+	const latest = useRef(current);
+	latest.current = current;
+	const hook = useMemo<TearOffHook | undefined>(
+		() =>
+			current === undefined
+				? undefined
+				: {
+						update: (point, source) => latest.current?.update?.(point, source) ?? null,
+						leave: () => latest.current?.leave?.(),
+						drop: (point, source) => latest.current?.drop?.(point, source) ?? false,
 					},
-				})
-			: tearOff,
+		[current === undefined],
 	);
-	useEffect(() => hook?.connect?.(), [hook]);
+	useEffect(() => current?.connect?.(), [current]);
 	useEffect(
 		() => () => {
 			session.dispose();
