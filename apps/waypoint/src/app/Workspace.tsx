@@ -5,11 +5,12 @@
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { EntryContextMenu, type EntryCommand } from '../browse/EntryContextMenu';
 import { TrashEntryMenu } from '../trash/TrashEntryMenu';
 import { useTrashClient } from '../trash/TrashClientContext';
 import { TrashActionsProvider, useTrashJobs } from '../trash/trashJobs';
+import { selectedCount } from '../browse/selection';
 import { ListingManager } from '../browse/listingManager';
 import { BackgroundContextMenu, type BackgroundCommand } from '../browse/BackgroundContextMenu';
 import type { SessionState } from '../browse/useListingSession';
@@ -65,6 +66,11 @@ import { CloseGuardHost } from '../tabs/CloseGuardHost';
 import { useFileCommandsHost } from '../ops/useFileCommandsHost';
 import { FileCommandsProvider } from '../ops/FileCommandsContext';
 import { useFileShortcuts } from '../ops/useFileShortcuts';
+import { createTauriBatchRenameApi } from '../ops/batchRename/tauriBatchRenameApi';
+import { BatchRenameHost } from '../ops/batchRename/BatchRenameHost';
+import { batchRenameSelection } from '../ops/batchRename/batchRenameSelection';
+import { openBatchRename } from '../ops/batchRename/batchRenameStore';
+import { useBatchRenameShortcut } from '../ops/batchRename/useBatchRenameShortcut';
 import { NoticeToast } from './NoticeToast';
 import { clearPaneFocus } from '../tabs/paneFocus';
 import { dismissNotice } from './notices';
@@ -290,6 +296,13 @@ function WorkspaceBody({
 		activeSession,
 		deleteInTrash: (session) => trashActions?.deletePermanently(session),
 	});
+	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
+	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
+	const currentBatchSelection = useCallback(
+		() => batchRenameSelection(activeSession()),
+		[activeSession],
+	);
+	useBatchRenameShortcut(currentBatchSelection);
 	// The panes on screen: the active tab, or all of its pair. The focused pane is the active tab.
 	const pair = activePair(snapshot);
 	const panes = pair
@@ -327,6 +340,10 @@ function WorkspaceBody({
 				return void commands.newFile(from);
 			case 'rename':
 				return commands.rename(from, entry);
+			case 'batchRename': {
+				const selection = batchRenameSelection(from);
+				return selection ? openBatchRename(selection) : undefined;
+			}
 			case 'duplicate':
 				return void commands.duplicate(from);
 			case 'moveToTrash':
@@ -343,88 +360,97 @@ function WorkspaceBody({
 	return (
 		<TrashActionsProvider value={trashActions}>
 			<FileCommandsProvider value={commands}>
-			<div className={styles.workspace}>
-				<TabStrip />
-				<NavigationBar leading={<SidebarToggle />} />
-				<div className={styles.middle}>
-					{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-					<div
-						className={styles.files}
-						role="tabpanel"
-						id={TAB_PANEL_ID}
-						aria-label={tab ? undefined : t('tabs.panel.label')}
-						aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-					>
-						{panes.length > 0 && (
-							<PaneArea
-								panes={panes}
-								pair={panes.length > 1 ? pair : undefined}
-								active={tab?.id ?? null}
-								stateFor={stateFor}
-								mode={mode}
-								gridSize={gridSize}
-								onFailure={onFailure}
-								onMenu={setMenu}
-							/>
-						)}
+				<div className={styles.workspace}>
+					<TabStrip />
+					<NavigationBar leading={<SidebarToggle />} />
+					<div className={styles.middle}>
+						{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
+						<div
+							className={styles.files}
+							role="tabpanel"
+							id={TAB_PANEL_ID}
+							aria-label={tab ? undefined : t('tabs.panel.label')}
+							aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+						>
+							{panes.length > 0 && (
+								<PaneArea
+									panes={panes}
+									pair={panes.length > 1 ? pair : undefined}
+									active={tab?.id ?? null}
+									stateFor={stateFor}
+									mode={mode}
+									gridSize={gridSize}
+									onFailure={onFailure}
+									onMenu={setMenu}
+								/>
+							)}
+						</div>
 					</div>
+					<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
+						<ViewSwitcher />
+					</StatusBar>
+					<NoticeToast />
+					{commandDialog}
+					<BatchRenameHost api={batchRenameApi} announce={notify} />
+					{trashDialogs}
+					{menu?.kind === 'background' && (
+						<BackgroundContextMenu
+							session={menu.session}
+							showHidden={showHidden}
+							position={menu.position}
+							keyboard={menu.keyboard}
+							onToggleHidden={() => viewStore.getState().toggleHidden()}
+							onEmptyTrash={
+								trashActions
+									? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
+									: undefined
+							}
+							onClose={() => setMenu(null)}
+							commands={
+								commands
+									? {
+											states: commands.states(menu.session),
+											undoLabel: commands.history().undo?.label ?? null,
+											redoLabel: commands.history().redo?.label ?? null,
+										}
+									: undefined
+							}
+							onCommand={runCommand}
+						/>
+					)}
+					{menu?.kind === 'entry' && menu.session?.model.layout === 'trash' && trashActions && (
+						<TrashEntryMenu
+							position={menu.position}
+							keyboard={menu.keyboard}
+							onRestore={() => menu.session && trashActions.restore(menu.session)}
+							onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
+							onClose={() => setMenu(null)}
+						/>
+					)}
+					{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
+						<EntryContextMenu
+							entry={menu.entry}
+							handle={menu.handle}
+							position={menu.position}
+							keyboard={menu.keyboard}
+							onClose={() => setMenu(null)}
+							onOpen={menu.openers.open}
+							onOpenInNewTab={menu.openers.openInNewTab}
+							onCopyPath={menu.openers.copyPath}
+							onAddToFavourites={menu.openers.addToFavourites}
+							commands={commands?.states(menu.session)}
+							batchRename={
+								menu.session
+									? selectedCount(
+											menu.session.store.getState().selection,
+											menu.session.model.count,
+										) > 1
+									: false
+							}
+							onCommand={runCommand}
+						/>
+					)}
 				</div>
-				<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
-					<ViewSwitcher />
-				</StatusBar>
-				<NoticeToast />
-				{commandDialog}
-				{trashDialogs}
-				{menu?.kind === 'background' && (
-					<BackgroundContextMenu
-						session={menu.session}
-						showHidden={showHidden}
-						position={menu.position}
-						keyboard={menu.keyboard}
-						onToggleHidden={() => viewStore.getState().toggleHidden()}
-						onEmptyTrash={
-							trashActions
-								? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
-								: undefined
-						}
-						onClose={() => setMenu(null)}
-						commands={
-							commands
-								? {
-										states: commands.states(menu.session),
-										undoLabel: commands.history().undo?.label ?? null,
-										redoLabel: commands.history().redo?.label ?? null,
-									}
-								: undefined
-						}
-						onCommand={runCommand}
-					/>
-				)}
-				{menu?.kind === 'entry' && menu.session?.model.layout === 'trash' && trashActions && (
-					<TrashEntryMenu
-						position={menu.position}
-						keyboard={menu.keyboard}
-						onRestore={() => menu.session && trashActions.restore(menu.session)}
-						onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
-						onClose={() => setMenu(null)}
-					/>
-				)}
-				{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
-					<EntryContextMenu
-						entry={menu.entry}
-						handle={menu.handle}
-						position={menu.position}
-						keyboard={menu.keyboard}
-						onClose={() => setMenu(null)}
-						onOpen={menu.openers.open}
-						onOpenInNewTab={menu.openers.openInNewTab}
-						onCopyPath={menu.openers.copyPath}
-						onAddToFavourites={menu.openers.addToFavourites}
-						commands={commands?.states(menu.session)}
-						onCommand={runCommand}
-					/>
-				)}
-			</div>
 			</FileCommandsProvider>
 		</TrashActionsProvider>
 	);

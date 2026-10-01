@@ -74,6 +74,28 @@ describe('the entry menu', () => {
 		]);
 	});
 
+	it('adds Rename Selected… after Rename only when more than one entry is selected', () => {
+		expect(shape(entryMenuItems(file, writable))).not.toContain('batchRename');
+		expect(shape(entryMenuItems(file, writable, true))).toEqual([
+			'open',
+			'|',
+			'copyPath',
+			'|',
+			'rename',
+			'batchRename',
+			'duplicate',
+			'|',
+			'moveToTrash',
+			'deletePermanently',
+		]);
+		const item = entryMenuItems(file, writable, true).find(
+			(candidate) => candidate.type === 'action' && candidate.id === 'batchRename',
+		);
+		expect(item).toMatchObject({ label: 'Rename Selected…', shortcut: 'Ctrl+F2' });
+		expect(shape(entryMenuItems(file, readOnly, true))).not.toContain('batchRename');
+		expectEveryItemHasIcon(entryMenuItems(file, writable, true));
+	});
+
 	it('shows the keys, and styles Move to Trash and Delete Permanently as dangerous', () => {
 		const items = entryMenuItems(file, writable).filter((item) => item.type === 'action');
 		const byId = Object.fromEntries(items.map((item) => [item.id, item]));
@@ -208,7 +230,9 @@ describe('the empty-space menu', () => {
 
 	it('gives every item an icon', () => {
 		expectEveryItemHasIcon(backgroundMenuItems(sort, true, { commands: commands() }));
-		expectEveryItemHasIcon(backgroundMenuItems(undefined, false, { commands: commands({ states: readOnly }) }));
+		expectEveryItemHasIcon(
+			backgroundMenuItems(undefined, false, { commands: commands({ states: readOnly }) }),
+		);
 	});
 
 	it('runs New Folder from the submenu', () => {

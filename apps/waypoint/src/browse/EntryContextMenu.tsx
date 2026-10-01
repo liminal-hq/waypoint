@@ -36,12 +36,21 @@ interface EntryContextMenuProps {
 	commands?: Partial<Record<FileCommandId, CommandState>> | undefined;
 	/** Runs one of the file commands on this entry's listing. */
 	onCommand?: ((command: EntryCommand, entry: Entry) => void) | undefined;
+	/** More than one entry is selected, so Rename Selected… (batch rename) is offered. */
+	batchRename?: boolean | undefined;
 }
 
 /** The commands the entry menu can run. */
-export type EntryCommand = 'rename' | 'duplicate' | 'moveToTrash' | 'deletePermanently';
+export type EntryCommand =
+	'rename' | 'batchRename' | 'duplicate' | 'moveToTrash' | 'deletePermanently';
 
-const ENTRY_COMMANDS: EntryCommand[] = ['rename', 'duplicate', 'moveToTrash', 'deletePermanently'];
+const ENTRY_COMMANDS: EntryCommand[] = [
+	'rename',
+	'batchRename',
+	'duplicate',
+	'moveToTrash',
+	'deletePermanently',
+];
 
 /**
  * The write items, in the order of `docs/interactions.md`: Rename and Duplicate in their own
@@ -49,7 +58,10 @@ const ENTRY_COMMANDS: EntryCommand[] = ['rename', 'duplicate', 'moveToTrash', 'd
  * read-only. Cut, Copy, Paste and Add to Shelf join the section before Copy Path (milestone 4,
  * slices 09 and 13), Compress and Tags join after Duplicate.
  */
-function writeItems(commands: Partial<Record<FileCommandId, CommandState>>): MenuItem[] {
+function writeItems(
+	commands: Partial<Record<FileCommandId, CommandState>>,
+	batchRename: boolean,
+): MenuItem[] {
 	const shown = (id: FileCommandId) => commands[id]?.visible === true;
 	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
 	const editing: MenuItem[] = [
@@ -62,6 +74,17 @@ function writeItems(commands: Partial<Record<FileCommandId, CommandState>>): Men
 						shortcut: 'F2',
 						icon: <EditIcon />,
 						disabled: disabled('rename'),
+					} as const,
+				]
+			: []),
+		...(shown('rename') && batchRename
+			? [
+					{
+						type: 'action',
+						id: 'batchRename',
+						label: t('menu.renameSelected'),
+						shortcut: 'Ctrl+F2',
+						icon: <EditIcon />,
 					} as const,
 				]
 			: []),
@@ -114,11 +137,13 @@ function writeItems(commands: Partial<Record<FileCommandId, CommandState>>): Men
 
 /**
  * The entry menu's items; Open in New Tab and Add to Favourites are for folders only. `commands`
- * adds the write items the listing allows.
+ * adds the write items the listing allows, and `batchRename` (more than one entry is selected)
+ * adds Rename Selected… after Rename.
  */
 export function entryMenuItems(
 	entry: Entry,
 	commands?: Partial<Record<FileCommandId, CommandState>>,
+	batchRename = false,
 ): MenuItem[] {
 	return [
 		{
@@ -156,7 +181,7 @@ export function entryMenuItems(
 				]
 			: []),
 		{ type: 'action', id: 'copyPath', label: t('menu.copyPath'), icon: <LinkIcon /> },
-		...(commands ? writeItems(commands) : []),
+		...(commands ? writeItems(commands, batchRename) : []),
 	];
 }
 
@@ -177,8 +202,9 @@ export function EntryContextMenu({
 	onAddToFavourites,
 	commands,
 	onCommand,
+	batchRename = false,
 }: EntryContextMenuProps) {
-	const items = entryMenuItems(entry, commands);
+	const items = entryMenuItems(entry, commands, batchRename);
 	return (
 		<ContextMenu
 			items={items}
