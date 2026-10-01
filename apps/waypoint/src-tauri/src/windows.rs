@@ -24,6 +24,9 @@ use waypoint_session::{Command, Geometry};
 const DEFAULT_SIZE: (f64, f64) = (1100.0, 720.0);
 const MIN_SIZE: (f64, f64) = (640.0, 400.0);
 
+/// How far a new window sits down and to the right of the one it was opened from, in logical pixels.
+pub const CASCADE_STEP: f64 = 30.0;
+
 /// How long a burst of moves and resizes settles before the geometry is saved.
 const GEOMETRY_DELAY: Duration = Duration::from_millis(250);
 
@@ -152,36 +155,119 @@ impl<R: Runtime> Placeable for WebviewWindow<R> {
     }
 }
 
-/// Gives `window` the inner `size` and, when there is one, the inner origin `position`. With
-/// `correct` set it then reads both back and asks again for the difference, once. Only Windows
-/// sets it: elsewhere a read straight after a resize can still be the old value (X11 and Wayland
-/// apply a resize asynchronously), and the correction would then be wrong.
-pub fn place(
-    window: &impl Placeable,
-    size: (u32, u32),
-    position: Option<(i32, i32)>,
-    correct: bool,
-) {
+/// Gives `window` the inner `size`. With `correct` set it then reads the size back and asks again
+/// for the difference, once. Only Windows sets it: elsewhere a read straight after a resize can
+/// still be the old value (X11 and Wayland apply a resize asynchronously), and the correction would
+/// then be wrong.
+pub fn place_size(window: &impl Placeable, size: (u32, u32), correct: bool) {
     window.set_size(size);
-    if let Some(at) = position {
-        window.set_position(at);
-    }
     if !correct {
         return;
     }
-    let fix = correction(size, position, window.inner_size(), window.inner_position());
-    if let Some(corrected) = fix.size {
+    if let Some(corrected) = correction(size, None, window.inner_size(), None).size {
         window.set_size(corrected);
     }
-    // Resizing can move the origin, so the position is read again before it is corrected.
-    let fix = if fix.size.is_some() {
-        correction(size, position, window.inner_size(), window.inner_position())
-    } else {
-        fix
-    };
-    if let Some(corrected) = fix.position {
+}
+
+/// Gives `window` the inner origin `position`; with `correct` set, corrects it once as `place_size`
+/// does. Call it after the size is final, because resizing can move the origin.
+pub fn place_position(window: &impl Placeable, position: (i32, i32), correct: bool) {
+    window.set_position(position);
+    if !correct {
+        return;
+    }
+    if let Some(corrected) =
+        correction((0, 0), Some(position), None, window.inner_position()).position
+    {
         window.set_position(corrected);
     }
+}
+
+/// Sizes, then positions, `window` the way `build_main_window` does (it shows the window between
+/// the two): `place_size` and `place_position` together.
+#[cfg(test)]
+fn place(window: &impl Placeable, size: (u32, u32), position: Option<(i32, i32)>, correct: bool) {
+    place_size(window, size, correct);
+    if let Some(at) = position {
+        place_position(window, at, correct);
+    }
+}
+
+/// Where a window opened from `source` goes: the same size, `CASCADE_STEP` logical pixels (`scale`
+/// physical per logical) down and to the right, on the monitor the source is on. When that would
+/// push the window past the monitor's right or bottom edge the cascade starts again from the
+/// monitor's top left corner, so a run of new windows never walks off the screen. A source with no
+/// position (Wayland) gives a window with none, which the compositor places.
+pub fn cascade(source: &Geometry, scale: f64, monitors: &[Area]) -> Geometry {
+    let step = (CASCADE_STEP * scale).round() as i32;
+    let (Some(x), Some(y)) = (source.x, source.y) else {
+        return Geometry {
+            x: None,
+            y: None,
+            maximised: false,
+            ..*source
+        };
+    };
+    let Some(monitor) = monitors
+        .iter()
+        .find(|m| m.contains(x as i64 + 40, y as i64 + 16))
+    else {
+        return Geometry {
+            x: None,
+            y: None,
+            maximised: false,
+            ..*source
+        };
+    };
+    let fits = |at: (i32, i32)| {
+        at.0 as i64 + source.width as i64 <= monitor.x as i64 + monitor.width as i64
+            && at.1 as i64 + source.height as i64 <= monitor.y as i64 + monitor.height as i64
+    };
+    let next = (x + step, y + step);
+    let at = if fits(next) {
+        next
+    } else {
+        (monitor.x + step, monitor.y + step)
+    };
+    Geometry {
+        x: Some(at.0),
+        y: Some(at.1),
+        maximised: false,
+        ..*source
+    }
+}
+
+/// The geometry a window opened from `opener` should have: see `cascade`. `None` when `opener` is
+/// gone or cannot be read, which leaves the new window at the default size and place.
+fn cascaded<R: Runtime>(app: &AppHandle<R>, opener: &str) -> Option<Geometry> {
+    let source = app.get_webview_window(opener)?;
+    let scale = source.scale_factor().ok()?;
+    let size = if source.is_maximized().unwrap_or(false) {
+        // A maximised window has no size worth copying.
+        PhysicalSize::new(
+            (DEFAULT_SIZE.0 * scale).round() as u32,
+            (DEFAULT_SIZE.1 * scale).round() as u32,
+        )
+    } else {
+        source.inner_size().ok()?
+    };
+    let position = if position_applies() && !source.is_maximized().unwrap_or(false) {
+        // The inner position is the one `set_position` takes for these frameless windows (X11).
+        source.inner_position().ok()
+    } else {
+        None
+    };
+    Some(cascade(
+        &Geometry {
+            x: position.map(|p| p.x),
+            y: position.map(|p| p.y),
+            width: size.width,
+            height: size.height,
+            maximised: false,
+        },
+        scale,
+        &monitors(app),
+    ))
 }
 
 /// Wayland compositors place windows themselves, so a window's position can be neither read nor set.
@@ -224,22 +310,24 @@ pub fn build_main_window<R: Runtime>(
         .visible(false)
         .build()
         .map_err(fail)?;
-    match geometry {
-        Some(g) => {
-            let fit = fit_geometry(g, &monitors(app), position_applies());
-            place(&window, fit.size, fit.position, cfg!(windows));
-            if fit.position.is_none() {
-                let _ = window.center();
-            }
-            if fit.maximised {
-                let _ = window.maximize();
-            }
+    // Showing comes before positioning: on X11 a position set while the window is hidden is
+    // overridden when it is mapped (the milestone 3 multi-window spike).
+    let mut fit = None;
+    if let Some(g) = geometry {
+        let applied = fit_geometry(g, &monitors(app), position_applies());
+        place_size(&window, applied.size, cfg!(windows));
+        if applied.maximised {
+            let _ = window.maximize();
         }
+        fit = Some(applied);
+    }
+    window.show().map_err(fail)?;
+    match fit.and_then(|f| f.position) {
+        Some(at) => place_position(&window, at, cfg!(windows)),
         None => {
             let _ = window.center();
         }
     }
-    window.show().map_err(fail)?;
     Ok(window)
 }
 
@@ -252,8 +340,13 @@ impl<R: Runtime> WindowFactory<R> for TauriWindowFactory {
         app: &AppHandle<R>,
         label: &str,
         geometry: Option<&Geometry>,
+        opener: Option<&str>,
     ) -> Result<(), WindowError> {
-        build_main_window(app, label, geometry).map(drop)
+        let placed = match geometry {
+            Some(_) => None,
+            None => opener.and_then(|opener| cascaded(app, opener)),
+        };
+        build_main_window(app, label, geometry.or(placed.as_ref())).map(drop)
     }
 }
 
@@ -542,5 +635,43 @@ mod tests {
         let fit = fit_geometry(&g, &[], true);
         assert!(fit.maximised);
         assert_eq!(fit.size, (900, 600));
+    }
+
+    #[test]
+    fn a_new_window_cascades_down_and_right_by_the_scaled_step() {
+        let source = geometry(Some(100), Some(80), 1000, 700);
+        let next = cascade(&source, 1.0, &[LEFT]);
+        assert_eq!((next.x, next.y), (Some(130), Some(110)));
+        assert_eq!((next.width, next.height), (1000, 700));
+        let scaled = cascade(&source, 2.0, &[LEFT]);
+        assert_eq!((scaled.x, scaled.y), (Some(160), Some(140)));
+    }
+
+    #[test]
+    fn a_cascade_that_would_leave_the_monitor_starts_again_at_its_corner() {
+        // The second monitor starts at x = 1920; the window would end past its right edge.
+        let source = geometry(Some(2000), Some(100), 1250, 700);
+        let next = cascade(&source, 1.0, &[LEFT, RIGHT]);
+        assert_eq!((next.x, next.y), (Some(1950), Some(30)));
+        // Past the bottom edge as well.
+        let tall = geometry(Some(10), Some(400), 800, 680);
+        let next = cascade(&tall, 1.0, &[LEFT]);
+        assert_eq!((next.x, next.y), (Some(30), Some(30)));
+    }
+
+    #[test]
+    fn a_source_with_no_position_or_off_every_monitor_leaves_placement_to_the_system() {
+        let wayland = cascade(&geometry(None, None, 900, 600), 1.0, &[LEFT]);
+        assert_eq!((wayland.x, wayland.y), (None, None));
+        assert_eq!((wayland.width, wayland.height), (900, 600));
+        let lost = cascade(&geometry(Some(9000), Some(9000), 900, 600), 1.0, &[LEFT]);
+        assert_eq!((lost.x, lost.y), (None, None));
+    }
+
+    #[test]
+    fn a_cascaded_position_survives_fitting() {
+        let next = cascade(&geometry(Some(100), Some(80), 1000, 700), 1.0, &[LEFT]);
+        let fit = fit_geometry(&next, &[LEFT], true);
+        assert_eq!(fit.position, Some((130, 110)));
     }
 }
