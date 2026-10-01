@@ -71,6 +71,11 @@
 	background: var(--wp-bg-hover);
 }
 
+/* A cut waits on the clipboard to be moved: its row is dimmed until it is pasted or replaced. */
+.cell[data-cut] {
+	opacity: 0.5;
+}
+
 .cell[data-selected] {
 	background: var(--wp-bg-selected);
 }

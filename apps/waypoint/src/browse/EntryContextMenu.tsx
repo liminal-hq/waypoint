@@ -11,12 +11,17 @@ import { t } from '../i18n/messages';
 import { isFolder } from '../nav/useOpenEntry';
 import { StarIcon } from '../icons/AppIcons';
 import {
+	CopyIcon,
+	CopyToIcon,
+	CutIcon,
 	DeleteForeverIcon,
 	DuplicateIcon,
 	EditIcon,
 	FolderOpenIcon,
 	LinkIcon,
+	MoveToIcon,
 	NewTabIcon,
+	PasteIcon,
 	TrashIcon,
 	WindowIcon,
 } from '../icons/MenuIcons';
@@ -42,7 +47,19 @@ interface EntryContextMenuProps {
 
 /** The commands the entry menu can run. */
 export type EntryCommand =
-	'rename' | 'batchRename' | 'duplicate' | 'moveToTrash' | 'deletePermanently';
+	| 'rename'
+	| 'batchRename'
+	| 'duplicate'
+	| 'moveToTrash'
+	| 'deletePermanently'
+	| 'cut'
+	| 'copy'
+	| 'paste'
+	| 'pasteInto'
+	| 'copyTo'
+	| 'moveTo'
+	| 'copyToOtherPane'
+	| 'moveToOtherPane';
 
 const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
@@ -50,13 +67,141 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'duplicate',
 	'moveToTrash',
 	'deletePermanently',
+	'cut',
+	'copy',
+	'paste',
+	'pasteInto',
+	'copyTo',
+	'moveTo',
+	'copyToOtherPane',
+	'moveToOtherPane',
 ];
+
+/**
+ * Cut, Copy and Paste, which lead the section Add to Favourites and Copy Path are in (Add to Shelf
+ * joins it with the Shelf). Paste is Paste Into Folder on a folder, so a folder's menu says where
+ * the files go; on a file it pastes into the folder the file is in, as Ctrl+V does.
+ */
+function clipboardItems(
+	entry: Entry,
+	commands: Partial<Record<FileCommandId, CommandState>>,
+): MenuItem[] {
+	const shown = (id: FileCommandId) => commands[id]?.visible === true;
+	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
+	const folder = isFolder(entry);
+	return [
+		...(shown('cut')
+			? [
+					{
+						type: 'action',
+						id: 'cut',
+						label: t('menu.cut'),
+						shortcut: 'Ctrl+X',
+						icon: <CutIcon />,
+						disabled: disabled('cut'),
+					} as const,
+				]
+			: []),
+		...(shown('copy')
+			? [
+					{
+						type: 'action',
+						id: 'copy',
+						label: t('menu.copy'),
+						shortcut: 'Ctrl+C',
+						icon: <CopyIcon />,
+						disabled: disabled('copy'),
+					} as const,
+				]
+			: []),
+		...(shown('paste') && !folder
+			? [
+					{
+						type: 'action',
+						id: 'paste',
+						label: t('menu.paste'),
+						shortcut: 'Ctrl+V',
+						icon: <PasteIcon />,
+						disabled: disabled('paste'),
+					} as const,
+				]
+			: []),
+		...(shown('pasteInto') && folder
+			? [
+					{
+						type: 'action',
+						id: 'pasteInto',
+						label: t('menu.pasteInto'),
+						icon: <PasteIcon />,
+						disabled: disabled('pasteInto'),
+					} as const,
+				]
+			: []),
+	];
+}
+
+/**
+ * Copy To… and Move To… (the destination dialog), and in a pair Copy to Other Pane and Move to
+ * Other Pane, which F5 and Shift+F5 run. Without a pair F5 asks as Copy To… does, so every key has
+ * an item and every item has a key or a menu path.
+ */
+function transferItems(commands: Partial<Record<FileCommandId, CommandState>>): MenuItem[] {
+	const shown = (id: FileCommandId) => commands[id]?.visible === true;
+	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
+	return [
+		...(shown('copyTo')
+			? [
+					{
+						type: 'action',
+						id: 'copyTo',
+						label: t('menu.copyTo'),
+						icon: <CopyToIcon />,
+						disabled: disabled('copyTo'),
+					} as const,
+				]
+			: []),
+		...(shown('moveTo')
+			? [
+					{
+						type: 'action',
+						id: 'moveTo',
+						label: t('menu.moveTo'),
+						icon: <MoveToIcon />,
+						disabled: disabled('moveTo'),
+					} as const,
+				]
+			: []),
+		...(shown('copyToOtherPane')
+			? [
+					{
+						type: 'action',
+						id: 'copyToOtherPane',
+						label: t('menu.copyToOtherPane'),
+						shortcut: 'F5',
+						icon: <CopyToIcon />,
+						disabled: disabled('copyToOtherPane'),
+					} as const,
+				]
+			: []),
+		...(shown('moveToOtherPane')
+			? [
+					{
+						type: 'action',
+						id: 'moveToOtherPane',
+						label: t('menu.moveToOtherPane'),
+						shortcut: 'Shift+F5',
+						icon: <MoveToIcon />,
+						disabled: disabled('moveToOtherPane'),
+					} as const,
+				]
+			: []),
+	];
+}
 
 /**
  * The write items, in the order of `docs/interactions.md`: Rename and Duplicate in their own
  * section, then the destructive ones last and in red. They are left out where the listing is
- * read-only. Cut, Copy, Paste and Add to Shelf join the section before Copy Path (milestone 4,
- * slices 09 and 13), Compress and Tags join after Duplicate.
+ * read-only. Compress and Tags join after Duplicate.
  */
 function writeItems(
 	commands: Partial<Record<FileCommandId, CommandState>>,
@@ -129,8 +274,10 @@ function writeItems(
 				]
 			: []),
 	];
+	const transfer = transferItems(commands);
 	return [
 		...(editing.length > 0 ? [{ type: 'separator' } as const, ...editing] : []),
+		...(transfer.length > 0 ? [{ type: 'separator' } as const, ...transfer] : []),
 		...(destructive.length > 0 ? [{ type: 'separator' } as const, ...destructive] : []),
 	];
 }
@@ -170,6 +317,7 @@ export function entryMenuItems(
 				]
 			: []),
 		{ type: 'separator' },
+		...(commands ? clipboardItems(entry, commands) : []),
 		...(isFolder(entry)
 			? [
 					{

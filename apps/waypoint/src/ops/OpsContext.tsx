@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import type { Location, OpsClient } from '../services/opsClient';
+import type { OsClipboardClient } from '../services/osClipboardClient';
 import { jobViews, type JobView } from './jobText';
 import { withProgress, type JobWithProgress } from './opsSelectors';
 import { createOpsStore, type OpsHandle, type OpsState, type ProgressState } from './opsStore';
@@ -19,6 +20,8 @@ export interface OpsContextValue {
 	popOut: (() => void) | null;
 	/** Shows a finished job's destination in this window; `null` where the window cannot. */
 	showInFolder: ((location: Location) => void) | null;
+	/** The system file clipboard Cut and Copy keep level with; `null` where the window has none. */
+	osClipboard: OsClipboardClient | null;
 }
 
 const OpsContext = createContext<OpsContextValue | null>(null);
@@ -28,6 +31,7 @@ interface OpsProviderProps {
 	windowLabel: string;
 	popOut?: (() => void) | null;
 	showInFolder?: ((location: Location) => void) | null;
+	osClipboard?: OsClipboardClient | null;
 	/** Receives the store once it exists, for what lives outside React (the notices, the announcer). */
 	onHandle?: (handle: OpsHandle) => void | (() => void);
 	children: ReactNode;
@@ -42,6 +46,7 @@ export function OpsProvider({
 	windowLabel,
 	popOut = null,
 	showInFolder = null,
+	osClipboard = null,
 	onHandle,
 	children,
 }: OpsProviderProps) {
@@ -56,8 +61,9 @@ export function OpsProvider({
 		};
 	}, [client, onHandle]);
 	const value = useMemo(
-		() => (handle?.client === client ? { handle, windowLabel, popOut, showInFolder } : null),
-		[client, handle, windowLabel, popOut, showInFolder],
+		() =>
+			handle?.client === client ? { handle, windowLabel, popOut, showInFolder, osClipboard } : null,
+		[client, handle, windowLabel, popOut, showInFolder, osClipboard],
 	);
 	return <OpsContext.Provider value={value}>{children}</OpsContext.Provider>;
 }

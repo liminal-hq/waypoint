@@ -19,6 +19,7 @@ import {
 } from 'react';
 import { useStore } from 'zustand';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
+import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
 import { FileIcon } from './FileIcon';
 import { InlineRename } from './InlineRename';
@@ -136,6 +137,8 @@ function ListingBody({
 	const renaming = useStore(store, (state) => state.renaming);
 	const scrollRequest = useStore(store, (state) => state.scrollRequest);
 	const commands = useFileCommands();
+	// What a cut holds in this folder is drawn dimmed until it is pasted or replaced.
+	const cut = useCutNames(model.location.uri);
 	const hourCycle = useHourCycle();
 
 	const listId = useId();
@@ -396,6 +399,7 @@ function ListingBody({
 									aria-busy={entry ? undefined : true}
 									data-placeholder={entry ? undefined : ''}
 									data-selected={selected ? '' : undefined}
+									data-cut={entry && cut.has(entry.name) ? '' : undefined}
 									data-active={focus === item.index ? '' : undefined}
 									onClick={(event) => onItemClick(event, item.index, entry)}
 									onContextMenu={(event) => onItemContextMenu(event, item.index, entry)}

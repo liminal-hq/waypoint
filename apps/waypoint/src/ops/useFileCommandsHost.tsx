@@ -3,10 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { showNotice } from '../app/notices';
 import type { ListingSession } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { createClipboardService, type ClipboardService } from './clipboardService';
 import { useConfirm } from './ConfirmHost';
 import { createFileCommands, type ConfirmSpec, type FileCommands } from './fileCommands';
 import { useOps } from './OpsContext';
@@ -18,20 +19,45 @@ export interface FileCommandsHost {
 	confirm: (spec: ConfirmSpec) => Promise<boolean>;
 	/** The dialog the commands ask their questions in; render it once. */
 	dialog: ReactNode;
+	/** The window's clipboard, which the views read to dim what a cut holds; `null` before it exists and without a queue. */
+	clipboard: ClipboardService | null;
 }
 
 /**
  * `activeSession` reads the pane the keys act on at the moment a key is pressed. The commands are
  * made again only when the queue, the file system client or the window changes.
  */
-export function useFileCommandsHost(activeSession: () => ListingSession | null): FileCommandsHost {
+export function useFileCommandsHost(
+	activeSession: () => ListingSession | null,
+	/** The pane a pair keeps beside a session, read when a command needs it. */
+	otherPane?: (session: ListingSession) => ListingSession | null,
+): FileCommandsHost {
 	const ops = useOps();
 	const vfs = useVfsClient();
 	const { confirm, dialog } = useConfirm();
 	const active = useRef(activeSession);
 	active.current = activeSession;
+	const other = useRef(otherPane);
+	other.current = otherPane;
 	const handle = ops?.handle;
 	const windowLabel = ops?.windowLabel;
+	const osClipboard = ops?.osClipboard ?? null;
+	// Every window follows Rust's one clipboard and the system's, from the moment it has a queue.
+	const [clipboard, setClipboard] = useState<ClipboardService | null>(null);
+	useEffect(() => {
+		if (!handle) return;
+		const service = createClipboardService({
+			client: handle.client,
+			vfs,
+			os: osClipboard,
+			focusTarget: window,
+		});
+		setClipboard(service);
+		return () => {
+			service.dispose();
+			setClipboard(null);
+		};
+	}, [handle, vfs, osClipboard]);
 	const commands = useMemo(
 		() =>
 			handle && windowLabel
@@ -42,9 +68,11 @@ export function useFileCommandsHost(activeSession: () => ListingSession | null):
 						activeSession: () => active.current(),
 						confirm,
 						say: (text) => void showNotice(text),
+						clipboard,
+						otherPane: (session) => other.current?.(session) ?? null,
 					})
 				: null,
-		[handle, windowLabel, vfs, confirm],
+		[handle, windowLabel, vfs, confirm, clipboard],
 	);
-	return { commands, confirm, dialog };
+	return { commands, confirm, dialog, clipboard };
 }

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { showNotice } from '../app/notices';
 import { t } from '../i18n/messages';
 import type { Location, OpsClient } from '../services/opsClient';
+import type { OsClipboardClient } from '../services/osClipboardClient';
 import { announce } from '../tabs/announcer';
 import { useActiveTab, useTabsApi } from '../tabs/TabsContext';
 import { OpsProvider } from './OpsContext';
@@ -20,6 +21,8 @@ import { currentWindowLabel } from './windowLabel';
 interface MainOpsProps {
 	/** Without a client (a window made without the plugin) the ring is simply absent. */
 	client?: OpsClient;
+	/** The system file clipboard; without it Cut and Copy work between Waypoint's windows only. */
+	osClipboard?: OsClipboardClient | undefined;
 	children: ReactNode;
 }
 
@@ -32,7 +35,7 @@ export function openOpsWindow(): void {
 }
 
 /** Must sit inside the `TabsProvider`: a finished job's folder is shown in the active tab. */
-export function MainOps({ client, children }: MainOpsProps) {
+export function MainOps({ client, osClipboard, children }: MainOpsProps) {
 	const windowLabel = useMemo(currentWindowLabel, []);
 	const api = useTabsApi();
 	const tab = useActiveTab();
@@ -69,6 +72,7 @@ export function MainOps({ client, children }: MainOpsProps) {
 			windowLabel={windowLabel}
 			popOut={openOpsWindow}
 			showInFolder={showInFolder}
+			osClipboard={osClipboard ?? null}
 			onHandle={onHandle}
 		>
 			{children}

@@ -277,3 +277,30 @@ export const DeleteForeverIcon = (props: IconProps) => (
 		<path d="M2.5 4.5h11M6 4.5V3h4v1.5M3.8 4.5l.7 8.5a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.7-8.5M6.5 7.5l3 3M9.5 7.5l-3 3" />
 	</Glyph>
 );
+
+export const CutIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle cx="4.5" cy="11.5" r="1.8" />
+		<circle cx="11.5" cy="11.5" r="1.8" />
+		<path d="M5.6 10L11 2.5M10.4 10L5 2.5" />
+	</Glyph>
+);
+
+export const PasteIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M5.5 3.5H4a1 1 0 0 0-1 1V13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5a1 1 0 0 0-1-1h-1.5" />
+		<rect x="5.5" y="2" width="5" height="3" rx="0.8" />
+	</Glyph>
+);
+
+export const CopyToIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v1M6.5 11.5h6.5M10.5 9l2.5 2.5-2.5 2.5" />
+	</Glyph>
+);
+
+export const MoveToIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H9M2 9.5h6.5M6 7l2.5 2.5L6 12" />
+	</Glyph>
+);

@@ -60,33 +60,89 @@ describe('the entry menu', () => {
 		]);
 	});
 
-	it('puts Rename and Duplicate after Copy Path and the destructive items last, in docs/interactions.md order', () => {
+	it('puts Cut, Copy and Paste ahead of Copy Path, Rename and Duplicate next, the transfers after them and the destructive items last, in docs/interactions.md order', () => {
 		expect(shape(entryMenuItems(file, writable))).toEqual([
 			'open',
 			'|',
+			'cut',
+			'copy',
+			'paste',
 			'copyPath',
 			'|',
 			'rename',
 			'duplicate',
+			'|',
+			'copyTo',
+			'moveTo',
 			'|',
 			'moveToTrash',
 			'deletePermanently',
 		]);
 	});
 
+	it('says Paste Into Folder on a folder, so the files go where the menu says', () => {
+		const ids = shape(entryMenuItems(folder, writable));
+		expect(ids).toContain('pasteInto');
+		expect(ids).not.toContain('paste');
+		expect(ids.slice(0, 8)).toEqual([
+			'open',
+			'openInNewTab',
+			'openInNewWindow',
+			'|',
+			'cut',
+			'copy',
+			'pasteInto',
+			'addToFavourites',
+		]);
+		const item = entryMenuItems(folder, writable).find(
+			(candidate) => candidate.type === 'action' && candidate.id === 'pasteInto',
+		);
+		expect(item).toMatchObject({ label: 'Paste Into Folder' });
+		expect(item).not.toHaveProperty('shortcut');
+	});
+
+	it('shows the clipboard keys and disables Paste while the clipboard is empty', () => {
+		const items = entryMenuItems(file, writable).filter((item) => item.type === 'action');
+		const byId = Object.fromEntries(items.map((item) => [item.id, item]));
+		expect(byId.cut).toMatchObject({ label: 'Cut', shortcut: 'Ctrl+X' });
+		expect(byId.copy).toMatchObject({ label: 'Copy', shortcut: 'Ctrl+C' });
+		expect(byId.paste).toMatchObject({ label: 'Paste', shortcut: 'Ctrl+V', disabled: true });
+		expect(byId.copyTo).toMatchObject({ label: 'Copy To…' });
+		expect(byId.moveTo).toMatchObject({ label: 'Move To…' });
+		const filled = commandStates({ ...base, clipboardItems: 2 });
+		const paste = entryMenuItems(file, filled).find(
+			(candidate) => candidate.type === 'action' && candidate.id === 'paste',
+		);
+		expect(paste).not.toMatchObject({ disabled: true });
+	});
+
+	it('offers Copy to Other Pane and Move to Other Pane only in a pair, with their keys, disabled when the other pane cannot be written to', () => {
+		const pair = commandStates({ ...base, paired: true, otherPaneWritable: true });
+		const items = entryMenuItems(file, pair).filter((item) => item.type === 'action');
+		const byId = Object.fromEntries(items.map((item) => [item.id, item]));
+		expect(byId.copyToOtherPane).toMatchObject({ label: 'Copy to Other Pane', shortcut: 'F5' });
+		expect(byId.moveToOtherPane).toMatchObject({
+			label: 'Move to Other Pane',
+			shortcut: 'Shift+F5',
+		});
+		expect(shape(entryMenuItems(file, pair))).toContain('copyToOtherPane');
+		expect(shape(entryMenuItems(file, writable))).not.toContain('copyToOtherPane');
+		const locked = commandStates({ ...base, paired: true, otherPaneWritable: false });
+		const lockedItems = entryMenuItems(file, locked).filter((item) => item.type === 'action');
+		for (const id of ['copyToOtherPane', 'moveToOtherPane']) {
+			expect(lockedItems.find((item) => item.id === id)).toMatchObject({ disabled: true });
+		}
+	});
+
 	it('adds Rename Selected… after Rename only when more than one entry is selected', () => {
 		expect(shape(entryMenuItems(file, writable))).not.toContain('batchRename');
-		expect(shape(entryMenuItems(file, writable, true))).toEqual([
-			'open',
-			'|',
+		expect(shape(entryMenuItems(file, writable, true)).slice(5, 11)).toEqual([
 			'copyPath',
 			'|',
 			'rename',
 			'batchRename',
 			'duplicate',
 			'|',
-			'moveToTrash',
-			'deletePermanently',
 		]);
 		const item = entryMenuItems(file, writable, true).find(
 			(candidate) => candidate.type === 'action' && candidate.id === 'batchRename',
@@ -114,8 +170,24 @@ describe('the entry menu', () => {
 		expect(byId.rename).not.toHaveProperty('danger');
 	});
 
-	it('hides every write item in a read-only location', () => {
-		expect(shape(entryMenuItems(file, readOnly))).toEqual(['open', '|', 'copyPath']);
+	it('hides every write item in a read-only location but still copies from it', () => {
+		expect(shape(entryMenuItems(file, readOnly))).toEqual([
+			'open',
+			'|',
+			'copy',
+			'copyPath',
+			'|',
+			'copyTo',
+		]);
+		const ids = shape(entryMenuItems(folder, readOnly));
+		for (const hidden of ['cut', 'paste', 'pasteInto', 'moveTo', 'rename', 'moveToTrash']) {
+			expect(ids).not.toContain(hidden);
+		}
+	});
+
+	it('copies nowhere from the Trash, which has its own menu', () => {
+		const trash = commandStates({ ...base, readOnly: true, trash: true });
+		expect(shape(entryMenuItems(file, trash))).toEqual(['open', '|', 'copyPath']);
 	});
 
 	it('gives every item an icon', () => {
@@ -176,10 +248,11 @@ describe('the empty-space menu', () => {
 		]);
 	});
 
-	it('puts New (a submenu of Folder and File), then Undo and Redo, ahead of the view items', () => {
+	it('puts New (a submenu of Folder and File) and Paste, then Undo and Redo, ahead of the view items', () => {
 		const items = backgroundMenuItems(sort, false, { commands: commands() });
-		expect(shape(items).slice(0, 7)).toEqual([
+		expect(shape(items).slice(0, 8)).toEqual([
 			'new[newFolder,newFile]',
+			'paste',
 			'|',
 			'undo',
 			'redo',
@@ -192,6 +265,23 @@ describe('the empty-space menu', () => {
 		const [folder, file] = (submenu as Extract<MenuItem, { type: 'submenu' }>).items;
 		expect(folder).toMatchObject({ label: 'Folder', shortcut: 'F7' });
 		expect(file).toMatchObject({ label: 'File', shortcut: 'Shift+F7' });
+	});
+
+	it('shows Paste with its key after New, disabled while the clipboard is empty', () => {
+		const items = backgroundMenuItems(sort, false, { commands: commands() });
+		const paste = items.find((item) => item.type === 'action' && item.id === 'paste');
+		expect(paste).toMatchObject({ label: 'Paste', shortcut: 'Ctrl+V', disabled: true });
+		const filled = backgroundMenuItems(sort, false, {
+			commands: commands({ states: commandStates({ ...base, clipboardItems: 1 }) }),
+		});
+		expect(filled.find((item) => item.type === 'action' && item.id === 'paste')).not.toMatchObject({
+			disabled: true,
+		});
+	});
+
+	it('hides Paste in a read-only location', () => {
+		const items = backgroundMenuItems(sort, false, { commands: commands({ states: readOnly }) });
+		expect(shape(items)).not.toContain('paste');
 	});
 
 	it('labels Undo and Redo with what they would do, and disables them when there is nothing', () => {
@@ -266,6 +356,11 @@ describe('a key for every menu item', () => {
 		'Shift+F7': { key: 'F7', shiftKey: true },
 		'Ctrl+Z': { key: 'z', ctrlKey: true },
 		'Ctrl+Shift+Z': { key: 'Z', ctrlKey: true, shiftKey: true },
+		'Ctrl+X': { key: 'x', ctrlKey: true },
+		'Ctrl+C': { key: 'c', ctrlKey: true },
+		'Ctrl+V': { key: 'v', ctrlKey: true },
+		F5: { key: 'F5' },
+		'Shift+F5': { key: 'F5', shiftKey: true },
 	};
 	const WRITE_IDS = new Set([
 		'rename',
@@ -276,7 +371,15 @@ describe('a key for every menu item', () => {
 		'newFile',
 		'undo',
 		'redo',
+		'cut',
+		'copy',
+		'paste',
+		'copyToOtherPane',
+		'moveToOtherPane',
 	]);
+	// Items whose command has no key of its own: they run from the menu (the dialog), and F5 asks
+	// the same question when there is no pair.
+	const MENU_ONLY = new Set(['copyTo', 'moveTo', 'pasteInto']);
 
 	function actions(items: readonly MenuItem[]): MenuItem[] {
 		return items.flatMap((item) => (item.type === 'submenu' ? actions(item.items) : [item]));
@@ -285,6 +388,9 @@ describe('a key for every menu item', () => {
 	it('runs the same command from the key shown on the item', () => {
 		const everything = commandStates({
 			...base,
+			paired: true,
+			otherPaneWritable: true,
+			clipboardItems: 1,
 			undo: { id: 1, label: 'x', atMs: 0, undoable: true, redoable: false },
 			redo: { id: 1, label: 'x', atMs: 0, undoable: false, redoable: true },
 		});
@@ -294,7 +400,7 @@ describe('a key for every menu item', () => {
 				commands: { states: everything, undoLabel: null, redoLabel: null },
 			}),
 		]).filter((item) => item.type === 'action' && WRITE_IDS.has(item.id));
-		expect(items.map((item) => item.id).sort()).toEqual([...WRITE_IDS].sort());
+		expect([...new Set(items.map((item) => item.id))].sort()).toEqual([...WRITE_IDS].sort());
 		for (const item of items) {
 			if (item.type !== 'action') continue;
 			const event = KEYS[item.shortcut ?? ''];
@@ -317,5 +423,20 @@ describe('a key for every menu item', () => {
 			);
 			expect(calls, `${item.shortcut} runs ${item.id}`).toEqual([item.id]);
 		}
+	});
+
+	it('keeps the items with no key of their own to the dialog and the folder menu, which have a menu path only', () => {
+		const everything = commandStates({
+			...base,
+			paired: true,
+			otherPaneWritable: true,
+			clipboardItems: 1,
+		});
+		const items = actions([
+			...entryMenuItems(file, everything),
+			...entryMenuItems(folder, everything),
+		]).filter((item) => item.type === 'action' && MENU_ONLY.has(item.id));
+		expect([...new Set(items.map((item) => item.id))].sort()).toEqual([...MENU_ONLY].sort());
+		for (const item of items) expect(item).not.toHaveProperty('shortcut');
 	});
 });

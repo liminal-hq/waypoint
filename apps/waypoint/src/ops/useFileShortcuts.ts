@@ -1,4 +1,4 @@
-// The window keys for the file commands: F7, Shift+F7, F2, Delete, Shift+Delete, Ctrl+Shift+D, Ctrl+Z and Ctrl+Shift+Z
+// The window keys for the file commands: F7, Shift+F7, F2, Delete, Shift+Delete, Ctrl+Shift+D, Ctrl+X, Ctrl+C, Ctrl+V, F5, Shift+F5, Ctrl+Z and Ctrl+Shift+Z
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -16,6 +16,11 @@ export type FileKeyHandlers = Pick<
 	| 'duplicate'
 	| 'moveToTrash'
 	| 'deletePermanently'
+	| 'cut'
+	| 'copy'
+	| 'paste'
+	| 'copyToOtherPane'
+	| 'moveToOtherPane'
 	| 'undo'
 	| 'redo'
 >;
@@ -28,8 +33,10 @@ type KeyEventLike = Pick<
 /**
  * F7 and Shift+F7 make a folder and a file, F2 renames the focused entry (Ctrl+F2 is batch
  * rename, which is not this hook's), Delete moves the selection to the Trash and Shift+Delete
- * deletes it permanently (after a confirmation), Ctrl+Shift+D duplicates, and Ctrl+Z and
- * Ctrl+Shift+Z undo and redo. Returns whether the key was one of these.
+ * deletes it permanently (after a confirmation), Ctrl+Shift+D duplicates, Ctrl+X, Ctrl+C and
+ * Ctrl+V cut, copy and paste, F5 and Shift+F5 copy and move to the other pane (or ask where to,
+ * without a pair), and Ctrl+Z and Ctrl+Shift+Z undo and redo. Returns whether the key was one of
+ * these.
  */
 export function handleFileKey(event: KeyEventLike, handlers: FileKeyHandlers): boolean {
 	if (event.isComposing) return false;
@@ -48,6 +55,10 @@ export function handleFileKey(event: KeyEventLike, handlers: FileKeyHandlers): b
 			void (event.shiftKey ? handlers.deletePermanently() : handlers.moveToTrash());
 			return true;
 		}
+		if (event.key === 'F5') {
+			void (event.shiftKey ? handlers.moveToOtherPane() : handlers.copyToOtherPane());
+			return true;
+		}
 		return false;
 	}
 	if (modifier && !event.altKey) {
@@ -57,6 +68,10 @@ export function handleFileKey(event: KeyEventLike, handlers: FileKeyHandlers): b
 		}
 		if (key === 'z') {
 			void (event.shiftKey ? handlers.redo() : handlers.undo());
+			return true;
+		}
+		if (!event.shiftKey && (key === 'x' || key === 'c' || key === 'v')) {
+			void (key === 'x' ? handlers.cut() : key === 'c' ? handlers.copy() : handlers.paste());
 			return true;
 		}
 	}
@@ -113,14 +128,25 @@ export function useFileShortcuts(
 			moveToTrash: (session) => latest.current?.moveToTrash(session) ?? Promise.resolve(),
 			deletePermanently: (session) =>
 				latest.current?.deletePermanently(session) ?? Promise.resolve(),
+			cut: (session) => latest.current?.cut(session) ?? Promise.resolve(),
+			copy: (session) => latest.current?.copy(session) ?? Promise.resolve(),
+			paste: (session, into) => latest.current?.paste(session, into) ?? Promise.resolve(),
+			copyToOtherPane: (session) => latest.current?.copyToOtherPane(session) ?? Promise.resolve(),
+			moveToOtherPane: (session) => latest.current?.moveToOtherPane(session) ?? Promise.resolve(),
 			undo: () => latest.current?.undo() ?? Promise.resolve(),
 			redo: () => latest.current?.redo() ?? Promise.resolve(),
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.defaultPrevented || !latest.current || ownsKeys(event.target)) return;
+			const clipboardKey =
+				(event.ctrlKey || event.metaKey) &&
+				!event.shiftKey &&
+				['x', 'c', 'v'].includes(event.key.toLowerCase());
 			const onSelection =
 				event.key === 'F2' ||
 				event.key === 'Delete' ||
+				event.key === 'F5' ||
+				clipboardKey ||
 				(event.key.toLowerCase() === 'd' && event.shiftKey);
 			if (onSelection && !inFileArea(event.target)) return;
 			const session = opts.current.activeSession?.() ?? null;
@@ -137,6 +163,8 @@ export function useFileShortcuts(
 				}
 				const writes =
 					event.key === 'F7' ||
+					event.key === 'F5' ||
+					clipboardKey ||
 					(event.key === 'F2' && plain) ||
 					(event.key.toLowerCase() === 'd' && event.shiftKey);
 				if (writes) return;

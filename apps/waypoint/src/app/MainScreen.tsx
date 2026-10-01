@@ -14,6 +14,7 @@ import { MainOps } from '../ops/MainOps';
 import { collectServiceStatuses } from '../services/serviceStatuses';
 import { tabsApi } from '../services/tabsApi';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
+import { createTauriOsClipboardClient } from '../services/tauriOsClipboardClient';
 import { createTauriPlacesClient } from '../services/tauriPlacesClient';
 import { createTauriTearoffClient } from '../services/tauriTearoffClient';
 import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
@@ -60,6 +61,7 @@ function start(): Promise<MainServices> {
 		createTearoffClient: createTauriTearoffClient,
 		createTimeFormatClient: createTauriTimeFormatClient,
 		createOpsClient: createTauriOpsClient,
+		createOsClipboardClient: createTauriOsClipboardClient,
 		createTrashClient: createTauriTrashClient,
 	});
 }
@@ -110,7 +112,10 @@ export function MainScreen() {
 												/>
 											</Suspense>
 										)}
-										<MainOps client={startup.services.ops}>
+										<MainOps
+											client={startup.services.ops}
+											osClipboard={startup.services.osClipboard}
+										>
 											<Workspace
 												startup={{ view: startup.services.view, notice: startup.services.notice }}
 												tearoff={startup.services.tearoff}

@@ -26,6 +26,11 @@ const spies = () =>
 		duplicate: vi.fn(),
 		moveToTrash: vi.fn(),
 		deletePermanently: vi.fn(),
+		cut: vi.fn(),
+		copy: vi.fn(),
+		paste: vi.fn(),
+		copyToOtherPane: vi.fn(),
+		moveToOtherPane: vi.fn(),
 		undo: vi.fn(),
 		redo: vi.fn(),
 	}) satisfies FileKeyHandlers;
@@ -49,6 +54,12 @@ describe('handleFileKey', () => {
 		['Delete', { shiftKey: true }, 'deletePermanently'],
 		['D', { ctrlKey: true, shiftKey: true }, 'duplicate'],
 		['d', { metaKey: true, shiftKey: true }, 'duplicate'],
+		['x', { ctrlKey: true }, 'cut'],
+		['c', { ctrlKey: true }, 'copy'],
+		['v', { ctrlKey: true }, 'paste'],
+		['V', { metaKey: true }, 'paste'],
+		['F5', {}, 'copyToOtherPane'],
+		['F5', { shiftKey: true }, 'moveToOtherPane'],
 		['z', { ctrlKey: true }, 'undo'],
 		['Z', { ctrlKey: true, shiftKey: true }, 'redo'],
 	];
@@ -71,6 +82,10 @@ describe('handleFileKey', () => {
 			key('z'),
 			key('F2', { shiftKey: true }),
 			key('F7', { ctrlKey: true }),
+			key('C', { ctrlKey: true, shiftKey: true }),
+			key('v', { ctrlKey: true, altKey: true }),
+			key('c'),
+			key('F5', { ctrlKey: true }),
 		]) {
 			expect(handleFileKey(event, handlers), event.key).toBe(false);
 		}
@@ -121,6 +136,11 @@ describe('useFileShortcuts', () => {
 		duplicate: vi.fn(() => Promise.resolve()),
 		moveToTrash: vi.fn(() => Promise.resolve()),
 		deletePermanently: vi.fn(() => Promise.resolve()),
+		cut: vi.fn(() => Promise.resolve()),
+		copy: vi.fn(() => Promise.resolve()),
+		paste: vi.fn(() => Promise.resolve()),
+		copyToOtherPane: vi.fn(() => Promise.resolve()),
+		moveToOtherPane: vi.fn(() => Promise.resolve()),
 		undo: vi.fn(() => Promise.resolve()),
 		redo: vi.fn(() => Promise.resolve()),
 	});
@@ -145,6 +165,9 @@ describe('useFileShortcuts', () => {
 		fireEvent.keyDown(field, { key: 'Delete' });
 		fireEvent.keyDown(field, { key: 'F2' });
 		fireEvent.keyDown(field, { key: 'F7' });
+		fireEvent.keyDown(field, { key: 'c', ctrlKey: true });
+		fireEvent.keyDown(field, { key: 'v', ctrlKey: true });
+		fireEvent.keyDown(field, { key: 'F5' });
 		expect(Object.values(spy).every((fn) => fn.mock.calls.length === 0)).toBe(true);
 	});
 
@@ -155,6 +178,12 @@ describe('useFileShortcuts', () => {
 		fireEvent.keyDown(side, { key: 'Delete' });
 		fireEvent.keyDown(side, { key: 'F2' });
 		fireEvent.keyDown(side, { key: 'D', ctrlKey: true, shiftKey: true });
+		fireEvent.keyDown(side, { key: 'c', ctrlKey: true });
+		fireEvent.keyDown(side, { key: 'v', ctrlKey: true });
+		fireEvent.keyDown(side, { key: 'F5' });
+		expect(spy.copy).not.toHaveBeenCalled();
+		expect(spy.paste).not.toHaveBeenCalled();
+		expect(spy.copyToOtherPane).not.toHaveBeenCalled();
 		expect(spy.moveToTrash).not.toHaveBeenCalled();
 		expect(spy.rename).not.toHaveBeenCalled();
 		expect(spy.duplicate).not.toHaveBeenCalled();
@@ -178,12 +207,42 @@ describe('useFileShortcuts', () => {
 		fireEvent.keyDown(pane, { key: 'F7', shiftKey: true });
 		fireEvent.keyDown(pane, { key: 'F2' });
 		fireEvent.keyDown(pane, { key: 'd', ctrlKey: true, shiftKey: true });
-		for (const id of ['newFolder', 'newFile', 'rename', 'duplicate', 'moveToTrash'] as const) {
+		fireEvent.keyDown(pane, { key: 'c', ctrlKey: true });
+		fireEvent.keyDown(pane, { key: 'x', ctrlKey: true });
+		fireEvent.keyDown(pane, { key: 'v', ctrlKey: true });
+		fireEvent.keyDown(pane, { key: 'F5' });
+		for (const id of [
+			'newFolder',
+			'newFile',
+			'rename',
+			'duplicate',
+			'moveToTrash',
+			'cut',
+			'copy',
+			'paste',
+			'copyToOtherPane',
+		] as const) {
 			expect(spy[id], id).not.toHaveBeenCalled();
 		}
 		expect(spy.deletePermanently).not.toHaveBeenCalled();
 		fireEvent.keyDown(pane, { key: 'z', ctrlKey: true });
 		expect(spy.undo).toHaveBeenCalled();
+	});
+
+	it('copies, cuts and pastes with the clipboard keys, and F5 and Shift+F5 go to the other pane, from the file area', () => {
+		const spy = commands();
+		const { getByText } = mount(spy);
+		const row = getByText('row');
+		expect(fireEvent.keyDown(row, { key: 'c', ctrlKey: true })).toBe(false);
+		fireEvent.keyDown(row, { key: 'x', ctrlKey: true });
+		fireEvent.keyDown(row, { key: 'v', ctrlKey: true });
+		fireEvent.keyDown(row, { key: 'F5' });
+		fireEvent.keyDown(row, { key: 'F5', shiftKey: true });
+		expect(spy.copy).toHaveBeenCalledTimes(1);
+		expect(spy.cut).toHaveBeenCalledTimes(1);
+		expect(spy.paste).toHaveBeenCalledTimes(1);
+		expect(spy.copyToOtherPane).toHaveBeenCalledTimes(1);
+		expect(spy.moveToOtherPane).toHaveBeenCalledTimes(1);
 	});
 
 	it('moves to the Trash with Delete in an ordinary folder', () => {

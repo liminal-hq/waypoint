@@ -23,6 +23,7 @@ import { PAGE_SIZE } from '../browse/listingModel';
 import type { ListingSession } from '../browse/useListingSession';
 import { t, tf, tn } from '../i18n/messages';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
+import type { ClipboardMode } from '../services/opsClient';
 import type {
 	JobId,
 	JobRequest,
@@ -30,6 +31,9 @@ import type {
 	OpsCommandError,
 } from '../services/opsClient';
 import type { VfsClient } from '../services/vfsClient';
+import { normaliseUri, pasteRefusal, pasteRequest } from './clipboardRules';
+import type { ClipboardService } from './clipboardService';
+import { pickDestination, type DestinationOptions } from './destinationStore';
 import { errorText } from './jobText';
 import { commandErrorText, runRedo, runUndo } from './opsNotices';
 import type { OpsHandle } from './opsStore';
@@ -43,6 +47,14 @@ export type FileCommandId =
 	| 'duplicate'
 	| 'moveToTrash'
 	| 'deletePermanently'
+	| 'cut'
+	| 'copy'
+	| 'paste'
+	| 'pasteInto'
+	| 'copyTo'
+	| 'moveTo'
+	| 'copyToOtherPane'
+	| 'moveToOtherPane'
 	| 'undo'
 	| 'redo';
 
@@ -66,6 +78,14 @@ export interface CommandContext {
 	focused: boolean;
 	undo: JournalEntrySummary | null;
 	redo: JournalEntrySummary | null;
+	/** The listing is the Trash, which nothing is copied out of by the clipboard commands. */
+	trash?: boolean;
+	/** How many entries the clipboard holds. */
+	clipboardItems?: number;
+	/** The pane is one half of a pair, so there is another pane to copy and move to. */
+	paired?: boolean;
+	/** The other pane's folder can be written to. */
+	otherPaneWritable?: boolean;
 }
 
 /** Whether new items can be made in a listing: its provider says it writes. */
@@ -84,6 +104,12 @@ export function commandStates(context: CommandContext): Record<FileCommandId, Co
 		visible,
 		enabled: visible && enabled,
 	});
+	// Copying only reads, so it is offered wherever a listing is open (an archive, a read-only
+	// share), except the Trash, which has its own menu and its own way out (Restore).
+	const reads = context.queue && context.listing && context.trash !== true;
+	const selected = context.selected > 0;
+	const paired = context.paired === true;
+	const otherWrites = context.otherPaneWritable === true;
 	return {
 		newFolder: state(writes, true),
 		newFile: state(writes, true),
@@ -91,6 +117,14 @@ export function commandStates(context: CommandContext): Record<FileCommandId, Co
 		duplicate: state(writes, context.selected > 0),
 		moveToTrash: state(writes, context.selected > 0),
 		deletePermanently: state(writes, context.selected > 0),
+		cut: state(writes, selected),
+		copy: state(reads, selected),
+		paste: state(writes, (context.clipboardItems ?? 0) > 0),
+		pasteInto: state(writes, (context.clipboardItems ?? 0) > 0),
+		copyTo: state(reads, selected),
+		moveTo: state(writes, selected),
+		copyToOtherPane: state(reads && paired, selected && otherWrites),
+		moveToOtherPane: state(writes && paired, selected && otherWrites),
 		undo: state(context.queue, context.undo !== null),
 		redo: state(context.queue, context.redo !== null),
 	};
@@ -205,6 +239,12 @@ export interface FileCommandDeps {
 	confirm: (spec: ConfirmSpec) => Promise<boolean>;
 	/** A message that is shown and read out (the toast's region is a live region). */
 	say: (text: string) => void;
+	/** The window's clipboard; without one Cut, Copy and Paste say so instead of doing anything. */
+	clipboard?: ClipboardService | null;
+	/** The pane a pair keeps beside `session`, or `null` when it is not half of a pair. */
+	otherPane?: (session: ListingSession) => ListingSession | null;
+	/** Asks where to copy or move to, in the destination dialog; `null` when the person cancels. */
+	pickDestination?: (options: DestinationOptions) => Promise<Location | null>;
 }
 
 export interface FileCommands {
@@ -221,6 +261,27 @@ export interface FileCommands {
 	duplicate(session?: ListingSession | null): Promise<void>;
 	moveToTrash(session?: ListingSession | null): Promise<void>;
 	deletePermanently(session?: ListingSession | null): Promise<void>;
+	/** Puts the selection on the clipboard to move on paste; the rows dim until it is pasted or replaced. */
+	cut(session?: ListingSession | null): Promise<void>;
+	/** Puts the selection on the clipboard to copy on paste. */
+	copy(session?: ListingSession | null): Promise<void>;
+	/**
+	 * Pastes the clipboard into the pane's folder, or (`into`) into the folder entry that was
+	 * chosen; a cut moves and then empties the clipboard.
+	 */
+	paste(session?: ListingSession | null, into?: Entry): Promise<void>;
+	/** Copy To…: asks for a folder, then copies the selection there. */
+	copyTo(session?: ListingSession | null): Promise<void>;
+	/** Move To…: asks for a folder, then moves the selection there. */
+	moveTo(session?: ListingSession | null): Promise<void>;
+	/**
+	 * F5: copies the selection to the other pane's folder. Without a pair, or when the other
+	 * pane cannot be written to, it asks for a folder as Copy To… does; with nothing selected it
+	 * says so.
+	 */
+	copyToOtherPane(session?: ListingSession | null): Promise<void>;
+	/** Shift+F5: the same, moving. */
+	moveToOtherPane(session?: ListingSession | null): Promise<void>;
 	undo(): Promise<void>;
 	redo(): Promise<void>;
 }
@@ -302,7 +363,12 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 	const contextFor = (session: ListingSession | null): CommandContext => {
 		const { undo, redo } = history();
 		const state = session?.store.getState();
+		const other = session ? (deps.otherPane?.(session) ?? null) : null;
 		return {
+			trash: session?.model.layout === 'trash',
+			clipboardItems: deps.clipboard?.store.getState().clipboard.items.length ?? 0,
+			paired: other !== null,
+			otherPaneWritable: other !== null && !other.model.readOnly,
 			queue: true,
 			listing: session !== null,
 			readOnly: session?.model.readOnly ?? false,
@@ -408,6 +474,126 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 	const runDelete = async (found: ListingSession, selection: Selection) => {
 		const job = await run(selectionRequest('delete', found.model.handle, selection, windowLabel));
 		reportFailure(job);
+	};
+
+	/** The session with something selected to read, or `null` after saying why not. Reading is allowed in a read-only listing. */
+	const withReadableSelection = (session?: ListingSession | null): ListingSession | null => {
+		const found = target(session);
+		if (!found) return null;
+		if (selectedCount(found.store.getState().selection, found.model.count) === 0) {
+			say(t('files.nothingSelected'));
+			return null;
+		}
+		return found;
+	};
+
+	const putOnClipboard = async (mode: ClipboardMode, session?: ListingSession | null) => {
+		const found = mode === 'cut' ? withSelection(session) : withReadableSelection(session);
+		if (!found) return;
+		const { clipboard } = deps;
+		if (!clipboard) {
+			say(t('files.noQueue'));
+			return;
+		}
+		const { model, store } = found;
+		const selection = store.getState().selection;
+		try {
+			await clipboard.setFromSelection(model.handle, selectionSpec(selection), mode);
+		} catch (error) {
+			say(tf('files.failed', { reason: commandErrorText(error) }));
+			return;
+		}
+		say(tn(mode === 'cut' ? 'files.cut' : 'files.copied', selectedCount(selection, model.count)));
+	};
+
+	const paste = async (session?: ListingSession | null, into?: Entry) => {
+		const found = writable(session);
+		if (!found) return;
+		const { clipboard } = deps;
+		if (!clipboard) {
+			say(t('files.noQueue'));
+			return;
+		}
+		// Files another application copied since are adopted first, so Ctrl+V pastes what was last copied anywhere.
+		const board = await clipboard.forPaste().catch(() => clipboard.store.getState().clipboard);
+		if (board.items.length === 0) {
+			say(t('files.paste.nothing'));
+			return;
+		}
+		let destination = found.model.location;
+		if (into) {
+			try {
+				destination = await vfs.entryLocation(found.model.handle, into.id);
+			} catch (error) {
+				say(tf('files.failed', { reason: commandErrorText(error) }));
+				return;
+			}
+		}
+		const refusal = pasteRefusal(board.mode, board.items, destination);
+		if (refusal) {
+			say(errorText(refusal));
+			return;
+		}
+		let id: JobId;
+		try {
+			id = await ops.submitJob(pasteRequest(board, destination, windowLabel));
+		} catch (error) {
+			say(tf('files.failed', { reason: commandErrorText(error) }));
+			return;
+		}
+		// A cut is spent once it is on the queue: the rows stop dimming, and a second paste has nothing to move.
+		if (board.mode === 'cut') await clipboard.clear().catch(() => {});
+		reportFailure(await waitForJob(ops, id));
+	};
+
+	/** Copies or moves the selection into `destination`; a copy into its own folder is a duplicate, and a move there is refused. */
+	const transfer = async (
+		kind: 'copy' | 'move',
+		found: ListingSession,
+		destination: Location,
+	): Promise<void> => {
+		const { model, store } = found;
+		const sources = selectionSources(model.handle, store.getState().selection);
+		const here = normaliseUri(destination.uri) === normaliseUri(model.location.uri);
+		if (here && kind === 'move') {
+			say(errorText({ kind: 'sameFolder' }));
+			return;
+		}
+		const request: JobRequest = {
+			kind: { kind: here ? 'duplicate' : kind },
+			sources,
+			destination: here ? null : destination,
+			name: null,
+			options: NO_OPTIONS,
+			originWindow: windowLabel,
+		};
+		reportFailure(await run(request));
+	};
+
+	/** Asks where to, then transfers. */
+	const transferViaDialog = async (kind: 'copy' | 'move', session?: ListingSession | null) => {
+		const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
+		if (!found) return;
+		const count = selectedCount(found.store.getState().selection, found.model.count);
+		const ask = deps.pickDestination ?? pickDestination;
+		const destination = await ask({
+			title: tn(kind === 'copy' ? 'destination.title.copy' : 'destination.title.move', count),
+			confirmLabel: t(kind === 'copy' ? 'destination.copy' : 'destination.move'),
+			base: found.model.location,
+			// A copy into the folder the items are in is a duplicate; a move there has nothing to do.
+			origin: found.model.location,
+			forbidOrigin: kind === 'move',
+		});
+		if (destination) await transfer(kind, found, destination);
+	};
+
+	/** F5 and Shift+F5: the other pane's folder when there is one that can be written to, otherwise the dialog. */
+	const transferToOtherPane = async (kind: 'copy' | 'move', session?: ListingSession | null) => {
+		const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
+		if (!found) return;
+		const other = deps.otherPane?.(found) ?? null;
+		if (!other || other.model.readOnly) return transferViaDialog(kind, found);
+		await transfer(kind, found, other.model.location);
 	};
 
 	return {
@@ -530,6 +716,14 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 				await runDelete(found, selection);
 			}
 		},
+
+		cut: (session) => putOnClipboard('cut', session),
+		copy: (session) => putOnClipboard('copy', session),
+		paste,
+		copyTo: (session) => transferViaDialog('copy', session),
+		moveTo: (session) => transferViaDialog('move', session),
+		copyToOtherPane: (session) => transferToOtherPane('copy', session),
+		moveToOtherPane: (session) => transferToOtherPane('move', session),
 
 		async undo() {
 			if (!history().undo) {

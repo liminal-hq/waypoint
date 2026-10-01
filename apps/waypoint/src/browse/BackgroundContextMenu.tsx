@@ -15,6 +15,7 @@ import {
 	EyeIcon,
 	NewFileIcon,
 	NewFolderIcon,
+	PasteIcon,
 	RedoIcon,
 	SizeIcon,
 	TagIcon,
@@ -51,13 +52,13 @@ export interface BackgroundCommands {
 }
 
 /** The commands the empty-space menu can run. */
-export type BackgroundCommand = 'newFolder' | 'newFile' | 'undo' | 'redo';
+export type BackgroundCommand = 'newFolder' | 'newFile' | 'paste' | 'undo' | 'redo';
 
-const BACKGROUND_COMMANDS: BackgroundCommand[] = ['newFolder', 'newFile', 'undo', 'redo'];
+const BACKGROUND_COMMANDS: BackgroundCommand[] = ['newFolder', 'newFile', 'paste', 'undo', 'redo'];
 
 /**
- * New and the history, ahead of the view items. Paste joins after New (slice 09). New is left out
- * where the listing is read-only; Undo and Redo are always listed and disabled when there is
+ * New, Paste and the history, ahead of the view items. Paste follows New and, like it, is left out
+ * where the listing is read-only (disabled while the clipboard is empty); Undo and Redo are always listed and disabled when there is
  * nothing to do.
  */
 function commandItems({ states, undoLabel, redoLabel }: BackgroundCommands): MenuItem[] {
@@ -107,16 +108,33 @@ function commandItems({ states, undoLabel, redoLabel }: BackgroundCommands): Men
 				]
 			: []),
 	];
+	const paste: MenuItem[] = states.paste?.visible
+		? [
+				{
+					type: 'action',
+					id: 'paste',
+					label: t('menu.paste'),
+					shortcut: 'Ctrl+V',
+					icon: <PasteIcon />,
+					disabled: !states.paste.enabled,
+				} as const,
+			]
+		: [];
 	return [
-		...(newItems.length > 0
+		...(newItems.length > 0 || paste.length > 0
 			? [
-					{
-						type: 'submenu',
-						id: 'new',
-						label: t('menu.new'),
-						icon: <NewFolderIcon />,
-						items: newItems,
-					} as const,
+					...(newItems.length > 0
+						? [
+								{
+									type: 'submenu',
+									id: 'new',
+									label: t('menu.new'),
+									icon: <NewFolderIcon />,
+									items: newItems,
+								} as const,
+							]
+						: []),
+					...paste,
 					{ type: 'separator' } as const,
 				]
 			: []),

@@ -15,6 +15,7 @@ import {
 } from 'react';
 import { useStore } from 'zustand';
 import { t, tf, tn } from '../i18n/messages';
+import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
 import { FileIcon } from './FileIcon';
 import { InlineRename } from './InlineRename';
@@ -92,6 +93,8 @@ function GridBody({
 	const renaming = useStore(store, (state) => state.renaming);
 	const scrollRequest = useStore(store, (state) => state.scrollRequest);
 	const commands = useFileCommands();
+	// What a cut holds in this folder is drawn dimmed until it is pasted or replaced.
+	const cut = useCutNames(model.location.uri);
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
@@ -299,6 +302,7 @@ function GridBody({
 												aria-busy={entry ? undefined : true}
 												data-placeholder={entry ? undefined : ''}
 												data-selected={selected ? '' : undefined}
+												data-cut={entry && cut.has(entry.name) ? '' : undefined}
 												data-active={focus === position ? '' : undefined}
 												onClick={(event) => onItemClick(event, position, entry)}
 												onContextMenu={(event) => onItemContextMenu(event, position, entry)}
