@@ -59,11 +59,18 @@ pub fn init<R: Runtime>(options: Options) -> TauriPlugin<R> {
             Ok(())
         })
         .on_event(|app, event| match event {
-            // The ghost is created once the event loop is running, not in `setup`: Tauri holds its plugin store locked while plugins set up, and creating a window needs that store, so a window built in `setup` deadlocks.
+            // The ghost is created after the event loop is running, and from another thread's request rather than inside this callback: Tauri holds its plugin store locked while it calls a plugin's setup and event hooks, and building a window takes that lock again, so a window built here (even on the main thread) deadlocks. Asking the main thread from the async runtime runs the build once the hook has returned.
             RunEvent::Ready => {
-                if let Some(state) = app.try_state::<Tearoff>() {
-                    state.create_ghost(app);
-                }
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let target = app.clone();
+                    main_thread::run(&app, move || {
+                        if let Some(state) = target.try_state::<Tearoff>() {
+                            state.create_ghost(&target);
+                        }
+                    })
+                    .await;
+                });
             }
             RunEvent::WindowEvent {
                 label,

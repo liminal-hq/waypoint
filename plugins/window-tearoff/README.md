@@ -45,7 +45,7 @@ fn main() {
 }
 ```
 
-`init` creates the one shared ghost as soon as the event loop starts (not in `setup`, where Tauri's locked plugin store would deadlock a window build): hidden, transparent, undecorated, resizable, always on top, non-focusable, off the taskbar, without a shadow and without the file-drop handler. It then makes the ghost click-through on the main thread, after realising it, because making a window that was never shown click-through aborts the process on Linux. Grant the ghost window the plugin's `default` permission (and `core:event:default`) in a capability file; the ghost must be resizable because a non-resizable window ignores `set_size` on Linux.
+`init` creates the one shared ghost as soon as the event loop starts (not in `setup`, and not inside the `Ready` hook itself: Tauri holds its plugin store locked in both, so a window built there deadlocks; the plugin asks the main thread for it from the async runtime instead): hidden, transparent, undecorated, resizable, always on top, non-focusable, off the taskbar, without a shadow and without the file-drop handler. It then makes the ghost click-through on the main thread, after realising it, because making a window that was never shown click-through aborts the process on Linux. Grant the ghost window the plugin's `default` permission (and `core:event:default`) in a capability file; the ghost must be resizable because a non-resizable window ignores `set_size` on Linux.
 
 ### JavaScript
 
