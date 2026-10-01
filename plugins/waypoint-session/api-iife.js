@@ -1,5 +1,5 @@
 if ('__TAURI__' in window) {
-var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, event) {
+var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow) {
     'use strict';
 
     // Exposes typed guest-side wrappers for the waypoint-session plugin
@@ -145,11 +145,14 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, event) {
     }
     /** Follows the tabs other windows hand to the calling window. */
     function onHandoff(listener) {
-        return event.listen(HANDOFF_EVENT, (e) => listener(e.payload));
+        return webviewWindow.getCurrentWebviewWindow().listen(HANDOFF_EVENT, (e) => listener(e.payload));
     }
-    /** Follows every change to the calling window's session. */
+    /**
+     * Follows every change to the calling window's session. The listener is registered on this
+     * window, not globally: a global `listen` also hears events sent to other windows.
+     */
     function onTabsEvent(listener) {
-        return event.listen(EVENT, (e) => listener(e.payload));
+        return webviewWindow.getCurrentWebviewWindow().listen(EVENT, (e) => listener(e.payload));
     }
 
     exports.activateTab = activateTab;
@@ -194,5 +197,5 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, event) {
 
     return exports;
 
-})({}, __TAURI__.core, __TAURI__.event);
+})({}, __TAURI__.core, __TAURI__.webviewWindow);
 Object.defineProperty(window.__TAURI__, 'waypointSession', { value: __TAURI_PLUGIN_WAYPOINT_SESSION__ }) }

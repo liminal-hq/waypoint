@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { Geometry } from '@liminal-hq/waypoint-protocol/generated/Geometry';
 import type { GroupId } from '@liminal-hq/waypoint-protocol/generated/GroupId';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
@@ -221,10 +222,13 @@ export function listWindows(): Promise<WindowSummary[]> {
 
 /** Follows the tabs other windows hand to the calling window. */
 export function onHandoff(listener: (handoff: Handoff) => void): Promise<UnlistenFn> {
-	return listen<Handoff>(HANDOFF_EVENT, (e) => listener(e.payload));
+	return getCurrentWebviewWindow().listen<Handoff>(HANDOFF_EVENT, (e) => listener(e.payload));
 }
 
-/** Follows every change to the calling window's session. */
+/**
+ * Follows every change to the calling window's session. The listener is registered on this
+ * window, not globally: a global `listen` also hears events sent to other windows.
+ */
 export function onTabsEvent(listener: (event: SessionEvent) => void): Promise<UnlistenFn> {
-	return listen<SessionEvent>(EVENT, (e) => listener(e.payload));
+	return getCurrentWebviewWindow().listen<SessionEvent>(EVENT, (e) => listener(e.payload));
 }
