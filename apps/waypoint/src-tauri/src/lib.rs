@@ -17,6 +17,9 @@ use waypoint_session::StorePolicy;
 use persistence::{CloseFlush, Intent, Saver};
 use windows::{GeometryCapture, TauriWindowFactory};
 
+/// The label of the tear-off ghost; `WindowKind::TearGhost` routes it to `TearGhostScreen`.
+const GHOST_LABEL: &str = "tear-ghost";
+
 /// The level floor applied to every log line — native Rust and forwarded
 /// webview `console.*` calls alike. Verbose in a debug build, `Info` and up in
 /// a release one, the same split the other Liminal HQ apps use.
@@ -25,6 +28,18 @@ fn log_level() -> log::LevelFilter {
         log::LevelFilter::Trace
     } else {
         log::LevelFilter::Info
+    }
+}
+
+/// The tear-off ghost: one shared window the plugin creates once the event loop runs (never
+/// `tauri.conf.json`), which loads the app bundle and is routed to `TearGhostScreen` by its label.
+/// No window-state plugin is registered, so the ghost needs no denylist entry; add
+/// `Options::window_state_denylist` to one if it is ever added.
+fn tear_off_options() -> tauri_plugin_window_tearoff::Options {
+    tauri_plugin_window_tearoff::Options {
+        ghost_label: GHOST_LABEL.into(),
+        ghost_url: "index.html".into(),
+        ghost_size: (240.0, 84.0),
     }
 }
 
@@ -95,6 +110,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
+        .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
         .plugin(tauri_plugin_waypoint_vfs::init())
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
@@ -153,6 +169,15 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_ghost_label_is_the_one_the_front_end_routes() {
+        assert_eq!(
+            WindowKind::from_label(&tear_off_options().ghost_label),
+            Some(WindowKind::TearGhost)
+        );
+        assert_eq!(GHOST_LABEL, tear_off_options().ghost_label);
+    }
 
     #[test]
     fn debug_builds_log_everything() {

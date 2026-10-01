@@ -68,4 +68,15 @@ describe('window capabilities', () => {
 			expect(permissions).toContain(permission);
 		}
 	});
+
+	it('gives the tear-off plugin to the main windows and the ghost only', () => {
+		const capability = byId('tear-off');
+		expect(capability.permissions).toEqual(['window-tearoff:default']);
+		expect(covers(capability, 'main-1')).toBe(true);
+		expect(covers(capability, 'main-7')).toBe(true);
+		expect(covers(capability, 'tear-ghost')).toBe(true);
+		for (const label of ['settings', 'properties-42', 'ops', 'mystery']) {
+			expect(covers(capability, label), label).toBe(false);
+		}
+	});
 });
