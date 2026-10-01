@@ -93,12 +93,12 @@ describe('the capabilities for the settings', () => {
 		expect(appliesTo(ops, 'settings')).toBe(false);
 	});
 
-	it('lets the main windows read the settings and never change them', () => {
+	it('lets the main windows read the settings and save them (for the Action bar's choices), without the plugin's default set', () => {
 		expect(appliesTo(main, 'main-1')).toBe(true);
 		expect(main.permissions).toContain('waypoint-settings:allow-get-settings');
 		expect(main.permissions).toContain('waypoint-settings:allow-get-status');
 		expect(main.permissions).not.toContain('waypoint-settings:default');
-		expect(main.permissions).not.toContain('waypoint-settings:allow-set-settings');
+		expect(main.permissions).toContain('waypoint-settings:allow-set-settings');
 		// The operations plugin's default set (the main windows have it) reads its settings and never writes them.
 		const opsDefault = read('../../plugins/waypoint-ops/permissions/default.toml');
 		expect(ops.permissions).toContain('waypoint-ops:default');
