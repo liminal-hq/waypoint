@@ -282,6 +282,21 @@ export interface FileCommands {
 	copyToOtherPane(session?: ListingSession | null): Promise<void>;
 	/** Shift+F5: the same, moving. */
 	moveToOtherPane(session?: ListingSession | null): Promise<void>;
+	/**
+	 * Link To…: asks for a folder, then makes links to the selection there (the drop's Link Here,
+	 * without a pointer). Local items only: the engine refuses a link across kinds of location.
+	 */
+	linkTo(session?: ListingSession | null): Promise<void>;
+	/**
+	 * What a drop does: copies, moves or links the selection of `session` into `destination`. The
+	 * refusals are the commands' (a move into the folder the items are in, a read-only source for a
+	 * move); a copy into the same folder is a duplicate, and a link there is a link.
+	 */
+	transferTo(
+		kind: 'copy' | 'move' | 'link',
+		session: ListingSession,
+		destination: Location,
+	): Promise<void>;
 	undo(): Promise<void>;
 	redo(): Promise<void>;
 }
@@ -553,7 +568,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 
 	/** Copies or moves the selection into `destination`; a copy into its own folder is a duplicate, and a move there is refused. */
 	const transfer = async (
-		kind: 'copy' | 'move',
+		kind: 'copy' | 'move' | 'link',
 		found: ListingSession,
 		destination: Location,
 	): Promise<void> => {
@@ -564,10 +579,11 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			say(errorText({ kind: 'sameFolder' }));
 			return;
 		}
+		const duplicating = here && kind === 'copy';
 		const request: JobRequest = {
-			kind: { kind: here ? 'duplicate' : kind },
+			kind: { kind: duplicating ? 'duplicate' : kind },
 			sources,
-			destination: here ? null : destination,
+			destination: duplicating ? null : destination,
 			name: null,
 			options: NO_OPTIONS,
 			originWindow: windowLabel,
@@ -576,14 +592,17 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 	};
 
 	/** Asks where to, then transfers. */
-	const transferViaDialog = async (kind: 'copy' | 'move', session?: ListingSession | null) => {
+	const transferViaDialog = async (
+		kind: 'copy' | 'move' | 'link',
+		session?: ListingSession | null,
+	) => {
 		const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
 		if (!found) return;
 		const count = selectedCount(found.store.getState().selection, found.model.count);
 		const ask = deps.pickDestination ?? pickDestination;
 		const destination = await ask({
-			title: tn(kind === 'copy' ? 'destination.title.copy' : 'destination.title.move', count),
-			confirmLabel: t(kind === 'copy' ? 'destination.copy' : 'destination.move'),
+			title: tn(`destination.title.${kind}`, count),
+			confirmLabel: t(`destination.${kind}`),
 			base: found.model.location,
 			// A copy into the folder the items are in is a duplicate; a move there has nothing to do.
 			origin: found.model.location,
@@ -729,6 +748,13 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		moveTo: (session) => transferViaDialog('move', session),
 		copyToOtherPane: (session) => transferToOtherPane('copy', session),
 		moveToOtherPane: (session) => transferToOtherPane('move', session),
+
+		linkTo: (session) => transferViaDialog('link', session),
+
+		async transferTo(kind, session, destination) {
+			const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
+			if (found) await transfer(kind, found, destination);
+		},
 
 		async undo() {
 			if (!history().undo) {
