@@ -1,4 +1,4 @@
-// Waypoint's path type: the scheme-shaped `VfsPath`, of which only `file` is implemented, and the
+// Waypoint's path type: the scheme-shaped `VfsPath`, of which `file` and `trash` are implemented, and the
 // platform rules behind it. The Linux rules (`posix`) and the Windows rules (`windows`) are pure
 // functions over bytes and strings, so both are tested on every platform.
 //
@@ -9,11 +9,13 @@ mod encoding;
 mod error;
 mod file_path;
 pub mod posix;
+mod trash_path;
 mod vfs_path;
 pub mod windows;
 
 pub use error::PathError;
 pub use file_path::{CaseRule, FilePath};
+pub use trash_path::{TrashPath, TRASH_SCHEME};
 pub use vfs_path::VfsPath;
 
 #[cfg(test)]

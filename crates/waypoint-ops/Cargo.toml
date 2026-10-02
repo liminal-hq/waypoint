@@ -1,0 +1,32 @@
+[package]
+name = "waypoint-ops"
+version = "0.1.0"
+description = "Waypoint's operations engine: jobs, the planner, the queue and the executors for the simple operations, all behind providers"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+# `FaultyProvider`, `SandboxProvider`, `FakeTrash` and the other fixtures, for tests of this crate
+# and of the plugin built on it.
+testing = ["waypoint-vfs/testing", "dep:serde_json"]
+
+[dependencies]
+blake3 = "1"
+regex = "1"
+serde = { workspace = true }
+sha2 = "0.10"
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = "3"
+waypoint-ops = { path = ".", features = ["testing"] }

@@ -72,6 +72,11 @@ jobs:
         id: case
         run: bash scripts/check-case-collisions.sh
 
+      # The operations engine reaches the file system only through a `Provider` (A46).
+      - name: Check the operations engine's sandbox
+        id: ops_sandbox
+        run: bash scripts/check-ops-sandbox.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -81,6 +86,7 @@ jobs:
             echo "- Command: \`bash scripts/check-plugin-boundaries.sh\`"
             echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
             echo "- Case collisions: \`${{ steps.case.outcome }}\` (\`bash scripts/check-case-collisions.sh\`)"
+            echo "- Operations sandbox: \`${{ steps.ops_sandbox.outcome }}\` (\`bash scripts/check-ops-sandbox.sh\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   frontend-tests:
@@ -249,12 +255,12 @@ jobs:
       # The time-format plugin's mock-runtime test needs the Common Controls manifest, which a test
       # binary lacks on Windows, so only its unit tests run here: the filter drops the integration
       # test binaries of the plugins listed in it (add a plugin to the list when it joins this job).
-      - name: Test the pure crates, the time-format plugin and the tear-off plugin
+      - name: Test the pure crates and the plugins' unit tests
         id: tests
         run: >-
           cargo nextest run --no-fail-fast
-          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs
-          -E "not (kind(test) & package(tauri-plugin-os-prefs))"
+          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings
+          -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))"
 
       - name: Job summary
         if: always()
@@ -264,5 +270,5 @@ jobs:
             echo "## Windows tests"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -E \"not (kind(test) & package(tauri-plugin-os-prefs))\"\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
           } >> "${GITHUB_STEP_SUMMARY}"

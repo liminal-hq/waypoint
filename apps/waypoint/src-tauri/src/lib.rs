@@ -3,7 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod ops;
+mod ops_window;
 mod persistence;
+mod settings;
+mod settings_window;
 mod storage;
 mod windows;
 
@@ -139,18 +143,28 @@ pub fn run() {
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
         .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
+        .plugin(tauri_plugin_trash::init())
+        .plugin(tauri_plugin_native_dnd::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
+        // After the store plugin it saves through; the session reads its choices (start-up, the view
+        // of a new window) from it in `setup`.
+        .plugin(tauri_plugin_waypoint_settings::init_with(settings::storage))
+        // After the vfs and trash plugins its adapters reach, and after the store plugin it saves through.
+        .plugin(tauri_plugin_waypoint_ops::init_with(ops::deps))
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
         .manage(HoldNextWindow::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
             hold_next_window,
-            show_window
+            show_window,
+            ops_window::open_ops_window,
+            settings_window::open_settings_window
         ])
         .setup({
             let saver = Arc::clone(&saver);
             move |app| {
+                settings::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
             }
@@ -169,6 +183,12 @@ pub fn run() {
                         return;
                     }
                     saver.window_closing(window.app_handle());
+                    if let Some(ops) = window
+                        .app_handle()
+                        .try_state::<tauri_plugin_waypoint_ops::Ops<tauri::Wry>>()
+                    {
+                        ops.flush_journal();
+                    }
                 }
             }
         });
@@ -184,6 +204,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building the Waypoint application")
         .run(move |app, event| match event {
+            // The event loop is running and the first windows are on their way: the Trash sweep
+            // waits for one to be shown, on its own thread, so start-up never does.
+            RunEvent::Ready => ops::start_trash_sweep(app),
             RunEvent::ExitRequested { code, api, .. } => {
                 if code.is_none() {
                     // Every window is gone. The session plugin is still closing the last one's

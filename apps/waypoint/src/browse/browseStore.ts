@@ -29,6 +29,10 @@ export interface BrowseState {
 	focus: number | null;
 	/** Whether the person has acted on the selection yet, so a fresh list announces nothing. */
 	touched: boolean;
+	/** The entry whose name is being edited in place, or `null`. */
+	renaming: EntryId | null;
+	/** Asks the view to bring a position into sight; `nonce` makes a repeat of the same position count. */
+	scrollRequest: { position: number; nonce: number } | null;
 }
 
 export interface BrowseActions {
@@ -45,6 +49,16 @@ export interface BrowseActions {
 	selectAll(): void;
 	invertSelection(): void;
 	deselectAll(): void;
+	/** Puts the entry's name into inline rename (the view shows the field). */
+	beginRename(id: EntryId): void;
+	endRename(): void;
+	/**
+	 * Selects exactly these entries and puts the focus on `focus` (a position the caller found them
+	 * at), for a command that has just made them (a duplicate, a new folder).
+	 */
+	selectEntries(ids: readonly EntryId[], focus: number | null): void;
+	/** Asks the view to scroll `position` into sight. */
+	requestScroll(position: number): void;
 }
 
 export type BrowseStore = StoreApi<BrowseState & BrowseActions>;
@@ -87,6 +101,8 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 			anchor: null,
 			focus: null,
 			touched: false,
+			renaming: null,
+			scrollRequest: null,
 
 			click(position, id) {
 				epoch++;
@@ -167,6 +183,24 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				epoch++;
 				commit(emptySelection);
 			},
+
+			beginRename(id) {
+				set({ renaming: id });
+			},
+
+			endRename() {
+				set({ renaming: null });
+			},
+
+			selectEntries(ids, focus) {
+				epoch++;
+				set({ anchor: focus, focus });
+				commit(selectIds(ids));
+			},
+
+			requestScroll(position) {
+				set({ scrollRequest: { position, nonce: (get().scrollRequest?.nonce ?? 0) + 1 } });
+			},
 		};
 	});
 
@@ -179,10 +213,13 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 			const next = reset ? position : mapPosition(position, report.ops).position;
 			return clamp(next, report.count);
 		};
+		// An entry that left the listing while its name was being edited has nothing to rename.
+		const { renaming } = store.getState();
 		store.setState({
 			selection: normalise(removeIds(selection, report.removedIds), report.count),
 			anchor: move(anchor),
 			focus: move(focus),
+			...(renaming !== null && report.removedIds.includes(renaming) ? { renaming: null } : {}),
 		});
 	};
 	model.onPatch(follow);

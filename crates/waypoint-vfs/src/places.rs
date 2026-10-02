@@ -36,6 +36,9 @@ pub enum PlaceKind {
     Pictures,
     Music,
     Videos,
+    /// The Trash (`trash:/`), always last and always present: whether it can be browsed here is the
+    /// Trash's own status, which the sidebar explains rather than hides.
+    Trash,
 }
 
 /// A fixed place in the sidebar.
@@ -194,12 +197,12 @@ fn user_folder(env: &PlacesEnv, _xdg: &HashMap<String, PathBuf>, index: usize) -
         PlaceKind::Pictures => dirs::picture_dir(),
         PlaceKind::Music => dirs::audio_dir(),
         PlaceKind::Videos => dirs::video_dir(),
-        PlaceKind::Home => None,
+        PlaceKind::Home | PlaceKind::Trash => None,
     };
     known.unwrap_or_else(|| env.home.join(KINDS[index].3))
 }
 
-/// Home plus whichever of the user folders exist.
+/// Home, whichever of the user folders exist, and the Trash.
 pub fn standard_places(env: &PlacesEnv) -> Vec<Place> {
     let xdg = if cfg!(windows) {
         HashMap::new()
@@ -229,6 +232,11 @@ pub fn standard_places(env: &PlacesEnv) -> Vec<Place> {
             });
         }
     }
+    places.push(Place {
+        kind: PlaceKind::Trash,
+        label: "Trash".to_owned(),
+        location: VfsPath::Trash(waypoint_path::TrashPath::Root).to_location(),
+    });
     places
 }
 
@@ -383,6 +391,7 @@ fn default_label(path: &VfsPath) -> String {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| file.display()),
+        other => other.display(),
     }
 }
 
@@ -532,7 +541,12 @@ mod tests {
         // used only when the file says nothing.
         assert_eq!(
             kinds,
-            [PlaceKind::Home, PlaceKind::Desktop, PlaceKind::Downloads]
+            [
+                PlaceKind::Home,
+                PlaceKind::Desktop,
+                PlaceKind::Downloads,
+                PlaceKind::Trash
+            ]
         );
         assert!(places[1].location.uri.ends_with("/home/Bureau"));
         assert_eq!(places[1].label, "Desktop");

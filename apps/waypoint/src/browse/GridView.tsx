@@ -14,8 +14,12 @@ import {
 	type CSSProperties,
 } from 'react';
 import { useStore } from 'zustand';
+import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn } from '../i18n/messages';
+import { useCutNames } from '../ops/ClipboardContext';
+import { useFileCommands } from '../ops/FileCommandsContext';
 import { FileIcon } from './FileIcon';
+import { InlineRename } from './InlineRename';
 import { cappedGrid, cellFor, columnsFor, gridMove } from './gridLayout';
 import styles from './GridView.module.css';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
@@ -87,9 +91,15 @@ function GridBody({
 	const selection = useStore(store, (state) => state.selection);
 	const focus = useStore(store, (state) => state.focus);
 	const touched = useStore(store, (state) => state.touched);
+	const renaming = useStore(store, (state) => state.renaming);
+	const scrollRequest = useStore(store, (state) => state.scrollRequest);
+	const commands = useFileCommands();
+	// What a cut holds in this folder is drawn dimmed until it is pasted or replaced.
+	const cut = useCutNames(model.location.uri);
 
 	const listId = useId();
 	const scroller = useRef<HTMLDivElement | null>(null);
+	const listbox = useRef<HTMLDivElement | null>(null);
 	const [width, setWidth] = useState(0);
 	const cell = cellFor(size);
 	const columns = columnsFor(width, cell);
@@ -187,18 +197,29 @@ function GridBody({
 	const scrollToItem = (position: number) =>
 		virtualizer.scrollToIndex(Math.floor(Math.max(0, position) / columns), { align: 'auto' });
 
+	// A command that made or found an entry asks for it to be brought into sight.
+	useEffect(() => {
+		if (scrollRequest) scrollToItem(scrollRequest.position);
+	}, [scrollRequest]);
+
 	const pageRows = () =>
 		Math.max(1, Math.floor((scroller.current?.clientHeight ?? 0) / cell.height) - 1);
-	const { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu } =
-		useListInteractions({
-			session,
-			itemId: (position) => `${listId}-item-${position}`,
-			shown: shownItems,
-			scrollTo: scrollToItem,
-			onOpen,
-			onMenu,
-			move: (key, from, last) => gridMove(key, from, last, columns, pageRows()),
-		});
+	const {
+		onKeyDown,
+		onItemClick,
+		onItemPointerDown,
+		onItemDoubleClick,
+		onItemContextMenu,
+		onBackgroundContextMenu,
+	} = useListInteractions({
+		session,
+		itemId: (position) => `${listId}-item-${position}`,
+		shown: shownItems,
+		scrollTo: scrollToItem,
+		onOpen,
+		onMenu,
+		move: (key, from, last) => gridMove(key, from, last, columns, pageRows()),
+	});
 
 	if (model.error) return <ErrorState error={model.error} />;
 
@@ -242,10 +263,12 @@ function GridBody({
 				<div
 					ref={scroller}
 					className={styles.scroller}
+					{...{ [SCROLL_ATTRIBUTE]: '' }}
 					onScroll={recordAnchor}
 					onContextMenu={onBackgroundContextMenu}
 				>
 					<div
+						ref={listbox}
 						role="listbox"
 						tabIndex={0}
 						aria-label={t('browse.list.label')}
@@ -278,17 +301,22 @@ function GridBody({
 												id={`${listId}-item-${position}`}
 												role="option"
 												className={styles.cell}
-												title={entry?.name}
+												title={
+													entry?.originalPath ? `${entry.name}\n${entry.originalPath}` : entry?.name
+												}
 												aria-selected={selected}
 												aria-setsize={shownItems}
 												aria-posinset={position + 1}
 												aria-busy={entry ? undefined : true}
 												data-placeholder={entry ? undefined : ''}
 												data-selected={selected ? '' : undefined}
+												data-cut={entry && cut.has(entry.name) ? '' : undefined}
 												data-active={focus === position ? '' : undefined}
+												{...(entry ? entryDropAttributes(entry, model) : undefined)}
+												onPointerDown={(event) => onItemPointerDown(event, position, entry)}
 												onClick={(event) => onItemClick(event, position, entry)}
 												onContextMenu={(event) => onItemContextMenu(event, position, entry)}
-												onDoubleClick={() => entry && onOpen?.(entry, model.handle)}
+												onDoubleClick={() => onItemDoubleClick(entry)}
 												onMouseDown={(event) => {
 													// Stops middle-click from starting the platform's autoscroll.
 													if (event.button === 1) event.preventDefault();
@@ -303,7 +331,17 @@ function GridBody({
 												{entry ? (
 													<>
 														<FileIcon group={entry.group} className={styles.glyph} />
-														<span className={styles.label}>{entry.name}</span>
+														{commands && renaming === entry.id ? (
+															<InlineRename
+																entry={entry}
+																session={session}
+																commands={commands}
+																variant="grid"
+																onFinish={() => listbox.current?.focus()}
+															/>
+														) : (
+															<span className={styles.label}>{entry.name}</span>
+														)}
 													</>
 												) : (
 													<>

@@ -176,6 +176,36 @@ fn a_main_window_is_registered_on_its_first_snapshot_and_other_windows_are_refus
 }
 
 #[test]
+fn a_window_made_after_the_new_window_view_is_set_starts_with_it_and_a_restore_keeps_it() {
+    use waypoint_session::{ViewMode, ViewPrefs};
+    let t = setup(&["main-1", "main-2", "main-3"]);
+    let grid = ViewPrefs {
+        mode: ViewMode::Grid,
+        show_hidden: true,
+        icon_size: 64,
+    };
+    let view_of = |label: &str| {
+        tauri::async_runtime::block_on(commands::get_snapshot(
+            window(&t.app, label),
+            sessions(&t.app),
+        ))
+        .unwrap()
+        .view
+    };
+    assert_eq!(view_of("main-1"), ViewPrefs::default());
+    sessions(&t.app).set_new_window_view(grid);
+    assert_eq!(
+        view_of("main-1"),
+        ViewPrefs::default(),
+        "an existing window keeps its view"
+    );
+    assert_eq!(view_of("main-2"), grid);
+    // A store restored from a document gets the choice too.
+    sessions(&t.app).restore(waypoint_session::Store::new());
+    assert_eq!(view_of("main-3"), grid);
+}
+
+#[test]
 fn commands_act_on_the_calling_window_and_events_reach_only_that_window() {
     let t = setup(&["main-1", "main-2"]);
     let one = events(&t.app, "main-1");
@@ -669,6 +699,90 @@ fn workspaces_are_saved_switched_and_announced_to_every_window() {
         }
     )));
     assert!(sessions(&t.app).with_store(|s| s.violations().is_empty()));
+}
+
+#[test]
+fn the_shelf_is_shared_by_every_window_and_a_full_one_is_a_typed_refusal() {
+    let t = setup(&["main-1", "main-2"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    open_tab(&t.app, "main-2", "b").unwrap();
+    let first = events(&t.app, "main-1");
+    let second = events(&t.app, "main-2");
+    drain(&first);
+    drain(&second);
+    let w = |label: &str| window(&t.app, label);
+    let place = |name: &str| Location::new(format!("/d/{name}"), format!("file:///d/{name}"));
+
+    tauri::async_runtime::block_on(commands::add_to_shelf(
+        w("main-1"),
+        sessions(&t.app),
+        vec![place("x"), place("y")],
+    ))
+    .unwrap();
+    for receiver in [&first, &second] {
+        assert!(drain(receiver).iter().any(
+            |e| matches!(e, SessionEvent::ShelfChanged { shelf, .. } if shelf.len() == 2
+                && shelf[0].name == "x" && shelf[0].origin.display == "/d")
+        ));
+    }
+    let id = sessions(&t.app).with_store(|s| s.shelf()[0].id);
+    // Another window takes the first item off.
+    tauri::async_runtime::block_on(commands::remove_from_shelf(
+        w("main-2"),
+        sessions(&t.app),
+        vec![id],
+    ))
+    .unwrap();
+    for receiver in [&first, &second] {
+        assert!(drain(receiver)
+            .iter()
+            .any(|e| matches!(e, SessionEvent::ShelfChanged { shelf, .. } if shelf.len() == 1)));
+    }
+    let second_id = sessions(&t.app).with_store(|s| s.shelf()[0].id);
+    tauri::async_runtime::block_on(commands::move_shelf_item(
+        w("main-1"),
+        sessions(&t.app),
+        second_id,
+        0,
+    ))
+    .unwrap();
+    tauri::async_runtime::block_on(commands::clear_shelf(w("main-1"), sessions(&t.app))).unwrap();
+    assert!(sessions(&t.app).with_store(|s| s.shelf().is_empty()));
+
+    // Past the limit: nothing is added and the page can tell the refusal by its kind.
+    let many: Vec<Location> = (0..=waypoint_session::SHELF_LIMIT)
+        .map(|i| place(&format!("f{i}")))
+        .collect();
+    let refused =
+        tauri::async_runtime::block_on(commands::add_to_shelf(w("main-1"), sessions(&t.app), many));
+    let json = serde_json::to_value(refused.unwrap_err()).unwrap();
+    assert_eq!(json["kind"], "shelfFull");
+    assert_eq!(json["limit"], waypoint_session::SHELF_LIMIT);
+    assert!(sessions(&t.app).with_store(|s| s.shelf().is_empty()));
+    assert!(sessions(&t.app).with_store(|s| s.violations().is_empty()));
+}
+
+#[test]
+fn only_a_main_window_can_change_the_shelf() {
+    let t = setup(&["main-1", "settings"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    let refused = tauri::async_runtime::block_on(commands::add_to_shelf(
+        window(&t.app, "settings"),
+        sessions(&t.app),
+        vec![loc("x")],
+    ));
+    assert!(
+        refused.is_err(),
+        "a settings window has no session to change"
+    );
+    assert!(sessions(&t.app).with_store(|s| s.shelf().is_empty()));
+    tauri::async_runtime::block_on(commands::add_to_shelf(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        vec![loc("x")],
+    ))
+    .unwrap();
+    assert_eq!(sessions(&t.app).with_store(|s| s.shelf().len()), 1);
 }
 
 #[test]

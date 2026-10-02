@@ -27,6 +27,7 @@ export function fakePlaces(home: string): Place[] {
 		folder('pictures', 'Pictures', `${home}/Pictures`),
 		folder('music', 'Music', `${home}/Music`),
 		folder('videos', 'Videos', `${home}/Videos`),
+		{ kind: 'trash', label: 'Trash', location: { display: 'Trash', uri: 'trash:/' } },
 	];
 }
 

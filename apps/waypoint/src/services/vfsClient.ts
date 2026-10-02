@@ -6,6 +6,7 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
+import type { FolderCheck } from '@liminal-hq/waypoint-protocol/generated/FolderCheck';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
@@ -61,6 +62,11 @@ export interface VfsClient {
 	summariseSelection(handle: ListingHandle, selection: SelectionSpec): Promise<SelectionSummary>;
 	/** Free and total space on the volume holding `location`, or `null` where it cannot be known. */
 	getFreeSpace(location: Location): Promise<VolumeSpace | null>;
+	/**
+	 * Whether a location is a folder and can be written to, for a destination picker. Rejects with
+	 * `notFound` (or `permissionDenied`) when it cannot be seen at all.
+	 */
+	checkFolder(location: Location): Promise<FolderCheck>;
 	/**
 	 * Opens a file in its default application. Rust resolves the path from `(handle, id)` and hands
 	 * it to the opener plugin; folders are opened by navigating, never through this.

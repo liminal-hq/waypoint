@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use serde::Deserialize;
 use tauri::{Emitter, Manager, Runtime, State, Window};
@@ -11,9 +11,9 @@ use tauri_plugin_opener::OpenerExt;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
-    Entry, EntryKind, Filter, Listing, ListingEvent, ListingHandle, ListingOptions,
-    ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider, SelectionSpec,
-    SelectionSummary, SortSpec, VolumeSpace,
+    Entry, EntryKind, Filter, FolderCheck, Listing, ListingEvent, ListingHandle, ListingLayout,
+    ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
+    SelectionSpec, SelectionSummary, SortSpec, TrashInfo, TrashProvider, TrashSource, VolumeSpace,
 };
 
 use crate::error::Error;
@@ -26,6 +26,28 @@ pub const LISTING_EVENT: &str = "waypoint-vfs://listing";
 pub struct Vfs {
     pub(crate) registry: Arc<Registry>,
     local: Arc<LocalProvider>,
+    /// The `trash:` provider, once the app has given the plugin a Trash to read (A4: this plugin
+    /// calls no other, so the composition root adapts the Trash plugin to `TrashSource`).
+    trash: RwLock<Option<Arc<TrashProvider>>>,
+}
+
+impl Vfs {
+    /// The locations a selection over `handle` covers, in view order, for the app to hand to
+    /// operations (A47): the `window` that opened the listing is the only one that may resolve it,
+    /// and the frontend never builds a path. Ids the view no longer holds are dropped.
+    pub fn resolve_selection(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        selection: &SelectionSpec,
+    ) -> Result<Vec<Location>, VfsError> {
+        let listing = self.registry.get(window, handle)?;
+        Ok(listing
+            .resolve_selection(selection)?
+            .iter()
+            .map(|path| path.to_location())
+            .collect())
+    }
 }
 
 impl Default for Vfs {
@@ -33,14 +55,32 @@ impl Default for Vfs {
         Self {
             registry: Arc::new(Registry::default()),
             local: Arc::new(LocalProvider::new()),
+            trash: RwLock::new(None),
         }
     }
 }
 
 impl Vfs {
-    fn provider_for(&self, path: &VfsPath) -> Arc<dyn Provider> {
+    /// Serves `trash:/` from `source`. Listings already open keep the provider they opened with.
+    pub fn set_trash_source(&self, source: Arc<dyn TrashSource>) {
+        *self.trash.write().unwrap_or_else(|e| e.into_inner()) =
+            Some(Arc::new(TrashProvider::new(source)));
+    }
+
+    /// The Trash provider, when the app gave the plugin one.
+    pub fn trash_provider(&self) -> Option<Arc<TrashProvider>> {
+        self.trash.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    fn provider_for(&self, path: &VfsPath) -> Result<Arc<dyn Provider>, VfsError> {
         match path {
-            VfsPath::File(_) => self.local.clone(),
+            VfsPath::File(_) => Ok(self.local.clone()),
+            VfsPath::Trash(_) => self
+                .trash_provider()
+                .map(|provider| provider as Arc<dyn Provider>)
+                .ok_or_else(|| VfsError::Unsupported {
+                    what: "the Trash cannot be read here".to_owned(),
+                }),
         }
     }
 }
@@ -81,6 +121,11 @@ pub async fn get_status(state: State<'_, Vfs>) -> Result<PluginStatus, Error> {
     if state.registry.any_polling() {
         features.push("polling-fallback".to_owned());
     }
+    if let Some(provider) = state.trash_provider() {
+        if provider.source().available().is_ok() {
+            features.push("trash-view".to_owned());
+        }
+    }
     Ok(PluginStatus::available(features))
 }
 
@@ -96,7 +141,7 @@ pub async fn open_listing<R: Runtime>(
     options: Option<OpenOptions>,
 ) -> Result<ListingSnapshot, Error> {
     let path = parse(&location)?;
-    let provider = state.provider_for(&path);
+    let provider = state.provider_for(&path)?;
     let options = options.unwrap_or_default();
 
     let probe = (provider.clone(), path.clone());
@@ -256,6 +301,32 @@ pub async fn summarise_selection<R: Runtime>(
     blocking(move || listing.summarise_selection(&selection)).await
 }
 
+/// Whether a location is a folder and can be written to, for a destination picker. A location
+/// that is not there is rejected (`NotFound`, or `PermissionDenied` where it cannot be seen).
+#[tauri::command]
+pub async fn check_folder(state: State<'_, Vfs>, location: Location) -> Result<FolderCheck, Error> {
+    let path = parse(&location)?;
+    let provider = state.provider_for(&path)?;
+    blocking(move || {
+        let entry = provider.stat(&path)?;
+        let is_folder = entry.kind == EntryKind::Directory
+            || (entry.kind == EntryKind::Symlink
+                && entry.link_target == Some(EntryKind::Directory));
+        let writable = is_folder
+            && !provider.read_only()
+            && provider
+                .permissions(&path)
+                .map(|permissions| !permissions.readonly)
+                .unwrap_or(true);
+        Ok::<_, VfsError>(FolderCheck {
+            is_folder,
+            writable,
+        })
+    })
+    .await?
+    .map_err(Error::from)
+}
+
 /// Free and total space on the volume holding a location; `null` when it cannot be determined.
 #[tauri::command]
 pub async fn get_free_space(location: Location) -> Result<Option<VolumeSpace>, Error> {
@@ -276,6 +347,12 @@ pub async fn open_entry<R: Runtime>(
     let listing = listing_of(&window, &state, handle)?;
     let path = listing.path_of(id)?;
     let provider = listing.provider().clone();
+    if provider.layout() == ListingLayout::Trash {
+        return Err(VfsError::Unsupported {
+            what: "opening an item in the Trash".to_owned(),
+        }
+        .into());
+    }
     let probe = path.clone();
     let entry = blocking(move || provider.stat(&probe)).await??;
     if entry.kind == EntryKind::Directory || entry.link_target == Some(EntryKind::Directory) {
@@ -296,6 +373,21 @@ pub async fn open_entry<R: Runtime>(
     })
     .await?
     .map_err(Error::from)
+}
+
+/// Whether the Trash can be browsed, why not, and how many items it holds, for the sidebar's Trash
+/// place. Reading it lists the Trash, so ask when the sidebar needs the number, not on a timer
+/// shorter than a few seconds.
+#[tauri::command]
+pub async fn get_trash_info(state: State<'_, Vfs>) -> Result<TrashInfo, Error> {
+    let Some(provider) = state.trash_provider() else {
+        return Ok(TrashInfo {
+            available: false,
+            reason: Some("the Trash cannot be read here".to_owned()),
+            count: 0,
+        });
+    };
+    blocking(move || TrashInfo::of(provider.source().as_ref())).await
 }
 
 /// The folder a window opens at first.

@@ -19,31 +19,36 @@
 
 ## 2. Keyboard (default "Waypoint" preset)
 
-| Keys                      | Action                                                    |
-| ------------------------- | --------------------------------------------------------- |
-| Ctrl+T / Ctrl+W           | New tab / close tab                                       |
-| Ctrl+Shift+T              | Reopen closed tab                                         |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                  |
-| Alt+1…9                   | Go to tab                                                 |
-| Ctrl+Shift+N              | New window (one tab at Home)                              |
-| Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸) |
-| Ctrl+K or Ctrl+Shift+P    | Command palette                                           |
-| Ctrl+L                    | Edit path                                                 |
-| Ctrl+F                    | Search · `/` inline filter                                |
-| F2                        | Rename · Ctrl+F2 batch rename                             |
-| F3                        | Toggle split                                              |
-| F4                        | Terminal drawer                                           |
-| F5 / Shift+F5             | Copy / move to the other pane                             |
-| F6                        | Switch the active pane                                    |
-| F9                        | Sidebar · F11 inspector                                   |
-| Space                     | Quick Look                                                |
-| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                               |
-| Ctrl+H                    | Hidden files                                              |
-| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage                  |
-| Ctrl+D                    | Bookmark                                                  |
-| Ctrl+B                    | Toggle the Shelf                                          |
-| Delete / Shift+Delete     | Trash / delete permanently                                |
-| Alt+Enter                 | Properties                                                |
+| Keys                      | Action                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Ctrl+T / Ctrl+W           | New tab / close tab                                                                                      |
+| Ctrl+Shift+T              | Reopen closed tab                                                                                        |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                                                                 |
+| Alt+1…9                   | Go to tab                                                                                                |
+| Ctrl+Shift+N              | New window (one tab at Home)                                                                             |
+| F10 / lone Alt            | Open the application menu with its first row focused                                                     |
+| Alt+F / E / V / W         | Open the application menu's File, Edit, View or Window menu                                              |
+| F7 / Shift+F7             | New folder / new file                                                                                    |
+| Ctrl+Shift+D              | Duplicate                                                                                                |
+| Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸)                                                |
+| Ctrl+Shift+P              | Command palette (commands, and the undo history); works from a text field too                            |
+| Ctrl+L                    | Edit path                                                                                                |
+| Ctrl+F                    | Search · `/` inline filter                                                                               |
+| F2                        | Rename · Ctrl+F2 batch rename                                                                            |
+| F3                        | Toggle split                                                                                             |
+| F4                        | Terminal drawer                                                                                          |
+| F5 / Shift+F5             | Copy / move to the other pane (Copy To… / Move To… when there is no pair or the other pane is read-only) |
+| F6                        | Switch the active pane                                                                                   |
+| F9                        | Sidebar · F11 inspector                                                                                  |
+| Space                     | Quick Look                                                                                               |
+| Ctrl+C / Ctrl+X / Ctrl+V  | Copy / cut / paste files (the shared and system clipboard)                                               |
+| Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                                                                              |
+| Ctrl+H                    | Hidden files                                                                                             |
+| Ctrl+1…5                  | Grid, List, Columns, Compact, Disk usage                                                                 |
+| Ctrl+D                    | Bookmark                                                                                                 |
+| Ctrl+B                    | Toggle the Shelf                                                                                         |
+| Delete / Shift+Delete     | Trash / delete permanently                                                                               |
+| Alt+Enter                 | Properties                                                                                               |
 
 Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highlight down the most-recently-used list (the active tab first), Shift+Tab moves it up, and releasing Ctrl activates the highlighted tab once, so the tabs passed on the way do not enter the MRU list. Escape cancels. Menu key or Shift+F10 on a focused tab, or on the + button, opens its menu; pressing and holding the + button opens its menu too. Delete or Ctrl+W close a pinned tab; a middle-click does not.
 
@@ -64,6 +69,20 @@ Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highligh
 | Onto the terminal          | Insert quoted paths       |
 | Onto a Shelf slot          | Add a reference           |
 
+**Built in milestone 4 (slices 12 to 14): drags inside the window and beyond.** The Source → Target table above holds for same volume and different volume (a volume is what the planner says; until it answers the pill reads "Move or copy 3 items to Documents" and a drop copies). The "Always copy" and "Always ask" settings replace the default. Drops on the Shelf are built (slice 14, §3.4), and drops to and from other applications (slice 13); drops on archives, apps, the terminal and remote targets arrive with their own slices.
+
+- **Pill text** (read out as "Over Documents: will move", and "Dragging 3 items" at the start): "Copy 3 items to Documents", "Move report.pdf to Documents", "Link 3 items in Documents", "Choose what to do with 3 items in Documents", "Move 3 items to the Trash", "Open in a new tab", "Open in a split pair" (Alt over +), "Open in a new tab in Work" (a chip), and "Not allowed: already in Documents" / "…a folder cannot go into itself" / "…Documents cannot be changed" / "…use the Trash in the sidebar" for a refusal, which also draws the target with a dashed edge, shakes the pill (not under Reduce motion) and is said again as a notice on release.
+- **Targets:** a folder row (into that folder), a pane's file area (into its folder; none over the pane the files are in), a sidebar place, favourite or folder, a breadcrumb segment, a tab (into its folder), the Trash (move to Trash), the + button (a new tab at each dropped folder, or at the parent of a dropped file) and a group chip (the same, in that group).
+- **Starting:** a press on a row moves 4 px; a selected row drags the whole selection, an unselected one is selected first; a right-button press holds its context menu until the release so it can become a drag. Esc cancels.
+
+**Built in milestone 4 (slice 13): drags to and from other applications.**
+
+- **Files dragged in** (from another application or another Waypoint window) feed the same targets, pill, spring-loading and default rule as an in-page drag; the pill counts the files and names one ("Copy 3 items to Documents"), with plain page icons since nothing is known about them. The Trash refuses them ("these items cannot be trashed from here"), `+` and chips open the dropped folders (or a file's parent), and a move onto the folder the files are already in is refused. Under the by-volume default a drop from another application is a copy even on the same volume, because a drag in says nothing about what its source allows (an archive manager, a mail attachment or a browser's temporary file offers copies only); Shift moves where the system reports modifier keys, and the picker (right button, Alt or "Always ask") offers Move everywhere. A drag that left this window and comes back is this window's own and keeps its own default. The drop becomes a copy, move or link job over the exact URIs, with conflicts, errors and Undo from the queue. Text and links dragged in are ignored. A drag leaving the window clears the highlight.
+- **Modifiers:** read from the events on X11 and Windows. A Wayland compositor takes the keyboard during a drag and tells the application nothing, so the keys read as released: Ctrl, Shift and Alt cannot change the action there, the default rule decides, and the setting "Always ask" shows the action picker at the drop, which is the way to choose.
+- **Dragging out:** when the pointer leaves the visible window with a drag of rows (the primary button), the drag continues as the system's, offering copy, move (not from a read-only folder) and link (local items; Wayland ignores it). The in-page drag ends and says "Dragging notes.txt out of the window". When it ends the result is read out ("Dropped…", "Moved … to another application", "Linked…", "Drag cancelled"); a move leaves the originals to the application that took them, so no job runs here and the list follows the folder's watcher. If the system refuses (or the items are not local), the drag stays in the window with a notice and tries again only after the pointer has been back inside. Where the system cannot drag out, leaving the window does nothing, as before. A right-button drag stays in the window.
+- **Between Waypoint windows** a drag out is an ordinary drop in the other window (the receiving window runs the job). Dropped back on the window it came from it keeps what it was (the folder it came from, and that it cannot be moved from a read-only one) and the end of the drag says nothing more, since the job does.
+- **Without a pointer:** Paste adopts what another application copied (D107), so Copy and Cut there and Paste here are the paths for drops; Copy and Cut here and Paste there are the paths for drags out.
+
 ### 3.2 Modifiers (held at release)
 
 Ctrl copies. Shift moves. Ctrl+Shift links. **Alt opens the action picker**, and a right-drag also opens it on release. The picker lists Copy here, Move here, Link here, Compress here, Extract here (for archives), plus plugin drop actions (for example, "Convert to WebP here"). The cursor badge updates live with the action glyph, the count and the target name.
@@ -78,14 +97,18 @@ Ctrl copies. Shift moves. Ctrl+Shift links. **Alt opens the action picker**, and
 | Breadcrumb segment | 400 ms | Opens a dropdown of siblings                          |
 | Window edge        | 800 ms | Opens a new tab                                       |
 
-Leaving a sprung target returns you to where you started unless you dropped. Esc cancels the whole drag.
+Built in milestone 4: folder rows, tabs and sidebar places spring after the delay in Settings (200 to 2000 ms, 600 by default; the target draws a ring that fills over it, or a steady dotted edge under Reduce motion). A folder row opens in the pane it is in, a place in the active pane and a tab comes to the front. Breadcrumb segments and the window edge do not spring yet. After a spring opens something, the next one waits for the pointer to move.
+
+Leaving a sprung target returns you to where you started unless you dropped. Esc cancels the whole drag. A drag near the top or bottom edge of a list scrolls it.
 
 ### 3.4 Shelf
 
-- Opens with Ctrl+B or the toolbar button, or pops up automatically when a drag pauses near the right edge. The shelf can float or be docked.
+- Opens with Ctrl+B, the Shelf button in the status bar or View ▸ Shelf (the pop-up when a drag pauses near the right edge is later). It is docked at first; a floating Shelf comes later. Its items persist across restarts unless Settings → Drag & drop turns that off, and every window shows the same list.
+- **Built in milestone 4 (slice 14).** Keys in the panel: Up, Down, Home, End move (Shift extends the selection), Left and Right close and open a group, Enter opens (a folder in the pane; a file is shown in its folder) or toggles a group, Space selects (Ctrl or Shift toggles), Ctrl+A selects all, Esc clears the selection, Delete (or Backspace) removes the selected items from the Shelf and never touches a file, Ctrl+C copies the files for a paste, and the Menu key or Shift+F10 opens the item menu. Add to Shelf has no key; use the menu or the palette. Dropping on the panel adds references with no file operation and cannot be refused except by the 500-item cap; dragging items out follows the default action rule, and a move that finishes removes the entries whose files left. Auto-hide, thumbnails, drops from other applications and Send to… are later.
 - It holds references grouped by origin (local or remote). Each item has a thumbnail and its origin path.
 - You can drag the whole Shelf or a subset out of it. The per-item menu has Remove, Reveal, Copy path, and "Send to…".
 - You can drop items onto it from other apps.
+- Every drag has a path without a pointer: copy, cut and paste, Copy To… and Move To…, F5 and Shift+F5 for the other pane, and Add to Shelf in the menu.
 
 ### 3.5 Tabs
 
@@ -108,8 +131,8 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 ## 4. Selection & naming
 
 - Type-ahead jumps to the first prefix match, and the timer resets after 800 ms. Typing `/` starts a filter chip in the path bar area.
-- Inline rename selects the basename only. If the extension changes, it asks "Change .jpg to .png?" with Keep or Use .png.
-- Batch rename (Ctrl+F2) is a dialog of rule stacks with a live preview table. Rows that clash are highlighted and the Apply button stays disabled until they're resolved.
+- Inline rename (F2, or Rename in the item menu) selects the basename only, and the whole name of a folder or a dotfile. Enter renames, Escape or a click elsewhere cancels, and a bad or taken name stays in the field with the reason under it. If the extension changes, it asks "Change the extension from .jpg to .png?" with Keep .jpg (the default) or Use .png. With several items selected F2 renames the focused one; Ctrl+F2 is batch rename.
+- Batch rename (Ctrl+F2) is a dialog of rule stacks with a live preview table. Rules can be added, removed, reordered and changed to another type, and the table follows a moment after the last keystroke. Rows that clash are highlighted and say why in words (the highlight is a bar and bold text, not a colour alone), the summary line counts the problems, and the Apply button stays disabled until there are none and at least one name changes. Focus starts on the first rule's type, never on Apply; Esc cancels. A note appears when a rule changes a file extension. At most 500 rows are drawn, with a count of the rest.
 
 ## 5. Path bar
 
@@ -121,7 +144,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 Sections separated by rules, with an icon, a label, a right-aligned shortcut and a submenu chevron. Items can be checkboxes, and danger items (such as Delete) come last and in red. It's positioned to stay within the viewport and fully navigable by keyboard. Plugin actions go in a labelled section.
 
-Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash.
+Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window | Cut (Ctrl+X) · Copy (Ctrl+C) · Paste (Ctrl+V; Paste Into Folder on a folder) · Add to Favourites (folders) · Copy Path | Rename (F2) · Rename Selected… (Ctrl+F2, several selected) · Duplicate (Ctrl+Shift+D) | Copy To… · Move To… · Copy to Other Pane (F5) · Move to Other Pane (Shift+F5; the last two only in a pair) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Cut, Paste, Move To… and the other-pane move are hidden in a read-only location while Copy, Copy To… and Copy to Other Pane stay; Paste and Paste Into Folder are disabled while the clipboard is empty, and the other-pane items while the other pane's folder cannot be written to (F5 then opens the dialog). Paste is in the empty-space menu directly after New. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
 
 ## 7. Tab groups and pairs
 
@@ -195,6 +218,21 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Share ▾ (action bar) | Selection              | Nearby Devices, Share Over Network         |
 | Right-click          | SANDISK in the sidebar | Format…                                    |
 | Right-click          | Empty space            | New Encrypted Vault…                       |
+
+### 10.1 Answering a waiting job
+
+The conflict and error dialogs open by themselves in the window that started the job; Resolve… on the job's row (the ring's popover or the Operations window) opens them from any window.
+
+| Input                                                 | Target          | Result                                                                  |
+| ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------- |
+| Choice in a row                                       | A conflict      | Answers that clash; only the choices that can be carried out are listed |
+| Apply to all remaining                                | Conflict dialog | Answers every clash it can; a row's own choice wins                     |
+| Continue                                              | Conflict dialog | Sends the answers; off until every clash is answered                    |
+| Cancel the operation                                  | Conflict dialog | Stops the job, after a question once anything was answered              |
+| Esc                                                   | Conflict dialog | Closes it and leaves the job waiting                                    |
+| Decide later                                          | Either dialog   | Closes it and leaves the job waiting                                    |
+| Esc                                                   | Error dialog    | Closes it and leaves the job waiting                                    |
+| Retry, Skip, Skip all like this, Cancel the operation | Error dialog    | Tells the job what to do with the item that failed                      |
 
 ## 11. Customisation and basics
 

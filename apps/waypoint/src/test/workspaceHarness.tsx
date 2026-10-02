@@ -9,9 +9,17 @@ import { VfsClientProvider } from '../browse/VfsClientContext';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
+import type { NativeDndClient } from '../services/nativeDndClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
+import { OpsProvider } from '../ops/OpsContext';
+import { OpsResolverHost } from '../ops/OpsResolverHost';
+import type { OpsClient } from '../services/opsClient';
+import type { SettingsClient } from '../services/settingsClient';
+import { SettingsProvider } from '../settings/SettingsContext';
 import { TabsProvider } from '../tabs/TabsContext';
+import type { TrashClient } from '../trash/trashClient';
+import { TrashClientProvider } from '../trash/TrashClientContext';
 
 export const HOME = fileLocation('/home/test');
 export const DOCS = fileLocation('/home/test/docs');
@@ -33,20 +41,47 @@ export function createTree(): FakeVfsClient {
 	return client;
 }
 
-/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`; `options.tearoff` is the tear-off plugin). */
+/** Renders the browsing area over `client` with one tab open at `HOME` (and the sidebar hidden unless `options.sidebar`; `options.tearoff` is the tear-off plugin, `options.trash` the Trash service, `options.ops` the operations queue). */
 export async function renderWorkspace(
 	client: FakeVfsClient = createTree(),
 	tabs: FakeTabsApi = new FakeTabsApi(),
 	places: FakePlacesClient = new FakePlacesClient({ places: fakePlaces('/home/test') }),
-	options: { sidebar?: boolean; tearoff?: TearoffClient } = {},
+	options: {
+		sidebar?: boolean;
+		tearoff?: TearoffClient;
+		trash?: TrashClient;
+		/** The operations queue: the window follows it and answers the jobs it started (`main-1`). */
+		ops?: OpsClient;
+		/** The settings the window follows (the defaults when omitted). */
+		settings?: SettingsClient;
+		/** The native drag and drop plugin (drops from other applications, drags out of the window). */
+		nativeDnd?: NativeDndClient;
+	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
+	const tabbed = (
+		<TabsProvider api={tabs} home={HOME}>
+			<Workspace tearoff={options.tearoff} nativeDnd={options.nativeDnd} />
+		</TabsProvider>
+	);
+	const workspace = options.settings ? (
+		<SettingsProvider client={options.settings}>{tabbed}</SettingsProvider>
+	) : (
+		tabbed
+	);
 	const view = render(
 		<VfsClientProvider client={client}>
 			<PlacesClientProvider client={places}>
-				<TabsProvider api={tabs} home={HOME}>
-					<Workspace tearoff={options.tearoff} />
-				</TabsProvider>
+				<TrashClientProvider client={options.trash}>
+					{options.ops ? (
+						<OpsProvider client={options.ops} windowLabel="main-1">
+							{workspace}
+							<OpsResolverHost />
+						</OpsProvider>
+					) : (
+						workspace
+					)}
+				</TrashClientProvider>
 			</PlacesClientProvider>
 		</VfsClientProvider>,
 	);

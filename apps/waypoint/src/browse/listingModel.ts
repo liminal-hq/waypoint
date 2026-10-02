@@ -8,6 +8,7 @@ import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
+import type { ListingLayout } from '@liminal-hq/waypoint-protocol/generated/ListingLayout';
 import type { ListingPhase } from '@liminal-hq/waypoint-protocol/generated/ListingPhase';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
@@ -62,6 +63,9 @@ export class ListingModel {
 	private _sort: SortSpec;
 	private _filter: Filter;
 	private _error: VfsError | null = null;
+	/** What the listing's provider offers, which never changes for an open listing. */
+	readonly readOnly: boolean;
+	readonly layout: ListingLayout;
 
 	private entries = new Map<number, Entry>();
 	private stale = new Set<number>();
@@ -86,6 +90,8 @@ export class ListingModel {
 		this._scanned = snapshot.count;
 		this._sort = snapshot.sort;
 		this._filter = snapshot.filter;
+		this.readOnly = snapshot.readOnly;
+		this.layout = snapshot.layout;
 	}
 
 	get count(): number {

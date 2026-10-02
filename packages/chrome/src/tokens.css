@@ -44,6 +44,27 @@
 	--wp-z-menu: 1000;
 	--wp-menu-viewport-margin: 4px;
 	--wp-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+	/* Dialogs: the scrim and shadow, the stacking layer, and sizes. The opacity is the transparency hook. */
+	--wp-scrim: rgb(0 0 0 / 50%);
+	--wp-shadow-dialog: 0 16px 48px rgb(0 0 0 / 45%);
+	--wp-z-dialog: 1100;
+	--wp-dialog-opacity: 1;
+	--wp-dialog-width-small: 380px;
+	--wp-dialog-width-medium: 520px;
+	--wp-dialog-width-large: 720px;
+	--wp-dialog-viewport-margin: 16px;
+	--wp-dialog-motion: 140ms;
+
+	/* Controls: a host raises the height for touch mode (44px) */
+	--wp-control-height: 28px;
+	--wp-field-bg: rgb(0 0 0 / 22%);
+	--wp-switch-off: rgb(255 255 255 / 25%);
+	--wp-switch-thumb: #ffffff;
+
+	/* Settings shell */
+	--wp-settings-nav-width: 220px;
+	--wp-settings-row-padding: 10px;
 }
 
 @media (prefers-color-scheme: light) {
@@ -58,5 +79,27 @@
 		--wp-control-bg: rgb(0 0 0 / 6%);
 		--wp-control-bg-hover: rgb(0 0 0 / 12%);
 		--wp-shadow-menu: 0 8px 24px rgb(0 0 0 / 20%);
+		--wp-scrim: rgb(0 0 0 / 35%);
+		--wp-shadow-dialog: 0 16px 48px rgb(0 0 0 / 25%);
+		--wp-field-bg: rgb(0 0 0 / 5%);
+		--wp-switch-off: rgb(0 0 0 / 28%);
 	}
+}
+
+/* A host that forces the light theme while the OS is dark gets the same values. */
+:where(:root[data-theme='light']) {
+	--wp-bg-raised: #ffffff;
+	--wp-bg-chrome: #ebebed;
+	--wp-text-primary: #1e1f22;
+	--wp-text-secondary: #4a4a4f;
+	--wp-text-muted: #6b6b70;
+	--wp-border-subtle: rgb(0 0 0 / 12%);
+	--wp-focus-ring: #1c71d8;
+	--wp-control-bg: rgb(0 0 0 / 6%);
+	--wp-control-bg-hover: rgb(0 0 0 / 12%);
+	--wp-shadow-menu: 0 8px 24px rgb(0 0 0 / 20%);
+	--wp-scrim: rgb(0 0 0 / 35%);
+	--wp-shadow-dialog: 0 16px 48px rgb(0 0 0 / 25%);
+	--wp-field-bg: rgb(0 0 0 / 5%);
+	--wp-switch-off: rgb(0 0 0 / 28%);
 }

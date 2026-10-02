@@ -63,6 +63,12 @@ export const TrashIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+export const RestoreIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M3.5 6.5h6a3 3 0 0 1 0 6H6M3.5 6.5L6 4M3.5 6.5L6 9" />
+	</Glyph>
+);
+
 export const EditIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<path d="M10.5 3l2.5 2.5-7.5 7.5-3.2.7.7-3.2zM9 4.5L11.5 7" />
@@ -238,5 +244,107 @@ export const CloseOthersIcon = (props: IconProps) => (
 export const CloseToRightIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<path d="M2.5 8h7M7 5.5L9.5 8 7 10.5M13 3v10" />
+	</Glyph>
+);
+
+export const RedoIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M10.5 3l3 3-3 3M13.5 6h-7a3.5 3.5 0 0 0 0 7H10" />
+	</Glyph>
+);
+
+export const NewFolderIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 13V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1V13a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 2 13zM8 7.5v4M6 9.5h4" />
+	</Glyph>
+);
+
+export const NewFileIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M9.5 2.5h-5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-7zM9.5 2.5v3h3M8 7.5v4M6 9.5h4" />
+	</Glyph>
+);
+
+export const DuplicateIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
+		<path d="M9.5 8v3.5M7.75 9.75h3.5M10.5 5.5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v5.5a1 1 0 0 0 1 1h1.5" />
+	</Glyph>
+);
+
+export const DeleteForeverIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2.5 4.5h11M6 4.5V3h4v1.5M3.8 4.5l.7 8.5a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.7-8.5M6.5 7.5l3 3M9.5 7.5l-3 3" />
+	</Glyph>
+);
+
+export const CutIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle cx="4.5" cy="11.5" r="1.8" />
+		<circle cx="11.5" cy="11.5" r="1.8" />
+		<path d="M5.6 10L11 2.5M10.4 10L5 2.5" />
+	</Glyph>
+);
+
+export const PasteIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M5.5 3.5H4a1 1 0 0 0-1 1V13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5a1 1 0 0 0-1-1h-1.5" />
+		<rect x="5.5" y="2" width="5" height="3" rx="0.8" />
+	</Glyph>
+);
+
+export const CopyToIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v1M6.5 11.5h6.5M10.5 9l2.5 2.5-2.5 2.5" />
+	</Glyph>
+);
+
+export const MoveToIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H9M2 9.5h6.5M6 7l2.5 2.5L6 12" />
+	</Glyph>
+);
+
+export const SettingsIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle cx="8" cy="8" r="2" />
+		<path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2" />
+	</Glyph>
+);
+
+export const SelectAllIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeDasharray="2 1.6" />
+		<path d="M5.5 8.2l1.7 1.7 3.3-3.6" />
+	</Glyph>
+);
+
+export const InvertSelectionIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="2.5" y="2.5" width="11" height="11" rx="1.5" />
+		<path
+			d="M8 2.5v11M8 2.5h3.5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H8z"
+			fill="currentColor"
+			stroke="none"
+		/>
+	</Glyph>
+);
+
+export const ActionBarIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="1.5" y="3.5" width="13" height="5" rx="1.2" />
+		<path d="M4 6h1.5M7.25 6h1.5M10.5 6H12M2 11.5h12" />
+	</Glyph>
+);
+
+export const MoreIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2} />
+	</Glyph>
+);
+
+export const CommandPaletteIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M3 4.5 7 8l-4 3.5M8.5 12H13" />
 	</Glyph>
 );

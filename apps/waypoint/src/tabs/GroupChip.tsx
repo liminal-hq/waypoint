@@ -12,6 +12,7 @@ import {
 	type MouseEvent,
 	type PointerEvent,
 } from 'react';
+import { dropAttributes } from '../dnd/dropTargets';
 import { t, tf, tn } from '../i18n/messages';
 import { PinIcon } from '../icons/AppIcons';
 import { endRename, endWorkspaceNaming, useGroupActions, useNamingWorkspace } from './groupActions';
@@ -102,6 +103,7 @@ export function GroupChip({
 			role="presentation"
 			className={styles.wrap}
 			data-chip={group.id}
+			{...dropAttributes('chip', group.id, group.name)}
 			data-first={item.firstIndex}
 			data-members={item.members.length}
 			data-pinned={pinned ? '' : undefined}

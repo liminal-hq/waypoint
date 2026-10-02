@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import basic from '../../../../crates/waypoint-session/tests/conformance/basic.json';
 import groupsAndPairs from '../../../../crates/waypoint-session/tests/conformance/groups_and_pairs.json';
 import windowsAndHandoff from '../../../../crates/waypoint-session/tests/conformance/windows_and_handoff.json';
+import shelfScenario from '../../../../crates/waypoint-session/tests/conformance/shelf.json';
 import workspacesScenario from '../../../../crates/waypoint-session/tests/conformance/workspaces.json';
 import type { GroupSort } from '@liminal-hq/waypoint-protocol/generated/GroupSort';
 import type { MoveTo } from '@liminal-hq/waypoint-protocol/generated/MoveTo';
@@ -41,6 +42,7 @@ interface Facts extends WindowFacts {
 	closed?: number[];
 	windows?: string[];
 	workspaces?: { id: number; name: string; locations: string[] }[];
+	shelf?: { id: number; name: string; location: string; origin: string }[];
 	others?: Record<string, WindowFacts>;
 }
 
@@ -65,6 +67,7 @@ const scenarios: Record<string, Scenario> = {
 	groups_and_pairs: groupsAndPairs,
 	windows_and_handoff: windowsAndHandoff,
 	workspaces: workspacesScenario,
+	shelf: shelfScenario,
 } as Record<string, Scenario>;
 
 const path = (op: Op, key: string) => fileLocation(String(op[key]));
@@ -151,6 +154,14 @@ async function perform(api: FakeTabsApi, op: Op): Promise<void> {
 				num(op, 'workspace'),
 				(op.locations as string[]).map((l) => fileLocation(l)),
 			);
+		case 'addToShelf':
+			return api.addToShelf((op.locations as string[]).map((l) => fileLocation(l)));
+		case 'removeFromShelf':
+			return api.removeFromShelf(list(op, 'ids'));
+		case 'clearShelf':
+			return api.clearShelf();
+		case 'moveShelfItem':
+			return api.moveShelfItem(num(op, 'id'), num(op, 'index'));
 		case 'openWindow':
 			await api.openWindow(op.location === undefined ? undefined : path(op, 'location'));
 			return;
@@ -298,6 +309,17 @@ describe.each(Object.entries(scenarios))('conformance scenario %s', (name, scena
 					})),
 					`${at}: workspaces`,
 				).toEqual(want.workspaces);
+			}
+			if (want.shelf) {
+				expect(
+					store.toSnapshot().shelf.map((i) => ({
+						id: i.id,
+						name: i.name,
+						location: i.location.display,
+						origin: i.origin.display,
+					})),
+					`${at}: shelf`,
+				).toEqual(want.shelf);
 			}
 			if (want.windows) expect(store.windowLabels(), `${at}: windows`).toEqual(want.windows);
 			for (const [other, facts] of Object.entries(want.others ?? {})) {

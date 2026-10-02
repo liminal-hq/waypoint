@@ -13,7 +13,8 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     }
     /**
      * Reports whether the file system plugin works here, and which features: `listing`, `watch`,
-     * `places`, and `polling-fallback` while a listing is kept up to date by polling.
+     * `places`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
+     * kept up to date by polling.
      */
     function getStatus() {
         return cmd('get_status');
@@ -70,11 +71,25 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
         return cmd('get_free_space', { location });
     }
     /**
+     * Whether `location` is a folder and can be written to, for a destination picker. Rejects with
+     * `notFound` (or `permissionDenied`) where it cannot be seen at all.
+     */
+    function checkFolder(location) {
+        return cmd('check_folder', { location });
+    }
+    /**
      * Opens a file of an open listing in its default application. Rust resolves the path from
      * `(handle, id)`; a folder is rejected with `unsupported`.
      */
     function openEntry(handle, id) {
         return cmd('open_entry', { handle, id });
+    }
+    /**
+     * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
+     * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+     */
+    function getTrashInfo() {
+        return cmd('get_trash_info');
     }
     /** Home, the user folders that exist, and the favourites. */
     function listPlaces() {
@@ -106,6 +121,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     }
 
     exports.addFavourite = addFavourite;
+    exports.checkFolder = checkFolder;
     exports.closeListing = closeListing;
     exports.describeLocation = describeLocation;
     exports.entryLocation = entryLocation;
@@ -113,6 +129,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     exports.getHome = getHome;
     exports.getRange = getRange;
     exports.getStatus = getStatus;
+    exports.getTrashInfo = getTrashInfo;
     exports.listPlaces = listPlaces;
     exports.moveFavourite = moveFavourite;
     exports.onListingEvent = onListingEvent;

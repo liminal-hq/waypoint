@@ -9,6 +9,7 @@ import { formatSize } from '../browse/format';
 import { useVfsClient } from '../browse/VfsClientContext';
 import type { ListingSession } from '../browse/useListingSession';
 import { t, tf, tn } from '../i18n/messages';
+import { OpsIndicator } from '../ops/OpsIndicator';
 import styles from './StatusBar.module.css';
 import { useFreeSpace } from './useFreeSpace';
 import { useSelectionSummary } from './useSelectionSummary';
@@ -63,6 +64,7 @@ export function StatusBar({ session, location, notice, children }: StatusBarProp
 					{tf('status.free', { size: formatSize(space.freeBytes) })}
 				</span>
 			)}
+			<OpsIndicator />
 			{children && <div className={styles.switcher}>{children}</div>}
 			<div className={styles.srOnly} role="status" aria-live="polite">
 				{announcement}

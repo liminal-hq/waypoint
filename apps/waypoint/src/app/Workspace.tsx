@@ -5,11 +5,15 @@
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { EntryContextMenu } from '../browse/EntryContextMenu';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { EntryContextMenu, type EntryCommand } from '../browse/EntryContextMenu';
+import { TrashEntryMenu } from '../trash/TrashEntryMenu';
+import { useTrashClient } from '../trash/TrashClientContext';
+import { TrashActionsProvider, useTrashJobs } from '../trash/trashJobs';
+import { selectedCount } from '../browse/selection';
 import { ListingManager } from '../browse/listingManager';
-import { BackgroundContextMenu } from '../browse/BackgroundContextMenu';
-import type { SessionState } from '../browse/useListingSession';
+import { BackgroundContextMenu, type BackgroundCommand } from '../browse/BackgroundContextMenu';
+import type { ListingSession, SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
 import { flushHints, followHints, HINT_INTERVAL_MS } from '../browse/tabHints';
@@ -39,6 +43,7 @@ import { useNavigation } from '../nav/useNavigation';
 import type { EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
+import type { NativeDndClient } from '../services/nativeDndClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
@@ -58,6 +63,29 @@ import { onNotice } from '../tabs/notices';
 import { usePairShortcuts } from '../tabs/usePairShortcuts';
 import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import { useWindowShortcuts } from '../tabs/windowActions';
+import { CloseGuardHost } from '../tabs/CloseGuardHost';
+import { FileDragProvider } from '../dnd/FileDragContext';
+import { ShelfProvider } from '../shelf/ShelfContext';
+import { ShelfDock, ShelfToggle } from '../shelf/ShelfToggle';
+import { useFileCommandsHost } from '../ops/useFileCommandsHost';
+import { FileCommandsProvider } from '../ops/FileCommandsContext';
+import { useFileShortcuts } from '../ops/useFileShortcuts';
+import { ClipboardProvider } from '../ops/ClipboardContext';
+import { DestinationHost } from '../ops/DestinationHost';
+import { otherPaneSession } from '../ops/otherPane';
+import { createTauriBatchRenameApi } from '../ops/batchRename/tauriBatchRenameApi';
+import { BatchRenameHost } from '../ops/batchRename/BatchRenameHost';
+import { batchRenameSelection } from '../ops/batchRename/batchRenameSelection';
+import { openBatchRename } from '../ops/batchRename/batchRenameStore';
+import { useBatchRenameShortcut } from '../ops/batchRename/useBatchRenameShortcut';
+import {
+	CommandBridgeProvider,
+	createCommandBridge,
+	useProvidedCommandBridge,
+} from '../commands/commandBridge';
+import { useWorkspaceCommands } from '../commands/useWorkspaceCommands';
+import { ActionBar } from './ActionBar';
+import { frameMargin } from './frameMargin';
 import { NoticeToast } from './NoticeToast';
 import { clearPaneFocus } from '../tabs/paneFocus';
 import { dismissNotice } from './notices';
@@ -75,15 +103,6 @@ export interface WorkspaceStartup {
 	notice?: string | null;
 }
 
-/** The transparent margin the window frame draws around the content, in logical pixels (0 where the OS draws the frame). */
-function frameMargin(): number {
-	const value = getComputedStyle(document.documentElement).getPropertyValue(
-		'--wp-window-shadow-margin',
-	);
-	const margin = Number.parseFloat(value);
-	return Number.isFinite(margin) ? margin : 0;
-}
-
 /**
  * The browsing area. It owns the window's view choices (list or grid, icon size, hidden files),
  * and the tear-off hook that the tab drag's new-window phase runs on: without a `tearoff` client
@@ -92,14 +111,20 @@ function frameMargin(): number {
 export function Workspace({
 	startup,
 	tearoff,
+	nativeDnd,
 }: {
 	startup?: WorkspaceStartup;
 	tearoff?: TearoffClient;
+	/** The native drag and drop plugin: files dragged in from other applications, and drags that leave the window. */
+	nativeDnd?: NativeDndClient;
 }) {
 	const [viewStore] = useState(() =>
 		createViewStore(startup?.view ? viewFromPrefs(startup.view) : {}),
 	);
 	const [sidebarStore] = useState(() => createSidebarStore());
+	// The Main window provides the bridge its title bar's menu reads; a workspace mounted alone makes its own.
+	const [ownBridge] = useState(createCommandBridge);
+	const bridge = useProvidedCommandBridge() ?? ownBridge;
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const { features, live } = useTearoffFeatures(tearoff);
@@ -129,21 +154,26 @@ export function Workspace({
 		[tearoff, live, api, card],
 	);
 	return (
-		<ViewStoreContext.Provider value={viewStore}>
-			<SidebarStoreContext.Provider value={sidebarStore}>
-				{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
-				<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
-					<MergeLandingContext.Provider value={landing}>
-						<TearOffCard store={card} />
-						<WorkspaceBody
-							viewStore={viewStore}
-							sidebarStore={sidebarStore}
-							startupNotice={startup?.notice ?? null}
-						/>
-					</MergeLandingContext.Provider>
-				</TabDragProvider>
-			</SidebarStoreContext.Provider>
-		</ViewStoreContext.Provider>
+		<CommandBridgeProvider value={bridge}>
+			<ViewStoreContext.Provider value={viewStore}>
+				<SidebarStoreContext.Provider value={sidebarStore}>
+					{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
+					<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
+						<MergeLandingContext.Provider value={landing}>
+							<TearOffCard store={card} />
+							<CloseGuardHost>
+								<WorkspaceBody
+									viewStore={viewStore}
+									sidebarStore={sidebarStore}
+									startupNotice={startup?.notice ?? null}
+									nativeDnd={nativeDnd}
+								/>
+							</CloseGuardHost>
+						</MergeLandingContext.Provider>
+					</TabDragProvider>
+				</SidebarStoreContext.Provider>
+			</ViewStoreContext.Provider>
+		</CommandBridgeProvider>
 	);
 }
 
@@ -151,10 +181,12 @@ function WorkspaceBody({
 	viewStore,
 	sidebarStore,
 	startupNotice,
+	nativeDnd,
 }: {
 	viewStore: ViewStore;
 	sidebarStore: SidebarStore;
 	startupNotice: string | null;
+	nativeDnd: NativeDndClient | undefined;
 }) {
 	const client = useVfsClient();
 	const api = useTabsApi();
@@ -194,6 +226,9 @@ function WorkspaceBody({
 	const addFavourite = useAddFavourite();
 	// A message from the sidebar, numbered like the others so a repeat restarts the timer.
 	const notify = useCallback((text: string) => setNotice({ id: ++noticeCount.current, text }), []);
+	// The Trash view's jobs and the questions they ask; the sidebar, the menus and the Trash's own
+	// strip all reach them through `TrashActionsProvider`.
+	const { actions: trashActions, dialogs: trashDialogs } = useTrashJobs(useTrashClient(), notify);
 	const pinCurrent = useCallback(
 		(location: Location) => {
 			addFavourite(location).catch((error: unknown) => {
@@ -267,6 +302,45 @@ function WorkspaceBody({
 
 	useSyncExternalStore(manager.subscribe, manager.getVersion);
 	const tab = navigation.tab;
+	// The file commands act on the active pane's listing; the keys read it when pressed.
+	const activeSession = useCallback(() => {
+		const id = activeId.current;
+		const state = id === null ? undefined : manager.stateFor(id);
+		return state?.status === 'ready' ? state.session : null;
+	}, [manager]);
+	// F5 and Shift+F5 copy and move to the pane beside the one that has the selection.
+	const snapshotRef = useRef(snapshot);
+	snapshotRef.current = snapshot;
+	const otherPane = useCallback(
+		(from: ListingSession) =>
+			otherPaneSession(snapshotRef.current, from, (id) => manager.stateFor(id)),
+		[manager],
+	);
+	const {
+		commands,
+		dialog: commandDialog,
+		clipboard,
+	} = useFileCommandsHost(activeSession, otherPane);
+	useFileShortcuts(commands, {
+		activeSession,
+		deleteInTrash: (session) => trashActions?.deletePermanently(session),
+	});
+	// The menu, the Action bar and (next) the palette list the same commands; the bridge carries their state.
+	useWorkspaceCommands({
+		commands,
+		activeSession,
+		subscribePanes: manager.subscribe,
+		clipboard,
+		view: viewStore,
+		sidebar: sidebarStore,
+	});
+	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
+	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
+	const currentBatchSelection = useCallback(
+		() => batchRenameSelection(activeSession()),
+		[activeSession],
+	);
+	useBatchRenameShortcut(currentBatchSelection);
 	// The panes on screen: the active tab, or all of its pair. The focused pane is the active tab.
 	const pair = activePair(snapshot);
 	const panes = pair
@@ -294,60 +368,157 @@ function WorkspaceBody({
 		}
 	}, [menu, liveHandles]);
 
+	const runCommand = (command: EntryCommand | BackgroundCommand, entry?: Entry) => {
+		const from = menu?.session ?? null;
+		if (!commands) return;
+		switch (command) {
+			case 'newFolder':
+				return void commands.newFolder(from);
+			case 'newFile':
+				return void commands.newFile(from);
+			case 'rename':
+				return commands.rename(from, entry);
+			case 'batchRename': {
+				const selection = batchRenameSelection(from);
+				return selection ? openBatchRename(selection) : undefined;
+			}
+			case 'duplicate':
+				return void commands.duplicate(from);
+			case 'cut':
+				return void commands.cut(from);
+			case 'copy':
+				return void commands.copy(from);
+			case 'paste':
+				return void commands.paste(from);
+			case 'pasteInto':
+				return void commands.paste(from, entry);
+			case 'copyTo':
+				return void commands.copyTo(from);
+			case 'moveTo':
+				return void commands.moveTo(from);
+			case 'copyToOtherPane':
+				return void commands.copyToOtherPane(from);
+			case 'moveToOtherPane':
+				return void commands.moveToOtherPane(from);
+			case 'moveToTrash':
+				return void commands.moveToTrash(from);
+			case 'deletePermanently':
+				return void commands.deletePermanently(from);
+			case 'undo':
+				return void commands.undo();
+			case 'redo':
+				return void commands.redo();
+		}
+	};
+
 	return (
-		<div className={styles.workspace}>
-			<TabStrip />
-			<NavigationBar leading={<SidebarToggle />} />
-			<div className={styles.middle}>
-				{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-				<div
-					className={styles.files}
-					role="tabpanel"
-					id={TAB_PANEL_ID}
-					aria-label={tab ? undefined : t('tabs.panel.label')}
-					aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-				>
-					{panes.length > 0 && (
-						<PaneArea
-							panes={panes}
-							pair={panes.length > 1 ? pair : undefined}
-							active={tab?.id ?? null}
-							stateFor={stateFor}
-							mode={mode}
-							gridSize={gridSize}
-							onFailure={onFailure}
-							onMenu={setMenu}
-						/>
-					)}
-				</div>
-			</div>
-			<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
-				<ViewSwitcher />
-			</StatusBar>
-			<NoticeToast />
-			{menu?.kind === 'background' && (
-				<BackgroundContextMenu
-					session={menu.session}
-					showHidden={showHidden}
-					position={menu.position}
-					keyboard={menu.keyboard}
-					onToggleHidden={() => viewStore.getState().toggleHidden()}
-					onClose={() => setMenu(null)}
-				/>
-			)}
-			{menu?.kind === 'entry' && (
-				<EntryContextMenu
-					entry={menu.entry}
-					handle={menu.handle}
-					position={menu.position}
-					keyboard={menu.keyboard}
-					onClose={() => setMenu(null)}
-					onOpen={menu.openers.open}
-					onOpenInNewTab={menu.openers.openInNewTab}
-					onCopyPath={menu.openers.copyPath}
-					onAddToFavourites={menu.openers.addToFavourites}
-				/>
-			)}
-		</div>
+		<TrashActionsProvider value={trashActions}>
+			<FileCommandsProvider value={commands}>
+				<ClipboardProvider value={clipboard}>
+					<ShelfProvider activeSession={activeSession}>
+						<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
+							<div className={styles.workspace}>
+								<TabStrip />
+								<NavigationBar leading={<SidebarToggle />} />
+								<ActionBar />
+								<div className={styles.middle}>
+									{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
+									<div
+										className={styles.files}
+										role="tabpanel"
+										id={TAB_PANEL_ID}
+										aria-label={tab ? undefined : t('tabs.panel.label')}
+										aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+									>
+										{panes.length > 0 && (
+											<PaneArea
+												panes={panes}
+												pair={panes.length > 1 ? pair : undefined}
+												active={tab?.id ?? null}
+												stateFor={stateFor}
+												mode={mode}
+												gridSize={gridSize}
+												onFailure={onFailure}
+												onMenu={setMenu}
+											/>
+										)}
+									</div>
+									<ShelfDock />
+								</div>
+								<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
+									<ViewSwitcher />
+									<ShelfToggle />
+								</StatusBar>
+								<NoticeToast />
+								{commandDialog}
+								<BatchRenameHost api={batchRenameApi} announce={notify} />
+								<DestinationHost />
+								{trashDialogs}
+								{menu?.kind === 'background' && (
+									<BackgroundContextMenu
+										session={menu.session}
+										showHidden={showHidden}
+										position={menu.position}
+										keyboard={menu.keyboard}
+										onToggleHidden={() => viewStore.getState().toggleHidden()}
+										onEmptyTrash={
+											trashActions
+												? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
+												: undefined
+										}
+										onClose={() => setMenu(null)}
+										commands={
+											commands
+												? {
+														states: commands.states(menu.session),
+														undoLabel: commands.history().undo?.label ?? null,
+														redoLabel: commands.history().redo?.label ?? null,
+													}
+												: undefined
+										}
+										onCommand={runCommand}
+									/>
+								)}
+								{menu?.kind === 'entry' &&
+									menu.session?.model.layout === 'trash' &&
+									trashActions && (
+										<TrashEntryMenu
+											position={menu.position}
+											keyboard={menu.keyboard}
+											onRestore={() => menu.session && trashActions.restore(menu.session)}
+											onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
+											onClose={() => setMenu(null)}
+										/>
+									)}
+								{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
+									<EntryContextMenu
+										entry={menu.entry}
+										handle={menu.handle}
+										position={menu.position}
+										keyboard={menu.keyboard}
+										onClose={() => setMenu(null)}
+										onOpen={menu.openers.open}
+										onOpenInNewTab={menu.openers.openInNewTab}
+										onCopyPath={menu.openers.copyPath}
+										session={menu.session}
+										onAddToFavourites={menu.openers.addToFavourites}
+										commands={commands?.states(menu.session)}
+										batchRename={
+											menu.session
+												? selectedCount(
+														menu.session.store.getState().selection,
+														menu.session.model.count,
+													) > 1
+												: false
+										}
+										onCommand={runCommand}
+									/>
+								)}
+							</div>
+						</FileDragProvider>
+					</ShelfProvider>
+				</ClipboardProvider>
+			</FileCommandsProvider>
+		</TrashActionsProvider>
 	);
 }

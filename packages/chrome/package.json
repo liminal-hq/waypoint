@@ -39,6 +39,10 @@
 		"!src/test"
 	],
 	"exports": {
+		"./Dialog/ConfirmDialog": "./src/Dialog/ConfirmDialog.tsx",
+		"./Dialog/Dialog": "./src/Dialog/Dialog.tsx",
+		"./Dialog/DialogActions": "./src/Dialog/DialogActions.tsx",
+		"./Dialog/dialogContext": "./src/Dialog/dialogContext.ts",
 		"./ContextMenu": "./src/ContextMenu/ContextMenu.tsx",
 		"./ContextMenu/types": "./src/ContextMenu/types.ts",
 		"./ContextMenu/expectEveryItemHasIcon": "./src/ContextMenu/expectEveryItemHasIcon.ts",
@@ -55,6 +59,18 @@
 		"./WindowMenu/windowMenuModel": "./src/WindowMenu/windowMenuModel.ts",
 		"./icons/icons": "./src/icons/icons.tsx",
 		"./labels": "./src/labels.ts",
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./SettingsShell/ButtonRow": "./src/SettingsShell/ButtonRow.tsx",
+		"./SettingsShell/LinkRow": "./src/SettingsShell/LinkRow.tsx",
+		"./SettingsShell/NumberRow": "./src/SettingsShell/NumberRow.tsx",
+		"./SettingsShell/SegmentedRow": "./src/SettingsShell/SegmentedRow.tsx",
+		"./SettingsShell/SelectRow": "./src/SettingsShell/SelectRow.tsx",
+		"./SettingsShell/SettingsGroup": "./src/SettingsShell/SettingsGroup.tsx",
+		"./SettingsShell/SettingsRow": "./src/SettingsShell/SettingsRow.tsx",
+		"./SettingsShell/SettingsSection": "./src/SettingsShell/SettingsSection.tsx",
+		"./SettingsShell/SettingsShell": "./src/SettingsShell/SettingsShell.tsx",
+		"./SettingsShell/ToggleRow": "./src/SettingsShell/ToggleRow.tsx",
+		"./SettingsShell/labels": "./src/SettingsShell/labels.ts",
+		"./SettingsShell/types": "./src/SettingsShell/types.ts"
 	}
 }

@@ -1,4 +1,4 @@
-// The context menu of an entry: Open, Open in New Tab and Add to Favourites for folders, Copy Path
+// The context menu of an entry: Open, Open in New Tab and Add to Favourites for folders, Copy Path, and the write commands
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -8,9 +8,27 @@ import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { t } from '../i18n/messages';
+import { useShelfActions } from '../shelf/ShelfContext';
+import { AddToShelfIcon } from '../shelf/ShelfIcons';
+import type { ListingSession } from './useListingSession';
 import { isFolder } from '../nav/useOpenEntry';
 import { StarIcon } from '../icons/AppIcons';
-import { FolderOpenIcon, LinkIcon, NewTabIcon, WindowIcon } from '../icons/MenuIcons';
+import {
+	CopyIcon,
+	CopyToIcon,
+	CutIcon,
+	DeleteForeverIcon,
+	DuplicateIcon,
+	EditIcon,
+	FolderOpenIcon,
+	LinkIcon,
+	MoveToIcon,
+	NewTabIcon,
+	PasteIcon,
+	TrashIcon,
+	WindowIcon,
+} from '../icons/MenuIcons';
+import type { CommandState, FileCommandId } from '../ops/fileCommands';
 
 interface EntryContextMenuProps {
 	entry: Entry;
@@ -22,10 +40,263 @@ interface EntryContextMenuProps {
 	onOpenInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
 	onCopyPath: (entry: Entry, handle: ListingHandle) => void;
 	onAddToFavourites: (entry: Entry, handle: ListingHandle) => void;
+	/** The commands this menu may offer, by what the listing allows; omitted where nothing can be written. */
+	commands?: Partial<Record<FileCommandId, CommandState>> | undefined;
+	/** Runs one of the file commands on this entry's listing. */
+	onCommand?: ((command: EntryCommand, entry: Entry) => void) | undefined;
+	/** More than one entry is selected, so Rename Selected… (batch rename) is offered. */
+	batchRename?: boolean | undefined;
+	/** The listing the entry is in, whose selection Add to Shelf puts on the Shelf. */
+	session?: ListingSession | null | undefined;
 }
 
-/** The entry menu's items; Open in New Tab and Add to Favourites are for folders only. */
-export function entryMenuItems(entry: Entry): MenuItem[] {
+/** The commands the entry menu can run. */
+export type EntryCommand =
+	| 'rename'
+	| 'batchRename'
+	| 'duplicate'
+	| 'moveToTrash'
+	| 'deletePermanently'
+	| 'cut'
+	| 'copy'
+	| 'paste'
+	| 'pasteInto'
+	| 'copyTo'
+	| 'moveTo'
+	| 'copyToOtherPane'
+	| 'moveToOtherPane';
+
+const ENTRY_COMMANDS: EntryCommand[] = [
+	'rename',
+	'batchRename',
+	'duplicate',
+	'moveToTrash',
+	'deletePermanently',
+	'cut',
+	'copy',
+	'paste',
+	'pasteInto',
+	'copyTo',
+	'moveTo',
+	'copyToOtherPane',
+	'moveToOtherPane',
+];
+
+/**
+ * Cut, Copy and Paste, which lead the section Add to Favourites and Copy Path are in (Add to Shelf
+ * joins it with the Shelf). Paste is Paste Into Folder on a folder, so a folder's menu says where
+ * the files go; on a file it pastes into the folder the file is in, as Ctrl+V does.
+ */
+function clipboardItems(
+	entry: Entry,
+	commands: Partial<Record<FileCommandId, CommandState>>,
+): MenuItem[] {
+	const shown = (id: FileCommandId) => commands[id]?.visible === true;
+	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
+	const folder = isFolder(entry);
+	return [
+		...(shown('cut')
+			? [
+					{
+						type: 'action',
+						id: 'cut',
+						label: t('menu.cut'),
+						shortcut: 'Ctrl+X',
+						icon: <CutIcon />,
+						disabled: disabled('cut'),
+					} as const,
+				]
+			: []),
+		...(shown('copy')
+			? [
+					{
+						type: 'action',
+						id: 'copy',
+						label: t('menu.copy'),
+						shortcut: 'Ctrl+C',
+						icon: <CopyIcon />,
+						disabled: disabled('copy'),
+					} as const,
+				]
+			: []),
+		...(shown('paste') && !folder
+			? [
+					{
+						type: 'action',
+						id: 'paste',
+						label: t('menu.paste'),
+						shortcut: 'Ctrl+V',
+						icon: <PasteIcon />,
+						disabled: disabled('paste'),
+					} as const,
+				]
+			: []),
+		...(shown('pasteInto') && folder
+			? [
+					{
+						type: 'action',
+						id: 'pasteInto',
+						label: t('menu.pasteInto'),
+						icon: <PasteIcon />,
+						disabled: disabled('pasteInto'),
+					} as const,
+				]
+			: []),
+	];
+}
+
+/**
+ * Copy To… and Move To… (the destination dialog), and in a pair Copy to Other Pane and Move to
+ * Other Pane, which F5 and Shift+F5 run. Without a pair F5 asks as Copy To… does, so every key has
+ * an item and every item has a key or a menu path.
+ */
+function transferItems(commands: Partial<Record<FileCommandId, CommandState>>): MenuItem[] {
+	const shown = (id: FileCommandId) => commands[id]?.visible === true;
+	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
+	return [
+		...(shown('copyTo')
+			? [
+					{
+						type: 'action',
+						id: 'copyTo',
+						label: t('menu.copyTo'),
+						icon: <CopyToIcon />,
+						disabled: disabled('copyTo'),
+					} as const,
+				]
+			: []),
+		...(shown('moveTo')
+			? [
+					{
+						type: 'action',
+						id: 'moveTo',
+						label: t('menu.moveTo'),
+						icon: <MoveToIcon />,
+						disabled: disabled('moveTo'),
+					} as const,
+				]
+			: []),
+		...(shown('copyToOtherPane')
+			? [
+					{
+						type: 'action',
+						id: 'copyToOtherPane',
+						label: t('menu.copyToOtherPane'),
+						shortcut: 'F5',
+						icon: <CopyToIcon />,
+						disabled: disabled('copyToOtherPane'),
+					} as const,
+				]
+			: []),
+		...(shown('moveToOtherPane')
+			? [
+					{
+						type: 'action',
+						id: 'moveToOtherPane',
+						label: t('menu.moveToOtherPane'),
+						shortcut: 'Shift+F5',
+						icon: <MoveToIcon />,
+						disabled: disabled('moveToOtherPane'),
+					} as const,
+				]
+			: []),
+	];
+}
+
+/**
+ * The write items, in the order of `docs/interactions.md`: Rename and Duplicate in their own
+ * section, then the destructive ones last and in red. They are left out where the listing is
+ * read-only. Compress and Tags join after Duplicate.
+ */
+function writeItems(
+	commands: Partial<Record<FileCommandId, CommandState>>,
+	batchRename: boolean,
+): MenuItem[] {
+	const shown = (id: FileCommandId) => commands[id]?.visible === true;
+	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
+	const editing: MenuItem[] = [
+		...(shown('rename')
+			? [
+					{
+						type: 'action',
+						id: 'rename',
+						label: t('menu.rename'),
+						shortcut: 'F2',
+						icon: <EditIcon />,
+						disabled: disabled('rename'),
+					} as const,
+				]
+			: []),
+		...(shown('rename') && batchRename
+			? [
+					{
+						type: 'action',
+						id: 'batchRename',
+						label: t('menu.renameSelected'),
+						shortcut: 'Ctrl+F2',
+						icon: <EditIcon />,
+					} as const,
+				]
+			: []),
+		...(shown('duplicate')
+			? [
+					{
+						type: 'action',
+						id: 'duplicate',
+						label: t('menu.duplicate'),
+						shortcut: 'Ctrl+Shift+D',
+						icon: <DuplicateIcon />,
+						disabled: disabled('duplicate'),
+					} as const,
+				]
+			: []),
+	];
+	const destructive: MenuItem[] = [
+		...(shown('moveToTrash')
+			? [
+					{
+						type: 'action',
+						id: 'moveToTrash',
+						label: t('menu.moveToTrash'),
+						shortcut: 'Delete',
+						icon: <TrashIcon />,
+						danger: true,
+						disabled: disabled('moveToTrash'),
+					} as const,
+				]
+			: []),
+		...(shown('deletePermanently')
+			? [
+					{
+						type: 'action',
+						id: 'deletePermanently',
+						label: t('menu.deletePermanently'),
+						shortcut: 'Shift+Delete',
+						icon: <DeleteForeverIcon />,
+						danger: true,
+						disabled: disabled('deletePermanently'),
+					} as const,
+				]
+			: []),
+	];
+	const transfer = transferItems(commands);
+	return [
+		...(editing.length > 0 ? [{ type: 'separator' } as const, ...editing] : []),
+		...(transfer.length > 0 ? [{ type: 'separator' } as const, ...transfer] : []),
+		...(destructive.length > 0 ? [{ type: 'separator' } as const, ...destructive] : []),
+	];
+}
+
+/**
+ * The entry menu's items; Open in New Tab and Add to Favourites are for folders only. `commands`
+ * adds the write items the listing allows, and `batchRename` (more than one entry is selected)
+ * adds Rename Selected… after Rename.
+ */
+export function entryMenuItems(
+	entry: Entry,
+	commands?: Partial<Record<FileCommandId, CommandState>>,
+	batchRename = false,
+): MenuItem[] {
 	return [
 		{
 			type: 'action',
@@ -51,6 +322,7 @@ export function entryMenuItems(entry: Entry): MenuItem[] {
 				]
 			: []),
 		{ type: 'separator' },
+		...(commands ? clipboardItems(entry, commands) : []),
 		...(isFolder(entry)
 			? [
 					{
@@ -61,13 +333,16 @@ export function entryMenuItems(entry: Entry): MenuItem[] {
 					} as const,
 				]
 			: []),
+		{ type: 'action', id: 'addToShelf', label: t('menu.addToShelf'), icon: <AddToShelfIcon /> },
 		{ type: 'action', id: 'copyPath', label: t('menu.copyPath'), icon: <LinkIcon /> },
+		...(commands ? writeItems(commands, batchRename) : []),
 	];
 }
 
 /**
- * The entry's actions while nothing writes to disk yet. Open in New Tab and Add to Favourites appear for folders only,
- * and the menu acts on the entry that was right-clicked, which the list has just selected.
+ * The entry's actions. Open in New Tab and Add to Favourites appear for folders only, and the
+ * menu acts on the entry that was right-clicked, which the list has just selected (Rename on that
+ * entry, the other write commands on the whole selection).
  */
 export function EntryContextMenu({
 	entry,
@@ -79,8 +354,13 @@ export function EntryContextMenu({
 	onOpenInNewTab,
 	onCopyPath,
 	onAddToFavourites,
+	commands,
+	onCommand,
+	batchRename = false,
+	session,
 }: EntryContextMenuProps) {
-	const items = entryMenuItems(entry);
+	const shelf = useShelfActions();
+	const items = entryMenuItems(entry, commands, batchRename);
 	return (
 		<ContextMenu
 			items={items}
@@ -95,6 +375,11 @@ export function EntryContextMenu({
 				else if (item.id === 'openInNewWindow') onOpenInNewTab(entry, handle, true);
 				else if (item.id === 'copyPath') onCopyPath(entry, handle);
 				else if (item.id === 'addToFavourites') onAddToFavourites(entry, handle);
+				else if (item.id === 'addToShelf') {
+					if (session) void shelf?.addSelection(session);
+				} else if (ENTRY_COMMANDS.includes(item.id as EntryCommand)) {
+					onCommand?.(item.id as EntryCommand, entry);
+				}
 			}}
 		/>
 	);

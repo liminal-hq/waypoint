@@ -1,0 +1,41 @@
+[package]
+name = "tauri-plugin-waypoint-ops"
+version = "0.1.0"
+description = "Waypoint's operations plugin: the job queue, its worker pool, conflict and error questions, the undo journal and the shared clipboard, over the waypoint-ops crate"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+publish = false
+build = "build.rs"
+links = "tauri-plugin-waypoint-ops"
+
+[package.metadata.platforms.support]
+linux = { level = "full", notes = "Nothing platform-specific; every file system and Trash call goes through the injected providers and Trash" }
+windows = { level = "partial", notes = "Builds and is checked for the Windows target in CI; the mock-runtime tests do not run there (the test binary lacks the Common Controls manifest)" }
+
+[lib]
+name = "tauri_plugin_waypoint_ops"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+log = { workspace = true }
+serde = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+waypoint-ops = { path = "../../crates/waypoint-ops" }
+waypoint-protocol = { path = "../../crates/waypoint-protocol" }
+waypoint-vfs = { path = "../../crates/waypoint-vfs" }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tauri = { workspace = true, features = ["test"] }
+tempfile = "3"
+waypoint-ops = { path = "../../crates/waypoint-ops", features = ["testing"] }
+waypoint-path = { path = "../../crates/waypoint-path" }
+waypoint-vfs = { path = "../../crates/waypoint-vfs", features = ["testing"] }

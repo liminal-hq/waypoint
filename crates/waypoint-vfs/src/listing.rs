@@ -193,6 +193,8 @@ impl Listing {
             phase: state.phase,
             sort: state.index.sort(),
             filter: state.index.filter(),
+            read_only: self.provider.read_only(),
+            layout: self.provider.layout(),
         }
     }
 
@@ -335,13 +337,33 @@ impl Listing {
         self.snapshot_of(&state)
     }
 
-    /// The path an entry names, for operations on it (opening it, for one). Rust resolves this
-    /// from the `EntryId`; the frontend never holds a raw path.
     /// The count and total file size of a selection over the current view.
     pub fn summarise_selection(&self, selection: &crate::SelectionSpec) -> crate::SelectionSummary {
         self.read().index.summarise(selection)
     }
 
+    /// The paths a selection covers over the current view, in view order, so an operation takes
+    /// its sources from the listing and the frontend never builds a path. Ids the view no longer
+    /// holds are dropped, as they are by `summarise_selection`.
+    pub fn resolve_selection(
+        &self,
+        selection: &crate::SelectionSpec,
+    ) -> Result<Vec<VfsPath>, VfsError> {
+        let state = self.read();
+        state
+            .index
+            .selected_names(selection)
+            .into_iter()
+            .map(|name| {
+                self.path.join(name).map_err(|_| VfsError::InvalidLocation {
+                    input: name.to_string_lossy().into_owned(),
+                })
+            })
+            .collect()
+    }
+
+    /// The path an entry names, for operations on it (opening it, for one). Rust resolves this
+    /// from the `EntryId`; the frontend never holds a raw path.
     pub fn path_of(&self, id: waypoint_protocol::EntryId) -> Result<VfsPath, VfsError> {
         let state = self.read();
         let name = state.index.name_of(id.0).ok_or(VfsError::NotFound {

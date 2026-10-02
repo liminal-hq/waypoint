@@ -18,6 +18,7 @@ import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfItemId';
 import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import { FakeTabsStore, type FakeCommand, type Outcome } from './fakeTabsStore';
 import { MAX_WINDOWS, type Handoff, type OpenTabOptions, type TabsApi } from './tabsApi';
@@ -205,6 +206,22 @@ export class FakeTabsApi implements TabsApi {
 
 	async setWorkspaceLocations(workspace: WorkspaceId, locations: Location[]): Promise<void> {
 		this.run({ kind: 'setWorkspaceLocations', workspace, locations });
+	}
+
+	async addToShelf(locations: Location[]): Promise<void> {
+		this.run({ kind: 'addToShelf', locations, addedMs: Date.now() });
+	}
+
+	async removeFromShelf(ids: ShelfItemId[]): Promise<void> {
+		this.run({ kind: 'removeFromShelf', ids });
+	}
+
+	async clearShelf(): Promise<void> {
+		this.run({ kind: 'clearShelf' });
+	}
+
+	async moveShelfItem(id: ShelfItemId, toIndex: number): Promise<void> {
+		this.run({ kind: 'moveShelfItem', id, toIndex });
 	}
 
 	async joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId> {

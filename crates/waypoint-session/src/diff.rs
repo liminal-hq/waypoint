@@ -30,6 +30,9 @@ pub(crate) fn store_events(
                 if before.workspaces != after.workspaces {
                     push(&old.label, workspaces_changed(after));
                 }
+                if before.shelf != after.shelf {
+                    push(&old.label, shelf_changed(after));
+                }
             }
             None => {
                 for tab in &old.tabs {
@@ -68,8 +71,18 @@ pub(crate) fn store_events(
         if !after.workspaces.is_empty() {
             push(&new.label, workspaces_changed(after));
         }
+        if !after.shelf.is_empty() {
+            push(&new.label, shelf_changed(after));
+        }
     }
     out
+}
+
+fn shelf_changed(after: &Store) -> SessionEvent {
+    SessionEvent::ShelfChanged {
+        shelf: after.shelf.clone(),
+        revision: 0,
+    }
 }
 
 fn workspaces_changed(after: &Store) -> SessionEvent {

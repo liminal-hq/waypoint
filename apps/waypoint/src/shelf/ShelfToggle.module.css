@@ -1,0 +1,33 @@
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	min-width: 24px;
+	height: 22px;
+	padding: 0 4px;
+	border: 0;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+	cursor: default;
+}
+
+.button:hover {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.button[aria-pressed='true'] {
+	background: var(--wp-bg-selected);
+	color: var(--wp-text-primary);
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+}
+
+.badge {
+	font-size: 11px;
+	line-height: 1;
+}

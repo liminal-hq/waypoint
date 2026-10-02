@@ -67,13 +67,18 @@ fn push_folded(out: &mut Vec<u8>, text: &str) {
 
 /// What the ordering needs to know about an entry.
 pub(crate) struct Sortable<'a> {
+    /// The unique name that identifies the entry: the last tie-break.
     pub name: &'a OsStr,
+    /// The name people read, which the Kind column takes its extension from (the same as `name`
+    /// except in the Trash, where `name` is an id).
+    pub label: &'a OsStr,
     pub key: &'a [u8],
     pub kind: EntryKind,
     pub link_target: Option<EntryKind>,
     pub group: u8,
     pub size: Option<u64>,
     pub modified_ms: Option<i64>,
+    pub deleted_ms: Option<i64>,
 }
 
 impl Sortable<'_> {
@@ -111,10 +116,14 @@ pub(crate) fn compare(sort: SortSpec, a: &Sortable, b: &Sortable) -> Ordering {
             .cmp(&b.modified_ms.unwrap_or(i64::MIN)),
         SortKey::Kind => a.group.cmp(&b.group).then_with(|| {
             cmp_extension(
-                extension(a.name.as_encoded_bytes()),
-                extension(b.name.as_encoded_bytes()),
+                extension(a.label.as_encoded_bytes()),
+                extension(b.label.as_encoded_bytes()),
             )
         }),
+        SortKey::Deleted => a
+            .deleted_ms
+            .unwrap_or(i64::MIN)
+            .cmp(&b.deleted_ms.unwrap_or(i64::MIN)),
     };
     let primary = if sort.descending {
         primary.reverse()

@@ -45,7 +45,8 @@ const realClock: DragClock = {
 	clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-export type CancelReason = 'escape' | 'pointercancel' | 'api';
+/** `left`: an external drag (files from another window or application) left the window without a drop. */
+export type CancelReason = 'escape' | 'pointercancel' | 'api' | 'left';
 
 /** What a drag's owner can see and change while the drag runs. */
 export interface DragControl<Source, Target> {
@@ -101,10 +102,29 @@ export interface DragSessionOptions<Target = unknown> {
 	root?: () => HTMLElement | null;
 }
 
+/** The way in to a drag whose pointer the page does not see: the owner feeds it positions. */
+export interface ExternalDrag {
+	/** The drag is over `point`. */
+	move(point: Point): void;
+	/** Released at `point`. */
+	drop(point: Point): void | Promise<void>;
+	/** Left the window, or was abandoned. */
+	cancel(reason?: CancelReason): void;
+}
+
 export interface DragSession<Source, Target> {
 	readonly store: StoreApi<DragState<Source, Target>>;
 	/** Starts tracking a press; false when a drag is already running. */
 	begin(start: DragStart<Source>, handlers: DragHandlers<Source, Target>): boolean;
+	/**
+	 * Starts a drag that is already under way, one the system runs (files dragged in from another
+	 * window or application): there is no press to track, so the owner reports where it is with the
+	 * returned `ExternalDrag`. `null` when a drag is already running.
+	 */
+	beginExternal(
+		start: { point: Point; source: Source },
+		handlers: DragHandlers<Source, Target>,
+	): ExternalDrag | null;
 	/** Abandons the drag, if one is running. */
 	cancel(): void;
 	/** The click that follows a drag is not a click; true once after a drag ends, then false. */
@@ -160,6 +180,8 @@ export function createDragSession<Source, Target>(
 	let origin: Point = { x: 0, y: 0 };
 	let point: Point = { x: 0, y: 0 };
 	let suppressClick = false;
+	// Which drag is running, so a feed from one that ended cannot steer the next.
+	let serial = 0;
 	let settleTimer: unknown;
 	let clickTimer: unknown;
 	const holds = new Map<string, unknown>();
@@ -304,13 +326,18 @@ export function createDragSession<Source, Target>(
 			finish('idle');
 			return;
 		}
-		const next = { x: event.clientX, y: event.clientY };
+		commit({ x: event.clientX, y: event.clientY });
+	}
+
+	/** The release of a drag that is running: one last look at where it ended, then the owner's drop. */
+	function commit(next: Point): void | Promise<void> {
+		const active = handlers;
+		if (!active) return;
 		if (next.x !== point.x || next.y !== point.y) {
 			point = next;
 			setVariables();
-			handlers.move(control, point);
+			active.move(control, point);
 		}
-		const active = handlers;
 		store.setState({ phase: 'dropped' });
 		let outcome: void | Promise<void> = undefined;
 		try {
@@ -322,6 +349,7 @@ export function createDragSession<Source, Target>(
 			void outcome.catch((error: unknown) => console.warn('drag drop failed', error));
 		}
 		finish('dropped');
+		return outcome;
 	}
 
 	function onPointerCancel(event: PointerEvent) {
@@ -354,6 +382,7 @@ export function createDragSession<Source, Target>(
 			const phase = store.getState().phase;
 			if (phase === 'pending' || phase === 'dragging') return false;
 			clock.clearTimeout(settleTimer);
+			serial++;
 			handlers = next;
 			pointerId = start.pointerId;
 			origin = { x: start.clientX, y: start.clientY };
@@ -365,6 +394,41 @@ export function createDragSession<Source, Target>(
 			window.addEventListener('pointercancel', onPointerCancel, true);
 			window.addEventListener('keydown', onKey, true);
 			return true;
+		},
+		beginExternal(start, next) {
+			const phase = store.getState().phase;
+			if (phase === 'pending' || phase === 'dragging') return null;
+			clock.clearTimeout(settleTimer);
+			const mine = ++serial;
+			handlers = next;
+			pointerId = -1;
+			capturing = null;
+			origin = start.point;
+			point = origin;
+			store.setState({ phase: 'dragging', pill: null, target: null, source: start.source });
+			// Esc reaches the page only where the system lets it; where it does, it ends the drag.
+			window.addEventListener('keydown', onKey, true);
+			setVariables();
+			next.start?.(control, point);
+			next.move(control, point);
+			const live = next;
+			const running = () =>
+				serial === mine && handlers === live && store.getState().phase === 'dragging';
+			return {
+				move(to) {
+					if (!running()) return;
+					point = to;
+					setVariables();
+					live.move(control, point);
+				},
+				drop(to) {
+					if (!running()) return;
+					return commit(to);
+				},
+				cancel(reason = 'api') {
+					if (running()) end(reason);
+				},
+			};
 		},
 		cancel() {
 			if (!handlers) return;

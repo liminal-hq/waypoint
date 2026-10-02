@@ -11,7 +11,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use waypoint_protocol::WindowKind;
 use waypoint_session::{
     Command, MoveTo, MoveWhat, Outcome, SessionEvent, SessionSnapshot, SessionStorage, Store,
-    TabId, WindowSummary,
+    TabId, ViewPrefs, WindowSummary,
 };
 
 use crate::deps::SessionDeps;
@@ -43,6 +43,8 @@ pub struct Sessions<R: Runtime> {
     hooks: Mutex<Vec<Hook>>,
     deps: SessionDeps<R>,
     change_pending: Arc<AtomicBool>,
+    /// What windows made from now on start with; kept here so a restored store gets it too.
+    new_window_view: Mutex<ViewPrefs>,
 }
 
 impl<R: Runtime> Sessions<R> {
@@ -52,6 +54,7 @@ impl<R: Runtime> Sessions<R> {
             hooks: Mutex::new(Vec::new()),
             deps,
             change_pending: Arc::new(AtomicBool::new(false)),
+            new_window_view: Mutex::new(ViewPrefs::default()),
         }
     }
 
@@ -71,7 +74,15 @@ impl<R: Runtime> Sessions<R> {
     /// before any window exists or any command runs; it sends no events and schedules no save.
     pub fn restore(&self, mut restored: Store) {
         restored.set_policy(self.deps.policy);
+        restored.set_new_window_view(*locked(&self.new_window_view));
         *locked(&self.store) = restored;
+    }
+
+    /// Sets the view that windows made from now on start with, from the app's settings. Windows
+    /// that exist keep theirs, and nothing is sent or saved.
+    pub fn set_new_window_view(&self, view: ViewPrefs) {
+        *locked(&self.new_window_view) = view;
+        locked(&self.store).set_new_window_view(view);
     }
 
     /// A copy of the store, waiting at most `wait` for its lock. For callers on the main thread,

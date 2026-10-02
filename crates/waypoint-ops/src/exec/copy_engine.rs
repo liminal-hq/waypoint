@@ -1,0 +1,191 @@
+// Copying the bytes of one file (A50): a provider's fast path when it offers one, otherwise a
+// chunked read and write loop with progress and a cancel check after every chunk, hashing what it
+// reads when the copy is to be verified (A51), plus the read-back that hashes a file that was
+// written.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use std::io::{self, Read, Write};
+
+use waypoint_path::VfsPath;
+use waypoint_protocol::VfsError;
+use waypoint_vfs::{from_io, CancelToken, Provider, WriteOptions};
+
+use crate::model::VerifyAlgorithm;
+use crate::verify::Hasher;
+
+/// The size of one read and write: 8 MiB (A50).
+pub const CHUNK_BYTES: usize = 8 * 1024 * 1024;
+
+/// One file to copy, from `src` to the partial name `dst`.
+pub struct FileCopy<'a> {
+    pub src_provider: &'a dyn Provider,
+    pub src: &'a VfsPath,
+    pub dst_provider: &'a dyn Provider,
+    /// Created exclusively; on a failure of any kind nothing is left under this name.
+    pub dst: &'a VfsPath,
+    /// Both paths are served by one provider, so it may offer a fast path for the copy.
+    pub same_provider: bool,
+    /// Hash what is read (and so skip the fast path, which never shows the bytes).
+    pub verify: Option<VerifyAlgorithm>,
+    /// The source is to be removed once this copy is in place (a move across volumes): the data is
+    /// synced to storage before the copy is renamed into place, and no fast path is used, since a
+    /// fast path never syncs.
+    pub durable: bool,
+    /// The size of one read and write.
+    pub chunk: usize,
+    /// How big the file is believed to be, to size the buffer.
+    pub size_hint: u64,
+}
+
+/// What a finished copy made.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Copied {
+    pub bytes: u64,
+    /// The digest of what was read from the source, when the copy hashed it.
+    pub digest: Option<Vec<u8>>,
+}
+
+/// Reads until `buf` is full or the stream ends, retrying a read an interrupt cut short.
+fn fill(reader: &mut dyn Read, buf: &mut [u8]) -> io::Result<usize> {
+    let mut filled = 0;
+    while filled < buf.len() {
+        match reader.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(filled)
+}
+
+/// Sizes the reusable buffer for a file of about `size_hint` bytes without allocating a whole chunk
+/// for a small one.
+fn buffer_for(buf: &mut Vec<u8>, chunk: usize, size_hint: u64) -> &mut [u8] {
+    let wanted = (chunk.max(1) as u64).min(size_hint.max(1)) as usize;
+    if buf.len() < wanted {
+        buf.resize(wanted, 0);
+    }
+    &mut buf[..wanted]
+}
+
+/// Copies one file's bytes. `progress` receives the bytes copied so far after each chunk (a fast
+/// path reports as it likes), and a cancel is `VfsError::Cancelled`. On any failure the partial
+/// file is removed before the error is returned.
+pub fn copy_file_bytes(
+    request: &FileCopy<'_>,
+    buf: &mut Vec<u8>,
+    progress: &mut dyn FnMut(u64),
+    cancel: &CancelToken,
+) -> Result<Copied, VfsError> {
+    if request.same_provider && request.verify.is_none() && !request.durable {
+        let attempt = request.src_provider.copy_file_within(
+            request.src,
+            request.dst,
+            &mut |copied| progress(copied),
+            cancel,
+        );
+        match attempt {
+            Some(Ok(bytes)) => {
+                return Ok(Copied {
+                    bytes,
+                    digest: None,
+                })
+            }
+            // The fast path declined or could not cross what it met: the loop below can.
+            Some(Err(VfsError::CrossesDevices { .. } | VfsError::Unsupported { .. })) => {
+                let _ = request.dst_provider.remove_file(request.dst);
+            }
+            Some(Err(error)) => {
+                let _ = request.dst_provider.remove_file(request.dst);
+                return Err(error);
+            }
+            None => {}
+        }
+    }
+    copy_loop(request, buf, progress, cancel)
+}
+
+fn copy_loop(
+    request: &FileCopy<'_>,
+    buf: &mut Vec<u8>,
+    progress: &mut dyn FnMut(u64),
+    cancel: &CancelToken,
+) -> Result<Copied, VfsError> {
+    let src_location = request.src.to_location();
+    let dst_location = request.dst.to_location();
+    let mut reader = request.src_provider.open_read(request.src)?;
+    let mut writer = request
+        .dst_provider
+        .create_write(request.dst, WriteOptions::exclusive())?;
+    let buffer = buffer_for(buf, request.chunk, request.size_hint);
+    let mut hasher = request.verify.map(Hasher::new);
+    let mut copied = 0u64;
+    let result = (|| -> Result<(), VfsError> {
+        loop {
+            if cancel.is_cancelled() {
+                return Err(VfsError::Cancelled);
+            }
+            let read = fill(&mut reader, buffer).map_err(|e| from_io(&e, &src_location))?;
+            if read == 0 {
+                return Ok(());
+            }
+            if let Some(hasher) = hasher.as_mut() {
+                hasher.update(&buffer[..read]);
+            }
+            writer
+                .write_all(&buffer[..read])
+                .map_err(|e| from_io(&e, &dst_location))?;
+            copied += read as u64;
+            progress(copied);
+        }
+    })();
+    let finished = match result {
+        // A verified copy asks the storage to commit the data before it is read back, and so does a
+        // copy whose source is about to go: the copy must outlive a power loss.
+        Ok(()) => writer.finish(request.verify.is_some() || request.durable),
+        Err(error) => {
+            drop(writer);
+            Err(error)
+        }
+    };
+    match finished {
+        Ok(()) => Ok(Copied {
+            bytes: copied,
+            digest: hasher.map(Hasher::finish),
+        }),
+        Err(error) => {
+            let _ = request.dst_provider.remove_file(request.dst);
+            Err(error)
+        }
+    }
+}
+
+/// Reads a file through and returns its digest (the read-back of a verified copy, and the second
+/// look at a source that is about to be removed).
+pub fn hash_file(
+    provider: &dyn Provider,
+    path: &VfsPath,
+    algorithm: VerifyAlgorithm,
+    chunk: usize,
+    size_hint: u64,
+    buf: &mut Vec<u8>,
+    cancel: &CancelToken,
+) -> Result<Vec<u8>, VfsError> {
+    let location = path.to_location();
+    let mut reader = provider.open_read(path)?;
+    let buffer = buffer_for(buf, chunk, size_hint);
+    let mut hasher = Hasher::new(algorithm);
+    loop {
+        if cancel.is_cancelled() {
+            return Err(VfsError::Cancelled);
+        }
+        let read = fill(&mut reader, buffer).map_err(|e| from_io(&e, &location))?;
+        if read == 0 {
+            return Ok(hasher.finish());
+        }
+        hasher.update(&buffer[..read]);
+    }
+}

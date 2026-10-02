@@ -3,4 +3,4 @@
 /**
  * Which fixed place a sidebar row stands for.
  */
-export type PlaceKind = "home" | "desktop" | "documents" | "downloads" | "pictures" | "music" | "videos";
+export type PlaceKind = "home" | "desktop" | "documents" | "downloads" | "pictures" | "music" | "videos" | "trash";

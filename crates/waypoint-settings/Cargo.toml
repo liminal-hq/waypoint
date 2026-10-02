@@ -1,0 +1,20 @@
+[package]
+name = "waypoint-settings"
+version = "0.1.0"
+description = "Waypoint's application settings: the typed document, its validation, and the versioned storage with a previous generation and recovery"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

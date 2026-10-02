@@ -223,4 +223,81 @@ describe('ListingManager', () => {
 		const state = manager.stateFor(1);
 		expect(state?.status === 'ready' && state.session.model.filter.showHidden).toBe(true);
 	});
+
+	describe('retain', () => {
+		it('keeps a listing open after its tab navigates, and closes it a moment after the hold ends', async () => {
+			vi.useFakeTimers();
+			const { client, manager } = setup({ retainGraceMs: 500 });
+			manager.sync([tab(1)], new Set([1]));
+			await vi.advanceTimersByTimeAsync(0);
+			const release = manager.retain(1);
+			expect(release).not.toBeNull();
+			manager.sync([tab(1, B)], new Set([1]));
+			await vi.advanceTimersByTimeAsync(0);
+			expect(client.openCount).toBe(2);
+			release?.();
+			// Still there for a tab that is on its way back.
+			await vi.advanceTimersByTimeAsync(499);
+			expect(client.openCount).toBe(2);
+			await vi.advanceTimersByTimeAsync(1);
+			expect(client.openCount).toBe(1);
+		});
+
+		it('gives the session back to a tab that returns just after the hold ended', async () => {
+			vi.useFakeTimers();
+			const { client, manager } = setup({ retainGraceMs: 500 });
+			manager.sync([tab(1)], new Set([1]));
+			await vi.advanceTimersByTimeAsync(0);
+			const first = manager.stateFor(1);
+			const release = manager.retain(1);
+			manager.sync([tab(1, B)], new Set([1]));
+			await vi.advanceTimersByTimeAsync(0);
+			release?.();
+			manager.sync([tab(1)], new Set([1]));
+			const back = manager.stateFor(1);
+			expect(back?.status === 'ready' && first?.status === 'ready' && back.session).toBe(
+				first?.status === 'ready' ? first.session : null,
+			);
+			// Adopted, so the grace period closes nothing.
+			await vi.advanceTimersByTimeAsync(1000);
+			expect(client.openCount).toBe(1);
+		});
+
+		it('closes what it kept when the manager is disposed', async () => {
+			const { client, manager } = setup();
+			manager.sync([tab(1)], new Set([1]));
+			await settle();
+			manager.retain(1);
+			manager.sync([tab(1, B)], new Set([1]));
+			await settle();
+			manager.dispose();
+			expect(client.openCount).toBe(0);
+		});
+
+		it('gives the tab the same session back when it returns to the folder during the hold', async () => {
+			const { client, manager } = setup();
+			manager.sync([tab(1)], new Set([1]));
+			await settle();
+			const first = manager.stateFor(1);
+			const release = manager.retain(1);
+			manager.sync([tab(1, B)], new Set([1]));
+			await settle();
+			manager.sync([tab(1)], new Set([1]));
+			const back = manager.stateFor(1);
+			expect(back?.status === 'ready' && first?.status === 'ready' && back.session).toBe(
+				first?.status === 'ready' ? first.session : null,
+			);
+			// Only the one listing is open (the folder it left was closed), and it stays open after the hold ends.
+			expect(client.openCount).toBe(1);
+			release?.();
+			expect(client.openCount).toBe(1);
+		});
+
+		it('has nothing to hold for a tab with no ready listing', () => {
+			const { manager } = setup();
+			manager.sync([tab(1)], new Set([1]));
+			expect(manager.retain(1)).toBeNull();
+			expect(manager.retain(9)).toBeNull();
+		});
+	});
 });

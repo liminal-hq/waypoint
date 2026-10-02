@@ -1,0 +1,63 @@
+[package]
+name = "tauri-plugin-native-dnd"
+version = "0.1.0"
+description = "Tauri plugin for OS-level drag and drop of files: normalised inbound drops, outbound file drags and the file clipboard"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-native-dnd"
+keywords = ["tauri", "plugin", "drag-and-drop", "clipboard"]
+categories = ["api-bindings"]
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Outbound drags through OLE DoDragDrop with a hand-written IDataObject (CF_HDROP and Preferred DropEffect) and the OLE file clipboard; type-checked, with the OLE clipboard round trip verified natively on Windows 11 (read back by a second process); a real pointer drag through DoDragDrop to Explorer is not verified" }
+linux = { level = "full", notes = "Outbound drags through a GTK drag source on the webview (Wayland and X11), lossless inbound URIs, modifiers and the GTK file clipboard; verified on GNOME's Mutter, Wayland clipboard writes need a recent input serial" }
+macos = { level = "none", notes = "Reports every feature unavailable and every command returns unsupported" }
+android = { level = "none", notes = "Desktop windows only" }
+ios = { level = "none", notes = "Desktop windows only" }
+
+[lib]
+name = "tauri_plugin_native_dnd"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+log = { workspace = true }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gdk = "0.18"
+gdk-pixbuf = "0.18"
+gtk = { version = "0.18", features = ["v3_24"] }
+
+# Matches the version Tauri resolves, so the types line up. The `implement` macro names the `windows_core` crate, so it is a direct dependency too.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_SystemServices",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
+windows-core = "0.62"
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

@@ -1,0 +1,36 @@
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-block-end: 4px;
+}
+
+.fact {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.details summary {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.details summary:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+.detail {
+	margin: 4px 0 0;
+	font-family: var(--wp-font-mono);
+	font-size: 11px;
+	overflow-wrap: anywhere;
+}
+
+.hint {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}

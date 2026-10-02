@@ -23,4 +23,12 @@ size: number | null,
 /**
  * Modified time in milliseconds since the Unix epoch.
  */
-modifiedMs: number | null, hidden: boolean, };
+modifiedMs: number | null, hidden: boolean, 
+/**
+ * For an item in the Trash, the folder it was trashed from, as people read it (lossy).
+ */
+originalPath?: string, 
+/**
+ * For an item in the Trash, when it was trashed, in milliseconds since the Unix epoch.
+ */
+deletedMs?: number | null, };

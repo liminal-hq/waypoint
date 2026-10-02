@@ -5,6 +5,7 @@
 
 import { TitleBar } from '@liminal-hq/waypoint-chrome/TitleBar';
 import { TitleBarTitle } from '@liminal-hq/waypoint-chrome/TitleBar/TitleBarTitle';
+import type { ReactNode } from 'react';
 import { chromeLabels } from '../i18n/chromeLabels';
 import { useTitlebarPreferences } from '../services/titlebarPreferences';
 import { titlebarConfigFor } from './titlebarConfig';
@@ -12,14 +13,17 @@ import { useWindowCapabilities } from './windowCapabilities';
 
 interface AppTitleBarProps {
 	title: string;
+	/** The start slot, after any start-side window buttons: the Main window puts its application menu here. */
+	start?: ReactNode;
 }
 
-export function AppTitleBar({ title }: AppTitleBarProps) {
+export function AppTitleBar({ title, start }: AppTitleBarProps) {
 	const preferences = useTitlebarPreferences();
 	const capabilities = useWindowCapabilities();
 	const config = titlebarConfigFor(preferences, document.documentElement.dataset.platform);
 	return (
 		<TitleBar
+			start={start}
 			center={<TitleBarTitle>{title}</TitleBarTitle>}
 			controlsStyle={config.controlsStyle}
 			buttonLayout={config.buttonLayout}

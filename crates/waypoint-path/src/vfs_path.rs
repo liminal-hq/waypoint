@@ -5,6 +5,7 @@
 
 use waypoint_protocol::Location;
 
+use crate::trash_path::{TrashPath, TRASH_SCHEME};
 use crate::{FilePath, PathError};
 
 /// A path in one of Waypoint's providers. The scheme picks the provider; `sftp`, `smb`, `davs`,
@@ -12,6 +13,8 @@ use crate::{FilePath, PathError};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VfsPath {
     File(FilePath),
+    /// The Trash, and the items in it.
+    Trash(TrashPath),
 }
 
 impl VfsPath {
@@ -19,11 +22,16 @@ impl VfsPath {
     pub fn scheme(&self) -> &'static str {
         match self {
             VfsPath::File(_) => "file",
+            VfsPath::Trash(_) => TRASH_SCHEME,
         }
     }
 
-    /// Parses a lossless URI. Only `file` is implemented; any other scheme is reported by name.
+    /// Parses a lossless URI. `file` and `trash` are implemented; any other scheme is reported by
+    /// name.
     pub fn from_uri(uri: &str) -> Result<Self, PathError> {
+        if TrashPath::is_trash_uri(uri) {
+            return TrashPath::from_uri(uri).map(VfsPath::Trash);
+        }
         FilePath::from_uri(uri).map(VfsPath::File)
     }
 
@@ -33,6 +41,9 @@ impl VfsPath {
         let text = text.trim();
         if text.is_empty() {
             return Err(PathError::Empty);
+        }
+        if TrashPath::is_trash_uri(text) {
+            return Self::from_uri(text);
         }
         match text.find("://") {
             Some(at)
@@ -50,24 +61,33 @@ impl VfsPath {
     pub fn join(&self, child: impl AsRef<std::ffi::OsStr>) -> Result<Self, PathError> {
         match self {
             VfsPath::File(path) => path.join(child).map(VfsPath::File),
+            VfsPath::Trash(path) => child
+                .as_ref()
+                .to_str()
+                .ok_or(PathError::Unrepresentable)
+                .and_then(|id| path.join(id))
+                .map(VfsPath::Trash),
         }
     }
 
     pub fn parent(&self) -> Option<Self> {
         match self {
             VfsPath::File(path) => path.parent().map(VfsPath::File),
+            VfsPath::Trash(path) => path.parent().map(VfsPath::Trash),
         }
     }
 
     pub fn display(&self) -> String {
         match self {
             VfsPath::File(path) => path.display(),
+            VfsPath::Trash(path) => path.display(),
         }
     }
 
     pub fn to_uri(&self) -> String {
         match self {
             VfsPath::File(path) => path.to_uri(),
+            VfsPath::Trash(path) => path.to_uri(),
         }
     }
 
@@ -127,5 +147,16 @@ mod tests {
         assert_eq!(VfsPath::try_from(&location).unwrap(), path);
         assert_eq!(path.scheme(), "file");
         assert_eq!(path.parent().unwrap().display(), "/tmp");
+    }
+
+    #[test]
+    fn the_trash_is_a_scheme_of_its_own() {
+        let root = VfsPath::parse_input("trash:/").unwrap();
+        assert_eq!(root.scheme(), "trash");
+        assert_eq!(root.to_location(), Location::new("Trash", "trash:/"));
+        let item = root.join("a|b c").unwrap();
+        assert_eq!(item.to_uri(), "trash:/a%7Cb%20c");
+        assert_eq!(VfsPath::from_location(&item.to_location()).unwrap(), item);
+        assert_eq!(item.parent(), Some(root));
     }
 }

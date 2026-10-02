@@ -8,6 +8,7 @@ import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/Se
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import { useMemo } from 'react';
 import type { TabsApi } from '../services/tabsApi';
+import { useCloseGuard, type CloseGuard } from './closeGuard';
 import { useHomeLocation, useTabsApi, useTabsSnapshot } from './TabsContext';
 
 export interface TabActions {
@@ -18,7 +19,10 @@ export interface TabActions {
 	/** Opens `location` in a tab next to the active one, without leaving the current tab. */
 	openInBackground(location: Location): void;
 	activate(tab: TabId): void;
-	/** Closes a tab. Closing a window's last tab closes the window (D91); the session plugin does that, so there is nothing to do here. */
+	/**
+	 * Closes a tab. Closing a window's last tab closes the window (D91); the session plugin does that,
+	 * so there is nothing to do here. A half of a pair asks first while an operation writes to the other half (D29).
+	 */
 	close(tab: TabId): void;
 	/** Moves a tab to `index` (its position after the move). */
 	move(tab: TabId, index: number): void;
@@ -35,10 +39,12 @@ function report(error: unknown): void {
 /** Closes run one at a time per session, so a burst of them never decides from a stale view. */
 const closeQueues = new WeakMap<TabsApi, Promise<void>>();
 
-async function closeOne(api: TabsApi, tab: TabId): Promise<void> {
+async function closeOne(api: TabsApi, tab: TabId, guard: CloseGuard): Promise<void> {
 	// Read the session now, not when the actions were built: an earlier close may have changed it.
 	const current = await api.getSnapshot();
 	if (!current.tabs.some((candidate) => candidate.id === tab)) return;
+	// D29: a half of a pair whose other half an operation is writing to asks first.
+	if (!(await guard(current, tab))) return;
 	// The session closes the window when this was its last tab (D91).
 	await api.closeTab(tab);
 }
@@ -48,6 +54,7 @@ export function createTabActions(
 	api: TabsApi,
 	snapshot: SessionSnapshot | null,
 	home: Location,
+	guard: CloseGuard = () => Promise.resolve(true),
 ): TabActions {
 	const tabs = snapshot?.tabs ?? [];
 	const active = tabs.find((tab) => tab.id === snapshot?.active);
@@ -63,7 +70,7 @@ export function createTabActions(
 		activate,
 		close: (tab) => {
 			const queued = (closeQueues.get(api) ?? Promise.resolve())
-				.then(() => closeOne(api, tab))
+				.then(() => closeOne(api, tab, guard))
 				.catch(report);
 			closeQueues.set(api, queued);
 		},
@@ -85,5 +92,6 @@ export function useTabActions(): TabActions {
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const home = useHomeLocation();
-	return useMemo(() => createTabActions(api, snapshot, home), [api, snapshot, home]);
+	const guard = useCloseGuard();
+	return useMemo(() => createTabActions(api, snapshot, home, guard), [api, snapshot, home, guard]);
 }

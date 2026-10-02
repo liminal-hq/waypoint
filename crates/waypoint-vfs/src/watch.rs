@@ -684,6 +684,7 @@ mod tests {
             size: Some(1),
             modified_ms: Some(0),
             hidden: false,
+            trashed: None,
         }
     }
 

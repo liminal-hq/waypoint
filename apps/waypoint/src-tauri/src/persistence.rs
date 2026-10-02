@@ -15,6 +15,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_waypoint_session::Sessions;
 use waypoint_session::{Document, SessionStorage, StorageError, Store};
+use waypoint_settings::Settings;
 
 use crate::storage::{FileKeyValue, Persistence};
 use crate::windows::build_main_window;
@@ -251,6 +252,22 @@ impl CloseFlush {
     }
 }
 
+/// What the saved store becomes at start-up under `settings`. The session's windows come back
+/// only when the start-up setting says so; with "Open Home" everything that is not a window (the
+/// saved workspaces, the closed tabs, the Shelf, the id counters) is carried over, because the
+/// first save of the run replaces the document and must not empty it. The Shelf is emptied when
+/// it is not kept between sessions, and the ids it has used stay used either way, so a later item
+/// never takes a forgotten one's id.
+pub(crate) fn restored_for(mut store: Store, settings: &Settings) -> Store {
+    if !crate::settings::restores_session(settings) {
+        store = store.without_windows();
+    }
+    if !settings.dnd.shelf_persist {
+        store.forget_shelf();
+    }
+    store
+}
+
 /// Loads the saved session into the store and creates its windows; with nothing saved (the first
 /// run, or a file that could not be read) one `main-1` opens and registers itself on its first
 /// `get_snapshot`.
@@ -262,13 +279,21 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
         Err(e) => log::warn!("could not open the session file: {e}"),
     }
     let sessions = app.state::<Sessions<Wry>>();
+    // "Open Home" (General settings) starts with the one window a first run gets, but the saved
+    // document is always read: its workspaces, closed tabs and Shelf carry over into the run's
+    // first save (`restored_for` decides what is kept), so a start that restores nothing cannot
+    // empty them.
+    let settings = crate::settings::current(app);
+    if !crate::settings::restores_session(&settings) {
+        log::info!("the start-up setting is Home: not restoring the last session's windows");
+    }
     match saver.storage.load() {
         Ok(Some(document)) => match Store::from_document(document) {
             Ok((store, notes)) => {
                 for note in notes {
                     log::info!("repaired the saved session: {note}");
                 }
-                sessions.restore(store);
+                sessions.restore(restored_for(store, &settings));
             }
             // `Persistence::load` already vetted it, so this is only a race with nothing.
             Err(e) => log::warn!("the saved session was rejected: {e}"),
@@ -300,7 +325,8 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use waypoint_session::Command;
+    use waypoint_session::{Command, Workspace, WorkspaceId};
+    use waypoint_settings::StartupMode;
 
     #[derive(Default)]
     struct Recording(Mutex<Vec<usize>>);
@@ -333,6 +359,45 @@ mod tests {
 
     fn saved(storage: &Recording) -> Vec<usize> {
         storage.0.lock().unwrap().clone()
+    }
+
+    /// A saved session with one window and one workspace, as the file holds it.
+    fn saved_document() -> Document {
+        let mut document = document(1).unwrap();
+        document.body.workspaces.push(Workspace {
+            id: WorkspaceId(1),
+            name: "Work".to_string(),
+            locations: Vec::new(),
+        });
+        document.body.next_workspace = 2;
+        document
+    }
+
+    /// One start-up: the document is loaded, restored for `settings`, and saved as the first save of the run.
+    fn start_up(document: Document, settings: &Settings) -> Document {
+        let (store, _) = Store::from_document(document).unwrap();
+        restored_for(store, settings).to_document()
+    }
+
+    #[test]
+    fn open_home_keeps_the_workspaces_across_start_ups_but_not_the_windows() {
+        let mut settings = Settings::default();
+        settings.general.startup = StartupMode::Home;
+        // Two Home start-ups in a row, each saving what it started with.
+        let first = start_up(saved_document(), &settings);
+        let second = start_up(first, &settings);
+        assert!(second.body.windows.is_empty());
+        assert_eq!(second.body.workspaces.len(), 1);
+        assert_eq!(second.body.workspaces[0].name, "Work");
+        assert_eq!(second.body.next_workspace, 2);
+    }
+
+    #[test]
+    fn restoring_the_session_leaves_the_store_as_it_was_saved() {
+        let mut settings = Settings::default();
+        settings.general.startup = StartupMode::RestoreSession;
+        let (store, _) = Store::from_document(saved_document()).unwrap();
+        assert_eq!(restored_for(store.clone(), &settings), store);
     }
 
     #[test]
@@ -370,5 +435,99 @@ mod tests {
         gate.save(&storage, || document(1), Intent::Finish);
         gate.save(&storage, || document(2), Intent::Change);
         assert_eq!(saved(&storage), vec![0, 1]);
+    }
+
+    fn store_with_shelf() -> Store {
+        let mut store = Store::new();
+        store
+            .dispatch(
+                "main-1",
+                Command::OpenWindow {
+                    location: Some(waypoint_protocol::Location::new("/", "file:///")),
+                    geometry: None,
+                },
+            )
+            .unwrap();
+        store
+            .dispatch(
+                "main-1",
+                Command::AddToShelf {
+                    locations: vec![
+                        waypoint_protocol::Location::new("/a", "file:///a"),
+                        waypoint_protocol::Location::new("/b", "file:///b"),
+                    ],
+                    added_ms: 1,
+                },
+            )
+            .unwrap();
+        // Save and load, as a restart does.
+        Store::from_document(store.to_document()).unwrap().0
+    }
+
+    #[test]
+    fn the_shelf_comes_back_by_default() {
+        let restored = restored_for(store_with_shelf(), &Settings::default());
+        assert_eq!(restored.shelf().len(), 2);
+        assert_eq!(restored.windows().len(), 1);
+    }
+
+    #[test]
+    fn a_shelf_that_is_not_kept_is_cleared_at_start_up_and_its_ids_stay_used() {
+        let mut settings = Settings::default();
+        settings.dnd.shelf_persist = false;
+        let mut restored = restored_for(store_with_shelf(), &settings);
+        assert!(restored.shelf().is_empty());
+        assert_eq!(restored.windows().len(), 1, "the session is unaffected");
+        restored
+            .dispatch(
+                "main-1",
+                Command::AddToShelf {
+                    locations: vec![waypoint_protocol::Location::new("/c", "file:///c")],
+                    added_ms: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(restored.shelf()[0].id.0, 3);
+    }
+
+    #[test]
+    fn open_home_keeps_the_workspaces_across_start_ups_whether_or_not_the_shelf_is_kept() {
+        for shelf_persist in [true, false] {
+            let mut settings = Settings::default();
+            settings.general.startup = waypoint_settings::StartupMode::Home;
+            settings.dnd.shelf_persist = shelf_persist;
+            let mut document = store_with_shelf().to_document();
+            document.body.workspaces.push(waypoint_session::Workspace {
+                id: waypoint_session::WorkspaceId(1),
+                name: "Work".to_string(),
+                locations: Vec::new(),
+            });
+            document.body.next_workspace = 2;
+            // Two Home start-ups in a row, each saving what it started with.
+            for _ in 0..2 {
+                let (store, _) = Store::from_document(document).unwrap();
+                document = restored_for(store, &settings).to_document();
+            }
+            assert!(document.body.windows.is_empty());
+            assert_eq!(
+                document.body.workspaces.len(),
+                1,
+                "shelf_persist {shelf_persist}"
+            );
+            assert_eq!(document.body.next_workspace, 2);
+            assert_eq!(document.body.shelf.len(), if shelf_persist { 2 } else { 0 });
+        }
+    }
+
+    #[test]
+    fn opening_home_still_keeps_the_shelf_but_not_the_windows() {
+        let mut settings = Settings::default();
+        settings.general.startup = waypoint_settings::StartupMode::Home;
+        let restored = restored_for(store_with_shelf(), &settings);
+        assert_eq!(restored.shelf().len(), 2);
+        assert!(restored.windows().is_empty());
+        settings.dnd.shelf_persist = false;
+        let restored = restored_for(store_with_shelf(), &settings);
+        assert!(restored.shelf().is_empty() && restored.windows().is_empty());
     }
 }

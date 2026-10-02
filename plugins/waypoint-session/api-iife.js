@@ -120,6 +120,25 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     function setWorkspaceLocations(workspace, locations) {
         return cmd('set_workspace_locations', { workspace, locations });
     }
+    // The Shelf.
+    /**
+     * Puts locations on the Shelf, which every window shares. Ones already there are left. A batch
+     * that would pass the Shelf's limit rejects with `{ kind: 'shelfFull', limit }` and adds nothing.
+     */
+    function addToShelf(locations) {
+        return cmd('add_to_shelf', { locations });
+    }
+    /** Takes items off the Shelf (their files are untouched); an id that is gone is ignored. */
+    function removeFromShelf(ids) {
+        return cmd('remove_from_shelf', { ids });
+    }
+    function clearShelf() {
+        return cmd('clear_shelf');
+    }
+    /** Moves an item to `toIndex` in the Shelf's order. */
+    function moveShelfItem(id, toIndex) {
+        return cmd('move_shelf_item', { id, toIndex });
+    }
     // Pairs.
     /** Pairs two or more tabs and returns the new pair's id. */
     function joinPair(tabs, layout) {
@@ -179,7 +198,9 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
 
     exports.activateTab = activateTab;
     exports.addToGroup = addToGroup;
+    exports.addToShelf = addToShelf;
     exports.back = back;
+    exports.clearShelf = clearShelf;
     exports.closeGroup = closeGroup;
     exports.closeTab = closeTab;
     exports.closeWindow = closeWindow;
@@ -193,6 +214,7 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     exports.joinPair = joinPair;
     exports.listWindows = listWindows;
     exports.moveGroup = moveGroup;
+    exports.moveShelfItem = moveShelfItem;
     exports.moveTab = moveTab;
     exports.moveTabs = moveTabs;
     exports.navigate = navigate;
@@ -202,6 +224,7 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     exports.openWindow = openWindow;
     exports.pinTab = pinTab;
     exports.removeFromGroup = removeFromGroup;
+    exports.removeFromShelf = removeFromShelf;
     exports.renameGroup = renameGroup;
     exports.renameWorkspace = renameWorkspace;
     exports.reopenTab = reopenTab;

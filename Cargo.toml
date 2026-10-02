@@ -1,16 +1,22 @@
 [workspace]
 members = [
   "crates/waypoint-path",
+  "crates/waypoint-ops",
   "crates/waypoint-protocol",
   "crates/waypoint-session",
+  "crates/waypoint-settings",
   "crates/waypoint-vfs",
   "crates/wayland-toplevel-drag",
   "apps/waypoint/src-tauri",
+  "plugins/native-dnd",
   "plugins/os-prefs",
   "plugins/system-appearance",
+  "plugins/trash",
   "plugins/window-manager",
   "plugins/window-tearoff",
+  "plugins/waypoint-ops",
   "plugins/waypoint-session",
+  "plugins/waypoint-settings",
   "plugins/waypoint-vfs",
 ]
 resolver = "2"

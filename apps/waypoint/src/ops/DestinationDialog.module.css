@@ -1,0 +1,120 @@
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.label,
+.heading {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.heading {
+	text-transform: uppercase;
+}
+
+.input {
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: var(--wp-control-height);
+	padding: 0 8px;
+	color: var(--wp-text-primary);
+	background: transparent;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.input:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.input[aria-invalid='true'] {
+	border-color: var(--wp-danger);
+}
+
+.status {
+	min-block-size: 1.4em;
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.status[data-state='problem'] {
+	color: var(--wp-danger);
+}
+
+.choices {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-block-size: 260px;
+	overflow-y: auto;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.choice {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	inline-size: 100%;
+	padding: 4px 8px;
+	color: var(--wp-text-primary);
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	font: inherit;
+	text-align: start;
+	cursor: default;
+}
+
+.choice:hover {
+	background: var(--wp-bg-hover);
+}
+
+.choice:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.choiceLabel {
+	flex: none;
+}
+
+.choicePath {
+	min-inline-size: 0;
+	overflow: hidden;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* New Folder… sits at the start of the footer, away from the buttons that answer the dialog. */
+.newFolder {
+	margin-inline-end: auto;
+}

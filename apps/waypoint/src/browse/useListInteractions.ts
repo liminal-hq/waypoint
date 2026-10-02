@@ -5,7 +5,10 @@
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
-import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { modifiersOf } from '../dnd/dropAction';
+import { useFileDragApi } from '../dnd/FileDragContext';
+import { useSettings } from '../settings/SettingsContext';
 import { isSelected } from './selection';
 import type { ListingSession } from './useListingSession';
 import { findByPrefix, TypeAheadBuffer } from './typeAhead';
@@ -27,6 +30,14 @@ export type MenuRequest =
 	  }
 	| { kind: 'background'; position: { x: number; y: number }; keyboard: boolean };
 
+/** The pane (tab id) an element sits in, when it sits in one. */
+function paneOf(element: Element): number | null {
+	const value = element.closest('[data-pane]')?.getAttribute('data-pane');
+	return value === null || value === undefined || Number.isNaN(Number(value))
+		? null
+		: Number(value);
+}
+
 export interface InteractionOptions {
 	session: ListingSession;
 	/** The DOM id of the item at a position, for placing a menu opened from the keyboard. */
@@ -46,6 +57,10 @@ export interface InteractionOptions {
 export interface Interactions {
 	onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 	onItemClick: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
+	/** A press on an entry, which becomes a file drag once the pointer has moved. */
+	onItemPointerDown: (event: PointerEvent, position: number, entry: Entry | undefined) => void;
+	/** A double click on an entry: opens it, unless the settings open with a single click (which already did). */
+	onItemDoubleClick: (entry: Entry | undefined) => void;
 	onItemContextMenu: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
 	onBackgroundContextMenu: (event: MouseEvent) => void;
 }
@@ -58,6 +73,8 @@ export interface Interactions {
 export function useListInteractions(options: InteractionOptions): Interactions {
 	const { session, itemId, shown, move, scrollTo, onOpen, onMenu } = options;
 	const { model, store } = session;
+	const clickMode = useSettings((settings) => settings.general.clickMode);
+	const fileDrag = useFileDragApi();
 	const typeAhead = useRef(new TypeAheadBuffer());
 	const typeAheadEpoch = useRef(0);
 
@@ -76,6 +93,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 
 	const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
 		if (event.nativeEvent.isComposing) return;
+		// A key typed in a field inside the list (the rename field) is the field's, not the list's.
+		if (event.target !== event.currentTarget) return;
 		const state = store.getState();
 		const modifier = event.ctrlKey || event.metaKey;
 		const from = state.focus;
@@ -157,14 +176,47 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		}
 	};
 
+	const onItemPointerDown = (event: PointerEvent, position: number, entry: Entry | undefined) => {
+		if (!fileDrag || !entry || event.pointerType === 'touch') return;
+		if (event.button !== 0 && event.button !== 2) return;
+		// A press in the rename field is the field's.
+		if (event.target instanceof Element && event.target.closest('input, textarea')) return;
+		const row = event.currentTarget as Element;
+		fileDrag.press({
+			pointerId: event.pointerId,
+			clientX: event.clientX,
+			clientY: event.clientY,
+			button: event.button,
+			// The list outlives its rows, which the virtualiser recycles as it scrolls.
+			element: row.closest('[role="listbox"]') ?? row,
+			session,
+			position,
+			entry,
+			tab: paneOf(row),
+			modifiers: modifiersOf(event),
+		});
+	};
+
 	const onItemClick = (event: MouseEvent, position: number, entry: Entry | undefined) => {
+		// The click that ends a drag is not a click on the row it ended over.
+		if (fileDrag?.consumeClick()) return;
 		const state = store.getState();
 		const modifier = event.ctrlKey || event.metaKey;
 		typeAheadEpoch.current++;
 		if (event.shiftKey) void state.extendTo(position, modifier);
 		else if (!entry) return;
 		else if (modifier) state.toggleAt(position, entry.id);
-		else state.click(position, entry.id);
+		else {
+			state.click(position, entry.id);
+			// A plain click opens when the settings say so, except in a field inside the row (a
+			// rename in progress), which a click only places the caret in.
+			const inField = event.target instanceof Element && event.target.closest('input, textarea');
+			if (clickMode === 'single' && !inField) onOpen?.(entry, model.handle);
+		}
+	};
+
+	const onItemDoubleClick = (entry: Entry | undefined) => {
+		if (clickMode === 'double' && entry) onOpen?.(entry, model.handle);
 	};
 
 	// Right-click selects the entry first unless it is already part of the selection, as file
@@ -176,13 +228,17 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		const state = store.getState();
 		if (!isSelected(state.selection, entry.id)) state.click(position, entry.id);
 		else state.moveTo(position, false);
-		onMenu?.({
-			kind: 'entry',
-			entry,
-			handle: model.handle,
-			position: { x: event.clientX, y: event.clientY },
-			keyboard: false,
-		});
+		const open = () =>
+			onMenu?.({
+				kind: 'entry',
+				entry,
+				handle: model.handle,
+				position: { x: event.clientX, y: event.clientY },
+				keyboard: false,
+			});
+		// Where the menu opens on the press, a right-button drag must be able to start first: the
+		// menu waits for the release, and a drag drops it.
+		if (!fileDrag?.deferMenu(open)) open();
 	};
 
 	const onBackgroundContextMenu = (event: MouseEvent) => {
@@ -194,5 +250,12 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		});
 	};
 
-	return { onKeyDown, onItemClick, onItemContextMenu, onBackgroundContextMenu };
+	return {
+		onKeyDown,
+		onItemClick,
+		onItemPointerDown,
+		onItemDoubleClick,
+		onItemContextMenu,
+		onBackgroundContextMenu,
+	};
 }

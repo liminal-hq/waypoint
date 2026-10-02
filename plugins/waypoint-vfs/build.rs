@@ -5,6 +5,7 @@
 
 const COMMANDS: &[&str] = &[
     "get_status",
+    "get_trash_info",
     "open_listing",
     "get_range",
     "set_sort",
@@ -16,6 +17,7 @@ const COMMANDS: &[&str] = &[
     "entry_location",
     "summarise_selection",
     "get_free_space",
+    "check_folder",
     "open_entry",
     "list_places",
     "add_favourite",

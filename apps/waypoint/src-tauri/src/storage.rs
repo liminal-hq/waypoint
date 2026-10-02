@@ -160,12 +160,33 @@ fn copy_aside(path: &Path) -> Option<String> {
     None
 }
 
+/// Files already copied aside in this run, with the name of the copy. A file can be opened more
+/// than once (the settings file backs two stores), and each open of an unreadable file would
+/// otherwise leave a copy of its own.
+static SET_ASIDE: Mutex<Vec<(PathBuf, Option<String>)>> = Mutex::new(Vec::new());
+
+/// `copy_aside`, once per path per run: later calls report the first call's copy.
+fn copy_aside_once(path: &Path) -> Option<String> {
+    let mut done = SET_ASIDE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, name)) = done.iter().find(|(seen, _)| seen == path) {
+        return name.clone();
+    }
+    let name = copy_aside(path);
+    done.push((path.to_path_buf(), name.clone()));
+    name
+}
+
 impl<R: Runtime> FileKeyValue<R> {
     /// Opens the store. `tauri-plugin-store` ignores a file it cannot parse and the next save
     /// would overwrite it, so a file that is not a JSON object is copied aside first.
     pub fn open(app: &AppHandle<R>) -> Result<Self, String> {
+        Self::open_file(app, FILE)
+    }
+
+    /// Opens the store file `file` in the app data directory, with the same care.
+    pub fn open_file(app: &AppHandle<R>, file: &str) -> Result<Self, String> {
         let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-        let path = dir.join(FILE);
+        let path = dir.join(file);
         let unreadable = std::fs::read(&path).is_ok_and(|bytes| {
             !matches!(
                 serde_json::from_slice::<Value>(&bytes),
@@ -173,13 +194,13 @@ impl<R: Runtime> FileKeyValue<R> {
             )
         });
         if unreadable {
-            log::warn!("the session file {} is not a JSON object", path.display());
-            match copy_aside(&path) {
-                Some(name) => log::warn!("kept a copy of the session file as `{name}`"),
-                None => log::warn!("could not keep a copy of the unreadable session file"),
+            log::warn!("the store file {} is not a JSON object", path.display());
+            match copy_aside_once(&path) {
+                Some(name) => log::warn!("kept a copy of the store file as `{name}`"),
+                None => log::warn!("could not keep a copy of the unreadable store file"),
             }
         }
-        let store = app.store(FILE).map_err(|e| e.to_string())?;
+        let store = app.store(file).map_err(|e| e.to_string())?;
         Ok(Self {
             store,
             path,
@@ -219,6 +240,30 @@ mod tests {
     use serde_json::json;
     use waypoint_protocol::Location;
     use waypoint_session::Command;
+
+    #[test]
+    fn a_file_opened_twice_is_copied_aside_once() {
+        let dir = std::env::temp_dir().join(format!("waypoint-aside-{}", unix_now()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        std::fs::write(&path, b"not json").unwrap();
+        let first = copy_aside_once(&path);
+        let second = copy_aside_once(&path);
+        assert!(first.is_some());
+        assert_eq!(first, second);
+        let copies = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter(|e| {
+                e.as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".corrupt-")
+            })
+            .count();
+        assert_eq!(copies, 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// A map that counts what the persistence does to it.
     #[derive(Default)]

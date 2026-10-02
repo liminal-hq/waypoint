@@ -20,6 +20,7 @@ import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
+import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfItemId';
 import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import type { Unsubscribe } from './vfsClient';
 
@@ -101,6 +102,16 @@ export interface TabsApi {
 	setActiveWorkspace(workspace: WorkspaceId | null): Promise<void>;
 	/** Replaces a workspace's folders: add, remove and reorder are all this. */
 	setWorkspaceLocations(workspace: WorkspaceId, locations: Location[]): Promise<void>;
+	/**
+	 * Puts locations on the Shelf (global: every window shares it). Ones already there are left; a
+	 * batch past the limit rejects (see `isShelfFull`) and adds nothing.
+	 */
+	addToShelf(locations: Location[]): Promise<void>;
+	/** Takes items off the Shelf; their files are untouched. An id that is gone is ignored. */
+	removeFromShelf(ids: ShelfItemId[]): Promise<void>;
+	clearShelf(): Promise<void>;
+	/** Moves an item to `toIndex` in the Shelf's order. */
+	moveShelfItem(id: ShelfItemId, toIndex: number): Promise<void>;
 
 	/** Pairs two or more tabs; resolves to the new pair's id. */
 	joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId>;
@@ -131,6 +142,22 @@ export interface TabsApi {
 
 	/** Follows every change to this window's session. */
 	onEvent(listener: (event: SessionEvent) => void): Unsubscribe;
+}
+
+/** The limit a rejected `addToShelf` names when the Shelf is full, or `null` for any other rejection. */
+export function shelfFullLimit(error: unknown): number | null {
+	if (typeof error === 'string') {
+		const m = /^the Shelf is full: it holds at most (\d+) items/.exec(error);
+		return m ? Number(m[1]) : null;
+	}
+	if (typeof error !== 'object' || error === null) return null;
+	const { kind, limit } = error as { kind?: unknown; limit?: unknown };
+	return kind === 'shelfFull' && typeof limit === 'number' ? limit : null;
+}
+
+/** Whether `addToShelf` was refused because the Shelf is full. */
+export function isShelfFull(error: unknown): boolean {
+	return shelfFullLimit(error) !== null;
 }
 
 /** Whether a rejection from `saveGroupAsWorkspace` or `renameWorkspace` means the name is in use. */
@@ -205,6 +232,9 @@ export function applyTabsEvent(snapshot: SessionSnapshot, event: SessionEvent): 
 		case 'workspaceActivated':
 			next.workspace = event.workspace;
 			break;
+		case 'shelfChanged':
+			next.shelf = event.shelf;
+			break;
 		case 'windowOpened':
 		case 'windowClosed':
 			// Nothing in this window's own state changes; the revision still advances.
@@ -250,6 +280,10 @@ export const tabsApi: TabsApi = {
 	setActiveWorkspace: (workspace) => session.setActiveWorkspace(workspace),
 	setWorkspaceLocations: (workspace, locations) =>
 		session.setWorkspaceLocations(workspace, locations),
+	addToShelf: (locations) => session.addToShelf(locations),
+	removeFromShelf: (ids) => session.removeFromShelf(ids),
+	clearShelf: () => session.clearShelf(),
+	moveShelfItem: (id, toIndex) => session.moveShelfItem(id, toIndex),
 	joinPair: (tabs, layout) => session.joinPair(tabs, layout),
 	separatePair: (pair) => session.separatePair(pair),
 	setPairLayout: (pair, layout) => session.setPairLayout(pair, layout),

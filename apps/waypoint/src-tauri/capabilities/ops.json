@@ -1,0 +1,7 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "ops",
+	"description": "Lets the main windows and the operations window use the operations queue, the undo history, the shared clipboard and read the operations settings (changing them is the settings window’s alone). No other window may.",
+	"windows": ["main-*", "ops"],
+	"permissions": ["waypoint-ops:default"]
+}

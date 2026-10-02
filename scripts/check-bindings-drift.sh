@@ -15,15 +15,18 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SOURCE[0]}")")"
 
-# Add a directory here (and its crate to CRATES) whenever a crate or plugin exports bindings.
+# Add a directory here (and its crate to CRATES) whenever a crate or plugin exports bindings. A domain
+# plugin's wire types go to the protocol's generated folder, so it is in CRATES only.
 DIRS=(
   "packages/protocol/src/generated"
+  "plugins/native-dnd/guest-js/bindings"
   "plugins/os-prefs/guest-js/bindings"
   "plugins/system-appearance/guest-js/bindings"
   "plugins/window-manager/guest-js/bindings"
   "plugins/window-tearoff/guest-js/bindings"
+  "plugins/trash/guest-js/bindings"
 )
-CRATES=(waypoint-protocol waypoint-session waypoint-vfs tauri-plugin-os-prefs tauri-plugin-system-appearance tauri-plugin-window-manager tauri-plugin-window-tearoff)
+CRATES=(waypoint-protocol waypoint-session waypoint-settings waypoint-vfs waypoint-ops tauri-plugin-native-dnd tauri-plugin-os-prefs tauri-plugin-system-appearance tauri-plugin-window-manager tauri-plugin-window-tearoff tauri-plugin-trash tauri-plugin-waypoint-ops)
 
 snapshot="$(mktemp -d)"
 compared=0

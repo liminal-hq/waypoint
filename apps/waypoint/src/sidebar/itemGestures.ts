@@ -6,8 +6,9 @@
 import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { KeyboardEvent, MouseEvent } from 'react';
+import { dropAttributes } from '../dnd/dropTargets';
 
-export type ItemKind = 'place' | 'favourite' | 'folder';
+export type ItemKind = 'place' | 'trash' | 'favourite' | 'folder';
 
 /** What a context menu needs to know about the item it was opened on. */
 export interface ItemMenuRequest {
@@ -29,6 +30,8 @@ export interface ItemActions {
 }
 
 export interface ItemGestureProps {
+	/** Makes the item a file drop target: the Trash moves to the Trash, the rest are folders. */
+	[dropAttribute: `data-drop${string}`]: string | undefined;
 	onClick(event: MouseEvent<HTMLElement>): void;
 	onMouseDown(event: MouseEvent<HTMLElement>): void;
 	onAuxClick(event: MouseEvent<HTMLElement>): void;
@@ -44,6 +47,7 @@ export function itemGestures(
 	const menu = (element: HTMLElement, position: MenuPosition, keyboard: boolean) =>
 		actions.openMenu({ ...item, position, keyboard, returnFocus: element });
 	return {
+		...dropAttributes(item.kind === 'trash' ? 'trash' : 'place', item.location.uri, item.label),
 		onClick: (event) => {
 			// A click with the middle button is reported by `auxclick`, never here; Ctrl-click has no meaning yet.
 			if (event.button === 0) actions.open(item.location);

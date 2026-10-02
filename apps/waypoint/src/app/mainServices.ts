@@ -6,10 +6,14 @@
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
+import type { OpsClient } from '../services/opsClient';
+import type { NativeDndClient } from '../services/nativeDndClient';
+import type { OsClipboardClient } from '../services/osClipboardClient';
 import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
+import type { TrashClient } from '../trash/trashClient';
 import type { VfsClient } from '../services/vfsClient';
 
 export interface MainServices {
@@ -26,6 +30,14 @@ export interface MainServices {
 	tearoff?: TearoffClient;
 	/** The system's 12/24-hour setting; without it times follow the locale's own convention. */
 	timeFormat?: TimeFormatClient;
+	/** The operations queue behind the status bar ring; without it the window has no ring. */
+	ops?: OpsClient;
+	/** The system file clipboard, kept level with Cut and Copy; without it the clipboard is Waypoint's own. */
+	osClipboard?: OsClipboardClient;
+	/** The native drag and drop plugin: drops from other applications and drags out of the window; without it drags stay in the page. */
+	nativeDnd?: NativeDndClient;
+	/** The Trash's state and jobs; without it the Trash place shows no count and offers no actions. */
+	trash?: TrashClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -37,6 +49,10 @@ export interface MainServicesDeps {
 	createPlacesClient(): PlacesClient;
 	createTearoffClient?(): TearoffClient;
 	createTimeFormatClient?(): TimeFormatClient;
+	createOpsClient?(): OpsClient;
+	createOsClipboardClient?(): OsClipboardClient;
+	createNativeDndClient?(): NativeDndClient;
+	createTrashClient?(): TrashClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -60,6 +76,10 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		tabsApi: deps.tabsApi,
 		tearoff: deps.createTearoffClient?.(),
 		timeFormat: deps.createTimeFormatClient?.(),
+		ops: deps.createOpsClient?.(),
+		osClipboard: deps.createOsClipboardClient?.(),
+		nativeDnd: deps.createNativeDndClient?.(),
+		trash: deps.createTrashClient?.(),
 		home,
 	};
 }

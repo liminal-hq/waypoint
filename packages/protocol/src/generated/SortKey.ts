@@ -3,4 +3,4 @@
 /**
  * The column a listing is sorted by.
  */
-export type SortKey = "name" | "size" | "modified" | "kind";
+export type SortKey = "name" | "size" | "modified" | "kind" | "deleted";

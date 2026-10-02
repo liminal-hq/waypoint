@@ -7,7 +7,9 @@ import { fileLocation } from '../services/fakeVfsClient';
 import { createDemoClient, DEMO_HOME } from '../browse/demoClient';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeTabsApi } from '../services/fakeTabsApi';
+import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
+import { FakeTrashClient } from '../trash/fakeTrashClient';
 import type { MainServices } from './mainServices';
 
 /** Synthetic folders and tabs over them, all in memory. Imported only when `?demo` is in the URL. */
@@ -29,6 +31,8 @@ export async function startDemoServices(): Promise<MainServices> {
 		tabsApi,
 		home: DEMO_HOME,
 		timeFormat: new FakeTimeFormatClient('h23'),
+		ops: createFakeOpsClient(),
+		trash: new FakeTrashClient({ count: 3 }),
 		demo: { client },
 	};
 }

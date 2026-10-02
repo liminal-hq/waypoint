@@ -19,6 +19,7 @@ import {
 	type MouseEvent,
 	type PointerEvent,
 } from 'react';
+import { dropAttributes } from '../dnd/dropTargets';
 import { t, tf } from '../i18n/messages';
 import {
 	ChevronLeftIcon,
@@ -48,6 +49,7 @@ import { useLandingView } from './MergeLandingContext';
 import { useTabDrag } from './useTabDrag';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
+import { locationLabel } from './tabTitle';
 import { PlusMenu, TabContextMenu } from './TabMenus';
 import { TabSwitcher } from './TabSwitcher';
 import { useTabTitle } from './tabTitle';
@@ -361,7 +363,7 @@ export function TabStrip() {
 	};
 
 	return (
-		<div className={styles.strip}>
+		<div className={styles.strip} data-drop-strip="">
 			<button
 				type="button"
 				className={styles.arrow}
@@ -425,6 +427,7 @@ export function TabStrip() {
 								role="presentation"
 								className={styles.slot}
 								data-slot=""
+								{...dropAttributes('tab', tab.id, locationLabel(tab.location))}
 								data-index={index}
 								data-active={tab.id === active ? '' : undefined}
 								data-pinned={tab.pinned ? '' : undefined}
@@ -513,6 +516,7 @@ export function TabStrip() {
 				type="button"
 				ref={plusButton}
 				className={styles.plus}
+				{...dropAttributes('plus', 'new', t('tabs.new'))}
 				aria-label={t('tabs.new')}
 				aria-haspopup="menu"
 				title={t('tabs.new')}

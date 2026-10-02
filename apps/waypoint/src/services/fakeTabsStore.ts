@@ -26,6 +26,8 @@ import type { WindowEvent } from '@liminal-hq/waypoint-protocol/generated/Window
 import type { WindowState } from '@liminal-hq/waypoint-protocol/generated/WindowState';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import type { Handoff } from './tabsApi';
+import type { ShelfItem } from '@liminal-hq/waypoint-protocol/generated/ShelfItem';
+import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfItemId';
 import type { Workspace } from '@liminal-hq/waypoint-protocol/generated/Workspace';
 import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 
@@ -84,6 +86,10 @@ export type FakeCommand =
 	| { kind: 'deleteWorkspace'; workspace: WorkspaceId }
 	| { kind: 'setActiveWorkspace'; workspace: WorkspaceId | null }
 	| { kind: 'setWorkspaceLocations'; workspace: WorkspaceId; locations: Location[] }
+	| { kind: 'addToShelf'; locations: Location[]; addedMs: number }
+	| { kind: 'removeFromShelf'; ids: ShelfItemId[] }
+	| { kind: 'clearShelf' }
+	| { kind: 'moveShelfItem'; id: ShelfItemId; toIndex: number }
 	| { kind: 'registerWindow'; label: string }
 	| { kind: 'openWindow'; location: Location | null; geometry: Geometry | null }
 	| { kind: 'closeWindow' }
@@ -104,6 +110,8 @@ const unknownPair = (id: PairId) => `no such pair: ${id}`;
 const unknownWindow = (label: string) => `no such window: ${label}`;
 const unknownWorkspace = (id: WorkspaceId) => `no such workspace: ${id}`;
 const workspaceNameTaken = (name: string) => `a workspace named "${name}" already exists`;
+const unknownShelfItem = (id: ShelfItemId) => `no such Shelf item: ${id}`;
+const shelfFull = () => `the Shelf is full: it holds at most ${SHELF_LIMIT} items`;
 const invalid = (why: string) => `invalid command: ${why}`;
 
 interface State {
@@ -116,6 +124,8 @@ interface State {
 	nextWindow: number;
 	workspaces: Workspace[];
 	nextWorkspace: number;
+	shelf: ShelfItem[];
+	nextShelf: number;
 }
 
 const defaultView = (): ViewPrefs => ({ mode: 'list', showHidden: false, iconSize: 64 });
@@ -490,6 +500,9 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 			if (!deepEqual(before.workspaces, after.workspaces)) {
 				push(old.label, { kind: 'workspacesChanged', workspaces: after.workspaces, revision: R });
 			}
+			if (!deepEqual(before.shelf, after.shelf)) {
+				push(old.label, { kind: 'shelfChanged', shelf: after.shelf, revision: R });
+			}
 		} else {
 			for (const tab of old.tabs) push(old.label, { kind: 'tabClosed', tab: tab.id, revision: R });
 			push(old.label, { kind: 'windowClosed', window: old.label, revision: R });
@@ -504,6 +517,9 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 		if (after.workspaces.length > 0) {
 			push(now.label, { kind: 'workspacesChanged', workspaces: after.workspaces, revision: R });
 		}
+		if (after.shelf.length > 0) {
+			push(now.label, { kind: 'shelfChanged', shelf: after.shelf, revision: R });
+		}
 	}
 	return out;
 }
@@ -511,6 +527,42 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 // The store.
 
 /** Another window's pair or group is a single block; this is its stable sort key. */
+/** How many items the Shelf holds (`SHELF_LIMIT` in Rust); adding beyond it is refused. */
+export const SHELF_LIMIT = 500;
+
+/** Whether `path` (the part of a URI after its authority) is only a Windows drive, `/C:`. */
+const isDrive = (path: string) => /^\/[A-Za-z]:$/.test(path);
+
+/** The URI one level up, or `uri` itself for a root (`parent_uri` in `reducer/shelf.rs`). */
+function parentUri(uri: string): string {
+	const schemeEnd = uri.indexOf('://');
+	if (schemeEnd < 0) return uri;
+	const pathStart = schemeEnd + 3;
+	const trimmed = uri.replace(/\/+$/, '');
+	if (trimmed.length <= pathStart || isDrive(trimmed.slice(pathStart))) return uri;
+	const slash = trimmed.lastIndexOf('/');
+	if (slash < pathStart) return uri;
+	if (slash === pathStart) return uri.slice(0, slash + 1);
+	const parent = trimmed.slice(0, slash);
+	return isDrive(parent.slice(pathStart)) ? `${parent}/` : parent;
+}
+
+function parentDisplay(display: string): string {
+	const trimmed = display.replace(/[/\\]+$/, '');
+	const i = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+	if (i < 0) return display;
+	if (i === 0) return display.slice(0, 1);
+	const parent = trimmed.slice(0, i);
+	return parent.endsWith(':') ? `${parent}${trimmed[i]}` : parent;
+}
+
+/** The folder a location sits in, which the Shelf groups by; a root is its own origin. */
+export function originOf(location: Location): Location {
+	const uri = parentUri(location.uri);
+	if (uri === location.uri) return location;
+	return { display: parentDisplay(location.display), uri };
+}
+
 /** What makes two workspace names the same: they match ignoring case and surrounding space. */
 function workspaceKey(name: string): string {
 	return name.trim().toLowerCase();
@@ -581,6 +633,8 @@ export class FakeTabsStore {
 		nextWindow: 1,
 		workspaces: [],
 		nextWorkspace: 1,
+		shelf: [],
+		nextShelf: 1,
 	};
 	private readonly listeners = new Map<string, Set<Listener>>();
 	private readonly handoffListeners = new Map<string, Set<(handoff: Handoff) => void>>();
@@ -637,6 +691,7 @@ export class FakeTabsStore {
 			closed: this.state.closed,
 			workspaces: this.state.workspaces,
 			workspace: w.workspace,
+			shelf: this.state.shelf,
 		});
 	}
 
@@ -652,6 +707,8 @@ export class FakeTabsStore {
 			nextWindow: this.state.nextWindow,
 			workspaces: this.state.workspaces,
 			nextWorkspace: this.state.nextWorkspace,
+			shelf: this.state.shelf,
+			nextShelf: this.state.nextShelf,
 		});
 	}
 
@@ -703,6 +760,16 @@ export class FakeTabsStore {
 				out.push(`${w.label}: the active workspace does not exist`);
 			}
 		}
+		const shelfIds = new Set<ShelfItemId>();
+		const shelfUris = new Set<string>();
+		for (const item of s.shelf) {
+			if (shelfIds.has(item.id)) out.push(`shelf item ${item.id} is not unique`);
+			shelfIds.add(item.id);
+			if (item.id >= s.nextShelf) out.push(`shelf item ${item.id} is at or above next_shelf`);
+			if (shelfUris.has(item.location.uri)) out.push(`shelf item ${item.id} repeats a location`);
+			shelfUris.add(item.location.uri);
+		}
+		if (s.shelf.length > SHELF_LIMIT) out.push('too many shelf items');
 		if (s.closed.length > CLOSED_LIMIT) out.push('too many closed tabs');
 		for (const c of s.closed) {
 			if (tabs.has(c.tab.id)) out.push(`closed tab ${c.tab.id} is also open`);
@@ -883,6 +950,11 @@ class Reducer {
 			case 'setActiveWorkspace':
 			case 'setWorkspaceLocations':
 				return this.workspaces(c);
+			case 'addToShelf':
+			case 'removeFromShelf':
+			case 'clearShelf':
+			case 'moveShelfItem':
+				return this.shelf(c);
 			case 'createGroup':
 			case 'addToGroup':
 			case 'removeFromGroup':
@@ -962,6 +1034,49 @@ class Reducer {
 			case 'setWorkspaceLocations':
 				find(c.workspace).locations = unique(c.locations);
 				return;
+			default:
+				throw new Error(`routed elsewhere: ${c.kind}`);
+		}
+	}
+
+	// The Shelf (reducer/shelf.rs).
+
+	private shelf(c: FakeCommand): void {
+		const s = this.s;
+		// The Shelf is global but its events go to windows, so a command needs a live caller.
+		this.win();
+		switch (c.kind) {
+			case 'addToShelf': {
+				const seen = new Set(s.shelf.map((i) => i.location.uri));
+				const fresh = c.locations.filter((l) => !seen.has(l.uri) && seen.add(l.uri));
+				if (s.shelf.length + fresh.length > SHELF_LIMIT) throw shelfFull();
+				for (const location of fresh) {
+					s.shelf.push({
+						id: s.nextShelf,
+						location,
+						name: folderName(location.display),
+						addedMs: c.addedMs,
+						origin: originOf(location),
+					});
+					s.nextShelf += 1;
+				}
+				return;
+			}
+			case 'removeFromShelf': {
+				const gone = new Set(c.ids);
+				s.shelf = s.shelf.filter((i) => !gone.has(i.id));
+				return;
+			}
+			case 'clearShelf':
+				s.shelf = [];
+				return;
+			case 'moveShelfItem': {
+				const at = s.shelf.findIndex((i) => i.id === c.id);
+				if (at < 0) throw unknownShelfItem(c.id);
+				const moved = s.shelf.splice(at, 1);
+				s.shelf.splice(Math.min(c.toIndex, s.shelf.length), 0, ...moved);
+				return;
+			}
 			default:
 				throw new Error(`routed elsewhere: ${c.kind}`);
 		}

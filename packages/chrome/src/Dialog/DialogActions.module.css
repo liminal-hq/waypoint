@@ -1,0 +1,52 @@
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.button {
+	box-sizing: border-box;
+	min-block-size: var(--wp-control-height);
+	padding: 0 14px;
+	color: var(--wp-text-primary);
+	background: var(--wp-control-bg);
+	border: 1px solid transparent;
+	border-radius: 6px;
+	font: inherit;
+	font-size: 13px;
+	cursor: default;
+}
+
+.button:hover:not(:disabled) {
+	background: var(--wp-control-bg-hover);
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+.button:disabled {
+	opacity: 0.45;
+}
+
+.primary {
+	color: var(--wp-accent-contrast);
+	background: var(--wp-accent);
+}
+
+.primary:hover:not(:disabled) {
+	background: var(--wp-accent);
+	filter: brightness(1.1);
+}
+
+.danger {
+	color: var(--wp-danger-fg);
+	background: var(--wp-danger);
+}
+
+.danger:hover:not(:disabled) {
+	background: var(--wp-danger);
+	filter: brightness(1.1);
+}

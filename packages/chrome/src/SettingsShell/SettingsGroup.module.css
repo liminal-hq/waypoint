@@ -1,0 +1,40 @@
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.sectionDescription {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	line-height: 1.45;
+}
+
+.group {
+	min-inline-size: 0;
+}
+
+.groupTitle {
+	margin: 0 0 6px;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.groupDescription {
+	margin: 0 0 8px;
+	color: var(--wp-text-secondary);
+	line-height: 1.45;
+}
+
+.rows {
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.rows > * + * {
+	border-block-start: 1px solid var(--wp-border-subtle);
+}

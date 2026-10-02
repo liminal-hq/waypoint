@@ -52,6 +52,41 @@
 	}
 }
 
+/* The Trash lists where an item was and when it was trashed in place of Modified and Kind: Name, Original location, Date deleted, Size. */
+.view[data-layout='trash'] .columns {
+	grid-template-columns: minmax(var(--wp-name-min), 1.2fr) minmax(120px, 1fr) 168px 88px;
+}
+
+@container list (max-width: 639px) {
+	.view[data-layout='trash'] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 168px 88px;
+	}
+
+	.view[data-layout='trash'] .columns [data-column='original'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 463px) {
+	.view[data-layout='trash'] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 168px;
+	}
+
+	.view[data-layout='trash'] .columns [data-column='size'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 331px) {
+	.view[data-layout='trash'] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr);
+	}
+
+	.view[data-layout='trash'] .columns [data-column='deleted'] {
+		display: none;
+	}
+}
+
 .header {
 	flex: none;
 	height: var(--wp-row-height);
@@ -80,6 +115,15 @@
 
 .headerButton:hover {
 	color: var(--wp-text-primary);
+}
+
+/* A column that is not a sort key is a label, not a button. */
+.headerStatic {
+	cursor: default;
+}
+
+.headerStatic:hover {
+	color: inherit;
 }
 
 .headerButton:focus-visible {
@@ -156,6 +200,11 @@
 
 .row:hover {
 	background: var(--wp-bg-hover);
+}
+
+/* A cut waits on the clipboard to be moved: its row is dimmed until it is pasted or replaced. */
+.row[data-cut] {
+	opacity: 0.5;
 }
 
 .row[data-selected] {

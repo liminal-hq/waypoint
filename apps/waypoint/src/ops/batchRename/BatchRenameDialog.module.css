@@ -1,0 +1,175 @@
+.layout {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding-block-end: 4px;
+}
+
+.sectionHeading {
+	margin: 0 0 8px;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.card {
+	padding: 10px 12px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+}
+
+.cardHeader {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-block-end: 8px;
+}
+
+.cardHeading {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.spacer {
+	flex: 1;
+}
+
+.select,
+.button,
+.iconButton {
+	box-sizing: border-box;
+	min-block-size: var(--wp-control-height);
+	color: var(--wp-text-primary);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.select {
+	padding: 0 8px;
+	background: var(--wp-field-bg);
+}
+
+.button,
+.iconButton {
+	padding: 0 12px;
+	background: var(--wp-control-bg);
+	cursor: default;
+}
+
+.iconButton {
+	min-inline-size: var(--wp-control-height);
+	padding: 0;
+}
+
+.button:hover:not(:disabled),
+.iconButton:hover:not(:disabled) {
+	background: var(--wp-control-bg-hover);
+}
+
+.button:disabled,
+.iconButton:disabled {
+	opacity: 0.45;
+}
+
+.select:focus-visible,
+.button:focus-visible,
+.iconButton:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+.addRow {
+	display: flex;
+	gap: 8px;
+	margin-block-start: 8px;
+}
+
+.ruleError,
+.error {
+	margin: 8px 0 0;
+	color: var(--wp-danger);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.summary {
+	min-block-size: 20px;
+	font-weight: 600;
+}
+
+.extensionNote,
+.capped {
+	margin: 6px 0 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.tableWrap {
+	max-block-size: 260px;
+	margin-block-start: 8px;
+	overflow: auto;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+}
+
+.table {
+	inline-size: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.table th {
+	position: sticky;
+	inset-block-start: 0;
+	padding: 6px 10px;
+	text-align: start;
+	color: var(--wp-text-secondary);
+	background: var(--wp-bg-raised);
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.table td {
+	padding: 5px 10px;
+	vertical-align: top;
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.name {
+	overflow-wrap: anywhere;
+}
+
+.notes {
+	color: var(--wp-text-secondary);
+}
+
+/* A problem is a bar and bold text as well as a colour, so it reads without telling hues apart. */
+.table tr[data-problem='true'] td {
+	font-weight: 600;
+}
+
+.table tr[data-problem='true'] td:first-child {
+	border-inline-start: 3px solid var(--wp-danger);
+}
+
+.table tr[data-problem='true'] .notes {
+	color: var(--wp-danger);
+}
+
+.table tr[data-unchanged='true'] td {
+	color: var(--wp-text-muted);
+}

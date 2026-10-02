@@ -24,8 +24,10 @@ describe('the places', () => {
 			'pictures',
 			'music',
 			'videos',
+			'trash',
 		]);
 		expect(fakePlaces('/h')[2]!.location.display).toBe('/h/Documents');
+		expect(fakePlaces('/h')[7]!.location).toEqual({ display: 'Trash', uri: 'trash:/' });
 	});
 });
 

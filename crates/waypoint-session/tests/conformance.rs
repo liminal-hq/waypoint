@@ -29,6 +29,8 @@
 //   saveGroupAsWorkspace { group, name?: string }      renameWorkspace { workspace, name }
 //   deleteWorkspace { workspace }      setActiveWorkspace { workspace: id | null }
 //   setWorkspaceLocations { workspace, locations: [path] }
+//   addToShelf { locations: [path] }      removeFromShelf { ids: [n] }      clearShelf
+//   moveShelfItem { id, index }
 //   moveTabs  { what: { kind: "tabs" | "group" | "pair", value }, to: { kind: "existingWindow", label, index }
 //                                                                  | { kind: "newWindow" } }
 //
@@ -50,6 +52,7 @@
 //   closed     ids of the recently closed tabs, newest first
 //   windows    the window labels, in store order
 //   workspaces [ { id, name, locations: [path] } ] in creation order (they are global)
+//   shelf      [ { id, name, location: path, origin: path } ] in the Shelf's order (it is global)
 //   others     { "<label>": { ...the window facts above... } }
 //
 // A step with `"error": true` must fail and leave the state as it was. Revisions and events are not
@@ -57,8 +60,8 @@
 
 use serde_json::{json, Value};
 use waypoint_session::{
-    Command, GroupId, GroupSort, MoveTo, MoveWhat, PairId, PairLayout, Store, TabColour, TabId,
-    WindowState, WorkspaceId,
+    Command, GroupId, GroupSort, MoveTo, MoveWhat, PairId, PairLayout, ShelfItemId, Store,
+    TabColour, TabId, WindowState, WorkspaceId,
 };
 
 mod common;
@@ -208,6 +211,28 @@ fn command(op: &Value) -> Command {
                 .map(|l| loc(l.as_str().expect("location").trim_start_matches('/')))
                 .collect(),
         },
+        "addToShelf" => Command::AddToShelf {
+            locations: op["locations"]
+                .as_array()
+                .expect("locations")
+                .iter()
+                .map(|l| loc(l.as_str().expect("location").trim_start_matches('/')))
+                .collect(),
+            added_ms: 0,
+        },
+        "removeFromShelf" => Command::RemoveFromShelf {
+            ids: op["ids"]
+                .as_array()
+                .expect("ids")
+                .iter()
+                .map(|v| ShelfItemId(v.as_u64().expect("id")))
+                .collect(),
+        },
+        "clearShelf" => Command::ClearShelf,
+        "moveShelfItem" => Command::MoveShelfItem {
+            id: ShelfItemId(op["id"].as_u64().expect("id")),
+            to_index: op["index"].as_u64().expect("index") as usize,
+        },
         "closeWindow" => Command::CloseWindow,
         "moveTabs" => Command::MoveTabs {
             what: wire::<MoveWhat>(&op["what"]),
@@ -335,6 +360,21 @@ fn check(store: &Store, window: &str, expect: &Value, at: &str) {
             .collect();
         assert_eq!(&Value::Array(got), want, "{at}: workspaces");
     }
+    if let Some(want) = expect.get("shelf") {
+        let got: Vec<Value> = store
+            .shelf()
+            .iter()
+            .map(|i| {
+                json!({
+                    "id": i.id.0,
+                    "name": i.name,
+                    "location": i.location.display,
+                    "origin": i.origin.display,
+                })
+            })
+            .collect();
+        assert_eq!(&Value::Array(got), want, "{at}: shelf");
+    }
     if let Some(want) = expect.get("windows") {
         let got: Vec<Value> = store
             .windows()
@@ -410,4 +450,9 @@ fn windows_and_handoff() {
         "windows_and_handoff",
         include_str!("conformance/windows_and_handoff.json"),
     );
+}
+
+#[test]
+fn shelf() {
+    run_scenario("shelf", include_str!("conformance/shelf.json"));
 }

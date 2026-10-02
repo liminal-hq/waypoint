@@ -37,6 +37,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("waypoint-vfs")
         .invoke_handler(tauri::generate_handler![
             commands::get_status,
+            commands::get_trash_info,
             commands::open_listing,
             commands::get_range,
             commands::set_sort,
@@ -48,6 +49,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::entry_location,
             commands::summarise_selection,
             commands::get_free_space,
+            commands::check_folder,
             commands::open_entry,
             commands::list_places,
             commands::add_favourite,

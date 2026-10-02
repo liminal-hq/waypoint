@@ -1,0 +1,64 @@
+/*
+ * What a file drag draws on the page: the target under the pointer, the spring-load ring, the
+ * cursor. The hit test (`dropTargets.ts`) sets `data-drop-over` on the element and the root's
+ * `data-file-drag` to what a release would do; nothing here is colour alone: a refusing target is
+ * dashed, and the pill says why.
+ */
+[data-drop-over='ok'] {
+	outline: 2px solid var(--wp-drop-ok-outline);
+	outline-offset: -2px;
+	background-image: linear-gradient(var(--wp-drop-ok-fill), var(--wp-drop-ok-fill));
+}
+
+[data-drop-over='blocked'] {
+	outline: 2px dashed var(--wp-drop-blocked-outline);
+	outline-offset: -2px;
+	background-image: linear-gradient(var(--wp-drop-blocked-fill), var(--wp-drop-blocked-fill));
+}
+
+/* The ring fills over the spring-load delay: an inset edge that thickens, then the target opens. */
+[data-drop-over][data-drop-spring] {
+	animation: wp-drop-spring var(--wp-drop-spring-ms, 600ms) linear forwards;
+}
+
+@keyframes wp-drop-spring {
+	from {
+		box-shadow: inset 0 0 0 0 var(--wp-drop-spring-ring);
+	}
+
+	to {
+		box-shadow: inset 0 0 0 4px var(--wp-drop-spring-ring);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* No animation: the target shows a steady dotted edge for as long as it is arming. */
+	[data-drop-over][data-drop-spring] {
+		animation: none;
+		outline-style: dotted;
+		outline-width: 3px;
+	}
+}
+
+:root[data-file-drag] {
+	cursor: grabbing;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+:root[data-file-drag='copy'] *,
+:root[data-file-drag='pending'] * {
+	cursor: copy;
+}
+
+:root[data-file-drag='move'] * {
+	cursor: move;
+}
+
+:root[data-file-drag='link'] * {
+	cursor: alias;
+}
+
+:root[data-file-drag='blocked'] * {
+	cursor: not-allowed;
+}

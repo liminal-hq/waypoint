@@ -410,6 +410,53 @@ fn an_entry_resolves_to_its_location_and_selections_add_up() {
 }
 
 #[test]
+fn a_selection_resolves_to_locations_in_view_order_for_the_owning_window_only() {
+    let dir = folder_with(&["a.txt", "b.txt", "c.txt", ".hidden"]);
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let id = |name: &str| entries.iter().find(|e| e.name == name).unwrap().id;
+    let vfs = app.state::<Vfs>();
+    let names = |locations: Vec<Location>| -> Vec<String> {
+        locations
+            .into_iter()
+            .map(|l| l.display.rsplit('/').next().unwrap().to_owned())
+            .collect()
+    };
+
+    // Chosen ids come back in the order the view shows them, once each, whatever order they came in.
+    let chosen = waypoint_vfs::SelectionSpec::Chosen {
+        ids: vec![id("c.txt"), id("a.txt"), id("c.txt")],
+    };
+    let resolved = vfs
+        .resolve_selection("main", snapshot.handle, &chosen)
+        .unwrap();
+    assert_eq!(names(resolved.clone()), ["a.txt", "c.txt"]);
+    assert!(resolved[0].uri.starts_with("file://") && resolved[0].uri.ends_with("/a.txt"));
+
+    // "All except" covers the rest of the view, and not what the filter hides.
+    let rest = waypoint_vfs::SelectionSpec::AllExcept {
+        ids: vec![id("b.txt")],
+    };
+    let resolved = vfs
+        .resolve_selection("main", snapshot.handle, &rest)
+        .unwrap();
+    assert_eq!(names(resolved), ["a.txt", "c.txt"]);
+
+    // An id the view does not hold is dropped, as `summarise_selection` drops it.
+    let gone = waypoint_vfs::SelectionSpec::Chosen {
+        ids: vec![waypoint_protocol::EntryId(9999)],
+    };
+    assert!(vfs
+        .resolve_selection("main", snapshot.handle, &gone)
+        .unwrap()
+        .is_empty());
+
+    // Another window cannot resolve this window's listing.
+    let foreign = vfs.resolve_selection("other", snapshot.handle, &chosen);
+    assert_eq!(foreign, Err(VfsError::StaleHandle));
+}
+
+#[test]
 fn entry_commands_are_scoped_to_the_owning_window() {
     let dir = folder_with(&["a.txt"]);
     let app = app();
@@ -461,4 +508,128 @@ fn free_space_is_reported_for_a_real_folder_and_null_for_a_missing_one() {
     )))
     .unwrap();
     assert!(missing.is_none());
+}
+
+#[test]
+fn check_folder_tells_a_writable_folder_from_a_file_a_read_only_folder_and_a_missing_one() {
+    use std::os::unix::fs::PermissionsExt;
+    let app = app();
+    let dir = folder_with(&["a.txt"]);
+    let check = |path: &Path| {
+        tauri::async_runtime::block_on(commands::check_folder(app.state::<Vfs>(), location(path)))
+    };
+    let folder = check(dir.path()).unwrap();
+    assert!(folder.is_folder && folder.writable);
+    let file = check(&dir.path().join("a.txt")).unwrap();
+    assert!(!file.is_folder && !file.writable);
+    let locked = dir.path().join("locked");
+    fs::create_dir(&locked).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
+    let locked_check = check(&locked).unwrap();
+    assert!(locked_check.is_folder && !locked_check.writable);
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+    let missing = check(&dir.path().join("gone")).unwrap_err();
+    assert!(matches!(missing, Error::Vfs(VfsError::NotFound { .. })));
+}
+
+// ---- the Trash ----
+
+fn trash_location() -> Location {
+    Location::new("Trash", "trash:/")
+}
+
+fn trashed(id: &str, name: &str) -> waypoint_vfs::TrashedItem {
+    waypoint_vfs::TrashedItem {
+        id: id.to_owned(),
+        name: name.to_owned(),
+        original_path: "/home/a".to_owned(),
+        deleted_ms: 1_700_000_000_000,
+        size: 5,
+        is_dir: false,
+    }
+}
+
+#[test]
+fn the_trash_cannot_be_opened_until_the_app_gives_the_plugin_one() {
+    let app = app();
+    let error = open(&app, "main", trash_location()).unwrap_err();
+    assert!(matches!(error, Error::Vfs(VfsError::Unsupported { .. })));
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+    assert!(!info.available);
+    assert_eq!(info.count, 0);
+    assert!(info.reason.is_some());
+}
+
+#[test]
+fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
+    let source = std::sync::Arc::new(waypoint_vfs::MemoryTrashSource::new());
+    source.add(trashed("t|1", "zebra.txt"));
+    source.add(trashed("t|2", "apple.txt"));
+    let app = app();
+    app.state::<Vfs>().set_trash_source(source.clone());
+    let received = events(&window(&app, "main"));
+
+    let snapshot = open(&app, "main", trash_location()).unwrap();
+    assert!(snapshot.read_only);
+    assert_eq!(snapshot.layout, waypoint_vfs::ListingLayout::Trash);
+    wait_for(&received, is_ready);
+    let entries = range(&app, "main", snapshot.handle, 0, 10).unwrap();
+    assert_eq!(names(&entries), ["apple.txt", "zebra.txt"]);
+    assert_eq!(entries[0].original_path.as_deref(), Some("/home/a"));
+    assert_eq!(entries[0].deleted_ms, Some(1_700_000_000_000));
+
+    // An entry resolves to its `trash:` location, losslessly.
+    let at = tauri::async_runtime::block_on(commands::entry_location(
+        window(&app, "main"),
+        app.state::<Vfs>(),
+        snapshot.handle,
+        entries[0].id,
+    ))
+    .unwrap();
+    assert_eq!(at.uri, "trash:/t%7C2");
+
+    // Items are not opened in an application.
+    let refused = tauri::async_runtime::block_on(commands::open_entry(
+        window(&app, "main"),
+        app.state::<Vfs>(),
+        snapshot.handle,
+        entries[0].id,
+    ))
+    .unwrap_err();
+    assert!(matches!(refused, Error::Vfs(VfsError::Unsupported { .. })));
+
+    // What the sidebar reads.
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+    assert_eq!((info.available, info.count), (true, 2));
+    let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
+    assert!(status.features.contains(&"trash-view".to_owned()));
+
+    // An unavailable Trash says why where the list would be.
+    source.set_unavailable(Some("the Trash portal can only move files to the trash"));
+    let again = open(&app, "main", trash_location()).unwrap_err();
+    assert!(matches!(
+        again,
+        Error::Vfs(VfsError::Unsupported { what }) if what.contains("portal")
+    ));
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+    assert!(!info.available);
+    let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
+    assert!(!status.features.contains(&"trash-view".to_owned()));
+}
+
+#[test]
+fn the_trash_is_described_and_parsed_like_any_location() {
+    let info =
+        tauri::async_runtime::block_on(commands::describe_location(trash_location())).unwrap();
+    assert_eq!(info.parent, None);
+    assert_eq!(info.segments[0].label, "Trash");
+    let parsed = tauri::async_runtime::block_on(commands::parse_location(
+        "trash:".to_owned(),
+        trash_location(),
+    ))
+    .unwrap();
+    assert_eq!(parsed.uri, "trash:/");
 }

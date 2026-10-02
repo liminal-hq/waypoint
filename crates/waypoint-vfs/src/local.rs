@@ -3,21 +3,24 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::ffi::OsStr;
-use std::fs::{self, FileType, Metadata};
-use std::io;
+use std::ffi::{OsStr, OsString};
+use std::fs::{self, File, FileType, Metadata};
+use std::io::{self, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use waypoint_path::{CaseRule, FilePath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 
-use crate::error::from_io;
+use crate::error::{cause, from_io, from_io_pair, Cause};
 use crate::icon::group_for;
 use crate::model::EntryKind;
+use crate::names::validate_new_path;
 use crate::provider::{Capabilities, Provider, ScannedEntry, Watch, WatchSink};
+use crate::sys;
 use crate::watch::{self, WatchOptions};
-use crate::CancelToken;
+use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
+use crate::{CancelToken, VolumeSpace};
 
 /// How often a scan reports how far it has got. The listing throttles what it forwards.
 const PROGRESS_EVERY: u32 = 1024;
@@ -42,6 +45,9 @@ impl LocalProvider {
 fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
     match path {
         VfsPath::File(path) => Ok(path),
+        other => Err(VfsError::Unsupported {
+            what: format!("the {} scheme in the local provider", other.scheme()),
+        }),
     }
 }
 
@@ -122,6 +128,7 @@ fn build(
         size: shown.as_ref().filter(|_| shows_size).map(Metadata::len),
         modified_ms: shown.as_ref().and_then(|m| m.modified().ok()).map(to_ms),
         hidden,
+        trashed: None,
     }
 }
 
@@ -201,6 +208,267 @@ impl Provider for LocalProvider {
             sink,
         )
     }
+
+    fn create_dir(&self, path: &VfsPath) -> Result<(), VfsError> {
+        validate_new_path(path, CaseRule::NATIVE)?;
+        let file = file_path(path)?;
+        fs::create_dir(file.as_path()).map_err(|e| from_io(&e, &path.to_location()))
+    }
+
+    fn create_file(&self, path: &VfsPath) -> Result<(), VfsError> {
+        validate_new_path(path, CaseRule::NATIVE)?;
+        let file = file_path(path)?;
+        sys::open_write(file.as_path(), true, None)
+            .map(drop)
+            .map_err(|e| from_io(&e, &path.to_location()))
+    }
+
+    fn rename(&self, from: &VfsPath, to: &VfsPath, overwrite: bool) -> Result<(), VfsError> {
+        validate_new_path(to, CaseRule::NATIVE)?;
+        let (source, target) = (file_path(from)?, file_path(to)?);
+        let (from_loc, to_loc) = (from.to_location(), to.to_location());
+        sys::rename(source.as_path(), target.as_path(), overwrite).map_err(|error| {
+            match from_io_pair(&error, &from_loc, &to_loc) {
+                // The error alone cannot say which side is missing. A source that is still there
+                // means the destination's parent is the missing part.
+                VfsError::NotFound { .. } if fs::symlink_metadata(source.as_path()).is_ok() => {
+                    VfsError::NotFound { location: to_loc }
+                }
+                // A folder that would be replaced is not empty: that is the destination.
+                VfsError::NotEmpty { .. } => VfsError::NotEmpty { location: to_loc },
+                other => other,
+            }
+        })
+    }
+
+    fn remove_file(&self, path: &VfsPath) -> Result<(), VfsError> {
+        let location = path.to_location();
+        let file = file_path(path)?.as_path();
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileTypeExt;
+            // Windows removes a link to a folder as a folder, and refuses a real folder.
+            if let Ok(meta) = fs::symlink_metadata(file) {
+                let kind = meta.file_type();
+                if kind.is_symlink_dir() {
+                    return fs::remove_dir(file).map_err(|e| from_io(&e, &location));
+                }
+                if kind.is_dir() {
+                    return Err(VfsError::IsADirectory { location });
+                }
+            }
+        }
+        fs::remove_file(file).map_err(|error| {
+            // Some systems answer unlinking a folder with "not permitted" rather than "is a folder".
+            let is_folder = matches!(cause(&error), Cause::PermissionDenied | Cause::IsADirectory)
+                && fs::symlink_metadata(file).is_ok_and(|m| m.is_dir());
+            if is_folder {
+                VfsError::IsADirectory {
+                    location: location.clone(),
+                }
+            } else {
+                from_io(&error, &location)
+            }
+        })
+    }
+
+    fn remove_dir(&self, path: &VfsPath) -> Result<(), VfsError> {
+        let location = path.to_location();
+        let file = file_path(path)?.as_path();
+        #[cfg(windows)]
+        if fs::symlink_metadata(file).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(VfsError::NotADirectory { location });
+        }
+        fs::remove_dir(file).map_err(|error| match cause(&error) {
+            // POSIX lets a file system answer "not empty" with `EEXIST`.
+            Cause::AlreadyExists => VfsError::NotEmpty {
+                location: location.clone(),
+            },
+            _ => from_io(&error, &location),
+        })
+    }
+
+    fn open_read(&self, path: &VfsPath) -> Result<ReadStream, VfsError> {
+        let location = path.to_location();
+        let file = File::open(file_path(path)?.as_path()).map_err(|e| from_io(&e, &location))?;
+        // Opening a folder succeeds on Linux and fails at the first read; say so now.
+        if file.metadata().is_ok_and(|m| m.is_dir()) {
+            return Err(VfsError::IsADirectory { location });
+        }
+        Ok(Box::new(file))
+    }
+
+    fn create_write(
+        &self,
+        path: &VfsPath,
+        options: WriteOptions,
+    ) -> Result<Box<dyn WriteStream>, VfsError> {
+        validate_new_path(path, CaseRule::NATIVE)?;
+        let location = path.to_location();
+        let file = sys::open_write(file_path(path)?.as_path(), options.exclusive, options.mode)
+            .map_err(|e| from_io(&e, &location))?;
+        Ok(Box::new(LocalWrite { file, location }))
+    }
+
+    fn set_times(&self, path: &VfsPath, times: FileTimes) -> Result<(), VfsError> {
+        let file = file_path(path)?.as_path();
+        let location = path.to_location();
+        if times == FileTimes::default() {
+            // Nothing to change, but a missing entry is still an error (the kernel skips the
+            // lookup when both times are omitted).
+            return fs::symlink_metadata(file)
+                .map(drop)
+                .map_err(|e| from_io(&e, &location));
+        }
+        sys::set_times(file, times).map_err(|e| from_io(&e, &location))
+    }
+
+    fn permissions(&self, path: &VfsPath) -> Result<Permissions, VfsError> {
+        let meta = fs::metadata(file_path(path)?.as_path())
+            .map_err(|e| from_io(&e, &path.to_location()))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = meta.permissions().mode() & 0o7777;
+            Ok(Permissions {
+                mode: Some(mode),
+                readonly: mode & 0o222 == 0,
+            })
+        }
+        #[cfg(windows)]
+        Ok(Permissions {
+            mode: None,
+            readonly: meta.permissions().readonly(),
+        })
+    }
+
+    fn set_permissions(&self, path: &VfsPath, permissions: Permissions) -> Result<(), VfsError> {
+        let location = path.to_location();
+        let file = file_path(path)?.as_path();
+        let meta = fs::symlink_metadata(file).map_err(|e| from_io(&e, &location))?;
+        if meta.file_type().is_symlink() {
+            return Err(VfsError::Unsupported {
+                what: "setting the permissions of a symlink".to_owned(),
+            });
+        }
+        let mut new = meta.permissions();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = match permissions.mode {
+                Some(mode) => mode & 0o7777,
+                None if permissions.readonly => new.mode() & !0o222,
+                None => new.mode() | 0o200,
+            };
+            new.set_mode(mode);
+        }
+        #[cfg(windows)]
+        new.set_readonly(permissions.readonly);
+        fs::set_permissions(file, new).map_err(|e| from_io(&e, &location))
+    }
+
+    fn symlink(&self, link: &VfsPath, target: &OsStr) -> Result<(), VfsError> {
+        validate_new_path(link, CaseRule::NATIVE)?;
+        let location = link.to_location();
+        let at = file_path(link)?.as_path();
+        #[cfg(unix)]
+        let made = std::os::unix::fs::symlink(target, at);
+        #[cfg(windows)]
+        let made = {
+            // Windows needs to know whether the link points at a folder.
+            let resolved = at.parent().map(|dir| dir.join(target));
+            if resolved.is_some_and(|p| fs::metadata(p).is_ok_and(|m| m.is_dir())) {
+                std::os::windows::fs::symlink_dir(target, at)
+            } else {
+                std::os::windows::fs::symlink_file(target, at)
+            }
+        };
+        made.map_err(|e| from_io(&e, &location))
+    }
+
+    fn read_link(&self, path: &VfsPath) -> Result<OsString, VfsError> {
+        fs::read_link(file_path(path)?.as_path())
+            .map(|target| target.into_os_string())
+            .map_err(|e| from_io(&e, &path.to_location()))
+    }
+
+    fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
+        let location = path.to_location();
+        let resolved =
+            fs::canonicalize(file_path(path)?.as_path()).map_err(|e| from_io(&e, &location))?;
+        // Windows answers with a verbatim `\\?\` path; drop the prefix where the rest is a plain drive path.
+        #[cfg(windows)]
+        let resolved = {
+            let text = resolved.to_string_lossy().into_owned();
+            match text.strip_prefix(r"\\?\") {
+                Some(rest) if !rest.starts_with("UNC\\") => std::path::PathBuf::from(rest),
+                _ => resolved,
+            }
+        };
+        FilePath::from_path(&resolved)
+            .map(VfsPath::File)
+            .map_err(|_| VfsError::InvalidLocation {
+                input: resolved.to_string_lossy().into_owned(),
+            })
+    }
+
+    fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
+        let file = file_path(path).ok()?;
+        sys::volume_id(file.as_path()).ok().map(VolumeId)
+    }
+
+    fn free_space(&self, path: &VfsPath) -> Option<VolumeSpace> {
+        crate::space::query(file_path(path).ok()?)
+    }
+
+    fn copy_file_within(
+        &self,
+        src: &VfsPath,
+        dst: &VfsPath,
+        progress: &mut dyn FnMut(u64),
+        cancel: &CancelToken,
+    ) -> Option<Result<u64, VfsError>> {
+        if let Err(error) = validate_new_path(dst, CaseRule::NATIVE) {
+            return Some(Err(error));
+        }
+        let (from, to) = (file_path(src).ok()?, file_path(dst).ok()?);
+        match sys::copy_fast(from.as_path(), to.as_path(), progress, cancel) {
+            sys::Fast::Unhandled => None,
+            sys::Fast::Done(bytes) => Some(Ok(bytes)),
+            sys::Fast::Cancelled => Some(Err(VfsError::Cancelled)),
+            sys::Fast::Failed(error) => Some(Err(from_io_pair(
+                &error,
+                &src.to_location(),
+                &dst.to_location(),
+            ))),
+        }
+    }
+}
+
+/// A file being written through `LocalProvider::create_write`.
+struct LocalWrite {
+    file: File,
+    location: Location,
+}
+
+impl Write for LocalWrite {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.file.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+}
+
+impl WriteStream for LocalWrite {
+    fn finish(mut self: Box<Self>, sync: bool) -> Result<(), VfsError> {
+        let done = self
+            .file
+            .flush()
+            .and_then(|()| if sync { self.file.sync_all() } else { Ok(()) });
+        done.map_err(|e| from_io(&e, &self.location))
+    }
 }
 
 /// Reads a folder into entries, resolving up to `inline_link_budget` symlinks on the way.
@@ -218,10 +486,23 @@ pub(crate) fn list_folder(
         if cancel.is_cancelled() {
             return Err(VfsError::Cancelled);
         }
-        // An entry that vanishes or cannot be read mid-scan is skipped, not fatal.
-        let Ok(item) = item else { continue };
+        // An entry that vanished mid-scan is skipped. Any other failure is surfaced: a listing
+        // that silently misses entries would let a copy or a duplicate finish with files absent.
+        let item = match item {
+            Ok(item) => item,
+            Err(error) => match skip_vanished(&error, location) {
+                Ok(()) => continue,
+                Err(error) => return Err(error),
+            },
+        };
         let name = item.file_name();
-        let file_type = item.file_type().ok();
+        let file_type = match item.file_type() {
+            Ok(file_type) => Some(file_type),
+            Err(error) => match skip_vanished(&error, location) {
+                Ok(()) => continue,
+                Err(error) => return Err(error),
+            },
+        };
         let meta = item.metadata().ok();
         let is_link = file_type.as_ref().is_some_and(FileType::is_symlink);
         let resolve = is_link && budget > 0;
@@ -237,9 +518,42 @@ pub(crate) fn list_folder(
     Ok(entries)
 }
 
+/// Decides what a failure while reading one directory entry means: `Ok` when the entry vanished
+/// since the read began (nothing to list), otherwise the typed error for the folder.
+fn skip_vanished(error: &io::Error, location: &Location) -> Result<(), VfsError> {
+    match from_io(error, location) {
+        VfsError::NotFound { .. } => Ok(()),
+        other => Err(other),
+    }
+}
+
 /// Describes one child of `folder`, resolving it if it is a symlink.
 pub(crate) fn stat_child(folder: &Path, name: &OsStr) -> io::Result<ScannedEntry> {
     let full = folder.join(name);
     let meta = fs::symlink_metadata(&full)?;
     Ok(build(name, Some(meta.file_type()), Some(meta), &full, true))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_vanished_entry_is_skipped() {
+        let location = Location::new("/x", "file:///x");
+        let gone = io::Error::from(io::ErrorKind::NotFound);
+        assert_eq!(skip_vanished(&gone, &location), Ok(()));
+    }
+
+    #[test]
+    fn any_other_entry_failure_is_surfaced() {
+        let location = Location::new("/x", "file:///x");
+        let denied = io::Error::from(io::ErrorKind::PermissionDenied);
+        assert!(matches!(
+            skip_vanished(&denied, &location),
+            Err(VfsError::PermissionDenied { .. })
+        ));
+        let broken = io::Error::other("input/output error");
+        assert!(skip_vanished(&broken, &location).is_err());
+    }
 }
