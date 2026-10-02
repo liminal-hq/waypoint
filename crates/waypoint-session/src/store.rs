@@ -4,13 +4,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::model::{
-    ClosedTab, SessionEvent, SessionSnapshot, StoreSnapshot, TabId, ViewPrefs, WindowEvent,
-    WindowState, WindowSummary, Workspace,
+    ClosedTab, SessionEvent, SessionSnapshot, ShelfItem, StoreSnapshot, TabId, ViewPrefs,
+    WindowEvent, WindowState, WindowSummary, Workspace,
 };
 use crate::reducer::{reduce, Command, SessionError};
 
 /// How many closed tabs the store remembers.
 pub const CLOSED_LIMIT: usize = 10;
+
+/// How many items the Shelf holds; adding beyond it is refused.
+pub const SHELF_LIMIT: usize = 500;
 
 /// Knobs that differ between the app and the milestone 2 compatibility view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,6 +84,9 @@ pub struct Store {
     /// Global, in creation order.
     pub(crate) workspaces: Vec<Workspace>,
     pub(crate) next_workspace: u32,
+    /// Global, in the order items were added (the panel shows the newest first).
+    pub(crate) shelf: Vec<ShelfItem>,
+    pub(crate) next_shelf: u64,
     pub(crate) policy: StorePolicy,
     /// The view a window made from now on starts with (the Settings window's choice). Not part of
     /// the document: windows already in the store keep their own.
@@ -110,6 +116,8 @@ impl Store {
             next_window: 1,
             workspaces: Vec::new(),
             next_workspace: 1,
+            shelf: Vec::new(),
+            next_shelf: 1,
             policy,
             new_window_view: ViewPrefs::default(),
         }
@@ -180,6 +188,27 @@ impl Store {
         self
     }
 
+    /// The Shelf, in the order items were added.
+    pub fn shelf(&self) -> &[ShelfItem] {
+        &self.shelf
+    }
+
+    /// Empties the Shelf without a mutation (no revision, no event), keeping the id counter so
+    /// ids are still never reused. The app does it at start-up when the Shelf is not to persist.
+    pub fn forget_shelf(&mut self) {
+        self.shelf.clear();
+    }
+
+    /// A fresh store (no windows, closed tabs or workspaces) that keeps only this one's Shelf and
+    /// the counter that stops its ids being reused. The app starts from it when the start-up
+    /// setting is not to restore the session but the Shelf is still kept.
+    pub fn shelf_only(&self) -> Store {
+        let mut store = Store::with_policy(self.policy);
+        store.shelf = self.shelf.clone();
+        store.next_shelf = self.next_shelf;
+        store
+    }
+
     /// The window `tab` is in.
     pub fn window_of(&self, tab: TabId) -> Option<&WindowState> {
         self.windows.iter().find(|w| w.index_of(tab).is_some())
@@ -200,6 +229,7 @@ impl Store {
             closed: self.closed.clone(),
             workspaces: self.workspaces.clone(),
             workspace: w.workspace,
+            shelf: self.shelf.clone(),
         })
     }
 
@@ -224,6 +254,8 @@ impl Store {
             next_window: self.next_window,
             workspaces: self.workspaces.clone(),
             next_workspace: self.next_workspace,
+            shelf: self.shelf.clone(),
+            next_shelf: self.next_shelf,
         }
     }
 
@@ -291,6 +323,25 @@ impl Store {
             if w.workspace.is_some_and(|id| !workspace_ids.contains(&id)) {
                 out.push(format!("{}: the active workspace does not exist", w.label));
             }
+        }
+        let mut shelf_ids = std::collections::HashSet::new();
+        let mut shelf_uris = std::collections::HashSet::new();
+        for item in &self.shelf {
+            if !shelf_ids.insert(item.id) {
+                out.push(format!("shelf item {} is not unique", item.id.0));
+            }
+            if item.id.0 >= self.next_shelf {
+                out.push(format!(
+                    "shelf item {} is at or above next_shelf",
+                    item.id.0
+                ));
+            }
+            if !shelf_uris.insert(item.location.uri.as_str()) {
+                out.push(format!("shelf item {} repeats a location", item.id.0));
+            }
+        }
+        if self.shelf.len() > SHELF_LIMIT {
+            out.push("too many shelf items".to_string());
         }
         if self.closed.len() > CLOSED_LIMIT {
             out.push("too many closed tabs".to_string());

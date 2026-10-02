@@ -13,13 +13,14 @@ use waypoint_protocol::Location;
 
 use crate::diff::store_events;
 use crate::model::{
-    Geometry, GroupId, PairId, PairLayout, SessionEvent, SessionSnapshot, TabColour, TabHints,
-    TabId, ViewPrefs, WindowState, WorkspaceId,
+    Geometry, GroupId, PairId, PairLayout, SessionEvent, SessionSnapshot, ShelfItemId, TabColour,
+    TabHints, TabId, ViewPrefs, WindowState, WorkspaceId,
 };
 use crate::store::{Outcome, Store, StorePolicy, CLOSED_LIMIT};
 
 mod groups;
 mod pairs;
+mod shelf;
 mod tabs;
 mod windows;
 mod workspaces;
@@ -234,6 +235,26 @@ pub enum Command {
         locations: Vec<Location>,
     },
 
+    // The Shelf (global: every window sees it).
+    /// Puts locations on the Shelf, after the items already there. A location already on it is
+    /// left where it is, and a batch that would take the Shelf past `SHELF_LIMIT` is refused whole
+    /// with `ShelfFull`. `added_ms` is the time to record, which the caller reads from its clock.
+    AddToShelf {
+        locations: Vec<Location>,
+        added_ms: u64,
+    },
+    /// Takes items off the Shelf. An id that is not there (another window removed it first) is
+    /// ignored. The items' files are untouched.
+    RemoveFromShelf {
+        ids: Vec<ShelfItemId>,
+    },
+    ClearShelf,
+    /// Moves an item to `to_index` in the Shelf's order (clamped).
+    MoveShelfItem {
+        id: ShelfItemId,
+        to_index: usize,
+    },
+
     // Windows.
     /// Makes a window `main-{n}`, with a first tab at `location` when given.
     OpenWindow {
@@ -277,6 +298,11 @@ pub enum SessionError {
     /// Workspace names are compared ignoring case and surrounding space.
     #[error("a workspace named \"{0}\" already exists")]
     WorkspaceNameTaken(String),
+    #[error("no such Shelf item: {0}")]
+    UnknownShelfItem(u64),
+    /// Adding would take the Shelf past its limit; nothing was added.
+    #[error("the Shelf is full: it holds at most {0} items")]
+    ShelfFull(usize),
     #[error("tab {0} is already in a pair")]
     AlreadyPaired(u32),
     #[error("invalid command: {0}")]
@@ -333,6 +359,10 @@ pub(crate) fn reduce(
         | Command::DeleteWorkspace { .. }
         | Command::SetActiveWorkspace { .. }
         | Command::SetWorkspaceLocations { .. } => workspaces::apply(&mut next, window, command)?,
+        Command::AddToShelf { .. }
+        | Command::RemoveFromShelf { .. }
+        | Command::ClearShelf
+        | Command::MoveShelfItem { .. } => shelf::apply(&mut next, window, command)?,
         Command::OpenWindow { .. }
         | Command::RegisterWindow { .. }
         | Command::CloseWindow
@@ -414,6 +444,8 @@ pub(crate) fn store_from_snapshot(snapshot: &SessionSnapshot) -> Store {
         workspace: snapshot.workspace,
     });
     store.workspaces = snapshot.workspaces.clone();
+    store.shelf = snapshot.shelf.clone();
+    store.next_shelf = snapshot.shelf.iter().map(|i| i.id.0).max().unwrap_or(0) + 1;
     store.next_workspace = snapshot
         .workspaces
         .iter()

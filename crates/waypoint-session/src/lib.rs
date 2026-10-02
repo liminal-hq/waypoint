@@ -28,4 +28,4 @@ pub use document::{Document, DocumentError, SessionStorage, StorageError, DOCUME
 pub use model::*;
 pub use reducer::{apply, Command, GroupSort, MoveTo, MoveWhat, SessionError};
 pub use session::Session;
-pub use store::{Outcome, Store, StorePolicy, CLOSED_LIMIT};
+pub use store::{Outcome, Store, StorePolicy, CLOSED_LIMIT, SHELF_LIMIT};

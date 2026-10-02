@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
-use crate::model::{StoreSnapshot, TabId, TabSnapshot, WindowState, Workspace};
-use crate::store::{equal_sizes, workspace_key, Store, StorePolicy, CLOSED_LIMIT};
+use crate::model::{ShelfItem, StoreSnapshot, TabId, TabSnapshot, WindowState, Workspace};
+use crate::store::{equal_sizes, workspace_key, Store, StorePolicy, CLOSED_LIMIT, SHELF_LIMIT};
 use waypoint_protocol::WindowKind;
 
 /// The document format this build writes and reads.
@@ -97,6 +97,8 @@ impl Store {
         store.next_window = body.next_window.max(1);
         store.next_workspace = body.next_workspace.max(1);
         repair_workspaces(&mut store, body.workspaces, &mut notes);
+        store.next_shelf = body.next_shelf.max(1);
+        repair_shelf(&mut store, body.shelf, &mut notes);
 
         let mut labels: HashSet<String> = HashSet::new();
         let mut tabs: HashSet<TabId> = HashSet::new();
@@ -259,6 +261,21 @@ fn repair_workspaces(store: &mut Store, workspaces: Vec<Workspace>, notes: &mut 
     }
 }
 
+/// Keeps the Shelf items that have an id and a location nobody else has, up to the limit.
+fn repair_shelf(store: &mut Store, shelf: Vec<ShelfItem>, notes: &mut Vec<String>) {
+    let mut ids = HashSet::new();
+    let mut uris = HashSet::new();
+    for item in shelf {
+        if !ids.insert(item.id) || !uris.insert(item.location.uri.clone()) {
+            notes.push(format!("dropped Shelf item {}: a repeat", item.id.0));
+        } else if store.shelf.len() >= SHELF_LIMIT {
+            notes.push(format!("dropped Shelf item {}: past the limit", item.id.0));
+        } else {
+            store.shelf.push(item);
+        }
+    }
+}
+
 /// Makes every counter exceed every id in use, so new ids never collide with restored ones.
 fn raise_counters(store: &mut Store) {
     let mut tab = 0;
@@ -284,4 +301,6 @@ fn raise_counters(store: &mut Store) {
     store.next_window = store.next_window.max(window + 1);
     let workspace = store.workspaces.iter().map(|w| w.id.0).max().unwrap_or(0);
     store.next_workspace = store.next_workspace.max(workspace + 1);
+    let shelf = store.shelf.iter().map(|i| i.id.0).max().unwrap_or(0);
+    store.next_shelf = store.next_shelf.max(shelf + 1);
 }

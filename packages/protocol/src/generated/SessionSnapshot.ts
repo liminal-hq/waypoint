@@ -3,6 +3,7 @@ import type { ClosedTab } from "./ClosedTab";
 import type { Geometry } from "./Geometry";
 import type { Group } from "./Group";
 import type { Pair } from "./Pair";
+import type { ShelfItem } from "./ShelfItem";
 import type { TabId } from "./TabId";
 import type { TabSnapshot } from "./TabSnapshot";
 import type { ViewPrefs } from "./ViewPrefs";
@@ -39,4 +40,8 @@ workspaces: Array<Workspace>,
 /**
  * This window's active workspace.
  */
-workspace: WorkspaceId | null, };
+workspace: WorkspaceId | null, 
+/**
+ * The Shelf (global), in the order items were added.
+ */
+shelf: Array<ShelfItem>, };

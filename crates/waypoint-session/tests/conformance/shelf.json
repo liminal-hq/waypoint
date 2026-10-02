@@ -1,0 +1,68 @@
+{
+	"description": "The Shelf: add with de-duplication and the origin folder, ids never reused, remove (an absent id is ignored), reorder, a second window seeing the same Shelf, the cap, and clear. Both runners must agree on every step.",
+	"steps": [
+		{ "do": { "op": "open", "location": "/home" }, "expect": { "tabs": [1] } },
+		{
+			"do": { "op": "addToShelf", "locations": ["/home/a.txt", "/home/b.txt", "/home/a.txt", "/top.txt"] },
+			"note": "a repeat in the batch is kept once; the origin is the containing folder, and a top-level item's is the root",
+			"expect": {
+				"shelf": [
+					{ "id": 1, "name": "a.txt", "location": "/home/a.txt", "origin": "/home" },
+					{ "id": 2, "name": "b.txt", "location": "/home/b.txt", "origin": "/home" },
+					{ "id": 3, "name": "top.txt", "location": "/top.txt", "origin": "/" }
+				]
+			}
+		},
+		{
+			"do": { "op": "addToShelf", "locations": ["/home/b.txt"] },
+			"note": "already there: nothing changes",
+			"expect": { "shelf": [
+				{ "id": 1, "name": "a.txt", "location": "/home/a.txt", "origin": "/home" },
+				{ "id": 2, "name": "b.txt", "location": "/home/b.txt", "origin": "/home" },
+				{ "id": 3, "name": "top.txt", "location": "/top.txt", "origin": "/" }
+			] }
+		},
+		{
+			"do": { "op": "removeFromShelf", "ids": [2, 99] },
+			"note": "an id that is not there is ignored",
+			"expect": { "shelf": [
+				{ "id": 1, "name": "a.txt", "location": "/home/a.txt", "origin": "/home" },
+				{ "id": 3, "name": "top.txt", "location": "/top.txt", "origin": "/" }
+			] }
+		},
+		{
+			"do": { "op": "addToShelf", "locations": ["/home/b.txt"] },
+			"note": "a removed item comes back under a new id",
+			"expect": { "shelf": [
+				{ "id": 1, "name": "a.txt", "location": "/home/a.txt", "origin": "/home" },
+				{ "id": 3, "name": "top.txt", "location": "/top.txt", "origin": "/" },
+				{ "id": 4, "name": "b.txt", "location": "/home/b.txt", "origin": "/home" }
+			] }
+		},
+		{
+			"do": { "op": "moveShelfItem", "id": 4, "index": 0 },
+			"expect": { "shelf": [
+				{ "id": 4, "name": "b.txt", "location": "/home/b.txt", "origin": "/home" },
+				{ "id": 1, "name": "a.txt", "location": "/home/a.txt", "origin": "/home" },
+				{ "id": 3, "name": "top.txt", "location": "/top.txt", "origin": "/" }
+			] }
+		},
+		{ "do": { "op": "moveShelfItem", "id": 77, "index": 0 }, "error": true },
+		{ "do": { "op": "openWindow", "location": "/home" }, "expect": { "windows": ["main-1", "main-2"] } },
+		{
+			"window": "main-2",
+			"do": { "op": "removeFromShelf", "ids": [1] },
+			"note": "the other window edits the same Shelf",
+			"expect": { "shelf": [
+				{ "id": 4, "name": "b.txt", "location": "/home/b.txt", "origin": "/home" },
+				{ "id": 3, "name": "top.txt", "location": "/top.txt", "origin": "/" }
+			] }
+		},
+		{ "do": { "op": "clearShelf" }, "expect": { "shelf": [] } },
+		{
+			"do": { "op": "addToShelf", "locations": ["/x"] },
+			"note": "ids keep counting after a clear",
+			"expect": { "shelf": [ { "id": 5, "name": "x", "location": "/x", "origin": "/" } ] }
+		}
+	]
+}

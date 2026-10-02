@@ -42,6 +42,30 @@ pub struct Workspace {
     pub locations: Vec<Location>,
 }
 
+/// Names a Shelf item. Global to the store, never reused while the store lives and kept across a
+/// restart, so a window that remembers an id never meets a different item under it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ShelfItemId(#[ts(type = "number")] pub u64);
+
+/// One reference on the Shelf: a place to find a file or folder again, shared by every window.
+/// It points at the item and holds nothing of it; the item can move or go without the Shelf being
+/// told, which the panel shows as missing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ShelfItem {
+    pub id: ShelfItemId,
+    pub location: Location,
+    /// What the item is called, taken from the location when it was added.
+    pub name: String,
+    /// When it was added, in milliseconds since the Unix epoch.
+    #[ts(type = "number")]
+    pub added_ms: u64,
+    /// The folder the item sits in (the item itself for a root), which the panel groups by.
+    pub origin: Location,
+}
+
 /// A colour label for a tab or a group. The theme decides the actual shade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -247,7 +271,7 @@ pub struct WindowSummary {
 
 /// The last component of a display path, which is what a tab is titled with. A root (`/`,
 /// `C:\`) is its own title.
-fn folder_name(display: &str) -> &str {
+pub(crate) fn folder_name(display: &str) -> &str {
     let trimmed = display.trim_end_matches(['/', '\\']);
     match trimmed.rsplit(['/', '\\']).next() {
         Some(name) if !name.is_empty() => name,
@@ -299,6 +323,8 @@ pub struct SessionSnapshot {
     pub workspaces: Vec<Workspace>,
     /// This window's active workspace.
     pub workspace: Option<WorkspaceId>,
+    /// The Shelf (global), in the order items were added.
+    pub shelf: Vec<ShelfItem>,
 }
 
 impl SessionSnapshot {
@@ -316,6 +342,7 @@ impl SessionSnapshot {
             closed: Vec::new(),
             workspaces: Vec::new(),
             workspace: None,
+            shelf: Vec::new(),
         }
     }
 }
@@ -444,6 +471,13 @@ pub enum SessionEvent {
         #[ts(type = "number")]
         revision: u64,
     },
+    /// The Shelf changed (items added, removed, reordered or cleared); the list is whole. The
+    /// Shelf is global, so every window gets this event.
+    ShelfChanged {
+        shelf: Vec<ShelfItem>,
+        #[ts(type = "number")]
+        revision: u64,
+    },
 }
 
 impl SessionEvent {
@@ -468,7 +502,8 @@ impl SessionEvent {
             | Self::ViewChanged { revision, .. }
             | Self::GeometryChanged { revision, .. }
             | Self::WorkspacesChanged { revision, .. }
-            | Self::WorkspaceActivated { revision, .. } => *revision,
+            | Self::WorkspaceActivated { revision, .. }
+            | Self::ShelfChanged { revision, .. } => *revision,
         }
     }
 
@@ -493,7 +528,8 @@ impl SessionEvent {
             | Self::ViewChanged { revision, .. }
             | Self::GeometryChanged { revision, .. }
             | Self::WorkspacesChanged { revision, .. }
-            | Self::WorkspaceActivated { revision, .. } => *revision = value,
+            | Self::WorkspaceActivated { revision, .. }
+            | Self::ShelfChanged { revision, .. } => *revision = value,
         }
     }
 }
@@ -526,4 +562,14 @@ pub struct StoreSnapshot {
     pub workspaces: Vec<Workspace>,
     #[serde(default)]
     pub next_workspace: u32,
+    /// Absent from documents written before the Shelf existed, which load with it empty.
+    #[serde(default)]
+    pub shelf: Vec<ShelfItem>,
+    #[serde(default = "first_shelf_id")]
+    #[ts(type = "number")]
+    pub next_shelf: u64,
+}
+
+fn first_shelf_id() -> u64 {
+    1
 }
