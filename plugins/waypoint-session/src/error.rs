@@ -26,6 +26,7 @@ impl Error {
     fn kind(&self) -> &'static str {
         match self {
             Error::Internal(_) => "internal",
+            Error::Session(waypoint_session::SessionError::ShelfFull(_)) => "shelfFull",
             Error::Session(_) => "session",
             Error::Window(_) => "window",
             Error::TooManyWindows { .. } => "tooManyWindows",
@@ -39,13 +40,17 @@ impl serde::Serialize for Error {
         S: serde::Serializer,
     {
         use serde::ser::SerializeMap;
-        // `{ kind, message }`, plus `limit` for `tooManyWindows`, so the page can tell the refusal
+        // `{ kind, message }`, plus `limit` for `tooManyWindows` and `shelfFull`, so the page can tell the refusal
         // from a failure and say it in its own words.
         let mut map = serializer.serialize_map(None)?;
         map.serialize_entry("kind", self.kind())?;
         map.serialize_entry("message", &self.to_string())?;
-        if let Error::TooManyWindows { limit } = self {
-            map.serialize_entry("limit", limit)?;
+        match self {
+            Error::TooManyWindows { limit } => map.serialize_entry("limit", limit)?,
+            Error::Session(waypoint_session::SessionError::ShelfFull(limit)) => {
+                map.serialize_entry("limit", limit)?
+            }
+            _ => {}
         }
         map.end()
     }

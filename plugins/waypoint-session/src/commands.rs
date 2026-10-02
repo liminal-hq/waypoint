@@ -12,8 +12,8 @@ use tauri::{Emitter, Manager, Runtime, State, WebviewWindow};
 use waypoint_protocol::{Location, PluginStatus};
 use waypoint_session::{
     Command, Geometry, GroupId, GroupSort, MoveTo, MoveWhat, Outcome, PairId, PairLayout,
-    SessionError, SessionEvent, SessionSnapshot, TabColour, TabHints, TabId, ViewPrefs,
-    WindowSummary, WorkspaceId,
+    SessionError, SessionEvent, SessionSnapshot, ShelfItemId, TabColour, TabHints, TabId,
+    ViewPrefs, WindowSummary, WorkspaceId,
 };
 
 use crate::error::Error;
@@ -424,6 +424,59 @@ pub async fn set_workspace_locations<R: Runtime>(
     .map(drop)
 }
 
+// The Shelf.
+
+/// Puts locations on the Shelf (global, shared by every window). Ones already there are left; a
+/// batch past the Shelf's limit fails with an error that begins `the Shelf is full`.
+#[tauri::command]
+pub async fn add_to_shelf<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    locations: Vec<Location>,
+) -> Result<(), Error> {
+    let added_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64);
+    run(
+        &window,
+        &sessions,
+        Command::AddToShelf {
+            locations,
+            added_ms,
+        },
+    )
+    .map(drop)
+}
+
+/// Takes items off the Shelf; their files are untouched.
+#[tauri::command]
+pub async fn remove_from_shelf<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    ids: Vec<ShelfItemId>,
+) -> Result<(), Error> {
+    run(&window, &sessions, Command::RemoveFromShelf { ids }).map(drop)
+}
+
+#[tauri::command]
+pub async fn clear_shelf<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+) -> Result<(), Error> {
+    run(&window, &sessions, Command::ClearShelf).map(drop)
+}
+
+/// Moves a Shelf item to `to_index` in the Shelf's order.
+#[tauri::command]
+pub async fn move_shelf_item<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    id: ShelfItemId,
+    to_index: usize,
+) -> Result<(), Error> {
+    run(&window, &sessions, Command::MoveShelfItem { id, to_index }).map(drop)
+}
+
 // Pairs.
 
 /// Pairs two or more tabs and returns the new pair's id.
@@ -639,6 +692,7 @@ pub async fn get_status() -> Result<PluginStatus, Error> {
             "pairs",
             "windows",
             "workspaces",
+            "shelf",
         ]
         .map(String::from)
         .to_vec(),
@@ -662,6 +716,7 @@ mod tests {
             "mru",
             "pin",
             "workspaces",
+            "shelf",
         ] {
             assert!(status.features.contains(&feature.to_string()), "{feature}");
         }

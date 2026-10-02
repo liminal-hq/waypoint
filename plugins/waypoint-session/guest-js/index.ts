@@ -20,6 +20,7 @@ import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/Se
 import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColour';
 import type { TabHints } from '@liminal-hq/waypoint-protocol/generated/TabHints';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
+import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfItemId';
 import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
@@ -191,6 +192,30 @@ export function setWorkspaceLocations(
 	locations: Location[],
 ): Promise<void> {
 	return cmd<void>('set_workspace_locations', { workspace, locations });
+}
+
+// The Shelf.
+
+/**
+ * Puts locations on the Shelf, which every window shares. Ones already there are left. A batch
+ * that would pass the Shelf's limit rejects with `{ kind: 'shelfFull', limit }` and adds nothing.
+ */
+export function addToShelf(locations: Location[]): Promise<void> {
+	return cmd<void>('add_to_shelf', { locations });
+}
+
+/** Takes items off the Shelf (their files are untouched); an id that is gone is ignored. */
+export function removeFromShelf(ids: ShelfItemId[]): Promise<void> {
+	return cmd<void>('remove_from_shelf', { ids });
+}
+
+export function clearShelf(): Promise<void> {
+	return cmd<void>('clear_shelf');
+}
+
+/** Moves an item to `toIndex` in the Shelf's order. */
+export function moveShelfItem(id: ShelfItemId, toIndex: number): Promise<void> {
+	return cmd<void>('move_shelf_item', { id, toIndex });
 }
 
 // Pairs.
