@@ -6,6 +6,6 @@ import type { Direction } from "./Direction";
  */
 export type LocaleSettings = { 
 /**
- * `system`, or one of `SUPPORTED_LANGUAGES`.
+ * `system`, or one of `SUPPORTED_LANGUAGES` (or `PSEUDO_LANGUAGES` in a debug build).
  */
 language: string, direction: Direction, };
