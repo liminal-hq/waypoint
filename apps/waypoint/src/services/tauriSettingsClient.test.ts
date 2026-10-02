@@ -93,7 +93,7 @@ describe('the capabilities for the settings', () => {
 		expect(appliesTo(ops, 'settings')).toBe(false);
 	});
 
-	it('lets the main windows read the settings and save them (for the Action bar's choices), without the plugin's default set', () => {
+	it('lets the main windows read the settings and save them for the Action bar, without the default set', () => {
 		expect(appliesTo(main, 'main-1')).toBe(true);
 		expect(main.permissions).toContain('waypoint-settings:allow-get-settings');
 		expect(main.permissions).toContain('waypoint-settings:allow-get-status');

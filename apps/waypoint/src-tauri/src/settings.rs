@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn the_settings_window_edits_settings_the_main_windows_read_and_nobody_else_may() {
+    fn the_settings_window_and_the_main_windows_use_the_settings_and_nobody_else_may() {
         use tauri::{WebviewUrl, WebviewWindowBuilder};
         let app = tauri::test::mock_builder()
             .plugin(tauri_plugin_waypoint_settings::init(Arc::new(
@@ -218,9 +218,15 @@ mod tests {
                 );
                 assert!(answer.is_ok(), "{label} may call {command}: {answer:?}");
             }
+            // The Action bar's choices are saved from the main windows.
             assert!(
-                refused(&window, "plugin:waypoint-settings|set_settings"),
-                "{label} may not change the settings"
+                call(
+                    &window,
+                    "plugin:waypoint-settings|set_settings",
+                    body.clone()
+                )
+                .is_ok(),
+                "{label} may save the settings"
             );
         }
 
