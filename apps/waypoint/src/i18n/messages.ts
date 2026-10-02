@@ -12,9 +12,15 @@ import { activeMessages, formatLocale, pluralLocale } from './active';
  * Keys are `area.thing`, and a value is plain text with `{name}` tokens; plurals are a `.one` and
  * an `.other` message here (another language may add `.zero`, `.two`, `.few` and `.many`), chosen by
  * `tn` with `Intl.PluralRules`.
+ *
+ * A comment `// translator: ...` directly above a key is context for whoever translates it; the
+ * exporter (`bun run i18n:export`) copies it into the key's note. Use one where a short word is
+ * ambiguous (a verb or a noun? which of two senses?). Continue it on following `//` lines.
  */
 export const enMessages = {
+	// translator: The name of the main window (the one with the file browser), not “primary” or “principal”.
 	'window.main.title': 'Main',
+	// translator: A window title: the product name “Waypoint” (not translated), an em dash, then the window’s name.
 	'window.main.titleWithApp': 'Waypoint — Main',
 	'window.main.description': 'The tabbed file browser — coming soon.',
 	'window.main.startFailed': 'Waypoint could not start the file browser.',
@@ -82,11 +88,13 @@ export const enMessages = {
 	'settings.appearance.mode.label': 'Colour mode',
 	'settings.appearance.mode.description': 'Light, dark, or whatever the system uses.',
 	'settings.appearance.mode.system': 'System',
+	// translator: The light colour mode, as opposed to dark; not “light” as in lightweight.
 	'settings.appearance.mode.light': 'Light',
 	'settings.appearance.mode.dark': 'Dark',
 	'settings.appearance.source.label': 'Theme source',
 	'settings.appearance.source.description':
 		"Waypoint's own colours, or the system's colour scheme and accent.",
+	// translator: Waypoint’s own colour scheme, named after the app. “Waypoint” is the product name and is not translated.
 	'settings.appearance.source.liminal': 'Waypoint',
 	'settings.appearance.source.os': 'System',
 	'settings.appearance.accent.label': 'Accent colour',
@@ -104,6 +112,7 @@ export const enMessages = {
 	'settings.appearance.density.spacious': 'Spacious',
 	'settings.appearance.iconStyle.label': 'Icon style',
 	'settings.appearance.iconStyle.description': "The weight of Waypoint's own icons.",
+	// translator: The thinnest weight of Waypoint’s own icons, lighter than Regular; not the light colour mode.
 	'settings.appearance.iconStyle.light': 'Light',
 	'settings.appearance.iconStyle.regular': 'Regular',
 	'settings.appearance.iconStyle.bold': 'Bold',
@@ -299,9 +308,13 @@ export const enMessages = {
 	'settings.open.failed': 'Could not open the Settings window.',
 
 	'browse.list.label': 'Files',
+	// translator: A column heading in the file list: the name of each file or folder.
 	'browse.column.name': 'Name',
+	// translator: A column heading: how large each file is, in bytes, KB or MB. Not a count of items.
 	'browse.column.size': 'Size',
+	// translator: A column heading: the date and time each file was last changed. Past participle; it has to fit a narrow column.
 	'browse.column.modified': 'Modified',
+	// translator: A column heading: what sort of thing each entry is, such as Folder, Image or Document. Not the file extension; that is “Type”.
 	'browse.column.kind': 'Kind',
 	'browse.column.original': 'Original location',
 	'browse.column.deleted': 'Date deleted',
@@ -492,10 +505,12 @@ export const enMessages = {
 	'dnd.picker.cancel': 'Cancel',
 	'dnd.badge.copy': 'Copy',
 	'dnd.badge.move': 'Move',
+	// translator: A badge on a dragged item: dropping it makes a shortcut (a link) rather than a copy. A verb, not a noun.
 	'dnd.badge.link': 'Link',
 	'dnd.badge.ask': 'Choose',
 	'dnd.badge.trash': 'Trash',
 	'dnd.badge.blocked': 'Not allowed',
+	// translator: A badge on dragged files: dropping them on an app opens them in it. A verb.
 	'dnd.badge.open': 'Open',
 	'dnd.badge.shelf': 'Shelf',
 	'dnd.open.failed': 'Could not open the folders in tabs',
@@ -661,6 +676,7 @@ export const enMessages = {
 	'status.copyPathFailed': 'Could not copy the path of {name}.',
 
 	'menu.entry.label': 'Item actions',
+	// translator: A menu command: open the selected file or folder. A verb.
 	'menu.open': 'Open',
 	'menu.openInNewTab': 'Open in New Tab',
 	'menu.openInNewWindow': 'Open in New Window',
@@ -671,6 +687,7 @@ export const enMessages = {
 	'menu.propertiesInWindow': 'Properties in a Window',
 	'menu.duplicate': 'Duplicate',
 	'menu.cut': 'Cut',
+	// translator: A menu command that copies the selection to the clipboard. A verb, not “a copy”.
 	'menu.copy': 'Copy',
 	'menu.paste': 'Paste',
 	'menu.pasteInto': 'Paste Into Folder',
@@ -704,6 +721,7 @@ export const enMessages = {
 	'sidebar.view.places': 'Places',
 	'sidebar.view.folders': 'Folders',
 	'sidebar.place.overview': 'Overview',
+	// translator: The person’s own folder (their home folder), not a start page or the main screen.
 	'sidebar.place.home': 'Home',
 	'sidebar.place.desktop': 'Desktop',
 	'sidebar.place.documents': 'Documents',
@@ -711,6 +729,7 @@ export const enMessages = {
 	'sidebar.place.pictures': 'Pictures',
 	'sidebar.place.music': 'Music',
 	'sidebar.place.videos': 'Videos',
+	// translator: The place deleted files go until they are emptied (the Recycle Bin on Windows). A noun, and the same word as the Trash everywhere else.
 	'sidebar.place.trash': 'Trash',
 	'sidebar.trash.count.one': '{count} item in the Trash',
 	'sidebar.trash.count.other': '{count} items in the Trash',
@@ -789,6 +808,7 @@ export const enMessages = {
 	'menu.moveDown': 'Move Down',
 
 	'menu.background.label': 'Folder actions',
+	// translator: A menu heading; the sort keys (Name, Size, Modified, Kind) are listed under it, so it must read naturally before each.
 	'menu.sortBy': 'Sort by',
 	'menu.sort.name': 'Name',
 	'menu.sort.size': 'Size',
@@ -796,18 +816,23 @@ export const enMessages = {
 	'menu.sort.kind': 'Kind',
 	'menu.sort.descending': 'Descending',
 	'menu.sort.foldersFirst': 'Folders first',
+	// translator: A menu heading; the grouping keys (Kind, Modified, Size, Name, Type) are listed under it, so it must read naturally before each.
 	'menu.groupBy': 'Group by',
 	'menu.group.none': 'No grouping',
+	// translator: Group the list by what sort of thing each entry is (Folder, Image, Document). Use the same word as the Kind column.
 	'menu.group.kind': 'Kind',
 	'menu.group.modified': 'Modified',
 	'menu.group.size': 'Size',
 	'menu.group.name': 'Name',
+	// translator: Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different.
 	'menu.group.type': 'Type',
 	'cmd.group.none': 'No grouping',
+	// translator: A command palette entry. Keep the wording of “Group by” in the menu, followed by the same word as the Kind column.
 	'cmd.group.kind': 'Group by Kind',
 	'cmd.group.modified': 'Group by Modified',
 	'cmd.group.size': 'Group by Size',
 	'cmd.group.name': 'Group by Name',
+	// translator: A command palette entry. Keep the wording of “Group by” in the menu, followed by the word for the file extension, not Kind.
 	'cmd.group.type': 'Group by Type',
 	'menu.showHidden': 'Show hidden files',
 
@@ -1130,7 +1155,9 @@ export const enMessages = {
 		'A file has the name of an existing folder, so it can only be skipped or kept beside it.',
 	'ops.conflict.mismatch.folderOverFile':
 		'A folder has the name of an existing file, so it can only be skipped or kept beside it.',
+	// translator: Overwrite the file that is already there with the incoming one. A button; a verb.
 	'ops.conflict.choice.replace': 'Replace',
+	// translator: Leave the existing file alone and do not copy this one. A button; a verb.
 	'ops.conflict.choice.skip': 'Skip',
 	'ops.conflict.choice.keepBoth': 'Keep both',
 	'ops.conflict.choice.mergeFolders': 'Merge folders',
@@ -1324,6 +1351,7 @@ export const enMessages = {
 	'overview.volume.badge.removable': 'Removable',
 	'overview.volume.badge.network': 'Network',
 	'overview.volume.badge.optical': 'Optical',
+	// translator: The total capacity of a drive, not the size of a file.
 	'overview.volume.size': 'Size',
 	'overview.volume.free': 'Free',
 	'overview.volume.unavailable': 'Size unavailable',
@@ -1429,6 +1457,7 @@ export const enMessages = {
 	'trash.reason.cannotReplace': '{location} cannot be replaced by an item of another kind',
 	'trash.reason.generic': 'something went wrong',
 
+	// translator: The product name. Do not translate it.
 	'app.name': 'Waypoint',
 	'appMenu.label': 'Application menu',
 	'appMenu.file': 'File',
@@ -1450,6 +1479,7 @@ export const enMessages = {
 	'cmd.selectAll': 'Select All',
 	'cmd.invertSelection': 'Invert Selection',
 	'cmd.sidebar': 'Sidebar',
+	// translator: A command palette entry for the Shelf, Waypoint’s temporary holding area for files. A feature name, a noun.
 	'cmd.shelf': 'Shelf',
 	'cmd.addToShelf': 'Add to Shelf',
 	'cmd.focusShelf': 'Focus Shelf',
@@ -1482,6 +1512,7 @@ export const enMessages = {
 	'openWith.failed.list': 'Could not find the applications for this item.',
 	'quickLook.position': '{position} of {total}',
 	'quickLook.positionAnnouncement': '{name}, {position} of {total}',
+	// translator: A button in the preview: open this file in the program that handles it. A verb.
 	'quickLook.open': 'Open',
 	'quickLook.openWith': 'Open With…',
 	'quickLook.close': 'Close',
