@@ -168,6 +168,20 @@ describe('conflicts', () => {
 		expect(await screen.findByRole('dialog')).toBeInTheDocument();
 	});
 
+	it('gives focus to the operations button when the dialog closes with nothing to return to', async () => {
+		const user = userEvent.setup();
+		const fake = createFakeOpsClient({ concurrency: 4 });
+		await mount(fake);
+		const id = await submit(fake);
+		expect(document.body).toHaveFocus();
+		await run(() => fake.askConflicts(id, conflicts()));
+		const dialog = await screen.findByRole('dialog');
+		await user.click(within(dialog).getByRole('button', { name: 'Decide later' }));
+		expect(screen.queryByRole('dialog')).toBeNull();
+		expect(document.body).not.toHaveFocus();
+		expect(document.querySelector('[data-ops-ring]')).toHaveFocus();
+	});
+
 	it('opens one dialog at a time, the next job after the first is answered', async () => {
 		const user = userEvent.setup();
 		const fake = createFakeOpsClient({ concurrency: 4 });
