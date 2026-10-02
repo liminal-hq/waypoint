@@ -5,7 +5,7 @@
 	block-size: 100%;
 	min-block-size: 0;
 	color: var(--wp-text-primary);
-	background: var(--wp-bg-raised);
+	background: var(--wp-bg-shell);
 	font-size: 13px;
 }
 
@@ -18,7 +18,7 @@
 	box-sizing: border-box;
 	padding: 12px 8px;
 	overflow-y: auto;
-	background: var(--wp-bg-chrome);
+	background: var(--wp-bg-settings-nav);
 	border-inline-end: 1px solid var(--wp-border-subtle);
 }
 
@@ -82,7 +82,7 @@
 
 .select {
 	padding: 8px 16px;
-	background: var(--wp-bg-chrome);
+	background: var(--wp-bg-settings-nav);
 	border-block-end: 1px solid var(--wp-border-subtle);
 }
 
@@ -103,6 +103,7 @@
 	min-inline-size: 0;
 	padding: 16px 24px 24px;
 	overflow-y: auto;
+	background: var(--wp-bg-settings-pane);
 }
 
 .collapsed .content {

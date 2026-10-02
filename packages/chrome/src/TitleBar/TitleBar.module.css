@@ -44,6 +44,14 @@
 	);
 }
 
+.titleBar[data-transparent][data-focused='false'] {
+	background: color-mix(
+		in srgb,
+		var(--wp-bg-chrome-unfocused) calc(var(--wp-title-bar-opacity) * 100%),
+		transparent
+	);
+}
+
 .maximised {
 	border-radius: 0;
 }
