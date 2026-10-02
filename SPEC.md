@@ -172,7 +172,7 @@ Sections can be reordered and collapsed:
 - **Favourites:** pinned folders.
 - **Workspaces:** named bookmark sets that switch the Favourites list.
 - **Places:** Home, Desktop, Documents, Downloads, Pictures, Music, Videos, Trash. Trash opens `trash:/` in the tab and shows a live badge with the number of items in it. Where the Trash cannot be browsed (the Flatpak portal can only trash) the place stays and shows an explanatory "Trash can't be browsed here" state with the reason, instead of a list.
-- **Devices:** drives with usage bars and eject. Locked encrypted volumes show a lock and unlock inline.
+- **Devices:** drives with usage bars; Mount, Unmount and Eject are separate actions, and a busy device says what holds it. Locked encrypted volumes show a lock and unlock inline (the passphrase is not remembered until the keyring arrives). Changes appear within a second of plugging in. Overview (§5.8a) shows the same volumes in full.
 - **Network:** saved remotes, each with a connection status dot.
 - **Smart folders:** saved searches.
 - **Tags:** colour labels.
@@ -245,6 +245,16 @@ Shows the item count, the selection count and size, free space on the current vo
 - The bar announces the selection count politely to screen readers, and reports a failure such as a file that would not open.
 - **Open:** Enter or double-click opens a folder in place and a file in its default application. The read-only context menu on an entry offers Open, Open in New Tab (folders) and Copy Path (the path as Rust displays it, which may be lossy for names that are not valid UTF-8). Right-clicking an entry that is not selected selects it first, and the menu acts on the entry under the pointer. The menu key or Shift+F10 opens it for the focused entry.
 
+### 5.8a Overview
+
+A place, not the Start page: **Overview** (`overview:/`) answers where the space went and what is plugged in. It opens from the sidebar (Places, above Home) and the command palette ("Open Overview"); the Start page may show compact Devices cards that link to it.
+
+- **Headline stats:** Capacity (local, real volumes only, and it says what it counts), Free, Home (its size and its share of the used space) and Volumes (the count and their file systems). Home reads "Measuring…" until its scan finishes.
+- **Volumes:** a card for each, with its name, its real file system (ext4, btrfs, NTFS, exFAT), a "System" or "Removable" badge, its size and free space and an exact **Used / Free** bar. The volume that holds Home may show **Your files** within Used; the rest is "Everything else". There is no "apps and system" segment, because those are ordinary folders on Linux and Windows. A network volume shows no bar until it is measured on request; space that cannot be read shows "Size unavailable"; a locked encrypted volume shows a lock and Unlock.
+- **Trash:** the item count and, when known, its size; Open and Empty (Empty keeps its confirmation). Where the Trash cannot be listed (the Flatpak portal can only trash) it says so.
+- **Biggest folders in Home:** the largest folders with a size bar each, the share of Home, and a remainder row "Other files and folders, including hidden". A cancellable scan fills it in one folder at a time and shows its progress; the last result is kept and labelled "as of" a time, the scan starts when Overview opens (Settings → Previews & thumbnails turns that off) and "Measure now" starts it on request. It never leaves the volume, skips symlinks and never downloads a cloud placeholder (Windows counts it as zero). A row opens its folder.
+- **Accessibility:** every bar has a text equivalent ("Backup, 128 GB, 21% of Home"), never relies on colour alone (a pattern and a numeric legend), and keeps 4.5:1 for text and 3:1 for graphics; scan progress is announced politely once.
+
 ## 6. Super drag and drop
 
 Full rules are in `docs/interactions.md` §3. Summary:
@@ -298,8 +308,10 @@ Full rules are in `docs/interactions.md` §3. Summary:
 Full detail is in `docs/theming-and-platforms.md`.
 
 - **Modes:** Light, Dark and System. There's also a Theme source: Liminal (the brand tokens) or OS (the portal accent, colour scheme and icon theme).
-- **Icons:** the freedesktop icon theme from the OS (Adwaita, Breeze, Papirus…). Waypoint's own set fills in anything missing.
-- **Transparency:** the main setting. It adds a translucent window background with an opacity slider, blur where the compositor supports it, and per-region control (sidebar, content, title bar). High contrast or reduced transparency turns it off automatically.
+- **Icons:** the freedesktop icon theme from the OS (Adwaita, Breeze, Papirus…). Waypoint's own set fills in anything missing; an **icon style** (stroke weight and fill) is a variant of the one set.
+- **Accent contrast:** the text on the accent colour always keeps 4.5:1. The light theme fills with `#c2410c` under white text and the dark theme with `#f97316` under near-black text; an accent chosen by the OS or the person gets black or white text by contrast and its fill is adjusted when neither reaches 4.5:1. The bright orange stays for focus rings and borders (3:1).
+- **Applying it:** Rust reports the OS preferences and the page sets them as attributes on each window; no media query is the only signal, because the Linux webview does not report them reliably.
+- **Transparency:** the main setting, off by default. It adds a translucent window background with an opacity slider, blur where the compositor supports it, and per-region control (sidebar, content, title bar). Opacity works everywhere; blur works on KDE and Windows, and on GNOME its row is hidden with the reason shown on the page and in Services. High contrast or reduced transparency turns it off automatically, and a solid scrim keeps text at 4.5:1 where the blur behind it is too busy.
 - **DE frames:** the prototype shows Waypoint on **GNOME** (libadwaita), **Cinnamon** (Mint-Y, Nemo's home), **KDE Plasma** (Breeze) and **Windows 11** (Mica/Fluent, as a portability check).
 
 ## 10. Plugins
@@ -311,17 +323,19 @@ Full detail is in `docs/plugins.md`. There are extension points for columns, con
 Settings open in a separate window using the same side-nav pattern as Emoji Nook, from Ctrl+, in any main window (the application menu and the command palette add their own entries). Every change applies at once, with no Save button; a value Rust refuses is explained under its row and the row keeps the value in force. A page that is not built yet does not appear. The window ships in milestone 4 with the General, Operations and Drag & drop pages; each other page arrives with the milestone it belongs to (Appearance, Transparency, Previews & thumbnails, Accessibility and Language & Region in milestone 5; Integrations in milestone 7; Plugins and Developer in milestone 8; Privacy in milestone 9; Keyboard and Tabs & windows in milestone 10).
 
 1. **General:** startup (restore session or open Home; the "Open startup tabs" list arrives later), default view, single or double click, confirm on delete (off by default for the Trash; Delete Permanently always confirms), hidden files. _Built in milestone 4:_ **When Waypoint starts** (restore the last session, or open one window at Home; read when the app starts), **Default view** (list or grid) and **Show hidden files by default** (both apply to windows opened afterwards; open windows keep theirs), **Open items with** (single or double click; changes at once in every window; a single click never opens on Ctrl or Shift, or in a rename field) and **Confirm before moving to the Trash** (off by default).
-2. **Appearance:** mode, theme source, accent, density, icon theme, thumbnail size, font scale.
+2. **Appearance:** mode, theme source, accent, density, icon theme and style, thumbnail size.
 3. **Transparency:** enable, opacity, blur, per-region toggles, "Solid when unfocused", and a live preview.
-4. **Tabs & windows:** new-tab location, middle-click behaviour, tear-off, close last tab behaviour, groups.
-5. **Drag & drop:** default action rule, spring-load delay, the Shelf (persist it, auto-hide), terminal drop behaviour. _Built in milestone 4:_ **Default drop action** (move on the same volume and copy otherwise, always copy, or always ask; Ctrl, Shift and Alt still decide when held), **Spring-load delay** (200 to 2000 ms, 600 by default, one delay for folders, tabs and sidebar items) and **Keep the Shelf between sessions**; when the system cannot drag files out to other applications the page says why. The drag engine and the Shelf read these settings when they arrive in later slices.
-6. **Previews & thumbnails:** file types, max file size, remote thumbnails, folder peeks, hover-to-peek.
-7. **Operations:** verify after copy, algorithm, concurrency, undo history depth. _Built in milestone 4:_ **Verify copies after writing** (off by default), **Checksum algorithm** (BLAKE3 or SHA-256, available while verification is on), **Operations running at once** (1 to 8, applies to the next operation), **Undo history depth** (1 to 200) and **Empty old items from the Trash** with **Delete Trash items older than** (days; off by default, runs when Waypoint starts).
-8. **Keyboard:** the shortcut editor, a Vim mode toggle and a keymap preset (Nemo, Dolphin, Finder-like).
-9. **Integrations:** terminal emulator, Flow, "Open with" defaults.
-10. **Plugins:** a link to the Plugin manager.
-11. **Privacy:** recent files, search index scope.
-12. **Developer:** see §12. It's hidden until you enable it (click the About version 5× or pass `--dev`).
+4. **Accessibility:** high contrast, text size (100, 115 or 130 %), touch mode (Off, Auto or On; Auto is on when the last pointer was touch or no fine pointer exists), reduced motion, reduced transparency, and a stronger focus ring. Each one follows the OS or is forced on or off.
+5. **Language & region:** language (System, English or Français (Canada)) and direction (Auto, Left to right or Right to left).
+6. **Tabs & windows:** new-tab location, middle-click behaviour, tear-off, close last tab behaviour, groups.
+7. **Drag & drop:** default action rule, spring-load delay, the Shelf (persist it, auto-hide), terminal drop behaviour. _Built in milestone 4:_ **Default drop action** (move on the same volume and copy otherwise, always copy, or always ask; Ctrl, Shift and Alt still decide when held), **Spring-load delay** (200 to 2000 ms, 600 by default, one delay for folders, tabs and sidebar items) and **Keep the Shelf between sessions**; when the system cannot drag files out to other applications the page says why. The drag engine and the Shelf read these settings when they arrive in later slices.
+8. **Previews & thumbnails:** file types, max file size, remote thumbnails, folder peeks, hover-to-peek, and whether Overview measures Home when it opens.
+9. **Operations:** verify after copy, algorithm, concurrency, undo history depth. _Built in milestone 4:_ **Verify copies after writing** (off by default), **Checksum algorithm** (BLAKE3 or SHA-256, available while verification is on), **Operations running at once** (1 to 8, applies to the next operation), **Undo history depth** (1 to 200) and **Empty old items from the Trash** with **Delete Trash items older than** (days; off by default, runs when Waypoint starts).
+10. **Keyboard:** the shortcut editor, a Vim mode toggle and a keymap preset (Nemo, Dolphin, Finder-like).
+11. **Integrations:** the Services panel (every native plugin, what works and why not), then notifications, dock or taskbar progress, prevent sleep, the global shortcut and the default file manager, all off until enabled (milestone 5); the terminal emulator, Flow and "Open with" defaults arrive later.
+12. **Plugins:** a link to the Plugin manager.
+13. **Privacy:** recent files, search index scope.
+14. **Developer:** see §12. It's hidden until you enable it (click the About version 5× or pass `--dev`).
 
 ## 12. Developer options
 
