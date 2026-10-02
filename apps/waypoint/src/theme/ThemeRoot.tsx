@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { getStatus as windowEffectsStatus, hasFeature } from '@liminal-hq/plugin-window-effects';
 import { useEffect, useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, type SettingsClient } from '../services/settingsClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
@@ -12,13 +13,38 @@ import {
 	webOsAppearance,
 	type OsAppearanceSource,
 } from './appearance';
+import { applyTransparency } from './transparencyDom';
 
 interface ThemeRootProps {
 	/** The settings plugin's client; the real one unless a test supplies its own. */
 	client?: SettingsClient;
 	/** Where the OS preferences come from; the webview's media queries unless supplied. */
 	os?: OsAppearanceSource;
+	/** Whether the platform can make windows see-through: the window effects plugin's `opacity` feature unless supplied. */
+	opacityAvailable?: () => Promise<boolean>;
 	children: ReactNode;
+}
+
+async function pluginOpacityAvailable(): Promise<boolean> {
+	return hasFeature(await windowEffectsStatus(), 'opacity');
+}
+
+/** Whether this window is in front: the document's focus, followed through the window's own events. */
+function useWindowInFront(): boolean {
+	const [inFront, setInFront] = useState(true);
+	useEffect(() => {
+		const sync = (): void => setInFront(document.hasFocus());
+		const onFocus = (): void => setInFront(true);
+		const onBlur = (): void => setInFront(false);
+		globalThis.addEventListener('focus', onFocus);
+		globalThis.addEventListener('blur', onBlur);
+		sync();
+		return () => {
+			globalThis.removeEventListener('focus', onFocus);
+			globalThis.removeEventListener('blur', onBlur);
+		};
+	}, []);
+	return inFront;
 }
 
 function systemLanguage(): string {
@@ -38,12 +64,27 @@ function hasFinePointer(): boolean {
  * until the first answer) and the OS preferences, and writes the result on the root so no media
  * query is the only signal (A58). It renders its children untouched.
  */
-export function ThemeRoot({ client, os, children }: ThemeRootProps) {
+export function ThemeRoot({ client, os, opacityAvailable, children }: ThemeRootProps) {
 	const [settingsClient] = useState(() => client ?? createTauriSettingsClient());
 	const [source] = useState(() => os ?? webOsAppearance());
 	const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 	const [touchPointer, setTouchPointer] = useState(false);
 	const [osVersion, setOsVersion] = useState(0);
+	const [canBeSeeThrough, setCanBeSeeThrough] = useState<boolean | null>(null);
+	const inFront = useWindowInFront();
+
+	// What the platform can do decides whether transparency may draw at all (A60): until it has
+	// said, and when it cannot say, the window stays solid.
+	useEffect(() => {
+		let live = true;
+		(opacityAvailable ?? pluginOpacityAvailable)().then(
+			(available) => live && setCanBeSeeThrough(available),
+			() => live && setCanBeSeeThrough(false),
+		);
+		return () => {
+			live = false;
+		};
+	}, [opacityAvailable]);
 
 	useEffect(() => {
 		let live = true;
@@ -79,15 +120,18 @@ export function ThemeRoot({ client, os, children }: ThemeRootProps) {
 	}, []);
 
 	useEffect(() => {
-		applyAppearance(
-			document.documentElement,
-			resolveAppearance(settings, source.read(), {
-				touchPointer,
-				systemLanguage: systemLanguage(),
-				hasFinePointer: hasFinePointer(),
-			}),
-		);
-	}, [settings, source, touchPointer, osVersion]);
+		const root = document.documentElement;
+		const look = resolveAppearance(settings, source.read(), {
+			touchPointer,
+			systemLanguage: systemLanguage(),
+			hasFinePointer: hasFinePointer(),
+			focused: inFront,
+			opacityAvailable: canBeSeeThrough,
+		});
+		applyAppearance(root, look);
+		// After the attributes, so the floor is worked out from the colours of the scheme now in force.
+		applyTransparency(root, look.transparency === 'on', settings.transparency);
+	}, [settings, source, touchPointer, osVersion, inFront, canBeSeeThrough]);
 
 	return <>{children}</>;
 }

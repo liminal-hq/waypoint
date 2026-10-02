@@ -5,6 +5,7 @@
 
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
 import { resolveAccent } from './accent';
+import { transparencyState, type TransparencyOffReason } from './transparency';
 
 /** What the OS says about the look. `null` means it did not say. */
 export interface OsAppearance {
@@ -80,6 +81,8 @@ export interface ResolvedAppearance {
 	touch: boolean;
 	motion: 'reduce' | 'full';
 	transparency: 'on' | 'off';
+	/** Why transparency is switched on but not drawing (`null` when it draws, or is not asked for). */
+	transparencyReason: TransparencyOffReason;
 	/** Text scale, 1 for normal. */
 	textScale: number;
 	/** Set when the person's accent differs from the brand colour; the tokens carry the brand one. */
@@ -106,7 +109,15 @@ function follow(choice: 'follow' | 'on' | 'off', os: boolean): boolean {
 export function resolveAppearance(
 	settings: Settings,
 	os: OsAppearance,
-	options: { touchPointer: boolean; systemLanguage: string; hasFinePointer: boolean },
+	options: {
+		touchPointer: boolean;
+		systemLanguage: string;
+		hasFinePointer: boolean;
+		/** Whether the window is in front (default true), which "Solid when unfocused" depends on. */
+		focused?: boolean;
+		/** Whether the platform reports that windows can be see-through: `null` until it has said (default true). */
+		opacityAvailable?: boolean | null;
+	},
 ): ResolvedAppearance {
 	const { appearance, accessibility, locale, transparency } = settings;
 	const theme =
@@ -123,13 +134,22 @@ export function resolveAppearance(
 		(accessibility.touchMode === 'auto' && (options.touchPointer || !options.hasFinePointer));
 	const language = locale.language === 'system' ? options.systemLanguage : locale.language;
 	const brandAccent = appearance.accent.kind === 'ember';
+	const translucent = transparencyState({
+		enabled: transparency.enabled,
+		highContrast,
+		reducedTransparency,
+		available: options.opacityAvailable === undefined ? true : options.opacityAvailable,
+		focused: options.focused ?? true,
+		solidWhenUnfocused: transparency.solidWhenUnfocused,
+	});
 	return {
 		theme,
 		contrast: highContrast ? 'high' : 'normal',
 		density: appearance.density,
 		touch,
 		motion: reducedMotion ? 'reduce' : 'full',
-		transparency: transparency.enabled && !highContrast && !reducedTransparency ? 'on' : 'off',
+		transparency: translucent.on ? 'on' : 'off',
+		transparencyReason: translucent.reason,
 		textScale: Math.max(accessibility.textSize / 100, os.textScale),
 		accent:
 			brandAccent || highContrast
@@ -154,6 +174,7 @@ export function applyAppearance(root: HTMLElement, look: ResolvedAppearance): vo
 	set('touch', look.touch ? 'true' : 'false');
 	set('motion', look.motion);
 	set('transparency', look.transparency);
+	set('transparencyReason', look.transparencyReason);
 	set('iconStyle', look.iconStyle);
 	set('focus', look.strongFocus ? 'strong' : 'normal');
 	root.style.setProperty('--wp-text-scale', String(look.textScale));

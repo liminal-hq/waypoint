@@ -73,3 +73,108 @@ describe('ThemeRoot', () => {
 		expect(document.documentElement.style.getPropertyValue('--wp-text-scale')).toBe('1.3');
 	});
 });
+
+describe('ThemeRoot transparency', () => {
+	const lit = {
+		...DEFAULT_SETTINGS,
+		transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true, solidWhenUnfocused: false },
+	};
+	const root = document.documentElement;
+
+	async function mount(
+		settings: typeof DEFAULT_SETTINGS,
+		options: { available?: boolean; os?: Partial<OsAppearance> } = {},
+	) {
+		const os = fakeOs(options.os);
+		await act(async () => {
+			render(
+				<ThemeRoot
+					client={createFakeSettingsClient(settings)}
+					os={os.source}
+					opacityAvailable={() => Promise.resolve(options.available ?? true)}
+				>
+					<p>content</p>
+				</ThemeRoot>,
+			);
+		});
+		return os;
+	}
+
+	it('stays solid until the platform says windows can be see-through', async () => {
+		await mount(lit, { available: false });
+		expect(root.dataset.transparency).toBe('off');
+		expect(root.dataset.transparencyReason).toBe('unavailable');
+		expect(root.style.getPropertyValue('--wp-alpha-rows')).toBe('');
+	});
+
+	it('draws translucent when asked for, writing the opacity of every part on the root', async () => {
+		await mount(lit);
+		expect(root.dataset.transparency).toBe('on');
+		expect(root.dataset.transparencyReason).toBeUndefined();
+		// No theme colours in a test, so every part is at least the 70 % fallback.
+		const read = (name: string) => Number(root.style.getPropertyValue(name));
+		expect(read('--wp-alpha-title-bar')).toBe(0.82);
+		expect(read('--wp-alpha-rows')).toBe(0.9);
+		expect(read('--wp-alpha-sidebar')).toBe(0.94);
+		expect(read('--wp-alpha-content')).toBe(1);
+		expect(read('--wp-alpha-menu')).toBe(1);
+		expect(root.dataset.menus).toBe('solid');
+	});
+
+	it('goes solid and takes the opacity off under high contrast and under reduced transparency', async () => {
+		const os = await mount(lit, { os: { highContrast: true } });
+		expect(root.dataset.transparency).toBe('off');
+		expect(root.dataset.transparencyReason).toBe('high-contrast');
+		expect(root.style.getPropertyValue('--wp-alpha-title-bar')).toBe('');
+		await act(async () => os.change({ highContrast: false, reducedTransparency: true }));
+		expect(root.dataset.transparencyReason).toBe('reduced-transparency');
+		await act(async () => os.change({ reducedTransparency: false }));
+		expect(root.dataset.transparency).toBe('on');
+	});
+
+	it('marks menus translucent when they are, and follows the settings live', async () => {
+		const client = createFakeSettingsClient(lit);
+		await act(async () => {
+			render(
+				<ThemeRoot
+					client={client}
+					os={fakeOs().source}
+					opacityAvailable={() => Promise.resolve(true)}
+				>
+					<p>content</p>
+				</ThemeRoot>,
+			);
+		});
+		await act(async () =>
+			client.change({
+				...lit,
+				transparency: { ...lit.transparency, menus: true, menuOpacity: 80, opacity: 60 },
+			}),
+		);
+		expect(root.dataset.menus).toBe('translucent');
+		expect(Number(root.style.getPropertyValue('--wp-alpha-menu'))).toBe(0.8);
+		expect(Number(root.style.getPropertyValue('--wp-alpha-title-bar'))).toBe(0.7);
+		await act(async () =>
+			client.change({ ...lit, transparency: { ...lit.transparency, enabled: false } }),
+		);
+		expect(root.dataset.transparency).toBe('off');
+		expect(root.dataset.menus).toBeUndefined();
+	});
+
+	it('goes solid when the window loses focus and back when it returns, if asked to', async () => {
+		await mount({ ...lit, transparency: { ...lit.transparency, solidWhenUnfocused: true } });
+		await act(async () => {
+			globalThis.dispatchEvent(new Event('focus'));
+		});
+		expect(root.dataset.transparency).toBe('on');
+		await act(async () => {
+			globalThis.dispatchEvent(new Event('blur'));
+		});
+		expect(root.dataset.transparency).toBe('off');
+		expect(root.dataset.transparencyReason).toBe('unfocused');
+		await act(async () => {
+			globalThis.dispatchEvent(new Event('focus'));
+		});
+		expect(root.dataset.transparency).toBe('on');
+	});
+});
