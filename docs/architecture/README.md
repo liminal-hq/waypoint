@@ -1,6 +1,6 @@
 # Architecture
 
-Status: milestones 0 to 2 are built and merged and milestone 3 is built and in review (§6); the rest is **proposed** · companion to `SPEC.md` · decisions logged as A-numbers in `decisions.md`
+Status: milestones 0 to 4 are built and merged (§6); the rest is **proposed** · companion to `SPEC.md` · decisions logged as A-numbers in `decisions.md`
 
 This is the structural architecture under the hood. `SPEC.md` and `docs/decisions.md` own product behaviour; this folder owns how the code is split up, how the parts talk, and in what order they get built. The design prototype's code is reference only and is deliberately not mirrored.
 
@@ -101,7 +101,7 @@ Each milestone scaffolds only what it needs.
 | 9   | **Windows 11 parity, packaging, release**     | Windows modules for each plugin, MSI/portable/AppImage/deb/rpm, `release.yml`; first-run tour, F1 Help, About and update channels, crash reports and privacy settings, the full accessibility audit                                                                                                                                                                                           |
 | 10  | **Customisation and polish**                  | Keyboard shortcut editor and Nemo/Dolphin/Explorer presets, context-menu customisation, Window Layouts, the "Open startup tabs" setting and the Tabs & windows toggles, Sync Navigation, Vim mode, touchpad gestures, groups spanning windows (`open-questions.md`), multi-selection travelling with a hand-off, the remaining Settings pages (Keyboard, Tabs & windows)                      |
 
-Status: milestones 0 (the listing spike and the milestone 3 spikes), 1, 2 and 3 are merged; milestone 4 is being planned and built as a stack of slices; milestones 5 to 10 have not started.
+Status: milestones 0 (the listing spike and the milestone 3 spikes), 1, 2, 3 and 4 are merged (milestone 4's verification pass is open as #104); milestones 5 to 10 have not started.
 
 Windows modules are written alongside each Linux module from milestone 2 onward, not deferred to milestone 9; milestone 9 is the parity audit and packaging.
 
