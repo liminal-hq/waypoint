@@ -110,7 +110,7 @@ fn every_window_hears_each_change_with_a_rising_revision() {
     set(&app, grid()).unwrap();
     let mut second = grid();
     second.dnd.default_action_rule = DropActionRule::AlwaysCopy;
-    set(&app, second).unwrap();
+    set(&app, second.clone()).unwrap();
     for window in heard {
         let revisions: Vec<u64> = window.lock().unwrap().iter().map(|s| s.revision).collect();
         assert_eq!(revisions, vec![1, 2]);
@@ -205,7 +205,7 @@ fn a_hook_hears_changes_but_not_refusals_or_no_ops() {
     let app = app_with(Arc::new(MemoryStorage::default()));
     let seen = Arc::new(Mutex::new(Vec::new()));
     let sink = seen.clone();
-    store(&app).on_change(move |settings| sink.lock().unwrap().push(*settings));
+    store(&app).on_change(move |settings| sink.lock().unwrap().push(settings.clone()));
     set(&app, Settings::default()).unwrap();
     let mut bad = grid();
     bad.dnd.spring_load_ms = 1;
@@ -253,7 +253,7 @@ fn a_ui_change_keeps_every_other_setting_that_is_in_force() {
     );
     assert_eq!(after.settings.general.default_view, DefaultView::Grid);
     assert_eq!(store(&app).snapshot(), after);
-    assert_eq!(heard.lock().unwrap().last().copied(), Some(after));
+    assert_eq!(heard.lock().unwrap().last().cloned(), Some(after));
 }
 
 #[test]

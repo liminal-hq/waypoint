@@ -59,7 +59,7 @@ impl<R: Runtime> SettingsStore<R> {
 
     /// The settings in force and the revision they are at.
     pub fn snapshot(&self) -> SettingsSnapshot {
-        *locked(&self.current)
+        locked(&self.current).clone()
     }
 
     pub fn get(&self) -> Settings {
@@ -102,14 +102,14 @@ impl<R: Runtime> SettingsStore<R> {
             return Ok(before);
         }
         self.storage
-            .save(&SettingsDocument::new(settings))
+            .save(&SettingsDocument::new(settings.clone()))
             .map_err(|e| Error::Storage(e.to_string()))?;
         let after = SettingsSnapshot {
             revision: before.revision + 1,
-            settings,
+            settings: settings.clone(),
         };
-        *locked(&self.current) = after;
-        if let Err(e) = self.app.emit(EVENT, after) {
+        *locked(&self.current) = after.clone();
+        if let Err(e) = self.app.emit(EVENT, after.clone()) {
             log::warn!("could not announce the settings change: {e}");
         }
         let hooks: Vec<ChangeHook> = locked(&self.hooks).clone();
