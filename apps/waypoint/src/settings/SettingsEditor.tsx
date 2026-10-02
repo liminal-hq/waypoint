@@ -53,6 +53,7 @@ export type RowKey =
 	| 'touchMode'
 	| 'thumbnails'
 	| 'thumbnailMax'
+	| 'measureHomeOnOpen'
 	| 'transparency'
 	| 'opacity'
 	| 'blur'
