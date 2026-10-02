@@ -116,3 +116,65 @@ describe('the recovery notice', () => {
 		void fileLocation;
 	});
 });
+
+describe('the undo toast names its own job', () => {
+	it('undoes the entry its job made, not the newest one another job made since', async () => {
+		const { fake, handle, shown, show } = await setup();
+		startUndoNotices(handle, { windowLabel: 'main-1', show });
+		const first = await fake.submit(request(['a']));
+		fake.start(first);
+		fake.done(first, 'Copy a');
+		// Another job, in another window, finishes after it.
+		const second = await fake.submit({ ...request(['b']), originWindow: 'main-2' });
+		fake.start(second);
+		fake.done(second, 'Copy b');
+		const entries = (await fake.journalSummaries()).map((s) => s.id);
+		expect(entries).toHaveLength(2);
+
+		shown[0]!.action!.run();
+		await vi.waitFor(() => expect(fake.calls.some((c) => c[0] === 'undo')).toBe(true));
+		const undo = fake.calls.find((c) => c[0] === 'undo')!;
+		const firstEntry = await fake.journalEntryOf(first);
+		expect(undo[1]).toBe(firstEntry);
+		expect(undo[1]).not.toBe(await fake.journalEntryOf(second));
+		const job = fake.jobs().find((j) => j.kind.kind === 'undo')!;
+		expect(job.kind).toEqual({ kind: 'undo', of: firstEntry });
+	});
+
+	it('says so in plain words when its entry was already undone, and undoes nothing else', async () => {
+		const { fake, handle, shown, show } = await setup();
+		startUndoNotices(handle, { windowLabel: 'main-1', show });
+		const first = await fake.submit(request(['a']));
+		fake.start(first);
+		fake.done(first, 'Copy a');
+		const other = await fake.submit({ ...request(['b']), originWindow: 'main-2' });
+		fake.start(other);
+		fake.done(other, 'Copy b');
+		// The first job's work is undone by another route, then its toast is clicked.
+		const undo = await fake.undo((await fake.journalEntryOf(first))!);
+		fake.start(undo);
+		fake.done(undo);
+		fake.calls.length = 0;
+
+		shown[0]!.action!.run();
+		await vi.waitFor(() => expect(shown).toHaveLength(2));
+		expect(shown[1]!.text).toBe(
+			'Could not undo: That change was already undone or is no longer in the history',
+		);
+		expect(fake.jobs().filter((j) => j.kind.kind === 'undo')).toHaveLength(1);
+	});
+
+	it('does not undo anything when the job has no entry', async () => {
+		const { fake, handle, shown, show } = await setup();
+		const job = await fake.submit(request(['a']));
+		fake.start(job);
+		fake.done(job, 'Copy a');
+		const other = await fake.submit(request(['b']));
+		fake.start(other);
+		fake.done(other, 'Copy b');
+		const { undoJob } = await import('./opsNotices');
+		expect(await undoJob(handle, show, 9999)).toBeNull();
+		expect(shown[0]!.text).toContain('no longer in the history');
+		expect(fake.calls.some((c) => c[0] === 'undo')).toBe(false);
+	});
+});

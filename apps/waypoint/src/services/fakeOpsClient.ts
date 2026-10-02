@@ -103,6 +103,7 @@ export class FakeOpsClient implements OpsClient {
 	private nextJob = 1;
 	private nextJournal = 1;
 	private readonly journal: JournalRow[] = [];
+	private readonly entryOfJob = new Map<JobId, JournalId>();
 	private readonly eventListeners = new Set<(event: OpsEvent) => void>();
 	private readonly progressListeners = new Set<(progress: JobProgress) => void>();
 	private readonly clipboardListeners = new Set<(clipboard: Clipboard) => void>();
@@ -167,6 +168,11 @@ export class FakeOpsClient implements OpsClient {
 
 	async journalSummaries(): Promise<JournalEntrySummary[]> {
 		return [...this.journal].reverse().map((row) => this.summary(row));
+	}
+
+	async journalEntryOf(job: JobId): Promise<JournalId | null> {
+		this.calls.push(['journalEntryOf', job]);
+		return this.entryOfJob.get(job) ?? null;
 	}
 
 	async plan(request: JobRequest): Promise<PlanPreview> {
@@ -473,13 +479,15 @@ export class FakeOpsClient implements OpsClient {
 				this.journalChanged();
 			}
 		} else if (undoable !== undefined) {
-			this.journal.push({
+			const row: JournalRow = {
 				id: this.nextJournal++,
 				label: undoable,
 				atMs: this.options.now(),
 				applied: true,
 				undoneAt: 0,
-			});
+			};
+			this.journal.push(row);
+			this.entryOfJob.set(job, row.id);
 			entry.snapshot.undoable = true;
 			this.changed(entry);
 			this.journalChanged();

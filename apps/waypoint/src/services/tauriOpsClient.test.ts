@@ -8,10 +8,15 @@ import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const calls: string[] = [];
+const invoked: { command: string; args: unknown }[] = [];
+let tokens = 0;
 vi.mock('@tauri-apps/api/core', () => ({
-	invoke: vi.fn(async (command: string) => {
-		calls.push(command.replace('plugin:waypoint-ops|', ''));
-		return null;
+	invoke: vi.fn(async (command: string, args?: unknown) => {
+		const name = command.replace('plugin:waypoint-ops|', '');
+		calls.push(name);
+		invoked.push({ command: name, args });
+		// The plugin hands back a token for each progress subscription.
+		return name === 'subscribe_progress' ? ++tokens : null;
 	}),
 	Channel: class {
 		onmessage: ((message: unknown) => void) | null = null;
@@ -39,6 +44,7 @@ const location = { display: '/a', uri: 'file:///a' };
 
 beforeEach(() => {
 	calls.length = 0;
+	invoked.length = 0;
 });
 
 describe('createTauriOpsClient', () => {
@@ -93,6 +99,23 @@ describe('createTauriOpsClient', () => {
 			'subscribe_progress',
 			'unsubscribe_progress',
 		]);
+	});
+
+	it('stops only its own progress subscription, by the token the plugin gave it', async () => {
+		// A page that mounts twice: the first store's stop runs after the second has subscribed.
+		const client = createTauriOpsClient();
+		const stopFirst = await client.subscribeProgress(() => {});
+		const stopSecond = await client.subscribeProgress(() => {});
+		await stopFirst();
+		await stopSecond();
+		const [first, second] = invoked.filter((i) => i.command === 'unsubscribe_progress');
+		expect(first!.args).toEqual({ token: tokens - 1 });
+		expect(second!.args).toEqual({ token: tokens });
+	});
+
+	it('asks for the journal entry of a job', async () => {
+		await createTauriOpsClient().journalEntryOf(4);
+		expect(invoked.find((i) => i.command === 'journal_entry_of')?.args).toEqual({ job: 4 });
 	});
 
 	it('listens to the broadcast events and stops when asked', () => {

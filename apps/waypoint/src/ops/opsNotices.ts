@@ -23,16 +23,43 @@ export function commandErrorText(error: unknown): string {
 }
 
 /**
- * Undoes the newest applied entry (or `entry`) and says why when it cannot. The Edit menu, the
- * shortcut and the palette call this; the undo itself is a job in the queue.
+ * Undoes the newest applied entry (or `entry`, and only that one) and says why when it cannot. The
+ * Edit menu, the shortcut and the palette call this; the undo itself is a job in the queue.
  */
 export async function runUndo(handle: OpsHandle, show: Show = showNotice, entry?: number) {
 	try {
 		return await handle.undo(entry);
 	} catch (error) {
-		show(tf('ops.undo.failed', { reason: commandErrorText(error) }));
+		// An entry that was named and cannot be undone is not "nothing to undo": it was already
+		// undone or has left the history, and the newest entry is not undone in its place.
+		const gone =
+			entry !== undefined &&
+			(error as Partial<OpsCommandError> | null)?.error?.kind === 'undoUnavailable';
+		show(
+			tf('ops.undo.failed', {
+				reason: gone ? t('ops.undo.entryGone') : commandErrorText(error),
+			}),
+		);
 		return null;
 	}
+}
+
+/**
+ * Undoes what one job did, by the journal entry it made: not the newest entry, which another job
+ * (in this window or another) may have made since.
+ */
+export async function undoJob(handle: OpsHandle, show: Show, job: number) {
+	let entry: number | null = null;
+	try {
+		entry = await handle.client.journalEntryOf(job);
+	} catch (error) {
+		console.warn('could not look up the journal entry of a job', error);
+	}
+	if (entry === null) {
+		show(tf('ops.undo.failed', { reason: t('ops.undo.entryGone') }));
+		return null;
+	}
+	return runUndo(handle, show, entry);
 }
 
 export async function runRedo(handle: OpsHandle, show: Show = showNotice, entry?: number) {
@@ -79,7 +106,7 @@ export function startUndoNotices(handle: OpsHandle, options: UndoNoticeOptions):
 				if (job.originWindow === options.windowLabel) {
 					show(jobDoneText(job), {
 						label: t('notice.undo'),
-						run: () => void runUndo(handle, show),
+						run: () => void undoJob(handle, show, job.id),
 					});
 				}
 			}

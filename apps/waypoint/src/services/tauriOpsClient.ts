@@ -43,6 +43,7 @@ export function createTauriOpsClient(): OpsClient {
 		undo: (entry) => ops.undo(entry),
 		redo: (entry) => ops.redo(entry),
 		journalSummaries: () => ops.journalSummaries(),
+		journalEntryOf: (job) => ops.journalEntryOf(job),
 		jobsTargeting: (location) => ops.jobsTargeting(location),
 		subscribeProgress: (listener) => ops.subscribeProgress(listener),
 		getClipboard: () => ops.getClipboard(),

@@ -68,13 +68,16 @@ export interface OpsClient {
 	undo(entry?: JournalId): Promise<JobId>;
 	redo(entry?: JournalId): Promise<JobId>;
 	journalSummaries(): Promise<JournalEntrySummary[]>;
+	/** The journal entry the job made, or `null` while it has none (unfinished, or it changed nothing). */
+	journalEntryOf(job: JobId): Promise<JournalId | null>;
 	/** The unfinished jobs that touch `location`, which the close guard warns about. */
 	jobsTargeting(location: Location): Promise<JobId[]>;
 
 	/**
 	 * Hears the progress of the running jobs on this window, at the rate the queue's gate allows.
 	 * Progress is not an event: only a window that subscribes receives it. Resolves to the function
-	 * that stops listening.
+	 * that stops listening, which ends this subscription only: a stop that runs after the window has
+	 * subscribed again leaves the newer one alone.
 	 */
 	subscribeProgress(listener: (progress: JobProgress) => void): Promise<() => void>;
 

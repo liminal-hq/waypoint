@@ -468,6 +468,7 @@ export const enMessages = {
 	'ops.announce.remaining.one': '{count} operation still in progress',
 	'ops.announce.remaining.other': '{count} operations still in progress',
 	'ops.undo.failed': 'Could not undo: {reason}',
+	'ops.undo.entryGone': 'That change was already undone or is no longer in the history',
 	'ops.recovery.one': 'An operation was interrupted: {label}',
 	'ops.recovery.other': '{count} operations were interrupted, including: {label}',
 	'ops.recovery.unnamed': 'An operation was interrupted.',
