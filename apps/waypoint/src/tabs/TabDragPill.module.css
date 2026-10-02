@@ -3,6 +3,7 @@
 	position: fixed;
 	z-index: 1000;
 	top: calc(var(--wp-drag-y, 0px) + 18px);
+	/* physical: the pill follows the pointer in screen coordinates */
 	left: calc(var(--wp-drag-x, 0px) + 14px);
 	display: flex;
 	flex-direction: row;
@@ -41,8 +42,8 @@
 
 .hint {
 	flex: none;
-	padding-left: 8px;
-	border-left: 1px solid var(--wp-border-subtle);
+	padding-inline-start: 8px;
+	border-inline-start: 1px solid var(--wp-border-subtle);
 	color: var(--wp-text-muted);
 	font-size: 11px;
 	white-space: nowrap;

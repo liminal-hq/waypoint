@@ -497,7 +497,7 @@ export function TabStrip() {
 							className={styles.marker}
 							data-kind={drag.view.marker.kind}
 							aria-hidden="true"
-							style={{ left: drag.view.marker.left, width: drag.view.marker.width || undefined }}
+							style={{ left: drag.view.marker.left, width: drag.view.marker.width || undefined }} // physical: pixels measured from the strip's left edge by the drag engine
 						/>
 					) : null}
 					{landing ? (
@@ -506,7 +506,7 @@ export function TabStrip() {
 							data-kind="line"
 							data-landing=""
 							aria-hidden="true"
-							style={{ left: landing.left }}
+							style={{ left: landing.left }} // physical: pixels measured from the strip's left edge by the drag engine
 						/>
 					) : null}
 				</div>

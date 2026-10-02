@@ -13,11 +13,11 @@
 }
 
 .preview[data-edge='left'] {
-	inset: 0 50% 0 0;
+	inset: 0 50% 0 0; /* physical: a zone is a half or third of the window as the pointer sees it */
 }
 
 .preview[data-edge='right'] {
-	inset: 0 0 0 50%;
+	inset: 0 0 0 50%; /* physical: a zone is a half or third of the window as the pointer sees it */
 }
 
 .preview[data-edge='top'] {
@@ -43,11 +43,11 @@
 }
 
 .zone[data-zone='left'] {
-	inset: 0 66.6667% 0 0;
+	inset: 0 66.6667% 0 0; /* physical: a zone is a half or third of the window as the pointer sees it */
 }
 
 .zone[data-zone='right'] {
-	inset: 0 0 0 66.6667%;
+	inset: 0 0 0 66.6667%; /* physical: a zone is a half or third of the window as the pointer sees it */
 }
 
 .zone[data-zone='top'] {
