@@ -173,6 +173,13 @@ jobs:
         id: nextest
         run: cargo nextest run --workspace --profile ci
 
+      # Snapshots every generated directory (the protocol crate and each plugin), deletes them so a
+      # removed type cannot leave a stale file behind, regenerates with `cargo test`, and diffs. It
+      # runs after the tests so the test build is reused and nothing compiles twice.
+      - name: Check generated bindings for drift
+        id: drift
+        run: bash scripts/check-bindings-drift.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -183,6 +190,7 @@ jobs:
             echo "| Format | \`${{ steps.fmt.outcome }}\` | \`cargo fmt --all -- --check\` |"
             echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
             echo "| Tests | \`${{ steps.nextest.outcome }}\` | \`cargo nextest run --workspace --profile ci\` |"
+            echo "| Bindings drift | \`${{ steps.drift.outcome }}\` | \`bash scripts/check-bindings-drift.sh\` (fix a failure with \`bun run bindings\` and commit the regenerated files) |"
             echo
             bash scripts/junit-summary.sh target/nextest/ci/junit.xml
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -195,41 +203,12 @@ jobs:
           path: target/nextest/ci/junit.xml
           if-no-files-found: error
 
-  bindings-drift:
-    name: Bindings drift
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v7
-      - name: Trust the GitHub workspace
-        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-      - uses: Swatinem/rust-cache@v2
-
-      # Snapshots every generated directory (the protocol crate and both plugins), deletes them so a
-      # removed type cannot leave a stale file behind, regenerates with `cargo test`, and diffs.
-      - name: Check generated bindings for drift
-        id: drift
-        run: bash scripts/check-bindings-drift.sh
-
-      - name: Job summary
-        if: always()
-        run: |
-          {
-            echo "## Bindings drift"
-            echo "- Result: \`${{ steps.drift.outcome }}\`"
-            echo "- Command: \`bash scripts/check-bindings-drift.sh\`"
-            echo "- Directories: the protocol \`generated\` folder and each plugin's \`guest-js/bindings\`"
-            echo "- Fix a failure with \`bun run bindings\` and commit the regenerated files"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
   # Windows 11 is a real target (A11): the whole workspace must keep compiling and linting there, and
-  # the pure crates' tests, including path rules, run on Windows.
-  windows-check:
-    name: Windows check
+  # the pure crates' tests, including path rules, run on Windows. Linting and testing are separate
+  # jobs so they build in parallel, and the tests run on nextest, which runs every test binary at once
+  # (`cargo test` runs them one after another).
+  windows-lint:
+    name: Windows lint
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -247,19 +226,43 @@ jobs:
         id: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      # The time-format plugin's mock-runtime test needs the Common Controls manifest, which a test binary lacks on Windows, so only its unit tests run here.
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Windows lint"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  windows-tests:
+    name: Windows tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The crates under test do not embed the frontend, so there is nothing to build first.
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+
+      # The time-format plugin's mock-runtime test needs the Common Controls manifest, which a test
+      # binary lacks on Windows, so only its unit tests run here: the filter drops the integration
+      # test binaries of the plugins listed in it (add a plugin to the list when it joins this job).
       - name: Test the pure crates, the time-format plugin and the tear-off plugin
         id: tests
-        run: cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff && cargo test -p tauri-plugin-os-prefs --lib
+        run: >-
+          cargo nextest run --no-fail-fast
+          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs
+          -E "not (kind(test) & package(tauri-plugin-os-prefs))"
 
       - name: Job summary
         if: always()
         shell: bash
         run: |
           {
-            echo "## Windows check"
+            echo "## Windows tests"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo test -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff && cargo test -p tauri-plugin-os-prefs --lib\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -E \"not (kind(test) & package(tauri-plugin-os-prefs))\"\` |"
           } >> "${GITHUB_STEP_SUMMARY}"
