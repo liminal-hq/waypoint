@@ -29,7 +29,6 @@ import {
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import { tf, t } from '../i18n/messages';
 import { Sidebar } from '../sidebar/Sidebar';
-import { SidebarToggle } from '../sidebar/SidebarToggle';
 import {
 	createSidebarStore,
 	SidebarStoreContext,
@@ -422,7 +421,7 @@ function WorkspaceBody({
 						<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
 							<div className={styles.workspace}>
 								<TabStrip />
-								<NavigationBar leading={<SidebarToggle />} />
+								<NavigationBar />
 								<ActionBar />
 								<div className={styles.middle}>
 									{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}

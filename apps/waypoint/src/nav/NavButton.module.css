@@ -25,3 +25,8 @@
 	color: var(--wp-text-muted);
 	opacity: 0.5;
 }
+
+/* A toggle that is on. */
+.button[aria-pressed='true'] {
+	background: var(--wp-bg-selected);
+}
