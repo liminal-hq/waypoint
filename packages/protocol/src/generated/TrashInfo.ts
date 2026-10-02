@@ -15,4 +15,9 @@ reason: string | null,
 /**
  * How many items it holds (0 when it cannot be read).
  */
-count: number, };
+count: number, 
+/**
+ * The total size of what it holds, in bytes. Present only when it was asked for (Overview
+ * asks while it is visible) and the Trash could be read; `None` is "not measured", never zero.
+ */
+totalBytes: number | null, };

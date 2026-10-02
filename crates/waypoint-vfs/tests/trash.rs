@@ -12,7 +12,7 @@ use waypoint_protocol::{EntryId, VfsError};
 use waypoint_vfs::{
     CancelToken, EntryKind, Filter, GroupBy, Listing, ListingEvent, ListingHandle, ListingLayout,
     ListingOptions, MemoryTrashSource, PatchOp, Provider, SelectionSpec, SortKey, SortSpec,
-    TrashProvider, TrashSource, TrashedItem, WatchState,
+    TrashInfo, TrashProvider, TrashSource, TrashedItem, WatchState,
 };
 
 const PATIENCE: Duration = Duration::from_secs(10);
@@ -121,6 +121,27 @@ fn items_are_listed_under_their_original_names_with_where_and_when() {
     assert_eq!(snapshot.layout, ListingLayout::Trash);
     assert_eq!(snapshot.location.uri, "trash:/");
     assert_eq!(snapshot.location.display, "Trash");
+}
+
+#[test]
+fn the_info_counts_always_and_adds_up_the_sizes_only_when_asked() {
+    let source = three();
+    let counted = TrashInfo::of(source.as_ref());
+    assert!(counted.available);
+    assert_eq!(counted.count, 3);
+    assert_eq!(counted.total_bytes, None);
+    let measured = TrashInfo::with_bytes(source.as_ref());
+    assert_eq!(measured.count, 3);
+    assert_eq!(measured.total_bytes, Some(30));
+    // An empty Trash is zero bytes, which is not the same as not measured.
+    assert_eq!(
+        TrashInfo::with_bytes(&MemoryTrashSource::new()).total_bytes,
+        Some(0)
+    );
+    source.set_unavailable(Some("no trash here"));
+    let refused = TrashInfo::with_bytes(source.as_ref());
+    assert!(!refused.available);
+    assert_eq!(refused.total_bytes, None);
 }
 
 #[test]
