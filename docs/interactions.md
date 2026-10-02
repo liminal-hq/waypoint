@@ -28,6 +28,7 @@
 | Ctrl+Shift+N              | New window (one tab at Home)                                                                             |
 | F10 / lone Alt            | Open the application menu with its first row focused; again, close it and return focus                   |
 | Alt+F / E / V / W         | Open the application menu's File, Edit, View or Window menu                                              |
+| F10 / lone Alt (menu bar) | With the menu bar on: focus its first menu (again or Esc: back); Left / Right, Down / Enter / Space, Esc |
 | F7 / Shift+F7             | New folder / new file                                                                                    |
 | Ctrl+Shift+D              | Duplicate                                                                                                |
 | Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸)                                                |
