@@ -70,6 +70,8 @@ export interface ShelfActions {
 export function createShelfActions(deps: ShelfDeps): ShelfActions {
 	const { store, api, vfs } = deps;
 	let running: Promise<void> | null = null;
+	/** What was asked for while a look ran, by file; a forced request keeps its force. */
+	const queued = new Map<string, { item: ShelfItem; force: boolean }>();
 
 	const fail = (error: unknown) => {
 		const limit = shelfFullLimit(error);
@@ -223,10 +225,31 @@ export function createShelfActions(deps: ShelfDeps): ShelfActions {
 			const status = store.getState().status;
 			const wanted = options.force ? items : items.filter((item) => !status.has(item.location.uri));
 			if (wanted.length === 0) return;
-			// One look at a time: a second request while one runs would ask about the same files twice.
-			if (running) return running;
-			running = checkNow(wanted).finally(() => {
-				running = null;
+			for (const item of wanted) {
+				const known = queued.get(item.location.uri);
+				queued.set(item.location.uri, {
+					item,
+					force: (known?.force ?? false) || options.force === true,
+				});
+			}
+			// One look at a time, but nothing asked for is dropped: what arrives while one runs is
+			// looked at after it (and only if it still has no answer, unless forced), so an item added or
+			// rechecked meanwhile is never left "unknown".
+			running ??= Promise.resolve().then(async () => {
+				try {
+					while (queued.size > 0) {
+						const requests = [...queued.values()];
+						queued.clear();
+						const status = store.getState().status;
+						const todo = requests
+							.filter((request) => request.force || !status.has(request.item.location.uri))
+							.map((request) => request.item);
+						if (todo.length > 0) await checkNow(todo);
+					}
+				} finally {
+					// Set here, with no await since the queue was found empty, so no request slips in unseen.
+					running = null;
+				}
 			});
 			return running;
 		},

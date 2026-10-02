@@ -223,13 +223,44 @@ describe('the check for missing files', () => {
 		expect(h.store.getState().status.size).toBe(0);
 	});
 
-	it('does not run two looks at once', async () => {
+	it('does not run two looks at once, and still looks at what was asked for while one ran', async () => {
 		const h = await setup();
 		await h.api.addToShelf([fileLocation('/home/test/a.txt')]);
 		await h.sync();
+		const real = h.vfs.checkFolder.bind(h.vfs);
 		const spy = vi.spyOn(h.vfs, 'checkFolder');
-		await Promise.all([h.actions.check(h.items()), h.actions.check(h.items(), { force: true })]);
-		expect(spy).toHaveBeenCalledTimes(1);
+		let open = 0;
+		let most = 0;
+		spy.mockImplementation(async (location) => {
+			open += 1;
+			most = Math.max(most, open);
+			for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+			open -= 1;
+			return real(location);
+		});
+		const first = h.actions.check(h.items());
+		await Promise.resolve();
+		await Promise.resolve();
+		const second = h.actions.check(h.items(), { force: true });
+		await Promise.all([first, second]);
+		// The forced look was kept and ran after the first, never beside it.
+		expect(spy).toHaveBeenCalledTimes(2);
+		expect(most).toBe(1);
+	});
+
+	it('gives items added while a look runs their status, instead of leaving them unknown', async () => {
+		const h = await setup();
+		await h.api.addToShelf([fileLocation('/home/test/a.txt')]);
+		await h.sync();
+		const first = h.actions.check(h.items());
+		// A file is added (and has already moved away) while the first look is under way.
+		await h.api.addToShelf([fileLocation('/home/test/gone.txt')]);
+		await h.sync();
+		const second = h.actions.check(h.items());
+		await Promise.all([first, second]);
+		const status = h.store.getState().status;
+		expect(status.get('file:///home/test/a.txt')).toBe('file');
+		expect(status.get('file:///home/test/gone.txt')).toBe('missing');
 	});
 });
 
