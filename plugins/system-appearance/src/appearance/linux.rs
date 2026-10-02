@@ -10,7 +10,7 @@ mod portal;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{
-    models::{AppearanceSource, UnavailableReason},
+    models::{AppearanceFeature, AppearanceSource, UnavailableReason},
     resolve::{resolve, Resolution, SourceReading},
 };
 use crate::{linux::cli, models::DesktopEnvironment, parse, service::Readiness};
@@ -44,35 +44,57 @@ where
         })
 }
 
-/// Reads every source this desktop has, most authoritative first.
+/// Whether asking `gsettings` could answer any of the `missing` features, so that spawning it is
+/// worth it. Features no key holds on this desktop (reduced transparency everywhere) never count.
+fn gsettings_can_help(keys: &gsettings::Keys, missing: &[AppearanceFeature]) -> bool {
+    missing.iter().any(|feature| keys.supplies(*feature))
+}
+
+/// Reads the `gsettings` keys of `keys` for the features still missing, if any could be there.
+async fn gsettings_reading(
+    keys: &'static gsettings::Keys,
+    missing: Vec<AppearanceFeature>,
+    reader: GsettingsReader,
+) -> Option<SourceReading> {
+    if !gsettings_can_help(keys, &missing) {
+        return None;
+    }
+    Some(blocking(AppearanceSource::Gsettings, move || reader(keys, &missing)).await)
+}
+
+type GsettingsReader = fn(&'static gsettings::Keys, &[AppearanceFeature]) -> SourceReading;
+
+/// Adds to the portal's reading the readings of the other sources this desktop has, most
+/// authoritative first.
 ///
-/// The portal always goes first. KDE adds `kdeglobals` (and `kcmfonts` for the text scale); Cinnamon and the GNOME family (and
+/// KDE adds `kdeglobals` (and `kcmfonts` for the text scale); Cinnamon and the GNOME family (and
 /// desktops this plugin does not recognise) add `gsettings`, asked only for what the portal did
-/// not answer. MATE and Xfce keep their settings elsewhere, so only the portal is asked there.
-pub async fn read() -> Resolution {
-    let desktop = current_desktop();
-    let portal = portal::read().await;
+/// not answer and only when a key could hold it. MATE and Xfce keep their settings elsewhere, so
+/// only the portal is asked there.
+async fn gather(
+    desktop: DesktopEnvironment,
+    portal: SourceReading,
+    kdeglobals_reader: fn() -> SourceReading,
+    gsettings_reader: GsettingsReader,
+) -> Vec<SourceReading> {
     let missing = portal.values.missing();
     let mut readings = vec![portal];
     match desktop {
         DesktopEnvironment::Kde => {
-            readings.push(blocking(AppearanceSource::KdeGlobals, kdeglobals::read).await)
+            readings.push(blocking(AppearanceSource::KdeGlobals, kdeglobals_reader).await)
         }
-        DesktopEnvironment::Cinnamon => readings.push(
-            blocking(AppearanceSource::Gsettings, move || {
-                gsettings::read(&gsettings::CINNAMON, &missing)
-            })
-            .await,
-        ),
+        DesktopEnvironment::Cinnamon => readings
+            .extend(gsettings_reading(&gsettings::CINNAMON, missing, gsettings_reader).await),
         DesktopEnvironment::Mate | DesktopEnvironment::Xfce => {}
-        _ if missing.is_empty() => {}
-        _ => readings.push(
-            blocking(AppearanceSource::Gsettings, move || {
-                gsettings::read(&gsettings::GNOME, &missing)
-            })
-            .await,
-        ),
+        _ => readings.extend(gsettings_reading(&gsettings::GNOME, missing, gsettings_reader).await),
     }
+    readings
+}
+
+/// Reads every source this desktop has, most authoritative first; the portal always goes first.
+pub async fn read() -> Resolution {
+    let portal = portal::read().await;
+    let readings = gather(current_desktop(), portal, kdeglobals::read, gsettings::read).await;
     resolve(&readings)
 }
 
@@ -107,7 +129,84 @@ pub fn watch(changed: UnboundedSender<()>) -> Watcher {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use super::*;
+    use crate::appearance::models::{ColourScheme, Contrast};
+
+    static GSETTINGS_RUNS: AtomicUsize = AtomicUsize::new(0);
+
+    fn counting_gsettings(
+        _keys: &'static gsettings::Keys,
+        _wanted: &[AppearanceFeature],
+    ) -> SourceReading {
+        GSETTINGS_RUNS.fetch_add(1, Ordering::SeqCst);
+        SourceReading::new(AppearanceSource::Gsettings)
+    }
+
+    fn failing_kdeglobals() -> SourceReading {
+        panic!("kdeglobals is not read in these tests");
+    }
+
+    /// A portal reading that answered everything the portal can, as on GNOME.
+    fn full_portal() -> SourceReading {
+        let mut reading = SourceReading::new(AppearanceSource::Portal);
+        reading.values.colour_scheme = Some(ColourScheme::Dark);
+        reading.values.accent = Some("#3584e4".to_string());
+        reading.values.contrast = Some(Contrast::Normal);
+        reading.values.reduced_motion = Some(false);
+        reading.values.text_scale = Some(1.0);
+        reading.values.icon_theme = Some("Adwaita".to_string());
+        reading.miss(
+            AppearanceFeature::ReducedTransparency,
+            UnavailableReason::NoSource,
+            "the portal has no reduced-transparency setting",
+        );
+        reading
+    }
+
+    fn gathered(desktop: DesktopEnvironment, portal: SourceReading) -> usize {
+        let before = GSETTINGS_RUNS.load(Ordering::SeqCst);
+        tauri::async_runtime::block_on(gather(
+            desktop,
+            portal,
+            failing_kdeglobals,
+            counting_gsettings,
+        ));
+        GSETTINGS_RUNS.load(Ordering::SeqCst) - before
+    }
+
+    #[test]
+    fn gsettings_is_spawned_only_when_it_could_answer_something() {
+        // The portal answered all it can: only reduced transparency is missing, which no
+        // desktop's keys hold.
+        assert_eq!(gathered(DesktopEnvironment::Gnome, full_portal()), 0);
+        assert_eq!(gathered(DesktopEnvironment::Unknown, full_portal()), 0);
+        // Cinnamon has no accent key either, so a portal without one leaves nothing to ask.
+        let mut no_accent = full_portal();
+        no_accent.values.accent = None;
+        assert_eq!(gathered(DesktopEnvironment::Cinnamon, no_accent), 0);
+        // A feature a key could hold is still asked for, once.
+        let mut no_icons = full_portal();
+        no_icons.values.icon_theme = None;
+        assert_eq!(gathered(DesktopEnvironment::Gnome, no_icons.clone()), 1);
+        assert_eq!(gathered(DesktopEnvironment::Cinnamon, no_icons), 1);
+        // A failed portal asks for everything.
+        let failed = SourceReading::failed(
+            AppearanceSource::Portal,
+            UnavailableReason::PortalUnavailable,
+            "no portal",
+        );
+        assert_eq!(gathered(DesktopEnvironment::Gnome, failed), 1);
+        // MATE and Xfce never use gsettings.
+        assert_eq!(
+            gathered(
+                DesktopEnvironment::Mate,
+                SourceReading::new(AppearanceSource::Portal)
+            ),
+            0
+        );
+    }
 
     #[test]
     fn a_panicking_reader_is_labelled_with_its_own_source() {
