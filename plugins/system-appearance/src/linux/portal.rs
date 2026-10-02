@@ -54,7 +54,7 @@ pub async fn read(desktop_environment: DesktopEnvironment) -> Result<TitlebarPre
 }
 
 /// Aborts the signal-listening task when dropped.
-struct TaskGuard(tauri::async_runtime::JoinHandle<()>);
+pub(crate) struct TaskGuard(pub(crate) tauri::async_runtime::JoinHandle<()>);
 
 impl Drop for TaskGuard {
     fn drop(&mut self) {

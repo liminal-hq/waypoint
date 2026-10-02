@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::appearance::models::AppearanceFeatureStatus;
+
 /// A button that can appear in a window titlebar.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
@@ -108,6 +110,12 @@ pub struct TitlebarPreferences {
 }
 
 /// Whether the plugin could read the platform's preferences, and how.
+///
+/// `available` is true when the titlebar preferences or any appearance preference could be read;
+/// `reason` says why the titlebar preferences could not. `features` names the titlebar sources
+/// that worked (`portal`, `kwin-config`, ...) followed by the appearance features that did
+/// (`colourScheme`, ...), and `appearance` reports every appearance feature with its reason when
+/// it does not work.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
@@ -115,6 +123,19 @@ pub struct PluginStatus {
     pub available: bool,
     pub reason: Option<String>,
     pub features: Vec<String>,
+    pub appearance: Vec<AppearanceFeatureStatus>,
+}
+
+impl PluginStatus {
+    /// Adds the availability of the appearance features to a titlebar status.
+    pub fn with_appearance(mut self, appearance: Vec<AppearanceFeatureStatus>) -> Self {
+        for feature in appearance.iter().filter(|status| status.available) {
+            self.features.push(feature.feature.name().to_string());
+        }
+        self.available = self.available || appearance.iter().any(|status| status.available);
+        self.appearance = appearance;
+        self
+    }
 }
 
 impl TitlebarActions {
@@ -174,6 +195,7 @@ impl Snapshot {
                 available: true,
                 reason: None,
                 features: vec![feature.to_string()],
+                appearance: Vec::new(),
             },
         }
     }
@@ -186,7 +208,57 @@ impl Snapshot {
                 available: false,
                 reason: Some(reason.into()),
                 features: Vec::new(),
+                appearance: Vec::new(),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::appearance::models::{AppearanceFeature, AppearanceSource, UnavailableReason};
+
+    fn feature(feature: AppearanceFeature, available: bool) -> AppearanceFeatureStatus {
+        AppearanceFeatureStatus {
+            feature,
+            available,
+            source: available.then_some(AppearanceSource::Portal),
+            reason: (!available).then_some(UnavailableReason::NoSource),
+            detail: None,
+        }
+    }
+
+    #[test]
+    fn appearance_features_join_the_status_without_touching_the_titlebar_part() {
+        let titlebar = Snapshot::from_source(
+            TitlebarPreferences::fallback(DesktopEnvironment::Gnome),
+            "portal",
+        )
+        .status;
+        let status = titlebar.clone().with_appearance(vec![
+            feature(AppearanceFeature::ColourScheme, true),
+            feature(AppearanceFeature::Accent, false),
+        ]);
+        assert!(status.available);
+        assert_eq!(status.reason, titlebar.reason);
+        assert_eq!(status.features, vec!["portal", "colourScheme"]);
+        assert_eq!(status.appearance.len(), 2);
+    }
+
+    #[test]
+    fn working_appearance_makes_the_plugin_available_when_the_titlebar_is_not() {
+        let titlebar = Snapshot::unavailable(DesktopEnvironment::Unknown, "no portal").status;
+        let status = titlebar.with_appearance(vec![feature(AppearanceFeature::TextScale, true)]);
+        assert!(status.available);
+        assert_eq!(status.reason.as_deref(), Some("no portal"));
+    }
+
+    #[test]
+    fn nothing_available_stays_unavailable() {
+        let titlebar = Snapshot::unavailable(DesktopEnvironment::Unknown, "no portal").status;
+        let status = titlebar.with_appearance(vec![feature(AppearanceFeature::TextScale, false)]);
+        assert!(!status.available);
+        assert!(status.features.is_empty());
     }
 }

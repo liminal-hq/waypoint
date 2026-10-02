@@ -3,10 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-mod cli;
+pub(crate) mod cli;
 mod gsettings;
-mod kwin;
-mod portal;
+pub(crate) mod kwin;
+pub(crate) mod portal;
 mod xfconf;
 
 use tokio::sync::mpsc::UnboundedSender;

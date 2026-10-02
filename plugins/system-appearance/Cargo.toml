@@ -1,7 +1,7 @@
 [package]
 name = "tauri-plugin-system-appearance"
 version = "0.1.0"
-description = "Tauri plugin that reads the operating system's window titlebar preferences and pushes changes"
+description = "Tauri plugin that reads the operating system's window titlebar and appearance preferences and pushes changes"
 authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
@@ -11,9 +11,9 @@ build = "build.rs"
 links = "tauri-plugin-system-appearance"
 
 [package.metadata.platforms.support]
-windows = { level = "full", notes = "Reports the fixed Windows titlebar layout and actions" }
-linux = { level = "full", notes = "Reads xdg-desktop-portal, kwinrc, gsettings or xfconf depending on the desktop environment, and watches for changes" }
-macos = { level = "partial", notes = "Reports the fixed macOS traffic-light layout and the double-click action from NSGlobalDomain; changes are not pushed" }
+windows = { level = "partial", notes = "Reports the fixed Windows titlebar layout and actions, and reads the appearance preferences through UISettings, AccessibilitySettings and the registry; type-checked for Windows but not yet run there" }
+linux = { level = "full", notes = "Reads xdg-desktop-portal, kwinrc, kdeglobals, gsettings or xfconf depending on the desktop environment, and watches for changes" }
+macos = { level = "partial", notes = "Reports the fixed macOS traffic-light layout and the double-click action from NSGlobalDomain, and reports every appearance preference as unavailable; changes are not pushed" }
 android = { level = "none", notes = "Desktop window titlebars only" }
 ios = { level = "none", notes = "Desktop window titlebars only" }
 
@@ -34,6 +34,17 @@ ts-rs = "12"
 ashpd = { version = "0.13", default-features = false, features = ["tokio", "settings"] }
 futures-util = "0.3"
 notify = "8"
+
+# Matches the version Tauri resolves.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Foundation",
+  "UI",
+  "UI_ViewManagement",
+  "Win32_Foundation",
+  "Win32_System_Registry",
+  "Win32_System_WinRT",
+] }
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }

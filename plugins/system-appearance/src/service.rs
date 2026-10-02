@@ -20,9 +20,9 @@ use crate::{
 pub const CHANGED_EVENT: &str = "system-appearance://titlebar-preferences-changed";
 
 /// How long to let a burst of change notifications settle before re-reading.
-const DEBOUNCE: Duration = Duration::from_millis(150);
+pub(crate) const DEBOUNCE: Duration = Duration::from_millis(150);
 
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
@@ -73,11 +73,11 @@ pub fn advance(previous: Option<&Reading>, next: Snapshot) -> (Reading, bool) {
 }
 
 /// How long startup waits for a watcher to begin listening before it reads the baseline anyway.
-const READY_TIMEOUT: Duration = Duration::from_secs(5);
+pub(crate) const READY_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// How long after the baseline read a watcher that cannot confirm it is listening gets before the
 /// preferences are read once more.
-const SETTLE: Duration = Duration::from_millis(750);
+pub(crate) const SETTLE: Duration = Duration::from_millis(750);
 
 /// Whether, and how, a watcher can say it has started listening.
 // Only the Linux watchers need the last two variants; the other platforms listen to nothing.
@@ -93,7 +93,7 @@ pub enum Readiness {
 }
 
 /// What to do after the baseline read, given how far a watcher got before it.
-enum FollowUp {
+pub(crate) enum FollowUp {
     /// The watcher was already listening, so the baseline is complete.
     Nothing,
     /// Read again after `SETTLE`, to catch a change made while a child process was starting.
@@ -106,7 +106,7 @@ enum FollowUp {
 /// Waits (for at most `timeout`) until a watcher reports that it is listening, and says what the
 /// baseline read needs after it. A watcher that fails to start drops its signal, which ends the
 /// wait as well, so startup is never held up for long.
-async fn wait_until_ready(readiness: Readiness, timeout: Duration) -> FollowUp {
+pub(crate) async fn wait_until_ready(readiness: Readiness, timeout: Duration) -> FollowUp {
     match readiness {
         Readiness::Listening => FollowUp::Nothing,
         Readiness::Signal(mut ready) => match tokio::time::timeout(timeout, &mut ready).await {
