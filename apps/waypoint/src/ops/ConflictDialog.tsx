@@ -84,8 +84,9 @@ function choiceNote(policy: ConflictPolicy, replacesFolder: boolean, restoring: 
 /**
  * Opens with nothing chosen: "Continue" stays off until every clash has an answer of its own or
  * the "Apply to all remaining" choice reaches it, and the first control has focus, never a
- * destructive one. Escape and "Cancel the operation" stop the job (after asking, once anything
- * has been answered); a click outside does nothing. A choice is offered for a clash only where the
+ * destructive one. Escape closes the dialog and leaves the job waiting (as in the error dialog,
+ * because a stray key must not stop a job); "Cancel the operation" stops it, after asking once
+ * anything has been answered, and a click outside does nothing. A choice is offered for a clash only where the
  * engine can carry it out.
  */
 export function ConflictDialog({
@@ -155,8 +156,8 @@ export function ConflictDialog({
 			title={title}
 			description={t(restoring ? 'ops.conflict.description.restore' : 'ops.conflict.description')}
 			onClose={(reason) => {
-				// A click outside must not cancel a job by accident; Escape is the keyboard way out.
-				if (reason !== 'backdrop') requestCancel();
+				// Neither a click outside nor Escape cancels a job by accident: Escape is "decide later".
+				if (reason !== 'backdrop') onLater();
 			}}
 			footer={
 				<div className={styles.footer}>

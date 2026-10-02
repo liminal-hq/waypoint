@@ -343,18 +343,23 @@ describe('focus and keys', () => {
 		expect(dialog().querySelector('[data-variant="danger"]')).toBeNull();
 	});
 
-	it('cancels the job on Escape when nothing has been answered', async () => {
+	it('closes on Escape and leaves the job waiting, whether or not anything is answered', async () => {
 		const user = userEvent.setup();
 		const handlers = mount([conflictFor('a.txt')]);
 		await user.keyboard('{Escape}');
-		expect(handlers.onCancelJob).toHaveBeenCalledOnce();
+		expect(handlers.onLater).toHaveBeenCalledOnce();
+		expect(handlers.onCancelJob).not.toHaveBeenCalled();
+		await user.selectOptions(choiceFor('a.txt'), 'Skip');
+		await user.keyboard('{Escape}');
+		expect(handlers.onLater).toHaveBeenCalledTimes(2);
+		expect(handlers.onCancelJob).not.toHaveBeenCalled();
 	});
 
-	it('asks first on Escape once something is answered, and keeps deciding on "Keep deciding"', async () => {
+	it('asks first on the Cancel button once something is answered, and keeps deciding on "Keep deciding"', async () => {
 		const user = userEvent.setup();
 		const handlers = mount([conflictFor('a.txt')]);
 		await user.selectOptions(choiceFor('a.txt'), 'Skip');
-		await user.keyboard('{Escape}');
+		await user.click(within(dialog()).getByRole('button', { name: 'Cancel the operation' }));
 		expect(handlers.onCancelJob).not.toHaveBeenCalled();
 		const confirm = screen.getByRole('dialog', { name: 'Cancel the operation?' });
 		expect(within(confirm).getByRole('button', { name: 'Keep deciding' })).toHaveFocus();

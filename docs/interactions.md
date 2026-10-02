@@ -209,7 +209,8 @@ The conflict and error dialogs open by themselves in the window that started the
 | Choice in a row                                       | A conflict      | Answers that clash; only the choices that can be carried out are listed |
 | Apply to all remaining                                | Conflict dialog | Answers every clash it can; a row's own choice wins                     |
 | Continue                                              | Conflict dialog | Sends the answers; off until every clash is answered                    |
-| Esc, Cancel the operation                             | Conflict dialog | Stops the job, after a question once anything was answered              |
+| Cancel the operation                                  | Conflict dialog | Stops the job, after a question once anything was answered              |
+| Esc                                                   | Conflict dialog | Closes it and leaves the job waiting                                    |
 | Decide later                                          | Either dialog   | Closes it and leaves the job waiting                                    |
 | Esc                                                   | Error dialog    | Closes it and leaves the job waiting                                    |
 | Retry, Skip, Skip all like this, Cancel the operation | Error dialog    | Tells the job what to do with the item that failed                      |
