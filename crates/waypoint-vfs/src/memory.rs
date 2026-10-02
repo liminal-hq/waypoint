@@ -926,6 +926,45 @@ impl Provider for MemoryProvider {
         }
     }
 
+    fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
+        let inner = self.lock();
+        let location = path.to_location();
+        let mut pending: Vec<OsString> = self.comps(path)?;
+        pending.reverse();
+        let mut done: Vec<OsString> = Vec::new();
+        let mut hops = 0;
+        while let Some(name) = pending.pop() {
+            done.push(name);
+            let node = inner
+                .node(&done)
+                .ok_or_else(|| inner.missing(&done, location.clone()))?;
+            if let Kind::Symlink(text) = &node.kind {
+                hops += 1;
+                let (_, up) = done.split_last().expect("just pushed");
+                let target = Self::target_comps(up, text, &self.root);
+                match target {
+                    Some(target) if hops <= 40 => {
+                        done.clear();
+                        pending.extend(target.into_iter().rev());
+                    }
+                    _ => {
+                        return Err(VfsError::Io {
+                            message: "too many levels of symbolic links".to_owned(),
+                            location: Some(location),
+                        })
+                    }
+                }
+            }
+        }
+        let mut resolved = self.root.clone();
+        for name in &done {
+            resolved = resolved.join(name).map_err(|_| VfsError::InvalidLocation {
+                input: name.to_string_lossy().into_owned(),
+            })?;
+        }
+        Ok(VfsPath::File(resolved))
+    }
+
     fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
         let comps = self.comps(path).ok()?;
         let inner = self.lock();

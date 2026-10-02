@@ -388,6 +388,26 @@ impl Provider for LocalProvider {
             .map_err(|e| from_io(&e, &path.to_location()))
     }
 
+    fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
+        let location = path.to_location();
+        let resolved =
+            fs::canonicalize(file_path(path)?.as_path()).map_err(|e| from_io(&e, &location))?;
+        // Windows answers with a verbatim `\\?\` path; drop the prefix where the rest is a plain drive path.
+        #[cfg(windows)]
+        let resolved = {
+            let text = resolved.to_string_lossy().into_owned();
+            match text.strip_prefix(r"\\?\") {
+                Some(rest) if !rest.starts_with("UNC\\") => std::path::PathBuf::from(rest),
+                _ => resolved,
+            }
+        };
+        FilePath::from_path(&resolved)
+            .map(VfsPath::File)
+            .map_err(|_| VfsError::InvalidLocation {
+                input: resolved.to_string_lossy().into_owned(),
+            })
+    }
+
     fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
         let file = file_path(path).ok()?;
         sys::volume_id(file.as_path()).ok().map(VolumeId)

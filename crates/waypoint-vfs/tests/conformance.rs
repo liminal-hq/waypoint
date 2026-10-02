@@ -545,6 +545,42 @@ fn a_listing_fails_when_one_entry_cannot_be_read() {
     assert_eq!(m.list(&r, &cancel, 0, &mut |_| {}).unwrap().len(), 3);
 }
 
+#[cfg(unix)]
+#[test]
+fn canonicalising_resolves_every_symlink_along_the_path() {
+    each(|f| {
+        let (p, r) = (&*f.provider, &f.root);
+        p.create_dir(&at(r, "a")).unwrap();
+        p.create_dir(&at(r, "a/sub")).unwrap();
+        p.symlink(&at(r, "link"), OsStr::new("a")).unwrap();
+        p.symlink(&at(r, "a/up"), OsStr::new("../link/sub"))
+            .unwrap();
+        p.symlink(&at(r, "loop"), OsStr::new("loop")).unwrap();
+        let want = at(r, "a/sub");
+        assert_eq!(
+            p.canonicalize(&at(r, "link/sub")).unwrap(),
+            want,
+            "{}",
+            f.name
+        );
+        assert_eq!(p.canonicalize(&at(r, "a/up")).unwrap(), want, "{}", f.name);
+        assert_eq!(
+            p.canonicalize(&at(r, "link")).unwrap(),
+            at(r, "a"),
+            "{}",
+            f.name
+        );
+        assert_eq!(p.canonicalize(r).unwrap(), *r, "{}", f.name);
+        assert_eq!(
+            kind(&p.canonicalize(&at(r, "link/none"))),
+            "notFound",
+            "{}",
+            f.name
+        );
+        assert!(p.canonicalize(&at(r, "loop")).is_err(), "{}", f.name);
+    });
+}
+
 #[test]
 fn permissions_round_trip() {
     each(|f| {

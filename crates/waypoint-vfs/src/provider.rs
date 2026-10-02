@@ -228,6 +228,15 @@ pub trait Provider: Send + Sync {
         unsupported("reading symlinks here")
     }
 
+    /// The location with every symlink along it resolved (every component, the last included), so two
+    /// spellings of one place compare equal. The entry must exist (`NotFound` otherwise; to canonicalise
+    /// something not yet created, canonicalise its parent). `Unsupported`, the default, means the
+    /// provider cannot tell and the caller falls back to comparing the paths as written.
+    fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
+        let _ = path;
+        unsupported("resolving symlinks here")
+    }
+
     /// The volume the location is on, or `None` when the provider has no such notion or cannot
     /// tell. To ask about something not yet created, ask about its parent.
     fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
