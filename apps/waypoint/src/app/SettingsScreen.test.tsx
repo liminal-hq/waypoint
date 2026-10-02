@@ -82,6 +82,8 @@ describe('SettingsScreen', () => {
 		const nav = within(screen.getByRole('navigation', { name: 'Settings sections' }));
 		expect(nav.getAllByRole('button').map((b) => b.textContent)).toEqual([
 			'General',
+			'Appearance',
+			'Accessibility',
 			'Operations',
 			'Drag & drop',
 		]);
@@ -115,11 +117,11 @@ describe('SettingsScreen', () => {
 		const general = screen.getByRole('button', { name: 'General' });
 		general.focus();
 		await userEvent.keyboard('{ArrowDown}');
-		expect(screen.getByRole('button', { name: 'Operations' })).toHaveFocus();
+		expect(screen.getByRole('button', { name: 'Appearance' })).toHaveFocus();
 		expect(screen.getByRole('heading', { level: 2, name: 'General' })).toBeInTheDocument();
 		await userEvent.keyboard('{Enter}');
 		expect(
-			await screen.findByRole('heading', { level: 2, name: 'Operations' }),
+			await screen.findByRole('heading', { level: 2, name: 'Appearance' }),
 		).toBeInTheDocument();
 	});
 });
@@ -416,5 +418,60 @@ describe('the Drag & drop page', () => {
 		expect(screen.queryByText(/Dragging files out/)).toBeNull();
 		expect(screen.getByRole('combobox', { name: 'Default drop action' })).toBeEnabled();
 		warn.mockRestore();
+	});
+});
+
+describe('the Appearance page', () => {
+	it('shows the current choices and saves a change through Rust', async () => {
+		const { settings } = await open();
+		await goTo('Appearance');
+		const mode = within(screen.getByRole('radiogroup', { name: 'Colour mode' }));
+		expect(mode.getByRole('radio', { name: 'System' })).toBeChecked();
+		expect(screen.getByRole('radio', { name: 'Comfortable' })).toBeChecked();
+		await userEvent.click(screen.getByRole('radio', { name: 'Dark' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.mode).toBe('dark'));
+		await userEvent.click(screen.getByRole('radio', { name: 'Compact' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.density).toBe('compact'));
+	});
+
+	it('offers a colour picker only for a custom accent, and saves what is picked', async () => {
+		const { settings } = await open();
+		await goTo('Appearance');
+		expect(screen.queryByLabelText('Custom accent')).toBeNull();
+		await userEvent.selectOptions(screen.getByLabelText('Accent colour'), 'custom');
+		const picker = await screen.findByLabelText('Custom accent');
+		expect(settings.calls.at(-1)?.appearance.accent).toMatchObject({ kind: 'custom' });
+		fireEvent.change(picker, { target: { value: '#0f766e' } });
+		await waitFor(() =>
+			expect(settings.calls.at(-1)?.appearance.accent).toEqual({ kind: 'custom', hex: '#0f766e' }),
+		);
+		await userEvent.selectOptions(screen.getByLabelText('Accent colour'), 'ember');
+		await waitFor(() => expect(screen.queryByLabelText('Custom accent')).toBeNull());
+	});
+});
+
+describe('the Accessibility page', () => {
+	it('lists each preference and every one starts by following the system', async () => {
+		await open();
+		await goTo('Accessibility');
+		for (const name of ['High contrast', 'Reduce motion', 'Reduce transparency']) {
+			expect(screen.getByLabelText(name)).toHaveValue('follow');
+		}
+		expect(screen.getByRole('radio', { name: '100%' })).toBeChecked();
+		expect(screen.getByRole('radio', { name: 'Automatic' })).toBeChecked();
+		expect(screen.getByRole('switch', { name: 'Stronger focus ring' })).not.toBeChecked();
+	});
+
+	it('saves the text size, forced choices and the focus ring', async () => {
+		const { settings } = await open();
+		await goTo('Accessibility');
+		await userEvent.click(screen.getByRole('radio', { name: '130%' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.accessibility.textSize).toBe(130));
+		await userEvent.selectOptions(screen.getByLabelText('High contrast'), 'on');
+		await waitFor(() => expect(settings.calls.at(-1)?.accessibility.highContrast).toBe('on'));
+		await userEvent.click(screen.getByRole('switch', { name: 'Stronger focus ring' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.accessibility.strongFocusRing).toBe(true));
+		await userEvent.click(screen.getByRole('radio', { name: 'On' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.accessibility.touchMode).toBe('on'));
 	});
 });

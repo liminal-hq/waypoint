@@ -36,7 +36,19 @@ export type RowKey =
 	| 'trashDays'
 	| 'dropRule'
 	| 'springLoad'
-	| 'shelfPersist';
+	| 'shelfPersist'
+	| 'mode'
+	| 'themeSource'
+	| 'accent'
+	| 'accentColour'
+	| 'density'
+	| 'iconStyle'
+	| 'highContrast'
+	| 'textSize'
+	| 'strongFocus'
+	| 'reducedMotion'
+	| 'reducedTransparency'
+	| 'touchMode';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {

@@ -5,11 +5,13 @@
 
 import type { SettingsSectionDef } from '@liminal-hq/waypoint-chrome/SettingsShell/types';
 import { t } from '../i18n/messages';
+import { AccessibilityPage } from './AccessibilityPage';
+import { AppearancePage } from './AppearancePage';
 import { DragDropPage } from './DragDropPage';
 import { GeneralPage } from './GeneralPage';
 import { OperationsPage } from './OperationsPage';
 
-export type SectionId = 'general' | 'operations' | 'dnd';
+export type SectionId = 'general' | 'appearance' | 'accessibility' | 'operations' | 'dnd';
 
 /**
  * A page that is not built yet is absent, not a placeholder: the other pages of SPEC 11
@@ -18,6 +20,12 @@ export type SectionId = 'general' | 'operations' | 'dnd';
 export function settingsSections(): SettingsSectionDef[] {
 	return [
 		{ id: 'general', label: t('settings.section.general'), render: () => <GeneralPage /> },
+		{ id: 'appearance', label: t('settings.section.appearance'), render: () => <AppearancePage /> },
+		{
+			id: 'accessibility',
+			label: t('settings.section.accessibility'),
+			render: () => <AccessibilityPage />,
+		},
 		{ id: 'operations', label: t('settings.section.operations'), render: () => <OperationsPage /> },
 		{ id: 'dnd', label: t('settings.section.dnd'), render: () => <DragDropPage /> },
 	];
