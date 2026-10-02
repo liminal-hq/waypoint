@@ -23,7 +23,7 @@ pub fn interpret(text: &str) -> SourceReading {
     let mut reading = SourceReading::new(AppearanceSource::KdeGlobals);
     reading.values.colour_scheme = globals.colour_scheme;
     reading.values.accent = globals.accent;
-    reading.values.reduced_motion = globals.reduced_motion.or(Some(false));
+    reading.values.reduced_motion = globals.reduced_motion;
     reading.values.text_scale = globals.text_scale;
     reading.values.icon_theme = globals.icon_theme;
     for (feature, present, detail) in [
@@ -36,6 +36,11 @@ pub fn interpret(text: &str) -> SourceReading {
             AppearanceFeature::Accent,
             reading.values.accent.is_some(),
             "kdeglobals has no AccentColor",
+        ),
+        (
+            AppearanceFeature::ReducedMotion,
+            reading.values.reduced_motion.is_some(),
+            "kdeglobals has no AnimationDurationFactor",
         ),
         (
             AppearanceFeature::TextScale,
@@ -103,17 +108,30 @@ mod tests {
         assert_eq!(reading.values.colour_scheme, Some(ColourScheme::Dark));
         assert_eq!(reading.values.accent.as_deref(), Some("#3daee9"));
         assert_eq!(reading.values.icon_theme.as_deref(), Some("breeze-dark"));
-        // Animations at their default are not reduced.
-        assert_eq!(reading.values.reduced_motion, Some(false));
+        // Without an AnimationDurationFactor the file does not say, which is a miss, not "off".
+        assert_eq!(reading.values.reduced_motion, None);
         assert_eq!(reading.values.text_scale, Some(1.0));
         let missed: Vec<_> = reading.misses.iter().map(|m| m.feature).collect();
         assert_eq!(
             missed,
             vec![
+                AppearanceFeature::ReducedMotion,
                 AppearanceFeature::Contrast,
                 AppearanceFeature::ReducedTransparency
             ]
         );
+    }
+
+    #[test]
+    fn the_animation_duration_factor_decides_reduced_motion() {
+        let reduced = interpret("[KDE]\nAnimationDurationFactor=0\n");
+        assert_eq!(reduced.values.reduced_motion, Some(true));
+        let normal = interpret("[KDE]\nAnimationDurationFactor=1\n");
+        assert_eq!(normal.values.reduced_motion, Some(false));
+        assert!(!normal
+            .misses
+            .iter()
+            .any(|m| m.feature == AppearanceFeature::ReducedMotion));
     }
 
     #[test]
