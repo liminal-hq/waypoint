@@ -20,7 +20,7 @@ import {
 	type PointerEvent,
 } from 'react';
 import { dropAttributes } from '../dnd/dropTargets';
-import { inlineKey, isRtl } from '../i18n/direction';
+import { inlineKey, isRtl, overflowSides, wheelScrollDelta } from '../i18n/direction';
 import { t, tf } from '../i18n/messages';
 import {
 	ChevronLeftIcon,
@@ -159,9 +159,12 @@ export function TabStrip() {
 	const measureOverflow = useCallback(() => {
 		const element = scroller.current;
 		if (!element) return;
-		const max = element.scrollWidth - element.clientWidth;
-		const left = element.scrollLeft > 1;
-		const right = element.scrollLeft < max - 1;
+		const { left, right } = overflowSides(
+			element.scrollLeft,
+			element.scrollWidth,
+			element.clientWidth,
+			isRtl(element),
+		);
 		setOverflow((previous) =>
 			previous.left === left && previous.right === right ? previous : { left, right },
 		);
@@ -399,7 +402,7 @@ export function TabStrip() {
 				onWheel={(event) => {
 					// A vertical wheel scrolls a horizontal strip.
 					if (Math.abs(event.deltaY) > Math.abs(event.deltaX) && scroller.current) {
-						scroller.current.scrollLeft += event.deltaY;
+						scroller.current.scrollLeft += wheelScrollDelta(event.deltaY, isRtl(scroller.current));
 					}
 				}}
 			>

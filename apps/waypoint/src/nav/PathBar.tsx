@@ -18,6 +18,7 @@ import {
 import { useVfsClient } from '../browse/VfsClientContext';
 import { dropAttributes } from '../dnd/dropTargets';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
+import { endScrollLeft, isRtl } from '../i18n/direction';
 import { t, tf } from '../i18n/messages';
 import { toVfsError } from '../browse/listingModel';
 import { useLocationInfo } from './locationInfo';
@@ -85,7 +86,7 @@ function Breadcrumbs({ location, onEdit, onNavigate, onOpenInNewTab }: Breadcrum
 	// A long path shows its tail: the folder you are in matters more than the root.
 	useLayoutEffect(() => {
 		const element = scroller.current;
-		if (element) element.scrollLeft = element.scrollWidth;
+		if (element) element.scrollLeft = endScrollLeft(element.scrollWidth, isRtl(element));
 	}, [info]);
 
 	const segments = info?.segments ?? [];
