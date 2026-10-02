@@ -68,6 +68,7 @@ describe('ServicesPanel', () => {
 describe('the registered sources', () => {
 	it('names every plugin, with a message for each', () => {
 		expect(Object.keys(SERVICE_SOURCES).sort()).toEqual([
+			'desktop-integration',
 			'file-system',
 			'mime-apps',
 			'native-dnd',
@@ -82,6 +83,7 @@ describe('the registered sources', () => {
 			'window-effects',
 			'window-manager',
 			'window-tearoff',
+			'xdg-portal',
 		]);
 	});
 

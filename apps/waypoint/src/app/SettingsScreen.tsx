@@ -17,6 +17,10 @@ import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { useMemo, useState } from 'react';
 import { useLocaleVersion } from '../i18n/active';
 import { t } from '../i18n/messages';
+import type { DefaultFileManagerClient } from '../services/defaultFileManagerClient';
+import type { IntegrationsClient } from '../services/integrationsClient';
+import { createTauriDefaultFileManagerClient } from '../services/tauriDefaultFileManagerClient';
+import { createTauriIntegrationsClient } from '../services/tauriIntegrationsClient';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
 import type { SettingsClient } from '../services/settingsClient';
@@ -43,6 +47,10 @@ interface SettingsScreenProps {
 	thumbnailsStatus?: () => Promise<PluginStatus>;
 	/** What window effects can do here; the window effects plugin's status unless a test supplies its own. */
 	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
+	/** What the OS integrations can do here; the app's own commands unless a test supplies its own. */
+	integrations?: IntegrationsClient;
+	/** The default file manager action; the mime-apps plugin's unless a test supplies its own. */
+	fileManager?: DefaultFileManagerClient;
 }
 
 /** The native drag and drop plugin's status in the shape the page needs. */
@@ -80,9 +88,16 @@ function Editor({
 	dndStatus,
 	thumbnailsStatus,
 	windowEffectsStatus,
-}: Pick<SettingsScreenProps, 'ops' | 'dndStatus' | 'thumbnailsStatus' | 'windowEffectsStatus'>) {
+	integrations,
+	fileManager,
+}: Pick<
+	SettingsScreenProps,
+	'ops' | 'dndStatus' | 'thumbnailsStatus' | 'windowEffectsStatus' | 'integrations' | 'fileManager'
+>) {
 	const handle = useSettingsHandle();
 	const [ownOps] = useState<OpsSettingsApi>(() => ops ?? createTauriOpsClient());
+	const [ownIntegrations] = useState(() => integrations ?? createTauriIntegrationsClient());
+	const [ownFileManager] = useState(() => fileManager ?? createTauriDefaultFileManagerClient());
 	if (!handle) return null;
 	return (
 		<SettingsEditorProvider
@@ -91,6 +106,8 @@ function Editor({
 			dndStatus={dndStatus ?? nativeDndAvailability}
 			thumbnailsStatus={thumbnailsStatus ?? thumbnailsPluginStatus}
 			windowEffectsStatus={windowEffectsStatus ?? windowEffectsPluginStatus}
+			integrations={ownIntegrations}
+			fileManager={ownFileManager}
 		>
 			<Pages />
 		</SettingsEditorProvider>
@@ -108,6 +125,8 @@ export function SettingsScreen({
 	dndStatus,
 	thumbnailsStatus,
 	windowEffectsStatus,
+	integrations,
+	fileManager,
 }: SettingsScreenProps) {
 	const [own] = useState(() => client ?? createTauriSettingsClient());
 	// The title bar and the pages render their messages themselves, so a new language needs a render.
@@ -122,6 +141,8 @@ export function SettingsScreen({
 						dndStatus={dndStatus}
 						thumbnailsStatus={thumbnailsStatus}
 						windowEffectsStatus={windowEffectsStatus}
+						integrations={integrations}
+						fileManager={fileManager}
 					/>
 				</SettingsProvider>
 			</main>

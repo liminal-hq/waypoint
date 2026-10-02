@@ -118,4 +118,20 @@ describe('window capabilities', () => {
 			expect(covers(capability, label), label).toBe(false);
 		}
 	});
+
+	it('lets only the Settings window change the default application, and nothing that opens or chooses a file', () => {
+		const withDefaults = capabilities.filter((capability) =>
+			capability.permissions.some(
+				(p) => p === 'mime-apps:allow-set-default' || p === 'mime-apps:default',
+			),
+		);
+		// The main windows hold the plugin's default set; the Settings window the few it needs.
+		expect(withDefaults.map((c) => c.identifier).sort()).toEqual(['main', 'settings']);
+		expect(byId('settings').permissions.filter((p) => p.startsWith('mime-apps:'))).toEqual([
+			'mime-apps:allow-get-status',
+			'mime-apps:allow-handlers',
+			'mime-apps:allow-set-default',
+			'mime-apps:allow-open-default-apps-settings',
+		]);
+	});
 });
