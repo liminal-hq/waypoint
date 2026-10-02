@@ -363,7 +363,16 @@ export function TabStrip() {
 	};
 
 	return (
-		<div className={styles.strip} data-drop-strip="">
+		<div
+			className={styles.strip}
+			data-drop-strip=""
+			// A double-click on the strip's empty space (not a tab, chip, pair or button) opens a tab at the end.
+			onDoubleClick={(event) => {
+				const target = event.target as HTMLElement;
+				if (target.closest('[role="tab"], button, [data-chip], [data-pair]')) return;
+				if (target === event.currentTarget || target.closest('[data-strip]')) actions.newTabAtEnd();
+			}}
+		>
 			<button
 				type="button"
 				className={styles.arrow}
