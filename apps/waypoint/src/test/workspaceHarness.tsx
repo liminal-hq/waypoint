@@ -27,6 +27,8 @@ import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
 import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
 import { DetailsClientProvider } from '../inspector/DetailsClientContext';
 import type { DetailsClient } from '../services/detailsClient';
+import { PropertiesWindowProvider } from '../inspector/PropertiesWindowContext';
+import type { PropertiesWindowClient } from '../services/propertiesWindowClient';
 
 export const HOME = fileLocation('/home/test');
 export const DOCS = fileLocation('/home/test/docs');
@@ -71,6 +73,8 @@ export async function renderWorkspace(
 		thumbnails?: ThumbnailsClient;
 		/** Entry details, folder sizes and previews for the Inspector. */
 		details?: DetailsClient;
+		/** The Properties windows service (Alt+Enter and the item menu offer none when omitted). */
+		propertiesWindow?: PropertiesWindowClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
@@ -93,10 +97,17 @@ export async function renderWorkspace(
 	) : (
 		thumbed
 	);
-	const workspace = options.settings ? (
-		<SettingsProvider client={options.settings}>{detailed}</SettingsProvider>
+	const windowed = options.propertiesWindow ? (
+		<PropertiesWindowProvider client={options.propertiesWindow}>
+			{detailed}
+		</PropertiesWindowProvider>
 	) : (
 		detailed
+	);
+	const workspace = options.settings ? (
+		<SettingsProvider client={options.settings}>{windowed}</SettingsProvider>
+	) : (
+		windowed
 	);
 	const view = render(
 		<VfsClientProvider client={client}>

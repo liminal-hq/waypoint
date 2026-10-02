@@ -180,6 +180,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 
 		switch (event.key) {
 			case 'Enter': {
+				// Alt+Enter is Properties in a window, which belongs to the window, not to the view.
+				if (event.altKey) return;
 				const entry = from === null ? undefined : model.entryAt(from);
 				if (entry && onOpen) {
 					event.preventDefault();
