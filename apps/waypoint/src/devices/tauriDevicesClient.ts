@@ -12,6 +12,7 @@ export function createTauriDevicesClient(): DevicesClient {
 	return {
 		getStatus: () => volumes.getStatus(),
 		list: () => volumes.list(),
+		refreshSpace: (id) => volumes.refreshSpace(id),
 		mount: (id) => volumes.mount(id),
 		unmount: (id) => volumes.unmount(id),
 		eject: (id) => volumes.eject(id),
