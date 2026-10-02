@@ -20,6 +20,7 @@ import {
 	type PointerEvent,
 } from 'react';
 import { dropAttributes } from '../dnd/dropTargets';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { t, tf } from '../i18n/messages';
 import {
 	ChevronLeftIcon,
@@ -212,7 +213,7 @@ export function TabStrip() {
 			focusItem(layout.items[Math.max(0, Math.min(last, target))]);
 			return true;
 		};
-		switch (event.key) {
+		switch (inlineKey(event.key, isRtl(event.currentTarget))) {
 			case 'ArrowRight':
 				return go(at + 1);
 			case 'ArrowLeft':
@@ -233,7 +234,10 @@ export function TabStrip() {
 		) {
 			// Keyboard move of the whole group, the counterpart of dragging its chip.
 			event.preventDefault();
-			groupActions.moveBy(item.group, event.key === 'ArrowRight' ? 1 : -1);
+			groupActions.moveBy(
+				item.group,
+				inlineKey(event.key, isRtl(event.currentTarget)) === 'ArrowRight' ? 1 : -1,
+			);
 			return;
 		}
 		if (navigate(event, at)) return;
@@ -278,7 +282,7 @@ export function TabStrip() {
 		switch (event.key) {
 			case 'ArrowRight':
 			case 'ArrowLeft': {
-				const delta = event.key === 'ArrowRight' ? 1 : -1;
+				const delta = inlineKey(event.key, isRtl(event.currentTarget)) === 'ArrowRight' ? 1 : -1;
 				if (event.ctrlKey && event.shiftKey) {
 					// Keyboard reorder, the counterpart of dragging.
 					event.preventDefault();

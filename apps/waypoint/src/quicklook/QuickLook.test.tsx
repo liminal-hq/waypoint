@@ -181,6 +181,22 @@ describe('stepping', () => {
 		await screen.findByRole('dialog', { name: 'b-photo.png' });
 	});
 
+	it('steps to the next entry with Left in a right-to-left layout', async () => {
+		renderBrowser();
+		const list = await focusEntry(1);
+		key(list, ' ');
+		const dialog = await screen.findByRole('dialog', { name: 'b-photo.png' });
+		document.documentElement.style.direction = 'rtl';
+		try {
+			key(dialog.querySelector('[class*="stage"]')!, 'ArrowLeft');
+			await screen.findByRole('dialog', { name: 'c-notes.txt' });
+			key(screen.getByRole('dialog').querySelector('[class*="stage"]')!, 'ArrowRight');
+			await screen.findByRole('dialog', { name: 'b-photo.png' });
+		} finally {
+			document.documentElement.style.removeProperty('direction');
+		}
+	});
+
 	it('steps past an entry that cannot be previewed, and stops at the end', async () => {
 		renderBrowser();
 		await focusEntry(5);

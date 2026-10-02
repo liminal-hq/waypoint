@@ -18,6 +18,7 @@ import { useHourCycle } from '../browse/TimeFormatContext';
 import { useVfsClient } from '../browse/VfsClientContext';
 import type { OpenHandler } from '../browse/useListInteractions';
 import type { ListingSession } from '../browse/useListingSession';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { t, tf } from '../i18n/messages';
 import { openWithChooserStore } from '../openWith/openWithChooserStore';
 import { runOpenWithCommand, openWithCommandAvailable } from '../openWith/openWithCommand';
@@ -124,7 +125,7 @@ export function QuickLook({ session, move, client, onOpen, onClose }: QuickLookP
 		}
 		if (event.key.startsWith('Arrow') && !isInteractive(event.target)) {
 			event.preventDefault();
-			void step(event.key);
+			void step(inlineKey(event.key, isRtl(event.currentTarget)));
 		}
 	};
 

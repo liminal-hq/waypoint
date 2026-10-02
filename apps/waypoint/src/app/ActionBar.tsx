@@ -17,6 +17,7 @@ import {
 } from 'react';
 import { useCommandBridge, useCommands } from '../commands/commandBridge';
 import type { CommandId } from '../commands/registry';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { t } from '../i18n/messages';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { ActionBarIcon, MoreIcon, TextIcon } from '../icons/MenuIcons';
@@ -108,7 +109,7 @@ export function ActionBar() {
 		const active = buttonRefs.current.findIndex((button) => button === document.activeElement);
 		const current = active === items.length ? visible : active;
 		if (current < 0 || menu) return;
-		switch (event.key) {
+		switch (inlineKey(event.key, isRtl(event.currentTarget))) {
 			case 'ArrowRight':
 				event.preventDefault();
 				if (current < stops - 1) focusStop(current + 1);

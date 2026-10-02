@@ -201,6 +201,21 @@ describe('ContextMenu', () => {
 			expect(item('Share')).toHaveFocus();
 		});
 
+		it('opens on ArrowLeft and closes on ArrowRight in a right-to-left layout', async () => {
+			document.documentElement.style.direction = 'rtl';
+			try {
+				const user = userEvent.setup();
+				setup({ openedWithKeyboard: true });
+				await user.keyboard('s{ArrowLeft}');
+				expect(item('Email')).toHaveFocus();
+				await user.keyboard('{ArrowRight}');
+				expect(screen.queryByRole('menuitem', { name: 'Email' })).not.toBeInTheDocument();
+				expect(item('Share')).toHaveFocus();
+			} finally {
+				document.documentElement.style.removeProperty('direction');
+			}
+		});
+
 		it('closes only the submenu on Escape', async () => {
 			const user = userEvent.setup();
 			const { onClose } = setup({ openedWithKeyboard: true });
