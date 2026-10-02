@@ -64,6 +64,7 @@
 		"./SettingsShell/ButtonRow": "./src/SettingsShell/ButtonRow.tsx",
 		"./SettingsShell/LinkRow": "./src/SettingsShell/LinkRow.tsx",
 		"./SettingsShell/NumberRow": "./src/SettingsShell/NumberRow.tsx",
+		"./SettingsShell/TextRow": "./src/SettingsShell/TextRow.tsx",
 		"./SettingsShell/ColourRow": "./src/SettingsShell/ColourRow.tsx",
 		"./SettingsShell/SegmentedRow": "./src/SettingsShell/SegmentedRow.tsx",
 		"./SettingsShell/SelectRow": "./src/SettingsShell/SelectRow.tsx",
