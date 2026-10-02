@@ -16,6 +16,13 @@
 	color: var(--wp-text-primary);
 }
 
+/* In the Shelf window the panel is the window's whole content. */
+.inWindow {
+	flex: 1;
+	max-height: none;
+	border-block-start: 0;
+}
+
 .divider {
 	position: absolute;
 	inset-inline: 0;

@@ -1,8 +1,8 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "dev-automation",
-	"description": "Lets the debug-only MCP bridge drive the main windows, the Operations window and the Settings window. The bridge is not built on Windows (see Cargo.toml), so this capability does not apply there.",
-	"windows": ["main-*", "ops", "settings"],
+	"description": "Lets the debug-only MCP bridge drive the main windows, the Operations window, the Settings window and the Shelf window. The bridge is not built on Windows (see Cargo.toml), so this capability does not apply there.",
+	"windows": ["main-*", "ops", "settings", "shelf"],
 	"platforms": ["linux", "macOS"],
 	"permissions": ["mcp-bridge:default"]
 }

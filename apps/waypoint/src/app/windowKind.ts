@@ -12,6 +12,8 @@ export function windowKindFromLabel(label: string): WindowKind | null {
 			return 'Settings';
 		case 'ops':
 			return 'Ops';
+		case 'shelf':
+			return 'Shelf';
 		case 'tear-ghost':
 			return 'TearGhost';
 	}

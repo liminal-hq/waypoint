@@ -103,7 +103,9 @@ export type CommandId =
 	// The Shelf
 	| 'toggleShelf'
 	| 'addToShelf'
-	| 'focusShelf';
+	| 'focusShelf'
+	| 'undockShelf'
+	| 'dockShelf';
 
 /** The commands that open a place of the sidebar. */
 export type GoCommandId =
@@ -668,6 +670,22 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'view',
 		when: () => SHOWN,
 		run: (a) => a.focusShelf(),
+	},
+	{
+		id: 'undockShelf',
+		label: 'cmd.undockShelf',
+		icon: ShelfIcon,
+		group: 'view',
+		when: (f) => (f.shelfUndocked ? HIDDEN : SHOWN),
+		run: (a) => a.undockShelf(),
+	},
+	{
+		id: 'dockShelf',
+		label: 'cmd.dockShelf',
+		icon: ShelfIcon,
+		group: 'view',
+		when: (f) => (f.shelfUndocked ? SHOWN : HIDDEN),
+		run: (a) => a.dockShelf(),
 	},
 ];
 

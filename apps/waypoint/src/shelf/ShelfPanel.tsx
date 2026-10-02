@@ -25,7 +25,8 @@ import { useFileDragApi } from '../dnd/FileDragContext';
 import { t, tf, tn } from '../i18n/messages';
 import { ChevronRightSmallIcon, CloseSmallIcon } from '../icons/AppIcons';
 import { MoreIcon } from '../icons/MenuIcons';
-import { useShelfActions } from './ShelfContext';
+import { useShelfActions, useShelfPlacement } from './ShelfContext';
+import { DockShelfIcon, UndockShelfIcon } from './ShelfIcons';
 import {
 	commonOrigin,
 	groupItems,
@@ -61,9 +62,14 @@ interface MenuRequest {
  * Home, End), Enter opens an item or toggles a group, Space and Ctrl+Space select, Shift extends,
  * Delete removes from the Shelf (never a file), Ctrl+C copies the items for a paste, and the Menu
  * key opens the item's menu.
+ *
+ * In the Shelf window (`layout="window"`) the same panel fills the window: it has no divider (the
+ * window is resized instead) and no close button (the title bar closes the window, which docks the
+ * Shelf), and its header offers Dock where the dock's offers Undock.
  */
-export function ShelfPanel() {
+export function ShelfPanel({ layout = 'dock' }: { layout?: 'dock' | 'window' }) {
 	const store = useShelfStore();
+	const placement = useShelfPlacement();
 	const actions = useShelfActions();
 	const drag = useFileDragApi();
 	const items = useStore(store, (s) => s.items);
@@ -286,13 +292,18 @@ export function ShelfPanel() {
 
 	return (
 		<aside
-			className={styles.shelf}
+			className={layout === 'window' ? `${styles.shelf} ${styles.inWindow}` : styles.shelf}
 			aria-label={t('shelf.label')}
-			style={{ height, '--wp-shelf-height': `${height}px` } as CSSProperties}
+			style={
+				layout === 'window'
+					? undefined
+					: ({ height, '--wp-shelf-height': `${height}px` } as CSSProperties)
+			}
 			data-shelf=""
+			data-layout={layout}
 			{...dropAttributes('shelf', 'shelf', t('shelf.title'))}
 		>
-			<ShelfDivider />
+			{layout === 'dock' && <ShelfDivider />}
 			<div className={styles.header}>
 				<h2 className={styles.title}>
 					{t('shelf.title')}
@@ -316,15 +327,28 @@ export function ShelfPanel() {
 				>
 					<MoreIcon />
 				</button>
-				<button
-					type="button"
-					className={styles.iconButton}
-					aria-label={t('shelf.close')}
-					title={t('shelf.close')}
-					onClick={() => store.getState().setOpen(false)}
-				>
-					<CloseSmallIcon />
-				</button>
+				{placement && (
+					<button
+						type="button"
+						className={styles.iconButton}
+						aria-label={layout === 'window' ? t('shelf.dock') : t('shelf.undock')}
+						title={layout === 'window' ? t('shelf.dock') : t('shelf.undock')}
+						onClick={() => void (layout === 'window' ? placement.dock() : placement.undock())}
+					>
+						{layout === 'window' ? <DockShelfIcon /> : <UndockShelfIcon />}
+					</button>
+				)}
+				{layout === 'dock' && (
+					<button
+						type="button"
+						className={styles.iconButton}
+						aria-label={t('shelf.close')}
+						title={t('shelf.close')}
+						onClick={() => store.getState().setOpen(false)}
+					>
+						<CloseSmallIcon />
+					</button>
+				)}
 			</div>
 			{items.length === 0 ? (
 				<div className={styles.empty}>

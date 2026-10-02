@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect } from 'react';
-import type { ShelfStore } from './shelfStore';
 
 /** Whether a key event is Ctrl+B (or Cmd+B) with nothing else held. */
 export function isShelfKey(
@@ -21,8 +20,9 @@ export function isShelfKey(
 /**
  * Ctrl+B comes from the shortcut table in docs/interactions.md. A text field keeps it (the path
  * bar and a rename field are the field's), and a key a dialog or a menu already took is left alone.
+ * What it does is `toggle`: show or hide the dock, or raise or hide the Shelf window.
  */
-export function useShelfShortcuts(store: ShelfStore): void {
+export function useShelfShortcuts(toggle: () => void): void {
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.defaultPrevented || event.isComposing || !isShelfKey(event)) return;
@@ -34,9 +34,9 @@ export function useShelfShortcuts(store: ShelfStore): void {
 				return;
 			}
 			event.preventDefault();
-			store.getState().toggleOpen();
+			toggle();
 		};
 		window.addEventListener('keydown', onKeyDown);
 		return () => window.removeEventListener('keydown', onKeyDown);
-	}, [store]);
+	}, [toggle]);
 }

@@ -2,6 +2,6 @@
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "logging",
 	"description": "Lets every window forward its console output into the shared log stream.",
-	"windows": ["main-*", "settings", "properties-*", "ops", "tear-ghost"],
+	"windows": ["main-*", "settings", "properties-*", "ops", "shelf", "tear-ghost"],
 	"permissions": ["log:default"]
 }

@@ -61,6 +61,8 @@ export interface CommandFacts {
 	/** The Shelf panel is open, and how many items the Shelf holds. */
 	shelfOpen: boolean;
 	shelfCount: number;
+	/** The Shelf is in its own window rather than docked in the main windows. */
+	shelfUndocked: boolean;
 }
 
 /** The window's actions. Each one is what a shortcut, a menu or the Action bar already does; none is a second implementation. */
@@ -101,6 +103,9 @@ export interface CommandActions {
 	toggleShelf(): void;
 	focusShelf(): void;
 	addToShelf(): void;
+	/** Moves the Shelf into its own window, and back into the main windows' docks. */
+	undockShelf(): void;
+	dockShelf(): void;
 }
 
 export interface CommandEnv {
@@ -144,6 +149,7 @@ export function emptyFacts(): CommandFacts {
 		alwaysOnTop: { supported: false, on: false },
 		shelfOpen: false,
 		shelfCount: 0,
+		shelfUndocked: false,
 	};
 }
 
@@ -181,5 +187,7 @@ export function idleActions(): CommandActions {
 		toggleShelf: nothing,
 		focusShelf: nothing,
 		addToShelf: nothing,
+		undockShelf: nothing,
+		dockShelf: nothing,
 	};
 }

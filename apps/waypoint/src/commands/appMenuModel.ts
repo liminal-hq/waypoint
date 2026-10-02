@@ -179,7 +179,7 @@ export function appMenuItems(
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
-		rows('showHidden', 'sidebar', 'toggleShelf', 'actionBar'),
+		rows('showHidden', 'sidebar', 'toggleShelf', 'undockShelf', 'dockShelf', 'actionBar'),
 		rows('splitView'),
 		rows('commandPalette'),
 	);

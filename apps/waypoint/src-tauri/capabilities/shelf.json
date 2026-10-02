@@ -1,0 +1,7 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "shelf",
+	"description": "Lets the Shelf window read the application settings (the drag and drop choices its drops follow). Its other needs (the session, the file system, the operations queue and native drag and drop) come from the capabilities that name it.",
+	"windows": ["shelf"],
+	"permissions": ["waypoint-settings:allow-get-settings"]
+}

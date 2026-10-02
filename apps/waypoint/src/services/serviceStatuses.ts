@@ -5,6 +5,7 @@
 
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import { getStatus as trashStatus } from '@liminal-hq/plugin-trash';
+import { getStatus as windowManagerStatus } from '@liminal-hq/plugin-window-manager';
 import { getStatus as opsStatus } from '@liminal-hq/waypoint-plugin-ops';
 import { getStatus as vfsStatus } from '@liminal-hq/waypoint-plugin-vfs';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
@@ -51,6 +52,8 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'file-system': vfsStatus,
 	trash: trashServiceStatus,
 	'native-dnd': nativeDndServiceStatus,
+	// Whether the Shelf window (and every other window) can be kept on top, and why not where it cannot.
+	'window-manager': windowManagerStatus,
 	'waypoint-ops': opsStatus,
 };
 

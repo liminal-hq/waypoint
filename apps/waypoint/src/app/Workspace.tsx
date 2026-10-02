@@ -43,6 +43,7 @@ import type { EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
 import type { NativeDndClient } from '../services/nativeDndClient';
+import type { ShelfWindowClient } from '../services/shelfWindowClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
@@ -111,11 +112,14 @@ export function Workspace({
 	startup,
 	tearoff,
 	nativeDnd,
+	shelfWindow,
 }: {
 	startup?: WorkspaceStartup;
 	tearoff?: TearoffClient;
 	/** The native drag and drop plugin: files dragged in from other applications, and drags that leave the window. */
 	nativeDnd?: NativeDndClient;
+	/** Raises and hides the Shelf window while the Shelf is undocked; the real one when omitted. */
+	shelfWindow?: ShelfWindowClient;
 }) {
 	const [viewStore] = useState(() =>
 		createViewStore(startup?.view ? viewFromPrefs(startup.view) : {}),
@@ -166,6 +170,7 @@ export function Workspace({
 									sidebarStore={sidebarStore}
 									startupNotice={startup?.notice ?? null}
 									nativeDnd={nativeDnd}
+									shelfWindow={shelfWindow}
 								/>
 							</CloseGuardHost>
 						</MergeLandingContext.Provider>
@@ -181,11 +186,13 @@ function WorkspaceBody({
 	sidebarStore,
 	startupNotice,
 	nativeDnd,
+	shelfWindow,
 }: {
 	viewStore: ViewStore;
 	sidebarStore: SidebarStore;
 	startupNotice: string | null;
 	nativeDnd: NativeDndClient | undefined;
+	shelfWindow: ShelfWindowClient | undefined;
 }) {
 	const client = useVfsClient();
 	const api = useTabsApi();
@@ -417,7 +424,10 @@ function WorkspaceBody({
 		<TrashActionsProvider value={trashActions}>
 			<FileCommandsProvider value={commands}>
 				<ClipboardProvider value={clipboard}>
-					<ShelfProvider activeSession={activeSession}>
+					<ShelfProvider
+						activeSession={activeSession}
+						{...(shelfWindow ? { windowClient: shelfWindow } : {})}
+					>
 						<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
 							<div className={styles.workspace}>
 								<TabStrip />

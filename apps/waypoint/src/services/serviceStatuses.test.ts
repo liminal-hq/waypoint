@@ -16,11 +16,13 @@ const plugins = vi.hoisted(() => ({
 	dnd: vi.fn(),
 	ops: vi.fn(),
 	vfs: vi.fn(),
+	windowManager: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
 vi.mock('@liminal-hq/waypoint-plugin-ops', () => ({ getStatus: plugins.ops }));
 vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({ getStatus: plugins.vfs }));
+vi.mock('@liminal-hq/plugin-window-manager', () => ({ getStatus: plugins.windowManager }));
 
 beforeEach(() => {
 	for (const fn of Object.values(plugins)) fn.mockReset();
@@ -107,6 +109,7 @@ describe('the Services panel sources', () => {
 			'file-system',
 			'trash',
 			'native-dnd',
+			'window-manager',
 			'waypoint-ops',
 		]);
 		plugins.vfs.mockResolvedValue({ available: true, reason: null, features: ['listing'] });
@@ -118,6 +121,11 @@ describe('the Services panel sources', () => {
 			features: {},
 		});
 		plugins.ops.mockResolvedValue({ available: true, reason: null, features: ['queue', 'trash'] });
+		plugins.windowManager.mockResolvedValue({
+			available: true,
+			reason: null,
+			features: ['system-window-menu'],
+		});
 		const statuses = await collectServiceStatuses();
 		expect(statuses['trash']).toEqual({
 			available: false,
@@ -127,5 +135,7 @@ describe('the Services panel sources', () => {
 		expect(statuses['native-dnd']?.available).toBe(false);
 		expect(statuses['waypoint-ops']?.features).toEqual(['queue', 'trash']);
 		expect(statuses['file-system']?.features).toEqual(['listing']);
+		// The Shelf window's always-on-top is among the features the window manager reports (or lacks).
+		expect(statuses['window-manager']?.features).toEqual(['system-window-menu']);
 	});
 });

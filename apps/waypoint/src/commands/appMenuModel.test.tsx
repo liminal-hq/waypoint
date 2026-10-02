@@ -105,10 +105,19 @@ describe('the menus', () => {
 			'showHidden',
 			'sidebar',
 			'toggleShelf',
+			'undockShelf',
 			'actionBar',
 			'splitView',
 			'commandPalette',
 		]);
+	});
+
+	it('View: Dock Shelf takes the place of Undock Shelf while the Shelf is its own window', () => {
+		const view = submenu(build(factsFor({}, { shelfUndocked: true })), MENU_IDS.view);
+		const ids = idsOf(view.items);
+		expect(ids).toContain('dockShelf');
+		expect(ids).not.toContain('undockShelf');
+		expect(ids.indexOf('dockShelf')).toBe(ids.indexOf('toggleShelf') + 1);
 	});
 
 	it('Window: Duplicate Tab, Move Tab to New Window, then Settings; Always on Top only where supported', () => {

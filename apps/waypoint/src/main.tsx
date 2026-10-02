@@ -10,6 +10,7 @@ import { AppWindowChrome } from './app/AppWindowChrome';
 import { MainScreen } from './app/MainScreen';
 import { OpsScreen } from './app/OpsScreen';
 import { PropertiesScreen } from './app/PropertiesScreen';
+import { ShelfScreen } from './app/ShelfScreen';
 import { TearGhostScreen } from './app/TearGhostScreen';
 import { windowKindFromLabel } from './app/windowKind';
 import { MainSettings } from './settings/MainSettings';
@@ -43,6 +44,12 @@ function screenFor(kind: WindowKind | null) {
 			return <PropertiesScreen />;
 		case 'Ops':
 			return <OpsScreen />;
+		case 'Shelf':
+			return (
+				<MainSettings>
+					<ShelfScreen />
+				</MainSettings>
+			);
 		case 'TearGhost':
 			return <TearGhostScreen />;
 		case null:

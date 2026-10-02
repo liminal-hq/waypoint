@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "native-dnd",
-	"description": "Lets the main windows start outbound file drags, read and write the file clipboard, and ask the native-dnd plugin what works. Inbound drop events are sent to the windows without a grant.",
-	"windows": ["main-*"],
+	"description": "Lets the main windows and the Shelf window start outbound file drags, read and write the file clipboard, and ask the native-dnd plugin what works. Inbound drop events are sent to the windows without a grant.",
+	"windows": ["main-*", "shelf"],
 	"permissions": ["native-dnd:default"]
 }
