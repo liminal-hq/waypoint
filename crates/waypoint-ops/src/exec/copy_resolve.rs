@@ -64,6 +64,12 @@ impl Resolutions {
         self.by_source.get(&source.uri).copied().or(self.all)
     }
 
+    /// Whether `source`'s clash has an answer of its own: given for it alone, or for it as the
+    /// clash that was being asked about. The policy for all is not one.
+    pub fn has_own(&self, source: &Location) -> bool {
+        self.by_source.contains_key(&source.uri)
+    }
+
     /// The conflicts nobody has decided yet, in order.
     pub fn unresolved(&self, conflicts: &[Conflict]) -> Vec<Conflict> {
         conflicts
@@ -180,6 +186,15 @@ mod tests {
         assert_eq!(r.policy_for(&loc("a")), Some(ConflictPolicy::Skip));
         assert_eq!(r.policy_for(&loc("z")), Some(ConflictPolicy::Replace));
         assert!(r.unresolved(&[conflict("a"), conflict("z")]).is_empty());
+    }
+
+    #[test]
+    fn only_an_answer_given_for_the_source_is_its_own() {
+        let mut r = Resolutions::new(Some(ConflictPolicy::Replace));
+        assert!(!r.has_own(&loc("a")));
+        r.set_for(&loc("a"), ConflictPolicy::Replace);
+        assert!(r.has_own(&loc("a")));
+        assert!(!r.has_own(&loc("b")));
     }
 
     #[test]

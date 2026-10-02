@@ -20,6 +20,7 @@
 // a thousand does not end the job. Conflicts are decided per clash, by the answers the job holds
 // (`Resolutions`) and by asking the sink for the rest.
 
+use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::mem::{discriminant, Discriminant};
 use std::sync::Arc;
@@ -205,6 +206,10 @@ struct Transfer<'a> {
     report: ExecReport,
     manifest: Option<Manifest>,
     buf: Vec<u8>,
+    /// On a case-insensitive destination: the names this job has put in place, folded, so a later
+    /// entry that lands on one of them (`a` after `A`) is known to clash with the job's own work
+    /// and never replaces it.
+    placed: HashSet<String>,
     /// Every completed placement that is not inside a folder created by another one, as
     /// `(source, target)`, in order.
     units: Vec<(VfsPath, VfsPath)>,
@@ -249,6 +254,7 @@ pub(super) fn run(
         manifest: options.verify.map(Manifest::new),
         buf: Vec::new(),
         units: Vec::new(),
+        placed: HashSet::new(),
         copied: None,
     };
     let mut done = 0u64;
@@ -546,6 +552,7 @@ impl Transfer<'_> {
         target: &VfsPath,
         existing: &ScannedEntry,
         linking: bool,
+        within_batch: bool,
     ) -> Conflict {
         // A link to a folder is a link, not a folder, so only a like clash replaces it.
         let src_dir = entry.kind == EntryKind::Directory && !linking;
@@ -560,7 +567,7 @@ impl Transfer<'_> {
                 (false, true) => ConflictKind::FileOverFolder,
                 (true, false) => ConflictKind::FolderOverFile,
             },
-            within_batch: false,
+            within_batch,
             source_size: entry.size,
             existing_size: existing.size,
             source_modified_ms: entry.modified_ms,
@@ -610,8 +617,15 @@ impl Transfer<'_> {
                 Err(VfsError::NotFound { .. }) => return Ok(Placement::Free(target)),
                 Err(error) => return Err(error.into()),
             };
-            let conflict =
-                Self::conflict_of(src, entry, &target, &existing, ctx.mode == Mode::Link);
+            let within_batch = self.placed_by_this_job(&target, rule);
+            let conflict = Self::conflict_of(
+                src,
+                entry,
+                &target,
+                &existing,
+                ctx.mode == Mode::Link,
+                within_batch,
+            );
             let mut policy = match chosen.or_else(|| self.resolutions.policy_for(&conflict.source))
             {
                 Some(policy) => policy,
@@ -641,6 +655,27 @@ impl Transfer<'_> {
                 }
             };
             chosen = Some(policy);
+            let action = match action {
+                // A folder the job has just put in place is never replaced by another entry of
+                // the same job: a source holding `A` and `a` meeting a case-insensitive
+                // destination keeps both, folders merge.
+                Action::Replace if within_batch => {
+                    if conflict.kind == ConflictKind::FolderOverFolder {
+                        Action::Merge
+                    } else {
+                        Action::KeepBoth
+                    }
+                }
+                // A policy for all, chosen for the file clashes, never replaces a whole folder:
+                // only an answer given for this folder does. The rest merge into it.
+                Action::Replace
+                    if conflict.kind == ConflictKind::FolderOverFolder
+                        && !self.resolutions.has_own(&conflict.source) =>
+                {
+                    Action::Merge
+                }
+                other => other,
+            };
             match action {
                 Action::Skip => {
                     self.skip_item(&conflict.source, &conflict.existing);
@@ -669,6 +704,26 @@ impl Transfer<'_> {
                     }
                     return Ok(Placement::Replace(target, Box::new(existing)));
                 }
+            }
+        }
+    }
+
+    /// Whether `target` is a name this job put in place on a case-insensitive destination. Always
+    /// false on a case-sensitive one, where a name is only ever the same name exactly.
+    fn placed_by_this_job(&self, target: &VfsPath, rule: CaseRule) -> bool {
+        rule == CaseRule::Insensitive && self.placed.contains(&Self::placed_key(target))
+    }
+
+    fn placed_key(target: &VfsPath) -> String {
+        waypoint_path::windows::fold(&target.display())
+    }
+
+    /// Notes that the job put `target` in place, if the destination cannot tell it from another
+    /// name that differs by case.
+    fn note_placed(&mut self, target: &VfsPath) {
+        if let Ok(dp) = self.provider(target) {
+            if Self::rule(dp.as_ref()) == CaseRule::Insensitive {
+                self.placed.insert(Self::placed_key(target));
             }
         }
     }
@@ -940,6 +995,7 @@ impl Transfer<'_> {
         renamed_bytes: u64,
     ) {
         self.meter.progress.bytes_done += renamed_bytes;
+        self.note_placed(target);
         if existing.is_some() {
             self.report.transfer.replaced.push(target.to_location());
         }
@@ -1273,6 +1329,7 @@ impl Transfer<'_> {
                 if let Some(copied) = self.copied.as_mut() {
                     copied.push((src.clone(), entry.clone()));
                 }
+                self.note_placed(target);
                 self.units.push((src.clone(), target.clone()));
                 self.entry_done(file_name_of(target));
                 Ok(if whole {
@@ -1316,6 +1373,7 @@ impl Transfer<'_> {
             match renamed {
                 Some(true) => {
                     self.account(entries, bytes);
+                    self.note_placed(target);
                     self.units.push((src.clone(), target.clone()));
                     self.meter.emit(self.sink);
                     return Ok(Outcome::Done);
@@ -1336,6 +1394,7 @@ impl Transfer<'_> {
             self.account(entries, bytes);
             return Ok(Outcome::Skipped);
         }
+        self.note_placed(target);
         let mark = self.units.len();
         let whole = match self.place_children(ctx, sp, src, dp, target) {
             Ok(whole) => whole,
@@ -1500,6 +1559,7 @@ impl Transfer<'_> {
             match swapped {
                 Some(Some(aside)) => {
                     self.drop_aside(dp, &aside);
+                    self.note_placed(target);
                     self.account(entries, bytes);
                     self.report.transfer.replaced.push(target.to_location());
                     self.units.push((src.clone(), target.clone()));
@@ -1548,6 +1608,7 @@ impl Transfer<'_> {
             }
         };
         self.drop_aside(dp, &aside);
+        self.note_placed(target);
         self.report.transfer.replaced.push(target.to_location());
         self.units.push((src.clone(), target.clone()));
         self.entry_done(file_name_of(target));

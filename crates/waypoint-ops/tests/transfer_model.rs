@@ -320,7 +320,9 @@ fn decide(policy: ConflictPolicy, src: &E, ex: &E, nested: bool) -> Option<Do> {
             if sd != ed {
                 // Refused: the test answers the error with Skip.
                 Some(Do::Skip)
-            } else if sd && nested {
+            } else if sd {
+                // A policy for all never replaces a whole folder, at the top or below one.
+                let _ = nested;
                 Some(Do::Merge)
             } else {
                 Some(Do::Replace)

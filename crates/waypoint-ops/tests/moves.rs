@@ -709,12 +709,14 @@ fn a_failed_sync_keeps_the_source_of_a_cross_volume_move() {
     assert!(dst_tree(&h).is_empty());
 }
 
+type Edit<'a> = Box<dyn Fn(&dyn Provider) + 'a>;
+
 /// Edits the source in the middle of a job: when `items_done` reaches `at`, runs `edit`.
 struct Meddler<'a> {
     provider: &'a dyn Provider,
     at: u64,
     done: bool,
-    edit: Box<dyn Fn(&dyn Provider) + 'a>,
+    edit: Edit<'a>,
 }
 
 impl ExecSink for Meddler<'_> {
@@ -802,4 +804,36 @@ fn replacing_a_folder_by_a_cross_volume_move_keeps_whatever_changed_in_the_sourc
         ])
     );
     assert!(!report.skipped.is_empty(), "the leftovers are reported");
+}
+
+#[test]
+fn a_folder_with_names_differing_by_case_keeps_both_on_a_case_insensitive_destination() {
+    // `src` is case-sensitive and holds `A` and `a`; `dst` is another volume that cannot.
+    let dir = tempfile::tempdir().unwrap();
+    let root = FilePath::from_path(dir.path()).unwrap();
+    let base = VfsPath::File(root.clone());
+    let dst_root = base.join("work").unwrap().join("dst").unwrap();
+    let mut h = Harness::new(MixedCase::new(&root, dst_root), base);
+    h.provider.create_dir(&h.path("src")).unwrap();
+    populate(
+        h.provider.as_ref(),
+        &h.path("src"),
+        &tree(&[("d/", ""), ("d/A", "upper"), ("d/a", "lower")]),
+    );
+    h.provider.reset();
+    // Replace for all must not let the second replace the first: that is the only copy of one.
+    let result = go(
+        &mut h,
+        JobKind::Move,
+        &["src/d"],
+        "dst",
+        Some(ConflictPolicy::Replace),
+    );
+    done(&result);
+    h.provider.reset();
+    assert_eq!(
+        dst_tree(&h),
+        tree(&[("d/", ""), ("d/A", "upper"), ("d/a (2)", "lower")])
+    );
+    assert!(src_tree(&h).is_empty());
 }

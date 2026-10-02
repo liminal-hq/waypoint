@@ -703,13 +703,7 @@ fn a_failed_replace_puts_the_original_back_at_every_step() {
                 // A clean run, to learn how many calls it makes.
                 rebuild(&mut h, &start);
                 h.provider.reset();
-                let result = go(
-                    &mut h,
-                    kind,
-                    &["src/p"],
-                    "dst",
-                    Some(ConflictPolicy::Replace),
-                );
+                let result = replace_p(&mut h, kind, folder);
                 done(&result);
                 let calls = h.provider.calls();
                 assert_eq!(dst_tree(&h), after_ok, "{kind:?} clean");
@@ -717,13 +711,7 @@ fn a_failed_replace_puts_the_original_back_at_every_step() {
                     rebuild(&mut h, &start);
                     h.provider.reset();
                     h.provider.fail_at(step, FaultKind::PermissionDenied);
-                    let result = go(
-                        &mut h,
-                        kind,
-                        &["src/p"],
-                        "dst",
-                        Some(ConflictPolicy::Replace),
-                    );
+                    let result = replace_p(&mut h, kind, folder);
                     assert!(
                         h.provider.calls() >= step,
                         "the fault at {step} never fired"
@@ -758,6 +746,32 @@ fn a_failed_replace_puts_the_original_back_at_every_step() {
                 }
             }
         });
+    }
+
+    /// Replaces `dst/p` with `src/p`. A folder is replaced only on an answer given for it, so that
+    /// is what the job is given; a file takes the policy for all.
+    fn replace_p<P: Provider + 'static>(
+        h: &mut Harness<P>,
+        kind: JobKind,
+        folder: bool,
+    ) -> RunResult {
+        if !folder {
+            return go(h, kind, &["src/p"], "dst", Some(ConflictPolicy::Replace));
+        }
+        let request = req(h, kind, &["src/p"], "dst", None);
+        let mut answers = Answers {
+            conflicts: Box::new(|conflicts| {
+                conflicts
+                    .iter()
+                    .map(|c| Resolution {
+                        source: Some(c.source.clone()),
+                        policy: ConflictPolicy::Replace,
+                    })
+                    .collect()
+            }),
+            errors: Box::new(|_, _| None),
+        };
+        run(h, request, &mut answers)
     }
 
     /// The subtree of `start` below `prefix`, with the prefix removed.
@@ -882,4 +896,53 @@ fn an_original_that_cannot_be_put_back_is_reported_not_lost() {
     assert!(stranded[0].display.ends_with(name.as_str()));
     // The source was not touched.
     assert_eq!(src_tree(&h), tree(&[("a", "new")]));
+}
+
+#[test]
+fn a_policy_for_all_merges_a_folder_clash_and_only_an_answer_for_it_replaces_the_folder() {
+    let mut start = tree(&[
+        ("src/", ""),
+        ("src/p/", ""),
+        ("src/p/a", "new-a"),
+        ("dst/", ""),
+        ("dst/p/", ""),
+        ("dst/p/old", "old"),
+    ]);
+    // Replace for all, as the request carried it: the folder is merged into, not deleted.
+    let (mut h, _dir) = memory_harness(CaseRule::Sensitive);
+    populate(h.provider.as_ref(), &h.work, &start);
+    h.provider.reset();
+    let result = go(
+        &mut h,
+        JobKind::Copy,
+        &["src/p"],
+        "dst",
+        Some(ConflictPolicy::Replace),
+    );
+    done(&result);
+    assert_eq!(
+        dst_tree(&h),
+        tree(&[("p/", ""), ("p/a", "new-a"), ("p/old", "old")])
+    );
+    assert!(result.report.unwrap().transfer.replaced.is_empty());
+
+    // The same answer given for that folder replaces it.
+    let (mut h, _dir) = memory_harness(CaseRule::Sensitive);
+    populate(h.provider.as_ref(), &h.work, &std::mem::take(&mut start));
+    h.provider.reset();
+    let request = req(&h, JobKind::Copy, &["src/p"], "dst", None);
+    let mut answers = Answers {
+        conflicts: Box::new(|conflicts| {
+            conflicts
+                .iter()
+                .map(|c| Resolution {
+                    source: Some(c.source.clone()),
+                    policy: ConflictPolicy::Replace,
+                })
+                .collect()
+        }),
+        errors: Box::new(|_, _| None),
+    };
+    done(&run(&mut h, request, &mut answers));
+    assert_eq!(dst_tree(&h), tree(&[("p/", ""), ("p/a", "new-a")]));
 }

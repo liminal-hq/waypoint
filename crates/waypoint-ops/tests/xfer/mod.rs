@@ -172,3 +172,138 @@ pub fn pattern(len: usize, seed: u8) -> Vec<u8> {
         .map(|i| ((i * 31 + i / 251 + seed as usize) % 253) as u8)
         .collect()
 }
+
+/// Two in-memory volumes in one provider: everything below `dst_root` is on a case-insensitive
+/// volume, everything else on a case-sensitive one, so a folder holding both `A` and `a` can be
+/// moved onto a destination that cannot hold both. A rename between the two is `CrossesDevices`.
+/// It reports the destination's case rule.
+pub struct MixedCase {
+    sensitive: MemoryProvider,
+    insensitive: MemoryProvider,
+    dst_root: VfsPath,
+}
+
+impl MixedCase {
+    /// `root` is the sandbox root and `dst_root` the folder that is the insensitive volume.
+    pub fn new(root: &FilePath, dst_root: VfsPath) -> Self {
+        let insensitive = MemoryProvider::new(root.clone(), CaseRule::Insensitive);
+        insensitive.put_dir(&dst_root);
+        Self {
+            sensitive: MemoryProvider::new(root.clone(), CaseRule::Sensitive),
+            insensitive,
+            dst_root,
+        }
+    }
+
+    fn on_dst(&self, path: &VfsPath) -> bool {
+        let mut here = Some(path.clone());
+        while let Some(p) = here {
+            if p == self.dst_root {
+                return true;
+            }
+            here = p.parent();
+        }
+        false
+    }
+
+    fn pick(&self, path: &VfsPath) -> &MemoryProvider {
+        if self.on_dst(path) {
+            &self.insensitive
+        } else {
+            &self.sensitive
+        }
+    }
+}
+
+impl Provider for MixedCase {
+    fn scheme(&self) -> &'static str {
+        self.sensitive.scheme()
+    }
+    fn capabilities(&self) -> waypoint_vfs::Capabilities {
+        self.insensitive.capabilities()
+    }
+    fn stat(
+        &self,
+        path: &VfsPath,
+    ) -> Result<waypoint_vfs::ScannedEntry, waypoint_protocol::VfsError> {
+        self.pick(path).stat(path)
+    }
+    fn list(
+        &self,
+        path: &VfsPath,
+        cancel: &CancelToken,
+        budget: usize,
+        progress: &mut dyn FnMut(u32),
+    ) -> Result<Vec<waypoint_vfs::ScannedEntry>, waypoint_protocol::VfsError> {
+        self.pick(path).list(path, cancel, budget, progress)
+    }
+    fn resolve_link(
+        &self,
+        folder: &VfsPath,
+        entry: &waypoint_vfs::ScannedEntry,
+    ) -> Result<waypoint_vfs::ScannedEntry, waypoint_protocol::VfsError> {
+        self.pick(folder).resolve_link(folder, entry)
+    }
+    fn create_dir(&self, path: &VfsPath) -> Result<(), waypoint_protocol::VfsError> {
+        self.pick(path).create_dir(path)
+    }
+    fn rename(
+        &self,
+        from: &VfsPath,
+        to: &VfsPath,
+        overwrite: bool,
+    ) -> Result<(), waypoint_protocol::VfsError> {
+        if self.on_dst(from) != self.on_dst(to) {
+            return Err(waypoint_protocol::VfsError::CrossesDevices {
+                from: from.to_location(),
+                to: to.to_location(),
+            });
+        }
+        self.pick(from).rename(from, to, overwrite)
+    }
+    fn remove_file(&self, path: &VfsPath) -> Result<(), waypoint_protocol::VfsError> {
+        self.pick(path).remove_file(path)
+    }
+    fn remove_dir(&self, path: &VfsPath) -> Result<(), waypoint_protocol::VfsError> {
+        self.pick(path).remove_dir(path)
+    }
+    fn open_read(
+        &self,
+        path: &VfsPath,
+    ) -> Result<waypoint_vfs::ReadStream, waypoint_protocol::VfsError> {
+        self.pick(path).open_read(path)
+    }
+    fn create_write(
+        &self,
+        path: &VfsPath,
+        options: WriteOptions,
+    ) -> Result<Box<dyn waypoint_vfs::WriteStream>, waypoint_protocol::VfsError> {
+        self.pick(path).create_write(path, options)
+    }
+    fn set_times(
+        &self,
+        path: &VfsPath,
+        times: FileTimes,
+    ) -> Result<(), waypoint_protocol::VfsError> {
+        self.pick(path).set_times(path, times)
+    }
+    fn permissions(&self, path: &VfsPath) -> Result<Permissions, waypoint_protocol::VfsError> {
+        self.pick(path).permissions(path)
+    }
+    fn set_permissions(
+        &self,
+        path: &VfsPath,
+        permissions: Permissions,
+    ) -> Result<(), waypoint_protocol::VfsError> {
+        self.pick(path).set_permissions(path, permissions)
+    }
+    fn symlink(&self, link: &VfsPath, target: &OsStr) -> Result<(), waypoint_protocol::VfsError> {
+        self.pick(link).symlink(link, target)
+    }
+    fn read_link(&self, path: &VfsPath) -> Result<OsString, waypoint_protocol::VfsError> {
+        self.pick(path).read_link(path)
+    }
+    fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
+        Some(VolumeId(if self.on_dst(path) { 2 } else { 1 }))
+    }
+}
