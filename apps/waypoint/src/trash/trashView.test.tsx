@@ -323,6 +323,28 @@ describe('the actions on the Trash', () => {
 		expect(h.trash.jobs).toEqual([]);
 	});
 
+	it('takes keyboard focus when the Trash opens, so the arrow keys and Ctrl+A work at once', async () => {
+		const h = await setup();
+		await openTrash(h);
+		const list = screen.getByRole('listbox', { name: 'Files' });
+		expect(list).toHaveFocus();
+		fireEvent.keyDown(list, { key: 'a', ctrlKey: true });
+		expect(row(/report\.pdf/)).toHaveAttribute('aria-selected', 'true');
+		expect(row(/photo\.jpg/)).toHaveAttribute('aria-selected', 'true');
+	});
+
+	it('restores the selection on Ctrl+Shift+R and does nothing with nothing selected', async () => {
+		const h = await setup();
+		await openTrash(h);
+		const list = screen.getByRole('listbox', { name: 'Files' });
+		fireEvent.keyDown(list, { key: 'R', ctrlKey: true, shiftKey: true });
+		expect(h.trash.jobs).toEqual([]);
+		fireEvent.click(row(/report\.pdf/));
+		fireEvent.keyDown(list, { key: 'R', ctrlKey: true, shiftKey: true });
+		await waitFor(() => expect(h.trash.jobs).toHaveLength(1));
+		expect(h.trash.last.request.kind).toEqual({ kind: 'restore' });
+	});
+
 	it('counts every selected item in the question, including a select all', async () => {
 		const h = await setup();
 		await openTrash(h);

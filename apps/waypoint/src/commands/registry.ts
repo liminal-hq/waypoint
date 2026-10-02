@@ -70,6 +70,9 @@ export const GROUP_ORDER: readonly CommandGroup[] = [
 export type CommandId =
 	| Exclude<FileCommandId, 'pasteInto'>
 	| 'batchRename'
+	// The Trash
+	| 'restoreFromTrash'
+	| 'deleteFromTrash'
 	| 'selectAll'
 	| 'invertSelection'
 	| 'sortName'
@@ -323,6 +326,27 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'file',
 		when: fileCommand('deletePermanently', needsSelection),
 		run: (a) => void a.files?.deletePermanently(),
+	},
+	{
+		id: 'restoreFromTrash',
+		label: 'trash.restore',
+		shortcut: 'Ctrl+Shift+R',
+		icon: RestoreIcon,
+		group: 'file',
+		// Only the Trash lists items to restore; its Delete is "Delete Permanently", with its question.
+		when: (facts) =>
+			!facts.trash ? HIDDEN : facts.selected > 0 ? SHOWN : blocked('cmd.reason.nothingSelected'),
+		run: (a) => a.restoreFromTrash(),
+	},
+	{
+		id: 'deleteFromTrash',
+		label: 'trash.delete',
+		// Delete is bound here too, but `moveToTrash` shows it: only one command lists a key.
+		icon: DeleteForeverIcon,
+		group: 'file',
+		when: (facts) =>
+			!facts.trash ? HIDDEN : facts.selected > 0 ? SHOWN : blocked('cmd.reason.nothingSelected'),
+		run: (a) => a.deleteFromTrash(),
 	},
 	{
 		id: 'closeTab',

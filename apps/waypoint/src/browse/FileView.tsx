@@ -5,11 +5,10 @@
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { KeyboardEvent } from 'react';
-import { TrashBar } from '../trash/TrashBar';
+import { TrashFrame } from '../trash/TrashFrame';
 import { isTrashLocation } from '../trash/trashLocation';
 import { useTrashActions } from '../trash/trashJobs';
 import { TrashUnavailable } from '../trash/TrashUnavailable';
-import trashStyles from '../trash/TrashView.module.css';
 import { GridView } from './GridView';
 import { ListingView } from './ListView';
 import type { MenuRequest, OpenHandler, OpenInNewHandler } from './useListInteractions';
@@ -72,9 +71,8 @@ export function FileView({
 		trashActions?.deletePermanently(session);
 	};
 	return (
-		<div className={trashStyles.view} onKeyDown={onKeyDown} data-trash="">
-			<TrashBar session={session} />
-			<div className={trashStyles.body}>{body}</div>
-		</div>
+		<TrashFrame session={session} onKeyDown={onKeyDown}>
+			{body}
+		</TrashFrame>
 	);
 }

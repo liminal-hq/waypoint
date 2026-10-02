@@ -23,6 +23,7 @@ import { pairOfTab } from '../tabs/pairLayout';
 import { useTabActions } from '../tabs/tabActions';
 import { useTabExtras } from '../tabs/tabExtras';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
+import type { TrashActions } from '../trash/trashJobs';
 import { useWindowActions } from '../tabs/windowActions';
 import { useCommandBridge } from './commandBridge';
 import { startCommandFeed, type CommandFeed } from './commandFeed';
@@ -36,6 +37,8 @@ export interface WorkspaceCommandSources {
 	clipboard: ClipboardService | null;
 	view: ViewStore;
 	sidebar: SidebarStore;
+	/** The Trash view's jobs, `null` where the window has no Trash service. */
+	trash?: TrashActions | null;
 }
 
 /**
@@ -147,6 +150,14 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		};
 		bridge.patchActions({
 			files: commands,
+			restoreFromTrash: () => {
+				const session = latest.current.activeSession();
+				if (session) latest.current.trash?.restore(session);
+			},
+			deleteFromTrash: () => {
+				const session = latest.current.activeSession();
+				if (session) latest.current.trash?.deletePermanently(session);
+			},
 			batchRename: () => {
 				const selection = batchRenameSelection(latest.current.activeSession());
 				if (selection) openBatchRename(selection);

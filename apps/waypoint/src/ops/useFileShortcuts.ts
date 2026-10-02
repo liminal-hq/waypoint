@@ -97,12 +97,26 @@ export function inFileArea(target: EventTarget | null): boolean {
 	return target.closest('[data-pane]') !== null;
 }
 
+/** Ctrl+Shift+R: Restore in the Trash. */
+export function isRestoreKey(
+	event: Pick<KeyEventLike, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>,
+) {
+	return (
+		event.key.toLowerCase() === 'r' &&
+		event.shiftKey &&
+		(event.ctrlKey || event.metaKey) &&
+		!event.altKey
+	);
+}
+
 /** What the keys need to know about the pane they act on. */
 export interface FileShortcutOptions {
 	/** The pane the keys act on, read when a key is pressed. */
 	activeSession?: () => ListingSession | null;
 	/** Delete in the Trash: delete the selection for good (after asking). */
 	deleteInTrash?: (session: ListingSession) => void;
+	/** Ctrl+Shift+R in the Trash: restore the selection. */
+	restoreInTrash?: (session: ListingSession) => void;
 }
 
 /**
@@ -158,6 +172,13 @@ export function useFileShortcuts(
 					if (opts.current.deleteInTrash) {
 						event.preventDefault();
 						opts.current.deleteInTrash(session);
+					}
+					return;
+				}
+				if (isRestoreKey(event)) {
+					if (opts.current.restoreInTrash && inFileArea(event.target)) {
+						event.preventDefault();
+						opts.current.restoreInTrash(session);
 					}
 					return;
 				}

@@ -137,6 +137,17 @@ describe('availability', () => {
 		expect(read(result.sortName)).toBe('enabled');
 	});
 
+	it('offers Restore and Delete Permanently only in the Trash, and only with a selection', () => {
+		const inTrash = states(factsFor({ readOnly: true, trash: true, selected: 1 }));
+		expect(read(inTrash.restoreFromTrash)).toBe('enabled');
+		expect(read(inTrash.deleteFromTrash)).toBe('enabled');
+		const empty = states(factsFor({ readOnly: true, trash: true, selected: 0 }));
+		expect(read(empty.restoreFromTrash).startsWith('disabled')).toBe(true);
+		const folder = states(factsFor({ selected: 1 }));
+		expect(read(folder.restoreFromTrash)).toBe('hidden');
+		expect(read(folder.deleteFromTrash)).toBe('hidden');
+	});
+
 	it('outside the Trash the Date deleted sort is hidden and Modified and Kind are offered', () => {
 		const result = states();
 		expect(read(result.sortDeleted)).toBe('hidden');

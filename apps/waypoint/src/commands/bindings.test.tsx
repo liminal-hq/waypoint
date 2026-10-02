@@ -10,7 +10,7 @@ import { useListInteractions } from '../browse/useListInteractions';
 import { createViewStore } from '../browse/viewStore';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
 import { isBatchRenameKey } from '../ops/batchRename/useBatchRenameShortcut';
-import { handleFileKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
+import { handleFileKey, isRestoreKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
 import { isSettingsShortcut } from '../settings/openSettingsWindow';
 import { createSidebarStore } from '../sidebar/sidebarStore';
 import { createShelfStore } from '../shelf/shelfStore';
@@ -119,6 +119,18 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 	duplicate: (s) => expect(fileKeyCalls(s)).toEqual(['duplicate']),
 	moveToTrash: (s) => expect(fileKeyCalls(s)).toEqual(['moveToTrash']),
 	deletePermanently: (s) => expect(fileKeyCalls(s)).toEqual(['deletePermanently']),
+	restoreFromTrash: (s) => {
+		const init = press(s);
+		expect(
+			isRestoreKey({
+				key: init.key,
+				ctrlKey: !!init.ctrlKey,
+				metaKey: false,
+				altKey: !!init.altKey,
+				shiftKey: !!init.shiftKey,
+			}),
+		).toBe(true);
+	},
 	cut: (s) => expect(fileKeyCalls(s)).toEqual(['cut']),
 	copy: (s) => expect(fileKeyCalls(s)).toEqual(['copy']),
 	paste: (s) => expect(fileKeyCalls(s)).toEqual(['paste']),
