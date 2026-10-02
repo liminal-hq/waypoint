@@ -241,7 +241,7 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 
 ### 10.1 Answering a waiting job
 
-The conflict and error dialogs open by themselves in the window that started the job; Resolve… on the job's row (the ring's popover or the Operations window) opens them from any window.
+The conflict and error dialogs open by themselves in the window that started the job; Resolve… on the job's row (the ring's popover or the Operations window) opens them from any window. For two files the conflict dialog also shows a thumbnail of each, which is newer or larger, an "Identical contents" notice that says Skip is probably wanted (nothing is chosen for you) and, for text, a compact diff; none of it changes the keys, and a comparison that cannot be made shows nothing.
 
 | Input                                                 | Target          | Result                                                                  |
 | ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------- |
@@ -250,6 +250,7 @@ The conflict and error dialogs open by themselves in the window that started the
 | Continue                                              | Conflict dialog | Sends the answers; off until every clash is answered                    |
 | Cancel the operation                                  | Conflict dialog | Stops the job, after a question once anything was answered              |
 | Esc                                                   | Conflict dialog | Closes it and leaves the job waiting                                    |
+| Compare the files, Show differences                   | A file clash    | Loads the two files' comparison, then opens its line diff               |
 | Decide later                                          | Either dialog   | Closes it and leaves the job waiting                                    |
 | Esc                                                   | Error dialog    | Closes it and leaves the job waiting                                    |
 | Retry, Skip, Skip all like this, Cancel the operation | Error dialog    | Tells the job what to do with the item that failed                      |
