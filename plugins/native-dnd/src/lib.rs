@@ -5,6 +5,7 @@
 
 mod commands;
 mod error;
+pub mod hover;
 pub mod inbound;
 mod main_thread;
 pub mod models;
@@ -19,6 +20,8 @@ use linux as platform_impl;
 
 #[cfg(target_os = "windows")]
 mod windows;
+#[cfg(target_os = "windows")]
+mod windows_hover;
 #[cfg(target_os = "windows")]
 use windows as platform_impl;
 
@@ -43,7 +46,10 @@ mod platform {
     }
 }
 
-use std::{sync::Arc, time::Instant};
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 use log::warn;
 use serde::Serialize;
@@ -74,6 +80,8 @@ impl<R: Runtime, T: Manager<R>> NativeDndExt<R> for T {
 pub struct NativeDnd<R: Runtime> {
     app: AppHandle<R>,
     outbound: Arc<Outbound>,
+    /// Where an outbound drag has been reported to the windows under it, where the platform holds its own events back (Windows).
+    hover: Arc<Mutex<hover::Hover>>,
 }
 
 /// Starts a drag through the platform module.
@@ -104,6 +112,7 @@ impl<R: Runtime> NativeDnd<R> {
         NativeDnd {
             app,
             outbound: Arc::new(Outbound::default()),
+            hover: Arc::new(Mutex::new(hover::Hover::default())),
         }
     }
 
@@ -179,6 +188,12 @@ impl<R: Runtime> NativeDnd<R> {
             .unwrap_or_else(|| Err(Error::Failed("the event loop is not running".into())))
     }
 
+    /// The record of where an outbound drag has been reported, for the platform glue.
+    #[cfg(target_os = "windows")]
+    pub(crate) fn hover(&self) -> Arc<Mutex<hover::Hover>> {
+        self.hover.clone()
+    }
+
     /// Whether an outbound drag started by this process is running.
     pub fn outbound_active(&self) -> bool {
         self.outbound.is_active()
@@ -216,6 +231,20 @@ fn on_drag_drop<R: Runtime>(app: &AppHandle<R>, label: &str, event: &DragDropEve
         DragDropEvent::Leave => RawEvent::Leave,
         _ => return,
     };
+    // A window that was already told about this drag while the platform held its events back must not hear them again; its drop it does hear.
+    let kind = match raw {
+        RawEvent::Enter { .. } => hover::Real::Enter,
+        RawEvent::Over { .. } => hover::Real::Over,
+        RawEvent::Drop { .. } => hover::Real::Drop,
+        RawEvent::Leave => hover::Real::Leave,
+    };
+    let delivered = state
+        .hover
+        .lock()
+        .map_or(true, |mut hover| hover.deliver(kind, label, Instant::now()));
+    if !delivered {
+        return;
+    }
     let scale_factor = app
         .get_webview_window(label)
         .and_then(|window| window.scale_factor().ok())
