@@ -1115,6 +1115,12 @@ mod tests {
                 let answer = call(&window, command);
                 assert!(answer.is_ok(), "{label} may call {command}: {answer:?}");
             }
+            // Reading the settings is not changing them: only the Settings window may.
+            let refused = call(&window, "set_settings").expect_err("a refused call");
+            assert!(
+                refused.to_string().contains("not allowed"),
+                "{label} may not call set_settings: {refused}"
+            );
         }
         for label in ["properties-1", "tear-ghost"] {
             let window = open(label);
@@ -1135,6 +1141,13 @@ mod tests {
         // The Settings window edits the operations settings and nothing else of the plugin.
         let window = open("settings");
         assert!(call(&window, "get_settings").is_ok());
+        // Allowed through the capability (the empty body is then refused as a bad argument, not as a forbidden call).
+        if let Err(refused) = call(&window, "set_settings") {
+            assert!(
+                !refused.to_string().contains("not allowed"),
+                "settings may call set_settings: {refused}"
+            );
+        }
         for command in ["get_clipboard", "get_snapshot", "submit", "undo"] {
             let refused = call(&window, command).expect_err("a refused call");
             assert!(

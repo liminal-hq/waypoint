@@ -99,6 +99,11 @@ describe('the capabilities for the settings', () => {
 		expect(main.permissions).toContain('waypoint-settings:allow-get-status');
 		expect(main.permissions).not.toContain('waypoint-settings:default');
 		expect(main.permissions).not.toContain('waypoint-settings:allow-set-settings');
+		// The operations plugin's default set (the main windows have it) reads its settings and never writes them.
+		const opsDefault = read('../../plugins/waypoint-ops/permissions/default.toml');
+		expect(ops.permissions).toContain('waypoint-ops:default');
+		expect(opsDefault).toContain('"allow-get-settings"');
+		expect(opsDefault).not.toContain('"allow-set-settings"');
 	});
 
 	it('grants every command the client calls', async () => {

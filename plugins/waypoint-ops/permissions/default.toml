@@ -25,6 +25,5 @@ permissions = [
   "allow-get-clipboard",
   "allow-jobs-targeting",
   "allow-get-settings",
-  "allow-set-settings",
   "allow-take-recovery-report",
 ]
