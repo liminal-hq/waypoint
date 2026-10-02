@@ -485,6 +485,22 @@ describe('the Folders tree', () => {
 		expect(home).not.toHaveAttribute('aria-current');
 	});
 
+	it('expands with Left in a right-to-left layout', async () => {
+		await setup();
+		showFolders();
+		await screen.findByRole('treeitem', { name: 'test' });
+		document.documentElement.style.direction = 'rtl';
+		try {
+			const test = item('test');
+			test.focus();
+			press(test, 'ArrowLeft');
+			expect(await within(tree()).findByRole('treeitem', { name: 'docs' })).toBeInTheDocument();
+			expect(item('test')).toHaveAttribute('aria-expanded', 'true');
+		} finally {
+			document.documentElement.style.removeProperty('direction');
+		}
+	});
+
 	it('loads a folder’s children only when it is expanded, and closes them when it collapses', async () => {
 		const h = await setup();
 		showFolders();

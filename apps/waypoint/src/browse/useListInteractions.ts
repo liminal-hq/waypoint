@@ -6,6 +6,7 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { modifiersOf } from '../dnd/dropAction';
 import { useFileDragApi } from '../dnd/FileDragContext';
 import { useSettings } from '../settings/SettingsContext';
@@ -106,7 +107,10 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		const entry = at === null || event.ctrlKey ? undefined : model.entryAt(at);
 		const item = at === null ? null : document.getElementById(itemId(at));
 		const rect = (item ?? event.currentTarget).getBoundingClientRect();
-		const position = { x: rect.left + 24, y: rect.bottom };
+		const position = {
+			x: isRtl(event.currentTarget) ? rect.right - 24 : rect.left + 24,
+			y: rect.bottom,
+		};
 		if (entry) onMenu?.({ kind: 'entry', entry, handle: model.handle, position, keyboard: true });
 		else onMenu?.({ kind: 'background', position, keyboard: true });
 	};
@@ -118,6 +122,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		const state = store.getState();
 		const modifier = event.ctrlKey || event.metaKey;
 		const from = state.focus;
+		// Left and Right mean back and forward along the line, so they swap in a right-to-left layout.
+		const key = inlineKey(event.key, isRtl(event.currentTarget));
 		// Rows past the scroll cap are never drawn, so the keyboard cannot reach them; Ctrl+A is a
 		// whole-listing action and still takes every entry, as the capped banner says.
 		const last = shown - 1;
@@ -129,9 +135,9 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 			const fold: boolean | null =
 				event.altKey || modifier
 					? null
-					: event.key === 'ArrowLeft'
+					: key === 'ArrowLeft'
 						? true
-						: event.key === 'ArrowRight'
+						: key === 'ArrowRight'
 							? false
 							: event.key === 'Enter' || event.key === ' '
 								? open
@@ -152,7 +158,7 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 					: from === null
 						? null
 						: { position: from };
-			const stop = event.altKey ? null : navigate(layout, event.key, cursor, pageRows());
+			const stop = event.altKey ? null : navigate(layout, key, cursor, pageRows());
 			if (stop !== null) {
 				event.preventDefault();
 				typeAheadEpoch.current++;
@@ -167,7 +173,7 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 				return;
 			}
 		}
-		const target = event.altKey || layout.grouped ? null : move(event.key, from, last);
+		const target = event.altKey || layout.grouped ? null : move(key, from, last);
 		if (target !== null) {
 			event.preventDefault();
 			typeAheadEpoch.current++;

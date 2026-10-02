@@ -17,6 +17,7 @@ import {
 import { TypeAheadBuffer } from '../browse/typeAhead';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { FileIcon } from '../browse/FileIcon';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { tf, t } from '../i18n/messages';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { useLocationInfo } from '../nav/locationInfo';
@@ -126,7 +127,9 @@ export function FolderTree({ location, showHidden, actions }: FolderTreeProps) {
 		if (!from) return;
 		if (NAVIGATION_KEYS.has(event.key)) {
 			event.preventDefault();
-			const move = moveInTree(rows, from, event.key as TreeKey);
+			// Right opens a folder and Left closes it, so in a right-to-left tree the keys swap.
+			const key = inlineKey(event.key, isRtl(event.currentTarget)) as TreeKey;
+			const move = moveInTree(rows, from, key);
 			if (move.expand) store.getState().setExpanded(move.expand.key, move.expand.expanded);
 			if (move.focus) moveFocus(move.focus);
 		} else if (event.key === 'Enter') {

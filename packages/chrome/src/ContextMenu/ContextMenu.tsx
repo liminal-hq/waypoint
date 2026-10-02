@@ -223,7 +223,14 @@ function MenuPanel({
 		setPlaced(
 			placement.kind === 'point'
 				? clampToViewport(placement.position, size, viewport)
-				: placeSubmenu(placement.rect, size, viewport),
+				: placeSubmenu(
+						placement.rect,
+						size,
+						viewport,
+						undefined,
+						undefined,
+						getComputedStyle(panel).direction === 'rtl',
+					),
 		);
 	}, [placement]);
 
@@ -325,6 +332,10 @@ function MenuPanel({
 		// Nested panels sit inside their parent in the DOM; each panel handles its own keys.
 		event.stopPropagation();
 		const current = currentIndex();
+		// A submenu opens towards the inline end, so the two keys swap in a right-to-left layout.
+		const rtl = getComputedStyle(event.currentTarget).direction === 'rtl';
+		const opens = rtl ? 'ArrowLeft' : 'ArrowRight';
+		const closes = rtl ? 'ArrowRight' : 'ArrowLeft';
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
@@ -347,7 +358,7 @@ function MenuPanel({
 				event.preventDefault();
 				if (current >= 0) activate(current, true);
 				return;
-			case 'ArrowRight': {
+			case opens: {
 				const item = items[current];
 				if (item?.type === 'submenu' && isNavigable(item)) {
 					event.preventDefault();
@@ -358,7 +369,7 @@ function MenuPanel({
 				}
 				return;
 			}
-			case 'ArrowLeft':
+			case closes:
 				if (nested) {
 					event.preventDefault();
 					onRequestClose();

@@ -248,6 +248,20 @@ describe('the toolbar keys', () => {
 		expect(button('new')).toHaveFocus();
 	});
 
+	it('moves Left to the next button in a right-to-left layout', () => {
+		const { button } = setup(selected);
+		document.documentElement.style.direction = 'rtl';
+		try {
+			button('new').focus();
+			fireEvent.keyDown(button('new'), { key: 'ArrowLeft' });
+			expect(button('cut')).toHaveFocus();
+			fireEvent.keyDown(button('cut'), { key: 'ArrowRight' });
+			expect(button('new')).toHaveFocus();
+		} finally {
+			document.documentElement.style.removeProperty('direction');
+		}
+	});
+
 	it('keeps a disabled button in the focus order', () => {
 		const { button } = setup({});
 		button('new').focus();

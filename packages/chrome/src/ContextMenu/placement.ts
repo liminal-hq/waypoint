@@ -34,17 +34,23 @@ export function clampToViewport(
 	};
 }
 
-/** Places a submenu beside its parent row, flipping to the left when there is no room on the right. */
+/**
+ * Places a submenu beside its parent row: on the right, flipping to the left when there is no room,
+ * and the other way round in a right-to-left layout, where a submenu opens towards the inline end.
+ */
 export function placeSubmenu(
 	anchor: Rect,
 	size: Size,
 	viewport: Size,
 	overlap = 4,
 	margin: number = VIEWPORT_MARGIN,
+	rtl = false,
 ): MenuPosition {
-	let x = anchor.right - overlap;
-	if (x + size.width > viewport.width - margin) {
-		x = anchor.left - size.width + overlap;
+	const after = anchor.right - overlap;
+	const before = anchor.left - size.width + overlap;
+	let x = rtl ? before : after;
+	if (rtl ? x < margin : x + size.width > viewport.width - margin) {
+		x = rtl ? after : before;
 	}
 	// Align the first submenu row with the parent row (4px accounts for panel padding).
 	return clampToViewport({ x, y: anchor.top - 4 }, size, viewport, margin);
