@@ -60,6 +60,7 @@ export const enMessages = {
 	'services.name.system-appearance': 'System appearance',
 	'services.name.window-manager': 'Window manager',
 	'services.name.window-tearoff': 'Tab tear-off',
+	'services.name.thumbnails': 'Thumbnails',
 	'settings.group.colours': 'Colours',
 	'settings.group.layout': 'Layout',
 	'settings.group.icons': 'Icons',

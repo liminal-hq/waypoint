@@ -116,6 +116,7 @@ describe('the Services panel sources', () => {
 			'os-prefs',
 			'system-appearance',
 			'window-tearoff',
+			'thumbnails',
 		]);
 		plugins.vfs.mockResolvedValue({ available: true, reason: null, features: ['listing'] });
 		plugins.trash.mockRejectedValue(new Error('permission denied'));

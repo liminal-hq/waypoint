@@ -72,6 +72,7 @@ describe('the registered sources', () => {
 			'native-dnd',
 			'os-prefs',
 			'system-appearance',
+			'thumbnails',
 			'trash',
 			'waypoint-ops',
 			'waypoint-session',
