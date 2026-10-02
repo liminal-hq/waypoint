@@ -7,17 +7,22 @@
 // Nothing is overwritten and nothing newer is lost. The copy is built under a partial name beside
 // its place and renamed in without overwriting; the entry being copied is fingerprinted again once
 // the copy is in place, and only if it is still what the move left is it removed. If the removal
-// fails, the copy is taken away again so the step is as it was and can be retried.
+// fails, the copy is taken away again so the step is as it was and can be retried. A copy that
+// will outlive its source is synced to storage and read back against the digest of what was read
+// from the source, and its length must be the size the move left, before the source is removed.
+
+use std::io::Read;
 
 use waypoint_path::VfsPath;
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{CancelToken, EntryKind, Provider};
+use waypoint_vfs::{CancelToken, EntryKind, Provider, ScannedEntry};
 
 use super::apply::{aside_path, remove_entry};
 use super::fingerprint::verify_excluding;
 use super::model::{Fingerprint, StaleReason};
 use crate::exec::{copy_file_bytes, copy_metadata, remove_all, ExecEnv, FileCopy, CHUNK_BYTES};
-use crate::model::{JobId, OpsError};
+use crate::model::{JobId, OpsError, VerifyAlgorithm};
+use crate::verify::{hex, Hasher};
 
 fn name_error(name: &std::ffi::OsStr) -> OpsError {
     OpsError::Io {
@@ -55,14 +60,17 @@ fn copy_tree(
             dp.symlink(dst, &text)?;
         }
         EntryKind::File => {
-            copy_file_bytes(
+            // The source is removed once the copy is in place, so the copy must be whole and on
+            // storage: a verified copy is synced and has no fast path, and what was written is
+            // read back and compared below.
+            let copied = copy_file_bytes(
                 &FileCopy {
                     src_provider: sp,
                     src,
                     dst_provider: dp,
                     dst,
                     same_provider,
-                    verify: None,
+                    verify: Some(VerifyAlgorithm::Blake3),
                     chunk: CHUNK_BYTES,
                     size_hint: entry.size.unwrap_or(0),
                     durable: true,
@@ -71,6 +79,8 @@ fn copy_tree(
                 &mut |_| {},
                 cancel,
             )?;
+            let digest = copied.digest.unwrap_or_default();
+            check_written(src, &entry, dp, dst, copied.bytes, &digest, cancel, buf)?;
             copy_metadata(sp, src, dp, dst, Some(entry.modified_ms))?;
         }
         EntryKind::Other => {
@@ -78,6 +88,64 @@ fn copy_tree(
                 what: "copying a special file".to_owned(),
             })
         }
+    }
+    Ok(())
+}
+
+/// Checks that the copy holds what was read from the source and that the source is the size the
+/// move left (else it changed under the copy): the length, then a read-back of every byte.
+#[allow(clippy::too_many_arguments)]
+fn check_written(
+    src: &VfsPath,
+    entry: &ScannedEntry,
+    dp: &dyn Provider,
+    dst: &VfsPath,
+    bytes: u64,
+    expected: &[u8],
+    cancel: &CancelToken,
+    buf: &mut Vec<u8>,
+) -> Result<(), OpsError> {
+    if entry.size.is_some_and(|size| size != bytes) {
+        return Err(OpsError::UndoStale {
+            location: src.to_location(),
+            reason: StaleReason::Changed,
+        });
+    }
+    let short = |held: Option<u64>| OpsError::Io {
+        message: format!(
+            "{} holds {} of the {} bytes copied to it",
+            dst.display(),
+            held.map_or_else(|| "an unknown number".to_owned(), |n| n.to_string()),
+            bytes
+        ),
+    };
+    let held = dp.stat(dst)?.size;
+    if held != Some(bytes) {
+        return Err(short(held));
+    }
+    let location = dst.to_location();
+    let mut reader = dp.open_read(dst)?;
+    let mut hasher = Hasher::new(VerifyAlgorithm::Blake3);
+    buf.resize(CHUNK_BYTES.min(bytes.max(1) as usize), 0);
+    loop {
+        if cancel.is_cancelled() {
+            return Err(OpsError::Cancelled);
+        }
+        let read = reader
+            .read(buf)
+            .map_err(|e| waypoint_vfs::from_io(&e, &location))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buf[..read]);
+    }
+    let actual = hasher.finish();
+    if actual != expected {
+        return Err(OpsError::VerifyFailed {
+            location,
+            expected: hex(expected),
+            actual: hex(&actual),
+        });
     }
     Ok(())
 }

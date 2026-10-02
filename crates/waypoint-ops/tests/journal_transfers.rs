@@ -946,3 +946,39 @@ fn two_sources_merged_into_one_folder_made_by_the_job_undo_in_order() {
         });
     }
 }
+
+#[test]
+fn an_undo_across_volumes_keeps_the_moved_file_when_the_copy_back_reads_back_wrong() {
+    let (mut h, _dir) = crossing_jh();
+    put(&h, &tree(&[("src/a.txt", "alpha bravo charlie")]));
+    let run = h.run_journalled(transfer(&h, JobKind::Move, &["src/a.txt"], "dst", None));
+    finished(&run, &h);
+    let id = run.entry.unwrap();
+    h.provider.reset();
+    let before = jwork(&h);
+    h.provider.reset();
+    // The copy back reads the file (data, then the end of it) and then reads its copy back to
+    // compare: that third read returns a flipped byte, as a failing disk would.
+    h.provider.corrupt_read_nth(3);
+    let undo = h.undo(id);
+    assert!(
+        matches!(undo.state, JobState::Failed { .. }),
+        "{:?}",
+        undo.state
+    );
+    h.provider.reset();
+    // Nothing wrong was put back, and the moved file is where the move left it.
+    assert_eq!(jwork(&h), before);
+    assert_eq!(
+        xfer::read_bytes(&h.harness, "dst/a.txt"),
+        b"alpha bravo charlie"
+    );
+    // The step is as it was, so undoing again works.
+    let again = h.undo(id);
+    finished(&again, &h);
+    h.provider.reset();
+    assert_eq!(
+        xfer::read_bytes(&h.harness, "src/a.txt"),
+        b"alpha bravo charlie"
+    );
+}
