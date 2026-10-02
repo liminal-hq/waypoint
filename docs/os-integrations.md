@@ -75,6 +75,31 @@ Status: draft v0.1 · decisions D42–D47 in `decisions.md`.
 
 A source is only read if the folder exists. Each item shows where it came from, and the user can turn a source off.
 
+### Integrations as built (milestone 5, slice 19)
+
+Waypoint consumes the shared `xdg-portal` and `desktop-integration` plugins from Rust only (A65), in `apps/waypoint/src-tauri/src/integrations.rs`; the decisions are pure functions in `integration_policy.rs`. The portal goes first where its status says it works (a Flatpak; a host session reports that it answers only sandboxed apps), and the zbus services of `desktop-integration` are the fallback. Windows uses `desktop-integration` alone, and macOS offers none.
+
+| Switch (all off until enabled, D118)    | Linux                                                                                                | Windows                                                     | Unavailable when (the Services reason)                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------- |
+| Notify when a job finishes              | Notification portal, else `org.freedesktop.Notifications`                                            | WinRT toast, with the AppUserModelID set at start           | No portal and no notification server; Windows without an identity |
+| Show progress on the app icon           | `com.canonical.Unity.LauncherEntry` signal for `ca.liminalhq.waypoint.desktop`                       | `ITaskbarList3` on the first main window's button           | No session bus                                                    |
+| Keep the computer awake during jobs     | Inhibit portal, else a `systemd-logind` sleep inhibitor                                              | `SetThreadExecutionState`                                   | No portal and no logind                                           |
+| Open folders other applications ask for | Owns `org.freedesktop.FileManager1` while on                                                         | Not offered (the row is left out)                           | No session bus                                                    |
+| Bring Waypoint forward with a shortcut  | X11: key grab through Tauri's global-shortcut plugin; Wayland: the GlobalShortcuts portal            | `RegisterHotKey` on its own thread                          | No display server                                                 |
+| Make Waypoint the default file manager  | A button: `inode/directory` through `mime-apps` `set_default`; needs `ca.liminalhq.waypoint.desktop` | A button: opens `ms-settings:defaultapps` with instructions | A Flatpak sandbox, or Waypoint is not installed as an application |
+
+How each behaves:
+
+- **Notifications (D121):** a finished or failed job notifies when no Waypoint window has focus or it ran over 10 seconds; a job that stops with a question always does; a cancelled job never does. The notification has the job's own title and a default action that raises the most recent main window (a click on the notification itself, through either plugin's action event).
+- **Progress:** one value over every job in flight (bytes, else items, rounded down to a whole percent; indeterminate until a total is known; cleared when idle). Progress ticks are not events, so the integrations read the queue every 500 ms while a job is in flight.
+- **Keep awake:** one inhibitor, taken when the first job starts planning or running and given back when none is working, and on exit. A job that is queued, paused or waiting for an answer does not hold it.
+- **`FileManager1`:** `ShowFolders` opens each folder in a new tab of the most recent main window; `ShowItems` and `ShowItemProperties` open the item's folder and focus the item (the same hint the Shelf's Reveal sets). A URI that is not a local `file:` URI is refused, the rest of the call is still honoured, and at most 8 folders open per call. It works while Waypoint is running: activating a Waypoint that is not running needs a D-Bus service file, which packaging adds (M9).
+- **Shortcut:** `Ctrl+Alt+W` until another is typed; the text is checked by Rust (modifiers `Ctrl`, `Alt`, `Shift`, `Super` and `CmdOrCtrl`, then one key: a letter, a digit, `F1` to `F24`, or Space, Enter, Tab, Escape, Backspace, Delete, Insert, Home, End, PageUp, PageDown or an arrow). On Wayland the compositor shows its own confirmation, the portal session cannot be closed or rebound while the app runs (turning the setting off ignores the key, and a new accelerator applies at the next start).
+
+**Verified:** the policies by unit tests (`integration_policy.rs`) and the page by Vitest with fakes. On GNOME Wayland in a host session the portal answers and is the route: `cargo test -p waypoint live_ -- --ignored --nocapture` sent one notification (the portal's `AddNotification` call carried the job's title, body, `normal` priority and the `raise` default action) and held a suspend inhibitor that GNOME's session manager listed with the reason “Waypoint is working on files” and no longer listed after the release. The Windows code paths are type-checked with `cargo xwin check -p waypoint --target x86_64-pc-windows-msvc`.
+
+**Not yet verified:** the whole `reconcile` loop in a running Waypoint (job events to progress, notifications and the inhibitor); Windows toasts, taskbar progress, the sleep inhibitor, the hotkey and the Default apps page (run in slice 26); the zbus fallbacks and the Flatpak routes; that the notification banner was seen and its click raises a window; the launcher progress on a dock; `FileManager1` from another application; the Wayland shortcut dialog; and everything that needs the installed desktop file, which packaging provides (M9).
+
 ### Packaging
 
 Design for **Flatpak too**. Portals first, with fallbacks when the sandbox is tighter (no `--filesystem=host`, no GVFS D-Bus access): the sidebar hides unmounted drives, Nemo/KDE/Nautilus actions are unavailable (the folders aren't visible), and the _Services status_ panel says why.
@@ -107,7 +132,7 @@ Design for **Flatpak too**. Portals first, with fallbacks when the sandbox is ti
 
 ## Where it appears in the UI
 
-- **Settings → Integrations:** default file manager, notifications, dock or taskbar progress, global shortcut and prevent sleep (all off until enabled, milestone 5), then terminal choice and, later, actions from other file managers (imported by `waypoint-ext`, milestone 8) and (Windows) Explorer menu, default folder handler, jump lists. Unavailable options are **hidden**.
+- **Settings → Integrations:** default file manager, notifications, dock or taskbar progress, global shortcut and prevent sleep (all off until enabled, milestone 5), then terminal choice and, later, actions from other file managers (imported by `waypoint-ext`, milestone 8) and (Windows) Explorer menu, default folder handler, jump lists. An option the system cannot do is **dimmed with the reason** the Services panel gives (Waypoint hides an option that has no meaning on the platform, such as owning a D-Bus name on Windows).
 - **Settings → Integrations → Services:** the status panel listing every portal and service, available or not, with what is missing.
 - **Settings → Integrations → Access:** a per-feature list of what Waypoint can reach (folders, network, D-Bus names, devices, secrets) so the user can see it at a glance.
 - **Developer options:** a toggle to log portal and D-Bus calls.
