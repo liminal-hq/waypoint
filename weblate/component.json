@@ -1,0 +1,23 @@
+{
+	"name": "Waypoint messages",
+	"slug": "messages",
+	"repo": "https://github.com/liminal-hq/waypoint.git",
+	"vcs": "github",
+	"branch": "main",
+	"push_branch": "weblate",
+	"source_language": "en-CA",
+	"file_format": "webextension",
+	"filemask": "apps/waypoint/src/i18n/translations/*.json",
+	"template": "apps/waypoint/src/i18n/translations/en-CA.json",
+	"new_base": "apps/waypoint/src/i18n/translations/en-CA.json",
+	"new_lang": "add",
+	"language_code_style": "bcp",
+	"language_regex": "^(?!en-XA$|ar-XB$|en-CA$).*$",
+	"edit_template": false,
+	"manage_units": false,
+	"commit_message": "chore(i18n): update {{ language_name }} translations\n\nTranslated through Weblate. Run `bun run i18n:import` before merging.",
+	"add_message": "chore(i18n): add {{ language_name }} translations",
+	"delete_message": "chore(i18n): remove {{ language_name }} translations",
+	"merge_message": "chore(i18n): merge translations",
+	"check_flags": "placeholder-regex:\\{\\w+\\}"
+}
