@@ -6,6 +6,11 @@
 import { setActiveLocale, type Catalogue } from './active';
 import { FALLBACK_LOCALE, resolveLocale, type Locale, type ResolvedLocale } from './locales';
 
+/** The loader a release build has for a pseudo-locale: none. */
+function developerOnly(locale: Locale): () => Promise<{ default: Catalogue }> {
+	return () => Promise.reject(new Error(`${locale} is only available in a developer build`));
+}
+
 /**
  * One dynamic import per locale, so a window carries the English source and only the catalogue it
  * uses. English is always in the bundle: it is the fallback for any key another locale lacks.
@@ -13,8 +18,10 @@ import { FALLBACK_LOCALE, resolveLocale, type Locale, type ResolvedLocale } from
 const MODULES: Record<Locale, () => Promise<{ default: Catalogue }>> = {
 	'en-CA': async () => ({ default: {} }),
 	'fr-CA': () => import('./catalogues/fr-CA'),
-	'en-XA': () => import('./catalogues/en-XA'),
-	'ar-XB': () => import('./catalogues/ar-XB'),
+	// The pseudo-locales are developer-only: a release build replaces `import.meta.env.DEV` with
+	// `false`, which drops these imports and their modules from the bundle altogether.
+	'en-XA': import.meta.env.DEV ? () => import('./catalogues/en-XA') : developerOnly('en-XA'),
+	'ar-XB': import.meta.env.DEV ? () => import('./catalogues/ar-XB') : developerOnly('ar-XB'),
 };
 
 const loaded = new Map<Locale, Promise<Catalogue>>();
