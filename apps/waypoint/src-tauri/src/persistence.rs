@@ -254,14 +254,18 @@ impl CloseFlush {
 
 /// What the saved store becomes at start-up under `settings`. The session's windows come back
 /// only when the start-up setting says so; with "Open Home" the document is still read and
-/// everything that is not a window (the saved workspaces, the closed tabs, the id counters) is
-/// carried over, because the first save of the run replaces the document and must not empty it.
-pub(crate) fn restored_for(store: Store, settings: &Settings) -> Store {
-    if crate::settings::restores_session(settings) {
-        store
-    } else {
-        store.without_windows()
+/// everything that is not a window (the saved workspaces, the closed tabs, the Shelf, the id
+/// counters) is carried over, because the first save of the run replaces the document and must
+/// not empty it. The Shelf is emptied when it is not kept between sessions; the ids it has used
+/// stay used either way.
+pub(crate) fn restored_for(mut store: Store, settings: &Settings) -> Store {
+    if !crate::settings::restores_session(settings) {
+        store = store.without_windows();
     }
+    if !settings.dnd.shelf_persist {
+        store.forget_shelf();
+    }
+    store
 }
 
 /// Loads the saved session into the store and creates its windows; with nothing saved (the first
@@ -429,5 +433,70 @@ mod tests {
         gate.save(&storage, || document(1), Intent::Finish);
         gate.save(&storage, || document(2), Intent::Change);
         assert_eq!(saved(&storage), vec![0, 1]);
+    }
+
+    fn store_with_shelf() -> Store {
+        let mut store = Store::new();
+        store
+            .dispatch(
+                "main-1",
+                Command::OpenWindow {
+                    location: Some(waypoint_protocol::Location::new("/", "file:///")),
+                    geometry: None,
+                },
+            )
+            .unwrap();
+        store
+            .dispatch(
+                "main-1",
+                Command::AddToShelf {
+                    locations: vec![
+                        waypoint_protocol::Location::new("/a", "file:///a"),
+                        waypoint_protocol::Location::new("/b", "file:///b"),
+                    ],
+                    added_ms: 1,
+                },
+            )
+            .unwrap();
+        // Save and load, as a restart does.
+        Store::from_document(store.to_document()).unwrap().0
+    }
+
+    #[test]
+    fn the_shelf_comes_back_by_default() {
+        let restored = restored_for(store_with_shelf(), &Settings::default());
+        assert_eq!(restored.shelf().len(), 2);
+        assert_eq!(restored.windows().len(), 1);
+    }
+
+    #[test]
+    fn a_shelf_that_is_not_kept_is_cleared_at_start_up_and_its_ids_stay_used() {
+        let mut settings = Settings::default();
+        settings.dnd.shelf_persist = false;
+        let mut restored = restored_for(store_with_shelf(), &settings);
+        assert!(restored.shelf().is_empty());
+        assert_eq!(restored.windows().len(), 1, "the session is unaffected");
+        restored
+            .dispatch(
+                "main-1",
+                Command::AddToShelf {
+                    locations: vec![waypoint_protocol::Location::new("/c", "file:///c")],
+                    added_ms: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(restored.shelf()[0].id.0, 3);
+    }
+
+    #[test]
+    fn opening_home_still_keeps_the_shelf_but_not_the_windows() {
+        let mut settings = Settings::default();
+        settings.general.startup = waypoint_settings::StartupMode::Home;
+        let restored = restored_for(store_with_shelf(), &settings);
+        assert_eq!(restored.shelf().len(), 2);
+        assert!(restored.windows().is_empty());
+        settings.dnd.shelf_persist = false;
+        let restored = restored_for(store_with_shelf(), &settings);
+        assert!(restored.shelf().is_empty() && restored.windows().is_empty());
     }
 }
