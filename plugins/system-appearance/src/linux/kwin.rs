@@ -32,11 +32,7 @@ fn config_home(xdg_config_home: Option<&str>, home: Option<&str>) -> Option<Path
 }
 
 fn kwinrc_path() -> Option<PathBuf> {
-    let dir = config_home(
-        std::env::var("XDG_CONFIG_HOME").ok().as_deref(),
-        std::env::var("HOME").ok().as_deref(),
-    )?;
-    Some(dir.join(FILE_NAME))
+    config_file(FILE_NAME)
 }
 
 /// Reads the KWin preferences. A missing file means KWin's defaults are in effect.
@@ -55,9 +51,24 @@ pub fn read() -> Result<TitlebarPreferences, String> {
     })
 }
 
-/// Watches the config directory rather than the file, because KDE and editors replace it atomically.
+/// Watches `kwinrc`. The config directory is watched rather than the file, because KDE and
+/// editors replace it atomically.
 pub fn watch(changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
-    let Some(path) = kwinrc_path() else {
+    watch_file(FILE_NAME, changed)
+}
+
+/// Where the user's copy of the config file `name` lives, if the config directory can be found.
+pub(crate) fn config_file(name: &str) -> Option<PathBuf> {
+    let dir = config_home(
+        std::env::var("XDG_CONFIG_HOME").ok().as_deref(),
+        std::env::var("HOME").ok().as_deref(),
+    )?;
+    Some(dir.join(name))
+}
+
+/// Notifies whenever the config file `name` in the user's config directory changes or is replaced.
+pub(crate) fn watch_file(name: &'static str, changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
+    let Some(path) = config_file(name) else {
         return Vec::new();
     };
     let Some(dir) = path.parent().map(Path::to_path_buf) else {
@@ -68,7 +79,7 @@ pub fn watch(changed: UnboundedSender<()>) -> Vec<Box<dyn Send>> {
             if event
                 .paths
                 .iter()
-                .any(|p| p.file_name() == Some(OsStr::new(FILE_NAME)))
+                .any(|p| p.file_name() == Some(OsStr::new(name)))
             {
                 let _ = changed.send(());
             }
