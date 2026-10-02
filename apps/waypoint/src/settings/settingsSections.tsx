@@ -10,6 +10,7 @@ import { AppearancePage } from './AppearancePage';
 import { DragDropPage } from './DragDropPage';
 import { GeneralPage } from './GeneralPage';
 import { IntegrationsPage } from './IntegrationsPage';
+import { LanguagePage } from './LanguagePage';
 import { OperationsPage } from './OperationsPage';
 import { PreviewsPage } from './PreviewsPage';
 import { TransparencyPage } from './TransparencyPage';
@@ -19,6 +20,7 @@ export type SectionId =
 	| 'appearance'
 	| 'transparency'
 	| 'accessibility'
+	| 'language'
 	| 'previews'
 	| 'operations'
 	| 'dnd'
@@ -42,6 +44,7 @@ export function settingsSections(): SettingsSectionDef[] {
 			label: t('settings.section.accessibility'),
 			render: () => <AccessibilityPage />,
 		},
+		{ id: 'language', label: t('settings.section.language'), render: () => <LanguagePage /> },
 		{ id: 'previews', label: t('settings.section.previews'), render: () => <PreviewsPage /> },
 		{ id: 'operations', label: t('settings.section.operations'), render: () => <OperationsPage /> },
 		{ id: 'dnd', label: t('settings.section.dnd'), render: () => <DragDropPage /> },

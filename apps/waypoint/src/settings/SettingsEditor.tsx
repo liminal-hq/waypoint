@@ -62,7 +62,9 @@ export type RowKey =
 	| 'regionContent'
 	| 'menus'
 	| 'menuOpacity'
-	| 'solidUnfocused';
+	| 'solidUnfocused'
+	| 'language'
+	| 'direction';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {
