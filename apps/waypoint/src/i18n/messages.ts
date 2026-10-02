@@ -1098,6 +1098,9 @@ export const enMessages = {
 	'history.stopped.redo': 'Redid {done} of {total} changes. Stopped at {label}: {reason}',
 	'history.stopped.first.undo': 'Nothing was undone. {label} could not be undone: {reason}',
 	'history.stopped.first.redo': 'Nothing was redone. {label} could not be redone: {reason}',
+	'history.busy': 'An undo or redo is still running. Wait for it to finish.',
+	'history.changed':
+		'The history changed while you were deciding, so nothing was undone or redone.',
 	'history.step.unknown': 'it did not finish in time',
 	'history.step.cancelled': 'it was cancelled',
 	'history.confirm.partly.note':

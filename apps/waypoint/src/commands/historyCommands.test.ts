@@ -15,6 +15,7 @@ import {
 	needsConfirmation,
 	parseHistoryRowKey,
 	relativeTime,
+	sameChain,
 	type HistoryKind,
 } from './historyCommands';
 
@@ -265,5 +266,20 @@ describe('relative times', () => {
 	it('follows the locale', () => {
 		expect(relativeTime(now - 2 * MINUTE, now, 'fr-CA')).toMatch(/2 minutes/);
 		expect(relativeTime(now - 2 * MINUTE, now, 'fr-CA')).not.toBe('2 minutes ago');
+	});
+});
+
+describe('sameChain', () => {
+	const heads = { undoHead: null, redoHead: null };
+	const older = entry(1, 'Older');
+	const newer = entry(2, 'Newer');
+	const rowFor = (...history: ReturnType<typeof entry>[]) =>
+		historyRows(history, heads).find((row) => row.entry.id === 1)!;
+
+	it('holds while the history is as it was, and fails when a newer entry arrived or the row is gone', () => {
+		const confirmed = rowFor(newer, older);
+		expect(sameChain(rowFor(newer, older), confirmed)).toBe(true);
+		expect(sameChain(rowFor(entry(3, 'Arrived'), newer, older), confirmed)).toBe(false);
+		expect(sameChain(undefined, confirmed)).toBe(false);
 	});
 });

@@ -79,6 +79,20 @@ function row(
 	};
 }
 
+/**
+ * Whether the chain the person confirmed is still what the history says: the same row with the
+ * same entries in the same order. A job that finished meanwhile adds a newest entry the chain
+ * does not hold, and undoing the older ones beneath it would leave a change resting on nothing.
+ */
+export function sameChain(current: HistoryRow | undefined, confirmed: HistoryRow): boolean {
+	return (
+		current !== undefined &&
+		current.key === confirmed.key &&
+		current.steps.length === confirmed.steps.length &&
+		current.steps.every((step, index) => step.id === confirmed.steps[index]!.id)
+	);
+}
+
 /** Whether choosing the row asks first: more than one change goes, or an undo that stopped part way is finished. */
 export function needsConfirmation(row: HistoryRow): boolean {
 	return row.steps.length > 1 || row.steps.some((step) => step.partlyUndone && row.kind === 'undo');

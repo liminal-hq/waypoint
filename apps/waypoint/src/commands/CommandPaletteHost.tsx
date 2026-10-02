@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { showNotice } from '../app/notices';
 import { useHourCycle } from '../browse/TimeFormatContext';
+import { t } from '../i18n/messages';
 import { useConfirm } from '../ops/ConfirmHost';
 import { useCommandBridge, useCommands } from './commandBridge';
 import { CommandPalette } from './CommandPalette';
@@ -14,6 +15,7 @@ import {
 	confirmSpec,
 	historyRows,
 	needsConfirmation,
+	sameChain,
 	type HistoryRow,
 } from './historyCommands';
 import type { PaletteTarget } from './paletteModel';
@@ -58,6 +60,8 @@ export function CommandPaletteHost() {
 	const { confirm, dialog } = useConfirm();
 	const [opened, setOpened] = useState<Opened | null>(null);
 	const recents = useRef<CommandId[]>([]);
+	/** A history chain is deciding or running; a second one (or an Undo or Redo) would interleave with it. */
+	const chainInFlight = useRef(false);
 	const isOpen = useRef(false);
 	isOpen.current = opened !== null;
 
@@ -91,6 +95,10 @@ export function CommandPaletteHost() {
 	const execute = useCallback(
 		async (target: PaletteTarget) => {
 			if (target.kind === 'command') {
+				if (chainInFlight.current && (target.id === 'undo' || target.id === 'redo')) {
+					showNotice(t('history.busy'));
+					return;
+				}
 				if (run(target.id)) {
 					recents.current = [target.id, ...recents.current.filter((id) => id !== target.id)].slice(
 						0,
@@ -101,11 +109,30 @@ export function CommandPaletteHost() {
 			}
 			const files = bridge.store.getState().actions.files;
 			if (!files) return;
-			if (needsConfirmation(target.row) && !(await confirm(confirmSpec(target.row)))) return;
-			const report = await applyHistory(target.row, {
-				step: (kind, entry) => files.stepHistory(kind, entry),
-			});
-			showNotice(report.text);
+			if (chainInFlight.current) {
+				showNotice(t('history.busy'));
+				return;
+			}
+			chainInFlight.current = true;
+			try {
+				if (needsConfirmation(target.row) && !(await confirm(confirmSpec(target.row)))) return;
+				// The row was built before the question: a job may have finished since, so the chain is
+				// read again from the history as it is now and must be what was confirmed.
+				const { history, undoHead, redoHead } = bridge.store.getState().facts;
+				const current = historyRows(history, { undoHead, redoHead }).find(
+					(candidate) => candidate.key === target.row.key,
+				);
+				if (!sameChain(current, target.row)) {
+					showNotice(t('history.changed'));
+					return;
+				}
+				const report = await applyHistory(current!, {
+					step: (kind, entry) => files.stepHistory(kind, entry),
+				});
+				showNotice(report.text);
+			} finally {
+				chainInFlight.current = false;
+			}
 		},
 		[bridge, confirm, run],
 	);

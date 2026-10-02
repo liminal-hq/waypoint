@@ -235,6 +235,50 @@ describe('the undo history', () => {
 		]);
 	});
 
+	it('refuses a second chain while one is running, and says why', async () => {
+		let release: (outcome: HistoryStepOutcome) => void = () => {};
+		const { step } = setup({
+			step: () =>
+				new Promise<HistoryStepOutcome>((resolve) => {
+					release = resolve;
+				}),
+		});
+		open();
+		await userEvent.type(await screen.findByRole('combobox'), 'undo rename{Enter}');
+		const dialog = await screen.findByRole('dialog', { name: 'Undo 3 changes?' });
+		await userEvent.click(
+			within(dialog).getByRole('button', { name: t('history.confirm.undo.confirm') }),
+		);
+		await waitFor(() => expect(step).toHaveBeenCalledTimes(1));
+		// A second chain (here the same one) while the first waits on its job.
+		open();
+		await userEvent.type(await screen.findByRole('combobox'), 'undo rename{Enter}');
+		await waitFor(() => expect(screen.getByTestId('notice')).toHaveTextContent(t('history.busy')));
+		expect(screen.queryByRole('dialog', { name: 'Undo 3 changes?' })).not.toBeInTheDocument();
+		expect(step).toHaveBeenCalledTimes(1);
+		release({ ok: true });
+		await waitFor(() => expect(step).toHaveBeenCalledTimes(2));
+	});
+
+	it('abandons a chain whose history changed while the question was open', async () => {
+		const { step, bridge } = await chooseOlder();
+		const dialog = await screen.findByRole('dialog', { name: 'Undo 3 changes?' });
+		// A job finished meanwhile: a newer entry now rests on the ones that were listed.
+		act(() =>
+			bridge.patchFacts({
+				history: [entry(6, 'Copy 2 items'), ...history],
+				undoHead: 6,
+			}),
+		);
+		await userEvent.click(
+			within(dialog).getByRole('button', { name: t('history.confirm.undo.confirm') }),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId('notice')).toHaveTextContent(t('history.changed')),
+		);
+		expect(step).not.toHaveBeenCalled();
+	});
+
 	it('stops at the first refusal and reports what was undone and why it stopped', async () => {
 		const { step } = setup({
 			step: async (_kind, id) =>
