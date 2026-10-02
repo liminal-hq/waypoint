@@ -39,6 +39,12 @@ export interface ContextMenuProps {
 	openedWithKeyboard?: boolean;
 	/** Opens the submenu with this id (and focuses its first item) as soon as the menu is up: how a mnemonic such as Alt+F lands in its menu. */
 	initialSubmenuId?: string;
+	/**
+	 * For a menu that hangs from a menu bar: Left, and Right on a row that opens nothing, ask for
+	 * the neighbouring menu (`-1` before, `1` after) instead of doing nothing. A nested panel still
+	 * closes on Left and opens on Right as usual.
+	 */
+	onSideways?: (direction: -1 | 1) => void;
 }
 
 type Placement = { kind: 'point'; position: MenuPosition } | { kind: 'anchor'; rect: Rect };
@@ -77,6 +83,7 @@ export function ContextMenu({
 	returnFocusTo,
 	openedWithKeyboard = false,
 	initialSubmenuId,
+	onSideways,
 }: ContextMenuProps) {
 	const [trigger] = useState<Element | null>(() => returnFocusTo ?? document.activeElement);
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -149,6 +156,7 @@ export function ContextMenu({
 				focusTarget={openedWithKeyboard ? 'first' : 'panel'}
 				initialSubmenuId={initialSubmenuId}
 				nested={false}
+				onSideways={onSideways}
 				onSelect={handleSelect}
 				onRequestClose={onClose}
 				onDismiss={onClose}
@@ -166,6 +174,7 @@ interface MenuPanelProps {
 	/** Opens this submenu once the panel has its final position. */
 	initialSubmenuId?: string | undefined;
 	nested: boolean;
+	onSideways?: ((direction: -1 | 1) => void) | undefined;
 	onSelect: (item: SelectableMenuItem) => void;
 	/** Close just this panel (Escape, or ArrowLeft in a submenu). */
 	onRequestClose: () => void;
@@ -186,6 +195,7 @@ function MenuPanel({
 	focusTarget,
 	initialSubmenuId,
 	nested,
+	onSideways,
 	onSelect,
 	onRequestClose,
 	onDismiss,
@@ -342,6 +352,9 @@ function MenuPanel({
 				if (item?.type === 'submenu' && isNavigable(item)) {
 					event.preventDefault();
 					openSubmenu(current, true);
+				} else if (onSideways) {
+					event.preventDefault();
+					onSideways(1);
 				}
 				return;
 			}
@@ -349,6 +362,9 @@ function MenuPanel({
 				if (nested) {
 					event.preventDefault();
 					onRequestClose();
+				} else if (onSideways) {
+					event.preventDefault();
+					onSideways(-1);
 				}
 				return;
 			case 'Escape':
@@ -454,6 +470,7 @@ function MenuPanel({
 					ariaLabel={openItem && 'label' in openItem ? openItem.label : undefined}
 					focusTarget={openSub.viaKeyboard ? 'first' : 'none'}
 					nested
+					onSideways={onSideways}
 					onSelect={onSelect}
 					onRequestClose={() => closeSubmenu(true)}
 					onDismiss={onDismiss}

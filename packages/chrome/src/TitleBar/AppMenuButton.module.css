@@ -28,3 +28,8 @@
 	width: 16px;
 	height: 16px;
 }
+
+/* The name with nothing to open: no hover, and the title bar's own drag and window menu apply. */
+.plain:hover {
+	background: transparent;
+}
