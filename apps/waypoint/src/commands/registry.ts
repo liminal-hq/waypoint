@@ -52,6 +52,7 @@ import {
 	CloseOthersIcon,
 } from '../icons/MenuIcons';
 import { OpenWithIcon } from '../openWith/OpenWithIcons';
+import { InspectorIcon, PropertiesIcon } from '../inspector/InspectorIcons';
 import { AddToShelfIcon, ShelfIcon } from '../shelf/ShelfIcons';
 import type { CommandActions, CommandFacts } from './commandEnv';
 import type { FileCommandId } from '../ops/fileCommands';
@@ -115,7 +116,10 @@ export type CommandId =
 	| 'addToShelf'
 	| 'focusShelf'
 	| 'undockShelf'
-	| 'dockShelf';
+	| 'dockShelf'
+	// The Inspector
+	| 'toggleInspector'
+	| 'showProperties';
 
 /** The commands that open a place of the sidebar. */
 export type GoCommandId =
@@ -736,6 +740,27 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'view',
 		when: (f) => (f.shelfUndocked ? SHOWN : HIDDEN),
 		run: (a) => a.dockShelf(),
+	},
+
+	// The Inspector
+	{
+		id: 'toggleInspector',
+		label: 'cmd.inspector',
+		shortcut: 'F11',
+		icon: InspectorIcon,
+		group: 'view',
+		when: () => SHOWN,
+		checked: (f) => f.inspectorOpen,
+		run: (a) => a.toggleInspector(),
+	},
+	{
+		id: 'showProperties',
+		label: 'cmd.properties',
+		icon: PropertiesIcon,
+		group: 'view',
+		// The Trash's items have no details to read, so the tab is not offered there.
+		when: (f) => (!f.listing || f.trash ? HIDDEN : SHOWN),
+		run: (a) => a.showProperties(),
 	},
 ];
 

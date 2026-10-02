@@ -113,6 +113,7 @@ describe('the menus', () => {
 			'sidebar',
 			'toggleShelf',
 			'undockShelf',
+			'toggleInspector',
 			'actionBar',
 			'splitView',
 			'commandPalette',

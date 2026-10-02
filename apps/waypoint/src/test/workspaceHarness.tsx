@@ -25,6 +25,8 @@ import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
 import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
 import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
+import { DetailsClientProvider } from '../inspector/DetailsClientContext';
+import type { DetailsClient } from '../services/detailsClient';
 
 export const HOME = fileLocation('/home/test');
 export const DOCS = fileLocation('/home/test/docs');
@@ -67,6 +69,8 @@ export async function renderWorkspace(
 		shelfWindow?: ShelfWindowClient;
 		/** The thumbnails service (the views keep their icons when omitted). */
 		thumbnails?: ThumbnailsClient;
+		/** Entry details, folder sizes and previews for the Inspector. */
+		details?: DetailsClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
@@ -84,10 +88,15 @@ export async function renderWorkspace(
 	) : (
 		tabbed
 	);
-	const workspace = options.settings ? (
-		<SettingsProvider client={options.settings}>{thumbed}</SettingsProvider>
+	const detailed = options.details ? (
+		<DetailsClientProvider client={options.details}>{thumbed}</DetailsClientProvider>
 	) : (
 		thumbed
+	);
+	const workspace = options.settings ? (
+		<SettingsProvider client={options.settings}>{detailed}</SettingsProvider>
+	) : (
+		detailed
 	);
 	const view = render(
 		<VfsClientProvider client={client}>

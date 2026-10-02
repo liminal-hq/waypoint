@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import { FolderTabIcon } from '../icons/AppIcons';
+import { PropertiesIcon } from '../inspector/InspectorIcons';
 import {
 	ArrowDownIcon,
 	ClockIcon,
@@ -53,9 +54,16 @@ export interface BackgroundCommands {
 }
 
 /** The commands the empty-space menu can run. */
-export type BackgroundCommand = 'newFolder' | 'newFile' | 'paste' | 'undo' | 'redo';
+export type BackgroundCommand = 'newFolder' | 'newFile' | 'paste' | 'undo' | 'redo' | 'properties';
 
-const BACKGROUND_COMMANDS: BackgroundCommand[] = ['newFolder', 'newFile', 'paste', 'undo', 'redo'];
+const BACKGROUND_COMMANDS: BackgroundCommand[] = [
+	'newFolder',
+	'newFile',
+	'paste',
+	'undo',
+	'redo',
+	'properties',
+];
 
 /**
  * New, Paste and the history, ahead of the view items. Paste follows New and, like it, is left out
@@ -204,6 +212,10 @@ export function backgroundMenuItems(
 			checked: showHidden,
 			shortcut: 'Ctrl+H',
 		});
+		items.push(
+			{ type: 'separator' },
+			{ type: 'action', id: 'properties', label: t('menu.properties'), icon: <PropertiesIcon /> },
+		);
 		return items;
 	}
 	// The sort block ends in a separator that the Empty Trash item follows.

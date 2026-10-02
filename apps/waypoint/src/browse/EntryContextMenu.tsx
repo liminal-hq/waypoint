@@ -8,6 +8,7 @@ import type { MenuItem, SubmenuMenuItem } from '@liminal-hq/waypoint-chrome/Cont
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { t } from '../i18n/messages';
+import { PropertiesIcon } from '../inspector/InspectorIcons';
 import { useOpenWithMenu } from '../openWith/useOpenWithMenu';
 import { useShelfActions } from '../shelf/ShelfContext';
 import { AddToShelfIcon } from '../shelf/ShelfIcons';
@@ -65,7 +66,8 @@ export type EntryCommand =
 	| 'copyTo'
 	| 'moveTo'
 	| 'copyToOtherPane'
-	| 'moveToOtherPane';
+	| 'moveToOtherPane'
+	| 'properties';
 
 const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
@@ -81,6 +83,7 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'moveTo',
 	'copyToOtherPane',
 	'moveToOtherPane',
+	'properties',
 ];
 
 /**
@@ -340,6 +343,13 @@ export function entryMenuItems(
 		{ type: 'action', id: 'addToShelf', label: t('menu.addToShelf'), icon: <AddToShelfIcon /> },
 		{ type: 'action', id: 'copyPath', label: t('menu.copyPath'), icon: <LinkIcon /> },
 		...(commands ? writeItems(commands, batchRename) : []),
+		{ type: 'separator' },
+		{
+			type: 'action',
+			id: 'properties',
+			label: t('menu.properties'),
+			icon: <PropertiesIcon />,
+		},
 	];
 }
 

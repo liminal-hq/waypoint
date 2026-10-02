@@ -72,7 +72,7 @@ describe('useOpenWithMenu', () => {
 		const ids = entryMenuItems(file, undefined, false, hook.result.current.item).map((item) =>
 			'id' in item ? item.id : '|',
 		);
-		expect(ids).toEqual(['open', 'openWith', '|', 'addToShelf', 'copyPath']);
+		expect(ids).toEqual(['open', 'openWith', '|', 'addToShelf', 'copyPath', '|', 'properties']);
 		expect(
 			entryMenuItems(file, undefined, false, null).some(
 				(item) => 'id' in item && item.id === 'openWith',
