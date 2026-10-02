@@ -23,10 +23,12 @@ const rowByCommand = new Map(
 	rows.flatMap((row) => (row.target.kind === 'command' ? [[row.target.id, row] as const] : [])),
 );
 
-function menuCommandItems(items: readonly MenuItem[]): Array<Extract<MenuItem, { id: string }>> {
-	return items.flatMap((item) => {
+type CommandItem = Extract<MenuItem, { type: 'action' | 'checkbox' }>;
+
+function menuCommandItems(items: readonly MenuItem[]): CommandItem[] {
+	return items.flatMap((item): CommandItem[] => {
 		if (item.type === 'submenu') return menuCommandItems(item.items);
-		return item.type === 'separator' ? [] : [item];
+		return item.type === 'action' || item.type === 'checkbox' ? [item] : [];
 	});
 }
 
