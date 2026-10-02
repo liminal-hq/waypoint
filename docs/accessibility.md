@@ -13,7 +13,9 @@ Status: prototype review, 2026-09-29. Findings are from reading the markup and b
 - **Contrast:** a high-contrast setting strengthens borders and lifts muted text. Transparency keeps a solid backing behind text.
 - **Touch:** touch mode raises rows, buttons and menu items to at least 44 pixels; Auto turns it on in narrow windows.
 - **Text size:** Default, Large (115%), Larger (130%).
-- **Direction:** right-to-left mirrors the window, tabs, sidebar and back/forward arrows.
+- **Direction:** right-to-left mirrors the window, tabs, sidebar and back/forward arrows. `lang` and `dir` are set on each window's root from the language (Settings → Language & region; the Direction row can force either way). Layout uses CSS logical properties (`margin-inline-start`, `inset-inline-end`, `text-align: start`), enforced by `scripts/check-logical-css.sh`, which lists the places where physical is right with a `physical:` comment (the tab drag pill and split zones that follow the pointer, the context menu's viewport placement). Directional glyphs (back, forward, the small chevron, undo, redo, copy to, move to, the sidebar glyph) carry `data-directional` and flip under `dir=rtl`; a glyph that means a physical side, such as the tab strip's scroll buttons, opts out.
+- **Arrow keys follow the direction:** in a right-to-left layout Left is forward and Right is back in the grid and grouped lists, the folder tree (Left opens a folder), the Action bar, tabs and groups (including Ctrl+Shift+arrow reorder), Quick Look, and menus (Left opens a submenu), as they already did in the Inspector, the Shelf, pane dividers and segmented rows. Handlers use `isRtl` and `inlineKey` in `i18n/direction.ts`. Scrollers use `scrollLeft` as signed in right-to-left.
+- **Checking a layout:** a developer build offers the pseudo-locales `en-XA` (accented, 30% longer, `[` `]` markers) and `ar-XB` (right to left); choose `ar-XB` and look for anything that did not mirror, or clipped text under `en-XA`. Reordering tabs by dragging is not yet mirrored in a right-to-left layout; the keyboard reorder is.
 
 ## Still to do (found in this review)
 
