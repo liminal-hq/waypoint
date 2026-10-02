@@ -270,16 +270,16 @@ describe('the keyboard', () => {
 		fireEvent.keyDown(tree(), { key: k, ...extra });
 	const selected = () => shelved().filter((i) => i.getAttribute('aria-selected') === 'true');
 
-	it('starts on the first row, moves through the rows and extends a selection with Shift', async () => {
+	it('starts on the first row, moves along the strip and extends a selection with Shift', async () => {
 		await withItems();
 		expect(tree().getAttribute('aria-activedescendant')).toContain('group');
-		key('ArrowDown');
+		key('ArrowRight');
 		expect(tree().getAttribute('aria-activedescendant')).toContain('item');
 		key(' ');
 		expect(selected()).toHaveLength(1);
 		expect(selected()[0]).toBe(shelved()[0]);
-		key('ArrowDown'); // the home folder's group
-		key('ArrowDown', { shiftKey: true }); // photo.jpg, from the anchor
+		key('ArrowRight'); // the home folder's group
+		key('ArrowRight', { shiftKey: true }); // photo.jpg, from the anchor
 		expect(selected()).toHaveLength(2);
 		key('End', { shiftKey: true });
 		expect(selected()).toHaveLength(3);
@@ -295,24 +295,49 @@ describe('the keyboard', () => {
 		expect(selected()).toHaveLength(0);
 	});
 
-	it('collapses and opens a group with the arrow keys, and Left on an item goes to its group', async () => {
+	it('collapses and opens a group with Enter, and Left and Right move along the strip', async () => {
 		await withItems();
-		key('ArrowLeft');
+		key('Enter');
 		expect(shelved()).toHaveLength(2);
-		key('ArrowRight');
+		key('Enter');
 		expect(shelved()).toHaveLength(3);
 		key('ArrowRight'); // into the group
 		expect(tree().getAttribute('aria-activedescendant')).toContain('item');
 		key('ArrowLeft');
 		expect(tree().getAttribute('aria-activedescendant')).toContain('group');
+		key('ArrowLeft'); // the strip starts here
+		expect(tree().getAttribute('aria-activedescendant')).toContain('group');
+	});
+
+	it('moves between the lines of a wrapping strip with Up and Down, and stays put on one line', async () => {
+		await withItems();
+		key('ArrowDown');
+		key('ArrowUp');
+		expect(tree().getAttribute('aria-activedescendant')).toContain('group');
+		// Two lines: the first three rows, then the last two (jsdom has no layout, so say where they sit).
+		const rows = [...tree().querySelectorAll<HTMLElement>('[role="treeitem"]')];
+		rows.forEach((element, index) => {
+			const line = index < 3 ? 0 : 1;
+			const column = index < 3 ? index : index - 3;
+			element.getBoundingClientRect = () =>
+				({ top: line * 40, left: column * 100, width: 100, height: 36 }) as DOMRect;
+		});
+		key('ArrowRight');
+		key('ArrowRight'); // the home folder's group, at the end of the first line
+		key('ArrowDown'); // the nearest tile across on the second line
+		expect(tree().getAttribute('aria-activedescendant')).toBe(rows[4]!.id);
+		key('ArrowUp');
+		expect(tree().getAttribute('aria-activedescendant')).toBe(rows[1]!.id);
+		key('ArrowUp'); // no line above the first
+		expect(tree().getAttribute('aria-activedescendant')).toBe(rows[1]!.id);
 	});
 
 	it('removes the selection with Delete, without touching a file', async () => {
 		const { tabs } = await withItems();
-		key('ArrowDown');
+		key('ArrowRight');
 		key(' ');
-		key('ArrowDown');
-		key('ArrowDown', { shiftKey: true });
+		key('ArrowRight');
+		key('ArrowRight', { shiftKey: true });
 		key('Delete');
 		await waitFor(() => expect(shelved()).toHaveLength(1));
 		expect((await tabs.getSnapshot()).shelf).toHaveLength(1);
@@ -321,7 +346,7 @@ describe('the keyboard', () => {
 
 	it('opens a folder in the pane with Enter, and shows a file in its folder in a new tab', async () => {
 		const { tabs } = await withItems();
-		key('ArrowDown');
+		key('ArrowRight');
 		key('Enter');
 		await waitFor(async () => expect((await tabs.getSnapshot()).tabs).toHaveLength(2));
 		const snapshot = await tabs.getSnapshot();
@@ -331,7 +356,7 @@ describe('the keyboard', () => {
 
 	it('copies the selected items for a paste', async () => {
 		const { ops } = await withItems();
-		key('ArrowDown');
+		key('ArrowRight');
 		key(' ');
 		key('c', { ctrlKey: true });
 		await waitFor(() => expect(ops.calls.some((call) => call[0] === 'setClipboard')).toBe(true));
@@ -339,7 +364,7 @@ describe('the keyboard', () => {
 
 	it('opens the item menu with the menu key and runs Remove from it', async () => {
 		const { tabs } = await withItems();
-		key('ArrowDown');
+		key('ArrowRight');
 		key('ContextMenu');
 		const menu = await screen.findByRole('menu', { name: 'Shelf item' });
 		const labels = within(menu)
@@ -388,26 +413,26 @@ describe('Clear Shelf', () => {
 });
 
 describe('resizing', () => {
-	it('is wider by dragging its edge toward the start, and by the arrow keys, within limits', async () => {
+	it('is taller by dragging its top edge up, and by the arrow keys, within limits', async () => {
 		await mount();
 		await waitFor(() => expect(options().length).toBeGreaterThan(0));
 		const panel = await openShelf();
 		const edge = within(panel).getByRole('separator', { name: 'Resize the Shelf' });
-		expect(edge).toHaveAttribute('aria-valuenow', '280');
-		fireEvent.pointerDown(edge, { pointerId: 2, button: 0, clientX: 500 });
-		fireEvent.pointerMove(edge, { pointerId: 2, clientX: 450 });
-		expect(edge).toHaveAttribute('aria-valuenow', '330');
-		fireEvent.pointerUp(edge, { pointerId: 2, clientX: 450 });
-		fireEvent.keyDown(edge, { key: 'ArrowRight' });
-		expect(edge).toHaveAttribute('aria-valuenow', '314');
-		fireEvent.keyDown(edge, { key: 'ArrowLeft', shiftKey: true });
-		fireEvent.keyDown(edge, { key: 'ArrowLeft', shiftKey: true });
-		expect(edge).toHaveAttribute('aria-valuenow', '442');
-		for (let i = 0; i < 6; i++) fireEvent.keyDown(edge, { key: 'ArrowLeft', shiftKey: true });
-		expect(edge).toHaveAttribute('aria-valuenow', '560');
+		expect(edge).toHaveAttribute('aria-valuenow', '132');
+		fireEvent.pointerDown(edge, { pointerId: 2, button: 0, clientY: 500 });
+		fireEvent.pointerMove(edge, { pointerId: 2, clientY: 450 });
+		expect(edge).toHaveAttribute('aria-valuenow', '182');
+		fireEvent.pointerUp(edge, { pointerId: 2, clientY: 450 });
+		fireEvent.keyDown(edge, { key: 'ArrowDown' });
+		expect(edge).toHaveAttribute('aria-valuenow', '166');
+		fireEvent.keyDown(edge, { key: 'ArrowUp', shiftKey: true });
+		fireEvent.keyDown(edge, { key: 'ArrowUp', shiftKey: true });
+		expect(edge).toHaveAttribute('aria-valuenow', '294');
+		for (let i = 0; i < 6; i++) fireEvent.keyDown(edge, { key: 'ArrowUp', shiftKey: true });
+		expect(edge).toHaveAttribute('aria-valuenow', '360');
 		fireEvent.doubleClick(edge);
-		expect(edge).toHaveAttribute('aria-valuenow', '280');
-		expect(panel.style.width).toBe('280px');
+		expect(edge).toHaveAttribute('aria-valuenow', '132');
+		expect(panel.style.height).toBe('132px');
 	});
 
 	it('goes back to where it was when Escape abandons the drag', async () => {
@@ -415,11 +440,11 @@ describe('resizing', () => {
 		await waitFor(() => expect(options().length).toBeGreaterThan(0));
 		const panel = await openShelf();
 		const edge = within(panel).getByRole('separator', { name: 'Resize the Shelf' });
-		fireEvent.pointerDown(edge, { pointerId: 2, button: 0, clientX: 500 });
-		fireEvent.pointerMove(edge, { pointerId: 2, clientX: 400 });
-		expect(edge).toHaveAttribute('aria-valuenow', '380');
+		fireEvent.pointerDown(edge, { pointerId: 2, button: 0, clientY: 500 });
+		fireEvent.pointerMove(edge, { pointerId: 2, clientY: 400 });
+		expect(edge).toHaveAttribute('aria-valuenow', '232');
 		fireEvent.keyDown(window, { key: 'Escape' });
-		expect(edge).toHaveAttribute('aria-valuenow', '280');
+		expect(edge).toHaveAttribute('aria-valuenow', '132');
 	});
 });
 

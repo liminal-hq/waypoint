@@ -89,3 +89,47 @@ export function commonOrigin(items: readonly ShelfItem[]): Location | null {
 	if (!first) return null;
 	return items.every((item) => item.origin.uri === first.origin.uri) ? first.origin : null;
 }
+
+/** Where a row sits on screen, as far as moving between the strip's lines needs. */
+export interface RowBox {
+	top: number;
+	left: number;
+	width: number;
+}
+
+/** Rows whose tops differ by less than this are on one line of the strip. */
+const SAME_LINE = 4;
+
+/**
+ * The row Up (`-1`) or Down (`1`) lands on in a strip that wraps: on the nearest line above or
+ * below the row at `at`, the one whose centre is closest to its own. `null` when there is no such
+ * line (a strip on one line has no Up or Down).
+ */
+export function rowOnAdjacentLine(
+	boxes: readonly RowBox[],
+	at: number,
+	direction: 1 | -1,
+): number | null {
+	const here = boxes[at];
+	if (!here) return null;
+	let lineTop: number | null = null;
+	boxes.forEach((box) => {
+		const delta = (box.top - here.top) * direction;
+		if (delta >= SAME_LINE && (lineTop === null || (box.top - lineTop) * direction < 0)) {
+			lineTop = box.top;
+		}
+	});
+	if (lineTop === null) return null;
+	const centre = here.left + here.width / 2;
+	let best: number | null = null;
+	let bestGap = Infinity;
+	boxes.forEach((box, index) => {
+		if (Math.abs(box.top - (lineTop as number)) >= SAME_LINE) return;
+		const gap = Math.abs(box.left + box.width / 2 - centre);
+		if (gap < bestGap) {
+			best = index;
+			bestGap = gap;
+		}
+	});
+	return best;
+}

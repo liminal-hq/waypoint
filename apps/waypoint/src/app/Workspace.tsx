@@ -445,8 +445,8 @@ function WorkspaceBody({
 											/>
 										)}
 									</div>
-									<ShelfDock />
 								</div>
+								<ShelfDock />
 								<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
 									<ViewSwitcher />
 									<ShelfToggle />

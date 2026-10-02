@@ -1,4 +1,4 @@
-// The button that shows and hides the Shelf, and the dock the panel sits in
+// The button that shows and hides the Shelf, and the dock it shows in
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -30,7 +30,7 @@ export function ShelfToggle() {
 	);
 }
 
-/** The panel, docked at the right edge of the window's content while the Shelf is open. */
+/** The dock along the bottom of the window, between the panes and the status bar, while the Shelf is open. */
 export function ShelfDock() {
 	const store = useShelfStore();
 	const open = useStore(store, (s) => s.open);
