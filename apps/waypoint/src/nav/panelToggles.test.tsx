@@ -18,20 +18,19 @@ afterEach(() => {
 	restoreLayout();
 });
 
-// The status bar has its own Shelf button, so look inside the toolbar's group.
 const toggle = (name: string) =>
 	within(screen.getByRole('group', { name: 'Panels' })).getByRole('button', { name });
 
 describe('the panel toggles', () => {
-	it('offers the sidebar, split view and Shelf, and not the panels that do not exist yet', async () => {
+	it('offers the sidebar and split view, and not the Shelf (the status bar has its button) or the panels that do not exist yet', async () => {
 		await renderWorkspace();
 		const group = screen.getByRole('group', { name: 'Panels' });
 		expect(
 			within(group)
 				.getAllByRole('button')
 				.map((b) => b.getAttribute('aria-label')),
-		).toEqual(['Sidebar', 'Split View', 'Shelf']);
-		expect(PANEL_TOGGLES).toEqual(['sidebar', 'splitView', 'toggleShelf']);
+		).toEqual(['Sidebar', 'Split View']);
+		expect(PANEL_TOGGLES).toEqual(['sidebar', 'splitView']);
 		expect(screen.queryByRole('button', { name: /inspector|terminal/i })).toBeNull();
 	});
 
@@ -40,7 +39,6 @@ describe('the panel toggles', () => {
 		expect(toggle('Sidebar')).toHaveAttribute('aria-pressed', 'false');
 		expect(toggle('Sidebar')).toHaveAttribute('title', 'Sidebar (F9)');
 		expect(toggle('Split View')).toHaveAttribute('title', 'Split View (F3)');
-		expect(toggle('Shelf')).toHaveAttribute('title', 'Shelf (Ctrl+B)');
 	});
 
 	it('runs the registry command and follows the state it changes, from the button and the key', async () => {
@@ -51,9 +49,6 @@ describe('the panel toggles', () => {
 		// The key goes through the same command, so the button follows it.
 		fireEvent.keyDown(window, { key: 'F9' });
 		await waitFor(() => expect(toggle('Sidebar')).toHaveAttribute('aria-pressed', 'false'));
-
-		fireEvent.click(toggle('Shelf'));
-		await waitFor(() => expect(toggle('Shelf')).toHaveAttribute('aria-pressed', 'true'));
 	});
 
 	it('pairs the tab and unpairs it', async () => {
@@ -85,7 +80,6 @@ describe('the overflow menu', () => {
 		const sidebar = within(menu).getByRole('menuitemcheckbox', { name: /Sidebar/ });
 		expect(sidebar).toHaveAttribute('aria-checked', 'false');
 		expect(within(menu).getByRole('menuitemcheckbox', { name: /Split View/ })).toBeTruthy();
-		expect(within(menu).getByRole('menuitemcheckbox', { name: /Shelf/ })).toBeTruthy();
 
 		await act(async () => fireEvent.click(sidebar));
 		fireEvent.click(screen.getByRole('button', { name: 'More panels' }));

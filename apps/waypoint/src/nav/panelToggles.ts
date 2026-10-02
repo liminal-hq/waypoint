@@ -15,7 +15,7 @@ import type { IconProps } from '../icons/AppIcons';
  * command itself, with its facts, comes with the panel). The toolbar never shows a toggle whose
  * command is not in the registry or is hidden.
  */
-export const PANEL_TOGGLES: readonly CommandId[] = ['sidebar', 'splitView', 'toggleShelf'];
+export const PANEL_TOGGLES: readonly CommandId[] = ['sidebar', 'splitView'];
 
 /** The toolbar narrower than this (in pixels) moves the toggles into a More menu. */
 export const COLLAPSE_BELOW = 560;
