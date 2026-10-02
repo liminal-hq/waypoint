@@ -62,7 +62,7 @@ describe('checkDestination', () => {
 		expect(await checkDestination(vfs, '', FOLDER)).toMatchObject({ state: 'problem' });
 		expect(await checkDestination(vfs, '   ', FOLDER)).toEqual({
 			state: 'problem',
-			message: '“” is not a location.',
+			message: 'Type a folder, or pick one from the lists.',
 		});
 		expect(await checkDestination(vfs, 'sftp://host/x', FOLDER)).toEqual({
 			state: 'problem',

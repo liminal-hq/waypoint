@@ -16,6 +16,8 @@ export interface DestinationOptions {
 	base: Location;
 	/** Where the field starts; the most recent destination, then `base`, when omitted. */
 	initial?: Location;
+	/** Leave the field empty, so no one answer is a keystroke away: the recent folders are listed to pick from instead. */
+	startEmpty?: boolean;
 	/** The folder the items are in now. */
 	origin?: Location;
 	/** Refuse `origin` as the answer (a move into the folder the items are already in has nothing to do). */

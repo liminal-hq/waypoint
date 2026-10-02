@@ -503,6 +503,7 @@ export const enMessages = {
 	'destination.check.working': 'Checking…',
 	'destination.check.ok': 'Ready: {name} can be written to.',
 	'destination.check.sameFolder': 'The items are already in that folder.',
+	'destination.check.empty': 'Type a folder, or pick one from the lists.',
 	'destination.check.invalid': '“{input}” is not a location.',
 	'destination.check.unsupported': 'Locations of the kind {what} cannot be used yet.',
 	'destination.check.notFound': '“{name}” does not exist.',

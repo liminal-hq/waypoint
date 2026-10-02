@@ -74,7 +74,7 @@ export function DestinationDialog({
 	onCancel,
 }: DestinationDialogProps) {
 	const start = options.initial ?? options.base;
-	const [text, setText] = useState(start.display);
+	const [text, setText] = useState(options.startEmpty ? '' : start.display);
 	const [status, setStatus] = useState<Status>({ state: 'checking' });
 	const statusId = useId();
 	const field = useRef<HTMLInputElement | null>(null);
@@ -169,7 +169,8 @@ export function DestinationDialog({
 								name: baseName(status.location.display) || status.location.display,
 							})
 						: status.message;
-	const problem = status.state === 'problem';
+	// An empty field is not yet wrong, only unfinished: its line says what to do.
+	const problem = status.state === 'problem' && text.trim() !== '';
 
 	return (
 		<Dialog

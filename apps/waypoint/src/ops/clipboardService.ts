@@ -36,8 +36,14 @@ export interface ClipboardService {
 	 * application copied since are adopted first (see `chooseClipboard`).
 	 */
 	forPaste(): Promise<Clipboard>;
-	/** Empties the clipboard, as pasting a cut does. */
-	clear(): Promise<void>;
+	/**
+	 * Empties the clipboard, as pasting a cut does. With `expectedRevision` it does so only while
+	 * the clipboard is still the one that was pasted from (a Copy made elsewhere meanwhile is kept);
+	 * resolves to whether it cleared. A cut still on the system clipboard is overwritten with a copy
+	 * of `pasted` (the files at their new places; the old places when omitted), so another
+	 * application cannot move whatever now has the old names. The plugin takes no empty list.
+	 */
+	clear(expectedRevision?: number, pasted?: string[]): Promise<boolean>;
 	/** Looks at the system clipboard and adopts files another application copied; false when there was nothing to adopt. */
 	syncFromOs(): Promise<boolean>;
 	/** Stops following Rust's clipboard, the system's and the window's focus. */
@@ -174,8 +180,28 @@ export function createClipboardService(options: ClipboardServiceOptions): Clipbo
 			return set;
 		},
 		forPaste: lookOnce,
-		async clear() {
+		async clear(expectedRevision, pasted) {
+			if (expectedRevision !== undefined) {
+				const now = await client.getClipboard();
+				apply(now);
+				if (now.revision !== expectedRevision) return false;
+			}
+			const cut = lastSeen?.cut === true ? lastSeen : null;
 			apply(await client.setClipboard('copy', []));
+			if (cut && os && (await available())) {
+				// What this window put there as a cut would still say "move these" about names that are gone.
+				const files = { uris: pasted && pasted.length > 0 ? pasted : cut.uris, cut: false };
+				writing += 1;
+				try {
+					await os.setFiles(files);
+					lastSeen = files;
+				} catch (error) {
+					console.warn('could not replace the cut on the system clipboard', error);
+				} finally {
+					writing -= 1;
+				}
+			}
+			return true;
 		},
 		async syncFromOs() {
 			const revision = store.getState().clipboard.revision;

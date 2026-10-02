@@ -31,7 +31,7 @@ import type {
 	OpsCommandError,
 } from '../services/opsClient';
 import type { VfsClient } from '../services/vfsClient';
-import { normaliseUri, pasteRefusal, pasteRequest } from './clipboardRules';
+import { normaliseUri, pastedUris, pasteRefusal, pasteRequest } from './clipboardRules';
 import type { ClipboardService } from './clipboardService';
 import { pickDestination, type DestinationOptions } from './destinationStore';
 import { errorText } from './jobText';
@@ -542,7 +542,12 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			return;
 		}
 		// A cut is spent once it is on the queue: the rows stop dimming, and a second paste has nothing to move.
-		if (board.mode === 'cut') await clipboard.clear().catch(() => {});
+		// A Copy made elsewhere since the paste began is a newer clipboard and stays.
+		if (board.mode === 'cut') {
+			await clipboard
+				.clear(board.revision, pastedUris(board.items, destination))
+				.catch(() => false);
+		}
 		reportFailure(await waitForJob(ops, id));
 	};
 

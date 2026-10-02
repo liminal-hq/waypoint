@@ -202,10 +202,23 @@ describe('Paste', () => {
 			destination: FOLDER,
 		});
 		expect(h.clipboard.store.getState().clipboard.items).toEqual([]);
+		// The system clipboard no longer says "move these" about names that are gone: it holds a copy of the pasted files.
+		expect(h.os.files).toEqual({ uris: [child(FOLDER, 'omega.txt').uri], cut: false });
 		// A second paste has nothing to move.
 		await h.commands.paste();
 		expect(h.said.at(-1)).toBe('There is nothing to paste.');
 		expect(submits(h)).toHaveLength(1);
+	});
+
+	it('keeps a Copy made elsewhere while a cut was being pasted', async () => {
+		const h = await clipboardHarness({ paired: true });
+		await selectIn(h.other.session!, 0);
+		await h.commands.cut(h.other.session);
+		const pasted = h.clipboard.store.getState().clipboard;
+		// Another window copies in the gap between the paste's submit and its clear.
+		await h.fake.setClipboard('copy', [child(FOLDER, 'alpha.txt')], 'app');
+		expect(await h.clipboard.clear(pasted.revision)).toBe(false);
+		expect((await h.fake.getClipboard()).items).toEqual([child(FOLDER, 'alpha.txt')]);
 	});
 
 	it('pastes into the current folder, even when a folder is selected, and into the folder from its own menu', async () => {

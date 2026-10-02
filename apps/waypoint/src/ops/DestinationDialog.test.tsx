@@ -89,6 +89,21 @@ describe('opening', () => {
 		await waitFor(() => expect(confirm()).toBeEnabled());
 	});
 
+	it('can start with an empty field, which waits for a folder and says so without calling it an error', async () => {
+		const { user, onConfirm } = setup({
+			options: { title: 'T', confirmLabel: 'Copy', base: FOLDER, initial: DOCS, startEmpty: true },
+		});
+		expect(field()).toHaveValue('');
+		await waitFor(() =>
+			expect(status()).toHaveTextContent('Type a folder, or pick one from the lists.'),
+		);
+		expect(field()).not.toHaveAttribute('aria-invalid');
+		expect(confirm()).toBeDisabled();
+		// Enter in the empty field chooses nothing.
+		await user.type(field(), '{Enter}');
+		expect(onConfirm).not.toHaveBeenCalled();
+	});
+
 	it('lists places, favourites, open tabs and recent folders, each under its own heading', async () => {
 		setup();
 		const names = (heading: string) =>

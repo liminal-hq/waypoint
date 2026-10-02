@@ -29,8 +29,7 @@ export async function checkDestination(
 	options: { origin?: Location | undefined; forbidOrigin?: boolean | undefined } = {},
 ): Promise<DestinationCheck> {
 	const input = text.trim();
-	if (input === '')
-		return { state: 'problem', message: tf('destination.check.invalid', { input }) };
+	if (input === '') return { state: 'problem', message: t('destination.check.empty') };
 	let location: Location;
 	try {
 		location = await vfs.parseLocation(input, base);

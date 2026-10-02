@@ -92,11 +92,14 @@ export function DestinationHost({
 
 	if (!request) return null;
 	const { options } = request;
-	// Start where the last copy or move went; otherwise where the items are.
+	// A copy starts where the last copy or move went, otherwise where the items are. A move starts
+	// empty (the recent folders are listed to pick from): Enter must never move the selection to a
+	// folder the person has not named this time.
+	const startEmpty = options.forbidOrigin === true && options.initial === undefined;
 	const initial = options.initial ?? recent.list()[0] ?? options.base;
 	return (
 		<DestinationDialog
-			options={{ ...options, initial }}
+			options={{ ...options, initial, startEmpty }}
 			vfs={vfs}
 			choices={choices}
 			createFolder={ops ? createFolder : undefined}

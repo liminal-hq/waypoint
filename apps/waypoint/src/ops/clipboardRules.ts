@@ -127,6 +127,14 @@ export function clipboardAsFiles(clipboard: Clipboard): OsFiles | null {
 	return uris.length === 0 ? null : { uris, cut: clipboard.mode === 'cut' };
 }
 
+/** The `file:` URIs the clipboard's items have once pasted (copied or moved) into `destination`, each keeping its last path segment. */
+export function pastedUris(items: readonly Location[], destination: Location): string[] {
+	const base = destination.uri.replace(/\/+$/, '');
+	return items
+		.filter((item) => item.uri.startsWith('file:') && destination.uri.startsWith('file:'))
+		.map((item) => `${base}/${item.uri.replace(/\/+$/, '').split('/').pop() ?? ''}`);
+}
+
 /** Whether two file lists are the same files with the same intent, whatever the order or the spelling of the `uri`s. */
 export function sameFiles(a: OsFiles | null, b: OsFiles | null): boolean {
 	if (a === null || b === null) return a === b;
