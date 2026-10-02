@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { ReactNode, SVGProps } from 'react';
+import { useId, type ReactNode, type SVGProps } from 'react';
 
 export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
 
@@ -115,11 +115,41 @@ export const PinIcon = (props: IconProps) => (
 	</Glyph>
 );
 
-/** The app mark beside the app menu's name: a waypoint marker over a path. */
-export const AppMarkIcon = (props: IconProps) => (
-	<Glyph {...props}>
-		<path d="M8 1.8a3.7 3.7 0 0 1 3.7 3.7c0 2.6-3.7 6-3.7 6s-3.7-3.4-3.7-6A3.7 3.7 0 0 1 8 1.8z" />
-		<circle cx="8" cy="5.5" r="1.3" />
-		<path d="M3 14.2h10" />
-	</Glyph>
-);
+/** The app logo beside the app menu's name: the icon's dark tile, folder outline and waypoint ring, in the logo's own colours (the same drawing as `src-tauri/icons/source/waypoint.svg`). */
+export function AppMarkIcon({ width = 16, height = 16, ...rest }: IconProps) {
+	const gradient = useId();
+	return (
+		<svg
+			width={width}
+			height={height}
+			viewBox="0 0 64 64"
+			aria-hidden="true"
+			focusable="false"
+			{...rest}
+		>
+			<defs>
+				<linearGradient
+					id={gradient}
+					x1="12"
+					y1="10"
+					x2="52"
+					y2="54"
+					gradientUnits="userSpaceOnUse"
+				>
+					<stop offset="0" stopColor="#F4B860" />
+					<stop offset="1" stopColor="#D4551C" />
+				</linearGradient>
+			</defs>
+			<rect x="2" y="2" width="60" height="60" rx="16" fill="#0E0D12" />
+			<path
+				d="M14 24a4 4 0 014-4h8l4 5h16a4 4 0 014 4v15a4 4 0 01-4 4H18a4 4 0 01-4-4z"
+				fill="none"
+				stroke={`url(#${gradient})`}
+				strokeWidth={3.4}
+				strokeLinejoin="round"
+			/>
+			<circle cx="32" cy="35" r="6.2" fill="none" stroke="#F7E2BA" strokeWidth={2.4} />
+			<circle cx="32" cy="35" r="2.2" fill="#F7E2BA" />
+		</svg>
+	);
+}
