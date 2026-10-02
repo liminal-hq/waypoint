@@ -4,10 +4,10 @@ import type { AppearanceFeatureStatus } from "./AppearanceFeatureStatus";
 /**
  * Whether the plugin could read the platform's preferences, and how.
  *
- * `available` is true when the titlebar preferences or any appearance preference could be read;
- * `reason` says why the titlebar preferences could not. `features` names the titlebar sources
- * that worked (`portal`, `kwin-config`, ...) followed by the appearance features that did
- * (`colourScheme`, ...), and `appearance` reports every appearance feature with its reason when
- * it does not work.
+ * `available`, `reason` and `features` describe the titlebar preferences only: `available` is
+ * true when a titlebar source answered, `reason` says why none did, and `features` names the
+ * sources that worked (`portal`, `kwin-config`, ...). The appearance preferences are reported
+ * separately: `appearanceAvailable` is true when any appearance feature works, and `appearance`
+ * reports every appearance feature with its reason when it does not.
  */
-export type PluginStatus = { available: boolean, reason: string | null, features: Array<string>, appearance: Array<AppearanceFeatureStatus>, };
+export type PluginStatus = { available: boolean, reason: string | null, features: Array<string>, appearanceAvailable: boolean, appearance: Array<AppearanceFeatureStatus>, };
