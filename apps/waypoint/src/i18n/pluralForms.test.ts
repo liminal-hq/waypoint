@@ -135,9 +135,9 @@ describe('parity against the categories of a locale', () => {
 		expect(french.extra).toEqual(['tabs.count.few']);
 		expect(french.missing).toContain('tabs.count.one');
 		expect(french.missing).not.toContain('tabs.count.many');
-		expect(parityFailures('fr-CA', { 'tabs.count.few': 'y' })).toEqual([
-			'fr-CA has tabs.count.few, which English does not',
-		]);
+		expect(
+			parityFailures('fr-CA', { 'tabs.count.few': 'y' }).filter((f) => !f.includes(' lacks ')),
+		).toEqual(['fr-CA has tabs.count.few, which English does not']);
 	});
 
 	it('compares a form English lacks with the English other for its placeholders', () => {

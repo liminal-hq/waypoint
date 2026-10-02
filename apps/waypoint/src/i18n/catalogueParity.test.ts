@@ -31,15 +31,17 @@ describe('catalogueParity', () => {
 	it('fails on a missing key for a complete locale and not for one listed as incomplete', () => {
 		const partial = { 'tabs.count.other': '{count} onglets' };
 		expect(parityFailures('en-XA', partial).some((f) => f.includes('lacks'))).toBe(true);
-		expect(parityFailures('fr-CA', partial).some((f) => f.includes('lacks'))).toBe(false);
-		expect(parityFailures('fr-CA', { 'x.y': 'z' } as never)).toHaveLength(1);
+		expect(parityFailures('fr-CA', partial).some((f) => f.includes('lacks'))).toBe(true);
+		expect(parityFailures('fr-CA', { 'x.y': 'z' } as never).some((f) => f.includes('x.y'))).toBe(
+			true,
+		);
 	});
 });
 
 describe('every catalogue against English', () => {
 	const incomplete: readonly Locale[] = INCOMPLETE_LOCALES;
-	it('lists fr-CA as the only incomplete locale, until slice 22 translates the rest', () => {
-		expect(incomplete).toEqual(['fr-CA']);
+	it('lists no incomplete locale: fr-CA ships complete', () => {
+		expect(incomplete).toEqual([]);
 	});
 
 	for (const locale of [...LOCALES, ...PSEUDO_LOCALES]) {

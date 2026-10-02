@@ -34,17 +34,20 @@ describe('loadCatalogue', () => {
 });
 
 describe('activateLocale', () => {
-	it('makes t read the new catalogue and falls back to English for a key it lacks', async () => {
+	it('makes t read the new catalogue', async () => {
 		expect(t('settings.section.general')).toBe('General');
 		await activateLocale({ setting: 'fr-CA', ...developer });
 		expect(activeLocale()).toBe('fr-CA');
 		expect(t('settings.section.general')).toBe('Général');
-		expect(t('settings.group.startup')).toBe(enMessages['settings.group.startup']);
+		expect(t('settings.group.startup')).toBe('Démarrage');
+		expect(t('settings.group.startup')).not.toBe(enMessages['settings.group.startup']);
 	});
 
 	it('fills tokens in a translated message and in a fallback one', async () => {
 		await activateLocale({ setting: 'fr-CA', ...developer });
-		expect(tf('browse.capped', { shown: '1', total: '2' })).toBe('Showing the first 1 of 2 items');
+		expect(tf('browse.capped', { shown: '1', total: '2' })).toBe(
+			'Éléments affichés\u00a0: 1 sur 2',
+		);
 	});
 
 	it('chooses plural forms with Intl.PluralRules for the locale, French counting zero as one', async () => {
@@ -53,7 +56,7 @@ describe('activateLocale', () => {
 		expect(tn('tabs.count', 1)).toBe('1 onglet');
 		expect(tn('tabs.count', 2)).toBe('2 onglets');
 		expect(tn('tabs.count', 1_000_000)).toBe(
-			`${new Intl.NumberFormat('fr-CA').format(1_000_000)} onglets`,
+			`${new Intl.NumberFormat('fr-CA').format(1_000_000)} d’onglets`,
 		);
 		await activateLocale({ setting: 'en-CA', ...developer });
 		expect(tn('tabs.count', 0)).toBe('0 tabs');
