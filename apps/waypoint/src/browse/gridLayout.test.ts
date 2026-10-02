@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { cappedGrid, cellFor, columnsFor, gridMove, GRID_PADDING } from './gridLayout';
-import { MAX_SCROLL_HEIGHT } from './scrollCap';
+import { cellFor, columnsFor, gridMove, GRID_PADDING } from './gridLayout';
+import { GroupLayout } from './groupLayout';
+import { MAX_SCROLL_HEIGHT, visibleRows } from './scrollCap';
 
 describe('cellFor and columnsFor', () => {
 	it('makes a cell the icon, its padding and a label', () => {
@@ -26,9 +27,16 @@ describe('cellFor and columnsFor', () => {
 	});
 });
 
-describe('cappedGrid', () => {
+describe('the scroll cap in rows of columns', () => {
+	const capped = (count: number, columns: number, cell: ReturnType<typeof cellFor>) => {
+		const layout = new GroupLayout([], new Set(), count, columns);
+		const { shown } = visibleRows(layout.rowCount, cell.height);
+		const shownItems = layout.entriesWithin(shown);
+		return { rows: shown, shownItems, hiddenItems: count - shownItems };
+	};
+
 	it('shows everything while the rows fit', () => {
-		expect(cappedGrid(100, 6, cellFor(96))).toEqual({ rows: 17, shownItems: 100, hiddenItems: 0 });
+		expect(capped(100, 6, cellFor(96))).toEqual({ rows: 17, shownItems: 100, hiddenItems: 0 });
 	});
 
 	it('caps the rows at the scroll ceiling and counts the items left out', () => {
@@ -36,7 +44,7 @@ describe('cappedGrid', () => {
 		const ceiling = Math.floor(MAX_SCROLL_HEIGHT / cell.height);
 		const columns = 10;
 		const count = (ceiling + 50) * columns;
-		const result = cappedGrid(count, columns, cell);
+		const result = capped(count, columns, cell);
 		expect(result.rows).toBe(ceiling);
 		expect(result.shownItems).toBe(ceiling * columns);
 		expect(result.hiddenItems).toBe(50 * columns);

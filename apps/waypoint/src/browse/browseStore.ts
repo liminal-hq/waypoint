@@ -6,11 +6,13 @@
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { ListingModel, PatchReport } from './listingModel';
+import { groupId, hiddenRanges, withoutRanges } from './groupLayout';
 import { isReset, mapPosition } from './patch';
 import {
 	addIds,
 	emptySelection,
 	everything,
+	excludeIds,
 	invert,
 	normalise,
 	rangeBetween,
@@ -29,6 +31,10 @@ export interface BrowseState {
 	focus: number | null;
 	/** Whether the person has acted on the selection yet, so a fresh list announces nothing. */
 	touched: boolean;
+	/** The group whose header the keyboard is on (by `groupId`), when it is on a header and not an entry. */
+	focusHeader: string | null;
+	/** The groups folded shut, by `groupId`. Their entries are not shown, selected or reached by the keyboard. */
+	collapsed: ReadonlySet<string>;
 	/** The entry whose name is being edited in place, or `null`. */
 	renaming: EntryId | null;
 	/** Asks the view to bring a position into sight; `nonce` makes a repeat of the same position count. */
@@ -49,6 +55,10 @@ export interface BrowseActions {
 	selectAll(): void;
 	invertSelection(): void;
 	deselectAll(): void;
+	/** Folds a group shut or opens it again; folding it deselects what it hides. */
+	setGroupCollapsed(id: string, collapsed: boolean): void;
+	/** Puts the keyboard on a group's header (`null` leaves it). */
+	focusGroup(id: string | null): void;
 	/** Puts the entry's name into inline rename (the view shows the field). */
 	beginRename(id: EntryId): void;
 	endRename(): void;
@@ -96,23 +106,45 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 		const commit = (selection: Selection) =>
 			set({ selection: normalise(selection, model.count), touched: true });
 
+		// What collapsed groups hide, as `[start, end)` positions of the current view.
+		const hidden = () => hiddenRanges(model.groups, get().collapsed);
+
+		// The ids of the hidden entries, read from the listing (they are few next to the rest, or the
+		// person would not have folded them away).
+		const hiddenIds = async (): Promise<EntryId[]> => {
+			const ids: EntryId[] = [];
+			for (const [start, end] of hidden()) {
+				for (const entry of await model.readRange(start, end)) ids.push(entry.id);
+			}
+			return ids;
+		};
+
+		// A selection with whatever is hidden taken out of it.
+		const visibleOnly = async (selection: Selection, mine: number): Promise<void> => {
+			if (hidden().length === 0) return commit(selection);
+			const ids = await hiddenIds();
+			if (mine === epoch) commit(excludeIds(selection, ids));
+		};
+
 		return {
 			selection: emptySelection,
 			anchor: null,
 			focus: null,
+			focusHeader: null,
+			collapsed: new Set<string>(),
 			touched: false,
 			renaming: null,
 			scrollRequest: null,
 
 			click(position, id) {
 				epoch++;
-				set({ anchor: position, focus: position });
+				set({ anchor: position, focus: position, focusHeader: null });
 				commit(selectOnly(id));
 			},
 
 			toggleAt(position, id) {
 				epoch++;
-				set({ anchor: position, focus: position });
+				set({ anchor: position, focus: position, focusHeader: null });
 				commit(toggle(get().selection, id));
 			},
 
@@ -121,19 +153,24 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				if (target === null) return;
 				const anchor = get().anchor ?? get().focus ?? target;
 				const mine = ++epoch;
-				set({ anchor, focus: target });
+				set({ anchor, focus: target, focusHeader: null });
 				for (let attempt = 0; attempt <= MAX_REISSUES; attempt++) {
 					// The anchor and focus follow each patch, so each pass reads the current view.
 					const from = get().anchor;
 					const to = get().focus;
 					if (from === null || to === null) return;
 					const [start, end] = rangeBetween(from, to);
-					if (start === 0 && end >= model.count && !additive) {
+					const apart = withoutRanges(start, end, hidden());
+					if (start === 0 && end >= model.count && !additive && apart.length === 1) {
 						commit(everything);
 						return;
 					}
 					const seen = patches;
-					const ids = (await model.readRange(start, end)).map((entry) => entry.id);
+					// Rows a collapsed group hides are not in the range, whatever lies between the ends.
+					const ids: EntryId[] = [];
+					for (const [from, to] of apart) {
+						for (const entry of await model.readRange(from, to)) ids.push(entry.id);
+					}
 					if (mine !== epoch) return;
 					if (seen !== patches) continue;
 					commit(additive ? addIds(get().selection, ids) : selectIds(ids));
@@ -144,7 +181,7 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 			moveTo(position, select) {
 				const target = clamp(position, model.count);
 				if (target === null) return null;
-				set({ focus: target });
+				set({ focus: target, focusHeader: null });
 				if (!select) return target;
 				const mine = ++epoch;
 				set({ anchor: target });
@@ -163,20 +200,18 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				const { focus } = get();
 				if (focus === null) return;
 				const mine = ++epoch;
-				set({ anchor: focus });
+				set({ anchor: focus, focusHeader: null });
 				void idFollowingPatches(() => get().anchor).then((id) => {
 					if (mine === epoch && id !== undefined) commit(toggle(get().selection, id));
 				});
 			},
 
 			selectAll() {
-				epoch++;
-				commit(everything);
+				void visibleOnly(everything, ++epoch);
 			},
 
 			invertSelection() {
-				epoch++;
-				commit(invert(get().selection));
+				void visibleOnly(invert(get().selection), ++epoch);
 			},
 
 			deselectAll() {
@@ -192,13 +227,36 @@ export function createBrowseStore(model: ListingModel): BrowseStore {
 				set({ renaming: null });
 			},
 
+			setGroupCollapsed(id, collapsed) {
+				const now = get().collapsed;
+				if (now.has(id) === collapsed) return;
+				const next = new Set(now);
+				if (collapsed) next.add(id);
+				else next.delete(id);
+				set({ collapsed: next });
+				// What the group now hides is no longer selected, so no action reaches rows nobody sees.
+				if (collapsed) void visibleOnly(get().selection, ++epoch);
+			},
+
+			focusGroup(id) {
+				// The keyboard is on the header or on an entry, never both.
+				set(id === null ? { focusHeader: null } : { focusHeader: id, focus: null });
+			},
+
 			selectEntries(ids, focus) {
 				epoch++;
-				set({ anchor: focus, focus });
+				set({ anchor: focus, focus, focusHeader: null });
 				commit(selectIds(ids));
 			},
 
 			requestScroll(position) {
+				// An entry in a folded group is opened up to be brought into sight.
+				const run = model.groups.find((g) => position >= g.start && position < g.start + g.count);
+				if (run && get().collapsed.has(groupId(run.key))) {
+					const next = new Set(get().collapsed);
+					next.delete(groupId(run.key));
+					set({ collapsed: next });
+				}
 				set({ scrollRequest: { position, nonce: (get().scrollRequest?.nonce ?? 0) + 1 } });
 			},
 		};

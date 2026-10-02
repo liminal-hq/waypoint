@@ -8,6 +8,7 @@ import {
 	useEffect,
 	useId,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -20,10 +21,14 @@ import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
 import { FileIcon } from './FileIcon';
 import { InlineRename } from './InlineRename';
-import { cappedGrid, cellFor, columnsFor, gridMove } from './gridLayout';
+import { cellFor, columnsFor, GROUP_HEADER_HEIGHT, gridMove } from './gridLayout';
+import { groupCount, groupLabel, groupTitle } from './groupHeader';
+import { GroupLayout, groupId } from './groupLayout';
+import { firstTarget } from './groupNav';
 import styles from './GridView.module.css';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
 import { isReset, mapPosition } from './patch';
+import { visibleRows } from './scrollCap';
 import { isSelected, selectedCount } from './selection';
 import {
 	useListInteractions,
@@ -93,6 +98,8 @@ function GridBody({
 	const touched = useStore(store, (state) => state.touched);
 	const renaming = useStore(store, (state) => state.renaming);
 	const scrollRequest = useStore(store, (state) => state.scrollRequest);
+	const collapsed = useStore(store, (state) => state.collapsed);
+	const focusHeader = useStore(store, (state) => state.focusHeader);
 	const commands = useFileCommands();
 	// What a cut holds in this folder is drawn dimmed until it is pasted or replaced.
 	const cut = useCutNames(model.location.uri);
@@ -104,7 +111,16 @@ function GridBody({
 	const cell = cellFor(size);
 	const columns = columnsFor(width, cell);
 	const count = model.count;
-	const { rows, shownItems, hiddenItems } = cappedGrid(count, columns, cell);
+	// A header takes a row of its own between the groups' rows of cells.
+	const layout = useMemo(
+		() => new GroupLayout(model.groups, collapsed, count, columns),
+		[model.groups, collapsed, count, columns],
+	);
+	const layoutRef = useRef(layout);
+	layoutRef.current = layout;
+	const { shown: rows } = visibleRows(layout.rowCount, cell.height);
+	const shownItems = layout.entriesWithin(rows);
+	const hiddenItems = count - shownItems;
 
 	// The first item of the row at the top of the viewport is what patches keep steady.
 	const anchor = useRef({ top: 0, position: 0 });
@@ -113,14 +129,13 @@ function GridBody({
 	const virtualizer = useVirtualizer({
 		count: rows,
 		getScrollElement: () => scroller.current,
-		estimateSize: () => cell.height,
+		estimateSize: (index) =>
+			layout.rowAt(index).kind === 'header' ? GROUP_HEADER_HEIGHT : cell.height,
 		overscan: OVERSCAN,
 	});
 	const virtualRows = virtualizer.getVirtualItems();
 	const firstRow = virtualRows[0]?.index ?? 0;
 	const lastRow = virtualRows[virtualRows.length - 1]?.index ?? 0;
-	const firstItem = firstRow * columns;
-	const lastItem = Math.min(count - 1, (lastRow + 1) * columns - 1);
 
 	// The container's width decides the column count, so it is measured, not assumed.
 	useLayoutEffect(() => {
@@ -135,11 +150,25 @@ function GridBody({
 
 	useEffect(() => {
 		virtualizer.measure();
-	}, [cell.height, columns, virtualizer]);
+	}, [cell.height, columns, layout, virtualizer]);
 
+	// Fetch what is on screen plus a page either side. A folded group between two visible rows is
+	// not fetched: the entries on either side are asked for separately.
 	useEffect(() => {
-		if (virtualRows.length > 0) model.ensure(firstItem, lastItem);
-	}, [model, firstItem, lastItem, virtualRows.length, version]);
+		if (virtualRows.length === 0) return;
+		let run: [number, number] | null = null;
+		for (let index = firstRow; index <= lastRow; index++) {
+			const row = layout.rowAt(index);
+			if (row.kind !== 'entries') continue;
+			const end = row.first + row.count - 1;
+			if (run && row.first === run[1] + 1) run[1] = end;
+			else {
+				if (run) model.ensure(run[0], run[1]);
+				run = [row.first, end];
+			}
+		}
+		if (run) model.ensure(run[0], run[1]);
+	}, [model, layout, firstRow, lastRow, virtualRows.length, version]);
 
 	// Scroll anchoring, as in the list but in rows of `columns`: the first item of the top row is
 	// followed through each patch and the offset moves by the rows it moved.
@@ -149,15 +178,23 @@ function GridBody({
 				const current = anchor.current;
 				if (current.top === 0 || isReset(report.ops)) return;
 				const { position } = mapPosition(current.position, report.ops);
-				const movedRows = Math.floor(position / columns) - Math.floor(current.position / columns);
-				if (movedRows === 0) return;
-				anchor.current = {
-					top: Math.max(0, current.top + movedRows * cell.height),
-					position,
-				};
+				// Where that row stood, and where it stands now that the groups have moved with the patch.
+				const before = layoutRef.current;
+				const after = new GroupLayout(
+					model.groups,
+					store.getState().collapsed,
+					report.count,
+					columns,
+				);
+				const height = (layout: GroupLayout, row: number) =>
+					layout.offsetOfRow(row, GROUP_HEADER_HEIGHT, cell.height);
+				const above = current.top - height(before, before.rowNear(current.position));
+				const top = Math.max(0, height(after, after.rowNear(position)) + above);
+				if (top === current.top && position === current.position) return;
+				anchor.current = { top, position };
 				reanchor.current = true;
 			}),
-		[model, columns, cell.height],
+		[model, store, columns, cell.height],
 	);
 
 	useLayoutEffect(() => {
@@ -191,11 +228,24 @@ function GridBody({
 		if (session.view.pendingScroll !== null) return;
 		const top = scroller.current?.scrollTop ?? 0;
 		session.view.gridScrollTop = top;
-		anchor.current = { top, position: Math.floor(top / cell.height) * columns };
+		const layout = layoutRef.current;
+		anchor.current = {
+			top,
+			position: layout.positionAtRow(layout.rowAtOffset(top, GROUP_HEADER_HEIGHT, cell.height)),
+		};
 	};
 
 	const scrollToItem = (position: number) =>
-		virtualizer.scrollToIndex(Math.floor(Math.max(0, position) / columns), { align: 'auto' });
+		virtualizer.scrollToIndex(
+			Math.max(0, Math.min(rows - 1, layout.rowNear(Math.max(0, position)))),
+			{
+				align: 'auto',
+			},
+		);
+	const scrollToHeader = (group: number) =>
+		virtualizer.scrollToIndex(Math.max(0, Math.min(rows - 1, layout.rowOfHeader(group))), {
+			align: 'auto',
+		});
 
 	// A command that made or found an entry asks for it to be brought into sight.
 	useEffect(() => {
@@ -211,11 +261,15 @@ function GridBody({
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onHeaderClick,
 	} = useListInteractions({
 		session,
 		itemId: (position) => `${listId}-item-${position}`,
 		shown: shownItems,
 		scrollTo: scrollToItem,
+		layout,
+		pageRows,
+		scrollToHeader,
 		onOpen,
 		onMenu,
 		move: (key, from, last) => gridMove(key, from, last, columns, pageRows()),
@@ -225,7 +279,14 @@ function GridBody({
 
 	const scanning = model.phase === 'scanning' || model.phase === 'rescanning';
 	const empty = count === 0 && !scanning;
-	const activeId = focus === null ? undefined : `${listId}-item-${focus}`;
+	const headerGroup =
+		focusHeader === null ? -1 : model.groups.findIndex((run) => groupId(run.key) === focusHeader);
+	const activeId =
+		headerGroup >= 0
+			? `${listId}-group-${headerGroup}`
+			: focus === null
+				? undefined
+				: `${listId}-item-${focus}`;
 	const selectionText = touched
 		? selectedCount(selection, count) === 0
 			? t('browse.selection.none')
@@ -235,6 +296,7 @@ function GridBody({
 		'--wp-grid-size': `${size}px`,
 		'--wp-grid-columns': columns,
 		'--wp-grid-height': `${virtualizer.getTotalSize()}px`,
+		'--wp-group-header-height': `${GROUP_HEADER_HEIGHT}px`,
 	} as CSSProperties;
 
 	return (
@@ -278,12 +340,38 @@ function GridBody({
 						style={gridVars}
 						onKeyDown={onKeyDown}
 						onFocus={() => {
-							if (store.getState().focus === null && count > 0) store.getState().moveTo(0, false);
+							const state = store.getState();
+							if (state.focus !== null || state.focusHeader !== null || count === 0) return;
+							const first = firstTarget(layout);
+							if ('header' in first) state.focusGroup(groupId(model.groups[first.header]!.key));
+							else state.moveTo(first.position, false);
 						}}
 					>
 						{virtualRows.map((row) => {
-							const start = row.index * columns;
-							const end = Math.min(shownItems, start + columns);
+							const at = layout.rowAt(row.index);
+							if (at.kind === 'header') {
+								const run = model.groups[at.group]!;
+								const folded = layout.isCollapsed(at.group);
+								return (
+									<div
+										key={row.key}
+										id={`${listId}-group-${at.group}`}
+										role="group"
+										aria-label={groupLabel(run.key, run.count, folded)}
+										className={styles.groupHeader}
+										style={{ '--wp-row-y': `${row.start}px` } as CSSProperties}
+										data-collapsed={folded ? '' : undefined}
+										data-active={headerGroup === at.group ? '' : undefined}
+										onClick={() => onHeaderClick(at.group)}
+									>
+										<span className={styles.chevron} aria-hidden="true" />
+										<span className={styles.groupTitle}>{groupTitle(run.key)}</span>
+										<span className={styles.groupCount}>{groupCount(run.count)}</span>
+									</div>
+								);
+							}
+							const start = at.first;
+							const end = Math.min(shownItems, start + at.count);
 							return (
 								<div
 									key={row.key}
@@ -305,13 +393,13 @@ function GridBody({
 													entry?.originalPath ? `${entry.name}\n${entry.originalPath}` : entry?.name
 												}
 												aria-selected={selected}
-												aria-setsize={shownItems}
+												aria-setsize={count}
 												aria-posinset={position + 1}
 												aria-busy={entry ? undefined : true}
 												data-placeholder={entry ? undefined : ''}
 												data-selected={selected ? '' : undefined}
 												data-cut={entry && cut.has(entry.name) ? '' : undefined}
-												data-active={focus === position ? '' : undefined}
+												data-active={focus === position && headerGroup < 0 ? '' : undefined}
 												{...(entry ? entryDropAttributes(entry, model) : undefined)}
 												onPointerDown={(event) => onItemPointerDown(event, position, entry)}
 												onClick={(event) => onItemClick(event, position, entry)}

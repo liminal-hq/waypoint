@@ -86,10 +86,11 @@ export function hugeClient(count: number): VfsClient {
 		revision: 1,
 		count,
 		phase: 'ready',
-		sort: { key: 'name', descending: false, directoriesFirst: true },
+		sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
 		filter: { showHidden: false },
 		readOnly: false,
 		layout: 'folder',
+		groups: [],
 	};
 	return withOverrides(new FakeVfsClient(), {
 		openListing: async () => snapshot,

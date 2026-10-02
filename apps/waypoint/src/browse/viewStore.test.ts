@@ -8,6 +8,7 @@ import {
 	clampGridSize,
 	createViewStore,
 	GRID_SIZE_DEFAULT,
+	DEFAULT_SORT,
 	GRID_SIZE_MAX,
 	GRID_SIZE_MIN,
 	followView,
@@ -54,8 +55,18 @@ describe('the view store', () => {
 
 describe('the view in the session', () => {
 	it('converts to and from the session’s view choices, clamping the icon size', () => {
-		const prefs = { mode: 'grid', showHidden: true, iconSize: 120 } as const;
-		expect(viewFromPrefs(prefs)).toEqual({ mode: 'grid', showHidden: true, gridSize: 120 });
+		const prefs = {
+			mode: 'grid',
+			showHidden: true,
+			iconSize: 120,
+			sort: { key: 'size', descending: true, directoriesFirst: true, groupBy: 'size' },
+		} as const;
+		expect(viewFromPrefs(prefs)).toEqual({
+			mode: 'grid',
+			showHidden: true,
+			gridSize: 120,
+			sort: prefs.sort,
+		});
 		expect(prefsFromView(viewFromPrefs(prefs))).toEqual(prefs);
 		expect(viewFromPrefs({ ...prefs, iconSize: 9999 }).gridSize).toBe(GRID_SIZE_MAX);
 	});
@@ -69,13 +80,21 @@ describe('the view in the session', () => {
 			mode: 'grid',
 			showHidden: false,
 			iconSize: GRID_SIZE_DEFAULT,
+			sort: DEFAULT_SORT,
 		});
 		store.getState().setMode('grid');
 		expect(api.setView).toHaveBeenCalledTimes(1);
 		store.getState().toggleHidden();
 		expect(api.setView).toHaveBeenCalledTimes(2);
+		// The sort and the grouping are saved with the rest, once for each real change.
+		const grouped = { ...DEFAULT_SORT, groupBy: 'kind' } as const;
+		store.getState().setSort(grouped);
+		expect(api.setView).toHaveBeenCalledTimes(3);
+		expect(api.setView).toHaveBeenLastCalledWith(expect.objectContaining({ sort: grouped }));
+		store.getState().setSort({ ...grouped });
+		expect(api.setView).toHaveBeenCalledTimes(3);
 		stop();
 		store.getState().setGridSize(200);
-		expect(api.setView).toHaveBeenCalledTimes(2);
+		expect(api.setView).toHaveBeenCalledTimes(3);
 	});
 });

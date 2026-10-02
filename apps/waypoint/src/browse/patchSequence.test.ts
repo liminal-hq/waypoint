@@ -21,10 +21,10 @@ import { isSelected, selectedCount } from './selection';
 const SEQUENCE_TIMEOUT_MS = 30_000;
 
 const SORTS: SortSpec[] = [
-	{ key: 'name', descending: false, directoriesFirst: true },
-	{ key: 'name', descending: true, directoriesFirst: false },
-	{ key: 'size', descending: false, directoriesFirst: true },
-	{ key: 'modified', descending: true, directoriesFirst: false },
+	{ key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+	{ key: 'name', descending: true, directoriesFirst: false, groupBy: 'none' },
+	{ key: 'size', descending: false, directoriesFirst: true, groupBy: 'none' },
+	{ key: 'modified', descending: true, directoriesFirst: false, groupBy: 'none' },
 ];
 
 interface Run {

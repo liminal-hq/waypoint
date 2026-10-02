@@ -9,6 +9,8 @@ import { useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from '
 import { modifiersOf } from '../dnd/dropAction';
 import { useFileDragApi } from '../dnd/FileDragContext';
 import { useSettings } from '../settings/SettingsContext';
+import { GroupLayout, groupId } from './groupLayout';
+import { navigate } from './groupNav';
 import { isSelected } from './selection';
 import type { ListingSession } from './useListingSession';
 import { findByPrefix, TypeAheadBuffer } from './typeAhead';
@@ -30,6 +32,9 @@ export type MenuRequest =
 	  }
 	| { kind: 'background'; position: { x: number; y: number }; keyboard: boolean };
 
+/** The layout of a listing with no groups, for a view that supplies none. */
+const UNGROUPED = new GroupLayout([], new Set(), 0);
+
 /** The pane (tab id) an element sits in, when it sits in one. */
 function paneOf(element: Element): number | null {
 	const value = element.closest('[data-pane]')?.getAttribute('data-pane');
@@ -50,6 +55,12 @@ export interface InteractionOptions {
 	 */
 	move: (key: string, from: number | null, last: number) => number | null;
 	scrollTo: (position: number) => void;
+	/** The rows of the listing: with groups, navigation goes through them (`move` serves a listing without). */
+	layout?: GroupLayout;
+	/** How many rows a Page key moves. */
+	pageRows?: () => number;
+	/** Brings a group's header into sight. */
+	scrollToHeader?: (group: number) => void;
 	onOpen: OpenHandler | undefined;
 	onMenu: ((request: MenuRequest) => void) | undefined;
 }
@@ -63,6 +74,8 @@ export interface Interactions {
 	onItemDoubleClick: (entry: Entry | undefined) => void;
 	onItemContextMenu: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
 	onBackgroundContextMenu: (event: MouseEvent) => void;
+	/** A click on a group's header: puts the keyboard there and folds the group shut or opens it. */
+	onHeaderClick: (group: number) => void;
 }
 
 /**
@@ -72,6 +85,9 @@ export interface Interactions {
  */
 export function useListInteractions(options: InteractionOptions): Interactions {
 	const { session, itemId, shown, move, scrollTo, onOpen, onMenu } = options;
+	const layout = options.layout ?? UNGROUPED;
+	const pageRows = options.pageRows ?? (() => 1);
+	const scrollToHeader = options.scrollToHeader ?? (() => {});
 	const { model, store } = session;
 	const clickMode = useSettings((settings) => settings.general.clickMode);
 	const fileDrag = useFileDragApi();
@@ -103,8 +119,52 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		// whole-listing action and still takes every entry, as the capped banner says.
 		const last = shown - 1;
 
+		if (layout.grouped && state.focusHeader !== null) {
+			const group = layout.groups.findIndex((run) => groupId(run.key) === state.focusHeader);
+			const open = group >= 0 && !layout.isCollapsed(group);
+			// On a header, Left folds the group shut and Right opens it; Enter and Space do either.
+			const fold: boolean | null =
+				event.altKey || modifier
+					? null
+					: event.key === 'ArrowLeft'
+						? true
+						: event.key === 'ArrowRight'
+							? false
+							: event.key === 'Enter' || event.key === ' '
+								? open
+								: null;
+			if (fold !== null) {
+				event.preventDefault();
+				typeAheadEpoch.current++;
+				if (group >= 0) state.setGroupCollapsed(state.focusHeader, fold);
+				return;
+			}
+		}
+
 		// Alt + arrow is history and up-a-folder, which belong to the window, not to the view.
-		const target = event.altKey ? null : move(event.key, from, last);
+		if (layout.grouped) {
+			const cursor =
+				state.focusHeader !== null
+					? { header: layout.groups.findIndex((run) => groupId(run.key) === state.focusHeader) }
+					: from === null
+						? null
+						: { position: from };
+			const stop = event.altKey ? null : navigate(layout, event.key, cursor, pageRows());
+			if (stop !== null) {
+				event.preventDefault();
+				typeAheadEpoch.current++;
+				if ('header' in stop) {
+					state.focusGroup(groupId(layout.groups[stop.header]!.key));
+					scrollToHeader(stop.header);
+				} else {
+					if (event.shiftKey) void state.extendTo(stop.position, modifier);
+					else state.moveTo(stop.position, !modifier);
+					scrollTo(stop.position);
+				}
+				return;
+			}
+		}
+		const target = event.altKey || layout.grouped ? null : move(event.key, from, last);
 		if (target !== null) {
 			event.preventDefault();
 			typeAheadEpoch.current++;
@@ -169,7 +229,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 			const start = from === null ? 0 : prefix.length === 1 ? from + 1 : from;
 			void findByPrefix(model, prefix, start, () => epoch !== typeAheadEpoch.current).then(
 				(position) => {
-					if (position === null) return;
+					// Entries of a folded group are not there to be found.
+					if (position === null || layout.rowOfEntry(position) === null) return;
 					store.getState().moveTo(position, true);
 					scrollTo(position);
 				},
@@ -251,7 +312,18 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		});
 	};
 
+	const onHeaderClick = (group: number) => {
+		const run = layout.groups[group];
+		if (!run) return;
+		const state = store.getState();
+		typeAheadEpoch.current++;
+		const id = groupId(run.key);
+		state.focusGroup(id);
+		state.setGroupCollapsed(id, !layout.isCollapsed(group));
+	};
+
 	return {
+		onHeaderClick,
 		onKeyDown,
 		onItemClick,
 		onItemPointerDown,

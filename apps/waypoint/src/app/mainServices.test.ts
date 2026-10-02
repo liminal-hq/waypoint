@@ -55,13 +55,23 @@ describe('startMainServices', () => {
 
 	it('carries the saved view and the restore notice to the first render', async () => {
 		const tabsApi = new FakeTabsApi();
-		await tabsApi.setView({ mode: 'grid', showHidden: true, iconSize: 120 });
+		await tabsApi.setView({
+			mode: 'grid',
+			showHidden: true,
+			iconSize: 120,
+			sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+		});
 		const d = deps({
 			tabsApi,
 			getRestoreNotice: vi.fn(async () => 'Your last session could not be restored'),
 		});
 		const services = await startMainServices(d);
-		expect(services.view).toEqual({ mode: 'grid', showHidden: true, iconSize: 120 });
+		expect(services.view).toEqual({
+			mode: 'grid',
+			showHidden: true,
+			iconSize: 120,
+			sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+		});
 		expect(services.notice).toBe('Your last session could not be restored');
 	});
 

@@ -18,7 +18,7 @@ interface DevLiveControlsProps {
 /** The entries a folder holds, read back through a throwaway listing (the fake keeps them private). */
 async function currentEntries(client: FakeVfsClient, location: Location): Promise<Entry[]> {
 	const snapshot = await client.openListing(location, {
-		sort: { key: 'name', descending: false, directoriesFirst: true },
+		sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
 		filter: { showHidden: true },
 	});
 	const entries = await client.getRange(snapshot.handle, 0, snapshot.count);

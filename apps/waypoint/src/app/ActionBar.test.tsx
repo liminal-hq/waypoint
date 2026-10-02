@@ -209,10 +209,13 @@ describe('the menu buttons', () => {
 		await userEvent.click(screen.getByRole('menuitemcheckbox', { name: /Size/ }));
 		expect(actions.changeSort).toHaveBeenCalledTimes(1);
 		const change = actions.changeSort.mock.calls[0]![0] as (sort: object) => object;
-		expect(change({ key: 'name', descending: true, directoriesFirst: true })).toEqual({
+		expect(
+			change({ key: 'name', descending: true, directoriesFirst: true, groupBy: 'none' }),
+		).toEqual({
 			key: 'size',
 			descending: false,
 			directoriesFirst: true,
+			groupBy: 'none',
 		});
 	});
 

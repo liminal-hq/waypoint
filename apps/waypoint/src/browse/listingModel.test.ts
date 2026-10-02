@@ -24,7 +24,12 @@ describe('opening', () => {
 		expect(model.count).toBe(1000);
 		expect(model.revision).toBe(1);
 		expect(model.phase).toBe('ready');
-		expect(model.sort).toEqual({ key: 'name', descending: false, directoriesFirst: true });
+		expect(model.sort).toEqual({
+			key: 'name',
+			descending: false,
+			directoriesFirst: true,
+			groupBy: 'none',
+		});
 		expect(model.cachedCount).toBe(0);
 		expect(model.entryAt(0)).toBeUndefined();
 	});
@@ -207,7 +212,7 @@ describe('sorting', () => {
 		model.ensure(0, 10);
 		await settle();
 		const before = model.entryAt(0);
-		await model.setSort({ key: 'name', descending: true, directoriesFirst: true });
+		await model.setSort({ key: 'name', descending: true, directoriesFirst: true, groupBy: 'none' });
 		expect(model.sort.descending).toBe(true);
 		expect(model.revision).toBe(2);
 		// No blank flash: the previous entry is still there, marked stale.
@@ -236,7 +241,7 @@ describe('sorting', () => {
 			});
 			return snapshot;
 		});
-		await model.setSort({ key: 'name', descending: true, directoriesFirst: true });
+		await model.setSort({ key: 'name', descending: true, directoriesFirst: true, groupBy: 'none' });
 		expect(model.sort.descending).toBe(true);
 		expect(model.revision).toBe(3);
 		expect(model.hasFresh(0)).toBe(false);
@@ -245,8 +250,75 @@ describe('sorting', () => {
 	it('reports a failed sort as the model error', async () => {
 		const { client, model } = await open(10);
 		vi.spyOn(client, 'setSort').mockRejectedValue({ kind: 'io', message: 'no', location: null });
-		await model.setSort({ key: 'size', descending: false, directoriesFirst: true });
+		await model.setSort({
+			key: 'size',
+			descending: false,
+			directoriesFirst: true,
+			groupBy: 'none',
+		});
 		expect(model.error).toEqual({ kind: 'io', message: 'no', location: null });
+	});
+});
+
+describe('groups', () => {
+	const bySize = {
+		key: 'name',
+		descending: false,
+		directoriesFirst: true,
+		groupBy: 'size',
+	} as const;
+
+	it('has none while the sort does not group', async () => {
+		const { model } = await open(20);
+		expect(model.groups).toEqual([]);
+	});
+
+	it('takes the groups of a sort that groups from the reply, and drops them with the grouping', async () => {
+		const { model } = await open(40);
+		await model.setSort(bySize);
+		expect(model.groups.length).toBeGreaterThan(0);
+		expect(model.groups.reduce((total, run) => total + run.count, 0)).toBe(40);
+		expect(model.groups[0]!.start).toBe(0);
+		await model.setSort({ ...bySize, groupBy: 'none' });
+		expect(model.groups).toEqual([]);
+	});
+
+	it('takes the boundaries each change brings and a scan that has just filled the view', async () => {
+		const { model } = await open(10);
+		const key = { kind: 'size', band: 'tiny' } as const;
+		model.applyEvent({
+			kind: 'progress',
+			handle: model.handle,
+			revision: 2,
+			phase: 'ready',
+			scanned: 10,
+			count: 10,
+			groups: [{ key, start: 0, count: 10 }],
+		});
+		expect(model.groups).toEqual([{ key, start: 0, count: 10 }]);
+		model.applyEvent({
+			kind: 'changed',
+			handle: model.handle,
+			revision: 3,
+			count: 10,
+			moved: [],
+			ops: [],
+			groups: [
+				{ key, start: 0, count: 6 },
+				{ key: { kind: 'size', band: 'large' }, start: 6, count: 4 },
+			],
+		});
+		expect(model.groups.map((run) => run.count)).toEqual([6, 4]);
+		// Progress while scanning says nothing of them, so they stay.
+		model.applyEvent({
+			kind: 'progress',
+			handle: model.handle,
+			revision: 4,
+			phase: 'rescanning',
+			scanned: 0,
+			count: 10,
+		});
+		expect(model.groups).toHaveLength(2);
 	});
 });
 

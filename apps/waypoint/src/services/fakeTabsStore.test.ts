@@ -209,7 +209,12 @@ describe('FakeTabsStore with several windows', () => {
 
 	it('keeps view and geometry per window and reports them as events', async () => {
 		const { one, two, heard } = twoWindows();
-		await one.setView({ mode: 'grid', showHidden: true, iconSize: 96 });
+		await one.setView({
+			mode: 'grid',
+			showHidden: true,
+			iconSize: 96,
+			sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+		});
 		await two.setGeometry({ x: 1, y: 2, width: 640, height: 480, maximised: false });
 		expect((await one.getSnapshot()).view.mode).toBe('grid');
 		expect((await two.getSnapshot()).view.mode).toBe('list');
@@ -217,7 +222,12 @@ describe('FakeTabsStore with several windows', () => {
 		expect(heard.one.map((e) => e.kind)).toEqual(['viewChanged']);
 		expect(heard.two.map((e) => e.kind)).toEqual(['geometryChanged']);
 		// Setting the same view again changes nothing.
-		await one.setView({ mode: 'grid', showHidden: true, iconSize: 96 });
+		await one.setView({
+			mode: 'grid',
+			showHidden: true,
+			iconSize: 96,
+			sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+		});
 		expect(heard.one).toHaveLength(1);
 	});
 });

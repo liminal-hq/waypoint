@@ -7,7 +7,7 @@ import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { OpenOptions, VfsClient } from '../services/vfsClient';
-import { openListingModel, toVfsError } from './listingModel';
+import { openListingModel, toVfsError, type ListingModel } from './listingModel';
 import { applyHints } from './tabHints';
 import { createListingSession, type ListingSession, type SessionState } from './useListingSession';
 import type { ViewMode } from './viewStore';
@@ -32,6 +32,12 @@ export interface ListingManagerOptions {
 	evictDelayMs?: number;
 	/** How long a listing nobody holds any more is kept for the tab that left it to come back (`retain`). */
 	retainGraceMs?: number;
+	/**
+	 * Hears the sort a folder listing now has whenever it changes (the person chose another sort or
+	 * grouping), so the window can remember it for the folders it opens next. The Trash is not a folder
+	 * listing: its columns are its own.
+	 */
+	onSort?: (sort: SortSpec) => void;
 	/** The layout in use, which decides which scroll offset a restored tab's hint belongs to. */
 	viewMode?: () => ViewMode;
 }
@@ -235,6 +241,7 @@ export class ListingManager {
 				}
 				const session = createListingSession(model);
 				slot.state = { status: 'ready', session };
+				this.followSort(model);
 				if (!this.hinted.has(tab.id)) {
 					this.hinted.add(tab.id);
 					applyHints(session, tab.hints, this.options.viewMode?.() ?? 'list');
@@ -250,6 +257,24 @@ export class ListingManager {
 				this.changed();
 			},
 		);
+	}
+
+	/** Reports each change of a folder listing's sort to `onSort`. */
+	private followSort(model: ListingModel): void {
+		if (model.layout !== 'folder' || !this.options.onSort) return;
+		let last = model.sort;
+		model.subscribe(() => {
+			const now = model.sort;
+			if (
+				now.key === last.key &&
+				now.descending === last.descending &&
+				now.directoriesFirst === last.directoriesFirst &&
+				now.groupBy === last.groupBy
+			)
+				return;
+			last = now;
+			this.options.onSort?.(now);
+		});
 	}
 
 	private release(tab: TabId): void {

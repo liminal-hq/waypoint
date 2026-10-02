@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { makeEntry } from '../services/fakeVfsClient';
+import { FakeVfsClient, makeEntry } from '../services/fakeVfsClient';
 import { clientWith, FOLDER } from '../test/browseHarness';
 import { createBrowseStore } from './browseStore';
+import { groupId } from './groupLayout';
 import { openListingModel } from './listingModel';
 import { isSelected, selectedCount } from './selection';
 
@@ -253,5 +254,86 @@ describe('following patches', () => {
 		expect(selected()).toBe(101);
 		client.removeEntries(FOLDER, [9000]);
 		expect(selected()).toBe(100);
+	});
+});
+
+describe('collapsed groups', () => {
+	const SORT = { key: 'name', descending: false, directoriesFirst: true, groupBy: 'size' } as const;
+
+	// Groups: folders 0-1, empty 2, tiny 3-4, large 5-6.
+	async function grouped() {
+		const client = new FakeVfsClient();
+		client.setFolder(FOLDER, [
+			makeEntry(1, 'src', { kind: 'directory' }),
+			makeEntry(2, 'b.txt', { size: 7 }),
+			makeEntry(3, 'big.bin', { size: 3_000_000 }),
+			makeEntry(4, 'docs', { kind: 'directory' }),
+			makeEntry(5, 'a.txt', { size: 5 }),
+			makeEntry(6, 'empty', { size: 0 }),
+			makeEntry(7, 'huge.bin', { size: 2_000_000 }),
+		]);
+		const model = await openListingModel(client, FOLDER, { sort: SORT });
+		const store = createBrowseStore(model);
+		const idOf = (run: number) => groupId(model.groups[run]!.key);
+		const selected = async () => {
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			const { selection } = store.getState();
+			const all = await model.readRange(0, model.count);
+			return all.filter((entry) => isSelected(selection, entry.id)).map((entry) => entry.name);
+		};
+		return { model, store, idOf, selected };
+	}
+
+	it('hides a group from a select all, and keeps what it hides out of the selection', async () => {
+		const { store, idOf, selected } = await grouped();
+		store.getState().setGroupCollapsed(idOf(2), true);
+		store.getState().selectAll();
+		expect(await selected()).toEqual(['docs', 'src', 'empty', 'big.bin', 'huge.bin']);
+	});
+
+	it('deselects what a group hides when it is folded', async () => {
+		const { store, idOf, selected } = await grouped();
+		store.getState().selectAll();
+		expect(await selected()).toHaveLength(7);
+		store.getState().setGroupCollapsed(idOf(1), true);
+		expect(await selected()).toEqual(['docs', 'src', 'a.txt', 'b.txt', 'big.bin', 'huge.bin']);
+		// Opening it again does not select it again.
+		store.getState().setGroupCollapsed(idOf(1), false);
+		expect(await selected()).not.toContain('empty');
+	});
+
+	it('leaves a folded group out of a range, whatever lies between the ends', async () => {
+		const { store, model, idOf, selected } = await grouped();
+		store.getState().setGroupCollapsed(idOf(2), true);
+		const [first] = await model.readRange(0, 1);
+		store.getState().click(0, first!.id);
+		await store.getState().extendTo(6);
+		expect(await selected()).toEqual(['docs', 'src', 'empty', 'big.bin', 'huge.bin']);
+	});
+
+	it('leaves a folded group out of an inverted selection', async () => {
+		const { store, model, idOf, selected } = await grouped();
+		store.getState().setGroupCollapsed(idOf(1), true);
+		const [first] = await model.readRange(0, 1);
+		store.getState().click(0, first!.id);
+		store.getState().invertSelection();
+		expect(await selected()).toEqual(['src', 'a.txt', 'b.txt', 'big.bin', 'huge.bin']);
+	});
+
+	it('puts the keyboard on a header or on an entry, never both', async () => {
+		const { store, idOf } = await grouped();
+		store.getState().moveTo(2, false);
+		store.getState().focusGroup(idOf(1));
+		expect(store.getState()).toMatchObject({ focus: null, focusHeader: idOf(1) });
+		store.getState().moveTo(3, false);
+		expect(store.getState()).toMatchObject({ focus: 3, focusHeader: null });
+	});
+
+	it('opens a folded group to bring one of its entries into sight', async () => {
+		const { store, idOf } = await grouped();
+		store.getState().setGroupCollapsed(idOf(2), true);
+		store.getState().requestScroll(3);
+		expect(store.getState().collapsed.has(idOf(2))).toBe(false);
+		expect(store.getState().scrollRequest?.position).toBe(3);
 	});
 });

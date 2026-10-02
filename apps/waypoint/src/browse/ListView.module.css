@@ -261,3 +261,61 @@
 	white-space: nowrap;
 	border: 0;
 }
+
+/* A group's header sits among the rows as a row of its own; the arrow keys step over it and a click folds the group. */
+.groupHeader {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	height: var(--wp-row-height);
+	padding: 0 12px;
+	box-sizing: border-box;
+	transform: translateY(var(--wp-row-y));
+	border-bottom: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-window);
+	color: var(--wp-text-primary);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: default;
+	user-select: none;
+}
+
+.groupHeader:hover {
+	background: var(--wp-bg-hover);
+}
+
+.list:focus .groupHeader[data-active] {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.chevron {
+	flex: none;
+	width: 0;
+	height: 0;
+	border-inline: 4px solid transparent;
+	border-top: 5px solid currentcolor;
+}
+
+.groupHeader[data-collapsed] .chevron {
+	border-inline: 0;
+	border-block: 4px solid transparent;
+	border-left: 5px solid currentcolor;
+}
+
+.groupTitle {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.groupCount {
+	flex: none;
+	color: var(--wp-text-secondary);
+	font-weight: 400;
+}

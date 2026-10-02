@@ -36,10 +36,11 @@ const snapshot: ListingSnapshot = {
 	revision: 1,
 	count: 0,
 	phase: 'scanning',
-	sort: { key: 'name', descending: false, directoriesFirst: true },
+	sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
 	filter: { showHidden: false },
 	readOnly: false,
 	layout: 'folder',
+	groups: [],
 };
 
 beforeEach(() => {
@@ -49,7 +50,12 @@ beforeEach(() => {
 describe('createTauriVfsClient', () => {
 	it('passes every call through to the plugin and returns its result', async () => {
 		const client = createTauriVfsClient();
-		const sort: SortSpec = { key: 'size', descending: true, directoriesFirst: false };
+		const sort: SortSpec = {
+			key: 'size',
+			descending: true,
+			directoriesFirst: false,
+			groupBy: 'none',
+		};
 		plugin.openListing.mockResolvedValue(snapshot);
 		plugin.getRange.mockResolvedValue([]);
 		plugin.setSort.mockResolvedValue({ ...snapshot, revision: 2 });
