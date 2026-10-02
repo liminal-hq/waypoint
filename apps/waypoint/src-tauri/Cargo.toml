@@ -35,8 +35,8 @@ tauri-plugin-opener = "2"
 # The shared portal and desktop-integration plugins (liminal-hq/tauri-plugins-workspace#80), used only
 # from Rust (A65). Pinned to the exact revision that PR's head had; move the `rev` to the release or
 # merge commit that carries them once it exists.
-tauri-plugin-xdg-portal = { git = "https://github.com/liminal-hq/tauri-plugins-workspace.git", rev = "271654f35356508b7d9d252c53598d8137d8ca7c" }
-tauri-plugin-desktop-integration = { git = "https://github.com/liminal-hq/tauri-plugins-workspace.git", rev = "271654f35356508b7d9d252c53598d8137d8ca7c" }
+tauri-plugin-xdg-portal = { git = "https://github.com/liminal-hq/tauri-plugins-workspace.git", rev = "0413e1d56c5cc31137f040259d2cc5883412cb3a" }
+tauri-plugin-desktop-integration = { git = "https://github.com/liminal-hq/tauri-plugins-workspace.git", rev = "0413e1d56c5cc31137f040259d2cc5883412cb3a" }
 tokio = { workspace = true, features = ["time"] }
 tauri-plugin-waypoint-vfs = { path = "../../../plugins/waypoint-vfs" }
 tauri-plugin-waypoint-session = { path = "../../../plugins/waypoint-session" }
