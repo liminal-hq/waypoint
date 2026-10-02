@@ -6,7 +6,7 @@
 mod common;
 
 use common::*;
-use waypoint_protocol::Location;
+use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec, VolumeId, VolumeSpace};
 
 fn plan_ok(h: &Harness<impl Provider + 'static>, request: &JobRequest) -> Plan {
@@ -306,6 +306,48 @@ fn the_same_volume_is_known_not_assumed() {
     let lh = Harness::new(LocalProvider::new(), VfsPath::File(local_root));
     build(&lh, &tree(&[("a", "1"), ("d/", "")]));
     assert!(plan_ok(&lh, &lh.request(JobKind::Move, &["a"], Some("d"), None)).same_volume);
+}
+
+#[test]
+fn a_delete_never_enters_a_folder_on_another_volume() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = FilePath::from_path(dir.path()).unwrap();
+    let memory = MemoryProvider::new(root.clone(), CaseRule::Sensitive);
+    let h = Harness::new(memory.clone(), VfsPath::File(root));
+    build(
+        &h,
+        &tree(&[
+            ("tree/", ""),
+            ("tree/a", "1"),
+            ("tree/sub/", ""),
+            ("tree/sub/mnt/", ""),
+            ("tree/sub/mnt/data", "d"),
+            ("dst/", ""),
+        ]),
+    );
+    memory.set_volume(&h.path("tree/sub/mnt"), VolumeId(9));
+
+    // The plan refuses before anything is removed.
+    let delete = h.request(JobKind::Delete, &["tree"], None, None);
+    assert_eq!(
+        plan_err(&h, &delete),
+        OpsError::Protected {
+            location: h.path("tree/sub/mnt").to_location()
+        }
+    );
+    // A copy may still cross volumes, so only a delete refuses.
+    plan_ok(&h, &h.request(JobKind::Copy, &["tree"], Some("dst"), None));
+
+    // The executor guards on its own, in case the mount appeared after the plan: it fails with
+    // `InUse` without touching what the other volume holds.
+    let error = waypoint_ops::remove_all(&memory, &h.path("tree")).unwrap_err();
+    assert!(matches!(error, VfsError::InUse { .. }), "{error:?}");
+    assert!(memory.stat(&h.path("tree/sub/mnt/data")).is_ok());
+    // Removing only the part on the same volume as its root works.
+    waypoint_ops::remove_all(&memory, &h.path("tree/a")).unwrap();
+    // The mount point itself is a folder of its own volume, so removing it as a root is allowed to
+    // proceed into its own contents.
+    waypoint_ops::remove_all(&memory, &h.path("tree/sub/mnt")).unwrap();
 }
 
 #[test]

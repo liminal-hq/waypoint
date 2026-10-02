@@ -413,7 +413,7 @@ impl Planner<'_, '_> {
             }
             used.insert(fold_name(OsStr::new(&name), rule));
             let target = child_path(&folder, OsStr::new(&name), rule)?;
-            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry)?;
+            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry, false)?;
             let free = Self::enough_space(provider.as_ref(), &folder, bytes);
             free?;
             same_volume &= provider.volume_id(&source).is_some();
@@ -492,7 +492,7 @@ impl Planner<'_, '_> {
                 });
             }
             let entry = provider.stat(&source)?;
-            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry)?;
+            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry, true)?;
             items.push(PlanItem {
                 source: Some(source),
                 target: None,
@@ -607,7 +607,7 @@ impl Planner<'_, '_> {
                 _ => false,
             };
             same_volume &= known_same;
-            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry)?;
+            let (entries, bytes) = self.measure(provider.as_ref(), &source, &entry, false)?;
             items.push(PlanItem {
                 source: Some(source),
                 target: Some(target),
@@ -668,12 +668,14 @@ impl Planner<'_, '_> {
     }
 
     /// The entries and bytes at and below `root`. Folders are walked and links are counted but
-    /// never followed.
+    /// never followed. With `one_volume`, a folder on another volume than `root` (a mount point)
+    /// is refused as protected, so a permanent delete is refused before it removes anything.
     fn measure(
         &mut self,
         provider: &dyn Provider,
         root: &VfsPath,
         entry: &ScannedEntry,
+        one_volume: bool,
     ) -> Result<(u64, u64), OpsError> {
         let mut entries = 1u64;
         let mut bytes = 0u64;
@@ -685,9 +687,15 @@ impl Planner<'_, '_> {
                 self.walked.bytes += bytes;
             }
             EntryKind::Directory => {
+                let volume = one_volume.then(|| provider.volume_id(root)).flatten();
                 let mut stack = vec![root.clone()];
                 while let Some(folder) = stack.pop() {
                     check(self.ctx.cancel)?;
+                    if volume.is_some() && provider.volume_id(&folder) != volume {
+                        return Err(OpsError::Protected {
+                            location: folder.to_location(),
+                        });
+                    }
                     let children = provider.list(&folder, self.ctx.cancel, 0, &mut |_| {})?;
                     for child in children {
                         entries += 1;
