@@ -7,7 +7,14 @@ import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
 import { createElement, type ReactNode } from 'react';
 import { t, tf } from '../i18n/messages';
-import { HistoryIcon, EditIcon, EyeIcon, FolderOpenIcon, WindowIcon } from '../icons/MenuIcons';
+import {
+	CommandPaletteIcon,
+	HistoryIcon,
+	EditIcon,
+	EyeIcon,
+	FolderOpenIcon,
+	WindowIcon,
+} from '../icons/MenuIcons';
 import type { CommandFacts } from './commandEnv';
 import { commandDef, viewOf, type CommandId, type CommandView } from './registry';
 
@@ -72,6 +79,9 @@ export function historyTime(atMs: number, now: number = Date.now(), locale?: str
 	).format(at);
 }
 
+/** The history submenu's footer, which opens the palette on "undo" where every entry can be chosen. */
+export const HISTORY_MORE_ID = 'history:more';
+
 /** What selecting a history row does. */
 export type HistoryRowKind = 'undo' | 'redo';
 
@@ -105,7 +115,7 @@ export function historyItems(
 			},
 		];
 	}
-	return facts.history.map((entry: JournalEntrySummary): MenuItem => {
+	const entries = facts.history.map((entry: JournalEntrySummary): MenuItem => {
 		const time = historyTime(entry.atMs, now, locale);
 		const kind: HistoryRowKind | null =
 			entry.id === facts.undoHead ? 'undo' : entry.id === facts.redoHead ? 'redo' : null;
@@ -120,6 +130,16 @@ export function historyItems(
 			...(kind ? {} : { disabled: true, title: t('appMenu.history.later') }),
 		};
 	});
+	return [
+		...entries,
+		{ type: 'separator', id: 'history:rule' },
+		{
+			type: 'action',
+			id: HISTORY_MORE_ID,
+			label: t('appMenu.history.more'),
+			icon: createElement(CommandPaletteIcon),
+		},
+	];
 }
 
 /**
@@ -154,13 +174,14 @@ export function appMenuItems(
 				items: historyItems(facts, now, locale),
 			} satisfies MenuItem,
 		].filter((item) => item.type !== 'submenu' || byId.get('undo')?.visible),
-		rows('cut', 'copy', 'paste', 'copyTo', 'moveTo'),
+		rows('cut', 'copy', 'paste', 'copyTo', 'moveTo', 'linkTo'),
 		rows('selectAll', 'invertSelection'),
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
 		rows('showHidden', 'sidebar', 'actionBar'),
 		rows('splitView'),
+		rows('commandPalette'),
 	);
 	const window = menuSections(
 		rows('duplicateTab', 'moveTabToNewWindow'),

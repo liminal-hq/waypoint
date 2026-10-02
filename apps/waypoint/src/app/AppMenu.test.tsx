@@ -22,6 +22,7 @@ function setup(state = {}, extra = {}) {
 		setViewMode: vi.fn(),
 		openSettings: vi.fn(),
 		undoEntry: vi.fn(),
+		openPalette: vi.fn(),
 		redoEntry: vi.fn(),
 		toggleSidebar: vi.fn(),
 		files: {
@@ -158,6 +159,25 @@ describe('the application menu button', () => {
 		const history = await openHistory();
 		await userEvent.click(history.getByRole('menuitem', { name: /New folder/ }));
 		expect(actions.redoEntry).toHaveBeenCalledWith(1);
+	});
+
+	it('ends the history with More in Command Palette…, which opens the palette on "undo"', async () => {
+		const { actions } = setup();
+		const history = await openHistory();
+		const items = history.getAllByRole('menuitem');
+		expect(items.at(-1)).toHaveTextContent(t('appMenu.history.more'));
+		await userEvent.click(items.at(-1)!);
+		expect(actions.openPalette).toHaveBeenCalledWith('undo');
+		expect(actions.undoEntry).not.toHaveBeenCalled();
+	});
+
+	it('opens the palette from View → Command Palette…, with its key shown', async () => {
+		const { actions } = setup();
+		fireEvent.keyDown(window, { key: 'v', altKey: true });
+		const item = await screen.findByRole('menuitem', { name: /Command Palette…/ });
+		expect(within(item).getByText('Ctrl+Shift+P')).toBeInTheDocument();
+		await userEvent.click(item);
+		expect(actions.openPalette).toHaveBeenCalledWith();
 	});
 
 	it('lists older entries read-only', async () => {

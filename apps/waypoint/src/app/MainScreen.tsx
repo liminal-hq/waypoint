@@ -24,6 +24,7 @@ import { createTauriTrashClient } from '../trash/tauriTrashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
 import { TabsProvider } from '../tabs/TabsContext';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
+import { CommandPaletteHost } from '../commands/CommandPaletteHost';
 import { AppMenu } from './AppMenu';
 import { AppTitleBar } from './AppTitleBar';
 import { startMainServices, type MainServices } from './mainServices';
@@ -128,6 +129,7 @@ export function MainScreen() {
 													tearoff={startup.services.tearoff}
 												/>
 											</MainOps>
+											<CommandPaletteHost />
 										</main>
 									</TabsProvider>
 								</TrashClientProvider>

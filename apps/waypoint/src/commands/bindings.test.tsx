@@ -18,6 +18,7 @@ import { handlePairKey } from '../tabs/usePairShortcuts';
 import { handleTabKey, type TabKeyHandlers } from '../tabs/useTabShortcuts';
 import { handleWindowKey } from '../tabs/windowActions';
 import { commandsHarness, select } from '../test/fileCommandsHarness';
+import { isPaletteKey } from './CommandPaletteHost';
 import { COMMANDS, type CommandId } from './registry';
 import { keyEventInit, parseShortcut } from './shortcuts';
 
@@ -166,6 +167,8 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 	},
 	batchRename: (s) =>
 		expect(isBatchRenameKey(new KeyboardEvent('keydown', keyEventInit(s)))).toBe(true),
+	commandPalette: (s) =>
+		expect(isPaletteKey({ ...keyEventInit(s), isComposing: false } as never)).toBe(true),
 	settings: (s) =>
 		expect(isSettingsShortcut({ ...keyEventInit(s), isComposing: false } as never)).toBe(true),
 

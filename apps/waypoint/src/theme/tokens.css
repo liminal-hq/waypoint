@@ -89,6 +89,20 @@
 	--wp-file-drag-badge-border: var(--wp-border-subtle);
 	--wp-file-drag-trash: var(--wp-danger);
 	--wp-file-drag-shake: 6px;
+
+	/* The command palette: a panel near the top of the window over a light scrim. Every colour follows the raised and text tokens, so it themes with them in light and dark. */
+	--wp-palette-width: 640px;
+	--wp-palette-top: 12vh;
+	--wp-palette-list-height: 50vh;
+	--wp-palette-bg: var(--wp-bg-raised);
+	--wp-palette-border: var(--wp-border-subtle);
+	--wp-palette-shadow: var(--wp-shadow-dialog);
+	--wp-palette-scrim: color-mix(in srgb, var(--wp-text-primary) 18%, transparent);
+	--wp-palette-row-hover: var(--wp-bg-hover);
+	--wp-palette-row-active: var(--wp-bg-selected);
+	--wp-palette-hint: var(--wp-text-muted);
+	--wp-palette-disabled: var(--wp-text-muted);
+	--wp-palette-motion: 120ms;
 }
 
 @media (prefers-color-scheme: dark) {

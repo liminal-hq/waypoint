@@ -5,7 +5,12 @@
 
 import { AppMenuButton } from '@liminal-hq/waypoint-chrome/TitleBar/AppMenuButton';
 import { useCallback, useMemo } from 'react';
-import { APP_MENU_MNEMONICS, appMenuItems, parseHistoryRow } from '../commands/appMenuModel';
+import {
+	APP_MENU_MNEMONICS,
+	appMenuItems,
+	HISTORY_MORE_ID,
+	parseHistoryRow,
+} from '../commands/appMenuModel';
 import { useCommandBridge, useCommands } from '../commands/commandBridge';
 import type { CommandId } from '../commands/registry';
 import { t } from '../i18n/messages';
@@ -23,6 +28,10 @@ export function AppMenu() {
 	const items = useMemo(() => appMenuItems(commands, facts), [commands, facts]);
 	const onSelect = useCallback(
 		(item: { id: string }) => {
+			if (item.id === HISTORY_MORE_ID) {
+				bridge.store.getState().actions.openPalette('undo');
+				return;
+			}
 			const history = parseHistoryRow(item.id);
 			if (history) {
 				const { actions } = bridge.store.getState();

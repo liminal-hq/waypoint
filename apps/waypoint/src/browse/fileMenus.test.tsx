@@ -289,7 +289,14 @@ describe('the empty-space menu', () => {
 			commands: commands({
 				states: commandStates({
 					...base,
-					undo: { id: 1, label: 'Move 3 items to Trash', atMs: 0, undoable: true, redoable: false, partlyUndone: false },
+					undo: {
+						id: 1,
+						label: 'Move 3 items to Trash',
+						atMs: 0,
+						undoable: true,
+						redoable: false,
+						partlyUndone: false,
+					},
 				}),
 				undoLabel: 'Move 3 items to Trash',
 			}),

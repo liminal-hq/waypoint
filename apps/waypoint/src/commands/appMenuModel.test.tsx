@@ -11,6 +11,7 @@ import { entry, factsFor } from '../test/commandFacts';
 import type { CommandFacts } from './commandEnv';
 import {
 	APP_MENU_MNEMONICS,
+	HISTORY_MORE_ID,
 	appMenuItems,
 	historyItems,
 	historyRowId,
@@ -88,6 +89,7 @@ describe('the menus', () => {
 			'paste',
 			'copyTo',
 			'moveTo',
+			'linkTo',
 			'selectAll',
 			'invertSelection',
 		]);
@@ -103,6 +105,7 @@ describe('the menus', () => {
 			'sidebar',
 			'actionBar',
 			'splitView',
+			'commandPalette',
 		]);
 	});
 
@@ -293,11 +296,27 @@ describe('Undo History', () => {
 
 	it('lists the entries newest first, each with when it happened, and marks an undone one', () => {
 		const items = historyItems(facts, NOW, 'en-CA');
-		expect(items.map((item) => item.type === 'action' && item.label)).toEqual([
+		expect(
+			items.flatMap((item) =>
+				item.type === 'action' && item.id !== HISTORY_MORE_ID ? [item.label] : [],
+			),
+		).toEqual([
 			'Move 3 items to Trash — 2:30 p.m.',
 			'New folder — 2:30 p.m.',
 			'Rename report — 2:30 p.m. (undone)',
 		]);
+	});
+
+	it('ends with a footer that opens the palette, where every entry can be chosen', () => {
+		const items = historyItems(facts, NOW, 'en-CA');
+		expect(items.at(-2)).toMatchObject({ type: 'separator' });
+		expect(items.at(-1)).toMatchObject({
+			type: 'action',
+			id: HISTORY_MORE_ID,
+			label: t('appMenu.history.more'),
+		});
+		expect(items.at(-1)).not.toHaveProperty('disabled');
+		expect(historyItems({ history: [], undoHead: null, redoHead: null }, NOW)).toHaveLength(1);
 	});
 
 	it('enables only the entry Undo would undo and the entry Redo would redo, and explains the rest', () => {

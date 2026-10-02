@@ -1,0 +1,186 @@
+.palette {
+	box-sizing: border-box;
+	inline-size: min(var(--wp-palette-width), calc(100vw - 32px));
+	margin: var(--wp-palette-top) auto auto;
+	padding: 0;
+	overflow: hidden;
+	color: var(--wp-text-primary);
+	background: var(--wp-palette-bg);
+	border: 1px solid var(--wp-palette-border);
+	border-radius: 12px;
+	box-shadow: var(--wp-palette-shadow);
+	font: inherit;
+	font-size: 13px;
+}
+
+.palette::backdrop {
+	background: var(--wp-palette-scrim);
+}
+
+/* Without native modal support there is no top layer or backdrop, so place it by hand. */
+.fallback {
+	position: fixed;
+	inset: 0 0 auto;
+	z-index: var(--wp-z-dialog);
+}
+
+.palette[open] {
+	animation: palette-in var(--wp-palette-motion) ease-out;
+}
+
+.reducedMotion,
+.reducedMotion::backdrop {
+	animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.palette,
+	.palette::backdrop {
+		animation: none !important;
+	}
+}
+
+@keyframes palette-in {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
+.surface {
+	display: flex;
+	flex-direction: column;
+	outline: none;
+}
+
+.input {
+	box-sizing: border-box;
+	inline-size: 100%;
+	padding: 14px 16px;
+	color: inherit;
+	background: transparent;
+	border: 0;
+	border-block-end: 1px solid var(--wp-palette-border);
+	font: inherit;
+	font-size: 15px;
+	outline: none;
+}
+
+.input:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.input::placeholder {
+	color: var(--wp-palette-hint);
+}
+
+.list {
+	margin: 0;
+	padding: 6px;
+	max-block-size: var(--wp-palette-list-height);
+	overflow-y: auto;
+	list-style: none;
+}
+
+.option {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 4px 10px;
+	padding: 7px 10px;
+	border-radius: 6px;
+	cursor: default;
+}
+
+.option[data-hover] {
+	background: var(--wp-palette-row-hover);
+}
+
+.option[aria-selected='true'] {
+	background: var(--wp-palette-row-active);
+	outline: 1px solid var(--wp-accent);
+	outline-offset: -1px;
+}
+
+.option[aria-disabled='true'] {
+	color: var(--wp-palette-disabled);
+}
+
+.icon {
+	display: grid;
+	place-items: center;
+	inline-size: 16px;
+	block-size: 16px;
+}
+
+.text {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 10px;
+	min-inline-size: 0;
+}
+
+.label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The matched characters are bold, so the match is not shown by colour alone. */
+.match {
+	font-weight: 700;
+}
+
+.hint {
+	color: var(--wp-palette-hint);
+	font-size: 12px;
+}
+
+.reason {
+	flex-basis: 100%;
+	font-size: 12px;
+	font-style: italic;
+}
+
+.side {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.option[aria-disabled='true'] .side {
+	color: var(--wp-palette-disabled);
+}
+
+.shortcut {
+	font: inherit;
+	font-size: 12px;
+}
+
+.check {
+	font-weight: 700;
+}
+
+.empty {
+	margin: 0;
+	padding: 18px 16px;
+	color: var(--wp-palette-hint);
+	text-align: center;
+}
+
+.srOnly {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
