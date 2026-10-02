@@ -32,6 +32,12 @@ tauri-plugin-thumbnails = { path = "../../../plugins/thumbnails" }
 tauri-plugin-volumes = { path = "../../../plugins/volumes" }
 tauri-plugin-mime-apps = { path = "../../../plugins/mime-apps" }
 tauri-plugin-opener = "2"
+# The shared portal and desktop-integration plugins (liminal-hq/tauri-plugins-workspace#80), used only
+# from Rust (A65). Pinned to the exact revision that PR's head had; move the `rev` to the release or
+# merge commit that carries them once it exists.
+tauri-plugin-xdg-portal = { git = "https://github.com/liminal-hq/tauri-plugins-workspace.git", rev = "271654f35356508b7d9d252c53598d8137d8ca7c" }
+tauri-plugin-desktop-integration = { git = "https://github.com/liminal-hq/tauri-plugins-workspace.git", rev = "271654f35356508b7d9d252c53598d8137d8ca7c" }
+tokio = { workspace = true, features = ["time"] }
 tauri-plugin-waypoint-vfs = { path = "../../../plugins/waypoint-vfs" }
 tauri-plugin-waypoint-session = { path = "../../../plugins/waypoint-session" }
 tauri-plugin-waypoint-ops = { path = "../../../plugins/waypoint-ops" }
@@ -56,5 +62,10 @@ tempfile = "3"
 # target) even though release builds never activate it. It is left out on Windows: 0.13.0 depends on
 # `webview2-com` 0.38 while Tauri 2.12 uses 0.39, so the two do not compile together there. Drop the
 # `cfg` once a bridge release matches Tauri's `windows` crate.
+# The X11 global shortcut path of `desktop-integration` registers through this plugin, which the app
+# must register itself; Windows has its own hotkey thread.
+[target.'cfg(target_os = "linux")'.dependencies]
+tauri-plugin-global-shortcut = "2"
+
 [target.'cfg(not(windows))'.dependencies]
 tauri-plugin-mcp-bridge = "0.13"

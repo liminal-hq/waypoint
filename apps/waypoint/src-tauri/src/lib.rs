@@ -5,6 +5,8 @@
 
 mod checksum;
 mod effects;
+mod integration_policy;
+mod integrations;
 mod ops;
 mod ops_window;
 mod persistence;
@@ -165,6 +167,10 @@ pub fn run() {
         .plugin(tauri_plugin_window_effects::init())
         .plugin(tauri_plugin_mime_apps::init())
         .plugin(tauri_plugin_native_dnd::init())
+        // Used only from Rust, by `integrations` (A65). The X11 global shortcut of
+        // `desktop-integration` registers through the Tauri plugin, which the app must add.
+        .plugin(tauri_plugin_xdg_portal::init())
+        .plugin(tauri_plugin_desktop_integration::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
         // After the store plugin it saves through; the session reads its choices (start-up, the view
         // of a new window) from it in `setup`.
@@ -196,7 +202,9 @@ pub fn run() {
             thumbnails::thumbnails_request_entries,
             thumbnails::thumbnails_request_locations,
             thumbnails::thumbnails_cancel,
-            thumbnails::thumbnails_prioritise
+            thumbnails::thumbnails_prioritise,
+            integrations::get_integration_statuses,
+            integrations::get_integration_availability
         ])
         .setup({
             let saver = Arc::clone(&saver);
@@ -204,6 +212,7 @@ pub fn run() {
                 settings::wire(app.handle());
                 effects::wire(app.handle());
                 thumbnails::wire(app.handle());
+                integrations::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
             }
@@ -219,6 +228,7 @@ pub fn run() {
             let flush = Arc::new(CloseFlush::default());
             move |window, event| {
                 effects::on_window_event(window, event);
+                integrations::on_window_event(window, event);
                 if matches!(event, WindowEvent::Destroyed)
                     && window.label().starts_with(properties_window::LABEL_PREFIX)
                 {
@@ -250,6 +260,13 @@ pub fn run() {
             }
         });
 
+    // The X11 path of the global shortcut registers through Tauri's own plugin (`desktop-integration`
+    // calls it); Windows has its own hotkey thread, so only Linux adds it.
+    #[cfg(target_os = "linux")]
+    {
+        builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
+
     // Lets an agent drive and screenshot the running app during development. Not on Windows, where
     // the bridge does not yet compile against Tauri's `windows` crate (see `Cargo.toml`).
     #[cfg(all(debug_assertions, not(windows)))]
@@ -274,7 +291,10 @@ pub fn run() {
                     saver.finish(app);
                 }
             }
-            RunEvent::Exit => saver.finish(app),
+            RunEvent::Exit => {
+                integrations::on_exit(app);
+                saver.finish(app);
+            }
             _ => {}
         });
 }

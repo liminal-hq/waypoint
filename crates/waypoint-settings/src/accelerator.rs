@@ -165,7 +165,9 @@ mod tests {
     fn refuses_empty_long_and_control_characters() {
         assert!(validate_accelerator("").is_err());
         assert!(validate_accelerator("   ").is_err());
-        assert!(validate_accelerator(&format!("Ctrl+{}", "a".repeat(ACCELERATOR_MAX_LEN))).is_err());
+        assert!(
+            validate_accelerator(&format!("Ctrl+{}", "a".repeat(ACCELERATOR_MAX_LEN))).is_err()
+        );
         assert!(validate_accelerator("Ctrl+Alt+W\n").is_err());
         assert!(validate_accelerator("Ctrl+\u{0}W").is_err());
     }
