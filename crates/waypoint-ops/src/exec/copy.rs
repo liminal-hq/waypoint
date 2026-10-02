@@ -73,6 +73,10 @@ impl CopyFile for SimpleCopy {
             }
         })();
         match result {
+            // `finish(false)` does not sync. That is enough for a duplicate, whose source stays where
+            // it is, so a crash costs only the copy. A copy that a move then follows by removing
+            // the source (a move across volumes) must sync first (`finish(true)`), or a crash could
+            // lose the only complete file.
             Ok(()) => match writer.finish(false) {
                 Ok(()) => Ok(copied),
                 Err(error) => {
