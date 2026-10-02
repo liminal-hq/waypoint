@@ -148,6 +148,17 @@ pub const PREVIEW_MAX_MB_MAX: u32 = 2048;
 /// The languages the app has a message catalogue for, as BCP 47 tags. `system` follows the OS.
 pub const SUPPORTED_LANGUAGES: [&str; 2] = ["en-CA", "fr-CA"];
 
+/// Developer-only pseudo-locales (accented and lengthened English, and a right-to-left mock) that
+/// prove the catalogue loader, text expansion and mirrored layout. Debug builds accept them; a
+/// release build treats one in a settings file as unknown, so it never reaches a person.
+pub const PSEUDO_LANGUAGES: [&str; 2] = ["en-XA", "ar-XB"];
+
+/// Whether this build has a catalogue for `language` (not `system`).
+pub fn language_available(language: &str) -> bool {
+    SUPPORTED_LANGUAGES.contains(&language)
+        || (cfg!(debug_assertions) && PSEUDO_LANGUAGES.contains(&language))
+}
+
 /// The longest a global shortcut's text may be.
 pub const SHORTCUT_MAX_LEN: usize = 64;
 
@@ -350,7 +361,7 @@ pub enum Direction {
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct LocaleSettings {
-    /// `system`, or one of `SUPPORTED_LANGUAGES`.
+    /// `system`, or one of `SUPPORTED_LANGUAGES` (or `PSEUDO_LANGUAGES` in a debug build).
     pub language: String,
     pub direction: Direction,
 }
@@ -490,9 +501,7 @@ impl Settings {
                 });
             }
         }
-        if self.locale.language != "system"
-            && !SUPPORTED_LANGUAGES.contains(&self.locale.language.as_str())
-        {
+        if self.locale.language != "system" && !language_available(&self.locale.language) {
             return Err(SettingsError::Invalid {
                 field: "locale.language",
                 reason: "not a language Waypoint has",
@@ -538,9 +547,7 @@ impl Settings {
         if matches!(&self.appearance.accent, AccentChoice::Custom { hex } if !is_hex_colour(hex)) {
             self.appearance.accent = AccentChoice::Ember;
         }
-        if self.locale.language != "system"
-            && !SUPPORTED_LANGUAGES.contains(&self.locale.language.as_str())
-        {
+        if self.locale.language != "system" && !language_available(&self.locale.language) {
             self.locale.language = "system".to_owned();
         }
         if self
@@ -743,6 +750,11 @@ mod tests {
         }
         assert!(edit(&|s| s.locale.language = "fr-CA".into()).is_ok());
         assert!(edit(&|s| s.locale.language = "de-DE".into()).is_err());
+        // The pseudo-locales are for developer builds, which is what the tests are.
+        assert_eq!(
+            edit(&|s| s.locale.language = "ar-XB".into()).is_ok(),
+            cfg!(debug_assertions)
+        );
         assert!(edit(&|s| s.integrations.global_shortcut = Some("Ctrl+Alt+W".into())).is_ok());
         assert!(edit(&|s| s.integrations.global_shortcut = Some("  ".into())).is_err());
         assert!(edit(&|s| s.integrations.global_shortcut = Some("x".repeat(65))).is_err());
