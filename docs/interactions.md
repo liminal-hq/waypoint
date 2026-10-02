@@ -201,28 +201,31 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 
 ## 9. Navigation, selection and errors
 
-| Input                     | Target                                | Result                                                                  |
-| ------------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
-| Right-click or long-press | Back, Forward                         | History list                                                            |
-| Ctrl+Shift+G              | Anywhere                              | Go to…                                                                  |
-| Ctrl+S                    | File view                             | Select by pattern                                                       |
-| Ctrl+I                    | File view                             | Invert selection                                                        |
-| Ctrl+D                    | Anywhere                              | Add the current folder to Favourites                                    |
-| Right-click               | List header                           | Columns                                                                 |
-| Right-click               | Sidebar Places, Favourites, servers   | Rename, move, remove                                                    |
-| Drag                      | Sidebar Places, Favourites rows       | Reorder                                                                 |
-| Drop folder               | Places or Favourites heading          | Add it                                                                  |
-| Right-click               | Tree node                             | Expand, new folder, add to Places                                       |
-| Menu                      | File → Copy To… / Move To…            | Destination dialog                                                      |
-| Menu                      | File → Open With → Other Application… | App chooser                                                             |
-| Menu or palette           | File → Open With…, Open With…         | App chooser listing every application, or the system's own for one file |
-| Click or Enter            | Sidebar Places → Overview             | Opens Overview in this tab (middle-click: a new tab beside it)          |
-| Palette                   | Open Overview                         | Opens Overview in the active tab                                        |
-| Click or Enter            | Overview → a volume's name            | Opens that volume in this tab                                           |
-| Click or Enter            | Overview → Measure                    | Measures that network volume, which is not measured by default          |
-| Click or Enter            | Overview → Unlock                     | Passphrase dialog, as in the sidebar's Devices                          |
-| Click or Enter            | Overview → Open Trash                 | Opens the Trash in this tab                                             |
-| Click or Enter            | Overview → Empty Trash                | The Trash's own confirmation, then empties it                           |
+| Input                     | Target                                 | Result                                                                         |
+| ------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| Right-click or long-press | Back, Forward                          | History list                                                                   |
+| Ctrl+Shift+G              | Anywhere                               | Go to…                                                                         |
+| Ctrl+S                    | File view                              | Select by pattern                                                              |
+| Ctrl+I                    | File view                              | Invert selection                                                               |
+| Ctrl+D                    | Anywhere                               | Add the current folder to Favourites                                           |
+| Right-click               | List header                            | Columns                                                                        |
+| Right-click               | Sidebar Places, Favourites, servers    | Rename, move, remove                                                           |
+| Drag                      | Sidebar Places, Favourites rows        | Reorder                                                                        |
+| Drop folder               | Places or Favourites heading           | Add it                                                                         |
+| Right-click               | Tree node                              | Expand, new folder, add to Places                                              |
+| Menu                      | File → Copy To… / Move To…             | Destination dialog                                                             |
+| Menu                      | File → Open With → Other Application…  | App chooser                                                                    |
+| Menu or palette           | File → Open With…, Open With…          | App chooser listing every application, or the system's own for one file        |
+| Click or Enter            | Sidebar Places → Overview              | Opens Overview in this tab (middle-click: a new tab beside it)                 |
+| Palette                   | Open Overview                          | Opens Overview in the active tab                                               |
+| Click or Enter            | Overview → a volume's name             | Opens that volume in this tab                                                  |
+| Click or Enter            | Overview → Measure                     | Measures that network volume, which is not measured by default                 |
+| Click or Enter            | Overview → Unlock                      | Passphrase dialog, as in the sidebar's Devices                                 |
+| Click or Enter            | Overview → Measure now                 | Measures Home (the button reads Cancel while it runs; Cancel stops it at once) |
+| Enter                     | Overview → a folder in Biggest folders | Opens that folder in this tab                                                  |
+| Click                     | Status bar → Measuring Home            | Shows Overview in the active tab; its × cancels the scan                       |
+| Click or Enter            | Overview → Open Trash                  | Opens the Trash in this tab                                                    |
+| Click or Enter            | Overview → Empty Trash                 | The Trash's own confirmation, then empties it                                  |
 
 ## 10. Operations and tools
 
