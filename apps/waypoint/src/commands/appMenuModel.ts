@@ -143,7 +143,7 @@ export function historyItems(
 }
 
 /**
- * The menu: File, Edit, View and Window, each only when it has something to offer. `views` is the
+ * The menu: File, Edit (Settings is its last section), View and Window, each only when it has something to offer. `views` is the
  * registry evaluated for the window (`evaluateCommands`).
  */
 export function appMenuItems(
@@ -176,6 +176,7 @@ export function appMenuItems(
 		].filter((item) => item.type !== 'submenu' || byId.get('undo')?.visible),
 		rows('cut', 'copy', 'paste', 'copyTo', 'moveTo', 'linkTo', 'addToShelf'),
 		rows('selectAll', 'invertSelection'),
+		rows('settings'),
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
@@ -186,7 +187,6 @@ export function appMenuItems(
 	const window = menuSections(
 		rows('duplicateTab', 'moveTabToNewWindow'),
 		rows('alwaysOnTop'),
-		rows('settings'),
 	);
 
 	const menus: Array<{ id: string; label: string; icon: ReactNode; items: MenuItem[] }> = [
