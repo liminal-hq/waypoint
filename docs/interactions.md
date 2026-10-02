@@ -31,7 +31,7 @@
 | F7 / Shift+F7             | New folder / new file                                                                                    |
 | Ctrl+Shift+D              | Duplicate                                                                                                |
 | Menu key / Shift+F10      | On a tab: its menu (Move to New Window, Move to Window ▸)                                                |
-| Ctrl+K or Ctrl+Shift+P    | Command palette (commands, and the undo history)                                                         |
+| Ctrl+Shift+P              | Command palette (commands, and the undo history); works from a text field too                            |
 | Ctrl+L                    | Edit path                                                                                                |
 | Ctrl+F                    | Search · `/` inline filter                                                                               |
 | F2                        | Rename · Ctrl+F2 batch rename                                                                            |
