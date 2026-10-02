@@ -7,6 +7,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod checksum;
 pub mod exec;
 mod journal;
 mod model;
@@ -21,6 +22,9 @@ pub mod testing;
 mod traits;
 mod verify;
 
+pub use checksum::{
+    checksum_reader, run_checksum, ChecksumEvent, REPORT_EVERY as CHECKSUM_REPORT_EVERY,
+};
 pub use exec::{
     action_for, remove_all, Action, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport,
     ExecSink, Executor, NullSink, Resolutions, RunOptions, SimpleCopy, TransferReport, CHUNK_BYTES,
