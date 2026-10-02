@@ -25,6 +25,10 @@ import { useTabExtras } from '../tabs/tabExtras';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import type { TrashActions } from '../trash/trashJobs';
 import { useWindowActions } from '../tabs/windowActions';
+import { useVfsClient } from '../browse/VfsClientContext';
+import { openWithChooserStore } from '../openWith/openWithChooserStore';
+import { openWithAbilities, useOpenWithService } from '../openWith/OpenWithContext';
+import { openWithCommandAvailable, runOpenWithCommand } from '../openWith/openWithCommand';
 import { useCommandBridge } from './commandBridge';
 import { startCommandFeed, type CommandFeed } from './commandFeed';
 
@@ -59,6 +63,8 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 	const settings = useSettingsHandle();
 	const ui = useSettings((value) => value.ui);
 	const tabsApi = useTabsApi();
+	const openWith = useOpenWithService();
+	const vfs = useVfsClient();
 	const places = usePlaces(usePlacesClient());
 	const feed = useRef<CommandFeed | null>(null);
 
@@ -72,6 +78,8 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		settings,
 		tabsApi,
 		places,
+		openWith,
+		vfs,
 	});
 	latest.current = {
 		...sources,
@@ -83,6 +91,8 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		settings,
 		tabsApi,
 		places,
+		openWith,
+		vfs,
 	};
 
 	const { commands, clipboard, view, sidebar, subscribePanes } = sources;
@@ -131,6 +141,13 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		});
 	}, [bridge, placeKey]);
 
+	// Open With… is offered when the plugin can list applications or has a chooser of its own.
+	const openWithStatus = openWith?.status ?? null;
+	const openWithPossible = openWithCommandAvailable(openWithAbilities(openWithStatus));
+	useEffect(() => {
+		bridge.patchFacts({ openWith: openWithPossible });
+	}, [bridge, openWithPossible]);
+
 	useEffect(() => {
 		const activeId = () => latest.current.snapshot?.active ?? null;
 		const activeTab = () => latest.current.snapshot?.tabs.find((tab) => tab.id === activeId());
@@ -161,6 +178,16 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 			batchRename: () => {
 				const selection = batchRenameSelection(latest.current.activeSession());
 				if (selection) openBatchRename(selection);
+			},
+			openWith: () => {
+				const { openWith: service, vfs: files } = latest.current;
+				if (!service) return;
+				void runOpenWithCommand(latest.current.activeSession(), {
+					client: service.client,
+					status: service.status,
+					vfs: files,
+					chooser: openWithChooserStore,
+				});
 			},
 			selectAll: () => latest.current.activeSession()?.store.getState().selectAll(),
 			invertSelection: () => latest.current.activeSession()?.store.getState().invertSelection(),

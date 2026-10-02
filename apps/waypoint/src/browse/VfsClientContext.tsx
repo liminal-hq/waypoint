@@ -23,3 +23,8 @@ export function useVfsClient(): VfsClient {
 	if (!client) throw new Error('useVfsClient must be used inside a VfsClientProvider');
 	return client;
 }
+
+/** The file system client, or `null` outside a provider (a menu on its own, with no window around it). */
+export function useOptionalVfsClient(): VfsClient | null {
+	return useContext(VfsClientContext);
+}

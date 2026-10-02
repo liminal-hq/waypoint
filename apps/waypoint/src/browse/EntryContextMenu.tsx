@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
-import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
+import type { MenuItem, SubmenuMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { t } from '../i18n/messages';
+import { useOpenWithMenu } from '../openWith/useOpenWithMenu';
 import { useShelfActions } from '../shelf/ShelfContext';
 import { AddToShelfIcon } from '../shelf/ShelfIcons';
 import type { ListingSession } from './useListingSession';
@@ -290,12 +291,14 @@ function writeItems(
 /**
  * The entry menu's items; Open in New Tab and Add to Favourites are for folders only. `commands`
  * adds the write items the listing allows, and `batchRename` (more than one entry is selected)
- * adds Rename Selected… after Rename.
+ * adds Rename Selected… after Rename. `openWith` is the Open With ▸ submenu, which ends the first
+ * section when the system can offer it.
  */
 export function entryMenuItems(
 	entry: Entry,
 	commands?: Partial<Record<FileCommandId, CommandState>>,
 	batchRename = false,
+	openWith: SubmenuMenuItem | null = null,
 ): MenuItem[] {
 	return [
 		{
@@ -321,6 +324,7 @@ export function entryMenuItems(
 					} as const,
 				]
 			: []),
+		...(openWith ? [openWith] : []),
 		{ type: 'separator' },
 		...(commands ? clipboardItems(entry, commands) : []),
 		...(isFolder(entry)
@@ -360,7 +364,8 @@ export function EntryContextMenu({
 	session,
 }: EntryContextMenuProps) {
 	const shelf = useShelfActions();
-	const items = entryMenuItems(entry, commands, batchRename);
+	const openWith = useOpenWithMenu({ session, entry, handle });
+	const items = entryMenuItems(entry, commands, batchRename, openWith.item);
 	return (
 		<ContextMenu
 			items={items}
@@ -370,6 +375,7 @@ export function EntryContextMenu({
 			onClose={onClose}
 			onSelect={(item) => {
 				onClose();
+				if (openWith.select(item.id)) return;
 				if (item.id === 'open') onOpen(entry, handle);
 				else if (item.id === 'openInNewTab') onOpenInNewTab(entry, handle);
 				else if (item.id === 'openInNewWindow') onOpenInNewTab(entry, handle, true);

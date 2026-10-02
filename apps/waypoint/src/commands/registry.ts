@@ -51,6 +51,7 @@ import {
 	WindowIcon,
 	CloseOthersIcon,
 } from '../icons/MenuIcons';
+import { OpenWithIcon } from '../openWith/OpenWithIcons';
 import { AddToShelfIcon, ShelfIcon } from '../shelf/ShelfIcons';
 import type { CommandActions, CommandFacts } from './commandEnv';
 import type { FileCommandId } from '../ops/fileCommands';
@@ -72,6 +73,7 @@ export const GROUP_ORDER: readonly CommandGroup[] = [
 export type CommandId =
 	| Exclude<FileCommandId, 'pasteInto'>
 	| 'batchRename'
+	| 'openWith'
 	// The Trash
 	| 'restoreFromTrash'
 	| 'deleteFromTrash'
@@ -313,6 +315,20 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'file',
 		when: fileCommand('rename', () => 'cmd.reason.nothingFocused'),
 		run: (a) => a.files?.rename(),
+	},
+	{
+		id: 'openWith',
+		label: 'cmd.openWith',
+		icon: OpenWithIcon,
+		group: 'file',
+		// Where the plugin can do it, for files on this computer; it opens on the selection.
+		when: (f) =>
+			!f.listing || f.trash || !f.local || !f.openWith
+				? HIDDEN
+				: f.selected > 0
+					? SHOWN
+					: blocked('cmd.reason.nothingSelected'),
+		run: (a) => a.openWith(),
 	},
 	{
 		id: 'batchRename',

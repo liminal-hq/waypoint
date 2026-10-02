@@ -65,6 +65,7 @@ import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import { useWindowShortcuts } from '../tabs/windowActions';
 import { CloseGuardHost } from '../tabs/CloseGuardHost';
 import { FileDragProvider } from '../dnd/FileDragContext';
+import { OpenWithHost } from '../openWith/OpenWithHost';
 import { ShelfProvider } from '../shelf/ShelfContext';
 import { ShelfDock, ShelfToggle } from '../shelf/ShelfToggle';
 import { useFileCommandsHost } from '../ops/useFileCommandsHost';
@@ -467,6 +468,7 @@ function WorkspaceBody({
 								{commandDialog}
 								<BatchRenameHost api={batchRenameApi} announce={notify} />
 								<DestinationHost />
+								<OpenWithHost />
 								{trashDialogs}
 								{menu?.kind === 'background' && (
 									<BackgroundContextMenu

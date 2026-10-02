@@ -5,6 +5,7 @@
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { OpenWithClient } from '../openWith/openWithClient';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
@@ -41,6 +42,8 @@ export interface MainServices {
 	trash?: TrashClient;
 	/** The drives and volumes behind the sidebar's Devices section; without it the section is not shown. */
 	devices?: DevicesClient;
+	/** Open With: the default and other applications for a file; without it Open With is not offered. */
+	openWith?: OpenWithClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -57,6 +60,7 @@ export interface MainServicesDeps {
 	createNativeDndClient?(): NativeDndClient;
 	createTrashClient?(): TrashClient;
 	createDevicesClient?(): DevicesClient;
+	createOpenWithClient?(): OpenWithClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -85,6 +89,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		nativeDnd: deps.createNativeDndClient?.(),
 		trash: deps.createTrashClient?.(),
 		devices: deps.createDevicesClient?.(),
+		openWith: deps.createOpenWithClient?.(),
 		home,
 	};
 }
