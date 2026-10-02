@@ -12,10 +12,11 @@ use tauri_plugin_opener::OpenerExt;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
-    Entry, EntryDetails, EntryKind, Filter, FolderCheck, FolderSizeEvent, Listing, ListingEvent,
-    ListingHandle, ListingLayout, ListingOptions, ListingSnapshot, LocalProvider, LocationInfo,
-    Places, PlacesEnv, Provider, SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo,
-    TrashProvider, TrashSource, VolumeSpace,
+    DirScanCache, DirScanEvent, DirScanOptions, DirScanResult, Entry, EntryDetails, EntryKind,
+    Filter, FolderCheck, FolderSizeEvent, Listing, ListingEvent, ListingHandle, ListingLayout,
+    ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
+    SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo, TrashProvider, TrashSource,
+    VolumeSpace,
 };
 
 use crate::error::Error;
@@ -117,6 +118,49 @@ impl Vfs {
     }
 }
 
+impl Vfs {
+    /// Starts a directory-size scan of `root`, on a thread of its own at low priority (never on
+    /// the operations pool, A70), and returns the run's id at once. `sink` receives the events and
+    /// returns `false` when nobody is listening any more, which cancels the run; the run also
+    /// stops when `cancel_dir_scan` asks and when the window is destroyed. A scan that finishes is
+    /// remembered in `cache`. Exactly one of `done`, `cancelled` and `failed` ends the stream.
+    pub fn start_dir_scan(
+        &self,
+        window: &str,
+        root: Location,
+        options: DirScanOptions,
+        cache: Option<DirScanCache>,
+        sink: impl Fn(DirScanEvent) -> bool + Send + 'static,
+    ) -> Result<u64, VfsError> {
+        let (job, cancel) = self.size_jobs.start(window);
+        let (jobs, token) = (self.size_jobs.clone(), cancel.clone());
+        let spawned = std::thread::Builder::new()
+            .name("waypoint-dir-scan".to_owned())
+            .spawn(move || {
+                waypoint_vfs::lower_thread_priority();
+                waypoint_vfs::scan_dir_sizes(&root, options, &token, &mut |event| {
+                    if let (DirScanEvent::Done { result }, Some(cache)) = (&event, &cache) {
+                        if let Err(error) = cache.store(result) {
+                            log::warn!("{error:?}");
+                        }
+                    }
+                    if !sink(event) {
+                        cancel.cancel();
+                    }
+                });
+                jobs.finish(job);
+            });
+        if let Err(error) = spawned {
+            self.size_jobs.finish(job);
+            return Err(VfsError::Io {
+                message: format!("could not start the directory-size scan: {error}"),
+                location: None,
+            });
+        }
+        Ok(job)
+    }
+}
+
 impl Default for Vfs {
     fn default() -> Self {
         Self {
@@ -187,6 +231,7 @@ pub async fn get_status(state: State<'_, Vfs>) -> Result<PluginStatus, Error> {
         "places".to_owned(),
         "entry-details".to_owned(),
         "folder-size".to_owned(),
+        "dir-size-scan".to_owned(),
         "text-head".to_owned(),
         "preview-protocol".to_owned(),
     ];
@@ -494,6 +539,61 @@ pub async fn cancel_folder_size<R: Runtime>(
 ) -> Result<(), Error> {
     state.size_jobs.cancel(window.label(), job);
     Ok(())
+}
+
+/// Starts scanning the top-level folders of `location` for their sizes and returns the run's id.
+/// The events arrive on `on_event`: `progress` about every 100 ms, a `partial` result after each
+/// top-level folder, then one `done`, `cancelled` or `failed`. The scan is low priority on a
+/// thread of its own, stays on one volume, never follows a symlink and, on Windows, never
+/// downloads a cloud placeholder. A finished scan is cached; `cancel_dir_scan` stops one, and so
+/// does destroying the window.
+#[tauri::command]
+pub async fn scan_dir_sizes<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    location: Location,
+    options: Option<DirScanOptions>,
+    on_event: Channel<DirScanEvent>,
+) -> Result<u64, Error> {
+    let cache = window
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| DirScanCache::in_dir(&dir));
+    state
+        .start_dir_scan(
+            window.label(),
+            location,
+            options.unwrap_or_default(),
+            cache,
+            move |event| on_event.send(event).is_ok(),
+        )
+        .map_err(Error::from)
+}
+
+/// Stops one of this window's directory-size scans. A scan that has ended, or one that is not this
+/// window's, is not an error.
+#[tauri::command]
+pub async fn cancel_dir_scan<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    job: u64,
+) -> Result<(), Error> {
+    state.size_jobs.cancel(window.label(), job);
+    Ok(())
+}
+
+/// The last finished directory-size result for `location`, with the time it was measured, or
+/// `null` when there is none (or the cache is from another version of the app).
+#[tauri::command]
+pub async fn get_cached_dir_scan<R: Runtime>(
+    window: Window<R>,
+    location: Location,
+) -> Result<Option<DirScanResult>, Error> {
+    let Ok(dir) = window.path().app_data_dir() else {
+        return Ok(None);
+    };
+    blocking(move || DirScanCache::in_dir(&dir).load(&location)).await
 }
 
 /// The first bytes of a file of an open listing as text, at most `max` of them (and never more
