@@ -1,6 +1,6 @@
 .menu {
 	position: fixed;
-	left: var(--wp-menu-x);
+	left: var(--wp-menu-x); /* physical: placed at viewport coordinates */
 	top: var(--wp-menu-y);
 	z-index: var(--wp-z-menu);
 	box-sizing: border-box;

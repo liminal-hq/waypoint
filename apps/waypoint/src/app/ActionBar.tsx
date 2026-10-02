@@ -79,7 +79,7 @@ export function ActionBar() {
 		// Not laid out (hidden, or no layout engine): nothing to decide, show everything.
 		if (widths.every((width) => width === 0)) return;
 		const style = getComputedStyle(bar);
-		const available = bar.clientWidth - px(style.paddingLeft) - px(style.paddingRight);
+		const available = bar.clientWidth - px(style.paddingLeft) - px(style.paddingRight); // physical: the sum of both sides, so the direction does not matter
 		const more = moreRef.current?.offsetWidth || MORE_WIDTH_GUESS;
 		const count = fitCount(widths, available, px(style.columnGap), more);
 		setShown((previous) => (Math.min(previous, items.length) === count ? previous : count));
