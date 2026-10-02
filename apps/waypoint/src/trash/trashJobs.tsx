@@ -13,6 +13,7 @@ import type { JobKind } from '@liminal-hq/waypoint-protocol/generated/JobKind';
 import type { JobRequest } from '@liminal-hq/waypoint-protocol/generated/JobRequest';
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import {
 	createContext,
@@ -82,13 +83,29 @@ function rejectionText(error: unknown): string {
 
 type Verb = 'restore' | 'delete' | 'empty';
 
+/**
+ * The ids a selection names, written out when a question is put. A select-all is "everything
+ * except these", which the engine would resolve against the listing as it is when the job plans:
+ * items that another program trashed in the meantime would be deleted for good beyond the count the
+ * person confirmed. Written out, the job holds exactly the items the question counted.
+ */
+async function pinSelection(session: ListingSession): Promise<SelectionSpec> {
+	const selection = session.store.getState().selection;
+	if (selection.kind === 'some') return { kind: 'some', ids: [...selection.ids] };
+	const entries = await session.model.readRange(0, session.model.count);
+	return {
+		kind: 'some',
+		ids: entries.map((entry) => entry.id).filter((id) => !selection.ids.has(id)),
+	};
+}
+
 /** What a job was started to do, kept until it ends. */
 interface Tracked {
 	verb: Verb;
 }
 
 type Question =
-	| { kind: 'delete'; session: ListingSession; count: number }
+	| { kind: 'delete'; session: ListingSession; count: number; spec: SelectionSpec }
 	| { kind: 'empty'; count: number }
 	| { kind: 'conflicts'; job: JobId; conflicts: Conflict[] }
 	| { kind: 'parent'; job: JobId; folder: Location }
@@ -223,8 +240,18 @@ export function useTrashJobs(
 				if (count > 0) start('restore', request({ kind: 'restore' }, sources));
 			},
 			deletePermanently(session) {
-				const { count } = selection(session);
-				if (count > 0) setQuestion({ kind: 'delete', session, count });
+				if (selection(session).count === 0) return;
+				pinSelection(session).then(
+					(spec) => {
+						if (spec.ids.length > 0) {
+							setQuestion({ kind: 'delete', session, count: spec.ids.length, spec });
+						}
+					},
+					(error: unknown) => {
+						console.warn('could not read the selection', error);
+						notifyRef.current(tf('trash.failed.submit', { reason: rejectionText(error) }));
+					},
+				);
 			},
 			emptyTrash(count) {
 				if (count > 0) setQuestion({ kind: 'empty', count });
@@ -250,18 +277,11 @@ export function useTrashJobs(
 			onClose={() => setQuestion(null)}
 			onConfirmDelete={() => {
 				if (question?.kind !== 'delete') return;
-				const state = question.session.store.getState().selection;
+				const { session, spec } = question;
 				setQuestion(null);
 				start(
 					'delete',
-					request(
-						{ kind: 'delete' },
-						{
-							kind: 'selection',
-							handle: question.session.model.handle,
-							spec: toSelectionSpec(state),
-						},
-					),
+					request({ kind: 'delete' }, { kind: 'selection', handle: session.model.handle, spec }),
 				);
 			}}
 			onConfirmEmpty={() => {

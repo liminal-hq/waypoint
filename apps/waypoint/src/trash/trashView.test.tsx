@@ -49,7 +49,7 @@ async function setup(info: { count?: number; available?: boolean; reason?: strin
 	const places = new FakePlacesClient({ places: fakePlaces('/home/test') });
 	const h = await renderWorkspace(client, undefined, places, { sidebar: true, trash });
 	await screen.findByRole('button', { name: /^Home/ });
-	return { ...h, trash };
+	return { ...h, trash, tree: client };
 }
 
 const placesGroup = () =>
@@ -329,10 +329,33 @@ describe('the actions on the Trash', () => {
 		expect(within(dialog).getByText(/3 items will be deleted permanently/)).toBeInTheDocument();
 		fireEvent.click(within(dialog).getByRole('button', { name: 'Delete Permanently' }));
 		await waitFor(() => expect(h.trash.jobs).toHaveLength(1));
-		expect(h.trash.last.request.sources).toMatchObject({
-			kind: 'selection',
-			spec: { kind: 'allExcept', ids: [] },
-		});
+		// The ids are written out, not left as "everything", so the job is exactly what was counted.
+		const { sources } = h.trash.last.request;
+		expect(sources).toMatchObject({ kind: 'selection', spec: { kind: 'some' } });
+		expect(
+			sources.kind === 'selection' ? [...sources.spec.ids].sort((a, b) => a - b) : null,
+		).toEqual([1, 2, 3]);
+	});
+
+	it('deletes only what the question counted, not what the Trash gained while it was open', async () => {
+		const h = await setup();
+		await openTrash(h);
+		const list = screen.getByRole('listbox', { name: 'Files' });
+		fireEvent.click(row(/report\.pdf/));
+		fireEvent.keyDown(list, { key: 'a', ctrlKey: true });
+		fireEvent.click(button('Delete Permanently'));
+		const dialog = await screen.findByRole('dialog', { name: 'Delete permanently?' });
+		expect(within(dialog).getByText(/3 items will be deleted permanently/)).toBeInTheDocument();
+		// Another program trashes something while the person reads the question.
+		act(() => h.tree.addEntries(TRASH_LOCATION, [trashed(4, 'new arrival.txt', 0)]));
+		await screen.findByRole('option', { name: /new arrival/ });
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Delete Permanently' }));
+		await waitFor(() => expect(h.trash.jobs).toHaveLength(1));
+		const { sources } = h.trash.last.request;
+		expect(sources).toMatchObject({ kind: 'selection', spec: { kind: 'some' } });
+		expect(
+			sources.kind === 'selection' ? [...sources.spec.ids].sort((a, b) => a - b) : null,
+		).toEqual([1, 2, 3]);
 	});
 
 	it('empties the Trash after a confirmation', async () => {
