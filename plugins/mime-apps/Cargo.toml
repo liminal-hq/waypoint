@@ -1,0 +1,58 @@
+[package]
+name = "tauri-plugin-mime-apps"
+version = "0.1.0"
+description = "Tauri plugin for file types and their applications: the type of a file, the apps that can open it, Open With, the default handler and app icons, on gio (Linux) and the shell's association handlers (Windows)"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-mime-apps"
+keywords = ["tauri", "plugin", "mime", "open-with", "default-apps"]
+categories = ["api-bindings", "filesystem"]
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Lists the handlers of an extension with SHAssocEnumHandlers, opens through IAssocHandler, asks with SHOpenWithDialog and reads the default through AssocQueryStringW, all on single-threaded-apartment threads; cross-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the plugin's ignored `live_handlers_windows` test. Changing the default is reported unavailable because Windows does not allow a silent change, and app icons are not served" }
+linux = { level = "full", notes = "Lists and opens through gio's AppInfo, which follows mimeapps.list and the desktop files; in a Flatpak sandbox it opens through the OpenURI portal and reports the list and the default as unavailable" }
+macos = { level = "none", notes = "Reports every feature unavailable" }
+android = { level = "none", notes = "Desktop only" }
+ios = { level = "none", notes = "Desktop only" }
+
+[lib]
+name = "tauri_plugin_mime_apps"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt"] }
+log = { workspace = true }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The versions Tauri already resolves, so nothing new is built.
+gio = "0.18"
+gtk = "0.18"
+# The same version and features as the other portal users, plus the OpenURI portal.
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "open_uri"] }
+
+# Matches the version Tauri resolves, so the types line up.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }

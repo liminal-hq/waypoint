@@ -15,6 +15,7 @@ members = [
   "plugins/trash",
   "plugins/volumes",
   "plugins/window-effects",
+  "plugins/mime-apps",
   "plugins/window-manager",
   "plugins/window-tearoff",
   "plugins/waypoint-ops",

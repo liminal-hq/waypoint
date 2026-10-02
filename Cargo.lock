@@ -4290,6 +4290,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-mime-apps"
+version = "0.1.0"
+dependencies = [
+ "ashpd",
+ "gio",
+ "gtk",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "tauri-plugin-native-dnd"
 version = "0.1.0"
 dependencies = [
@@ -5429,6 +5448,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-log",
  "tauri-plugin-mcp-bridge",
+ "tauri-plugin-mime-apps",
  "tauri-plugin-native-dnd",
  "tauri-plugin-opener",
  "tauri-plugin-os",
