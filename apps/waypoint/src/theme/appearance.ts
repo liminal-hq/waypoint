@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
+import { resolveLocale } from '../i18n/locales';
 import { resolveAccent } from './accent';
 import { transparencyState, type TransparencyOffReason } from './transparency';
 
@@ -112,6 +113,8 @@ export function resolveAppearance(
 	options: {
 		touchPointer: boolean;
 		systemLanguage: string;
+		/** Whether the developer-only pseudo-locales exist (default: a developer build). */
+		developer?: boolean;
 		hasFinePointer: boolean;
 		/** Whether the window is in front (default true), which "Solid when unfocused" depends on. */
 		focused?: boolean;
@@ -132,7 +135,12 @@ export function resolveAppearance(
 	const touch =
 		accessibility.touchMode === 'on' ||
 		(accessibility.touchMode === 'auto' && (options.touchPointer || !options.hasFinePointer));
-	const language = locale.language === 'system' ? options.systemLanguage : locale.language;
+	// The language of the text in force, which is the catalogue in use, not the OS language itself.
+	const language = resolveLocale(
+		locale.language,
+		options.systemLanguage,
+		options.developer ?? import.meta.env.DEV,
+	).locale;
 	const brandAccent = appearance.accent.kind === 'ember';
 	const translucent = transparencyState({
 		enabled: transparency.enabled,

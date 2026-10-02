@@ -14,6 +14,7 @@ import { ShelfScreen } from './app/ShelfScreen';
 import { TearGhostScreen } from './app/TearGhostScreen';
 import { windowKindFromLabel } from './app/windowKind';
 import { MainSettings } from './settings/MainSettings';
+import { LocaleRoot } from './i18n/LocaleRoot';
 import { initLogger } from './services/logger';
 import { applyPlatform } from './theme/platform';
 import { ThemeRoot } from './theme/ThemeRoot';
@@ -66,7 +67,9 @@ applyPlatform();
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		<ThemeRoot>
-			<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
+			<LocaleRoot rebuild={windowKindFromLabel(label) !== 'Settings'}>
+				<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
+			</LocaleRoot>
 		</ThemeRoot>
 	</StrictMode>,
 );
