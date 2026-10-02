@@ -14,7 +14,7 @@ import {
 	settle,
 	type NativeHarness,
 } from '../test/nativeDragHarness';
-import { connectNativeDnd } from './nativeDndHost';
+import { connectNativeDnd, WINDOW_DROP_ATTRIBUTE } from './nativeDndHost';
 
 afterEach(() => {
 	disposeHarnesses();
@@ -82,6 +82,31 @@ describe('files dragged in', () => {
 		client.leave();
 		expect(row.hasAttribute('data-drop-over')).toBe(false);
 		expect(h.phase()).not.toBe('dragging');
+	});
+
+	it('marks the window as the drop target while files are held over it, and clears it on leave and drop', async () => {
+		const h = await nativeHarness();
+		const client = new FakeNativeDndClient();
+		await connect(client, h);
+		const marked = () => document.documentElement.hasAttribute(WINDOW_DROP_ATTRIBUTE);
+		expect(marked()).toBe(false);
+		client.enter(FILES, { x: 100, y: 100 });
+		expect(marked()).toBe(true);
+		client.leave();
+		expect(marked()).toBe(false);
+		client.enter(FILES, { x: 100, y: 100 });
+		expect(marked()).toBe(true);
+		client.drop(FILES, { x: 140, y: 100 });
+		await settle();
+		expect(marked()).toBe(false);
+	});
+
+	it('does not mark the window for a drag of something that is not files', async () => {
+		const h = await nativeHarness();
+		const client = new FakeNativeDndClient();
+		await connect(client, h);
+		client.enter([], { x: 100, y: 100 });
+		expect(document.documentElement.hasAttribute(WINDOW_DROP_ATTRIBUTE)).toBe(false);
 	});
 
 	it('begins the drag at a drop that was not entered first', async () => {

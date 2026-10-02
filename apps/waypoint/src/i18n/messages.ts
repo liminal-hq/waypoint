@@ -20,6 +20,7 @@ export const enMessages = {
 	'window.properties.description': 'File properties — coming soon.',
 	'window.ops.title': 'Waypoint — Operations',
 	'window.shelf.title': 'Waypoint — Shelf',
+	'window.shelf.dropHint': 'Drop to add to the Shelf',
 	'window.shelf.startFailed': 'Waypoint could not start the Shelf window.',
 	'window.tearGhost.title': 'Waypoint — Tab preview',
 
