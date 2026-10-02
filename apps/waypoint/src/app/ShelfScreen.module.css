@@ -7,6 +7,7 @@
 
 /* The Shelf panel is the window's whole content, so it takes the room the title bar leaves. */
 .content {
+	position: relative;
 	display: flex;
 	flex: 1;
 	flex-direction: column;
@@ -29,4 +30,48 @@
 	clip-path: inset(50%);
 	white-space: nowrap;
 	border: 0;
+}
+
+/*
+ * While files from another window are held over the Shelf window, the window itself is the target:
+ * an accent edge round all of it and a hint on top, in the same colours as the other drop targets.
+ * The edge is solid, not colour alone, and a reduced-motion preference gets no fade.
+ */
+.dropCue {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+	outline: 3px solid var(--wp-drop-ok-outline);
+	outline-offset: -3px;
+	background: var(--wp-drop-ok-fill);
+}
+
+:global(:root[data-window-drop]) .dropCue {
+	display: flex;
+	animation: shelf-drop-cue 120ms ease-out;
+}
+
+.dropHint {
+	padding: 6px 12px;
+	color: var(--wp-text-primary);
+	background: var(--wp-bg-window);
+	border: 1px solid var(--wp-drop-ok-outline);
+	border-radius: 999px;
+	font-size: 13px;
+}
+
+@keyframes shelf-drop-cue {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:global(:root[data-window-drop]) .dropCue {
+		animation: none;
+	}
 }

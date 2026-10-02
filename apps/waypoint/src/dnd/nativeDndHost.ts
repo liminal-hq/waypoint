@@ -15,6 +15,15 @@ import { NO_MODIFIERS, type DropModifiers } from './dropAction';
 import type { FileDrag, NativeFeed } from './fileDrag';
 import { droppedFiles } from './nativeDropModel';
 
+/**
+ * Set on the root element while files from outside this window are held over it, so a window that
+ * is itself the drop target (the Shelf window) can show it with a cue around the whole window.
+ */
+export const WINDOW_DROP_ATTRIBUTE = 'data-window-drop';
+
+const rootElement = (): HTMLElement | null =>
+	typeof document === 'undefined' ? null : document.documentElement;
+
 export interface NativeDndHostDeps {
 	client: NativeDndClient;
 	drag: FileDrag;
@@ -67,6 +76,7 @@ export function connectNativeDnd(deps: NativeDndHostDeps): () => void {
 					if (!mine(event.window)) return;
 					feed?.leave();
 					feed = begin(event);
+					if (feed) rootElement()?.setAttribute(WINDOW_DROP_ATTRIBUTE, '');
 				}),
 				client.onOver((event) => {
 					if (!mine(event.window)) return;
@@ -76,9 +86,11 @@ export function connectNativeDnd(deps: NativeDndHostDeps): () => void {
 					if (!mine(event.window)) return;
 					feed?.leave();
 					feed = null;
+					rootElement()?.removeAttribute(WINDOW_DROP_ATTRIBUTE);
 				}),
 				client.onDrop((event) => {
 					if (!mine(event.window)) return;
+					rootElement()?.removeAttribute(WINDOW_DROP_ATTRIBUTE);
 					// Some platforms drop without having entered: the drag begins where it is released.
 					const active = feed ?? begin(event);
 					feed = null;
@@ -93,6 +105,7 @@ export function connectNativeDnd(deps: NativeDndHostDeps): () => void {
 		stopped = true;
 		feed?.leave();
 		feed = null;
+		rootElement()?.removeAttribute(WINDOW_DROP_ATTRIBUTE);
 		for (const stop of stops.splice(0)) stop();
 	};
 }

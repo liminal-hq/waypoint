@@ -176,6 +176,10 @@ export function ShelfScreen({ services }: { services?: ShelfScreenServices }) {
 				)}
 				{!started && <AppTitleBar title={t('window.shelf.title')} />}
 				<main className={styles.content}>
+					{/* Shown while files from another window are held over this one: the whole window is the target. */}
+					<div className={styles.dropCue} aria-hidden="true">
+						<span className={styles.dropHint}>{t('window.shelf.dropHint')}</span>
+					</div>
 					{failure !== null && (
 						<p role="alert" className={styles.failure}>
 							{t('window.shelf.startFailed')} <span data-selectable="">{failure}</span>
