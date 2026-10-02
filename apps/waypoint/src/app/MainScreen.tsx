@@ -28,6 +28,7 @@ import { TabsProvider } from '../tabs/TabsContext';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
 import { CommandPaletteHost } from '../commands/CommandPaletteHost';
 import { AppMenu } from './AppMenu';
+import { AppMenuBar } from './AppMenuBar';
 import { AppTitleBar } from './AppTitleBar';
 import { startMainServices, type MainServices } from './mainServices';
 import styles from './MainScreen.module.css';
@@ -80,6 +81,7 @@ type Startup =
 
 export function MainScreen() {
 	const appName = useSettings((value) => value.ui.appNameInTitle);
+	const menuBar = useSettings((value) => value.ui.menuBar);
 	// What the menu, the Action bar and the keys' commands read: the workspace and the window publish into it.
 	const [bridge] = useState(createCommandBridge);
 	const [startup, setStartup] = useState<Startup>({ state: 'starting' });
@@ -104,8 +106,9 @@ export function MainScreen() {
 				<WindowCommands />
 				<AppTitleBar
 					title={t(appName ? 'window.main.titleWithApp' : 'window.main.title')}
-					start={<AppMenu />}
+					start={<AppMenu menuBar={menuBar} />}
 				/>
+				{menuBar && <AppMenuBar />}
 				{startup.state === 'failed' ? (
 					<main className={styles.content}>
 						<p role="alert" className={styles.failure}>
