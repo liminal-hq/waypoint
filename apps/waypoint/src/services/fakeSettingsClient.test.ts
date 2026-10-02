@@ -54,3 +54,94 @@ describe('createFakeSettingsClient', () => {
 		expect(heard).not.toHaveBeenCalled();
 	});
 });
+
+describe('the milestone 5 sections', () => {
+	it('start at the documented defaults, every integration off', async () => {
+		const { settings } = await createFakeSettingsClient().snapshot();
+		expect(settings.appearance).toEqual({
+			mode: 'system',
+			themeSource: 'liminal',
+			accent: { kind: 'ember' },
+			density: 'comfortable',
+			iconStyle: 'regular',
+		});
+		expect(settings.transparency.enabled).toBe(false);
+		expect(settings.accessibility.textSize).toBe(100);
+		expect(settings.locale.language).toBe('system');
+		expect(settings.integrations).toEqual({
+			notifications: false,
+			launcherProgress: false,
+			preventSleep: false,
+			globalShortcut: null,
+		});
+	});
+
+	it('refuses what Rust refuses, naming the field', async () => {
+		const fake = createFakeSettingsClient();
+		const bad: [Settings, string][] = [
+			[
+				{ ...DEFAULT_SETTINGS, transparency: { ...DEFAULT_SETTINGS.transparency, opacity: 39 } },
+				'transparency.opacity',
+			],
+			[
+				{
+					...DEFAULT_SETTINGS,
+					transparency: { ...DEFAULT_SETTINGS.transparency, menuOpacity: 59 },
+				},
+				'transparency.menuOpacity',
+			],
+			[
+				{ ...DEFAULT_SETTINGS, previews: { ...DEFAULT_SETTINGS.previews, maxFileMb: 0 } },
+				'previews.maxFileMb',
+			],
+			[
+				{
+					...DEFAULT_SETTINGS,
+					accessibility: { ...DEFAULT_SETTINGS.accessibility, textSize: 110 },
+				},
+				'accessibility.textSize',
+			],
+			[
+				{
+					...DEFAULT_SETTINGS,
+					appearance: { ...DEFAULT_SETTINGS.appearance, accent: { kind: 'custom', hex: 'orange' } },
+				},
+				'appearance.accent',
+			],
+			[
+				{ ...DEFAULT_SETTINGS, locale: { ...DEFAULT_SETTINGS.locale, language: 'de-DE' } },
+				'locale.language',
+			],
+			[
+				{
+					...DEFAULT_SETTINGS,
+					integrations: { ...DEFAULT_SETTINGS.integrations, globalShortcut: ' ' },
+				},
+				'integrations.globalShortcut',
+			],
+		];
+		for (const [settings, field] of bad) {
+			await expect(fake.set(settings)).rejects.toMatchObject({ kind: 'invalid', field });
+		}
+		expect((await fake.snapshot()).revision).toBe(0);
+	});
+
+	it('accepts the edges of each range and the offered choices', async () => {
+		const fake = createFakeSettingsClient();
+		const ok: Settings = {
+			...DEFAULT_SETTINGS,
+			appearance: { ...DEFAULT_SETTINGS.appearance, accent: { kind: 'custom', hex: '#f97316' } },
+			transparency: {
+				...DEFAULT_SETTINGS.transparency,
+				enabled: true,
+				opacity: 40,
+				menuOpacity: 60,
+			},
+			accessibility: { ...DEFAULT_SETTINGS.accessibility, textSize: 130 },
+			locale: { language: 'fr-CA', direction: 'ltr' },
+			previews: { ...DEFAULT_SETTINGS.previews, maxFileMb: 2048 },
+			integrations: { ...DEFAULT_SETTINGS.integrations, globalShortcut: 'Ctrl+Alt+W' },
+		};
+		expect((await fake.set(ok)).revision).toBe(1);
+	});
+});
