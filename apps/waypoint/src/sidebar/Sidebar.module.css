@@ -203,11 +203,6 @@
 	white-space: nowrap;
 }
 
-[dir='rtl'] .headingChevron,
-[dir='rtl'] .twisty {
-	scale: -1 1;
-}
-
 .viewSwitch {
 	display: flex;
 	flex: none;

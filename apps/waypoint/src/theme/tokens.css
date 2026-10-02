@@ -298,6 +298,12 @@ body {
 	cursor: default;
 }
 
+/* A glyph that points along the line of reading (back, forward, a chevron, undo) mirrors in a
+   right-to-left layout; `directional={false}` keeps one that means a physical side. */
+[dir='rtl'] svg[data-directional] {
+	scale: -1 1;
+}
+
 /* What a person may need to copy or edit stays selectable: editable fields, error messages (role
    alert), and anything that opts in with `data-selectable`. */
 input,

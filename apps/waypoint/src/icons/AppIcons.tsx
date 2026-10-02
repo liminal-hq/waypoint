@@ -5,11 +5,24 @@
 
 import { useId, type ReactNode, type SVGProps } from 'react';
 
-export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
+export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
+	/** Overrides whether the glyph mirrors in a right-to-left layout; each directional glyph sets it. */
+	directional?: boolean;
+};
 
-export function Glyph({ children, ...rest }: IconProps & { children: ReactNode }) {
+/**
+ * A glyph on the 16 px grid. A directional one (an arrow, a chevron, back and forward, undo and
+ * redo) is marked `data-directional`, and the base styles flip it under `dir=rtl`. One that stands
+ * for a physical direction (scrolling a strip to its left) opts out with `directional={false}`.
+ */
+export function Glyph({
+	children,
+	directional,
+	...rest
+}: IconProps & { children: ReactNode; directional?: boolean }) {
 	return (
 		<svg
+			data-directional={directional ? '' : undefined}
 			width={16}
 			height={16}
 			viewBox="0 0 16 16"
@@ -28,13 +41,13 @@ export function Glyph({ children, ...rest }: IconProps & { children: ReactNode }
 }
 
 export const BackIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M13 8H3.5M7.5 3.5L3 8l4.5 4.5" />
 	</Glyph>
 );
 
 export const ForwardIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M3 8h9.5M8.5 3.5L13 8l-4.5 4.5" />
 	</Glyph>
 );
@@ -64,7 +77,7 @@ export const ChevronLeftIcon = (props: IconProps) => (
 );
 
 export const ChevronRightSmallIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M6 3.5L10.5 8 6 12.5" />
 	</Glyph>
 );
@@ -97,7 +110,7 @@ export const HomeIcon = (props: IconProps) => (
 );
 
 export const SidebarIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<rect x="2" y="3" width="12" height="10" rx="1.5" />
 		<path d="M6 3v10" />
 	</Glyph>

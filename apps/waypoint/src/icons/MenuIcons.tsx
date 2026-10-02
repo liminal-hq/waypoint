@@ -229,7 +229,7 @@ export const ResetIcon = (props: IconProps) => (
 );
 
 export const UndoIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M5.5 3L2.5 6l3 3M2.5 6h7a3.5 3.5 0 0 1 0 7H6" />
 	</Glyph>
 );
@@ -242,13 +242,13 @@ export const CloseOthersIcon = (props: IconProps) => (
 );
 
 export const CloseToRightIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M2.5 8h7M7 5.5L9.5 8 7 10.5M13 3v10" />
 	</Glyph>
 );
 
 export const RedoIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M10.5 3l3 3-3 3M13.5 6h-7a3.5 3.5 0 0 0 0 7H10" />
 	</Glyph>
 );
@@ -294,13 +294,13 @@ export const PasteIcon = (props: IconProps) => (
 );
 
 export const CopyToIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v1M6.5 11.5h6.5M10.5 9l2.5 2.5-2.5 2.5" />
 	</Glyph>
 );
 
 export const MoveToIcon = (props: IconProps) => (
-	<Glyph {...props}>
+	<Glyph directional {...props}>
 		<path d="M2 12.5V4.5a1 1 0 0 1 1-1h3l1 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H9M2 9.5h6.5M6 7l2.5 2.5L6 12" />
 	</Glyph>
 );
