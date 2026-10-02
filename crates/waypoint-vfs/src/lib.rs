@@ -6,6 +6,8 @@
 
 mod cancel;
 mod details;
+mod dirscan;
+mod dirscan_cache;
 mod error;
 mod group;
 mod icon;
@@ -38,6 +40,8 @@ mod write;
 
 pub use cancel::CancelToken;
 pub use details::*;
+pub use dirscan::*;
+pub use dirscan_cache::{DirScanCache, CACHE_FILE, CACHE_MAX_ROOTS, CACHE_MAX_ROWS, CACHE_VERSION};
 pub use error::{from_io, from_io_pair, InjectedError};
 pub use icon::group_for;
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};

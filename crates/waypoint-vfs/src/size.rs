@@ -98,96 +98,177 @@ fn walk_local(
 ) -> Result<FolderSizeRun, VfsError> {
     let location = path.to_location();
     let root = file_path(path)?.as_path().to_path_buf();
-    // The root may be a link to a folder: the person asked about what it shows. Everything below
-    // is looked at without following.
-    let root_meta = fs::metadata(&root).map_err(|e| from_io(&e, &location))?;
-    if !root_meta.is_dir() {
-        return Err(VfsError::NotADirectory { location });
-    }
-    #[cfg(unix)]
-    let root_dev = std::os::unix::fs::MetadataExt::dev(&root_meta);
-    #[cfg(unix)]
-    let mut seen_links = std::collections::HashSet::new();
+    let root_meta = open_root(&root, &location)?;
+    let mut walker = LocalWalker::new(&root_meta, cancel, report, report_every);
+    let cancelled = walker
+        .walk(root)
+        .map_err(|error| from_io(&error, &location))?;
+    Ok(walker.finish(cancelled))
+}
 
-    let mut counter = Counter {
-        totals: FolderSizeTotals {
-            allocated_bytes: cfg!(unix).then_some(0),
-            ..FolderSizeTotals::default()
-        },
-        cancel,
-        report,
-        report_every,
-        last_report: Instant::now(),
-        since_check: 0,
-    };
-    let mut pending: Vec<PathBuf> = vec![root];
-    let mut first = true;
-    while let Some(folder) = pending.pop() {
-        let entries = match fs::read_dir(&folder) {
-            Ok(entries) => entries,
-            Err(error) if first => return Err(from_io(&error, &location)),
-            Err(_) => {
-                counter.totals.unreadable += 1;
-                continue;
-            }
+/// Looks at the root of a walk. It may be a link to a folder: the person asked about what it
+/// shows. Everything below it is looked at without following.
+pub(crate) fn open_root(
+    root: &std::path::Path,
+    location: &waypoint_protocol::Location,
+) -> Result<fs::Metadata, VfsError> {
+    let root_meta = fs::metadata(root).map_err(|e| from_io(&e, location))?;
+    if !root_meta.is_dir() {
+        return Err(VfsError::NotADirectory {
+            location: location.clone(),
+        });
+    }
+    Ok(root_meta)
+}
+
+/// What `LocalWalker::visit` decided about one directory entry.
+pub(crate) enum Visit {
+    /// Counted (or passed over); there is nothing to enter.
+    Done,
+    /// A folder on the same volume to walk into. It is already counted as a folder.
+    Enter(PathBuf),
+}
+
+/// The local walk's primitives: how one entry is counted, which folders are entered, and the state
+/// that makes a hard link count once across everything this walker visits. The folder size and the
+/// directory-size scan are both built on it.
+pub(crate) struct LocalWalker<'a> {
+    counter: Counter<'a>,
+    #[cfg(unix)]
+    root_dev: u64,
+    #[cfg(unix)]
+    seen_links: std::collections::HashSet<(u64, u64)>,
+}
+
+impl<'a> LocalWalker<'a> {
+    pub(crate) fn new(
+        root_meta: &fs::Metadata,
+        cancel: &'a CancelToken,
+        report: &'a mut dyn FnMut(&FolderSizeTotals),
+        report_every: Duration,
+    ) -> Self {
+        #[cfg(not(unix))]
+        let _ = root_meta;
+        Self {
+            counter: Counter {
+                totals: FolderSizeTotals {
+                    allocated_bytes: cfg!(unix).then_some(0),
+                    ..FolderSizeTotals::default()
+                },
+                cancel,
+                report,
+                report_every,
+                last_report: Instant::now(),
+                since_check: 0,
+            },
+            #[cfg(unix)]
+            root_dev: std::os::unix::fs::MetadataExt::dev(root_meta),
+            #[cfg(unix)]
+            seen_links: std::collections::HashSet::new(),
+        }
+    }
+
+    /// What has been counted so far.
+    pub(crate) fn totals(&self) -> &FolderSizeTotals {
+        &self.counter.totals
+    }
+
+    pub(crate) fn unreadable(&mut self) {
+        self.counter.totals.unreadable += 1;
+    }
+
+    /// Called once per entry; `true` means the walk should stop (it was cancelled).
+    pub(crate) fn tick(&mut self) -> bool {
+        self.counter.tick()
+    }
+
+    pub(crate) fn finish(self, cancelled: bool) -> FolderSizeRun {
+        self.counter.run(cancelled)
+    }
+
+    /// Counts one entry of a folder: a symlink is skipped, a folder on another volume or a cloud
+    /// placeholder folder is passed over, a folder on this volume is counted and returned to
+    /// enter, and a file adds its size (a hard-linked file once). Never follows a link.
+    pub(crate) fn visit(&mut self, entry: &fs::DirEntry) -> Visit {
+        // `DirEntry::metadata` does not follow a symlink, and on Windows it costs no extra call.
+        let Ok(meta) = entry.metadata() else {
+            self.counter.totals.unreadable += 1;
+            return Visit::Done;
         };
-        first = false;
-        for entry in entries {
-            if counter.tick() {
-                return Ok(counter.run(true));
+        let file_type = meta.file_type();
+        if file_type.is_symlink() {
+            self.counter.totals.symlinks_skipped += 1;
+        } else if file_type.is_dir() {
+            #[cfg(unix)]
+            if std::os::unix::fs::MetadataExt::dev(&meta) != self.root_dev {
+                self.counter.totals.mounts_skipped += 1;
+                return Visit::Done;
             }
-            let Ok(entry) = entry else {
-                counter.totals.unreadable += 1;
-                continue;
-            };
-            // `DirEntry::metadata` does not follow a symlink, and on Windows it costs no extra call.
-            let Ok(meta) = entry.metadata() else {
-                counter.totals.unreadable += 1;
-                continue;
-            };
-            let file_type = meta.file_type();
-            if file_type.is_symlink() {
-                counter.totals.symlinks_skipped += 1;
-            } else if file_type.is_dir() {
-                #[cfg(unix)]
-                if std::os::unix::fs::MetadataExt::dev(&meta) != root_dev {
-                    counter.totals.mounts_skipped += 1;
-                    continue;
-                }
-                if is_placeholder(&meta) {
-                    counter.totals.placeholders += 1;
-                    continue;
-                }
-                counter.totals.folders += 1;
-                pending.push(entry.path());
-            } else {
-                counter.totals.files += 1;
-                if is_placeholder(&meta) {
-                    counter.totals.placeholders += 1;
-                    continue;
-                }
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::MetadataExt;
-                    if file_type.is_file() {
-                        let again =
-                            meta.nlink() > 1 && !seen_links.insert((meta.dev(), meta.ino()));
-                        if !again {
-                            counter.totals.bytes += meta.len();
-                            if let Some(allocated) = counter.totals.allocated_bytes.as_mut() {
-                                *allocated += meta.blocks().saturating_mul(512);
-                            }
+            if is_placeholder(&meta) {
+                self.counter.totals.placeholders += 1;
+                return Visit::Done;
+            }
+            self.counter.totals.folders += 1;
+            return Visit::Enter(entry.path());
+        } else {
+            self.counter.totals.files += 1;
+            if is_placeholder(&meta) {
+                self.counter.totals.placeholders += 1;
+                return Visit::Done;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                if file_type.is_file() {
+                    let again =
+                        meta.nlink() > 1 && !self.seen_links.insert((meta.dev(), meta.ino()));
+                    if !again {
+                        self.counter.totals.bytes += meta.len();
+                        if let Some(allocated) = self.counter.totals.allocated_bytes.as_mut() {
+                            *allocated += meta.blocks().saturating_mul(512);
                         }
                     }
                 }
-                #[cfg(not(unix))]
-                if file_type.is_file() {
-                    counter.totals.bytes += meta.len();
+            }
+            #[cfg(not(unix))]
+            if file_type.is_file() {
+                self.counter.totals.bytes += meta.len();
+            }
+        }
+        Visit::Done
+    }
+
+    /// Walks `start` and everything below it on this volume, iteratively (no recursion depth to
+    /// overflow). Returns whether the walk was cancelled. Only `start` itself being unreadable is
+    /// an error; a folder below it that cannot be read is counted in `unreadable`.
+    pub(crate) fn walk(&mut self, start: PathBuf) -> Result<bool, std::io::Error> {
+        let mut pending: Vec<PathBuf> = vec![start];
+        let mut first = true;
+        while let Some(folder) = pending.pop() {
+            let entries = match fs::read_dir(&folder) {
+                Ok(entries) => entries,
+                Err(error) if first => return Err(error),
+                Err(_) => {
+                    self.counter.totals.unreadable += 1;
+                    continue;
+                }
+            };
+            first = false;
+            for entry in entries {
+                if self.counter.tick() {
+                    return Ok(true);
+                }
+                let Ok(entry) = entry else {
+                    self.counter.totals.unreadable += 1;
+                    continue;
+                };
+                if let Visit::Enter(path) = self.visit(&entry) {
+                    pending.push(path);
                 }
             }
         }
+        Ok(false)
     }
-    Ok(counter.run(false))
 }
 
 /// The folder total for a provider that can only list and stat: it descends through `list` and
