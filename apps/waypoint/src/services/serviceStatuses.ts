@@ -4,9 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
+import { getStatus as osPrefsStatus } from '@liminal-hq/plugin-os-prefs';
+import { getStatus as systemAppearanceStatus } from '@liminal-hq/plugin-system-appearance';
 import { getStatus as trashStatus } from '@liminal-hq/plugin-trash';
 import { getStatus as windowManagerStatus } from '@liminal-hq/plugin-window-manager';
+import { getStatus as windowTearoffStatus } from '@liminal-hq/plugin-window-tearoff';
 import { getStatus as opsStatus } from '@liminal-hq/waypoint-plugin-ops';
+import { getStatus as sessionStatus } from '@liminal-hq/waypoint-plugin-session';
+import { getStatus as settingsStatus } from '@liminal-hq/waypoint-plugin-settings';
 import { getStatus as vfsStatus } from '@liminal-hq/waypoint-plugin-vfs';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import { collectStatuses, type StatusSource } from './status';
@@ -41,13 +46,26 @@ export async function trashServiceStatus(): Promise<PluginStatus> {
 	);
 }
 
+/** The system preferences plugin's status in the shared shape: its features carry their own reasons. */
+export async function osPrefsServiceStatus(): Promise<PluginStatus> {
+	const status = await osPrefsStatus();
+	return summarise(
+		status,
+		status.features.map((feature) => [feature.name, feature] as const),
+	);
+}
+
 /** The native drag and drop plugin's status in the shared shape. */
 export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	const status = await nativeDndStatus();
 	return summarise(status, Object.entries(status.features));
 }
 
-/** The plugins the panel reports, each through its own guest-js `getStatus`. */
+/**
+ * The plugins the panel reports, each through its own guest-js `getStatus`. Every plugin
+ * `src-tauri` registers has an entry (`scripts/check-services.sh` fails the build otherwise); the
+ * key is the crate name without `tauri_plugin_`, except the file system's.
+ */
 export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'file-system': vfsStatus,
 	trash: trashServiceStatus,
@@ -55,6 +73,11 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	// Whether the Shelf window (and every other window) can be kept on top, and why not where it cannot.
 	'window-manager': windowManagerStatus,
 	'waypoint-ops': opsStatus,
+	'waypoint-session': sessionStatus,
+	'waypoint-settings': settingsStatus,
+	'os-prefs': osPrefsServiceStatus,
+	'system-appearance': systemAppearanceStatus,
+	'window-tearoff': windowTearoffStatus,
 };
 
 /** Asks every plugin whether it works here; one that cannot answer is reported unavailable with the error as its reason. */

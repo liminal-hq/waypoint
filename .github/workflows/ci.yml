@@ -77,6 +77,11 @@ jobs:
         id: ops_sandbox
         run: bash scripts/check-ops-sandbox.sh
 
+      # Every native plugin the app registers is in the Services panel (A66).
+      - name: Check the Services panel covers every plugin
+        id: services
+        run: bash scripts/check-services.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -87,6 +92,7 @@ jobs:
             echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
             echo "- Case collisions: \`${{ steps.case.outcome }}\` (\`bash scripts/check-case-collisions.sh\`)"
             echo "- Operations sandbox: \`${{ steps.ops_sandbox.outcome }}\` (\`bash scripts/check-ops-sandbox.sh\`)"
+            echo "- Services panel: \`${{ steps.services.outcome }}\` (\`bash scripts/check-services.sh\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   frontend-tests:

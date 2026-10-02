@@ -86,6 +86,7 @@ describe('SettingsScreen', () => {
 			'Accessibility',
 			'Operations',
 			'Drag & drop',
+			'Integrations',
 		]);
 		expect(screen.getAllByText('Waypoint — Settings').length).toBeGreaterThan(0);
 		expect(screen.queryByText(/coming soon/i)).toBeNull();

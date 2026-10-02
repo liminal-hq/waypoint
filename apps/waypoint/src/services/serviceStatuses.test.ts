@@ -111,6 +111,11 @@ describe('the Services panel sources', () => {
 			'native-dnd',
 			'window-manager',
 			'waypoint-ops',
+			'waypoint-session',
+			'waypoint-settings',
+			'os-prefs',
+			'system-appearance',
+			'window-tearoff',
 		]);
 		plugins.vfs.mockResolvedValue({ available: true, reason: null, features: ['listing'] });
 		plugins.trash.mockRejectedValue(new Error('permission denied'));
