@@ -5,7 +5,8 @@
 
 import type { Catalogue } from './active';
 import { enMessages } from './messages';
-import type { Locale } from './locales';
+import { FALLBACK_LOCALE, pluralTagFor, type Locale } from './locales';
+import { expectedKeys, sourceKeyFor } from './pluralForms';
 
 /**
  * Locales whose catalogue is known to be incomplete, so a missing key is not yet a failure. Empty
@@ -22,23 +23,33 @@ export interface Parity {
 	tokenMismatch: string[];
 }
 
-function tokens(message: string): string {
+/** A message's `{name}` tokens, sorted and joined, to compare two messages. */
+export function tokens(message: string): string {
 	return [...message.matchAll(/\{(\w+)\}/g)]
 		.map((match) => match[1])
 		.sort()
 		.join(',');
 }
 
-/** How `catalogue` differs from the English source. */
-export function catalogueParity(catalogue: Catalogue): Parity {
+/**
+ * How `catalogue` differs from the English source. The keys a locale is expected to hold are the
+ * English ones with each plural group spelled out in the categories `Intl.PluralRules` lists for
+ * the locale (Polish needs `few` and `many`, French `one`, `many` and `other`).
+ */
+export function catalogueParity(catalogue: Catalogue, locale: Locale = FALLBACK_LOCALE): Parity {
 	const english = enMessages as Record<string, string>;
+	const englishKeys = Object.keys(english);
 	const own = catalogue as Record<string, string>;
+	const expected = expectedKeys(englishKeys, pluralTagFor(locale));
+	const expectedSet = new Set(expected);
+	const englishSet = new Set(englishKeys);
 	return {
-		missing: Object.keys(english).filter((key) => !(key in own)),
-		extra: Object.keys(own).filter((key) => !(key in english)),
-		tokenMismatch: Object.keys(own).filter(
-			(key) => key in english && tokens(own[key]!) !== tokens(english[key]!),
-		),
+		missing: expected.filter((key) => !(key in own)),
+		extra: Object.keys(own).filter((key) => !expectedSet.has(key)),
+		tokenMismatch: Object.keys(own).filter((key) => {
+			const source = expectedSet.has(key) ? sourceKeyFor(key, englishSet) : undefined;
+			return source !== undefined && tokens(own[key]!) !== tokens(english[source]!);
+		}),
 	};
 }
 
@@ -47,7 +58,7 @@ export function catalogueParity(catalogue: Catalogue): Parity {
  * a missing key too unless the locale is listed as incomplete.
  */
 export function parityFailures(locale: Locale, catalogue: Catalogue): string[] {
-	const parity = catalogueParity(catalogue);
+	const parity = catalogueParity(catalogue, locale);
 	const failures = [
 		...parity.extra.map((key) => `${locale} has ${key}, which English does not`),
 		...parity.tokenMismatch.map((key) => `${locale} ${key} has different {tokens} from English`),
