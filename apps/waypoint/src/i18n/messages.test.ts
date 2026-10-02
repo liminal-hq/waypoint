@@ -13,6 +13,7 @@ const screens = import.meta.glob<string>(
 	[
 		'../app/*.tsx',
 		'../browse/*.tsx',
+		'../commands/*.tsx',
 		'../dnd/*.tsx',
 		'../nav/*.tsx',
 		'../ops/*.tsx',
@@ -213,6 +214,60 @@ describe('screens', () => {
 		for (const [file, source] of Object.entries(screens)) {
 			if (file.includes('.test.')) continue;
 			expect(source, file).not.toMatch(literal);
+		}
+	});
+});
+
+describe('the palette and history messages', () => {
+	it('fill in the history rows and what a chain reports', () => {
+		expect(tf('history.row.undoMany', { count: 3, label: 'Rename report' })).toBe(
+			'Undo 3 changes back to: Rename report',
+		);
+		expect(tf('history.row.redoMany', { count: 2, label: 'New folder' })).toBe(
+			'Redo 2 changes up to: New folder',
+		);
+		expect(
+			tf('history.stopped.undo', { done: 1, total: 3, label: 'New folder', reason: 'gone' }),
+		).toBe('Undid 1 of 3 changes. Stopped at New folder: gone');
+		expect(tf('history.done.redoMany', { count: 2, label: 'New folder' })).toBe(
+			'Redid 2 changes, up to: New folder',
+		);
+	});
+
+	it('have a one and an other form for the count the live region reads out', () => {
+		expect(tn('palette.count', 1, 'en-CA')).toBe('1 command');
+		expect(tn('palette.count', 1200, 'en-CA')).toBe('1,200 commands');
+	});
+
+	it('name every group a command can be in', () => {
+		for (const group of [
+			'file',
+			'edit',
+			'view',
+			'go',
+			'tabs',
+			'window',
+			'app',
+			'history',
+			'recent',
+		]) {
+			expect(enMessages[`palette.group.${group}` as keyof typeof enMessages], group).toBeTruthy();
+		}
+	});
+
+	it('give each Go to command the same word the sidebar uses for its place', () => {
+		for (const place of [
+			'home',
+			'desktop',
+			'documents',
+			'downloads',
+			'pictures',
+			'music',
+			'videos',
+			'trash',
+		]) {
+			const sidebar = enMessages[`sidebar.place.${place}` as keyof typeof enMessages];
+			expect(enMessages[`cmd.goTo.${place}` as keyof typeof enMessages]).toBe(`Go to ${sidebar}`);
 		}
 	});
 });

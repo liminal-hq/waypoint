@@ -247,6 +247,9 @@ export interface FileCommandDeps {
 	pickDestination?: (options: DestinationOptions) => Promise<Location | null>;
 }
 
+/** How one step of the history went: done, or why the engine would not (in plain words). */
+export type HistoryStepOutcome = { ok: true } | { ok: false; reason: string };
+
 export interface FileCommands {
 	/** Which commands to offer for `session` (the active pane's when omitted). */
 	states(session?: ListingSession | null): Record<FileCommandId, CommandState>;
@@ -305,6 +308,11 @@ export interface FileCommands {
 	undoEntry(entry: number): Promise<void>;
 	/** Redoes one entry of the history. */
 	redoEntry(entry: number): Promise<void>;
+	/**
+	 * Undoes or redoes one entry and waits for the job, saying how it went instead of showing it:
+	 * the palette chains these for an older entry and reports where a chain stopped.
+	 */
+	stepHistory(kind: 'undo' | 'redo', entry: number): Promise<HistoryStepOutcome>;
 }
 
 /** How long a command waits for its job before it stops following it; the job carries on. */
@@ -786,6 +794,21 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 
 		async redoEntry(entry) {
 			await runRedo(ops, (text) => say(text), entry);
+		},
+
+		async stepHistory(kind, entry) {
+			let id: JobId;
+			try {
+				id = await (kind === 'undo' ? ops.undo(entry) : ops.redo(entry));
+			} catch (error) {
+				return { ok: false, reason: commandErrorText(error) };
+			}
+			const job = await waitForJob(ops, id);
+			if (!job) return { ok: false, reason: t('history.step.unknown') };
+			const { state } = job;
+			if (state.state === 'failed') return { ok: false, reason: errorText(state.error) };
+			if (state.state === 'cancelled') return { ok: false, reason: t('history.step.cancelled') };
+			return { ok: true };
 		},
 	};
 }
