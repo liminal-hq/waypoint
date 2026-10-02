@@ -11,6 +11,8 @@ import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromePr
 import { createFakeOpsClient, type FakeOpsClient } from '../services/fakeOpsClient';
 import { createFakeSettingsClient, type FakeSettings } from '../services/fakeSettingsClient';
 import { DEFAULT_SETTINGS, type Settings } from '../services/settingsClient';
+import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
+import { brokenStatus, workingStatus } from '../thumbnails/fakeThumbnailsClient';
 import type { DndAvailability, OpsSettingsApi } from '../settings/SettingsEditor';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -44,6 +46,7 @@ async function open(
 	options: {
 		settings?: Settings;
 		dnd?: DndAvailability | Error;
+		thumbnails?: PluginStatus | Error;
 		opsApi?: (ops: FakeOpsClient) => OpsSettingsApi;
 	} = {},
 ): Promise<Rig> {
@@ -58,12 +61,16 @@ async function open(
 		},
 	};
 	const dnd = options.dnd ?? AVAILABLE;
+	const thumbnails = options.thumbnails ?? workingStatus();
 	render(
 		<WindowChromeProvider controls={tauriWindowControls}>
 			<SettingsScreen
 				client={settings}
 				ops={opsApi}
 				dndStatus={() => (dnd instanceof Error ? Promise.reject(dnd) : Promise.resolve(dnd))}
+				thumbnailsStatus={() =>
+					thumbnails instanceof Error ? Promise.reject(thumbnails) : Promise.resolve(thumbnails)
+				}
 			/>
 		</WindowChromeProvider>,
 	);
@@ -84,6 +91,7 @@ describe('SettingsScreen', () => {
 			'General',
 			'Appearance',
 			'Accessibility',
+			'Previews & thumbnails',
 			'Operations',
 			'Drag & drop',
 			'Integrations',
@@ -338,6 +346,72 @@ describe('the Operations page', () => {
 		expect(
 			screen.getByText(/could not be read, so they cannot be changed right now: no ops/),
 		).toBeVisible();
+	});
+});
+
+describe('the Previews & thumbnails page', () => {
+	it('shows the thumbnails switch and the size limit with their values', async () => {
+		await open();
+		await goTo('Previews & thumbnails');
+		expect(screen.getByRole('switch', { name: 'Show thumbnails' })).toBeChecked();
+		const limit = screen.getByRole('spinbutton', { name: 'Largest file to make a thumbnail of' });
+		expect(limit).toHaveValue(50);
+		expect(limit).toHaveAttribute('min', '1');
+		expect(limit).toHaveAttribute('max', '2048');
+		expect(screen.getByText('MB')).toBeInTheDocument();
+		expect(screen.queryByText(/unavailable on this system/)).toBeNull();
+		// Folder peeks and Quick Look's hover are not built yet, so there is no switch for them.
+		expect(screen.queryByRole('switch', { name: /peek/i })).toBeNull();
+	});
+
+	it('saves the switch and the limit, and disables the limit while thumbnails are off', async () => {
+		const { settings } = await open();
+		await goTo('Previews & thumbnails');
+		const limit = screen.getByRole('spinbutton', { name: 'Largest file to make a thumbnail of' });
+		fireEvent.change(limit, { target: { value: '200' } });
+		fireEvent.blur(limit);
+		await waitFor(() => expect(settings.current().settings.previews.maxFileMb).toBe(200));
+		await userEvent.click(screen.getByRole('switch', { name: 'Show thumbnails' }));
+		await waitFor(() => expect(settings.current().settings.previews.thumbnails).toBe(false));
+		expect(limit).toBeDisabled();
+	});
+
+	it('shows Rust’s range refusal under the limit', async () => {
+		const { settings } = await open();
+		await goTo('Previews & thumbnails');
+		settings.failNext({
+			kind: 'invalid',
+			message: 'previews.maxFileMb must be between 1 and 2048',
+			field: 'previews.maxFileMb',
+			min: 1,
+			max: 2048,
+		});
+		const limit = screen.getByRole('spinbutton', { name: 'Largest file to make a thumbnail of' });
+		fireEvent.change(limit, { target: { value: '900' } });
+		fireEvent.blur(limit);
+		expect(await screen.findByRole('alert')).toHaveTextContent(
+			'Choose a value between 1 and 2048.',
+		);
+		expect(limit).toHaveValue(50);
+	});
+
+	it('hides the options and gives the plugin’s reason where thumbnails are unavailable', async () => {
+		await open({ thumbnails: brokenStatus('No thumbnail cache folder could be found.') });
+		await goTo('Previews & thumbnails');
+		expect(
+			await screen.findByText(
+				'Thumbnails are unavailable on this system: No thumbnail cache folder could be found.',
+			),
+		).toBeInTheDocument();
+		expect(screen.queryByRole('switch', { name: 'Show thumbnails' })).toBeNull();
+		expect(screen.queryByRole('spinbutton')).toBeNull();
+	});
+
+	it('keeps the options when the status cannot be read', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		await open({ thumbnails: new Error('no plugin') });
+		await goTo('Previews & thumbnails');
+		expect(screen.getByRole('switch', { name: 'Show thumbnails' })).toBeInTheDocument();
 	});
 });
 

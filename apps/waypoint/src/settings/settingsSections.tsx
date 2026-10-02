@@ -11,9 +11,10 @@ import { DragDropPage } from './DragDropPage';
 import { GeneralPage } from './GeneralPage';
 import { IntegrationsPage } from './IntegrationsPage';
 import { OperationsPage } from './OperationsPage';
+import { PreviewsPage } from './PreviewsPage';
 
 export type SectionId =
-	'general' | 'appearance' | 'accessibility' | 'operations' | 'dnd' | 'integrations';
+	'general' | 'appearance' | 'accessibility' | 'previews' | 'operations' | 'dnd' | 'integrations';
 
 /**
  * A page that is not built yet is absent, not a placeholder: the other pages of SPEC 11
@@ -28,6 +29,7 @@ export function settingsSections(): SettingsSectionDef[] {
 			label: t('settings.section.accessibility'),
 			render: () => <AccessibilityPage />,
 		},
+		{ id: 'previews', label: t('settings.section.previews'), render: () => <PreviewsPage /> },
 		{ id: 'operations', label: t('settings.section.operations'), render: () => <OperationsPage /> },
 		{ id: 'dnd', label: t('settings.section.dnd'), render: () => <DragDropPage /> },
 		{
