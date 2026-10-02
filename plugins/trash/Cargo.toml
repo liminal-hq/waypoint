@@ -35,7 +35,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The same version and features as the `os-prefs` plugin, so the portal stack is built once.
-ashpd = { version = "0.9", default-features = false, features = ["tokio"] }
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "trash"] }
 libc = "0.2"
 
 # Matches the version Tauri resolves, so the types line up.
