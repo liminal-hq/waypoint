@@ -153,7 +153,9 @@ pub trait Provider: Send + Sync {
     /// Renames or moves an entry within one volume, atomically. A symlink is renamed, never
     /// followed. With `overwrite` false it fails with `AlreadyExists` when `to` exists (the check
     /// and the rename are one atomic step where the platform allows it); with it true, a file
-    /// replaces a file and a folder replaces an empty folder, as `rename(2)` does. A rename that
+    /// replaces a file. Replacing a folder is not promised: `rename(2)` lets a folder replace an
+    /// empty one, but Windows cannot (`MoveFileExW` answers `PermissionDenied`), so a caller removes
+    /// an empty target folder first. A rename that
     /// would have to cross volumes fails with `CrossesDevices` and changes nothing, so the caller
     /// falls back to copy and remove.
     fn rename(&self, from: &VfsPath, to: &VfsPath, overwrite: bool) -> Result<(), VfsError> {

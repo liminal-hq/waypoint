@@ -103,6 +103,8 @@ fn a_created_file_is_inserted_at_its_sorted_position() {
 
     touch(dir.path(), "b", 1);
     wait_until("the insert", || names(&listing).len() == 3);
+    // The listing is updated before the sink is told, so the event can trail the state.
+    wait_until("the insert's event", || !changed(&events).is_empty());
     assert_eq!(names(&listing), ["a", "b", "c"]);
     assert_eq!(
         changed(&events).concat(),
@@ -161,6 +163,9 @@ fn a_renamed_file_keeps_its_entry_id() {
 
     fs::rename(dir.path().join("a"), dir.path().join("z")).unwrap();
     wait_until("the rename", || names(&listing) == ["b", "c", "z"]);
+    wait_until("the rename's events", || {
+        changed(&events).concat().len() >= 2
+    });
     assert_eq!(listing.id_of(&OsString::from("z")), Some(before));
     assert_eq!(listing.id_of(&OsString::from("a")), None);
     assert_eq!(listing.position_of(before), Some(2));

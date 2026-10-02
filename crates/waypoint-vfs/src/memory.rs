@@ -35,6 +35,8 @@ pub enum MemOp {
     Stat,
     List,
     ResolveLink,
+    /// One entry read while listing a folder (an I/O error on a single directory entry).
+    ListEntry,
     CreateDir,
     CreateFile,
     Rename,
@@ -431,6 +433,26 @@ impl MemoryProvider {
         }
     }
 
+    /// The component path a symlink in the folder `parent` holding `text` names, whether or not
+    /// anything is there; `None` when it leaves the tree.
+    fn target_comps(parent: &[OsString], text: &OsStr, root: &FilePath) -> Option<Vec<OsString>> {
+        let mut base = root.clone();
+        for name in parent {
+            base = base.join(name).ok()?;
+        }
+        let target = base.join(text).ok()?;
+        let below = target.as_path().strip_prefix(root.as_path()).ok()?;
+        Some(
+            below
+                .components()
+                .filter_map(|c| match c {
+                    Component::Normal(name) => Some(name.to_owned()),
+                    _ => None,
+                })
+                .collect(),
+        )
+    }
+
     /// What a symlink in the folder `parent` pointing at `text` leads to, following chains of links.
     fn follow<'a>(
         inner: &'a Inner,
@@ -442,19 +464,7 @@ impl MemoryProvider {
         if depth > 8 {
             return None;
         }
-        let mut base = root.clone();
-        for name in parent {
-            base = base.join(name).ok()?;
-        }
-        let target = base.join(text).ok()?;
-        let below = target.as_path().strip_prefix(root.as_path()).ok()?;
-        let comps: Vec<OsString> = below
-            .components()
-            .filter_map(|c| match c {
-                Component::Normal(name) => Some(name.to_owned()),
-                _ => None,
-            })
-            .collect();
+        let comps = Self::target_comps(parent, text, root)?;
         let node = inner.node(&comps)?;
         match &node.kind {
             Kind::Symlink(next) => {
@@ -617,6 +627,11 @@ impl Provider for MemoryProvider {
             entries.push(Self::entry(
                 &inner, name, child, &comps, &self.root, resolve,
             ));
+        }
+        // One check per entry read, so a test can fail a single entry mid-listing. The entries are
+        // built first because the injection needs the lock mutably.
+        for _ in 0..entries.len() {
+            inner.inject(MemOp::ListEntry)?;
         }
         progress(entries.len() as u32);
         Ok(entries)
@@ -794,10 +809,30 @@ impl Provider for MemoryProvider {
         inner.inject(MemOp::CreateWrite)?;
         validate_new_path(path, inner.rule)?;
         let location = path.to_location();
-        let comps = self.comps(path)?;
+        let mut comps = self.comps(path)?;
+        if options.exclusive && inner.node(&comps).is_some() {
+            return Err(VfsError::AlreadyExists { location });
+        }
+        // A non-exclusive write follows a symlink in the final component and writes (or creates)
+        // what it points at, as `open(2)` does; a link is never replaced by the file.
+        let mut hops = 0;
+        while let Some(Kind::Symlink(text)) = inner.node(&comps).map(|n| &n.kind) {
+            hops += 1;
+            let followed = comps
+                .split_last()
+                .and_then(|(_, up)| Self::target_comps(up, text, &self.root));
+            match followed {
+                Some(next) if hops <= 8 => comps = next,
+                _ => {
+                    return Err(VfsError::Io {
+                        message: "too many levels of symbolic links".to_owned(),
+                        location: Some(location),
+                    })
+                }
+            }
+        }
         let existing = inner.node(&comps).map(|n| n.entry_kind());
         match existing {
-            Some(_) if options.exclusive => return Err(VfsError::AlreadyExists { location }),
             Some(EntryKind::Directory) => return Err(VfsError::IsADirectory { location }),
             Some(_) => {
                 let now = inner.tick();

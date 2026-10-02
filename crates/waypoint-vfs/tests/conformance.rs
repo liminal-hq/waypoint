@@ -465,6 +465,86 @@ fn symlinks_are_acted_on_never_followed() {
     });
 }
 
+#[cfg(unix)]
+#[test]
+fn a_non_exclusive_write_follows_a_symlink_and_never_replaces_it() {
+    each(|f| {
+        let (p, r) = (&*f.provider, &f.root);
+        write_file(p, &at(r, "real"), b"old");
+        p.symlink(&at(r, "link"), OsStr::new("real")).unwrap();
+        p.symlink(&at(r, "dangling"), OsStr::new("made")).unwrap();
+        for (link, target) in [("link", "real"), ("dangling", "made")] {
+            let mut out = p
+                .create_write(&at(r, link), WriteOptions::truncate())
+                .unwrap();
+            out.write_all(b"new").unwrap();
+            out.finish(false).unwrap();
+            assert_eq!(p.read_link(&at(r, link)).unwrap(), target, "{link}");
+            assert_eq!(read_file(p, &at(r, target)).unwrap(), b"new", "{link}");
+        }
+        // Exclusive creation still refuses the name, even for a dangling link.
+        assert_eq!(
+            kind(&p.create_write(&at(r, "dangling"), WriteOptions::exclusive())),
+            "alreadyExists"
+        );
+    });
+}
+
+/// The display form of the location an error names.
+fn named(result: Result<(), VfsError>) -> (String, String) {
+    let error = result.unwrap_err();
+    let json = serde_json::to_value(&error).unwrap();
+    (
+        json["kind"].as_str().unwrap().to_owned(),
+        json["location"]["display"].as_str().unwrap().to_owned(),
+    )
+}
+
+#[cfg(unix)]
+#[test]
+fn a_rename_error_names_the_side_that_is_wrong() {
+    each(|f| {
+        let (p, r) = (&*f.provider, &f.root);
+        write_file(p, &at(r, "a"), b"a");
+        // The source is there and the destination's parent is not: the destination is missing.
+        let (kind, location) = named(p.rename(&at(r, "a"), &at(r, "nowhere/b"), false));
+        assert_eq!(kind, "notFound", "{}", f.name);
+        assert!(location.ends_with("nowhere/b"), "{} {location}", f.name);
+        // A missing source is the source.
+        let (kind, location) = named(p.rename(&at(r, "gone"), &at(r, "b"), false));
+        assert_eq!(kind, "notFound", "{}", f.name);
+        assert!(location.ends_with("gone"), "{} {location}", f.name);
+        // A folder that would be replaced and is not empty is the destination.
+        p.create_dir(&at(r, "src")).unwrap();
+        p.create_dir(&at(r, "full")).unwrap();
+        write_file(p, &at(r, "full/x"), b"x");
+        let (kind, location) = named(p.rename(&at(r, "src"), &at(r, "full"), true));
+        assert_eq!(kind, "notEmpty", "{}", f.name);
+        assert!(location.ends_with("full"), "{} {location}", f.name);
+    });
+}
+
+#[test]
+fn a_listing_fails_when_one_entry_cannot_be_read() {
+    let (m, r, _dir) = memory(CaseRule::Sensitive);
+    for name in ["a", "b", "c"] {
+        m.create_file(&at(&r, name)).unwrap();
+    }
+    let cancel = CancelToken::new();
+    m.fail_nth(
+        MemOp::ListEntry,
+        2,
+        VfsError::Io {
+            message: "input/output error".to_owned(),
+            location: Some(r.to_location()),
+        },
+    );
+    let failed = m.list(&r, &cancel, 0, &mut |_| {});
+    assert_eq!(kind(&failed), "io");
+    // Nothing is left injected: the next listing is whole.
+    assert_eq!(m.list(&r, &cancel, 0, &mut |_| {}).unwrap().len(), 3);
+}
+
 #[test]
 fn permissions_round_trip() {
     each(|f| {

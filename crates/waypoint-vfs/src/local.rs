@@ -222,8 +222,19 @@ impl Provider for LocalProvider {
     fn rename(&self, from: &VfsPath, to: &VfsPath, overwrite: bool) -> Result<(), VfsError> {
         validate_new_path(to, CaseRule::NATIVE)?;
         let (source, target) = (file_path(from)?, file_path(to)?);
-        sys::rename(source.as_path(), target.as_path(), overwrite)
-            .map_err(|e| from_io_pair(&e, &from.to_location(), &to.to_location()))
+        let (from_loc, to_loc) = (from.to_location(), to.to_location());
+        sys::rename(source.as_path(), target.as_path(), overwrite).map_err(|error| {
+            match from_io_pair(&error, &from_loc, &to_loc) {
+                // The error alone cannot say which side is missing. A source that is still there
+                // means the destination's parent is the missing part.
+                VfsError::NotFound { .. } if fs::symlink_metadata(source.as_path()).is_ok() => {
+                    VfsError::NotFound { location: to_loc }
+                }
+                // A folder that would be replaced is not empty: that is the destination.
+                VfsError::NotEmpty { .. } => VfsError::NotEmpty { location: to_loc },
+                other => other,
+            }
+        })
     }
 
     fn remove_file(&self, path: &VfsPath) -> Result<(), VfsError> {
@@ -451,10 +462,23 @@ pub(crate) fn list_folder(
         if cancel.is_cancelled() {
             return Err(VfsError::Cancelled);
         }
-        // An entry that vanishes or cannot be read mid-scan is skipped, not fatal.
-        let Ok(item) = item else { continue };
+        // An entry that vanished mid-scan is skipped. Any other failure is surfaced: a listing
+        // that silently misses entries would let a copy or a duplicate finish with files absent.
+        let item = match item {
+            Ok(item) => item,
+            Err(error) => match skip_vanished(&error, location) {
+                Ok(()) => continue,
+                Err(error) => return Err(error),
+            },
+        };
         let name = item.file_name();
-        let file_type = item.file_type().ok();
+        let file_type = match item.file_type() {
+            Ok(file_type) => Some(file_type),
+            Err(error) => match skip_vanished(&error, location) {
+                Ok(()) => continue,
+                Err(error) => return Err(error),
+            },
+        };
         let meta = item.metadata().ok();
         let is_link = file_type.as_ref().is_some_and(FileType::is_symlink);
         let resolve = is_link && budget > 0;
@@ -470,9 +494,42 @@ pub(crate) fn list_folder(
     Ok(entries)
 }
 
+/// Decides what a failure while reading one directory entry means: `Ok` when the entry vanished
+/// since the read began (nothing to list), otherwise the typed error for the folder.
+fn skip_vanished(error: &io::Error, location: &Location) -> Result<(), VfsError> {
+    match from_io(error, location) {
+        VfsError::NotFound { .. } => Ok(()),
+        other => Err(other),
+    }
+}
+
 /// Describes one child of `folder`, resolving it if it is a symlink.
 pub(crate) fn stat_child(folder: &Path, name: &OsStr) -> io::Result<ScannedEntry> {
     let full = folder.join(name);
     let meta = fs::symlink_metadata(&full)?;
     Ok(build(name, Some(meta.file_type()), Some(meta), &full, true))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_vanished_entry_is_skipped() {
+        let location = Location::new("/x", "file:///x");
+        let gone = io::Error::from(io::ErrorKind::NotFound);
+        assert_eq!(skip_vanished(&gone, &location), Ok(()));
+    }
+
+    #[test]
+    fn any_other_entry_failure_is_surfaced() {
+        let location = Location::new("/x", "file:///x");
+        let denied = io::Error::from(io::ErrorKind::PermissionDenied);
+        assert!(matches!(
+            skip_vanished(&denied, &location),
+            Err(VfsError::PermissionDenied { .. })
+        ));
+        let broken = io::Error::other("input/output error");
+        assert!(skip_vanished(&broken, &location).is_err());
+    }
 }
