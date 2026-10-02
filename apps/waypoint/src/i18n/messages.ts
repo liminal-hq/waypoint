@@ -3,12 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { activeMessages, formatLocale, pluralLocale } from './active';
+
 /**
- * English, the only catalogue that ships for now. Screens and the chrome's labels read their copy
- * from here through `t()`, never from a literal in JSX, so a translated catalogue with the same
- * keys can replace this one without touching a component. Keys are `area.thing`, and a value is
- * plain text: pluralisation and interpolation arrive with the localisation library chosen for
- * the catalogue's next stage.
+ * English (`en-CA`), the source catalogue and the fallback for any message another locale lacks.
+ * Screens and the chrome's labels read their copy through `t()`, never from a literal in JSX; the
+ * other locales are catalogues with the same keys that `loadCatalogue` brings in on demand (A68).
+ * Keys are `area.thing`, and a value is plain text with `{name}` tokens; plurals are a `.one` and
+ * an `.other` message, chosen by `tn` with `Intl.PluralRules`.
  */
 export const enMessages = {
 	'window.main.title': 'Main',
@@ -33,6 +35,7 @@ export const enMessages = {
 	'settings.section.integrations': 'Integrations',
 	'settings.section.previews': 'Previews & thumbnails',
 	'settings.section.transparency': 'Transparency',
+	'settings.section.language': 'Language & region',
 	'settings.loading': 'Loading settings…',
 	'settings.group.startup': 'Start-up',
 	'settings.group.browsing': 'Browsing',
@@ -72,6 +75,8 @@ export const enMessages = {
 	'settings.group.motion': 'Motion and transparency',
 	'settings.group.touch': 'Touch',
 	'settings.group.thumbnails': 'Thumbnails',
+	'settings.group.language': 'Language and formats',
+	'settings.group.direction': 'Layout direction',
 	'settings.group.overview': 'Overview',
 	'settings.appearance.mode.label': 'Colour mode',
 	'settings.appearance.mode.description': 'Light, dark, or whatever the system uses.',
@@ -102,6 +107,20 @@ export const enMessages = {
 	'settings.appearance.iconStyle.regular': 'Regular',
 	'settings.appearance.iconStyle.bold': 'Bold',
 	'settings.appearance.iconStyle.filled': 'Filled',
+	'settings.language.language.label': 'Language',
+	'settings.language.language.description':
+		'The language of menus, dialogs and messages, and how dates, numbers and sizes are written. Anything not translated yet appears in English.',
+	'settings.language.language.system': 'System default',
+	'settings.language.language.en-CA': 'English (Canada)',
+	'settings.language.language.fr-CA': 'Français (Canada)',
+	'settings.language.language.en-XA': 'English with accents (en-XA, for developers)',
+	'settings.language.language.ar-XB': 'Mirrored, right to left (ar-XB, for developers)',
+	'settings.language.direction.label': 'Direction',
+	'settings.language.direction.description':
+		'Which way the window lays out. Automatic follows the language; the others are for checking a layout.',
+	'settings.language.direction.auto': 'Automatic',
+	'settings.language.direction.ltr': 'Left to right',
+	'settings.language.direction.rtl': 'Right to left',
 	'settings.access.follow': 'Follow the system',
 	'settings.access.on': 'On',
 	'settings.access.off': 'Off',
@@ -1756,14 +1775,14 @@ export const enMessages = {
 
 export type MessageId = keyof typeof enMessages;
 
-/** The message for `id` in the active catalogue. */
+/** The message for `id` in the active catalogue, or English when that catalogue lacks it. */
 export function t(id: MessageId): string {
-	return enMessages[id];
+	return activeMessages()[id] ?? enMessages[id];
 }
 
 /** The message for `id` with each `{name}` token replaced by its value. */
 export function tf(id: MessageId, values: Record<string, string | number>): string {
-	return enMessages[id].replace(/\{(\w+)\}/g, (token, name: string) =>
+	return t(id).replace(/\{(\w+)\}/g, (token, name: string) =>
 		name in values ? String(values[name]) : token,
 	);
 }
@@ -1776,11 +1795,13 @@ export type PluralId = MessageId extends infer K
 	: never;
 
 /**
- * The message for `count` of something, choosing the plural form the locale's rules give and
- * replacing `{count}` with the number formatted for that locale.
+ * The message for `count` of something, choosing the plural form the locale's rules give
+ * (`Intl.PluralRules`; a form the catalogue does not spell out uses `.other`) and replacing
+ * `{count}` with the number formatted for that locale.
  */
 export function tn(id: PluralId, count: number, locale?: string): string {
-	const form = new Intl.PluralRules(locale).select(count);
-	const key = `${id}.${form === 'one' ? 'one' : 'other'}` as MessageId;
-	return tf(key, { count: new Intl.NumberFormat(locale).format(count) });
+	const form = new Intl.PluralRules(locale ?? pluralLocale()).select(count);
+	const key = `${id}.${form}`;
+	const chosen = (key in enMessages || key in activeMessages() ? key : `${id}.other`) as MessageId;
+	return tf(chosen, { count: new Intl.NumberFormat(locale ?? formatLocale()).format(count) });
 }
