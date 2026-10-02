@@ -7,6 +7,7 @@
 		"os:default",
 		"os-prefs:default",
 		"trash:default",
+		"thumbnails:default",
 		"waypoint-settings:allow-get-settings",
 		"waypoint-settings:allow-set-ui-settings",
 		"waypoint-settings:allow-get-status"

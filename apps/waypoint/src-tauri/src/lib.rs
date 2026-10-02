@@ -145,6 +145,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_manager::init())
         .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
         .plugin(tauri_plugin_trash::init())
+        .plugin(tauri_plugin_thumbnails::init())
         .plugin(tauri_plugin_native_dnd::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
         // After the store plugin it saves through; the session reads its choices (start-up, the view

@@ -27,6 +27,7 @@ tauri-plugin-window-manager = { path = "../../../plugins/window-manager" }
 tauri-plugin-native-dnd = { path = "../../../plugins/native-dnd" }
 tauri-plugin-window-tearoff = { path = "../../../plugins/window-tearoff" }
 tauri-plugin-trash = { path = "../../../plugins/trash" }
+tauri-plugin-thumbnails = { path = "../../../plugins/thumbnails" }
 tauri-plugin-opener = "2"
 tauri-plugin-waypoint-vfs = { path = "../../../plugins/waypoint-vfs" }
 tauri-plugin-waypoint-session = { path = "../../../plugins/waypoint-session" }
