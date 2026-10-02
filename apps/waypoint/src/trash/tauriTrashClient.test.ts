@@ -31,9 +31,17 @@ const request: JobRequest = {
 
 describe('createTauriTrashClient', () => {
 	it('reads the Trash from the file system plugin', async () => {
-		const info = { available: true, reason: null, count: 4 };
+		const info = { available: true, reason: null, count: 4, totalBytes: null };
 		vfs.getTrashInfo.mockResolvedValue(info);
 		expect(await createTauriTrashClient().getInfo()).toBe(info);
+	});
+
+	it('asks the plugin for the total size only when told to', async () => {
+		vfs.getTrashInfo.mockResolvedValue({});
+		const client = createTauriTrashClient();
+		await client.getInfo();
+		await client.getInfo(true);
+		expect(vfs.getTrashInfo.mock.calls).toEqual([[undefined], [true]]);
 	});
 
 	it('hands jobs to the operations plugin', async () => {

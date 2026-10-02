@@ -18,8 +18,11 @@ import type { Unsubscribe } from '../services/vfsClient';
  * a folder that is gone) is answered through the queue's own resolver, not here.
  */
 export interface TrashClient {
-	/** Whether the Trash can be browsed here, why not, and how many items it holds. */
-	getInfo(): Promise<TrashInfo>;
+	/**
+	 * Whether the Trash can be browsed here, why not, and how many items it holds. With
+	 * `withBytes` it also adds up their sizes (`totalBytes`), which only Overview asks for.
+	 */
+	getInfo(withBytes?: boolean): Promise<TrashInfo>;
 	/** Queues a job (`Restore`, `Delete` or `EmptyTrash`) and resolves with its id. */
 	submit(request: JobRequest): Promise<JobId>;
 	/** Hears every change to the queue, from every window. */

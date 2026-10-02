@@ -35,7 +35,11 @@ export interface FakeJob {
  * job through its states and send the events a real queue would.
  */
 export class FakeTrashClient implements TrashClient {
-	info: TrashInfo = { available: true, reason: null, count: 0 };
+	info: TrashInfo = { available: true, reason: null, count: 0, totalBytes: null };
+	/** The sizes the fake adds up when asked, as `getInfo(true)` reports them. */
+	bytes: number | null = null;
+	/** Whether each `getInfo` call asked for the sizes, in order. */
+	readonly asked: boolean[] = [];
 	readonly jobs: FakeJob[] = [];
 	/** The jobs the resolver cancelled. */
 	readonly cancelled: JobId[] = [];
@@ -48,9 +52,12 @@ export class FakeTrashClient implements TrashClient {
 		this.info = { ...this.info, ...info };
 	}
 
-	async getInfo(): Promise<TrashInfo> {
+	async getInfo(withBytes = false): Promise<TrashInfo> {
 		this.infoCalls += 1;
-		return this.info;
+		this.asked.push(withBytes);
+		return withBytes && this.info.available
+			? { ...this.info, totalBytes: this.bytes }
+			: { ...this.info, totalBytes: null };
 	}
 
 	async submit(request: JobRequest): Promise<JobId> {
