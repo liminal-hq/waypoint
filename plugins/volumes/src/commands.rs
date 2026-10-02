@@ -41,10 +41,7 @@ pub(crate) async fn mount<R: Runtime>(
 }
 
 #[command]
-pub(crate) async fn unmount<R: Runtime>(
-    app: AppHandle<R>,
-    id: String,
-) -> Result<(), VolumesError> {
+pub(crate) async fn unmount<R: Runtime>(app: AppHandle<R>, id: String) -> Result<(), VolumesError> {
     app.volumes().unmount(&id).await
 }
 
