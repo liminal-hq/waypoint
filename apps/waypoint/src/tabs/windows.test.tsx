@@ -87,6 +87,22 @@ describe('a new window', () => {
 		expect(tabs()).toHaveLength(2);
 	});
 
+	it('opens a path part in a background tab on middle-click, and in a new window with Ctrl', async () => {
+		const { store, one } = twoWindows();
+		await renderWorkspace(undefined, one);
+		await option('docs');
+		const crumbs = await screen.findByRole('navigation', { name: 'Location' });
+		const home = within(crumbs).getByRole('button', { name: 'home' });
+		auxClick(home);
+		await waitFor(() => expect(tabs()).toHaveLength(2));
+		expect(store.windowLabels()).toEqual(['main-1']);
+		expect(store.window('main-1')!.tabs.map((tab) => tab.location.uri)).toContain('file:///home');
+
+		auxClick(home, { ctrlKey: true });
+		await waitFor(() => expect(store.windowLabels()).toEqual(['main-1', 'main-2']));
+		expect(store.window('main-2')!.tabs.map((tab) => tab.location.uri)).toEqual(['file:///home']);
+	});
+
 	it('warns from the eighth window and refuses the thirteenth with a notice', async () => {
 		const { store, one } = twoWindows();
 		await renderWorkspace(undefined, one);

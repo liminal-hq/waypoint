@@ -28,6 +28,8 @@ interface PathBarProps {
 	editing: boolean;
 	onEditingChange: (editing: boolean) => void;
 	onNavigate: (location: Location) => void | Promise<void>;
+	/** Middle-click on a path part: it opens in a tab beside this one, in the background, or in a new window with Ctrl. */
+	onOpenInNewTab?: (location: Location, inNewWindow: boolean) => void;
 	/** The typed path was accepted (whether or not it went anywhere), so focus can move on to the list. */
 	onCommitted?: () => void;
 }
@@ -48,6 +50,7 @@ export function PathBar({
 	editing,
 	onEditingChange,
 	onNavigate,
+	onOpenInNewTab,
 	onCommitted,
 }: PathBarProps) {
 	return editing ? (
@@ -58,7 +61,12 @@ export function PathBar({
 			onCommitted={onCommitted}
 		/>
 	) : (
-		<Breadcrumbs location={location} onEdit={() => onEditingChange(true)} onNavigate={onNavigate} />
+		<Breadcrumbs
+			location={location}
+			onEdit={() => onEditingChange(true)}
+			onNavigate={onNavigate}
+			onOpenInNewTab={onOpenInNewTab}
+		/>
 	);
 }
 
@@ -66,9 +74,10 @@ interface BreadcrumbsProps {
 	location: Location;
 	onEdit: () => void;
 	onNavigate: (location: Location) => void;
+	onOpenInNewTab?: (location: Location, inNewWindow: boolean) => void;
 }
 
-function Breadcrumbs({ location, onEdit, onNavigate }: BreadcrumbsProps) {
+function Breadcrumbs({ location, onEdit, onNavigate, onOpenInNewTab }: BreadcrumbsProps) {
 	const client = useVfsClient();
 	const info = useLocationInfo(client, location, { keepPrevious: true });
 	const scroller = useRef<HTMLOListElement | null>(null);
@@ -97,6 +106,15 @@ function Breadcrumbs({ location, onEdit, onNavigate }: BreadcrumbsProps) {
 									{...dropAttributes('crumb', segment.location.uri, segment.label)}
 									aria-current={last ? 'page' : undefined}
 									onClick={() => onNavigate(segment.location)}
+									// Stops the middle button starting autoscroll on Linux before `auxclick` arrives.
+									onMouseDown={(event) => {
+										if (event.button === 1) event.preventDefault();
+									}}
+									onAuxClick={(event) => {
+										if (event.button !== 1 || !onOpenInNewTab) return;
+										event.preventDefault();
+										onOpenInNewTab(segment.location, event.ctrlKey);
+									}}
 								>
 									{segment.label}
 								</button>
