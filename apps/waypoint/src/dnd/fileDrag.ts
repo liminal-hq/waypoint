@@ -212,6 +212,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	let lastPlanKey = '';
 	let release: (() => void) | null = null;
 	let springs: Spring[] = [];
+	/** Counts the drags that have ended, so a spring still opening can tell its drag is over. */
+	let generation = 0;
 	let springLock: Point | null = null;
 	let scroller: HTMLElement | null = null;
 	let scrollTimer: unknown = null;
@@ -326,6 +328,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 
 	const fireSpring = async (spot: DropSpot, target: FileDropTarget) => {
 		if (!sourceRef) return;
+		const mine = generation;
+		const ended = () => mine !== generation;
 		if (markedElement) {
 			markedElement.removeAttribute(SPRING_ATTRIBUTE);
 			markedElement.style.removeProperty('--wp-drop-spring-ms');
@@ -337,6 +341,11 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				const previous = deps.activeTab();
 				if (previous === id) return;
 				await deps.activate(id);
+				if (ended()) {
+					// Released while the tab was opening: put back what was shown.
+					if (previous !== null) await deps.activate(previous);
+					return;
+				}
 				springs.push({
 					stays: (next) => next.inStrip || next.pane !== null,
 					revert: () => (previous === null ? Promise.resolve() : deps.activate(previous)),
@@ -348,12 +357,18 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			if (!location && spot.kind === 'folder') {
 				const ref = parseFolderRef(spot.ref);
 				if (ref) location = await resolveFolder(spot.ref, ref.handle, ref.entry);
+				if (ended()) return;
 			}
 			const pane = spot.kind === 'folder' ? spot.pane : deps.activeTab();
 			if (!location || pane === null) return;
 			const shown = deps.pane(pane)?.location;
 			if (shown && normaliseUri(shown.uri) === normaliseUri(location.uri)) return;
 			await deps.navigate(pane, location);
+			if (ended()) {
+				// Released while the folder was opening: go back at once.
+				await deps.back(pane);
+				return;
+			}
 			springs.push({ stays: (next) => next.pane === pane, revert: () => deps.back(pane) });
 			deps.announce(tf('dnd.announce.sprungFolder', { target: target.label }));
 		} catch (error) {
@@ -516,6 +531,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		rootElement()?.removeAttribute(FILE_DRAG_ATTRIBUTE);
 		controlRef = null;
 		sourceRef = null;
+		generation += 1;
+		springs = [];
 		lastSpot = null;
 		lastKey = '';
 		lastPlanKey = '';

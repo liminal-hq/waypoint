@@ -932,6 +932,40 @@ describe('spring-loading', () => {
 		expect(tabs.deps.activate).toHaveBeenLastCalledWith(1);
 	});
 
+	it('reverts a spring that was still opening when the drag ended, and leaves nothing for the next drag', async () => {
+		const h = await setup();
+		let finish: () => void = () => {};
+		h.deps.navigate.mockImplementation(
+			() =>
+				new Promise<void>((resolve) => {
+					finish = resolve;
+				}),
+		);
+		h.startDrag();
+		const pane = mark('pane', 1, 'test');
+		pane.setAttribute('data-pane', '1');
+		const row = mark('folder', folderRef(h.session.model.handle, 1), 'docs', {}, pane);
+		h.over(row, pane);
+		h.move(120);
+		h.clock.advance(600);
+		await settle();
+		expect(h.deps.navigate).toHaveBeenCalledTimes(1);
+		// Released (Esc) before the navigation settled.
+		fireEvent.keyDown(window, { key: 'Escape' });
+		await settle();
+		finish();
+		await settle();
+		// The pane that switched is switched back at once, and no stale entry waits for the next drag.
+		expect(h.deps.back).toHaveBeenCalledTimes(1);
+		expect(h.deps.back).toHaveBeenCalledWith(1);
+		h.startDrag();
+		h.over(mark('place', MUSIC.uri, 'Music'));
+		h.move(130);
+		h.up(130);
+		await settle();
+		expect(h.deps.back).toHaveBeenCalledTimes(1);
+	});
+
 	it('does not open a second spring until the pointer has moved', async () => {
 		const h = await setup();
 		h.startDrag();
