@@ -708,3 +708,98 @@ fn a_failed_sync_keeps_the_source_of_a_cross_volume_move() {
     assert_eq!(src_tree(&h), original);
     assert!(dst_tree(&h).is_empty());
 }
+
+/// Edits the source in the middle of a job: when `items_done` reaches `at`, runs `edit`.
+struct Meddler<'a> {
+    provider: &'a dyn Provider,
+    at: u64,
+    done: bool,
+    edit: Box<dyn Fn(&dyn Provider) + 'a>,
+}
+
+impl ExecSink for Meddler<'_> {
+    fn progress(&mut self, progress: &Progress, _: &Counts) {
+        if !self.done && progress.items_done >= self.at {
+            self.done = true;
+            (self.edit)(self.provider);
+        }
+    }
+}
+
+#[test]
+fn replacing_a_folder_by_a_cross_volume_move_keeps_whatever_changed_in_the_source() {
+    let (h, _dir) = crossing(CaseRule::Sensitive);
+    fill(
+        &h,
+        &tree(&[
+            ("d/", ""),
+            ("d/a", "alpha"),
+            ("d/b", "bravo"),
+            ("d/sub/", ""),
+            ("d/sub/c", "charlie"),
+        ]),
+    );
+    populate(
+        h.provider.as_ref(),
+        &h.path("dst"),
+        &tree(&[("d/", ""), ("d/old", "old")]),
+    );
+    h.provider.reset();
+    let request = req(&h, JobKind::Move, &["src/d"], "dst", None);
+    let planned = h.plan(&request).unwrap();
+    let (a, new) = (h.path("src/d/a"), h.path("src/d/new"));
+    let mut meddler = Meddler {
+        provider: h.provider.as_ref(),
+        // Everything is copied and the new folder is in place; the removal of the source is next.
+        at: 5,
+        done: false,
+        edit: Box::new(move |p| {
+            for (path, bytes) in [
+                (&a, &b"edited after it was copied"[..]),
+                (&new, &b"new"[..]),
+            ] {
+                let mut w = p.create_write(path, WriteOptions::truncate()).unwrap();
+                std::io::Write::write_all(&mut w, bytes).unwrap();
+                w.finish(false).unwrap();
+            }
+        }),
+    };
+    let mut resolutions = Resolutions::default();
+    resolutions.set_for(&h.loc("src/d"), ConflictPolicy::Replace);
+    let options = RunOptions {
+        chunk_bytes: SMALL_CHUNK,
+        resolutions,
+        ..RunOptions::default()
+    };
+    let report = Executor::new(h.env.clone())
+        .run_with(
+            JobId(1),
+            &planned,
+            &CancelToken::new(),
+            &mut meddler,
+            options,
+        )
+        .unwrap();
+    h.provider.reset();
+    assert!(meddler.done);
+    // The copy is in place, and what the job did not copy is still in the source.
+    assert_eq!(
+        dst_tree(&h),
+        tree(&[
+            ("d/", ""),
+            ("d/a", "alpha"),
+            ("d/b", "bravo"),
+            ("d/sub/", ""),
+            ("d/sub/c", "charlie"),
+        ])
+    );
+    assert_eq!(
+        src_tree(&h),
+        tree(&[
+            ("d/", ""),
+            ("d/a", "edited after it was copied"),
+            ("d/new", "new"),
+        ])
+    );
+    assert!(!report.skipped.is_empty(), "the leftovers are reported");
+}

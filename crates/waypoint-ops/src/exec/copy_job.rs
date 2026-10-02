@@ -208,6 +208,10 @@ struct Transfer<'a> {
     /// Every completed placement that is not inside a folder created by another one, as
     /// `(source, target)`, in order.
     units: Vec<(VfsPath, VfsPath)>,
+    /// While a folder replaced by a move is built as a copy: every source entry copied into it, as
+    /// the job met it and in the order copied (children before their folder), so the source can be
+    /// removed item by item afterwards and anything that changed meanwhile stays.
+    copied: Option<Vec<(VfsPath, ScannedEntry)>>,
 }
 
 /// Runs a copy or move plan.
@@ -245,6 +249,7 @@ pub(super) fn run(
         manifest: options.verify.map(Manifest::new),
         buf: Vec::new(),
         units: Vec::new(),
+        copied: None,
     };
     let mut done = 0u64;
     for item in &plan.items {
@@ -893,6 +898,9 @@ impl Transfer<'_> {
         if let Some(aside) = &aside {
             self.drop_aside(dp.as_ref(), aside);
         }
+        if let Some(copied) = self.copied.as_mut() {
+            copied.push((src.clone(), entry.clone()));
+        }
         self.leaf_placed(src, target, existing, 0);
         Ok(())
     }
@@ -1262,6 +1270,9 @@ impl Transfer<'_> {
         });
         match renamed {
             Ok(Some(())) => {
+                if let Some(copied) = self.copied.as_mut() {
+                    copied.push((src.clone(), entry.clone()));
+                }
                 self.units.push((src.clone(), target.clone()));
                 self.entry_done(file_name_of(target));
                 Ok(if whole {
@@ -1357,6 +1368,58 @@ impl Transfer<'_> {
         }
     }
 
+    /// Removes what a copy of the folder `src` took from it, once the copy is in place: each file
+    /// and link only if it is still what the job met (`remove_moved_source`), each folder only if it
+    /// is empty. Whatever changed, or is not in the copy, stays and is reported. Returns whether
+    /// the source folder is gone.
+    fn remove_copied_source(
+        &mut self,
+        sp: &dyn Provider,
+        src: &VfsPath,
+        copied: &[(VfsPath, ScannedEntry)],
+    ) -> R<bool> {
+        let mut left = false;
+        for (path, met) in copied {
+            self.check()?;
+            let result = if met.kind == EntryKind::Directory {
+                match sp.remove_dir(path) {
+                    Ok(()) | Err(VfsError::NotFound { .. }) => Ok(()),
+                    Err(VfsError::NotEmpty { .. }) => Err(Flow::item(OpsError::ChangedSince {
+                        location: path.to_location(),
+                    })),
+                    Err(error) => Err(error.into()),
+                }
+            } else {
+                Self::remove_moved_source(sp, path, met)
+            };
+            match result {
+                Ok(()) => {}
+                Err(Flow::Item(error)) if matches!(*error, OpsError::ChangedSince { .. }) => {
+                    left = true;
+                    self.fail_item(&path.to_location(), *error);
+                }
+                Err(other) => return Err(other),
+            }
+        }
+        // The folder itself, last; it holds what was left or arrived meanwhile unless it is empty.
+        match sp.remove_dir(src) {
+            Ok(()) | Err(VfsError::NotFound { .. }) => Ok(true),
+            Err(VfsError::NotEmpty { .. }) => {
+                if !left {
+                    // Something new arrived: nothing in the copy, so it stays.
+                    self.fail_item(
+                        &src.to_location(),
+                        OpsError::ChangedSince {
+                            location: src.to_location(),
+                        },
+                    );
+                }
+                Ok(false)
+            }
+            Err(error) => Err(error.into()),
+        }
+    }
+
     /// Folds the folder `src` into the existing folder `target`. The clashes below it are decided
     /// one by one; the existing folder's own times and permissions are left alone.
     fn merge_dir(
@@ -1396,7 +1459,8 @@ impl Transfer<'_> {
 
     /// Replaces the existing folder `target` with the folder `src`: the new folder is built beside
     /// it, the old one is set aside, the new one is renamed in, and only then is the old one
-    /// removed. A move takes the source's tree away after the new folder is in place.
+    /// removed. A move takes the source's entries away, one by one with the changed-since check of any
+    /// move, after the new folder is in place.
     #[allow(clippy::too_many_arguments)]
     fn replace_dir(
         &mut self,
@@ -1449,8 +1513,19 @@ impl Transfer<'_> {
                 }
             }
         }
-        let Some((partial, whole)) = self.build_partial_dir(sp, src, dp, target, entry, size)?
-        else {
+        let moving = ctx.mode == Mode::Move;
+        let before = if moving {
+            self.copied.replace(Vec::new())
+        } else {
+            None
+        };
+        let built = self.build_partial_dir(sp, src, dp, target, entry, size);
+        let copied = if moving {
+            std::mem::replace(&mut self.copied, before)
+        } else {
+            None
+        };
+        let Some((partial, whole)) = built? else {
             return Ok(Outcome::Skipped);
         };
         let swapped = self.attempt(&at, |t| {
@@ -1482,13 +1557,13 @@ impl Transfer<'_> {
             Outcome::Partial
         };
         if ctx.mode == Mode::Move && whole {
-            // The new folder is complete; the source goes. A failure part way leaves the items
-            // that were removed at the destination and the rest at both.
-            let removed = self.attempt(&at, |t| {
-                remove_tree(sp, src, t.cancel, &mut |_| {})?;
-                Ok(())
-            })?;
-            if removed.is_none() {
+            // The new folder is complete; the source goes, item by item as for any move: what was
+            // copied and is unchanged is removed, what changed or arrived meanwhile stays (and is
+            // reported), and the folders go only if they are empty. A failure part way leaves the
+            // items that were removed at the destination and the rest at both.
+            let copied = copied.unwrap_or_default();
+            let removed = self.attempt(&at, |t| t.remove_copied_source(sp, src, &copied))?;
+            if removed != Some(true) {
                 outcome = Outcome::Partial;
             }
         } else if ctx.mode == Mode::Move {
