@@ -20,10 +20,15 @@ mod linux;
 #[cfg(target_os = "linux")]
 use linux as platform;
 
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "windows")]
+use windows as platform;
+
 // Compiled everywhere for its tests; used only where there is no other backend.
-#[cfg(any(test, not(target_os = "linux")))]
+#[cfg(any(test, not(any(target_os = "linux", target_os = "windows"))))]
 mod unsupported;
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 use unsupported as platform;
 
 use std::sync::Arc;
