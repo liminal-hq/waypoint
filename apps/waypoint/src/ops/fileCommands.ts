@@ -18,7 +18,8 @@ import {
 	revealInserted,
 	waitForInserts,
 } from '../browse/reveal';
-import { selectedCount, type Selection } from '../browse/selection';
+import { isSelected, selectedCount, type Selection } from '../browse/selection';
+import { PAGE_SIZE } from '../browse/listingModel';
 import type { ListingSession } from '../browse/useListingSession';
 import { t, tf, tn } from '../i18n/messages';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
@@ -263,6 +264,28 @@ export function waitForJob(
 	});
 }
 
+/**
+ * The selection as explicit ids. A Select All is "everything except these", which Rust resolves
+ * against the listing as it is when the job arrives; a dialog that lists what will go must send
+ * exactly what it listed, so a file that appears while it is open is never part of the request.
+ */
+export async function freezeSelection(
+	model: ListingSession['model'],
+	selection: Selection,
+): Promise<Selection> {
+	if (selection.kind === 'some') return { kind: 'some', ids: new Set(selection.ids) };
+	const ids = new Set<EntryId>();
+	for (let position = 0; position < model.count; position += PAGE_SIZE) {
+		for (const entry of await model.readRange(
+			position,
+			Math.min(model.count, position + PAGE_SIZE),
+		)) {
+			if (isSelected(selection, entry.id)) ids.add(entry.id);
+		}
+	}
+	return { kind: 'some', ids };
+}
+
 function focusedEntry(session: ListingSession): Entry | undefined {
 	const { focus } = session.store.getState();
 	return focus === null ? undefined : session.model.entryAt(focus);
@@ -349,10 +372,10 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 
 	const confirmDelete = async (
 		found: ListingSession,
+		selection: Selection,
 		spec: { title: string; message?: string; reason?: string },
 	): Promise<boolean> => {
-		const { model, store } = found;
-		const selection = store.getState().selection;
+		const { model } = found;
 		const count = selectedCount(selection, model.count);
 		const names = await firstSelectedNames(model, selection, NAMES_SHOWN).catch(() => []);
 		const summary = await vfs
@@ -381,10 +404,9 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		});
 	};
 
-	const runDelete = async (found: ListingSession) => {
-		const job = await run(
-			selectionRequest('delete', found.model.handle, found.store.getState().selection, windowLabel),
-		);
+	/** Deletes exactly `selection`, the one the person confirmed. */
+	const runDelete = async (found: ListingSession, selection: Selection) => {
+		const job = await run(selectionRequest('delete', found.model.handle, selection, windowLabel));
 		reportFailure(job);
 	};
 
@@ -467,7 +489,8 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			const found = withSelection(session);
 			if (!found) return;
 			const { model, store } = found;
-			const selection = store.getState().selection;
+			// What is confirmed is what is sent: a file that arrives while the dialog is open is not part of it.
+			const selection = await freezeSelection(model, store.getState().selection);
 			const settings = await ops.client.getSettings().catch(() => null);
 			if (settings?.confirmTrash) {
 				const count = selectedCount(selection, model.count);
@@ -487,11 +510,11 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			if (job?.state.state === 'failed' && job.state.error.kind === 'trashUnavailable') {
 				// A volume with no Trash: offer the permanent delete, said plainly.
 				void ops.client.dismiss(job.id).catch(() => {});
-				const ok = await confirmDelete(found, {
+				const ok = await confirmDelete(found, selection, {
 					title: t('files.trash.unavailable.title'),
 					message: tf('files.trash.unavailable.message', { reason: job.state.error.reason }),
 				});
-				if (ok) await runDelete(found);
+				if (ok) await runDelete(found, selection);
 				return;
 			}
 			reportFailure(job);
@@ -502,7 +525,10 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			const found = withSelection(session);
 			if (!found) return;
 			// Always asked, whatever the settings say (D104); nothing here can be undone.
-			if (await confirmDelete(found, { title: t('files.delete.title') })) await runDelete(found);
+			const selection = await freezeSelection(found.model, found.store.getState().selection);
+			if (await confirmDelete(found, selection, { title: t('files.delete.title') })) {
+				await runDelete(found, selection);
+			}
 		},
 
 		async undo() {

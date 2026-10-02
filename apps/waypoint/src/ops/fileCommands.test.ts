@@ -383,6 +383,22 @@ describe('Delete Permanently', () => {
 		expect(request.kind.kind).toBe('delete');
 	});
 
+	it('sends exactly what the dialog listed: a file that arrives while it is open is left alone', async () => {
+		const h = await commandsHarness();
+		await h.session.model.readRange(0, h.session.model.count);
+		h.session.store.getState().selectAll();
+		h.onConfirm.run = () =>
+			h.vfs.addEntries(FOLDER, [makeEntry(9, 'download.iso', { kind: 'file' })]);
+		const done = h.commands.deletePermanently();
+		await h.finish();
+		await done;
+		const request = h.fake.calls.find((c) => c[0] === 'submit')![1] as {
+			sources: { spec: { kind: string; ids: number[] } };
+		};
+		expect(request.sources.spec.kind).toBe('some');
+		expect([...request.sources.spec.ids].sort()).toEqual([1, 2, 3]);
+	});
+
 	it('is not offered where the listing is read-only', async () => {
 		const h = await commandsHarness({ readOnly: true });
 		await select(h, 0);

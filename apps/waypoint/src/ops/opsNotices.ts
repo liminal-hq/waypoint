@@ -78,10 +78,10 @@ export interface UndoNoticeOptions {
 }
 
 /**
- * A refused undo or redo job this window started shows why. Shows "Copied 3 items" with an Undo button when a job this window started ends and the journal
+ * Shows "Copied 3 items" with an Undo button when a job this window started ends and the journal
  * holds an entry for it (the job's `undoable`, which the plugin sets once the entry is committed).
- * Jobs already finished when it starts, and those that end in any other way, get none. Returns what
- * stops it.
+ * A refused undo or redo job this window started shows why. Jobs already finished when it starts,
+ * and those that end in any other way, get none. Returns what stops it.
  */
 export function startUndoNotices(handle: OpsHandle, options: UndoNoticeOptions): () => void {
 	const show = options.show ?? showNotice;

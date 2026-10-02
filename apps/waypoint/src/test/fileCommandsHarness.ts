@@ -25,6 +25,8 @@ export interface CommandsHarness {
 	said: string[];
 	/** What the next confirmation answers. */
 	answer: { value: boolean };
+	/** Runs when a confirmation is asked, before it answers: what happens while the dialog is open. */
+	onConfirm: { run: (() => void) | null };
 	/** Waits for the `n`th job and runs it to the end, as the worker pool would. */
 	finish(n?: number, undoable?: string): Promise<number>;
 }
@@ -52,6 +54,7 @@ export async function commandsHarness(
 	const confirms: ConfirmSpec[] = [];
 	const said: string[] = [];
 	const answer = { value: true };
+	const onConfirm: { run: (() => void) | null } = { run: null };
 	const commands = createFileCommands({
 		ops,
 		vfs,
@@ -59,6 +62,7 @@ export async function commandsHarness(
 		activeSession: () => session,
 		confirm: async (spec) => {
 			confirms.push(spec);
+			onConfirm.run?.();
 			return answer.value;
 		},
 		say: (text) => said.push(text),
@@ -72,6 +76,7 @@ export async function commandsHarness(
 		confirms,
 		said,
 		answer,
+		onConfirm,
 		async finish(n = 1, undoable) {
 			await vi.waitFor(() => expect(fake.jobs().length).toBeGreaterThanOrEqual(n));
 			const job = fake.jobs()[n - 1]!;
