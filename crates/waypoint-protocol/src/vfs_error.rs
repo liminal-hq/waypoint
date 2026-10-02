@@ -47,6 +47,8 @@ pub enum VfsError {
     /// The name cannot be created on this provider: empty, too long, a separator, `.` or `..`, a
     /// NUL, or (under the Windows rules) a reserved device name or a trailing dot or space.
     InvalidName { name: String, reason: String },
+    /// A file cannot be shown as text because it holds binary data (a NUL byte in its first bytes).
+    NotText { location: Location },
     /// Any other I/O failure, with the operating system's message.
     Io {
         message: String,

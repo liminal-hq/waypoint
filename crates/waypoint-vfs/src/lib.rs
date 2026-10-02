@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod cancel;
+mod details;
 mod error;
 mod group;
 mod icon;
@@ -31,6 +32,7 @@ mod watch;
 mod write;
 
 pub use cancel::CancelToken;
+pub use details::*;
 pub use error::{from_io, from_io_pair, InjectedError};
 pub use icon::group_for;
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};

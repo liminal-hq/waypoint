@@ -316,6 +316,9 @@ impl From<VfsError> for OpsError {
             VfsError::NotEmpty { location } => OpsError::Io {
                 message: format!("{} is not empty", location.display),
             },
+            VfsError::NotText { location } => OpsError::Io {
+                message: format!("{} is not a text file", location.display),
+            },
             VfsError::InUse { location } => OpsError::Io {
                 message: format!("{} is in use by another program", location.display),
             },
