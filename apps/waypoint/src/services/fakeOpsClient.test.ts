@@ -187,6 +187,38 @@ describe('FakeOpsClient', () => {
 		await expect(fake.resolve(id, [])).rejects.toMatchObject({ kind: 'queue' });
 	});
 
+	it('answers a preview for a clash the job waits on, from what a test scripted', async () => {
+		const fake = createFakeOpsClient();
+		const id = await fake.submit(request(['a']));
+		fake.start(id);
+		const source = fileLocation('/src/a');
+		const existing = fileLocation('/dest/a');
+		await expect(fake.conflictPreview(id, source)).rejects.toMatchObject({ kind: 'queue' });
+		fake.askConflicts(id, [
+			{
+				source,
+				existing,
+				name: 'a',
+				kind: 'fileOverFile',
+				withinBatch: false,
+				sourceSize: 1,
+				existingSize: 2,
+				sourceModifiedMs: 1,
+				existingModifiedMs: 2,
+			},
+		]);
+		await expect(fake.conflictPreview(id, source)).rejects.toMatchObject({ kind: 'queue' });
+		const preview = {
+			existing: { location: existing, size: 2, modifiedMs: 2 },
+			incoming: { location: source, size: 1, modifiedMs: 1 },
+			kind: { type: 'identical' as const },
+		};
+		fake.previews.set(source.uri, preview);
+		await expect(fake.conflictPreview(id, source)).resolves.toEqual(preview);
+		fake.previews.set(source.uri, new Error('read failed'));
+		await expect(fake.conflictPreview(id, source)).rejects.toThrow('read failed');
+	});
+
 	it('answers an error with a decision: retry and skip run again, cancel unwinds', async () => {
 		const fake = createFakeOpsClient();
 		const id = await fake.submit(request());

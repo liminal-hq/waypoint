@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Conflict } from '@liminal-hq/waypoint-protocol/generated/Conflict';
+import type { ConflictPreview } from '@liminal-hq/waypoint-protocol/generated/ConflictPreview';
 import type { Counts } from '@liminal-hq/waypoint-protocol/generated/Counts';
 import type { JobKind } from '@liminal-hq/waypoint-protocol/generated/JobKind';
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
@@ -317,6 +318,38 @@ export class FakeOpsClient implements OpsClient {
 			};
 			this.changed(entry);
 		}
+	}
+
+	/**
+	 * What `conflictPreview` answers, by the clash's source URI: a preview, or a rejection to
+	 * simulate a read that failed. A clash with nothing scripted rejects, as the plugin does for one
+	 * the job is not waiting on.
+	 */
+	readonly previews = new Map<string, ConflictPreview | Error>();
+	/** Holds every `conflictPreview` until `release` is called, to test the dialog while it loads. */
+	holdPreviews(): { release(): void } {
+		let release: () => void = () => undefined;
+		this.previewGate = new Promise<void>((resolve) => {
+			release = () => {
+				this.previewGate = null;
+				resolve();
+			};
+		});
+		return { release };
+	}
+	private previewGate: Promise<void> | null = null;
+
+	async conflictPreview(job: JobId, item: Location): Promise<ConflictPreview> {
+		this.calls.push(['conflictPreview', job, item]);
+		if (this.previewGate) await this.previewGate;
+		const state = this.find(job).snapshot.state;
+		if (state.state !== 'waiting' || state.reason.kind !== 'conflicts') {
+			throw refusal(`job ${job} is not waiting on conflicts`);
+		}
+		const scripted = this.previews.get(item.uri);
+		if (!scripted) throw refusal(`${item.display} is not a clash of job ${job}`);
+		if (scripted instanceof Error) throw scripted;
+		return scripted;
 	}
 
 	async resolveError(job: JobId, decision: Decision): Promise<void> {

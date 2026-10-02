@@ -8,7 +8,9 @@ import type {
 	ClipboardMode,
 	ClipboardSource,
 	ConflictPolicy,
+	ConflictPreview,
 	Decision,
+	DiffLine,
 	JobId,
 	JobProgress,
 	JobRequest,
@@ -32,7 +34,9 @@ export type {
 	ClipboardMode,
 	ClipboardSource,
 	ConflictPolicy,
+	ConflictPreview,
 	Decision,
+	DiffLine,
 	JobId,
 	JobProgress,
 	JobRequest,
@@ -70,6 +74,11 @@ export interface OpsClient {
 	/** Moves a queued job to `to` among the queued jobs (0 runs next). */
 	reorder(job: JobId, to: number): Promise<void>;
 	resolve(job: JobId, decisions: Resolution[], applyToAll?: ConflictPolicy): Promise<void>;
+	/**
+	 * The two files of one clash a waiting job holds (`item` is the clash's source): sizes, times and
+	 * a line diff of small text files. Optional: a client without it leaves the dialog as it was.
+	 */
+	conflictPreview?(job: JobId, item: Location): Promise<ConflictPreview>;
 	resolveError(job: JobId, decision: Decision): Promise<void>;
 	undo(entry?: JournalId): Promise<JobId>;
 	redo(entry?: JournalId): Promise<JobId>;
