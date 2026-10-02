@@ -9,6 +9,7 @@ import { getStatus as systemAppearanceStatus } from '@liminal-hq/plugin-system-a
 import { getStatus as thumbnailsStatus } from '@liminal-hq/plugin-thumbnails';
 import { getStatus as trashStatus } from '@liminal-hq/plugin-trash';
 import { getStatus as volumesStatus } from '@liminal-hq/plugin-volumes';
+import { getStatus as windowEffectsStatus } from '@liminal-hq/plugin-window-effects';
 import { getStatus as windowManagerStatus } from '@liminal-hq/plugin-window-manager';
 import { getStatus as windowTearoffStatus } from '@liminal-hq/plugin-window-tearoff';
 import { getStatus as opsStatus } from '@liminal-hq/waypoint-plugin-ops';
@@ -84,6 +85,28 @@ export async function volumesServiceStatus(): Promise<PluginStatus> {
 	);
 }
 
+/** The reason codes of features that belong to another platform (Mica on Linux, the shadow inset on Windows): not a fault to show. */
+const FOREIGN_REASONS: ReadonlyArray<string> = ['windows-only', 'gtk-only'];
+
+/** The window effects plugin's status in the shared shape: its features carry typed reasons, shown as the sentence they hold, except for the ones that simply belong to another platform. */
+export async function windowEffectsServiceStatus(): Promise<PluginStatus> {
+	const status = await windowEffectsStatus();
+	return summarise(
+		{ available: status.available, reason: status.message },
+		status.features.map(
+			(feature) =>
+				[
+					feature.name,
+					{
+						available: feature.available,
+						reason:
+							feature.reason && FOREIGN_REASONS.includes(feature.reason) ? null : feature.message,
+					},
+				] as const,
+		),
+	);
+}
+
 /** The native drag and drop plugin's status in the shared shape. */
 export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	const status = await nativeDndStatus();
@@ -109,6 +132,7 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'window-tearoff': windowTearoffStatus,
 	thumbnails: thumbnailsServiceStatus,
 	volumes: volumesServiceStatus,
+	'window-effects': windowEffectsServiceStatus,
 };
 
 /** Asks every plugin whether it works here; one that cannot answer is reported unavailable with the error as its reason. */

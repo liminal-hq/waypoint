@@ -9,6 +9,7 @@ import {
 	nativeDndServiceStatus,
 	SERVICE_SOURCES,
 	trashServiceStatus,
+	windowEffectsServiceStatus,
 } from './serviceStatuses';
 
 const plugins = vi.hoisted(() => ({
@@ -17,9 +18,11 @@ const plugins = vi.hoisted(() => ({
 	ops: vi.fn(),
 	vfs: vi.fn(),
 	windowManager: vi.fn(),
+	effects: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
+vi.mock('@liminal-hq/plugin-window-effects', () => ({ getStatus: plugins.effects }));
 vi.mock('@liminal-hq/waypoint-plugin-ops', () => ({ getStatus: plugins.ops }));
 vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({ getStatus: plugins.vfs }));
 vi.mock('@liminal-hq/plugin-window-manager', () => ({ getStatus: plugins.windowManager }));
@@ -84,6 +87,60 @@ describe('the Trash status', () => {
 	});
 });
 
+describe('the window effects status', () => {
+	const entry = (
+		name: string,
+		available: boolean,
+		reason: string | null,
+		message: string | null,
+	) => ({
+		name,
+		available,
+		reason,
+		message,
+	});
+
+	it('explains a missing blur and says nothing of the features that belong to another platform', async () => {
+		const why = 'GNOME does not let apps blur behind their windows';
+		plugins.effects.mockResolvedValue({
+			available: true,
+			reason: 'compositor-has-no-blur',
+			message: why,
+			flavour: 'wayland',
+			features: [
+				entry('opacity', true, null, null),
+				entry('blur', false, 'compositor-has-no-blur', why),
+				entry('mica', false, 'windows-only', 'Mica is a Windows 11 material'),
+				entry('shadowInset', true, null, null),
+			],
+		});
+		expect(await windowEffectsServiceStatus()).toEqual({
+			available: true,
+			reason: why,
+			features: ['opacity', 'shadowInset'],
+		});
+	});
+
+	it('has no reason on Windows 11, where the shadow inset is not a fault', async () => {
+		plugins.effects.mockResolvedValue({
+			available: true,
+			reason: null,
+			message: null,
+			flavour: 'windows',
+			features: [
+				entry('opacity', true, null, null),
+				entry('mica', true, null, null),
+				entry('shadowInset', false, 'gtk-only', 'the shadow inset is a GTK feature'),
+			],
+		});
+		expect(await windowEffectsServiceStatus()).toEqual({
+			available: true,
+			reason: null,
+			features: ['opacity', 'mica'],
+		});
+	});
+});
+
 describe('the native drag and drop status', () => {
 	it('reads its feature map', async () => {
 		plugins.dnd.mockResolvedValue({
@@ -118,6 +175,7 @@ describe('the Services panel sources', () => {
 			'window-tearoff',
 			'thumbnails',
 			'volumes',
+			'window-effects',
 		]);
 		plugins.vfs.mockResolvedValue({ available: true, reason: null, features: ['listing'] });
 		plugins.trash.mockRejectedValue(new Error('permission denied'));
