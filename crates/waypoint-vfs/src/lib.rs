@@ -10,10 +10,12 @@ mod error;
 mod group;
 mod icon;
 mod index;
+mod inspect;
 mod listing;
 mod local;
 #[cfg(any(test, feature = "testing"))]
 mod memory;
+mod mime;
 mod model;
 mod names;
 mod navigation;
@@ -27,6 +29,7 @@ mod sys;
 #[cfg(windows)]
 #[path = "sys_windows.rs"]
 mod sys;
+mod text;
 mod trash;
 mod watch;
 mod write;
@@ -39,6 +42,7 @@ pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
 #[cfg(any(test, feature = "testing"))]
 pub use memory::{MemOp, MemoryProvider};
+pub use mime::{guess as guess_mime, SNIFF_LEN};
 pub use model::*;
 pub use names::{child_path, validate_name};
 pub use navigation::{describe_location, parse_location};
@@ -46,6 +50,7 @@ pub use order::natural_key;
 pub use places::*;
 pub use provider::*;
 pub use space::free_space;
+pub use text::{read_text_head, TEXT_HEAD_MAX};
 #[cfg(any(test, feature = "testing"))]
 pub use trash::MemoryTrashSource;
 pub use trash::{
