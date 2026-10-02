@@ -37,6 +37,8 @@ const COMMANDS: &[&str] = &[
     "remove_from_shelf",
     "clear_shelf",
     "move_shelf_item",
+    "set_shelf_undocked",
+    "set_shelf_on_top",
     "join_pair",
     "separate_pair",
     "set_pair_layout",

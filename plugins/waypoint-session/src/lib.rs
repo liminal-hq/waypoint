@@ -67,6 +67,8 @@ pub fn init<R: Runtime>(deps: SessionDeps<R>) -> TauriPlugin<R> {
             commands::remove_from_shelf,
             commands::clear_shelf,
             commands::move_shelf_item,
+            commands::set_shelf_undocked,
+            commands::set_shelf_on_top,
             commands::join_pair,
             commands::separate_pair,
             commands::set_pair_layout,

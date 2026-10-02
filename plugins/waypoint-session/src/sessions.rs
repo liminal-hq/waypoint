@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use waypoint_protocol::WindowKind;
+use waypoint_protocol::{WindowKind, SHELF_LABEL};
 use waypoint_session::{
     Command, MoveTo, MoveWhat, Outcome, SessionEvent, SessionSnapshot, SessionStorage, Store,
     TabId, ViewPrefs, WindowSummary,
@@ -162,7 +162,10 @@ impl<R: Runtime> Sessions<R> {
         }
         let before = store.clone();
         // Geometry has no event but is still worth saving.
-        let silent_change = matches!(command, Command::SetGeometry { .. });
+        let silent_change = matches!(
+            command,
+            Command::SetGeometry { .. } | Command::SetShelfGeometry { .. }
+        );
         let outcome = store.dispatch(label, command)?;
         for opened in outcome.windows_opened() {
             let geometry = store.window(&opened).and_then(|w| w.geometry);
@@ -176,6 +179,22 @@ impl<R: Runtime> Sessions<R> {
                 return Err(e.into());
             }
         }
+        // The Shelf window comes with the change that undocks the Shelf, and goes with the one that
+        // docks it; a factory that cannot make it undoes the change, as for any other window.
+        let shelf_was = before.shelf_window().undocked;
+        let shelf_is = store.shelf_window().undocked;
+        if shelf_is && !shelf_was && app.get_webview_window(SHELF_LABEL).is_none() {
+            let shelf = *store.shelf_window();
+            if let Err(e) = self
+                .deps
+                .create_window
+                .create_shelf(app, &shelf, Some(label))
+            {
+                log::warn!("could not create the Shelf window: {e}; undoing the change");
+                *store = before;
+                return Err(e.into());
+            }
+        }
         self.publish(app, &outcome);
         if !outcome.windows_opened().is_empty() && store.windows().len() >= WARN_WINDOWS {
             log::warn!("{} windows are open", store.windows().len());
@@ -183,6 +202,13 @@ impl<R: Runtime> Sessions<R> {
         drop(store);
         if silent_change {
             self.schedule_change();
+        }
+        if shelf_was && !shelf_is {
+            if let Some(webview) = app.get_webview_window(SHELF_LABEL) {
+                if let Err(e) = webview.destroy() {
+                    log::warn!("could not destroy the Shelf window: {e}");
+                }
+            }
         }
         self.after_unlock(app, &outcome);
         Ok(outcome)
@@ -192,6 +218,9 @@ impl<R: Runtime> Sessions<R> {
     /// Does nothing for a window the store does not know (settings, properties, a window that
     /// `close_window` already closed).
     pub fn window_destroyed(&self, app: &AppHandle<R>, label: &str) {
+        if label == SHELF_LABEL {
+            return self.shelf_window_destroyed(app);
+        }
         let mut store = locked(&self.store);
         if store.window(label).is_none() {
             return;
@@ -206,6 +235,24 @@ impl<R: Runtime> Sessions<R> {
         }
     }
 
+    /// The Shelf window is gone, closed by the person or by the app as it quits: the Shelf docks
+    /// again. Does nothing when the Shelf was already docked (the dock command closed the window).
+    /// While the app quits the saved session is already final, so docking then is never saved.
+    fn shelf_window_destroyed(&self, app: &AppHandle<R>) {
+        let mut store = locked(&self.store);
+        if !store.shelf_window().undocked {
+            return;
+        }
+        match store.dispatch(SHELF_LABEL, Command::SetShelfUndocked { undocked: false }) {
+            Ok(outcome) => {
+                self.publish(app, &outcome);
+                drop(store);
+                self.after_unlock(app, &outcome);
+            }
+            Err(e) => log::warn!("could not dock the Shelf after its window closed: {e}"),
+        }
+    }
+
     /// First run: a main window the store does not hold yet is registered, empty, under its own
     /// label (`Command::RegisterWindow`), so `get_snapshot` and the first `open_tab` just work.
     /// Windows made by `OpenWindow` and `MoveTabs` are already in the store.
@@ -215,7 +262,7 @@ impl<R: Runtime> Sessions<R> {
         store: &mut Store,
         label: &str,
     ) -> Result<(), Error> {
-        if store.window(label).is_some() {
+        if store.window(label).is_some() || label == SHELF_LABEL {
             return Ok(());
         }
         if WindowKind::from_label(label) != Some(WindowKind::Main) {

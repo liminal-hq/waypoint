@@ -135,6 +135,18 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     function clearShelf() {
         return cmd('clear_shelf');
     }
+    /**
+     * Undocks the Shelf into its own window (`shelf`), or docks it back into the main windows. The
+     * window is made or closed with the change, and every window hears it as `shelfWindowChanged`.
+     * Rejects when the system cannot make the window.
+     */
+    function setShelfUndocked(undocked) {
+        return cmd('set_shelf_undocked', { undocked });
+    }
+    /** Remembers whether the Shelf window stays above other windows. It does not move the window: the caller does that where the system allows it. */
+    function setShelfOnTop(onTop) {
+        return cmd('set_shelf_on_top', { onTop });
+    }
     /** Moves an item to `toIndex` in the Shelf's order. */
     function moveShelfItem(id, toIndex) {
         return cmd('move_shelf_item', { id, toIndex });
@@ -236,6 +248,8 @@ var __TAURI_PLUGIN_WAYPOINT_SESSION__ = (function (exports, core, webviewWindow)
     exports.setGroupColour = setGroupColour;
     exports.setPairLayout = setPairLayout;
     exports.setPairSizes = setPairSizes;
+    exports.setShelfOnTop = setShelfOnTop;
+    exports.setShelfUndocked = setShelfUndocked;
     exports.setTabColour = setTabColour;
     exports.setTabHints = setTabHints;
     exports.setView = setView;
