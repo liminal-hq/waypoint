@@ -215,3 +215,14 @@ pub(crate) fn allocated_size(path: &Path) -> Option<u64> {
     }
     Some((u64::from(high) << 32) | u64::from(low))
 }
+
+/// Puts the calling thread in background mode, which lowers its CPU, disk and memory priority so
+/// a long walk yields to what the person is doing. A failure is ignored: the walk is only slower
+/// to yield.
+pub(crate) fn lower_thread_priority() {
+    use windows::Win32::System::Threading::{
+        GetCurrentThread, SetThreadPriority, THREAD_MODE_BACKGROUND_BEGIN,
+    };
+    // SAFETY: the pseudo-handle of the current thread is always valid.
+    let _ = unsafe { SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN) };
+}
