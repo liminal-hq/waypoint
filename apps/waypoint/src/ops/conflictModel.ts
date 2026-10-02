@@ -130,6 +130,24 @@ export function bulkChoices(conflicts: readonly Conflict[], answers: Answers): C
 }
 
 /** A key that changes when the set of clashes does, so a dialog starts afresh for new ones. */
+/**
+ * The folder the conflicts are in: the one parent every `existing` entry shares, which for a
+ * nested conflict (inside a merged folder) is that folder rather than the job's destination.
+ * `fallback` when they sit in different folders or one has no parent to name.
+ */
+export function conflictFolder(conflicts: readonly Conflict[], fallback: string): string {
+	let shared: string | null = null;
+	for (const { existing } of conflicts) {
+		const display = existing.display.replace(/[\\/]+$/, '');
+		const cut = Math.max(display.lastIndexOf('/'), display.lastIndexOf('\\'));
+		if (cut <= 0) return fallback;
+		const parent = display.slice(0, cut);
+		if (shared !== null && shared !== parent) return fallback;
+		shared = parent;
+	}
+	return shared ?? fallback;
+}
+
 export function conflictsKey(conflicts: readonly Conflict[]): string {
 	return conflicts.map((conflict) => conflict.source.uri).join('\n');
 }

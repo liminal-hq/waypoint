@@ -199,6 +199,18 @@ describe('the path bar', () => {
 		expect(await screen.findByRole('textbox', { name: /Type a location/ })).toHaveFocus();
 	});
 
+	it('moves focus to the list after a typed path is accepted, so the arrow keys work at once', async () => {
+		const user = userEvent.setup();
+		await renderWorkspace();
+		await option('docs');
+		fireEvent.keyDown(window, { key: 'l', ctrlKey: true });
+		const field = await screen.findByRole('textbox');
+		await user.clear(field);
+		await user.type(field, '~/../test/music{Enter}');
+		await option('song.mp3');
+		await waitFor(() => expect(screen.getByRole('listbox')).toHaveFocus());
+	});
+
 	it('cancels on Escape and on leaving the field, without navigating', async () => {
 		const user = userEvent.setup();
 		const { tabs } = await renderWorkspace();

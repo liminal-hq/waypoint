@@ -27,7 +27,9 @@ interface PathBarProps {
 	location: Location;
 	editing: boolean;
 	onEditingChange: (editing: boolean) => void;
-	onNavigate: (location: Location) => void;
+	onNavigate: (location: Location) => void | Promise<void>;
+	/** The typed path was accepted (whether or not it went anywhere), so focus can move on to the list. */
+	onCommitted?: () => void;
 }
 
 function problemText(error: VfsError, input: string): string {
@@ -41,12 +43,19 @@ function problemText(error: VfsError, input: string): string {
 	}
 }
 
-export function PathBar({ location, editing, onEditingChange, onNavigate }: PathBarProps) {
+export function PathBar({
+	location,
+	editing,
+	onEditingChange,
+	onNavigate,
+	onCommitted,
+}: PathBarProps) {
 	return editing ? (
 		<PathEditor
 			location={location}
 			onClose={() => onEditingChange(false)}
 			onNavigate={onNavigate}
+			onCommitted={onCommitted}
 		/>
 	) : (
 		<Breadcrumbs location={location} onEdit={() => onEditingChange(true)} onNavigate={onNavigate} />
@@ -110,10 +119,11 @@ function Breadcrumbs({ location, onEdit, onNavigate }: BreadcrumbsProps) {
 interface PathEditorProps {
 	location: Location;
 	onClose: () => void;
-	onNavigate: (location: Location) => void;
+	onNavigate: (location: Location) => void | Promise<void>;
+	onCommitted?: () => void;
 }
 
-function PathEditor({ location, onClose, onNavigate }: PathEditorProps) {
+function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorProps) {
 	const client = useVfsClient();
 	const field = useRef<HTMLInputElement | null>(null);
 	const [text, setText] = useState(location.display);
@@ -136,8 +146,9 @@ function PathEditor({ location, onClose, onNavigate }: PathEditorProps) {
 		try {
 			const target = await client.parseLocation(text, location);
 			if (mine !== attempt.current) return;
-			if (target.uri !== location.uri) onNavigate(target);
 			onClose();
+			if (target.uri !== location.uri) await onNavigate(target);
+			onCommitted?.();
 		} catch (error) {
 			if (mine !== attempt.current) return;
 			setProblem(problemText(toVfsError(error), text));

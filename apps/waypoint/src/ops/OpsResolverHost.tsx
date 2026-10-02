@@ -72,6 +72,21 @@ function Host({ handle, windowLabel }: { handle: OpsHandle; windowLabel: string 
 		});
 	}, [waitingIds]);
 
+	// A dialog gives focus back to the element that had it, but not when that element is gone (the
+	// popover's "Resolve…" button closed with the popover): the operations button takes it then,
+	// so focus never rests on the page body.
+	const asking = target !== undefined && target.state.state === 'waiting';
+	const wasAsking = useRef(false);
+	useEffect(() => {
+		if (wasAsking.current && !asking) {
+			const active = document.activeElement;
+			if (!active || active === document.body) {
+				document.querySelector<HTMLElement>('[data-ops-ring]')?.focus();
+			}
+		}
+		wasAsking.current = asking;
+	}, [asking]);
+
 	const handleRef = useRef(handle);
 	handleRef.current = handle;
 	useEffect(

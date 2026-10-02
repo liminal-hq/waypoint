@@ -137,3 +137,23 @@ describe('job words', () => {
 		expect(view!.fraction).toBeCloseTo(0.25);
 	});
 });
+
+describe('every worded kind', () => {
+	it.each(['copy', 'move', 'link', 'trash', 'delete', 'duplicate', 'restore'] as const)(
+		'has a present and a past tense for one named item and for several (%s)',
+		async (kind) => {
+			const fake = createFakeOpsClient();
+			const submit = (names: string[]) =>
+				fake.submit({
+					...request(names),
+					kind: { kind },
+				});
+			await submit(['one.txt']);
+			await submit(['a', 'b']);
+			for (const job of fake.jobs()) {
+				expect(jobTitle(job)).not.toBe('');
+				expect(jobDoneText(job)).not.toContain('Finished:');
+			}
+		},
+	);
+});

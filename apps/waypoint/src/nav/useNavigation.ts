@@ -16,7 +16,8 @@ export interface Navigation {
 	canGoForward: boolean;
 	/** Up needs a parent, which Rust reports; false until it has answered. */
 	canGoUp: boolean;
-	goTo(location: Location): void;
+	/** Resolves once the tab has moved (and, if it fails, after reporting why). */
+	goTo(location: Location): Promise<void>;
 	back(): void;
 	forward(): void;
 	up(): void;
@@ -60,8 +61,8 @@ export function useNavigation(tabId?: number): Navigation {
 			canGoBack: backCount > 0,
 			canGoForward: forwardCount > 0,
 			canGoUp: parent !== null,
-			goTo: (location) => {
-				if (id !== undefined) api.navigate(id, location).catch(report);
+			goTo: async (location) => {
+				if (id !== undefined) await api.navigate(id, location).catch(report);
 			},
 			back: () => void repeat((t) => api.back(t), 1).catch(report),
 			forward: () => void repeat((t) => api.forward(t), 1).catch(report),

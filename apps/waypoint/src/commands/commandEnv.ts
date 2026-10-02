@@ -68,6 +68,9 @@ export interface CommandActions {
 	/** The file commands act on the active pane; `null` in a window with no queue. */
 	files: FileCommands | null;
 	batchRename(): void;
+	/** The Trash view's Restore and Delete Permanently, on the selection (the latter asks first). */
+	restoreFromTrash(): void;
+	deleteFromTrash(): void;
 	selectAll(): void;
 	invertSelection(): void;
 	/** Re-sorts the active pane's listing from its current sort. */
@@ -151,6 +154,8 @@ export function idleActions(): CommandActions {
 	return {
 		files: null,
 		batchRename: nothing,
+		restoreFromTrash: nothing,
+		deleteFromTrash: nothing,
 		selectAll: nothing,
 		invertSelection: nothing,
 		changeSort: nothing,

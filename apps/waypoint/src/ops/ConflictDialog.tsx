@@ -19,6 +19,7 @@ import {
 	ROW_CAP,
 	bulkChoices,
 	buildAnswer,
+	conflictFolder,
 	coverage,
 	dateHint,
 	effectivePolicy,
@@ -111,7 +112,10 @@ export function ConflictDialog({
 	const visible = showAll ? conflicts : conflicts.slice(0, ROW_CAP);
 	const hidden = count - visible.length;
 
-	const destination = job.destination?.display ?? t('ops.conflict.destination.unknown');
+	const destination = conflictFolder(
+		conflicts,
+		job.destination?.display ?? t('ops.conflict.destination.unknown'),
+	);
 	const title = restoring
 		? pluralText('ops.conflict.title.restore', count)
 		: pluralText('ops.conflict.title', count, { destination });

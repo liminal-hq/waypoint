@@ -324,6 +324,7 @@ function WorkspaceBody({
 	useFileShortcuts(commands, {
 		activeSession,
 		deleteInTrash: (session) => trashActions?.deletePermanently(session),
+		restoreInTrash: (session) => trashActions?.restore(session),
 	});
 	// The menu, the Action bar and (next) the palette list the same commands; the bridge carries their state.
 	useWorkspaceCommands({
@@ -333,6 +334,7 @@ function WorkspaceBody({
 		clipboard,
 		view: viewStore,
 		sidebar: sidebarStore,
+		trash: trashActions,
 	});
 	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
 	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
