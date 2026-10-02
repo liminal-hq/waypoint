@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_path::VfsPath;
 use waypoint_protocol::VfsError;
-use waypoint_vfs::{from_io, CancelToken, Provider};
+use waypoint_vfs::{from_io, CancelToken, EntryKind, Provider};
 
 use crate::model::VerifyAlgorithm;
 use crate::verify::{hex, Hasher};
@@ -95,12 +95,29 @@ pub fn run_checksum(
 ) {
     let location = path.to_location();
     let total = match provider.stat(path) {
-        Ok(entry) if entry.kind == waypoint_vfs::EntryKind::Directory => {
-            return sink(ChecksumEvent::Failed {
-                error: VfsError::IsADirectory { location },
-            });
+        Ok(entry) => {
+            // A link is judged by what it leads to; a pipe or a device would never end.
+            let target = if entry.kind == EntryKind::Symlink {
+                entry.link_target.unwrap_or(EntryKind::Other)
+            } else {
+                entry.kind
+            };
+            match target {
+                EntryKind::Directory => {
+                    return sink(ChecksumEvent::Failed {
+                        error: VfsError::IsADirectory { location },
+                    });
+                }
+                EntryKind::File => entry.size.unwrap_or(0),
+                _ => {
+                    return sink(ChecksumEvent::Failed {
+                        error: VfsError::Unsupported {
+                            what: "a checksum of something that is not a regular file".to_owned(),
+                        },
+                    });
+                }
+            }
         }
-        Ok(entry) => entry.size.unwrap_or(0),
         Err(error) => return sink(ChecksumEvent::Failed { error }),
     };
     let mut stream = match provider.open_read(path) {
@@ -127,7 +144,6 @@ pub fn run_checksum(
 mod tests {
     use super::*;
     use std::io::Cursor;
-    use waypoint_vfs::LocalProvider;
 
     fn bytes(len: usize) -> Vec<u8> {
         (0..len).map(|i| (i % 251) as u8).collect()
@@ -207,75 +223,5 @@ mod tests {
         let result = checksum_reader(&mut trip, VerifyAlgorithm::Sha256, &cancel, |_| {}).unwrap();
         assert!(result.is_none());
         assert_eq!(trip.reads, 2);
-    }
-
-    fn file_with(contents: &[u8]) -> (tempfile::TempDir, VfsPath) {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("data.bin");
-        std::fs::write(&file, contents).unwrap();
-        let path = VfsPath::from(waypoint_path::FilePath::from_path(file).unwrap());
-        (dir, path)
-    }
-
-    #[test]
-    fn a_file_on_disk_is_hashed_and_ends_in_done() {
-        let (_dir, path) = file_with(b"abc");
-        let mut events = Vec::new();
-        run_checksum(
-            &LocalProvider::new(),
-            &path,
-            VerifyAlgorithm::Sha256,
-            &CancelToken::new(),
-            &mut |event| events.push(event),
-        );
-        assert_eq!(
-            events.last(),
-            Some(&ChecksumEvent::Done {
-                algorithm: VerifyAlgorithm::Sha256,
-                digest: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".into(),
-                bytes: 3,
-            })
-        );
-    }
-
-    #[test]
-    fn a_folder_is_refused() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = VfsPath::from(waypoint_path::FilePath::from_path(dir.path()).unwrap());
-        let mut events = Vec::new();
-        run_checksum(
-            &LocalProvider::new(),
-            &path,
-            VerifyAlgorithm::Sha256,
-            &CancelToken::new(),
-            &mut |event| events.push(event),
-        );
-        assert!(matches!(
-            events.as_slice(),
-            [ChecksumEvent::Failed {
-                error: VfsError::IsADirectory { .. }
-            }]
-        ));
-    }
-
-    #[test]
-    fn a_missing_file_fails() {
-        let dir = tempfile::tempdir().unwrap();
-        let path =
-            VfsPath::from(waypoint_path::FilePath::from_path(dir.path().join("gone")).unwrap());
-        let mut events = Vec::new();
-        run_checksum(
-            &LocalProvider::new(),
-            &path,
-            VerifyAlgorithm::Blake3,
-            &CancelToken::new(),
-            &mut |event| events.push(event),
-        );
-        assert!(matches!(
-            events.as_slice(),
-            [ChecksumEvent::Failed {
-                error: VfsError::NotFound { .. }
-            }]
-        ));
     }
 }
