@@ -116,6 +116,8 @@ pub struct UiSettings {
     pub action_bar_labels: bool,
     /// Whether the title bar's label starts with "Waypoint"; off, it is just the window's name.
     pub app_name_in_title: bool,
+    /// Whether Main windows show a permanent menu bar under the title bar, carrying the application menu's menus.
+    pub menu_bar: bool,
 }
 
 impl Default for UiSettings {
@@ -124,6 +126,7 @@ impl Default for UiSettings {
             action_bar: true,
             action_bar_labels: true,
             app_name_in_title: false,
+            menu_bar: false,
         }
     }
 }
@@ -203,6 +206,7 @@ mod tests {
         assert!(s.ui.action_bar);
         assert!(s.ui.action_bar_labels);
         assert!(!s.ui.app_name_in_title);
+        assert!(!s.ui.menu_bar);
         assert_eq!(s.validate(), Ok(()));
     }
 
@@ -265,12 +269,22 @@ mod tests {
                 action_bar: true,
                 action_bar_labels: false,
                 app_name_in_title: true,
+                menu_bar: true,
             },
             ..Settings::default()
         };
         let text = serde_json::to_string(&icons_only).unwrap();
         assert_eq!(serde_json::from_str::<Settings>(&text).unwrap(), icons_only);
         assert_eq!(icons_only.validate(), Ok(()));
+    }
+
+    #[test]
+    fn the_menu_bar_defaults_off_and_round_trips() {
+        let partial: Settings = serde_json::from_str(r#"{"ui":{"actionBar":false}}"#).unwrap();
+        assert!(!partial.ui.menu_bar);
+        let on: Settings = serde_json::from_str(r#"{"ui":{"menuBar":true}}"#).unwrap();
+        assert!(on.ui.menu_bar);
+        assert_eq!(serde_json::to_value(on).unwrap()["ui"]["menuBar"], true);
     }
 
     #[test]

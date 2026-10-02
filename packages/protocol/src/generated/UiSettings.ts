@@ -16,4 +16,8 @@ actionBarLabels: boolean,
 /**
  * Whether the title bar's label starts with "Waypoint"; off, it is just the window's name.
  */
-appNameInTitle: boolean, };
+appNameInTitle: boolean, 
+/**
+ * Whether Main windows show a permanent menu bar under the title bar, carrying the application menu's menus.
+ */
+menuBar: boolean, };

@@ -166,6 +166,20 @@ describe('the General page', () => {
 		});
 	});
 
+	it('shows the menu bar row under Title bar, off by default, and saves it', async () => {
+		const { settings } = await open();
+		const row = screen.getByRole('switch', { name: 'Show a menu bar under the title bar' });
+		expect(row).not.toBeChecked();
+		expect(row).toHaveAccessibleDescription(/File, Edit, View and Window/);
+		await userEvent.click(row);
+		await waitFor(() => expect(row).toBeChecked());
+		expect(settings.current().settings.ui.menuBar).toBe(true);
+		expect(settings.current().settings).toEqual({
+			...DEFAULT_SETTINGS,
+			ui: { ...DEFAULT_SETTINGS.ui, menuBar: true },
+		});
+	});
+
 	it('edits the confirm-before-Trash row through the operations plugin, not the settings plugin', async () => {
 		const { settings, ops, opsSaves } = await open();
 		await userEvent.click(
