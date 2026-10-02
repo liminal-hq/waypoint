@@ -107,8 +107,9 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		const saveUi = (change: Partial<{ actionBar: boolean; actionBarLabels: boolean }>) => {
 			const handle = latest.current.settings;
 			if (!handle) return;
-			const current = handle.store.getState().settings;
-			handle.save({ ...current, ui: { ...current.ui, ...change } }).catch((error: unknown) => {
+			// Only the Action bar's own fields go to Rust, which merges them into what is in force: this
+			// window's copy of the rest may be older than the Settings window's.
+			handle.saveUi(change).catch((error: unknown) => {
 				console.warn('could not save the Action bar choice', error);
 				showNotice(
 					tf('settings.error.saveFailed', {

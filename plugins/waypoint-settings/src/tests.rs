@@ -234,3 +234,31 @@ fn the_status_command_reports_the_plugin_available() {
     assert!(status.available);
     assert_eq!(status.features, vec!["settings", "events"]);
 }
+
+#[test]
+fn a_ui_change_keeps_every_other_setting_that_is_in_force() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let heard = hear(&app, "main-1");
+    // The Settings window changes the default view; a main window that has not heard of it yet
+    // then hides the Action bar.
+    store(&app).set(grid()).unwrap();
+    let after = store(&app)
+        .update_ui(|ui| ui.action_bar = false)
+        .expect("a ui change is accepted");
+    assert_eq!(after.revision, 2);
+    assert!(!after.settings.ui.action_bar);
+    assert!(
+        after.settings.ui.action_bar_labels,
+        "a field not named stays"
+    );
+    assert_eq!(after.settings.general.default_view, DefaultView::Grid);
+    assert_eq!(store(&app).snapshot(), after);
+    assert_eq!(heard.lock().unwrap().last().copied(), Some(after));
+}
+
+#[test]
+fn a_ui_change_that_changes_nothing_makes_no_revision() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let before = store(&app).snapshot();
+    assert_eq!(store(&app).update_ui(|_| {}).unwrap(), before);
+}

@@ -9,6 +9,7 @@ import {
 	type Settings,
 	type SettingsClient,
 	type SettingsSnapshot,
+	type UiSettings,
 } from '../services/settingsClient';
 
 export interface SettingsState {
@@ -28,6 +29,8 @@ export interface SettingsHandle {
 	 * leaves the store as it was. The store changes only by what Rust says is in force.
 	 */
 	save(next: Settings): Promise<SettingsSnapshot>;
+	/** Asks Rust to change only the named `ui` settings; what the main windows use, since they never send the whole document. */
+	saveUi(change: Partial<UiSettings>): Promise<SettingsSnapshot>;
 	/** Stops following. The store keeps what it holds. */
 	dispose(): void;
 }
@@ -65,6 +68,11 @@ export function createSettingsStore(client: SettingsClient): SettingsHandle {
 		ready,
 		async save(next) {
 			const snapshot = await client.set(next);
+			apply(snapshot);
+			return snapshot;
+		},
+		async saveUi(change) {
+			const snapshot = await client.setUi(change);
 			apply(snapshot);
 			return snapshot;
 		},

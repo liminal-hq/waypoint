@@ -218,21 +218,34 @@ mod tests {
                 );
                 assert!(answer.is_ok(), "{label} may call {command}: {answer:?}");
             }
-            // The Action bar's choices are saved from the main windows.
+            // The Action bar's choices are saved from the main windows, and only those: the whole
+            // document is the Settings window's, or a stale main window would turn its changes back.
+            let ui = call(
+                &window,
+                "plugin:waypoint-settings|set_ui_settings",
+                serde_json::json!({ "change": { "actionBar": false } }),
+            );
+            assert!(ui.is_ok(), "{label} may change the ui settings: {ui:?}");
+            let whole = call(
+                &window,
+                "plugin:waypoint-settings|set_settings",
+                body.clone(),
+            )
+            .expect_err("the whole document is refused");
             assert!(
-                call(
-                    &window,
-                    "plugin:waypoint-settings|set_settings",
-                    body.clone()
-                )
-                .is_ok(),
-                "{label} may save the settings"
+                whole.to_string().contains("not allowed"),
+                "{label} may not save the whole document: {whole}"
             );
         }
 
         for label in ["ops", "properties-1", "tear-ghost"] {
             let window = open(label);
-            for command in ["get_settings", "get_status", "set_settings"] {
+            for command in [
+                "get_settings",
+                "get_status",
+                "set_settings",
+                "set_ui_settings",
+            ] {
                 assert!(
                     refused(&window, &format!("plugin:waypoint-settings|{command}")),
                     "{label} may not call {command}"

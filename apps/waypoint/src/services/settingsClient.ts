@@ -40,6 +40,11 @@ export interface SettingsClient {
 	snapshot(): Promise<SettingsSnapshot>;
 	/** Rejects with a `SettingsCommandError` and changes nothing for a refused value. */
 	set(settings: Settings): Promise<SettingsSnapshot>;
+	/**
+	 * Changes only the named `ui` settings, on top of whatever is in force in Rust: the call the
+	 * main windows make, which cannot turn another window's change to the rest back.
+	 */
+	setUi(change: Partial<UiSettings>): Promise<SettingsSnapshot>;
 	onChanged(listener: (snapshot: SettingsSnapshot) => void): Unsubscribe;
 }
 

@@ -55,6 +55,21 @@ export function setSettings(settings: Settings): Promise<SettingsSnapshot> {
 	return cmd<SettingsSnapshot>('set_settings', { settings });
 }
 
+/** The Action bar choices a window changes; a field left out keeps whatever is in force. */
+export interface UiSettingsChange {
+	actionBar?: boolean;
+	actionBarLabels?: boolean;
+}
+
+/**
+ * Changes only the `ui` settings named in `change`, on top of what is in force now (Rust merges
+ * them), so a window with an older copy of the document cannot turn other settings back. The
+ * main windows may call this; they may not call `setSettings`.
+ */
+export function setUiSettings(change: UiSettingsChange): Promise<SettingsSnapshot> {
+	return cmd<SettingsSnapshot>('set_ui_settings', { change });
+}
+
 /** Hears every change. Read `getSettings` first and apply snapshots with a higher revision. */
 export function onSettingsChanged(
 	listener: (snapshot: SettingsSnapshot) => void,

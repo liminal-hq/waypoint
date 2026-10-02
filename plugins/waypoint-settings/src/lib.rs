@@ -41,6 +41,7 @@ pub fn init_with<R: Runtime>(
             commands::get_status,
             commands::get_settings,
             commands::set_settings,
+            commands::set_ui_settings,
         ])
         .setup(move |app, _api| {
             let make = make

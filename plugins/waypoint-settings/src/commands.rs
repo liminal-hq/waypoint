@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use serde::Deserialize;
 use tauri::{Runtime, State, WebviewWindow};
 use waypoint_protocol::PluginStatus;
 use waypoint_settings::{Settings, SettingsSnapshot};
@@ -34,4 +35,31 @@ pub async fn set_settings<R: Runtime>(
     settings: Settings,
 ) -> Result<SettingsSnapshot, Error> {
     store.set(settings)
+}
+
+/// The `ui` settings a window changes; a field left out keeps whatever is in force.
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UiChange {
+    pub action_bar: Option<bool>,
+    pub action_bar_labels: Option<bool>,
+}
+
+/// Changes only the `ui` settings named in `change`, on top of what is in force now, and
+/// announces them to every window. The main windows may call this and not `set_settings`: they
+/// hold a copy of the whole document that another window may have moved on from.
+#[tauri::command]
+pub async fn set_ui_settings<R: Runtime>(
+    _window: WebviewWindow<R>,
+    store: State<'_, SettingsStore<R>>,
+    change: UiChange,
+) -> Result<SettingsSnapshot, Error> {
+    store.update_ui(|ui| {
+        if let Some(shown) = change.action_bar {
+            ui.action_bar = shown;
+        }
+        if let Some(shown) = change.action_bar_labels {
+            ui.action_bar_labels = shown;
+        }
+    })
 }

@@ -47,6 +47,11 @@ beforeEach(() => {
 });
 
 describe('createTauriSettingsClient', () => {
+	it('changes only the ui settings through its own command', async () => {
+		await createTauriSettingsClient().setUi({ actionBar: false });
+		expect(calls).toEqual([['set_ui_settings', { change: { actionBar: false } }]]);
+	});
+
 	it('reads and changes the settings through the plugin, by its snake_case names', async () => {
 		const client = createTauriSettingsClient();
 		const settings = { general: {}, dnd: {} } as never;
@@ -93,12 +98,14 @@ describe('the capabilities for the settings', () => {
 		expect(appliesTo(ops, 'settings')).toBe(false);
 	});
 
-	it('lets the main windows read the settings and save them for the Action bar, without the default set', () => {
+	it('lets the main windows read the settings and change only their ui part, without the default set', () => {
 		expect(appliesTo(main, 'main-1')).toBe(true);
 		expect(main.permissions).toContain('waypoint-settings:allow-get-settings');
 		expect(main.permissions).toContain('waypoint-settings:allow-get-status');
 		expect(main.permissions).not.toContain('waypoint-settings:default');
-		expect(main.permissions).toContain('waypoint-settings:allow-set-settings');
+		// Not the whole-document write: a stale window would silently turn the Settings window's changes back.
+		expect(main.permissions).not.toContain('waypoint-settings:allow-set-settings');
+		expect(main.permissions).toContain('waypoint-settings:allow-set-ui-settings');
 		// The operations plugin's default set (the main windows have it) reads its settings and never writes them.
 		const opsDefault = read('../../plugins/waypoint-ops/permissions/default.toml');
 		expect(ops.permissions).toContain('waypoint-ops:default');
@@ -110,6 +117,7 @@ describe('the capabilities for the settings', () => {
 		const client = createTauriSettingsClient();
 		await client.snapshot();
 		await client.set({} as never);
+		await client.setUi({ actionBar: true });
 		for (const [command] of calls) {
 			expect(allowed.has(command.replaceAll('_', '-')), command).toBe(true);
 		}

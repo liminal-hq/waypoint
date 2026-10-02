@@ -14,6 +14,8 @@ import {
 } from './settingsClient';
 
 export interface FakeSettings extends SettingsClient {
+	/** Every `setUi` the page sent, in order. */
+	readonly uiCalls: Array<Partial<Settings['ui']>>;
 	/** Every `set` the page sent, in order, whether or not it was accepted. */
 	readonly calls: Settings[];
 	/** The settings in force. */
@@ -43,6 +45,7 @@ export function createFakeSettingsClient(initial: Settings = DEFAULT_SETTINGS): 
 	let state: SettingsSnapshot = { revision: 0, settings: initial };
 	const listeners = new Set<(snapshot: SettingsSnapshot) => void>();
 	const calls: Settings[] = [];
+	const uiCalls: Array<Partial<Settings['ui']>> = [];
 	let failure: SettingsCommandError | null = null;
 	let hold: Promise<void> | null = null;
 
@@ -52,6 +55,7 @@ export function createFakeSettingsClient(initial: Settings = DEFAULT_SETTINGS): 
 
 	return {
 		calls,
+		uiCalls,
 		current: () => state,
 		failNext(error) {
 			failure = error;
@@ -86,6 +90,20 @@ export function createFakeSettingsClient(initial: Settings = DEFAULT_SETTINGS): 
 			}
 			if (JSON.stringify(settings) === JSON.stringify(state.settings)) return state;
 			state = { revision: state.revision + 1, settings };
+			announce(state);
+			return state;
+		},
+		async setUi(change) {
+			uiCalls.push(change);
+			if (failure) {
+				const error = failure;
+				failure = null;
+				throw error;
+			}
+			// Rust merges onto what is in force, not onto what the caller last saw.
+			const merged = { ...state.settings, ui: { ...state.settings.ui, ...change } };
+			if (JSON.stringify(merged) === JSON.stringify(state.settings)) return state;
+			state = { revision: state.revision + 1, settings: merged };
 			announce(state);
 			return state;
 		},

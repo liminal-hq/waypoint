@@ -6,7 +6,9 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use tauri::{AppHandle, Emitter, Runtime};
-use waypoint_settings::{Settings, SettingsDocument, SettingsSnapshot, SettingsStorage};
+use waypoint_settings::{
+    Settings, SettingsDocument, SettingsSnapshot, SettingsStorage, UiSettings,
+};
 
 use crate::error::Error;
 use crate::EVENT;
@@ -76,6 +78,25 @@ impl<R: Runtime> SettingsStore<R> {
     pub fn set(&self, settings: Settings) -> Result<SettingsSnapshot, Error> {
         settings.validate()?;
         let _writer = locked(&self.writer);
+        self.commit(settings)
+    }
+
+    /// Changes only the `ui` settings, read and written under the writer lock: whatever else is
+    /// in force (a change another window just made) is kept, so a window that only knows about the
+    /// Action bar cannot turn the rest of the document back. Same save, event and hooks as `set`.
+    pub fn update_ui(
+        &self,
+        change: impl FnOnce(&mut UiSettings),
+    ) -> Result<SettingsSnapshot, Error> {
+        let _writer = locked(&self.writer);
+        let mut settings = self.get();
+        change(&mut settings.ui);
+        settings.validate()?;
+        self.commit(settings)
+    }
+
+    /// Saves, applies and announces `settings`; the caller holds the writer lock.
+    fn commit(&self, settings: Settings) -> Result<SettingsSnapshot, Error> {
         let before = self.snapshot();
         if before.settings == settings {
             return Ok(before);

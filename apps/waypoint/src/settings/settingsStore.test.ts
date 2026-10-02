@@ -100,6 +100,7 @@ describe('createSettingsStore', () => {
 				return { revision: 0, settings: DEFAULT_SETTINGS };
 			},
 			set: async () => ({ revision: 0, settings: DEFAULT_SETTINGS }),
+			setUi: async () => ({ revision: 0, settings: DEFAULT_SETTINGS }),
 			onChanged: () => {
 				order.push('subscribe');
 				return () => {};

@@ -73,7 +73,8 @@ const row = (name: string) =>
 const submits = (ops: FakeOpsClient) => ops.calls.filter((call) => call[0] === 'submit');
 const bar = () => screen.queryByRole('toolbar', { name: 'Actions' });
 const barButton = (name: string) => within(bar()!).getByRole('button', { name });
-const lastSettings = (settings: FakeSettings) => settings.calls.at(-1)!;
+/** What the bar last asked Rust to change: only its own field, never the whole document. */
+const lastUiChange = (settings: FakeSettings) => settings.uiCalls.at(-1)!;
 
 async function choose(name: string) {
 	await waitFor(() => expect(row(name)).toBeDefined());
@@ -154,9 +155,9 @@ describe('hiding the bar and its labels', () => {
 		expect(barButton('Cut')).toHaveTextContent('Cut');
 		fireEvent.contextMenu(bar()!);
 		await userEvent.click(screen.getByRole('menuitem', { name: 'Hide Labels' }));
-		await waitFor(() =>
-			expect(lastSettings(settings).ui).toEqual({ actionBar: true, actionBarLabels: false }),
-		);
+		await waitFor(() => expect(lastUiChange(settings)).toEqual({ actionBarLabels: false }));
+		expect(settings.calls).toEqual([]);
+		expect(settings.current().settings.ui).toEqual({ actionBar: true, actionBarLabels: false });
 		await waitFor(() => expect(barButton('Cut')).toHaveTextContent(''));
 	});
 
@@ -166,14 +167,15 @@ describe('hiding the bar and its labels', () => {
 		fireEvent.contextMenu(bar()!);
 		await userEvent.click(screen.getByRole('menuitem', { name: 'Hide Action Bar' }));
 		await waitFor(() => expect(bar()).not.toBeInTheDocument());
-		expect(lastSettings(settings).ui.actionBar).toBe(false);
+		expect(lastUiChange(settings)).toEqual({ actionBar: false });
+		expect(settings.calls).toEqual([]);
 
 		openMenu('v');
 		const item = await screen.findByRole('menuitemcheckbox', { name: /Action Bar/ });
 		expect(item).toHaveAttribute('aria-checked', 'false');
 		await userEvent.click(item);
 		await waitFor(() => expect(bar()).toBeInTheDocument());
-		expect(lastSettings(settings).ui.actionBar).toBe(true);
+		expect(lastUiChange(settings)).toEqual({ actionBar: true });
 	});
 
 	it('follows a change another window makes', async () => {

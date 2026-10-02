@@ -30,6 +30,7 @@ export function createTauriSettingsClient(): SettingsClient {
 	return {
 		snapshot: () => settings.getSettings(),
 		set: (next) => settings.setSettings(next),
+		setUi: (change) => settings.setUiSettings(change),
 		onChanged: (listener) => subscribe(settings.onSettingsChanged(listener)),
 	};
 }
