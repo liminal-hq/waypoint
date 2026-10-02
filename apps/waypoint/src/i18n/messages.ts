@@ -564,6 +564,12 @@ export const enMessages = {
 	'menu.group.size': 'Size',
 	'menu.group.name': 'Name',
 	'menu.group.type': 'Type',
+	'cmd.group.none': 'No grouping',
+	'cmd.group.kind': 'Group by Kind',
+	'cmd.group.modified': 'Group by Modified',
+	'cmd.group.size': 'Group by Size',
+	'cmd.group.name': 'Group by Name',
+	'cmd.group.type': 'Group by Type',
 	'menu.showHidden': 'Show hidden files',
 
 	'files.default.folder': 'untitled folder',

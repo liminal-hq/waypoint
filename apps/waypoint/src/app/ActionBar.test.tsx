@@ -200,13 +200,13 @@ describe('the menu buttons', () => {
 	it('opens Sort with the current sort checked and re-sorts from a choice', async () => {
 		const { button, actions } = setup({});
 		await userEvent.click(button('sort'));
-		const name = screen.getByRole('menuitemcheckbox', { name: /Name/ });
+		const name = screen.getByRole('menuitemcheckbox', { name: /^Name$/ });
 		expect(name).toHaveAttribute('aria-checked', 'true');
-		expect(screen.getByRole('menuitemcheckbox', { name: /Size/ })).toHaveAttribute(
+		expect(screen.getByRole('menuitemcheckbox', { name: /^Size$/ })).toHaveAttribute(
 			'aria-checked',
 			'false',
 		);
-		await userEvent.click(screen.getByRole('menuitemcheckbox', { name: /Size/ }));
+		await userEvent.click(screen.getByRole('menuitemcheckbox', { name: /^Size$/ }));
 		expect(actions.changeSort).toHaveBeenCalledTimes(1);
 		const change = actions.changeSort.mock.calls[0]![0] as (sort: object) => object;
 		expect(

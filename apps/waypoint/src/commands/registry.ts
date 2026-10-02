@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { GroupBy } from '@liminal-hq/waypoint-protocol/generated/GroupBy';
 import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKind';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { ComponentType } from 'react';
@@ -34,6 +35,7 @@ import {
 	LinkIcon,
 	MoveToIcon,
 	NewFileIcon,
+	UngroupIcon,
 	NewFolderIcon,
 	NewTabIcon,
 	PasteIcon,
@@ -82,6 +84,12 @@ export type CommandId =
 	| 'sortDeleted'
 	| 'sortDescending'
 	| 'sortFoldersFirst'
+	| 'groupNone'
+	| 'groupKind'
+	| 'groupModified'
+	| 'groupSize'
+	| 'groupName'
+	| 'groupType'
 	| 'newWindow'
 	| 'newTab'
 	| 'closeTab'
@@ -217,6 +225,25 @@ function sortByKey(
 		// The active key stays as it is (Descending is its own command); a new key starts ascending.
 		run: (actions) =>
 			actions.changeSort((sort) => (sort.key === key ? sort : { ...sort, key, descending: false })),
+	};
+}
+
+/** "Group by Kind": divides the listing into headed groups, offered where there is a listing that can be grouped (not the Trash). */
+function groupBy(
+	by: GroupBy,
+	id: CommandId,
+	label: MessageId,
+	icon: ComponentType<IconProps>,
+): CommandDef {
+	return {
+		id,
+		label,
+		icon,
+		group: 'view',
+		when: (facts) => (facts.sort && !facts.trash ? SHOWN : HIDDEN),
+		checked: (facts) => facts.sort?.groupBy === by,
+		run: (actions) =>
+			actions.changeSort((sort) => (sort.groupBy === by ? sort : { ...sort, groupBy: by })),
 	};
 }
 
@@ -568,6 +595,13 @@ export const COMMANDS: readonly CommandDef[] = [
 		checked: (f) => f.sort?.directoriesFirst === true,
 		run: (a) => a.changeSort((sort) => ({ ...sort, directoriesFirst: !sort.directoriesFirst })),
 	},
+
+	groupBy('none', 'groupNone', 'cmd.group.none', UngroupIcon),
+	groupBy('kind', 'groupKind', 'cmd.group.kind', TagIcon),
+	groupBy('modified', 'groupModified', 'cmd.group.modified', ClockIcon),
+	groupBy('size', 'groupSize', 'cmd.group.size', SizeIcon),
+	groupBy('name', 'groupName', 'cmd.group.name', TextIcon),
+	groupBy('type', 'groupType', 'cmd.group.type', NewFileIcon),
 
 	// Go
 	goToPlace('home', 'goHome', 'cmd.goTo.home', HomeIcon),

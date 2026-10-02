@@ -122,7 +122,7 @@ describe('the menu buttons', () => {
 		expectEveryItemHasIcon(menu);
 	});
 
-	it('Sort opens the sort keys, then Descending and Folders first, with the current ones checked', () => {
+	it('Sort opens the sort keys, then Descending and Folders first, then the groupings, with the current ones checked', () => {
 		const menu = byId(items(factsFor({})), 'sort').menu!;
 		const rows = menu.flatMap((row) => (row.type === 'checkbox' ? [row] : []));
 		expect(rows.map((row) => row.id)).toEqual([
@@ -132,12 +132,19 @@ describe('the menu buttons', () => {
 			'sortKind',
 			'sortDescending',
 			'sortFoldersFirst',
+			'groupNone',
+			'groupKind',
+			'groupModified',
+			'groupSize',
+			'groupName',
+			'groupType',
 		]);
 		expect(rows.filter((row) => row.checked).map((row) => row.id)).toEqual([
 			'sortName',
 			'sortFoldersFirst',
+			'groupNone',
 		]);
-		expect(menu.filter((row) => row.type === 'separator')).toHaveLength(1);
+		expect(menu.filter((row) => row.type === 'separator')).toHaveLength(2);
 	});
 
 	it('Sort in the Trash offers Date deleted and not Modified or Kind', () => {
