@@ -13,6 +13,7 @@ mod journal;
 mod model;
 mod names;
 mod plan;
+mod preview;
 mod queue;
 mod rename_clash;
 mod rename_rules;
@@ -38,6 +39,11 @@ pub use names::{
 pub use plan::{
     plan, plan_with_progress, preview_batch, BatchPlan, BatchStep, Plan, PlanCtx, PlanItem,
     PlanProgress, PlanWarning,
+};
+pub use preview::{
+    conflict_preview, ConflictPreview, DiffLine, PreviewKind, PreviewSide, TextDiff,
+    PREVIEW_CONTEXT, PREVIEW_DIFF_BUDGET, PREVIEW_MAX_BYTES, PREVIEW_MAX_LINES,
+    PREVIEW_MAX_LINE_CHARS, PREVIEW_MAX_ROWS,
 };
 pub use queue::{is_legal, OpsStore, ProgressGate, QueueError};
 pub use rename_clash::{
