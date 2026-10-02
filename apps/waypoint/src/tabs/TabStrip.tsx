@@ -523,7 +523,7 @@ export function TabStrip() {
 				tabIndex={-1}
 				onClick={() => scrollBy(1)}
 			>
-				<ChevronRightSmallIcon />
+				<ChevronRightSmallIcon directional={false} />
 			</button>
 			<button
 				type="button"
