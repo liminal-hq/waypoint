@@ -14,6 +14,8 @@ export interface AppMenuButtonProps {
 	label: string;
 	/** App mark rendered before the name. */
 	mark?: ReactNode;
+	/** Whether the name shows beside the mark; hidden, it stays the button's accessible name. Defaults to true. */
+	showLabel?: boolean;
 	items: MenuItem[];
 	onSelect: (item: SelectableMenuItem) => void;
 	/** Opens on F10 and on a lone Alt press. Defaults to true. */
@@ -29,6 +31,7 @@ export interface AppMenuButtonProps {
 export function AppMenuButton({
 	label,
 	mark,
+	showLabel = true,
 	items,
 	onSelect,
 	acceleratorKeys = true,
@@ -97,6 +100,7 @@ export function AppMenuButton({
 				ref={buttonRef}
 				type="button"
 				className={styles.button}
+				aria-label={showLabel ? undefined : label}
 				aria-haspopup="menu"
 				aria-expanded={open !== null}
 				data-window-menu-exclude=""
@@ -115,7 +119,7 @@ export function AppMenuButton({
 						{mark}
 					</span>
 				) : null}
-				<span>{label}</span>
+				{showLabel ? <span>{label}</span> : null}
 			</button>
 			{open ? (
 				<ContextMenu

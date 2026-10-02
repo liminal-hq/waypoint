@@ -28,6 +28,7 @@ export const enMessages = {
 	'settings.loading': 'Loading settings…',
 	'settings.group.startup': 'Start-up',
 	'settings.group.browsing': 'Browsing',
+	'settings.group.titleBar': 'Title bar',
 	'settings.group.deleting': 'Deleting',
 	'settings.group.copying': 'Copying',
 	'settings.group.queue': 'Queue',
@@ -55,6 +56,9 @@ export const enMessages = {
 	'settings.general.clickMode.single': 'Single click',
 	'settings.general.clickMode.double': 'Double click',
 	'settings.general.showHidden.label': 'Show hidden files by default',
+	'settings.general.appMenuLabel.label': 'Show the app name on the app menu',
+	'settings.general.appMenuLabel.description':
+		'Puts “Waypoint” beside the logo on the app menu button. Off, only the logo shows.',
 	'settings.general.showHidden.description':
 		'A new window lists hidden files. Windows that are already open keep their choice.',
 	'settings.general.confirmTrash.label': 'Confirm before moving to the Trash',

@@ -114,6 +114,8 @@ pub struct UiSettings {
     pub action_bar: bool,
     /// Whether the Action bar's buttons carry their labels, or are icons only.
     pub action_bar_labels: bool,
+    /// Whether the app menu button shows "Waypoint" beside the logo; off, the logo stands alone.
+    pub app_menu_label: bool,
 }
 
 impl Default for UiSettings {
@@ -121,6 +123,7 @@ impl Default for UiSettings {
         Self {
             action_bar: true,
             action_bar_labels: true,
+            app_menu_label: false,
         }
     }
 }
@@ -199,6 +202,7 @@ mod tests {
         assert!(s.dnd.shelf_persist);
         assert!(s.ui.action_bar);
         assert!(s.ui.action_bar_labels);
+        assert!(!s.ui.app_menu_label);
         assert_eq!(s.validate(), Ok(()));
     }
 
@@ -260,6 +264,7 @@ mod tests {
             ui: UiSettings {
                 action_bar: true,
                 action_bar_labels: false,
+                app_menu_label: true,
             },
             ..Settings::default()
         };

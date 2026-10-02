@@ -12,4 +12,8 @@ actionBar: boolean,
 /**
  * Whether the Action bar's buttons carry their labels, or are icons only.
  */
-actionBarLabels: boolean, };
+actionBarLabels: boolean, 
+/**
+ * Whether the app menu button shows "Waypoint" beside the logo; off, the logo stands alone.
+ */
+appMenuLabel: boolean, };
