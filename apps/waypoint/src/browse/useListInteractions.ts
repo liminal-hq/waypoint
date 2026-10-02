@@ -13,6 +13,7 @@ import { GroupLayout, groupId } from './groupLayout';
 import { navigate } from './groupNav';
 import { isSelected } from './selection';
 import type { ListingSession } from './useListingSession';
+import { quickLookStore } from '../quicklook/quickLookStore';
 import { findByPrefix, TypeAheadBuffer } from './typeAhead';
 
 export type OpenHandler = (entry: Entry, handle: ListingHandle) => void;
@@ -199,10 +200,14 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 					state.toggleFocused();
 					return;
 				}
-				// Mid-prefix, a space is part of the name being typed; otherwise it does nothing, and
-				// must not scroll the view.
+				// Mid-prefix, a space is part of the name being typed; otherwise it opens Quick Look on
+				// the focused entry (when the window has one), and must not scroll the view.
 				if (!typeAhead.current.active) {
 					event.preventDefault();
+					// The Trash's items are not on disk to preview, and a held key opens it once.
+					if (from !== null && !event.repeat && model.layout !== 'trash') {
+						quickLookStore.getState().open({ session, move, onOpen });
+					}
 					return;
 				}
 				break;
