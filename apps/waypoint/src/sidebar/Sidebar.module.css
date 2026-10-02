@@ -7,7 +7,7 @@
 	width: var(--wp-sidebar-width, 220px);
 	padding: 4px 0 0;
 	overflow: hidden;
-	border-right: 1px solid var(--wp-border-subtle);
+	border-inline-end: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-sidebar);
 	color: var(--wp-text-primary);
 }
@@ -71,7 +71,8 @@
 	box-sizing: border-box;
 	width: 100%;
 	min-height: var(--wp-row-height);
-	padding: 0 8px 0 12px;
+	padding-block: 0;
+	padding-inline: 12px 8px;
 	border: 0;
 	border-radius: 0;
 	background: transparent;

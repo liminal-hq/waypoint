@@ -14,7 +14,8 @@
 	align-items: center;
 	gap: 10px;
 	max-width: min(520px, 100%);
-	padding: 6px 6px 6px 14px;
+	padding-block: 6px;
+	padding-inline: 14px 6px;
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 8px;
 	background: var(--wp-bg-raised);
