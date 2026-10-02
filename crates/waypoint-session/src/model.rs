@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_protocol::Location;
+use waypoint_vfs::SortSpec;
 
 /// Names a tab. Global to the store and never reused while the store lives, so a tab keeps its id
 /// when it moves between windows and across a restart.
@@ -191,6 +192,10 @@ pub struct ViewPrefs {
     pub show_hidden: bool,
     /// Grid icon size in pixels.
     pub icon_size: u32,
+    /// How folders are sorted and grouped in this window. A session saved before this was kept
+    /// reads as the default sort with no grouping.
+    #[serde(default)]
+    pub sort: SortSpec,
 }
 
 impl Default for ViewPrefs {
@@ -199,6 +204,7 @@ impl Default for ViewPrefs {
             mode: ViewMode::List,
             show_hidden: false,
             icon_size: 64,
+            sort: SortSpec::default(),
         }
     }
 }

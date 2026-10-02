@@ -6,6 +6,7 @@
 
 mod cancel;
 mod error;
+mod group;
 mod icon;
 mod index;
 mod listing;

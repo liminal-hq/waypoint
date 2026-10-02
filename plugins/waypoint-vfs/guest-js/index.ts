@@ -22,6 +22,9 @@ import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInf
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 
 import type { FolderCheck } from '@liminal-hq/waypoint-protocol/generated/FolderCheck';
+import type { GroupBy } from '@liminal-hq/waypoint-protocol/generated/GroupBy';
+import type { GroupKey } from '@liminal-hq/waypoint-protocol/generated/GroupKey';
+import type { GroupRun } from '@liminal-hq/waypoint-protocol/generated/GroupRun';
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 
 const PREFIX = 'plugin:waypoint-vfs|';
@@ -179,6 +182,9 @@ export type {
 	EntryId,
 	Filter,
 	FolderCheck,
+	GroupBy,
+	GroupKey,
+	GroupRun,
 	ListingEvent,
 	ListingHandle,
 	ListingSnapshot,

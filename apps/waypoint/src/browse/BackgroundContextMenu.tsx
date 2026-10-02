@@ -1,4 +1,4 @@
-// The context menu of the file area's empty space: New, Undo and Redo, sort and hidden files
+// The context menu of the file area's empty space: New, Undo and Redo, sort, grouping and hidden files
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -25,6 +25,7 @@ import {
 } from '../icons/MenuIcons';
 import { t, tf, type MessageId } from '../i18n/messages';
 import type { CommandState, FileCommandId } from '../ops/fileCommands';
+import { groupByItems, groupFromMenuId } from './groupMenu';
 import type { ListingSession } from './useListingSession';
 
 const SORT_KEYS: Array<{ key: SortKey; label: MessageId; icon: ReactNode }> = [
@@ -189,6 +190,8 @@ export function backgroundMenuItems(
 						checked: sort.directoriesFirst,
 					},
 					{ type: 'separator' },
+					// Grouping has no meaning in the Trash, whose items keep their own columns.
+					...(trash ? [] : groupByItems(sort)),
 				] as MenuItem[])
 			: []),
 	];
@@ -229,7 +232,7 @@ interface BackgroundContextMenuProps {
 }
 
 /**
- * Sort by, direction, folders first and hidden files, for the folder as a whole. Sorting acts on
+ * Sort by, direction, folders first, group by and hidden files, for the folder as a whole. Sorting acts on
  * the open listing (Rust re-sorts it); hidden files are a window preference the host applies to
  * every listing.
  */
@@ -267,7 +270,10 @@ export function BackgroundContextMenu({
 				}
 				if (!model) return;
 				const current = model.sort;
-				if (item.id.startsWith('sort:')) {
+				const group = groupFromMenuId(item.id);
+				if (group !== null) {
+					if (group !== current.groupBy) void model.setSort({ ...current, groupBy: group });
+				} else if (item.id.startsWith('sort:')) {
 					const key = item.id.slice('sort:'.length) as SortKey;
 					// The active key stays as it is (Descending is its own item); a new key starts ascending.
 					if (key !== current.key) void model.setSort({ ...current, key, descending: false });

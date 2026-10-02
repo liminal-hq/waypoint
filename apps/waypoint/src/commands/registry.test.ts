@@ -409,11 +409,21 @@ describe('running', () => {
 		runCommand('sortName', actions as never, facts);
 		runCommand('sortDescending', actions as never, facts);
 		runCommand('sortFoldersFirst', actions as never, facts);
-		const base = { key: 'name', descending: true, directoriesFirst: true } as const;
+		const base = {
+			key: 'name',
+			descending: true,
+			directoriesFirst: true,
+			groupBy: 'none',
+		} as const;
 		// A new key starts ascending; the key already in force is left as it is.
-		expect(changes[0]!(base)).toEqual({ key: 'size', descending: false, directoriesFirst: true });
+		expect(changes[0]!(base)).toEqual({
+			key: 'size',
+			descending: false,
+			directoriesFirst: true,
+			groupBy: 'none',
+		});
 		expect(changes[1]!(base)).toEqual(base);
 		expect(changes[2]!(base)).toEqual({ ...base, descending: false });
-		expect(changes[3]!(base)).toEqual({ ...base, directoriesFirst: false });
+		expect(changes[3]!(base)).toEqual({ ...base, directoriesFirst: false, groupBy: 'none' });
 	});
 });

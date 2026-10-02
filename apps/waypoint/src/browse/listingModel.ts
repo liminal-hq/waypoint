@@ -6,6 +6,7 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
+import type { GroupRun } from '@liminal-hq/waypoint-protocol/generated/GroupRun';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { ListingLayout } from '@liminal-hq/waypoint-protocol/generated/ListingLayout';
@@ -62,6 +63,7 @@ export class ListingModel {
 	private _scanned: number;
 	private _sort: SortSpec;
 	private _filter: Filter;
+	private _groups: GroupRun[];
 	private _error: VfsError | null = null;
 	/** What the listing's provider offers, which never changes for an open listing. */
 	readonly readOnly: boolean;
@@ -90,6 +92,7 @@ export class ListingModel {
 		this._scanned = snapshot.count;
 		this._sort = snapshot.sort;
 		this._filter = snapshot.filter;
+		this._groups = snapshot.groups;
 		this.readOnly = snapshot.readOnly;
 		this.layout = snapshot.layout;
 	}
@@ -111,6 +114,10 @@ export class ListingModel {
 	}
 	get filter(): Filter {
 		return this._filter;
+	}
+	/** The groups of the view in order, each a contiguous run of positions; empty when the sort does not group. */
+	get groups(): readonly GroupRun[] {
+		return this._groups;
 	}
 	get error(): VfsError | null {
 		return this._error;
@@ -231,6 +238,7 @@ export class ListingModel {
 				this._revision = snapshot.revision;
 				this._phase = snapshot.phase;
 				this._count = snapshot.count;
+				this._groups = snapshot.groups;
 			}
 			this.markAllStale();
 			this.dropBeyondCount();
@@ -250,6 +258,7 @@ export class ListingModel {
 			this._revision = snapshot.revision;
 			this._phase = snapshot.phase;
 			this._count = snapshot.count;
+			this._groups = snapshot.groups;
 			this.markAllStale();
 			this.dropBeyondCount();
 			this.announce({ ops: [{ kind: 'reset' }], removedIds: [], count: this._count });
@@ -269,6 +278,8 @@ export class ListingModel {
 				this._phase = event.phase;
 				this._scanned = event.scanned;
 				if (advanced) this.markAllStale();
+				// A scan that has just filled the view brings its groups; progress otherwise has none.
+				if (event.groups) this._groups = event.groups;
 				if (event.count !== this._count) {
 					this._count = event.count;
 					this.dropBeyondCount();
@@ -281,6 +292,9 @@ export class ListingModel {
 				if (event.revision <= this._revision) return;
 				const contiguous = event.revision === this._revision + 1;
 				this._revision = event.revision;
+				// Boundaries come whole with every change of a grouped view, so a gap in revisions
+				// does not leave them stale.
+				if (event.groups) this._groups = event.groups;
 				const report = contiguous
 					? this.applyOps(event.ops, event.count, event.moved)
 					: this.resetTo(event.count);

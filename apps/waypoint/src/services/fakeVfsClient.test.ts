@@ -170,7 +170,7 @@ describe('FakeVfsClient as a Trash', () => {
 		client.markTrash(trash);
 		client.setFolder(trash, items);
 		const snapshot = await client.openListing(trash, {
-			sort: { key: 'deleted', descending: false, directoriesFirst: false },
+			sort: { key: 'deleted', descending: false, directoriesFirst: false, groupBy: 'none' },
 		});
 		expect(snapshot).toMatchObject({ readOnly: true, layout: 'trash' });
 		expect((await client.getRange(snapshot.handle, 0, 5)).map((e) => e.name)).toEqual([
@@ -181,6 +181,7 @@ describe('FakeVfsClient as a Trash', () => {
 			key: 'deleted',
 			descending: true,
 			directoriesFirst: false,
+			groupBy: 'none',
 		});
 		expect((await client.getRange(newest.handle, 0, 5)).map((e) => e.name)).toEqual([
 			'new.txt',
@@ -239,6 +240,7 @@ describe('FakeVfsClient', () => {
 			key: 'name',
 			descending: true,
 			directoriesFirst: false,
+			groupBy: 'none',
 		});
 		expect(snapshot.revision).toBe(2);
 		expect((await client.getRange(handle, 0, 5)).map((row) => row.name)).toEqual([
@@ -379,5 +381,54 @@ describe('diff', () => {
 
 	it('resets when surviving entries change order', () => {
 		expect(diff([a, b], [b, a])).toEqual([{ kind: 'reset' }]);
+	});
+});
+
+describe('grouping', () => {
+	const location = fileLocation('/g');
+	const entries = [
+		makeEntry(1, 'docs', { kind: 'directory' }),
+		makeEntry(2, 'a.txt', { size: 5 }),
+		makeEntry(3, 'b.txt', { size: 9 }),
+		makeEntry(4, 'big.bin', { size: 5_000_000 }),
+	];
+	const bySize = {
+		key: 'name',
+		descending: false,
+		directoriesFirst: true,
+		groupBy: 'size',
+	} as const;
+
+	it('divides the view into runs of a group, in the group order, and reports them', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(location, entries);
+		const snapshot = await client.openListing(location, { sort: bySize });
+		expect(snapshot.groups.map((run) => [run.key, run.start, run.count])).toEqual([
+			[{ kind: 'size', band: 'unspecified' }, 0, 1],
+			[{ kind: 'size', band: 'tiny' }, 1, 2],
+			[{ kind: 'size', band: 'large' }, 3, 1],
+		]);
+		expect((await client.getRange(snapshot.handle, 0, 10)).map((e) => e.name)).toEqual([
+			'docs',
+			'a.txt',
+			'b.txt',
+			'big.bin',
+		]);
+	});
+
+	it('has no runs without a grouping, and sends the boundaries with a change', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(location, entries);
+		const plain = await client.openListing(location);
+		expect(plain.groups).toEqual([]);
+		const grouped = await client.setSort(plain.handle, bySize);
+		expect(grouped.groups).toHaveLength(3);
+		const heard: ListingEvent[] = [];
+		client.onListingEvent((event) => heard.push(event));
+		client.updateEntries(location, new Map([[2, { size: 5_000_000 }]]));
+		const changed = heard.find((event) => event.kind === 'changed');
+		expect(changed?.kind === 'changed' && changed.groups?.map((run) => run.count)).toEqual([
+			1, 1, 2,
+		]);
 	});
 });

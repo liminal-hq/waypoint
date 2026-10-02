@@ -194,13 +194,14 @@ function WorkspaceBody({
 	const [manager] = useState(
 		() =>
 			new ListingManager(client, {
-				// A new listing keeps the hidden-files choice; the sort is inherited from the
-				// listing the tab had before.
+				// A new listing opens with the window's hidden-files choice, sort and grouping, and
+				// a folder listing's change of sort becomes the window's (saved with its view).
 				viewMode: () => viewStore.getState().mode,
-				openOptions: (inherited) => ({
-					...(inherited ? { sort: inherited } : {}),
+				openOptions: () => ({
+					sort: viewStore.getState().sort,
 					filter: { showHidden: viewStore.getState().showHidden },
 				}),
+				onSort: (sort) => viewStore.getState().setSort(sort),
 			}),
 	);
 	// Numbered, so the same message arriving again restarts its timer.

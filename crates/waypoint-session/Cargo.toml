@@ -14,6 +14,7 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
 
 [dev-dependencies]
 serde_json = { workspace = true }

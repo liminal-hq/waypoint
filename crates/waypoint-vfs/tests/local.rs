@@ -15,8 +15,9 @@ use tempfile::TempDir;
 use waypoint_path::{FilePath, VfsPath};
 use waypoint_protocol::{EntryId, VfsError};
 use waypoint_vfs::{
-    Change, Entry, EntryKind, Filter, IconGroup, KindFilter, Listing, ListingEvent, ListingHandle,
-    ListingOptions, ListingPhase, LocalProvider, PatchOp, Provider, SortKey, SortSpec,
+    Change, Entry, EntryKind, Filter, GroupBy, GroupKey, GroupRun, IconGroup, KindFilter, Listing,
+    ListingEvent, ListingHandle, ListingOptions, ListingPhase, LocalProvider, PatchOp, Provider,
+    SizeBand, SortKey, SortSpec,
 };
 
 type Events = Arc<Mutex<Vec<ListingEvent>>>;
@@ -79,6 +80,7 @@ fn sort(key: SortKey, descending: bool, directories_first: bool) -> SortSpec {
         key,
         descending,
         directories_first,
+        ..SortSpec::default()
     }
 }
 
@@ -714,4 +716,71 @@ mod selection {
             }
         );
     }
+}
+
+#[test]
+fn a_grouped_listing_carries_its_groups_in_the_snapshot_and_every_event() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path(), "small.txt", 5);
+    touch(dir.path(), "large.bin", 2_000_000);
+    let by_size = SortSpec {
+        group_by: GroupBy::Size,
+        ..SortSpec::default()
+    };
+    let (listing, events) = open_with(folder(&dir), by_size, Filter::default(), quiet());
+    let listing = listing.unwrap();
+    let bands = |groups: &[GroupRun]| -> Vec<(GroupKey, u32, u32)> {
+        groups
+            .iter()
+            .map(|g| (g.key.clone(), g.start, g.count))
+            .collect()
+    };
+    let size = |band| GroupKey::Size { band };
+    let expected = vec![(size(SizeBand::Tiny), 0, 1), (size(SizeBand::Large), 1, 1)];
+    assert_eq!(bands(&listing.snapshot().groups), expected);
+    let ready = events
+        .lock()
+        .unwrap()
+        .iter()
+        .find_map(|e| match e {
+            ListingEvent::Progress {
+                phase: ListingPhase::Ready,
+                groups,
+                ..
+            } => groups.clone(),
+            _ => None,
+        })
+        .expect("the scan's last event carries the groups");
+    assert_eq!(bands(&ready), expected);
+
+    // A row that moves to another group arrives with the new boundaries.
+    touch(dir.path(), "small.txt", 3_000_000);
+    let mut grown =
+        listing
+            .provider()
+            .list(listing.path(), listing.cancel_token(), 10, &mut |_| {});
+    let entry = grown
+        .as_mut()
+        .unwrap()
+        .iter()
+        .find(|e| e.name == "small.txt")
+        .unwrap()
+        .clone();
+    listing.apply_changes(vec![Change::Upsert(entry)]);
+    let changed = events
+        .lock()
+        .unwrap()
+        .iter()
+        .rev()
+        .find_map(|e| match e {
+            ListingEvent::Changed { groups, .. } => groups.clone(),
+            _ => None,
+        })
+        .expect("a change carries the groups");
+    assert_eq!(bands(&changed), vec![(size(SizeBand::Large), 0, 2)]);
+
+    // Re-sorting without a group sends none.
+    let plain = listing.set_sort(SortSpec::default());
+    assert!(plain.groups.is_empty());
+    assert_eq!(plain.sort.group_by, GroupBy::None);
 }

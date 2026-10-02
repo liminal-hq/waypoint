@@ -183,6 +183,7 @@ fn a_window_made_after_the_new_window_view_is_set_starts_with_it_and_a_restore_k
         mode: ViewMode::Grid,
         show_hidden: true,
         icon_size: 64,
+        ..ViewPrefs::default()
     };
     let view_of = |label: &str| {
         tauri::async_runtime::block_on(commands::get_snapshot(

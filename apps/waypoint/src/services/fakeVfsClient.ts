@@ -9,6 +9,8 @@ import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { EntryKind } from '@liminal-hq/waypoint-protocol/generated/EntryKind';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
 import type { FolderCheck } from '@liminal-hq/waypoint-protocol/generated/FolderCheck';
+import type { GroupKey } from '@liminal-hq/waypoint-protocol/generated/GroupKey';
+import type { GroupRun } from '@liminal-hq/waypoint-protocol/generated/GroupRun';
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/ListingEvent';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
@@ -95,9 +97,124 @@ export function syntheticEntries(count: number): Entry[] {
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+const ICON_GROUPS: IconGroup[] = [
+	'folder',
+	'image',
+	'audio',
+	'video',
+	'archive',
+	'code',
+	'document',
+	'other',
+];
+const SIZE_BANDS = [
+	'unspecified',
+	'empty',
+	'tiny',
+	'small',
+	'medium',
+	'large',
+	'huge',
+	'gigantic',
+] as const;
+
+function isFolder(entry: Entry): boolean {
+	return entry.kind === 'directory' || entry.linkTarget === 'directory';
+}
+
+function extensionOf(name: string): string {
+	const at = name.lastIndexOf('.');
+	return at > 0 && at < name.length - 1 ? name.slice(at + 1).toLowerCase() : '';
+}
+
+function sizeBand(size: number | null): (typeof SIZE_BANDS)[number] {
+	if (size === null) return 'unspecified';
+	if (size === 0) return 'empty';
+	if (size < 10_000) return 'tiny';
+	if (size < 100_000) return 'small';
+	if (size < 1_000_000) return 'medium';
+	if (size < 16_000_000) return 'large';
+	if (size < 128_000_000) return 'huge';
+	return 'gigantic';
+}
+
+/** The group an entry falls in, as Rust would key it (the modified bands are coarser here: only the year). */
+export function fakeGroupKey(entry: Entry, sort: SortSpec): GroupKey {
+	switch (sort.groupBy) {
+		case 'none':
+		case 'kind':
+			return { kind: 'kind', group: isFolder(entry) ? 'folder' : entry.group };
+		case 'modified': {
+			if (entry.modifiedMs === null) return { kind: 'modified', bucket: 'unknown' };
+			const year = new Date(entry.modifiedMs).getFullYear();
+			return year >= new Date().getFullYear()
+				? { kind: 'modified', bucket: 'thisYear' }
+				: { kind: 'year', year };
+		}
+		case 'size':
+			return { kind: 'size', band: sizeBand(entry.size) };
+		case 'name': {
+			const first = entry.name.charAt(0);
+			return { kind: 'name', initial: /\p{L}/u.test(first) ? first.toUpperCase() : '#' };
+		}
+		case 'type':
+			if (isFolder(entry)) return { kind: 'kind', group: 'folder' };
+			return { kind: 'type', extension: extensionOf(entry.name) };
+	}
+}
+
+function groupRank(key: GroupKey): number | string {
+	switch (key.kind) {
+		case 'kind':
+			return ICON_GROUPS.indexOf(key.group);
+		case 'modified':
+			return key.bucket === 'unknown' ? Number.MAX_SAFE_INTEGER : 0;
+		case 'year':
+			return 1_000_000 - key.year;
+		case 'size':
+			return SIZE_BANDS.indexOf(key.band);
+		case 'name':
+			return key.initial === '#' ? '' : key.initial;
+		case 'type':
+			return key.extension;
+	}
+}
+
+function compareGroups(sort: SortSpec, a: Entry, b: Entry): number {
+	if (sort.groupBy === 'none') return 0;
+	const [ra, rb] = [groupRank(fakeGroupKey(a, sort)), groupRank(fakeGroupKey(b, sort))];
+	const result =
+		typeof ra === 'number' && typeof rb === 'number'
+			? ra - rb
+			: collator.compare(String(ra), String(rb));
+	const follows =
+		(sort.groupBy === 'name' && sort.key === 'name') ||
+		(sort.groupBy === 'size' && sort.key === 'size') ||
+		((sort.groupBy === 'kind' || sort.groupBy === 'type') && sort.key === 'kind');
+	return follows && sort.descending ? -result : result;
+}
+
+/** The runs of an ordered view, as Rust reports them. */
+export function fakeGroups(view: readonly Entry[], sort: SortSpec): GroupRun[] {
+	if (sort.groupBy === 'none') return [];
+	const runs: GroupRun[] = [];
+	let previous: Entry | null = null;
+	view.forEach((entry, at) => {
+		if (previous && compareGroups(sort, previous, entry) === 0) {
+			runs[runs.length - 1]!.count += 1;
+		} else {
+			runs.push({ key: fakeGroupKey(entry, sort), start: at, count: 1 });
+			previous = entry;
+		}
+	});
+	return runs;
+}
+
 function compare(sort: SortSpec): (a: Entry, b: Entry) => number {
 	const direction = sort.descending ? -1 : 1;
 	return (a, b) => {
+		const grouped = compareGroups(sort, a, b);
+		if (grouped !== 0) return grouped;
 		if (sort.directoriesFirst) {
 			const aDir = a.kind === 'directory' || a.linkTarget === 'directory';
 			const bDir = b.kind === 'directory' || b.linkTarget === 'directory';
@@ -259,6 +376,7 @@ export class FakeVfsClient implements VfsClient {
 			filter: listing.filter,
 			readOnly: this.trashes.has(listing.location.uri) || this.readOnly.has(listing.location.uri),
 			layout: this.trashes.has(listing.location.uri) ? 'trash' : 'folder',
+			groups: fakeGroups(listing.view, listing.sort),
 		};
 	}
 
@@ -283,6 +401,7 @@ export class FakeVfsClient implements VfsClient {
 				count: next.length,
 				ops,
 				moved: [],
+				...(listing.sort.groupBy === 'none' ? {} : { groups: fakeGroups(next, listing.sort) }),
 			});
 		}
 	}
@@ -295,7 +414,12 @@ export class FakeVfsClient implements VfsClient {
 		const listing: OpenListing = {
 			handle: this.nextHandle++,
 			location,
-			sort: options.sort ?? { key: 'name', descending: false, directoriesFirst: true },
+			sort: options.sort ?? {
+				key: 'name',
+				descending: false,
+				directoriesFirst: true,
+				groupBy: 'none',
+			},
 			filter: options.filter ?? { showHidden: false },
 			revision: 1,
 			view: [],
@@ -309,6 +433,9 @@ export class FakeVfsClient implements VfsClient {
 			phase: 'ready',
 			scanned: listing.view.length,
 			count: listing.view.length,
+			...(listing.sort.groupBy === 'none'
+				? {}
+				: { groups: fakeGroups(listing.view, listing.sort) }),
 		});
 		return this.snapshot(listing);
 	}

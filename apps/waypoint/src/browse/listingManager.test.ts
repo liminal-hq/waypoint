@@ -76,13 +76,36 @@ describe('ListingManager', () => {
 		await settle();
 		const first = manager.stateFor(1);
 		if (first?.status !== 'ready') throw new Error('not ready');
-		await first.session.model.setSort({ key: 'size', descending: true, directoriesFirst: true });
+		await first.session.model.setSort({
+			key: 'size',
+			descending: true,
+			directoriesFirst: true,
+			groupBy: 'none',
+		});
 
 		manager.sync([tab(1, B)], new Set([1]));
 		await settle();
 		expect(client.openCount).toBe(1);
 		const next = manager.stateFor(1);
 		expect(next?.status === 'ready' && next.session.model.sort.key).toBe('size');
+	});
+
+	it('reports the change of sort or grouping of a folder listing, and not a change of filter', async () => {
+		const onSort = vi.fn();
+		const { manager } = setup({ onSort });
+		manager.sync([tab(1)], new Set([1]));
+		await settle();
+		const state = manager.stateFor(1);
+		if (state?.status !== 'ready') throw new Error('not ready');
+		const { model } = state.session;
+		await model.setFilter({ showHidden: true });
+		expect(onSort).not.toHaveBeenCalled();
+		const grouped = { ...model.sort, groupBy: 'kind' } as const;
+		await model.setSort(grouped);
+		expect(onSort).toHaveBeenCalledTimes(1);
+		expect(onSort).toHaveBeenLastCalledWith(grouped);
+		await model.setSort({ ...grouped });
+		expect(onSort).toHaveBeenCalledTimes(1);
 	});
 
 	it('does not reopen for a new object at the same location', async () => {

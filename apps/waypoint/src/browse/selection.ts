@@ -102,3 +102,17 @@ export function normalise(selection: Selection, total: number): Selection {
 export function rangeBetween(anchor: number, target: number): [number, number] {
 	return [Math.min(anchor, target), Math.max(anchor, target) + 1];
 }
+
+/**
+ * Takes entries out of the selection whichever way it is held: dropped from a list of selected ids,
+ * or added to the ids a select-all leaves out. Collapsed groups use it, since what they hide is not
+ * selectable.
+ */
+export function excludeIds(selection: Selection, excluded: Iterable<EntryId>): Selection {
+	const ids = new Set(selection.ids);
+	for (const id of excluded) {
+		if (selection.kind === 'some') ids.delete(id);
+		else ids.add(id);
+	}
+	return { kind: selection.kind, ids };
+}

@@ -128,7 +128,12 @@ interface State {
 	nextShelf: number;
 }
 
-const defaultView = (): ViewPrefs => ({ mode: 'list', showHidden: false, iconSize: 64 });
+const defaultView = (): ViewPrefs => ({
+	mode: 'list',
+	showHidden: false,
+	iconSize: 64,
+	sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+});
 
 function newWindowState(label: string): WindowState {
 	return {

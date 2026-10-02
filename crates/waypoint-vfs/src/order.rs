@@ -6,6 +6,7 @@
 use std::cmp::Ordering;
 use std::ffi::OsStr;
 
+use crate::group::{compare_groups, GroupClock};
 use crate::icon::extension;
 use crate::model::{EntryKind, SortKey, SortSpec};
 
@@ -82,12 +83,12 @@ pub(crate) struct Sortable<'a> {
 }
 
 impl Sortable<'_> {
-    fn is_directory(&self) -> bool {
+    pub(crate) fn is_directory(&self) -> bool {
         self.kind == EntryKind::Directory || self.link_target == Some(EntryKind::Directory)
     }
 }
 
-fn cmp_extension(a: &[u8], b: &[u8]) -> Ordering {
+pub(crate) fn cmp_extension(a: &[u8], b: &[u8]) -> Ordering {
     a.iter()
         .map(u8::to_ascii_lowercase)
         .cmp(b.iter().map(u8::to_ascii_lowercase))
@@ -97,9 +98,16 @@ fn cmp_extension(a: &[u8], b: &[u8]) -> Ordering {
 /// name order and then to the raw name bytes, so no two entries of a folder compare equal and
 /// binary search finds an entry exactly.
 ///
+/// With a group, the groups come first (in their own order) and the rest of this order sorts the rows inside each.
+///
 /// `descending` flips the chosen column only; folders stay first when `directories_first` is on and
 /// name ties always read in ascending order.
-pub(crate) fn compare(sort: SortSpec, a: &Sortable, b: &Sortable) -> Ordering {
+pub(crate) fn compare(sort: SortSpec, clock: &GroupClock, a: &Sortable, b: &Sortable) -> Ordering {
+    // The group is the first part of the order, so each group is one run of rows.
+    let grouped = compare_groups(sort, clock, a, b);
+    if grouped != Ordering::Equal {
+        return grouped;
+    }
     if sort.directories_first {
         match (a.is_directory(), b.is_directory()) {
             (true, false) => return Ordering::Less,

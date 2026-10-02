@@ -3,14 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { visibleRows } from './scrollCap';
-
 /** Space around an item's icon, each side, in pixels. */
 const CELL_PADDING = 12;
 /** Room under the icon for a two-line name. */
 const LABEL_HEIGHT = 40;
 /** The grid's own padding, each side. */
 export const GRID_PADDING = 12;
+/** The height of a group's header between the rows of cells. */
+export const GROUP_HEADER_HEIGHT = 36;
 
 export interface GridCell {
 	width: number;
@@ -25,20 +25,6 @@ export function cellFor(size: number): GridCell {
 /** How many columns of `cell` fit in `width` pixels; always at least one. */
 export function columnsFor(width: number, cell: GridCell): number {
 	return Math.max(1, Math.floor((width - GRID_PADDING * 2) / cell.width));
-}
-
-/**
- * How the scroll cap (A23) applies to a grid: the cap is on the rows, so the items it leaves out
- * are everything past `rows` times `columns`.
- */
-export function cappedGrid(
-	count: number,
-	columns: number,
-	cell: GridCell,
-): { rows: number; shownItems: number; hiddenItems: number } {
-	const { shown } = visibleRows(Math.ceil(count / columns), cell.height);
-	const shownItems = Math.min(count, shown * columns);
-	return { rows: shown, shownItems, hiddenItems: count - shownItems };
 }
 
 /**

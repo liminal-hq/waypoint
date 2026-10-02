@@ -11,7 +11,8 @@ use waypoint_protocol::{EntryId, Location, VfsError};
 
 use crate::index::Index;
 use crate::model::{
-    Entry, Filter, ListingEvent, ListingHandle, ListingPhase, ListingSnapshot, PatchOp, SortSpec,
+    Entry, Filter, GroupBy, GroupRun, ListingEvent, ListingHandle, ListingLayout, ListingPhase,
+    ListingSnapshot, PatchOp, SortSpec,
 };
 use crate::provider::{Change, Provider, Watch, WatchEvent, WatchSink};
 use crate::CancelToken;
@@ -95,6 +96,18 @@ pub struct Listing {
 }
 
 impl Listing {
+    /// The sort a listing of this layout can use: the Trash lists the items it holds with their
+    /// own columns, so it does not group.
+    fn sort_for(layout: ListingLayout, sort: SortSpec) -> SortSpec {
+        match layout {
+            ListingLayout::Trash => SortSpec {
+                group_by: GroupBy::None,
+                ..sort
+            },
+            ListingLayout::Folder => sort,
+        }
+    }
+
     /// Creates a listing in the `Scanning` phase with nothing in it. Call `scan` (blocking) on a
     /// worker thread to fill it.
     pub fn new(
@@ -106,6 +119,7 @@ impl Listing {
         options: ListingOptions,
         sink: EventSink,
     ) -> Arc<Self> {
+        let sort = Self::sort_for(provider.layout(), sort);
         Arc::new(Self {
             handle,
             location: path.to_location(),
@@ -195,7 +209,13 @@ impl Listing {
             filter: state.index.filter(),
             read_only: self.provider.read_only(),
             layout: self.provider.layout(),
+            groups: state.index.groups(),
         }
+    }
+
+    /// The groups to send with an event: the view's, when the sort groups.
+    fn groups_of(state: &State) -> Option<Vec<GroupRun>> {
+        (state.index.sort().group_by != GroupBy::None).then(|| state.index.groups())
     }
 
     fn read(&self) -> std::sync::RwLockReadGuard<'_, State> {
@@ -251,6 +271,7 @@ impl Listing {
                 phase: ListingPhase::Ready,
                 scanned: total,
                 count: state.index.count(),
+                groups: Self::groups_of(&state),
             }
         };
         self.emit(event);
@@ -276,6 +297,7 @@ impl Listing {
                     phase,
                     scanned,
                     count: scanned,
+                    groups: None,
                 });
             }
         };
@@ -317,6 +339,7 @@ impl Listing {
 
     /// Re-sorts the view and returns the new state. Cached pages are stale afterwards.
     pub fn set_sort(&self, sort: SortSpec) -> ListingSnapshot {
+        let sort = Self::sort_for(self.provider.layout(), sort);
         let _turn = self.serialise();
         let mut state = self.write();
         if state.index.sort() != sort {
@@ -400,6 +423,7 @@ impl Listing {
                 count: state.index.count(),
                 ops: ops.clone(),
                 moved: moved.into_iter().map(EntryId).collect(),
+                groups: Self::groups_of(&state),
             };
             (ops, event)
         };
@@ -531,6 +555,7 @@ impl Listing {
                         phase: ListingPhase::Rescanning,
                         scanned: 0,
                         count: state.index.count(),
+                        groups: None,
                     }
                 };
                 self.emit(event);
@@ -561,6 +586,7 @@ impl Listing {
                     phase: ListingPhase::Ready,
                     scanned: total,
                     count: state.index.count(),
+                    groups: None,
                 }
             };
             self.emit(event);

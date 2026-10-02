@@ -285,6 +285,7 @@ describe('sort header', () => {
 			key: 'name',
 			descending: true,
 			directoriesFirst: true,
+			groupBy: 'none',
 		});
 
 		fireEvent.click(screen.getByRole('button', { name: /^Size/ }));
@@ -299,6 +300,7 @@ describe('sort header', () => {
 			key: 'size',
 			descending: false,
 			directoriesFirst: true,
+			groupBy: 'none',
 		});
 	});
 

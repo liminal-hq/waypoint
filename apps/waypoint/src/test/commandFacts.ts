@@ -34,7 +34,12 @@ export const PLACES = [
 	'trash',
 ] as const;
 
-export const SORT: SortSpec = { key: 'name', descending: false, directoriesFirst: true };
+export const SORT: SortSpec = {
+	key: 'name',
+	descending: false,
+	directoriesFirst: true,
+	groupBy: 'none',
+};
 
 export const entry = (id: number, label: string, extra: Partial<JournalEntrySummary> = {}) =>
 	({

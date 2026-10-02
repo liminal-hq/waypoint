@@ -12,6 +12,7 @@ import {
 	useEffect,
 	useId,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState,
 	useSyncExternalStore,
@@ -30,6 +31,9 @@ import { useHourCycle } from './TimeFormatContext';
 import { ErrorState, ListingGate, MessageState } from './ListingGate';
 import type { ListingSession, SessionState } from './useListingSession';
 import { useListingSession } from './useListingSession';
+import { groupCount, groupLabel, groupTitle } from './groupHeader';
+import { GroupLayout, groupId } from './groupLayout';
+import { firstTarget } from './groupNav';
 import { mapPosition, isReset } from './patch';
 import { DEFAULT_ROW_HEIGHT, measureRowHeight, visibleRows } from './scrollCap';
 import { isSelected, selectedCount } from './selection';
@@ -137,6 +141,8 @@ function ListingBody({
 	const touched = useStore(store, (state) => state.touched);
 	const renaming = useStore(store, (state) => state.renaming);
 	const scrollRequest = useStore(store, (state) => state.scrollRequest);
+	const collapsed = useStore(store, (state) => state.collapsed);
+	const focusHeader = useStore(store, (state) => state.focusHeader);
 	const commands = useFileCommands();
 	// What a cut holds in this folder is drawn dimmed until it is pasted or replaced.
 	const cut = useCutNames(model.location.uri);
@@ -152,7 +158,14 @@ function ListingBody({
 	const anchor = useRef({ top: 0, position: 0 });
 	const reanchor = useRef(false);
 
-	const { shown, hidden } = visibleRows(model.count, rowHeight);
+	// A header takes a row of its own, so the rows are the entries and the headers between them.
+	const layout = useMemo(
+		() => new GroupLayout(model.groups, collapsed, model.count),
+		[model.groups, collapsed, model.count],
+	);
+	const layoutRef = useRef(layout);
+	layoutRef.current = layout;
+	const { shown, hidden } = visibleRows(layout.rowCount, rowHeight);
 
 	const virtualizer = useVirtualizer({
 		count: shown,
@@ -179,10 +192,23 @@ function ListingBody({
 	}, [rowHeight, virtualizer]);
 
 	// Fetch what is on screen plus a page either side; re-run when the model changes so pages that
-	// a patch invalidated are requested again.
+	// a patch invalidated are requested again. A folded group between two visible rows is not
+	// fetched: the entries on either side are asked for separately.
 	useEffect(() => {
-		if (items.length > 0) model.ensure(first, last);
-	}, [model, first, last, items.length, version]);
+		if (items.length === 0) return;
+		if (!layout.grouped) return model.ensure(first, last);
+		let run: [number, number] | null = null;
+		for (let index = first; index <= last; index++) {
+			const row = layout.rowAt(index);
+			if (row.kind !== 'entries') continue;
+			if (run && row.first === run[1] + 1) run[1] = row.first;
+			else {
+				if (run) model.ensure(run[0], run[1]);
+				run = [row.first, row.first];
+			}
+		}
+		if (run) model.ensure(run[0], run[1]);
+	}, [model, layout, first, last, items.length, version]);
 
 	// Scroll anchoring. The model tells this, synchronously and before React renders, how a patch
 	// moved entries. The row at the top of the viewport is followed through the patch, and the
@@ -195,14 +221,19 @@ function ListingBody({
 				const current = anchor.current;
 				if (current.top === 0 || isReset(report.ops)) return;
 				const { position } = mapPosition(current.position, report.ops);
-				if (position === current.position) return;
-				anchor.current = {
-					top: Math.max(0, current.top + (position - current.position) * rowHeight),
-					position,
-				};
+				// Where that row stood, and where it stands now that the groups have moved with the patch.
+				const before = layoutRef.current;
+				const after = new GroupLayout(model.groups, store.getState().collapsed, report.count);
+				const above =
+					current.top - before.offsetOfRow(before.rowNear(current.position), rowHeight, rowHeight);
+				const row = after.rowNear(position);
+				const top = Math.max(0, after.offsetOfRow(row, rowHeight, rowHeight) + above);
+				// Headers can come and go above the row without the row's own position moving.
+				if (top === current.top && position === current.position) return;
+				anchor.current = { top, position };
 				reanchor.current = true;
 			}),
-		[model, rowHeight],
+		[model, store, rowHeight],
 	);
 
 	useLayoutEffect(() => {
@@ -238,7 +269,10 @@ function ListingBody({
 		if (session.view.pendingScroll !== null) return;
 		const top = scroller.current?.scrollTop ?? 0;
 		session.view.scrollTop = top;
-		anchor.current = { top, position: Math.floor(top / rowHeight) };
+		anchor.current = {
+			top,
+			position: layoutRef.current.positionAtRow(Math.floor(top / rowHeight)),
+		};
 	};
 
 	const count = model.count;
@@ -249,7 +283,13 @@ function ListingBody({
 		: '';
 
 	const scrollToRow = (position: number) =>
-		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, position)), { align: 'auto' });
+		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, layout.rowNear(position))), {
+			align: 'auto',
+		});
+	const scrollToHeader = (group: number) =>
+		virtualizer.scrollToIndex(Math.max(0, Math.min(shown - 1, layout.rowOfHeader(group))), {
+			align: 'auto',
+		});
 
 	// A command that made or found an entry asks for it to be brought into sight.
 	useEffect(() => {
@@ -262,6 +302,9 @@ function ListingBody({
 		itemId: (position) => `${listId}-row-${position}`,
 		shown,
 		scrollTo: scrollToRow,
+		layout,
+		pageRows: page,
+		scrollToHeader,
 		onOpen,
 		onMenu,
 		move: (key, from, last) => {
@@ -290,6 +333,7 @@ function ListingBody({
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onHeaderClick,
 	} = interactions;
 
 	const onSort = (key: SortKey) => {
@@ -299,7 +343,14 @@ function ListingBody({
 
 	if (model.error) return <ErrorState error={model.error} />;
 
-	const activeId = focus === null ? undefined : `${listId}-row-${focus}`;
+	const headerGroup =
+		focusHeader === null ? -1 : model.groups.findIndex((run) => groupId(run.key) === focusHeader);
+	const activeId =
+		headerGroup >= 0
+			? `${listId}-group-${headerGroup}`
+			: focus === null
+				? undefined
+				: `${listId}-row-${focus}`;
 
 	return (
 		<div className={styles.view} data-layout={model.layout}>
@@ -382,37 +433,64 @@ function ListingBody({
 						tabIndex={0}
 						aria-label={t('browse.list.label')}
 						aria-multiselectable="true"
-						aria-rowcount={shown}
+						aria-rowcount={layout.grouped ? undefined : shown}
 						aria-activedescendant={activeId}
 						className={styles.list}
 						style={{ '--wp-list-height': `${virtualizer.getTotalSize()}px` } as CSSProperties}
 						onKeyDown={onKeyDown}
 						onFocus={() => {
-							if (store.getState().focus === null && count > 0) store.getState().moveTo(0, false);
+							const state = store.getState();
+							if (state.focus !== null || state.focusHeader !== null || count === 0) return;
+							const first = firstTarget(layout);
+							if ('header' in first) state.focusGroup(groupId(model.groups[first.header]!.key));
+							else state.moveTo(first.position, false);
 						}}
 					>
 						{items.map((item) => {
-							const entry = model.entryAt(item.index);
+							const at = layout.rowAt(item.index);
+							if (at.kind === 'header') {
+								const run = model.groups[at.group]!;
+								const folded = layout.isCollapsed(at.group);
+								return (
+									<div
+										key={item.key}
+										id={`${listId}-group-${at.group}`}
+										role="group"
+										aria-label={groupLabel(run.key, run.count, folded)}
+										className={`${styles.groupHeader}`}
+										style={{ '--wp-row-y': `${item.start}px` } as CSSProperties}
+										data-collapsed={folded ? '' : undefined}
+										data-active={headerGroup === at.group ? '' : undefined}
+										onClick={() => onHeaderClick(at.group)}
+									>
+										<span className={styles.chevron} aria-hidden="true" />
+										<span className={styles.groupTitle}>{groupTitle(run.key)}</span>
+										<span className={styles.groupCount}>{groupCount(run.count)}</span>
+									</div>
+								);
+							}
+							const position = at.first;
+							const entry = model.entryAt(position);
 							const selected = entry ? isSelected(selection, entry.id) : false;
 							return (
 								<div
 									key={item.key}
-									id={`${listId}-row-${item.index}`}
+									id={`${listId}-row-${position}`}
 									role="option"
 									className={`${styles.columns} ${styles.row}`}
 									style={{ '--wp-row-y': `${item.start}px` } as CSSProperties}
 									aria-selected={selected}
-									aria-setsize={shown}
-									aria-posinset={item.index + 1}
+									aria-setsize={count}
+									aria-posinset={position + 1}
 									aria-busy={entry ? undefined : true}
 									data-placeholder={entry ? undefined : ''}
 									data-selected={selected ? '' : undefined}
 									data-cut={entry && cut.has(entry.name) ? '' : undefined}
-									data-active={focus === item.index ? '' : undefined}
+									data-active={focus === position && headerGroup < 0 ? '' : undefined}
 									{...(entry ? entryDropAttributes(entry, model) : undefined)}
-									onPointerDown={(event) => onItemPointerDown(event, item.index, entry)}
-									onClick={(event) => onItemClick(event, item.index, entry)}
-									onContextMenu={(event) => onItemContextMenu(event, item.index, entry)}
+									onPointerDown={(event) => onItemPointerDown(event, position, entry)}
+									onClick={(event) => onItemClick(event, position, entry)}
+									onContextMenu={(event) => onItemContextMenu(event, position, entry)}
 									onDoubleClick={() => onItemDoubleClick(entry)}
 									onMouseDown={(event) => {
 										// Stops middle-click from starting the platform's autoscroll.

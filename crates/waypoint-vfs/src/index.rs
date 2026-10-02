@@ -9,10 +9,11 @@ use std::ffi::{OsStr, OsString};
 
 use waypoint_protocol::EntryId;
 
+use crate::group::{runs_of, GroupClock};
 use crate::icon::extension;
 use crate::model::{
-    Entry, EntryKind, Filter, IconGroup, KindFilter, PatchOp, SelectionSpec, SelectionSummary,
-    SortKey, SortSpec,
+    Entry, EntryKind, Filter, GroupBy, GroupRun, IconGroup, KindFilter, PatchOp, SelectionSpec,
+    SelectionSummary, SortKey, SortSpec,
 };
 use crate::order::{compare, natural_key, Sortable};
 use crate::provider::{Change, ScannedEntry, TrashedMeta};
@@ -179,6 +180,10 @@ pub(crate) struct Index {
     sort: SortSpec,
     filter: Filter,
     names: Option<HashMap<OsString, u32>>,
+    /// What "today" is for the Modified groups, fixed for as long as the order stands and read
+    /// again from `clock_source` whenever the view is rebuilt.
+    clock: GroupClock,
+    clock_source: fn() -> GroupClock,
 }
 
 /// The entry a staged change touches: what it was before the batch and what it becomes.
@@ -200,12 +205,19 @@ fn runs(sorted: &[u32]) -> Vec<(u32, u32)> {
 
 impl Index {
     pub fn new(sort: SortSpec, filter: Filter) -> Self {
+        Self::with_clock(sort, filter, GroupClock::now)
+    }
+
+    /// An index that reads the time from `clock_source` (a test's fixed one, for one).
+    pub fn with_clock(sort: SortSpec, filter: Filter, clock_source: fn() -> GroupClock) -> Self {
         Self {
             records: Vec::new(),
             view: Vec::new(),
             sort,
             filter,
             names: None,
+            clock: clock_source(),
+            clock_source,
         }
     }
 
@@ -246,7 +258,7 @@ impl Index {
     }
 
     fn cmp_records(&self, a: &Record, b: &Record) -> Ordering {
-        compare(self.sort, &a.sortable(), &b.sortable())
+        compare(self.sort, &self.clock, &a.sortable(), &b.sortable())
     }
 
     fn cmp_ids(&self, a: u32, b: u32) -> Ordering {
@@ -258,6 +270,29 @@ impl Index {
     /// The sort runs over small items that carry the folder flag and a numeric rank inline, which
     /// keeps the comparison out of the records (and the cache) for nearly every pair.
     fn rebuild(&mut self) {
+        if self.sort.group_by == GroupBy::Modified {
+            self.clock = (self.clock_source)();
+        }
+        if self.sort.group_by != GroupBy::None {
+            // The group comes before the sort column, so the numeric ranks below do not apply.
+            let (sort, filter, clock) = (self.sort, self.filter, self.clock);
+            let records = &self.records;
+            let mut ids: Vec<u32> = records
+                .iter()
+                .enumerate()
+                .filter(|(_, r)| r.as_ref().is_some_and(|r| r.visible(&filter)))
+                .map(|(id, _)| id as u32)
+                .collect();
+            ids.sort_unstable_by(|&a, &b| {
+                let (a, b) = (
+                    records[a as usize].as_ref().expect("live"),
+                    records[b as usize].as_ref().expect("live"),
+                );
+                compare(sort, &clock, &a.sortable(), &b.sortable())
+            });
+            self.view = ids;
+            return;
+        }
         struct Item {
             rank: u128,
             /// The first 16 bytes of the name key: the tie-break every column shares.
@@ -265,7 +300,7 @@ impl Index {
             id: u32,
             folder: bool,
         }
-        let (sort, filter) = (self.sort, self.filter);
+        let (sort, filter, clock) = (self.sort, self.filter, self.clock);
         let mut items: Vec<Item> = self
             .records
             .iter()
@@ -297,10 +332,20 @@ impl Index {
                     records[a.id as usize].as_ref().expect("live"),
                     records[b.id as usize].as_ref().expect("live"),
                 );
-                compare(sort, &a.sortable(), &b.sortable())
+                compare(sort, &clock, &a.sortable(), &b.sortable())
             })
         });
         self.view = items.into_iter().map(|item| item.id).collect();
+    }
+
+    /// The groups of the view in order, each a contiguous run of rows; empty when the sort does not
+    /// group. One pass over the view, so a listing sends them whole instead of patching them.
+    pub fn groups(&self) -> Vec<GroupRun> {
+        runs_of(
+            self.sort,
+            &self.clock,
+            self.view.iter().map(|&id| self.rec(id).sortable()),
+        )
     }
 
     /// Up to `count` entries from view position `start`.
@@ -707,6 +752,7 @@ mod tests {
                 key: SortKey::Kind,
                 descending: false,
                 directories_first: true,
+                ..SortSpec::default()
             },
             Filter::default(),
         );
@@ -1011,6 +1057,7 @@ mod tests {
                         key,
                         descending,
                         directories_first,
+                        ..SortSpec::default()
                     };
                     let mut index = Index::new(
                         sort,
@@ -1069,6 +1116,478 @@ mod tests {
             let mut sorted = after.clone();
             sorted.dedup();
             assert_eq!(sorted.len(), after.len(), "names stay unique");
+        }
+    }
+    // -- grouping ---------------------------------------------------------------------------
+
+    use crate::model::{GroupKey, ModifiedBucket, SizeBand};
+
+    // Wednesday 2026-10-07 at noon UTC.
+    const NOW: i64 = 1_791_374_400_000;
+    const DAY: i64 = 86_400_000;
+
+    fn fixed() -> GroupClock {
+        GroupClock::new(NOW, 0)
+    }
+
+    fn by(group_by: GroupBy) -> SortSpec {
+        SortSpec {
+            group_by,
+            ..SortSpec::default()
+        }
+    }
+
+    fn grouped(sort: SortSpec, entries: &[ScannedEntry]) -> Index {
+        let mut index = Index::with_clock(sort, Filter::default(), fixed);
+        index.load(entries.to_vec());
+        index
+    }
+
+    /// The groups as `(key, names)` so a test reads what each header holds.
+    fn shape(index: &Index) -> Vec<(GroupKey, Vec<String>)> {
+        let all = names(index);
+        index
+            .groups()
+            .into_iter()
+            .map(|g| {
+                (
+                    g.key,
+                    all[g.start as usize..(g.start + g.count) as usize].to_vec(),
+                )
+            })
+            .collect()
+    }
+
+    fn size_group(band: SizeBand) -> GroupKey {
+        GroupKey::Size { band }
+    }
+
+    fn strings(names: &[&str]) -> Vec<String> {
+        names.iter().map(|n| (*n).to_owned()).collect()
+    }
+
+    #[test]
+    fn an_ungrouped_view_has_no_groups() {
+        let index = loaded(&[file("a", 1), file("b", 2)]);
+        assert!(index.groups().is_empty());
+        assert!(loaded(&[]).groups().is_empty());
+    }
+
+    #[test]
+    fn an_empty_folder_has_no_groups_under_any_grouping() {
+        for group_by in [
+            GroupBy::Kind,
+            GroupBy::Modified,
+            GroupBy::Size,
+            GroupBy::Name,
+            GroupBy::Type,
+        ] {
+            assert!(grouped(by(group_by), &[]).groups().is_empty());
+        }
+    }
+
+    #[test]
+    fn size_groups_are_runs_in_band_order_with_the_sort_inside() {
+        let index = grouped(
+            by(GroupBy::Size),
+            &[
+                file("big", 200_000_000),
+                file("b", 5),
+                folder("dir"),
+                file("a", 7),
+                file("empty", 0),
+                file("mid", 500_000),
+            ],
+        );
+        assert_eq!(
+            shape(&index),
+            [
+                (size_group(SizeBand::Unspecified), strings(&["dir"])),
+                (size_group(SizeBand::Empty), strings(&["empty"])),
+                (size_group(SizeBand::Tiny), strings(&["a", "b"])),
+                (size_group(SizeBand::Medium), strings(&["mid"])),
+                (size_group(SizeBand::Gigantic), strings(&["big"])),
+            ]
+        );
+    }
+
+    #[test]
+    fn name_groups_use_the_initial_and_put_symbols_first() {
+        let index = grouped(
+            by(GroupBy::Name),
+            &[
+                file("banana", 1),
+                file("Apple", 1),
+                file("avocado", 1),
+                file("9lives", 1),
+                file("_x", 1),
+                folder("Zoo"),
+            ],
+        );
+        let initials: Vec<String> = shape(&index)
+            .into_iter()
+            .map(|(key, _)| match key {
+                GroupKey::Name { initial } => initial,
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(initials, ["#", "A", "B", "Z"]);
+        assert_eq!(shape(&index)[1].1, ["Apple", "avocado"]);
+    }
+
+    #[test]
+    fn a_descending_name_sort_runs_the_name_groups_backwards() {
+        let sort = SortSpec {
+            descending: true,
+            ..by(GroupBy::Name)
+        };
+        let index = grouped(sort, &[file("a1", 1), file("b1", 1), file("b2", 1)]);
+        assert_eq!(
+            shape(&index),
+            [
+                (
+                    GroupKey::Name {
+                        initial: "B".into()
+                    },
+                    strings(&["b2", "b1"])
+                ),
+                (
+                    GroupKey::Name {
+                        initial: "A".into()
+                    },
+                    strings(&["a1"])
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn kind_groups_follow_the_icon_groups() {
+        let image = ScannedEntry {
+            group: IconGroup::Image,
+            ..file("pic.png", 1)
+        };
+        let index = grouped(by(GroupBy::Kind), &[file("z", 1), image, folder("d")]);
+        assert_eq!(
+            shape(&index),
+            [
+                (
+                    GroupKey::Kind {
+                        group: IconGroup::Folder
+                    },
+                    strings(&["d"])
+                ),
+                (
+                    GroupKey::Kind {
+                        group: IconGroup::Image
+                    },
+                    strings(&["pic.png"])
+                ),
+                (
+                    GroupKey::Kind {
+                        group: IconGroup::Other
+                    },
+                    strings(&["z"])
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn type_groups_put_folders_and_extensionless_names_ahead_of_the_extensions() {
+        let index = grouped(
+            by(GroupBy::Type),
+            &[
+                file("b.TXT", 1),
+                file("a.rs", 1),
+                file("README", 1),
+                folder("d"),
+                file("c.txt", 1),
+            ],
+        );
+        let t = |extension: &str| GroupKey::Type {
+            extension: extension.into(),
+        };
+        assert_eq!(
+            shape(&index),
+            [
+                (
+                    GroupKey::Kind {
+                        group: IconGroup::Folder
+                    },
+                    strings(&["d"])
+                ),
+                (t(""), strings(&["README"])),
+                (t("rs"), strings(&["a.rs"])),
+                (t("txt"), strings(&["b.TXT", "c.txt"])),
+            ]
+        );
+    }
+
+    fn aged(name: &str, days: i64) -> ScannedEntry {
+        ScannedEntry {
+            modified_ms: Some(NOW - days * DAY),
+            ..file(name, 1)
+        }
+    }
+
+    #[test]
+    fn modified_groups_run_newest_first_and_follow_an_ascending_modified_sort_backwards() {
+        let entries = [
+            aged("old", 400),
+            aged("now", 0),
+            aged("week", 4),
+            aged("yday", 1),
+        ];
+        let bucket = |bucket| GroupKey::Modified { bucket };
+        let newest_first = grouped(by(GroupBy::Modified), &entries);
+        assert_eq!(
+            shape(&newest_first),
+            [
+                (bucket(ModifiedBucket::Today), strings(&["now"])),
+                (bucket(ModifiedBucket::Yesterday), strings(&["yday"])),
+                (bucket(ModifiedBucket::Last7Days), strings(&["week"])),
+                (GroupKey::Year { year: 2025 }, strings(&["old"])),
+            ]
+        );
+        let oldest_first = grouped(
+            SortSpec {
+                key: SortKey::Modified,
+                ..by(GroupBy::Modified)
+            },
+            &entries,
+        );
+        assert_eq!(
+            shape(&oldest_first)
+                .into_iter()
+                .map(|(_, rows)| rows[0].clone())
+                .collect::<Vec<_>>(),
+            ["old", "week", "yday", "now"]
+        );
+    }
+
+    #[test]
+    fn a_row_that_changes_group_moves_and_the_boundaries_follow() {
+        let mut index = grouped(
+            by(GroupBy::Size),
+            &[file("a", 5), file("b", 6), file("c", 5_000_000)],
+        );
+        let id = index.id_of(OsStr::new("a")).unwrap();
+        let before = names(&index);
+        let mut moved = Vec::new();
+        let ops = index.apply_tracking(vec![Change::Upsert(file("a", 2_000_000))], &mut moved);
+        assert_eq!(moved, [id]);
+        assert_eq!(replay(&before, &ops, &names(&index)), names(&index));
+        assert_eq!(
+            shape(&index),
+            [
+                (size_group(SizeBand::Tiny), strings(&["b"])),
+                (size_group(SizeBand::Large), strings(&["a", "c"])),
+            ]
+        );
+        // The last row of a group leaving takes its header with it.
+        index.apply(vec![Change::Upsert(file("b", 2_000_000))]);
+        assert_eq!(
+            shape(&index),
+            [(size_group(SizeBand::Large), strings(&["a", "b", "c"]))]
+        );
+        // A change inside a group updates in place and leaves the boundaries alone.
+        let ops = index.apply(vec![Change::Upsert(file("a", 2_000_001))]);
+        assert_eq!(ops, [PatchOp::Update { at: 0, count: 1 }]);
+        assert_eq!(index.groups().len(), 1);
+    }
+
+    #[test]
+    fn a_new_row_can_open_a_group_and_the_last_removal_empties_the_view() {
+        let mut index = grouped(by(GroupBy::Size), &[file("a", 5)]);
+        index.apply(vec![Change::Upsert(file("z", 0))]);
+        assert_eq!(
+            shape(&index),
+            [
+                (size_group(SizeBand::Empty), strings(&["z"])),
+                (size_group(SizeBand::Tiny), strings(&["a"])),
+            ]
+        );
+        index.apply(vec![Change::Remove("a".into()), Change::Remove("z".into())]);
+        assert!(index.groups().is_empty());
+    }
+
+    #[test]
+    fn showing_and_hiding_hidden_files_adds_and_removes_their_groups() {
+        let mut index = grouped(by(GroupBy::Name), &[file("a", 1), file(".secret", 1)]);
+        assert_eq!(index.groups().len(), 1);
+        index.set_filter(Filter {
+            show_hidden: true,
+            only: None,
+        });
+        let keys: Vec<GroupKey> = index.groups().into_iter().map(|g| g.key).collect();
+        assert_eq!(
+            keys,
+            [
+                GroupKey::Name {
+                    initial: "#".into()
+                },
+                GroupKey::Name {
+                    initial: "A".into()
+                }
+            ]
+        );
+        index.set_filter(Filter::default());
+        assert_eq!(index.groups().len(), 1);
+        assert_eq!(index.groups()[0].count, 1);
+    }
+
+    #[test]
+    fn changing_the_group_re_sorts_the_view() {
+        let mut index = grouped(SortSpec::default(), &[file("a", 50_000), file("b", 1)]);
+        assert_eq!(names(&index), ["a", "b"]);
+        index.set_sort(SortSpec {
+            key: SortKey::Size,
+            descending: true,
+            ..by(GroupBy::Size)
+        });
+        assert_eq!(names(&index), ["a", "b"]);
+        index.set_sort(by(GroupBy::Size));
+        assert_eq!(names(&index), ["b", "a"]);
+        index.set_sort(SortSpec::default());
+        assert_eq!(names(&index), ["a", "b"]);
+        assert!(index.groups().is_empty());
+    }
+
+    #[test]
+    fn groups_are_contiguous_and_distinct_under_every_grouping_sort_and_direction() {
+        let mut seed = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        let entries: Vec<ScannedEntry> = (0..500)
+            .map(|i| {
+                let name = format!(
+                    "{}{}_{}.{}",
+                    ["a", "B", "é", "9", "_", "Zed"][next() as usize % 6],
+                    next() % 20,
+                    i,
+                    ["txt", "TXT", "png", "rs", "", "gz"][next() as usize % 6]
+                );
+                ScannedEntry {
+                    size: (next() % 4 != 0).then(|| {
+                        [0, 5, 20_000, 400_000, 3_000_000, 90_000_000, 5_000_000_000]
+                            [next() as usize % 7]
+                    }),
+                    modified_ms: (next() % 5 != 0)
+                        .then(|| NOW - ((next() % 900) as i64 - 20) * DAY),
+                    kind: if next() % 6 == 0 {
+                        EntryKind::Directory
+                    } else {
+                        EntryKind::File
+                    },
+                    group: [IconGroup::Image, IconGroup::Code, IconGroup::Other]
+                        [next() as usize % 3],
+                    ..file(&name, 0)
+                }
+            })
+            .collect();
+        for group_by in [
+            GroupBy::Kind,
+            GroupBy::Modified,
+            GroupBy::Size,
+            GroupBy::Name,
+            GroupBy::Type,
+        ] {
+            for key in [
+                SortKey::Name,
+                SortKey::Size,
+                SortKey::Modified,
+                SortKey::Kind,
+            ] {
+                for descending in [false, true] {
+                    for directories_first in [false, true] {
+                        let sort = SortSpec {
+                            key,
+                            descending,
+                            directories_first,
+                            group_by,
+                        };
+                        let mut index = Index::with_clock(
+                            sort,
+                            Filter {
+                                show_hidden: true,
+                                only: None,
+                            },
+                            fixed,
+                        );
+                        index.load(entries.clone());
+                        for pair in index.view.windows(2) {
+                            assert_eq!(index.cmp_ids(pair[0], pair[1]), Ordering::Less, "{sort:?}");
+                        }
+                        let groups = index.groups();
+                        let mut at = 0;
+                        for group in &groups {
+                            assert_eq!(group.start, at, "{sort:?}: runs are contiguous");
+                            assert!(group.count > 0);
+                            at += group.count;
+                        }
+                        assert_eq!(at, index.count(), "{sort:?}: runs cover the view");
+                        let mut keys: Vec<String> =
+                            groups.iter().map(|g| format!("{:?}", g.key)).collect();
+                        let total = keys.len();
+                        keys.sort();
+                        keys.dedup();
+                        assert_eq!(keys.len(), total, "{sort:?}: a group never recurs");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn random_batches_under_a_grouping_replay_and_match_a_fresh_build() {
+        let mut seed = 0x1234_5678_9ABC_DEF1u64;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        let sizes = [0u64, 3, 20_000, 400_000, 3_000_000];
+        let mut index = grouped(by(GroupBy::Size), &[]);
+        for round in 0..300 {
+            let before = names(&index);
+            let mut changes = Vec::new();
+            for _ in 0..(next() % 6) {
+                let name = format!("n{}", next() % 30);
+                changes.push(match next() % 4 {
+                    0 => Change::Remove(name.into()),
+                    1 => Change::Rename {
+                        from: name.into(),
+                        to: file(&format!("n{}", next() % 30), sizes[next() as usize % 5]),
+                    },
+                    _ => Change::Upsert(file(&name, sizes[next() as usize % 5])),
+                });
+            }
+            let ops = index.apply(changes);
+            let after = names(&index);
+            assert_eq!(
+                replay(&before, &ops, &after),
+                after,
+                "round {round}: {ops:?}"
+            );
+            let live: Vec<ScannedEntry> = index
+                .records
+                .iter()
+                .flatten()
+                .map(Record::to_scanned)
+                .collect();
+            let fresh = grouped(by(GroupBy::Size), &live);
+            assert_eq!(
+                names(&fresh),
+                after,
+                "round {round}: same order as a rebuild"
+            );
+            assert_eq!(fresh.groups(), index.groups(), "round {round}");
         }
     }
 }

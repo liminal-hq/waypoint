@@ -515,6 +515,7 @@ fn listings_sort_by_deletion_date() {
         key: SortKey::Deleted,
         descending: true,
         directories_first: false,
+        ..SortSpec::default()
     });
     assert_eq!(names(&listing), ["y", "x"]);
 }

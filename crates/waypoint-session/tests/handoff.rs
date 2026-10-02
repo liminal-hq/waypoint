@@ -7,6 +7,7 @@ use waypoint_session::{
     Command, Geometry, MoveTo, MoveWhat, PairLayout, SessionEvent, TabColour, TabHints, TabId,
     ViewMode, ViewPrefs,
 };
+use waypoint_vfs::{GroupBy, SortKey, SortSpec};
 
 mod common;
 use common::{assert_ok, ids, loc, open, run, store_with, Mirror};
@@ -131,6 +132,12 @@ fn geometry_and_view_are_state_with_events() {
         mode: ViewMode::Grid,
         show_hidden: true,
         icon_size: 96,
+        sort: SortSpec {
+            key: SortKey::Modified,
+            descending: true,
+            group_by: GroupBy::Modified,
+            ..SortSpec::default()
+        },
     };
     let out = run(&mut s, W, Command::SetView { view });
     assert!(matches!(
@@ -581,6 +588,7 @@ fn a_window_made_after_the_new_window_view_is_set_starts_with_it_and_the_others_
         mode: ViewMode::Grid,
         show_hidden: true,
         icon_size: 64,
+        ..ViewPrefs::default()
     };
     s.set_new_window_view(grid);
     assert_eq!(s.new_window_view(), grid);
@@ -617,6 +625,7 @@ fn setting_the_new_window_view_is_not_a_change() {
         mode: ViewMode::Grid,
         show_hidden: false,
         icon_size: 64,
+        ..ViewPrefs::default()
     });
     assert_eq!(s.revision(), before);
     // And it is not saved: the document of such a store loads with the default.

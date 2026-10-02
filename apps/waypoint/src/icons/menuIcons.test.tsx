@@ -62,14 +62,22 @@ describe('context menu icons', () => {
 
 	it('gives the empty-space menu an icon on every item, with and without a listing', () => {
 		expectEveryItemHasIcon(
-			backgroundMenuItems({ key: 'name', descending: false, directoriesFirst: true }, true),
+			backgroundMenuItems(
+				{ key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+				true,
+			),
 		);
 		expectEveryItemHasIcon(backgroundMenuItems(undefined, false));
 	});
 
 	it('gives the Trash menus an icon on every item', () => {
 		expectEveryItemHasIcon(trashEntryMenuItems());
-		const sort = { key: 'deleted' as const, descending: false, directoriesFirst: true };
+		const sort = {
+			key: 'deleted' as const,
+			descending: false,
+			directoriesFirst: true,
+			groupBy: 'none' as const,
+		};
 		expectEveryItemHasIcon(backgroundMenuItems(sort, false, { trash: { count: 2 } }));
 		expectEveryItemHasIcon(backgroundMenuItems(undefined, false, { trash: { count: 0 } }));
 	});

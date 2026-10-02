@@ -105,7 +105,7 @@ describe('InsertTracker', () => {
 		disposables.push(() => tracker.dispose());
 		vfs.addEntries(FOLDER, [makeEntry(10, 'b')]);
 		await waitForInserts(model, tracker, 1, 1000);
-		await model.setSort({ key: 'name', descending: true, directoriesFirst: true });
+		await model.setSort({ key: 'name', descending: true, directoriesFirst: true, groupBy: 'none' });
 		expect(tracker.count).toBe(0);
 		expect(await tracker.entries()).toEqual([]);
 	});
