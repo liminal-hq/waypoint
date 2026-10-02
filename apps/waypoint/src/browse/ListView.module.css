@@ -94,8 +94,9 @@
 	background: var(--wp-bg-window);
 	color: var(--wp-text-secondary);
 	font-size: 12px;
+	/* Reserves the width of the rows' scrollbar so the columns line up, without drawing a scrollbar of its own. */
 	scrollbar-gutter: stable;
-	overflow-y: scroll;
+	overflow-y: hidden;
 }
 
 .headerButton {
