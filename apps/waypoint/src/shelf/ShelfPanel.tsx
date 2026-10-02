@@ -18,10 +18,13 @@ import {
 	type PointerEvent,
 } from 'react';
 import { useStore } from 'zustand';
-import { FileIcon } from '../browse/FileIcon';
 import { modifiersOf } from '../dnd/dropAction';
 import { dropAttributes } from '../dnd/dropTargets';
 import { useFileDragApi } from '../dnd/FileDragContext';
+import { Thumbnail } from '../thumbnails/Thumbnail';
+import { useLocationThumbnailLoader } from '../thumbnails/ThumbnailsContext';
+import type { ThumbnailLoader } from '../thumbnails/thumbnailLoader';
+import type { LocationRequest } from '../thumbnails/thumbnailsClient';
 import { t, tf, tn } from '../i18n/messages';
 import { ChevronRightSmallIcon, CloseSmallIcon } from '../icons/AppIcons';
 import { MoreIcon } from '../icons/MenuIcons';
@@ -45,6 +48,9 @@ import styles from './ShelfPanel.module.css';
 /** How far an arrow key moves the divider, and how far with Shift. */
 const DIVIDER_STEP = 16;
 const DIVIDER_BIG_STEP = 64;
+
+/** Pictures asked for at once on the Shelf, which is not virtualised. */
+const MAX_SHELF_THUMBNAILS = 120;
 
 const rowDomId = (key: string) => `shelf-${key.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
@@ -99,6 +105,18 @@ export function ShelfPanel({ layout = 'dock' }: { layout?: 'dock' | 'window' }) 
 		if (store.getState().focus === null && rows[0]) store.getState().setFocus(rows[0].key);
 		treeRef.current?.focus();
 	}, [focusRequests, rows, store]);
+
+	// Files on the Shelf show a picture where one can be made; the loader is null where none should be asked for.
+	const thumbnails = useLocationThumbnailLoader('normal');
+	useEffect(() => {
+		if (!thumbnails) return;
+		const wanted = rows.flatMap((row) =>
+			row.kind === 'item' && status.get(row.item.location.uri) === 'file'
+				? [{ key: row.item.location.uri, location: row.item.location }]
+				: [],
+		);
+		thumbnails.want(wanted.slice(0, MAX_SHELF_THUMBNAILS));
+	}, [thumbnails, rows, status]);
 
 	const focusedRow = rows.find((row) => row.key === focus) ?? null;
 	const moveFocus = useCallback(
@@ -247,6 +265,7 @@ export function ShelfPanel({ layout = 'dock' }: { layout?: 'dock' | 'window' }) 
 			groups: carried
 				.slice(0, 3)
 				.map((i) => iconFor(store.getState().status.get(i.location.uri) ?? 'unknown')),
+			thumbnails: carried.slice(0, 3).map((i) => thumbnails?.urlOf(i.location.uri) ?? null),
 			folder: commonOrigin(carried),
 			modifiers: modifiersOf(event.nativeEvent),
 		});
@@ -396,6 +415,7 @@ export function ShelfPanel({ layout = 'dock' }: { layout?: 'dock' | 'window' }) 
 								key={row.key}
 								item={row.item}
 								state={status.get(row.item.location.uri) ?? 'unknown'}
+								thumbnails={thumbnails}
 								selected={selected.has(row.item.id)}
 								focused={focus === row.key}
 								onPointerDown={(event) => onRowPointerDown(event, row.item)}
@@ -454,6 +474,7 @@ export function ShelfPanel({ layout = 'dock' }: { layout?: 'dock' | 'window' }) 
 interface ItemRowProps {
 	item: ShelfItem;
 	state: ItemState;
+	thumbnails: ThumbnailLoader<LocationRequest> | null;
 	selected: boolean;
 	focused: boolean;
 	onPointerDown: (event: PointerEvent<HTMLElement>) => void;
@@ -466,6 +487,7 @@ interface ItemRowProps {
 function ItemRow({
 	item,
 	state,
+	thumbnails,
 	selected,
 	focused,
 	onPointerDown,
@@ -493,7 +515,13 @@ function ItemRow({
 			onDoubleClick={onOpen}
 			onContextMenu={onContextMenu}
 		>
-			<FileIcon group={iconFor(state)} className={styles.icon} />
+			<Thumbnail
+				loader={thumbnails}
+				thumbKey={state === 'file' ? item.location.uri : null}
+				group={iconFor(state)}
+				className={styles.tile}
+				iconClassName={styles.icon}
+			/>
 			<span className={styles.text}>
 				<span className={styles.name}>{item.name}</span>
 				<span className={styles.origin}>{item.origin.display}</span>
