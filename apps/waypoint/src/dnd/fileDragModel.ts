@@ -38,6 +38,8 @@ interface FileDragBase {
 	name: string | null;
 	/** The icons of the stack: up to three. */
 	groups: IconGroup[];
+	/** The thumbnails that had loaded when the drag began, aligned with `groups`: the stack shows them over the icons. */
+	thumbnails?: Array<string | null>;
 	/** The folder the files are in; `null` for external files that are not all in one folder. */
 	folder: Location | null;
 	/** The folder cannot be written to, so the files cannot be moved or trashed out of it. */

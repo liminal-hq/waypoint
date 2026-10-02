@@ -74,6 +74,17 @@ export function DragStack({ session }: DragStackProps) {
 							style={{ '--wp-stack-depth': depth } as CSSProperties}
 						>
 							<FileIcon group={group} />
+							{source.thumbnails?.[depth] && (
+								<img
+									className={styles.picture}
+									src={source.thumbnails[depth]}
+									alt=""
+									draggable={false}
+									onError={(event) => {
+										event.currentTarget.hidden = true;
+									}}
+								/>
+							)}
 						</span>
 					))
 					.reverse()}
