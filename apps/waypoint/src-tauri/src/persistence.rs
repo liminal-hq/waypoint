@@ -15,6 +15,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_waypoint_session::Sessions;
 use waypoint_session::{Document, SessionStorage, StorageError, Store};
+use waypoint_settings::Settings;
 
 use crate::storage::{FileKeyValue, Persistence};
 use crate::windows::build_main_window;
@@ -251,6 +252,18 @@ impl CloseFlush {
     }
 }
 
+/// What the saved store becomes at start-up under `settings`. The session's windows come back
+/// only when the start-up setting says so; with "Open Home" the document is still read and
+/// everything that is not a window (the saved workspaces, the closed tabs, the id counters) is
+/// carried over, because the first save of the run replaces the document and must not empty it.
+pub(crate) fn restored_for(store: Store, settings: &Settings) -> Store {
+    if crate::settings::restores_session(settings) {
+        store
+    } else {
+        store.without_windows()
+    }
+}
+
 /// Loads the saved session into the store and creates its windows; with nothing saved (the first
 /// run, or a file that could not be read) one `main-1` opens and registers itself on its first
 /// `get_snapshot`.
@@ -262,21 +275,19 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
         Err(e) => log::warn!("could not open the session file: {e}"),
     }
     let sessions = app.state::<Sessions<Wry>>();
-    // "Open Home" (General settings) leaves the saved session alone until the first save of this
-    // run replaces it, and starts with the one window a first run gets.
-    let loaded = if crate::settings::restores_session(&crate::settings::current(app)) {
-        saver.storage.load()
-    } else {
-        log::info!("the start-up setting is Home: not restoring the last session");
-        Ok(None)
-    };
-    match loaded {
+    // "Open Home" (General settings) starts with the one window a first run gets, but the saved
+    // document is still read: its workspaces and closed tabs carry over into the run's first save.
+    let settings = crate::settings::current(app);
+    if !crate::settings::restores_session(&settings) {
+        log::info!("the start-up setting is Home: not restoring the last session's windows");
+    }
+    match saver.storage.load() {
         Ok(Some(document)) => match Store::from_document(document) {
             Ok((store, notes)) => {
                 for note in notes {
                     log::info!("repaired the saved session: {note}");
                 }
-                sessions.restore(store);
+                sessions.restore(restored_for(store, &settings));
             }
             // `Persistence::load` already vetted it, so this is only a race with nothing.
             Err(e) => log::warn!("the saved session was rejected: {e}"),
@@ -308,7 +319,8 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use waypoint_session::Command;
+    use waypoint_session::{Command, Workspace, WorkspaceId};
+    use waypoint_settings::StartupMode;
 
     #[derive(Default)]
     struct Recording(Mutex<Vec<usize>>);
@@ -341,6 +353,45 @@ mod tests {
 
     fn saved(storage: &Recording) -> Vec<usize> {
         storage.0.lock().unwrap().clone()
+    }
+
+    /// A saved session with one window and one workspace, as the file holds it.
+    fn saved_document() -> Document {
+        let mut document = document(1).unwrap();
+        document.body.workspaces.push(Workspace {
+            id: WorkspaceId(1),
+            name: "Work".to_string(),
+            locations: Vec::new(),
+        });
+        document.body.next_workspace = 2;
+        document
+    }
+
+    /// One start-up: the document is loaded, restored for `settings`, and saved as the first save of the run.
+    fn start_up(document: Document, settings: &Settings) -> Document {
+        let (store, _) = Store::from_document(document).unwrap();
+        restored_for(store, settings).to_document()
+    }
+
+    #[test]
+    fn open_home_keeps_the_workspaces_across_start_ups_but_not_the_windows() {
+        let mut settings = Settings::default();
+        settings.general.startup = StartupMode::Home;
+        // Two Home start-ups in a row, each saving what it started with.
+        let first = start_up(saved_document(), &settings);
+        let second = start_up(first, &settings);
+        assert!(second.body.windows.is_empty());
+        assert_eq!(second.body.workspaces.len(), 1);
+        assert_eq!(second.body.workspaces[0].name, "Work");
+        assert_eq!(second.body.next_workspace, 2);
+    }
+
+    #[test]
+    fn restoring_the_session_leaves_the_store_as_it_was_saved() {
+        let mut settings = Settings::default();
+        settings.general.startup = StartupMode::RestoreSession;
+        let (store, _) = Store::from_document(saved_document()).unwrap();
+        assert_eq!(restored_for(store.clone(), &settings), store);
     }
 
     #[test]

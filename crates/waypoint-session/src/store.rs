@@ -172,6 +172,14 @@ impl Store {
         &self.workspaces
     }
 
+    /// This store without its windows: the saved workspaces, the closed tabs and every counter
+    /// stay, so a start that opens one fresh window (the "Open Home" start-up setting) does not
+    /// lose what the document holds besides windows, and ids are still never reused.
+    pub fn without_windows(mut self) -> Store {
+        self.windows.clear();
+        self
+    }
+
     /// The window `tab` is in.
     pub fn window_of(&self, tab: TabId) -> Option<&WindowState> {
         self.windows.iter().find(|w| w.index_of(tab).is_some())
