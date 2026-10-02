@@ -13,6 +13,7 @@ members = [
   "plugins/system-appearance",
   "plugins/thumbnails",
   "plugins/trash",
+  "plugins/volumes",
   "plugins/window-manager",
   "plugins/window-tearoff",
   "plugins/waypoint-ops",
