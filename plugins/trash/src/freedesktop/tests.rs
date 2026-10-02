@@ -31,6 +31,10 @@ fn start() -> NaiveDateTime {
 struct FakeFs {
     devices: Vec<(PathBuf, u64)>,
     fail_rename: Mutex<Option<i32>>,
+    /// Owners to report instead of the real one, by path: how another user's folder is faked.
+    owners: Mutex<BTreeMap<PathBuf, u32>>,
+    /// Every path `device_id` was asked about.
+    device_asked: Mutex<Vec<PathBuf>>,
 }
 
 impl FakeFs {
@@ -54,7 +58,15 @@ impl FakeFs {
 }
 
 impl TrashFs for FakeFs {
+    /// Everything the test creates belongs to `UID`, whoever runs the tests, unless a test names another owner.
+    fn owner_and_mode(&self, path: &Path) -> io::Result<(u32, u32)> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        let owner = self.owners.lock().unwrap().get(path).copied();
+        Ok((owner.unwrap_or(UID), metadata.mode()))
+    }
+
     fn device_id(&self, path: &Path) -> io::Result<u64> {
+        self.device_asked.lock().unwrap().push(path.to_path_buf());
         std::fs::symlink_metadata(path)?;
         Ok(self.device_of(path))
     }
@@ -127,6 +139,8 @@ impl Fx {
         let fs = Arc::new(FakeFs {
             devices: vec![(usb.clone(), 2), (disk.clone(), 3)],
             fail_rename: Mutex::new(None),
+            owners: Mutex::new(BTreeMap::new()),
+            device_asked: Mutex::new(Vec::new()),
         });
         Fx {
             _tmp: tmp,
@@ -604,6 +618,216 @@ fn a_shared_trash_user_folder_that_cannot_be_made_falls_back() {
         names(&fx.usb.join(format!(".Trash-{UID}/files"))),
         ["a.txt"]
     );
+}
+
+// ------------------------------------------------------- trust in a trash folder
+
+impl Fx {
+    /// Makes `path` look as if `owner` owns it.
+    fn owned_by(&self, path: &Path, owner: u32) {
+        self.fs
+            .owners
+            .lock()
+            .unwrap()
+            .insert(path.to_path_buf(), owner);
+    }
+
+    /// A per-user trash on the usb volume, laid out as `ensure_trash_dir` would, holding one item.
+    fn planted_trash(&self, trash: &Path) {
+        for dir in ["files", "info"] {
+            std::fs::create_dir_all(trash.join(dir)).unwrap();
+        }
+        for dir in [trash.to_path_buf(), trash.join("files"), trash.join("info")] {
+            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        write(&trash.join("files/theirs.txt"), "theirs");
+        write(
+            &trash.join("info/theirs.txt.trashinfo"),
+            "[Trash Info]\nPath=theirs.txt\nDeletionDate=2026-09-01T00:00:00\n",
+        );
+    }
+}
+
+#[test]
+fn a_per_user_trash_that_another_user_owns_is_refused() {
+    let fx = Fx::new();
+    let planted = fx.usb.join(format!(".Trash-{UID}"));
+    fx.planted_trash(&planted);
+    fx.owned_by(&planted, UID + 1);
+    let file = write(&fx.usb.join("a.txt"), "x");
+    let error = fx.trash().trash(&file).unwrap_err();
+    assert!(
+        matches!(error, TrashError::TrashUnavailable { .. }),
+        "{error:?}"
+    );
+    assert!(file.exists(), "the file stays where it was");
+    assert_eq!(names(&planted.join("files")), ["theirs.txt"]);
+}
+
+#[test]
+fn a_shared_user_folder_that_another_user_owns_falls_back_to_the_per_user_trash() {
+    let fx = Fx::new();
+    let shared = fx.usb.join(".Trash");
+    std::fs::create_dir(&shared).unwrap();
+    std::fs::set_permissions(&shared, std::fs::Permissions::from_mode(0o1777)).unwrap();
+    let planted = shared.join(UID.to_string());
+    fx.planted_trash(&planted);
+    fx.owned_by(&planted, UID + 1);
+    let file = write(&fx.usb.join("a.txt"), "x");
+    fx.trash().trash(&file).unwrap();
+    assert_eq!(names(&planted.join("files")), ["theirs.txt"]);
+    assert_eq!(
+        names(&fx.usb.join(format!(".Trash-{UID}/files"))),
+        ["a.txt"]
+    );
+}
+
+#[test]
+fn a_trash_folder_that_others_can_write_is_refused() {
+    for (relative, unsafe_mode) in [("", 0o770), ("", 0o707), ("files", 0o775), ("info", 0o757)] {
+        let fx = Fx::new();
+        let planted = fx.usb.join(format!(".Trash-{UID}"));
+        fx.planted_trash(&planted);
+        let weak = planted.join(relative);
+        std::fs::set_permissions(&weak, std::fs::Permissions::from_mode(unsafe_mode)).unwrap();
+        let file = write(&fx.usb.join("a.txt"), "x");
+        let error = fx.trash().trash(&file).unwrap_err();
+        assert!(
+            matches!(error, TrashError::TrashUnavailable { .. }),
+            "{relative} {unsafe_mode:o}: {error:?}"
+        );
+        assert!(file.exists());
+    }
+}
+
+#[test]
+fn a_per_user_trash_that_is_a_link_is_refused() {
+    let fx = Fx::new();
+    let elsewhere = fx.root.join("elsewhere");
+    fx.planted_trash(&elsewhere);
+    symlink(&elsewhere, fx.usb.join(format!(".Trash-{UID}"))).unwrap();
+    let file = write(&fx.usb.join("a.txt"), "x");
+    let error = fx.trash().trash(&file).unwrap_err();
+    assert!(
+        matches!(error, TrashError::TrashUnavailable { .. }),
+        "{error:?}"
+    );
+    assert_eq!(names(&elsewhere.join("files")), ["theirs.txt"]);
+}
+
+#[test]
+fn an_untrusted_trash_is_neither_listed_nor_emptied() {
+    let fx = Fx::new();
+    let planted = fx.usb.join(format!(".Trash-{UID}"));
+    fx.planted_trash(&planted);
+    fx.owned_by(&planted, UID + 1);
+    assert!(fx.trash().list().is_empty());
+    let report = fx.trash().empty(None);
+    assert_eq!(report, EmptyReport::default());
+    assert_eq!(names(&planted.join("files")), ["theirs.txt"]);
+    // The same trash, once it is ours, is listed.
+    fx.fs.owners.lock().unwrap().clear();
+    assert_eq!(fx.trash().list().len(), 1);
+}
+
+#[test]
+fn removing_a_tree_unlinks_links_and_never_follows_them() {
+    let fx = Fx::new();
+    let outside = fx.root.join("outside");
+    write(&outside.join("precious"), "keep");
+    let tree = fx.work("tree");
+    write(&tree.join("a/b/file"), "x");
+    symlink(&outside, tree.join("a/link")).unwrap();
+    symlink(outside.join("precious"), tree.join("filelink")).unwrap();
+    remove_tree(&tree).unwrap();
+    assert!(!tree.exists());
+    assert_eq!(names(&outside), ["precious"]);
+}
+
+#[test]
+fn a_folder_swapped_for_a_link_is_not_opened_through_it() {
+    let fx = Fx::new();
+    let outside = fx.root.join("outside");
+    write(&outside.join("precious"), "keep");
+    symlink(&outside, fx.work("swapped")).unwrap();
+    let parent = open_dir(
+        libc::AT_FDCWD,
+        &c_string(fx.work("").as_os_str()).unwrap(),
+        true,
+    )
+    .unwrap();
+    // The descriptor-based open refuses a link in the last part...
+    let error = open_dir(
+        parent.as_raw_fd(),
+        &c_string(OsStr::new("swapped")).unwrap(),
+        false,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error.raw_os_error(), Some(libc::ELOOP | libc::ENOTDIR)),
+        "{error:?}"
+    );
+    // ...and removing the entry removes the link, not the folder it points at.
+    remove_entry(
+        parent.as_raw_fd(),
+        &c_string(OsStr::new("swapped")).unwrap(),
+    )
+    .unwrap();
+    assert!(!fx.work("swapped").exists());
+    assert_eq!(names(&outside), ["precious"]);
+}
+
+#[test]
+fn a_tree_with_unreadable_and_read_only_folders_is_removed() {
+    if is_root_user() {
+        return;
+    }
+    let fx = Fx::new();
+    let tree = fx.work("locked");
+    write(&tree.join("closed/inner/file"), "x");
+    write(&tree.join("readonly/file"), "x");
+    std::fs::set_permissions(
+        tree.join("closed/inner"),
+        std::fs::Permissions::from_mode(0o000),
+    )
+    .unwrap();
+    std::fs::set_permissions(tree.join("closed"), std::fs::Permissions::from_mode(0o300)).unwrap();
+    std::fs::set_permissions(
+        tree.join("readonly"),
+        std::fs::Permissions::from_mode(0o500),
+    )
+    .unwrap();
+    remove_tree(&tree).unwrap();
+    assert!(!tree.exists());
+}
+
+#[test]
+fn a_network_mount_is_not_asked_for_its_device_until_a_file_under_it_is_trashed() {
+    let fx = Fx::new();
+    // The environment leaves a network mount's device unknown (0), as `default_env` does.
+    let mut env = fx.env.clone();
+    for mount in &mut env.mounts {
+        if mount.is_network {
+            mount.device_id = 0;
+        }
+    }
+    let trash = Freedesktop::with_fs(env, fx.fs.clone());
+    let asked = |fx: &Fx| {
+        fx.fs
+            .device_asked
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|path| path.starts_with(&fx.disk))
+    };
+
+    trash.trash(&write(&fx.work("a"), "x")).unwrap();
+    assert!(trash.list().len() == 1);
+    assert!(!asked(&fx), "an unrelated trash must not touch the mount");
+
+    trash.trash(&write(&fx.disk.join("d"), "x")).unwrap();
+    assert!(asked(&fx));
+    assert_eq!(names(&fx.disk.join(format!(".Trash-{UID}/files"))), ["d"]);
 }
 
 #[test]

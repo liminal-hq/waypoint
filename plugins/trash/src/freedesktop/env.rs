@@ -22,7 +22,7 @@ pub type Clock = Arc<dyn Fn() -> NaiveDateTime + Send + Sync>;
 pub struct MountInfo {
     /// The top directory of the volume.
     pub mount_point: PathBuf,
-    /// The device number (`st_dev`) of files on the volume.
+    /// The device number (`st_dev`) of files on the volume, or 0 when it is not known yet. A network or FUSE mount is not asked until a file under it is trashed, because a hung mount would block a `stat` and with it every trash operation.
     pub device_id: u64,
     /// A network file system. Informational: it is trashed on like any other.
     pub is_network: bool,
@@ -73,8 +73,10 @@ pub fn default_env() -> TrashEnv {
     let mounts = parse_mountinfo(&String::from_utf8_lossy(&mountinfo))
         .into_iter()
         .filter_map(|mut mount| {
-            // The device number in `mountinfo` is not `st_dev` on every file system (btrfs subvolumes differ), so ask the volume itself.
-            mount.device_id = std::fs::metadata(&mount.mount_point).ok()?.dev();
+            // The device number in `mountinfo` is not `st_dev` on every file system (btrfs subvolumes differ), so ask the volume itself. A network mount is left for later (see `MountInfo::device_id`).
+            if !mount.is_network {
+                mount.device_id = std::fs::metadata(&mount.mount_point).ok()?.dev();
+            }
             Some(mount)
         })
         .collect();

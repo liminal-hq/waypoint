@@ -32,7 +32,9 @@ fn fixture() -> Fixture {
     let env = TrashEnv {
         data_home: root.join("home/.local/share"),
         home_dir: root.join("home"),
-        uid: 4242,
+        // The real user: the trash only trusts folders this user owns.
+        // SAFETY: `geteuid` takes no arguments, cannot fail and has no side effects.
+        uid: unsafe { libc::geteuid() },
         // The temporary directory is its own volume, on the same device as the home trash.
         mounts: vec![MountInfo {
             mount_point: root.clone(),

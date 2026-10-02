@@ -16,6 +16,12 @@ pub trait TrashFs: Send + Sync {
     /// The device number (`st_dev`) of the file itself; a link is not followed.
     fn device_id(&self, path: &Path) -> io::Result<u64>;
 
+    /// The owner (`st_uid`) and the permission bits (`st_mode`) of the file itself; a link is not followed. The trash refuses a directory that someone else owns or others can write, so tests fake it.
+    fn owner_and_mode(&self, path: &Path) -> io::Result<(u32, u32)> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        Ok((metadata.uid(), metadata.mode()))
+    }
+
     /// Renames, replacing a file that is already at `to`.
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
 

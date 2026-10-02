@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Runtime};
 
@@ -20,6 +20,9 @@ mod portal;
 
 /// Gives the environment for each operation. The real mount table changes as volumes come and go, so the real source reads it afresh; a test's source is one fixed environment.
 type EnvSource = Arc<dyn Fn() -> TrashEnv + Send + Sync>;
+
+/// Every command builds its own `Freedesktop`, so nothing else makes two commands take turns. Without this, an `empty` could remove the `.trashinfo` of an item that a `trash` has just reserved and is still moving into `files/`, leaving an orphan. The commands that change a trash hold it; `list` only reads and does not.
+static CHANGES: Mutex<()> = Mutex::new(());
 
 enum Mode {
     Native(EnvSource),
@@ -97,6 +100,20 @@ impl Platform {
             .map_err(|error| TrashError::io(format!("the trash task failed: {error}")))
     }
 
+    /// Like `native`, for a job that changes a trash: it waits its turn behind any other such job (see `CHANGES`).
+    async fn native_change<T: Send + 'static>(
+        source: &EnvSource,
+        job: impl FnOnce(Freedesktop) -> T + Send + 'static,
+    ) -> Result<T, TrashError> {
+        Self::native(source, move |trash| {
+            let _turn = CHANGES
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            job(trash)
+        })
+        .await
+    }
+
     pub async fn trash<R: Runtime>(
         &self,
         _app: &AppHandle<R>,
@@ -106,7 +123,7 @@ impl Platform {
             Mode::Native(source) => {
                 let count = paths.len();
                 let batch = paths.clone();
-                match Self::native(source, move |trash| {
+                match Self::native_change(source, move |trash| {
                     batch
                         .iter()
                         .map(|path| trash.trash(path))
@@ -147,7 +164,7 @@ impl Platform {
         match &self.mode {
             Mode::Native(source) => {
                 let id = receipt.trash_id.clone();
-                Self::native(source, move |trash| trash.restore(&id, &target)).await?
+                Self::native_change(source, move |trash| trash.restore(&id, &target)).await?
             }
             Mode::Portal => Err(TrashError::Unsupported),
         }
@@ -161,7 +178,7 @@ impl Platform {
         match &self.mode {
             Mode::Native(source) => {
                 let id = receipt.trash_id.clone();
-                Self::native(source, move |trash| trash.delete(&id)).await?
+                Self::native_change(source, move |trash| trash.delete(&id)).await?
             }
             Mode::Portal => Err(TrashError::Unsupported),
         }
@@ -174,7 +191,7 @@ impl Platform {
     ) -> Result<EmptyReport, TrashError> {
         match &self.mode {
             Mode::Native(source) => {
-                Self::native(source, move |trash| trash.empty(older_than_days)).await
+                Self::native_change(source, move |trash| trash.empty(older_than_days)).await
             }
             Mode::Portal => Err(TrashError::Unsupported),
         }
@@ -206,6 +223,39 @@ mod tests {
                 "{feature:?}"
             );
         }
+    }
+
+    #[test]
+    fn commands_that_change_a_trash_take_turns() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::time::Duration;
+
+        let platform = Arc::new(Platform::with_env(TrashEnv {
+            data_home: PathBuf::from("/nonexistent/share"),
+            home_dir: PathBuf::from("/nonexistent"),
+            uid: 1000,
+            mounts: Vec::new(),
+            now: crate::freedesktop::system_clock(),
+        }));
+        let done = Arc::new(AtomicBool::new(false));
+        let turn = CHANGES.lock().unwrap();
+        let worker = {
+            let (platform, done) = (Arc::clone(&platform), Arc::clone(&done));
+            std::thread::spawn(move || {
+                let app = tauri::test::mock_app();
+                let handle = app.handle().clone();
+                tauri::async_runtime::block_on(platform.empty(&handle, None)).unwrap();
+                done.store(true, Ordering::SeqCst);
+            })
+        };
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(
+            !done.load(Ordering::SeqCst),
+            "`empty` ran while another change held the turn"
+        );
+        drop(turn);
+        worker.join().unwrap();
+        assert!(done.load(Ordering::SeqCst));
     }
 
     #[test]

@@ -15,8 +15,9 @@ mod trashinfo;
 mod tests;
 
 use std::collections::HashSet;
-use std::ffi::{OsStr, OsString};
+use std::ffi::{CStr, CString, OsStr, OsString};
 use std::io::{self, Write};
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
@@ -82,7 +83,10 @@ impl Freedesktop {
         env.data_home = canonical(&env.data_home);
         env.home_dir = canonical(&env.home_dir);
         for mount in &mut env.mounts {
-            mount.mount_point = canonical(&mount.mount_point);
+            // A network mount is taken as given: resolving it would `stat` a mount that may be hung.
+            if !mount.is_network {
+                mount.mount_point = canonical(&mount.mount_point);
+            }
         }
         Freedesktop { env, fs }
     }
@@ -176,23 +180,31 @@ impl Freedesktop {
         let file_device = self.fs.device_id(target)?;
         let home = self.home_root();
         if file_device == self.home_device(&home)? {
-            ensure_trash_dir(&home.path).map_err(|error| TrashError::TrashUnavailable {
-                reason: format!("cannot create {}: {error}", home.path.display()),
-            })?;
+            self.ensure_trash_dir(&home.path)
+                .map_err(|error| TrashError::TrashUnavailable {
+                    reason: format!("cannot create {}: {error}", home.path.display()),
+                })?;
             return Ok(home);
         }
         let mount = self
             .env
             .mounts
             .iter()
-            .filter(|mount| {
-                mount.device_id == file_device && target.starts_with(&mount.mount_point)
-            })
+            .filter(|mount| target.starts_with(&mount.mount_point))
+            .filter(|mount| self.mount_device(mount) == Some(file_device))
             .max_by_key(|mount| mount.mount_point.components().count())
             .ok_or_else(|| TrashError::TrashUnavailable {
                 reason: format!("no mounted volume was found for {}", target.display()),
             })?;
         self.volume_trash(&mount.mount_point)
+    }
+
+    /// The device of a mount: the one the environment gave, or, for a mount whose device was left unknown (a network mount), a `stat` of its mount point, made only now that a file under it is being trashed.
+    fn mount_device(&self, mount: &MountInfo) -> Option<u64> {
+        if mount.device_id != 0 {
+            return Some(mount.device_id);
+        }
+        self.fs.device_id(&mount.mount_point).ok()
     }
 
     /// The device the home trash is (or would be) on: that of its nearest folder that exists. Asking does not create anything.
@@ -210,7 +222,7 @@ impl Freedesktop {
     /// The trash for a volume, created if needed: `$topdir/.Trash/$uid` when `.Trash` exists, is a real folder (not a link) and has the sticky bit, otherwise `$topdir/.Trash-$uid`.
     fn volume_trash(&self, topdir: &Path) -> Result<TrashRoot> {
         if let Some(shared) = self.shared_trash_dir(topdir) {
-            match ensure_trash_dir(&shared) {
+            match self.ensure_trash_dir(&shared) {
                 Ok(()) => {
                     return Ok(TrashRoot {
                         path: shared,
@@ -224,13 +236,66 @@ impl Freedesktop {
             }
         }
         let own = topdir.join(format!(".Trash-{}", self.env.uid));
-        ensure_trash_dir(&own).map_err(|error| TrashError::TrashUnavailable {
-            reason: format!("cannot create {}: {error}", own.display()),
-        })?;
+        self.ensure_trash_dir(&own)
+            .map_err(|error| TrashError::TrashUnavailable {
+                reason: format!("cannot create {}: {error}", own.display()),
+            })?;
         Ok(TrashRoot {
             path: own,
             topdir: Some(topdir.to_path_buf()),
         })
+    }
+
+    /// Whether `path` is a real folder (not a link) that this user owns and that no one else can write: the only kind of folder a trash may live in. On a shared top directory another user can create `.Trash-$uid` or `.Trash/$uid` before this user does; trusting it would put this user's files in, and run `empty` inside, a folder that user controls.
+    fn is_trusted_dir(&self, path: &Path) -> bool {
+        match std::fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.is_dir() => {}
+            _ => return false,
+        }
+        match self.fs.owner_and_mode(path) {
+            Ok((owner, mode)) => owner == self.env.uid && mode & 0o022 == 0,
+            Err(_) => false,
+        }
+    }
+
+    /// The `files` and `info` folders of a trash, only if the trash and both folders are trusted (see `is_trusted_dir`).
+    fn open_root(&self, root: &Path) -> Option<(PathBuf, PathBuf)> {
+        let files = root.join("files");
+        let info = root.join("info");
+        (self.is_trusted_dir(root) && self.is_trusted_dir(&files) && self.is_trusted_dir(&info))
+            .then_some((files, info))
+    }
+
+    /// Creates a trash directory and its `files` and `info` folders, with mode 0700, as the spec asks, and checks that each is trusted (see `is_trusted_dir`). A link in the way, or a folder someone else owns or can write, is an error.
+    fn ensure_trash_dir(&self, root: &Path) -> io::Result<()> {
+        if let Some(parent) = root.parent() {
+            if !parent.exists() {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+        for dir in [root.to_path_buf(), root.join("files"), root.join("info")] {
+            match std::fs::DirBuilder::new().mode(0o700).create(&dir) {
+                Ok(()) => {}
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
+            if !is_real_dir(&dir) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("{} is not a folder", dir.display()),
+                ));
+            }
+            if !self.is_trusted_dir(&dir) {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    format!(
+                        "{} is not owned by you, or others can write to it",
+                        dir.display()
+                    ),
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// `$topdir/.Trash/$uid`, if `$topdir/.Trash` passes the spec's checks.
@@ -336,12 +401,20 @@ impl Freedesktop {
         let mut seen = HashSet::new();
         let mut roots = Vec::new();
         let mut push = |root: TrashRoot| {
-            if is_real_dir(&root.path) && seen.insert(root.path.clone()) {
+            if self.is_trusted_dir(&root.path) && seen.insert(root.path.clone()) {
                 roots.push(root);
             }
         };
         push(self.home_root());
         for mount in &self.env.mounts {
+            // A network mount that does not answer in good time is left out, so one hung server cannot stall listing or emptying.
+            if mount.is_network && !answers_in_time(&mount.mount_point) {
+                log::warn!(
+                    "{} did not answer; skipping its trash",
+                    mount.mount_point.display()
+                );
+                continue;
+            }
             if let Some(shared) = self.shared_trash_dir(&mount.mount_point) {
                 push(TrashRoot {
                     path: shared,
@@ -364,7 +437,7 @@ impl Freedesktop {
     }
 
     fn entries_in(&self, root: &TrashRoot) -> Vec<Entry> {
-        let Some((files, info)) = open_root(&root.path) else {
+        let Some((files, info)) = self.open_root(&root.path) else {
             return Vec::new();
         };
         let Ok(read) = std::fs::read_dir(&info) else {
@@ -467,7 +540,7 @@ impl Freedesktop {
     /// Puts an item back, at its original path or at the given one. Never overwrites: a taken destination is `OriginExists` and a missing folder is `OriginMissingParent`.
     pub fn restore(&self, trash_id: &str, target: &RestoreTarget) -> Result<TrashReceipt> {
         let (root, name) = self.resolve(trash_id)?;
-        let (files, info) = open_root(&root.path).ok_or(TrashError::NotFound)?;
+        let (files, info) = self.open_root(&root.path).ok_or(TrashError::NotFound)?;
         let info_path = info.join(info_file_name(&name));
         let source = files.join(&name);
         let text = std::fs::read(&info_path)?;
@@ -525,7 +598,7 @@ impl Freedesktop {
     /// Removes one item for good: the item first, then its `.trashinfo`.
     pub fn delete(&self, trash_id: &str) -> Result<()> {
         let (root, name) = self.resolve(trash_id)?;
-        let (files, info) = open_root(&root.path).ok_or(TrashError::NotFound)?;
+        let (files, info) = self.open_root(&root.path).ok_or(TrashError::NotFound)?;
         let item = files.join(&name);
         let info_path = info.join(info_file_name(&name));
         let had_item = std::fs::symlink_metadata(&item).is_ok();
@@ -586,7 +659,7 @@ impl Freedesktop {
 
     /// Removes everything in one trash: the items (including any without a `.trashinfo`), then the `.trashinfo` files, then the size cache.
     fn empty_root(&self, root: &TrashRoot, report: &mut EmptyReport) {
-        let Some((files, info)) = open_root(&root.path) else {
+        let Some((files, info)) = self.open_root(&root.path) else {
             return;
         };
         let mut failed_names: HashSet<OsString> = HashSet::new();
@@ -689,38 +762,23 @@ fn from_unix(seconds: i64) -> Option<NaiveDateTime> {
         .map(|time| time.naive_local())
 }
 
+/// How long a network mount gets to answer a `stat` before its trash is skipped.
+const MOUNT_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Whether `path` can be `stat`ed within `MOUNT_PROBE_TIMEOUT`. The `stat` runs on a thread of its own, which a hung mount may keep for as long as the mount stays hung.
+fn answers_in_time(path: &Path) -> bool {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let path = path.to_path_buf();
+    let spawned = std::thread::Builder::new()
+        .name("trash-mount-probe".to_string())
+        .spawn(move || {
+            let _ = sender.send(std::fs::symlink_metadata(path).is_ok());
+        });
+    spawned.is_ok() && receiver.recv_timeout(MOUNT_PROBE_TIMEOUT).unwrap_or(false)
+}
+
 fn is_real_dir(path: &Path) -> bool {
     std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_dir())
-}
-
-/// The `files` and `info` folders of a trash, only if both are real folders (a link there could point anywhere).
-fn open_root(root: &Path) -> Option<(PathBuf, PathBuf)> {
-    let files = root.join("files");
-    let info = root.join("info");
-    (is_real_dir(root) && is_real_dir(&files) && is_real_dir(&info)).then_some((files, info))
-}
-
-/// Creates a trash directory and its `files` and `info` folders, with mode 0700, as the spec asks. A link in the way is an error.
-fn ensure_trash_dir(root: &Path) -> io::Result<()> {
-    if let Some(parent) = root.parent() {
-        if !parent.exists() {
-            std::fs::create_dir_all(parent)?;
-        }
-    }
-    for dir in [root.to_path_buf(), root.join("files"), root.join("info")] {
-        match std::fs::DirBuilder::new().mode(0o700).create(&dir) {
-            Ok(()) => {}
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error),
-        }
-        if !is_real_dir(&dir) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{} is not a folder", dir.display()),
-            ));
-        }
-    }
-    Ok(())
 }
 
 fn info_file_name(name: &OsStr) -> OsString {
@@ -780,19 +838,139 @@ fn remove_if_exists(path: &Path) -> io::Result<()> {
 }
 
 /// Removes a file, a link (not its target) or a whole folder tree. A folder that denies access (mode 0500, say) is made writable first, so an item the user could trash can also be emptied.
+///
+/// The walk goes through directory descriptors (`openat` with `O_NOFOLLOW`, `unlinkat`, `fchmod`), so a folder swapped for a symlink while the walk runs is unlinked as a link and never followed, and a permission change can only reach the folder that was opened.
 fn remove_tree(path: &Path) -> io::Result<()> {
-    let metadata = std::fs::symlink_metadata(path)?;
-    if !metadata.is_dir() {
-        return std::fs::remove_file(path);
+    let name = path
+        .file_name()
+        .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
+    let parent = path.parent().unwrap_or_else(|| Path::new("/"));
+    let parent_fd = open_dir(libc::AT_FDCWD, &c_string(parent.as_os_str())?, true)?;
+    remove_entry(parent_fd.as_raw_fd(), &c_string(name)?)
+}
+
+fn c_string(text: &OsStr) -> io::Result<CString> {
+    CString::new(text.as_bytes()).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))
+}
+
+/// Opens a folder for reading. Without `follow`, a symlink in the last part is an error (`ELOOP` or `ENOTDIR`), never followed.
+fn open_dir(at: RawFd, name: &CStr, follow: bool) -> io::Result<OwnedFd> {
+    let mut flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC;
+    if !follow {
+        flags |= libc::O_NOFOLLOW;
     }
-    let mode = metadata.permissions().mode();
+    // SAFETY: `name` is NUL-terminated and outlives the call.
+    let fd = unsafe { libc::openat(at, name.as_ptr(), flags) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: `openat` returned a new descriptor that nothing else owns.
+    Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+}
+
+fn unlink_at(parent: RawFd, name: &CStr, flags: libc::c_int) -> io::Result<()> {
+    // SAFETY: `name` is NUL-terminated and outlives the call.
+    if unsafe { libc::unlinkat(parent, name.as_ptr(), flags) } == 0 {
+        Ok(())
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+/// Opens a folder that denies reading (mode 0300, say) by way of a path-only descriptor, makes it accessible through that descriptor's `/proc/self/fd` entry, which names the very folder that was opened, and opens it for reading.
+fn open_unreadable_dir(parent: RawFd, name: &CStr) -> io::Result<OwnedFd> {
+    let flags = libc::O_PATH | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
+    // SAFETY: `name` is NUL-terminated and outlives the call.
+    let raw = unsafe { libc::openat(parent, name.as_ptr(), flags) };
+    if raw < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: `openat` returned a new descriptor that nothing else owns.
+    let handle = unsafe { OwnedFd::from_raw_fd(raw) };
+    let via_proc = CString::new(format!("/proc/self/fd/{}", handle.as_raw_fd()))
+        .map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+    // SAFETY: a zeroed `stat` is a valid out-parameter, and `via_proc` is NUL-terminated.
+    let mut stat: libc::stat = unsafe { std::mem::zeroed() };
+    if unsafe { libc::stat(via_proc.as_ptr(), &mut stat) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: as above.
+    if unsafe { libc::chmod(via_proc.as_ptr(), (stat.st_mode & 0o7777) | 0o700) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    open_dir(parent, name, false)
+}
+
+/// Removes the entry `name` of the folder `parent`: a file or link with `unlinkat`, a folder after its contents.
+fn remove_entry(parent: RawFd, name: &CStr) -> io::Result<()> {
+    match unlink_at(parent, name, 0) {
+        Ok(()) => return Ok(()),
+        // Linux answers `EISDIR` for a folder; some systems say `EPERM`.
+        Err(error) if matches!(error.raw_os_error(), Some(libc::EISDIR | libc::EPERM)) => {}
+        Err(error) => return Err(error),
+    }
+    let dir = match open_dir(parent, name, false) {
+        Ok(dir) => dir,
+        Err(error) if error.raw_os_error() == Some(libc::EACCES) => {
+            open_unreadable_dir(parent, name)?
+        }
+        // Swapped for a link (or a file) since the first attempt: remove that, not what it points at.
+        Err(error) if matches!(error.raw_os_error(), Some(libc::ELOOP | libc::ENOTDIR)) => {
+            return unlink_at(parent, name, 0);
+        }
+        Err(error) => return Err(error),
+    };
+    // SAFETY: a zeroed `stat` is a valid out-parameter and the descriptor is open.
+    let mut stat: libc::stat = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstat(dir.as_raw_fd(), &mut stat) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let mode = stat.st_mode & 0o7777;
     if mode & 0o700 != 0o700 {
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode | 0o700))?;
+        // SAFETY: the descriptor is open.
+        if unsafe { libc::fchmod(dir.as_raw_fd(), mode | 0o700) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
     }
-    for dirent in std::fs::read_dir(path)? {
-        remove_tree(&dirent?.path())?;
+    for child in dir_names(&dir)? {
+        remove_entry(dir.as_raw_fd(), &child)?;
     }
-    std::fs::remove_dir(path)
+    drop(dir);
+    unlink_at(parent, name, libc::AT_REMOVEDIR)
+}
+
+/// The names in a folder, read through its descriptor (a duplicate, which `fdopendir` takes over).
+fn dir_names(dir: &OwnedFd) -> io::Result<Vec<CString>> {
+    let copy = dir.try_clone()?;
+    // SAFETY: `copy` is a valid directory descriptor; on success `fdopendir` owns it.
+    let stream = unsafe { libc::fdopendir(copy.as_raw_fd()) };
+    if stream.is_null() {
+        return Err(io::Error::last_os_error());
+    }
+    std::mem::forget(copy);
+    let mut names = Vec::new();
+    let mut failure = None;
+    loop {
+        // SAFETY: `errno` is cleared so the end of the stream can be told from an error.
+        unsafe { *libc::__errno_location() = 0 };
+        // SAFETY: `stream` is open until `closedir` below.
+        let entry = unsafe { libc::readdir(stream) };
+        if entry.is_null() {
+            let error = io::Error::last_os_error();
+            if error.raw_os_error() != Some(0) {
+                failure = Some(error);
+            }
+            break;
+        }
+        // SAFETY: `d_name` is a NUL-terminated name inside the entry `readdir` returned.
+        let name = unsafe { CStr::from_ptr((*entry).d_name.as_ptr()) };
+        if name.to_bytes() != b"." && name.to_bytes() != b".." {
+            names.push(name.to_owned());
+        }
+    }
+    // SAFETY: `stream` is open and not used again.
+    unsafe { libc::closedir(stream) };
+    failure.map_or(Ok(names), Err)
 }
 
 /// The total size of the files under `path`, not following links.
