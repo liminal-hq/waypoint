@@ -70,11 +70,15 @@ impl Drop for TaskGuard {
 pub fn watch(changed: UnboundedSender<()>) -> (Vec<Box<dyn Send>>, oneshot::Receiver<()>) {
     let (ready_tx, ready_rx) = oneshot::channel();
     let task = tauri::async_runtime::spawn(async move {
-        let stream = async {
-            let settings = Settings::new().await?;
-            settings.receive_setting_changed().await
+        // The stream borrows the proxy, so the proxy lives as long as the task.
+        let settings = match Settings::new().await {
+            Ok(settings) => settings,
+            Err(error) => {
+                log::warn!("cannot listen to the portal: {error}");
+                return;
+            }
         };
-        let mut stream = match stream.await {
+        let mut stream = match settings.receive_setting_changed().await {
             Ok(stream) => Box::pin(stream),
             Err(error) => {
                 log::warn!("cannot listen to the portal: {error}");

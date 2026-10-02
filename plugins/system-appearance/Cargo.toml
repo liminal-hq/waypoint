@@ -31,7 +31,7 @@ log = { workspace = true }
 ts-rs = "12"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-ashpd = { version = "0.13", default-features = false, features = ["tokio"] }
+ashpd = { version = "0.13", default-features = false, features = ["tokio", "settings"] }
 futures-util = "0.3"
 notify = "8"
 
