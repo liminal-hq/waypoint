@@ -29,6 +29,10 @@ pub struct FileCopy<'a> {
     pub same_provider: bool,
     /// Hash what is read (and so skip the fast path, which never shows the bytes).
     pub verify: Option<VerifyAlgorithm>,
+    /// The source is to be removed once this copy is in place (a move across volumes): the data is
+    /// synced to storage before the copy is renamed into place, and no fast path is used, since a
+    /// fast path never syncs.
+    pub durable: bool,
     /// The size of one read and write.
     pub chunk: usize,
     /// How big the file is believed to be, to size the buffer.
@@ -76,7 +80,7 @@ pub fn copy_file_bytes(
     progress: &mut dyn FnMut(u64),
     cancel: &CancelToken,
 ) -> Result<Copied, VfsError> {
-    if request.same_provider && request.verify.is_none() {
+    if request.same_provider && request.verify.is_none() && !request.durable {
         let attempt = request.src_provider.copy_file_within(
             request.src,
             request.dst,
@@ -139,8 +143,9 @@ fn copy_loop(
         }
     })();
     let finished = match result {
-        // A verified copy asks the storage to commit the data before it is read back.
-        Ok(()) => writer.finish(request.verify.is_some()),
+        // A verified copy asks the storage to commit the data before it is read back, and so does a
+        // copy whose source is about to go: the copy must outlive a power loss.
+        Ok(()) => writer.finish(request.verify.is_some() || request.durable),
         Err(error) => {
             drop(writer);
             Err(error)

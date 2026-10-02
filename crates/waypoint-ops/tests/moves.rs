@@ -655,3 +655,56 @@ fn a_source_that_is_gone_when_its_copy_is_done_leaves_the_copy() {
     h.provider.reset();
     assert_eq!(dst_tree(&h), tree(&[("f", "precious")]));
 }
+
+#[test]
+fn a_cross_volume_move_syncs_each_copy_before_its_source_goes_and_a_copy_does_not() {
+    let (mut h, _dir) = crossing(CaseRule::Sensitive);
+    fill(&h, &tree(&[("a", "alpha"), ("b", "bravo")]));
+    let result = go(&mut h, JobKind::Move, &["src/a", "src/b"], "dst", None);
+    done(&result);
+    // No fast path (it never syncs), and every finished write was synced.
+    assert_eq!(h.provider.calls_of(Op::CopyWithin), 0);
+    assert_eq!(h.provider.finish_syncs(), vec![true, true]);
+    assert_eq!(dst_tree(&h), tree(&[("a", "alpha"), ("b", "bravo")]));
+
+    let (mut h, _dir) = crossing(CaseRule::Sensitive);
+    fill(&h, &tree(&[("a", "alpha")]));
+    let result = go(&mut h, JobKind::Copy, &["src/a"], "dst", None);
+    done(&result);
+    assert_eq!(h.provider.finish_syncs(), vec![false]);
+}
+
+#[test]
+fn a_destination_that_swallowed_bytes_keeps_the_source_of_a_cross_volume_move() {
+    let (mut h, _dir) = crossing(CaseRule::Sensitive);
+    let original = tree(&[("a", "alpha"), ("b", "bravo")]);
+    fill(&h, &original);
+    // The first write reports every byte written but keeps half of them.
+    h.provider.short_write_nth(1);
+    let result = go(&mut h, JobKind::Move, &["src/a", "src/b"], "dst", None);
+    assert!(
+        matches!(result.state, JobState::Failed { .. }),
+        "{:?}",
+        result.state
+    );
+    h.provider.reset();
+    // Nothing short was put in place and nothing was removed.
+    assert_eq!(src_tree(&h), original);
+    assert!(dst_tree(&h).is_empty(), "{:?}", dst_tree(&h));
+}
+
+#[test]
+fn a_failed_sync_keeps_the_source_of_a_cross_volume_move() {
+    let (mut h, _dir) = crossing(CaseRule::Sensitive);
+    let original = tree(&[("a", "alpha")]);
+    fill(&h, &original);
+    h.provider.fail_nth(Op::Finish, 1, FaultKind::StorageFull);
+    let result = go(&mut h, JobKind::Move, &["src/a"], "dst", None);
+    assert!(matches!(
+        error_of(&result.state),
+        OpsError::NotEnoughSpace { .. }
+    ));
+    h.provider.reset();
+    assert_eq!(src_tree(&h), original);
+    assert!(dst_tree(&h).is_empty());
+}

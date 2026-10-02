@@ -136,6 +136,11 @@ struct State {
     deferred: Vec<VfsPath>,
     /// The reads (counted from 1, over all streams) whose first byte is flipped.
     corrupt_reads: Vec<usize>,
+    /// The writes (counted from 1, over all streams) that keep only the first half of their bytes
+    /// yet report them all written, as a failing disk or a buggy provider would.
+    short_writes: Vec<usize>,
+    /// The `sync` argument of every `finish`, in order.
+    finishes: Vec<bool>,
     /// Calls that fail every time, whichever the path says.
     always: Vec<(Op, FaultKind, PathTest)>,
 }
@@ -272,6 +277,17 @@ impl<P: Provider> FaultyProvider<P> {
         self.shared.lock().corrupt_reads.push(n);
     }
 
+    /// Makes the nth next `write` call (1 is the first, over every stream) keep only the first half
+    /// of its bytes while reporting all of them written; the call succeeds.
+    pub fn short_write_nth(&self, n: usize) {
+        self.shared.lock().short_writes.push(n);
+    }
+
+    /// The `sync` argument of every `finish` so far, in order.
+    pub fn finish_syncs(&self) -> Vec<bool> {
+        self.shared.lock().finishes.clone()
+    }
+
     /// How many calls of any kind have been made.
     pub fn calls(&self) -> usize {
         self.shared.lock().total
@@ -333,6 +349,15 @@ impl Write for FaultyWrite {
         self.shared
             .hit(Op::Write, &self.path)
             .map_err(|e| InjectedError(e).into_io())?;
+        let short = {
+            let state = self.shared.lock();
+            let nth = state.per_op.get(&Op::Write).copied().unwrap_or(0);
+            state.short_writes.contains(&nth)
+        };
+        if short && buf.len() > 1 {
+            self.inner.write_all(&buf[..buf.len() / 2])?;
+            return Ok(buf.len());
+        }
         self.inner.write(buf)
     }
 
@@ -345,6 +370,7 @@ impl WriteStream for FaultyWrite {
     fn finish(self: Box<Self>, sync: bool) -> Result<(), VfsError> {
         let this = *self;
         this.shared.hit(Op::Finish, &this.path)?;
+        this.shared.lock().finishes.push(sync);
         this.inner.finish(sync)
     }
 }

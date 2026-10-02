@@ -971,6 +971,7 @@ impl Transfer<'_> {
             dst_provider: dp,
             dst: partial,
             same_provider,
+            durable: self.moving,
             verify: self.verify,
             chunk: self.chunk,
             size_hint: entry.size.unwrap_or(0),
@@ -1005,8 +1006,41 @@ impl Transfer<'_> {
                 copied.bytes,
             )?;
         }
+        if self.moving {
+            self.check_complete(src, dp, partial, entry, copied.bytes)?;
+        }
         self.meter.progress.bytes_done = base + copied.bytes;
         copy_metadata(sp, src, dp, partial, None)?;
+        Ok(())
+    }
+
+    /// Checks that the copy of a file that is about to be moved holds every byte the job met: what
+    /// was read is the size the source had (else the source changed under the copy and keeps its
+    /// newer content), and what the destination now holds is that size (else bytes were lost).
+    /// Without this a short copy would be renamed into place and its only other copy removed.
+    fn check_complete(
+        &self,
+        src: &VfsPath,
+        dp: &dyn Provider,
+        partial: &VfsPath,
+        entry: &ScannedEntry,
+        read: u64,
+    ) -> R<()> {
+        if entry.size.is_some_and(|size| size != read) {
+            return Err(Flow::item(OpsError::ChangedSince {
+                location: src.to_location(),
+            }));
+        }
+        let held = dp.stat(partial)?.size;
+        if held != Some(read) {
+            return Err(Flow::item(OpsError::Io {
+                message: format!(
+                    "{} holds {} of the {read} bytes that were copied to it",
+                    partial.display(),
+                    held.map_or_else(|| "an unknown number".to_owned(), |n| n.to_string()),
+                ),
+            }));
+        }
         Ok(())
     }
 
