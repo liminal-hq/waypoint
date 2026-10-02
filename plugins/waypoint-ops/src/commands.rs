@@ -10,8 +10,8 @@
 use tauri::ipc::Channel;
 use tauri::{Runtime, State, WebviewWindow};
 use waypoint_ops::{
-    BatchPreview, ConflictPolicy, Decision, JobId, JobRequest, JournalEntrySummary, JournalId,
-    OpsSettings, OpsSnapshot, RecoveryReport, Resolution,
+    BatchPreview, ConflictPolicy, ConflictPreview, Decision, JobId, JobRequest,
+    JournalEntrySummary, JournalId, OpsSettings, OpsSnapshot, RecoveryReport, Resolution,
 };
 use waypoint_protocol::{Location, PluginStatus};
 use waypoint_vfs::{ListingHandle, SelectionSpec};
@@ -171,6 +171,22 @@ pub async fn resolve<R: Runtime>(
     apply_to_all: Option<ConflictPolicy>,
 ) -> Result<(), Error> {
     ops.resolve(job, decisions, apply_to_all)
+}
+
+/// The two files of one clash a job waits on, side by side: their size and time and, for small
+/// text files, a line diff. `item` is the clash's source. It reads both files, so it runs off the
+/// runtime, and the job's cancel stops it. Anything that cannot be compared is `unavailable`.
+#[tauri::command]
+pub async fn conflict_preview<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+    item: Location,
+) -> Result<ConflictPreview, Error> {
+    let ops = ops.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || ops.conflict_preview(job, &item))
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?
 }
 
 /// Answers the error a job waits on: retry, skip, skip every error of this kind, or cancel.

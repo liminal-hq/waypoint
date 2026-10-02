@@ -66,6 +66,7 @@ pub fn init_with<R: Runtime>(
             commands::dismiss_finished,
             commands::reorder,
             commands::resolve,
+            commands::conflict_preview,
             commands::resolve_error,
             commands::undo,
             commands::redo,

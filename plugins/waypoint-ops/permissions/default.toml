@@ -14,6 +14,7 @@ permissions = [
   "allow-dismiss-finished",
   "allow-reorder",
   "allow-resolve",
+  "allow-conflict-preview",
   "allow-resolve-error",
   "allow-undo",
   "allow-redo",
