@@ -10,12 +10,14 @@ import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInf
 import { FileIcon } from '../browse/FileIcon';
 import { t, tn, type MessageId } from '../i18n/messages';
 import { HomeIcon } from '../icons/AppIcons';
+import { OverviewIcon } from '../overview/OverviewIcons';
 import { TrashIcon } from '../icons/MenuIcons';
 import { itemGestures, type ItemActions } from './itemGestures';
 import { ITEM_ATTRIBUTE, moveFocusInList } from './itemList';
 import styles from './Sidebar.module.css';
 
 export const LABELS: Record<PlaceKind, MessageId> = {
+	overview: 'sidebar.place.overview',
 	home: 'sidebar.place.home',
 	desktop: 'sidebar.place.desktop',
 	documents: 'sidebar.place.documents',
@@ -27,7 +29,7 @@ export const LABELS: Record<PlaceKind, MessageId> = {
 };
 
 // The bundled set has no glyph per place, so each borrows the closest icon group.
-const GROUPS: Record<Exclude<PlaceKind, 'home' | 'trash'>, IconGroup> = {
+const GROUPS: Record<Exclude<PlaceKind, 'overview' | 'home' | 'trash'>, IconGroup> = {
 	desktop: 'folder',
 	documents: 'document',
 	downloads: 'folder',
@@ -62,13 +64,20 @@ export function PlaceList({ places, currentUri, actions, trash = null }: PlaceLi
 							data-unavailable={unavailable ? '' : undefined}
 							data-drop-unavailable={unavailable ? '' : undefined}
 							title={unavailable ? (trash?.reason ?? t('sidebar.trash.unavailable')) : undefined}
-							{...itemGestures(actions, {
-								kind: isTrash ? 'trash' : 'place',
-								location: place.location,
-								label,
-							})}
+							{...itemGestures(
+								actions,
+								{
+									kind: isTrash ? 'trash' : 'place',
+									location: place.location,
+									label,
+								},
+								// Overview is a page, so nothing is dropped on it.
+								{ droppable: place.kind !== 'overview' },
+							)}
 						>
-							{place.kind === 'home' ? (
+							{place.kind === 'overview' ? (
+								<OverviewIcon className={styles.itemIcon} />
+							) : place.kind === 'home' ? (
 								<HomeIcon className={styles.itemIcon} />
 							) : place.kind === 'trash' ? (
 								<TrashIcon className={styles.itemIcon} />

@@ -67,6 +67,7 @@ describe('structure', () => {
 			.getAllByRole('button')
 			.map((button) => button.textContent);
 		expect(names.slice(1)).toEqual([
+			'Overview',
 			'Home',
 			'Desktop',
 			'Documents',
@@ -208,6 +209,9 @@ describe('navigating', () => {
 		press(document.activeElement!, 'End');
 		expect(within(placesGroup()).getByRole('button', { name: 'Trash' })).toHaveFocus();
 		press(document.activeElement!, 'Home');
+		// Overview is the first place, above Home.
+		expect(within(placesGroup()).getByRole('button', { name: 'Overview' })).toHaveFocus();
+		press(document.activeElement!, 'ArrowDown');
 		expect(home).toHaveFocus();
 	});
 });

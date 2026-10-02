@@ -13,6 +13,7 @@ import { usePlacesClient } from '../sidebar/PlacesClientContext';
 import { usePlaces } from '../sidebar/usePlaces';
 import { useTabsSnapshot } from '../tabs/TabsContext';
 import { locationLabel } from '../tabs/tabTitle';
+import { isOverviewLocation } from '../overview/overviewLocation';
 import { isTrashLocation } from '../trash/trashLocation';
 import { normaliseUri } from './clipboardRules';
 import {
@@ -74,7 +75,7 @@ export function DestinationHost({
 	const choices = useMemo<DestinationChoices>(
 		() => ({
 			places: (places?.places ?? [])
-				.filter((place) => place.kind !== 'trash')
+				.filter((place) => place.kind !== 'trash' && place.kind !== 'overview')
 				.map((place) => ({ label: t(LABELS[place.kind]), location: place.location })),
 			favourites: (places?.favourites ?? []).map((favourite) => ({
 				label: favourite.label,
@@ -82,7 +83,7 @@ export function DestinationHost({
 			})),
 			tabs: unique(
 				(snapshot?.tabs ?? [])
-					.filter((tab) => !isTrashLocation(tab.location))
+					.filter((tab) => !isTrashLocation(tab.location) && !isOverviewLocation(tab.location))
 					.map((tab) => ({ label: locationLabel(tab.location), location: tab.location })),
 			),
 			recent: recent.list().map((location) => ({ label: location.display, location })),

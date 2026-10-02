@@ -14,9 +14,10 @@ const labels = async (client: FakePlacesClient) =>
 	(await client.list()).favourites.map((favourite) => favourite.label);
 
 describe('the places', () => {
-	it('lists the fixed places in order, Home first', async () => {
+	it('lists the fixed places in order, Overview then Home', async () => {
 		const { places } = await new FakePlacesClient().list();
 		expect(places.map((place) => place.kind)).toEqual([
+			'overview',
 			'home',
 			'desktop',
 			'documents',
@@ -26,8 +27,9 @@ describe('the places', () => {
 			'videos',
 			'trash',
 		]);
-		expect(fakePlaces('/h')[2]!.location.display).toBe('/h/Documents');
-		expect(fakePlaces('/h')[7]!.location).toEqual({ display: 'Trash', uri: 'trash:/' });
+		expect(fakePlaces('/h')[0]!.location).toEqual({ display: 'Overview', uri: 'overview:/' });
+		expect(fakePlaces('/h')[3]!.location.display).toBe('/h/Documents');
+		expect(fakePlaces('/h')[8]!.location).toEqual({ display: 'Trash', uri: 'trash:/' });
 	});
 });
 

@@ -339,6 +339,7 @@ describe('availability', () => {
 			'goMusic',
 			'goVideos',
 			'goTrash',
+			'openOverview',
 		] as const;
 		for (const id of ids) expect(read(states()[id]), id).toBe('enabled');
 		const some = states(factsFor({}, { places: ['home', 'downloads'] }));
@@ -432,6 +433,8 @@ describe('running', () => {
 		expect(actions.goToPlace).toHaveBeenCalledWith('downloads');
 		expect(runCommand('goTrash', actions, facts)).toBe(true);
 		expect(actions.goToPlace).toHaveBeenLastCalledWith('trash');
+		expect(runCommand('openOverview', actions, facts)).toBe(true);
+		expect(actions.goToPlace).toHaveBeenLastCalledWith('overview');
 		expect(runCommand('linkTo', actions, facts)).toBe(true);
 		expect(files.linkTo).toHaveBeenCalledTimes(1);
 		expect(runCommand('commandPalette', actions, facts)).toBe(true);

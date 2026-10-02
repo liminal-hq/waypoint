@@ -20,6 +20,7 @@ export function fakePlaces(home: string): Place[] {
 		location: fileLocation(path),
 	});
 	return [
+		{ kind: 'overview', label: 'Overview', location: { display: 'Overview', uri: 'overview:/' } },
 		folder('home', 'Home', home),
 		folder('desktop', 'Desktop', `${home}/Desktop`),
 		folder('documents', 'Documents', `${home}/Documents`),

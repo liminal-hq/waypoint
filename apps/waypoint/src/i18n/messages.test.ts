@@ -26,6 +26,7 @@ const screens = import.meta.glob<string>(
 		'../inspector/*.tsx',
 		'../sidebar/*.tsx',
 		'../trash/*.tsx',
+		'../overview/*.tsx',
 	],
 	{
 		query: '?raw',
@@ -272,6 +273,29 @@ describe('the palette and history messages', () => {
 		]) {
 			const sidebar = enMessages[`sidebar.place.${place}` as keyof typeof enMessages];
 			expect(enMessages[`cmd.goTo.${place}` as keyof typeof enMessages]).toBe(`Go to ${sidebar}`);
+		}
+	});
+});
+
+describe('the Overview messages', () => {
+	it('have a one and an other form for what is counted', () => {
+		expect(tn('overview.stat.capacity.note', 1, 'en-CA')).toBe(
+			'Counts 1 local volume. Network shares and disk images are left out.',
+		);
+		expect(tn('overview.stat.capacity.note', 3, 'en-CA')).toContain('Counts 3 local volumes.');
+		expect(tn('overview.trash.count', 1200, 'en-CA')).toBe('1,200 items');
+	});
+
+	it('say Open for the palette and keep the sidebar’s word for the place', () => {
+		expect(t('cmd.openOverview')).toBe('Open Overview');
+		expect(t('sidebar.place.overview')).toBe('Overview');
+		expect(t('overview.title')).toBe(t('sidebar.place.overview'));
+	});
+
+	it('use Canadian spelling', () => {
+		for (const [id, text] of Object.entries(enMessages)) {
+			if (id.startsWith('overview.'))
+				expect(text, id).not.toMatch(/\b(color|favorite|center|gray)\b/i);
 		}
 	});
 });
