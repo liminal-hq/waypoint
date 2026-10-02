@@ -67,6 +67,8 @@ export class FakeDirScanClient implements DirScanClient {
 	private failure: VfsError | null = null;
 	/** Every call made, in order, for tests to check what the UI asked for. */
 	readonly calls: string[] = [];
+	/** The ids of the scans that were cancelled, in order. */
+	readonly cancelled: number[] = [];
 	/** The options of the latest `scan`. */
 	lastOptions: DirScanOptions | undefined;
 
@@ -93,7 +95,13 @@ export class FakeDirScanClient implements DirScanClient {
 		}
 		const job = this.nextJob++;
 		this.runs.set(job, { root: location, onEvent, latest: null, ended: false });
-		return { job, cancel: async () => this.end(job, 'cancelled') };
+		return {
+			job,
+			cancel: async () => {
+				if (this.live(job)) this.cancelled.push(job);
+				this.end(job, 'cancelled');
+			},
+		};
 	}
 
 	async cached(location: Location): Promise<DirScanResult | null> {

@@ -10,6 +10,7 @@ import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
 import type { OsClipboardClient } from '../services/osClipboardClient';
+import type { DirScanClient } from '../services/dirScanClient';
 import type { DetailsClient } from '../services/detailsClient';
 import type { PropertiesWindowClient } from '../services/propertiesWindowClient';
 import type { PlacesClient } from '../services/placesClient';
@@ -53,6 +54,8 @@ export interface MainServices {
 	details?: DetailsClient;
 	/** Properties windows; without it Alt+Enter, the item menu and the Inspector offer none. */
 	propertiesWindow?: PropertiesWindowClient;
+	/** The directory-size scan behind Overview's biggest folders in Home; without it Overview offers no measurement. */
+	dirScan?: DirScanClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -73,6 +76,7 @@ export interface MainServicesDeps {
 	createThumbnailsClient?(): ThumbnailsClient;
 	createDetailsClient?(): DetailsClient;
 	createPropertiesWindowClient?(): PropertiesWindowClient;
+	createDirScanClient?(): DirScanClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -105,6 +109,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		thumbnails: deps.createThumbnailsClient?.(),
 		details: deps.createDetailsClient?.(),
 		propertiesWindow: deps.createPropertiesWindowClient?.(),
+		dirScan: deps.createDirScanClient?.(),
 		home,
 	};
 }
