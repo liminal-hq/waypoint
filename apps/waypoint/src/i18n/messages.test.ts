@@ -111,6 +111,15 @@ describe('the conflict resolver messages', () => {
 		expect(pluralText('ops.conflict.more', 30, {}, 'en-CA')).toBe('and 30 more');
 	});
 
+	it('have plural forms for the lines a preview counts', () => {
+		expect(pluralText('ops.conflict.preview.added', 1, {}, 'en-CA')).toBe('1 line added');
+		expect(pluralText('ops.conflict.preview.removed', 2400, {}, 'en-CA')).toBe(
+			'2,400 lines removed',
+		);
+		expect(pluralText('ops.conflict.diff.more', 1, {}, 'en-CA')).toBe('1 more line');
+		expect(pluralText('ops.conflict.diff.gap', 12, {}, 'en-CA')).toBe('12 unchanged lines');
+	});
+
 	it('name every choice the engine knows', () => {
 		expect(
 			(['replace', 'skip', 'keepBoth', 'mergeFolders', 'replaceIfNewer'] as const).map(policyLabel),

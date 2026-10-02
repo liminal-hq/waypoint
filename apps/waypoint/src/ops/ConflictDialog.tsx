@@ -8,12 +8,15 @@ import { Dialog } from '@liminal-hq/waypoint-chrome/Dialog/Dialog';
 import { DialogActions, DialogButton } from '@liminal-hq/waypoint-chrome/Dialog/DialogActions';
 import type { Conflict } from '@liminal-hq/waypoint-protocol/generated/Conflict';
 import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
+import type { ConflictPreview } from '@liminal-hq/waypoint-protocol/generated/ConflictPreview';
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
 import type { Resolution } from '@liminal-hq/waypoint-protocol/generated/Resolution';
-import { useId, useMemo, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useState } from 'react';
 import { formatModified, formatSize } from '../browse/format';
 import { useHourCycle } from '../browse/TimeFormatContext';
 import { t, tf, type MessageId } from '../i18n/messages';
+import { Thumbnail } from '../thumbnails/Thumbnail';
+import { useLocationThumbnailLoader } from '../thumbnails/ThumbnailsContext';
 import {
 	NO_ANSWERS,
 	ROW_CAP,
@@ -29,7 +32,16 @@ import {
 	type Answers,
 	type Coverage,
 } from './conflictModel';
+import { ConflictDiff } from './ConflictDiff';
 import styles from './ConflictDialog.module.css';
+import {
+	AUTO_PREVIEWS,
+	THUMBNAIL_ROWS,
+	canCompare,
+	sizeHint,
+	type PreviewState,
+} from './conflictPreviewModel';
+import { useConflictPreviews } from './useConflictPreviews';
 import { pluralText, policyLabel } from './resolveText';
 
 /** What the person answered, ready for `OpsClient.resolve`. */
@@ -49,6 +61,11 @@ export interface ConflictDialogProps {
 	onCancelJob(): void;
 	/** Closes the dialog and leaves the job waiting; "Resolve…" on its row opens it again. */
 	onLater(): void;
+	/**
+	 * Compares the two files of a clash (the plugin's `conflict_preview`). Without it, or when it
+	 * fails, the dialog shows what it always did.
+	 */
+	loadPreview?(conflict: Conflict): Promise<ConflictPreview>;
 }
 
 function entryText(
@@ -96,6 +113,7 @@ export function ConflictDialog({
 	onContinue,
 	onCancelJob,
 	onLater,
+	loadPreview,
 }: ConflictDialogProps) {
 	const hourCycle = useHourCycle();
 	const baseId = useId();
@@ -111,6 +129,33 @@ export function ConflictDialog({
 	const anyAnswer = answers.rows.size > 0 || answers.bulk !== null;
 	const visible = showAll ? conflicts : conflicts.slice(0, ROW_CAP);
 	const hidden = count - visible.length;
+
+	const previews = useConflictPreviews(loadPreview, visible.slice(0, AUTO_PREVIEWS));
+	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+	const toggle = (uri: string, open: boolean) =>
+		setExpanded((now) => {
+			const next = new Set(now);
+			if (open) next.add(uri);
+			else next.delete(uri);
+			return next;
+		});
+	// Pictures of the files on both sides, where the thumbnails client can make them.
+	const thumbnails = useLocationThumbnailLoader('normal');
+	useEffect(() => {
+		if (!thumbnails) return;
+		thumbnails.want(
+			visible
+				.slice(0, THUMBNAIL_ROWS)
+				.flatMap((conflict) => [
+					...(conflict.kind === 'fileOverFile' && !conflict.withinBatch
+						? [{ key: conflict.existing.uri, location: conflict.existing }]
+						: []),
+					...(conflict.kind === 'fileOverFile' || conflict.kind === 'fileOverFolder'
+						? [{ key: conflict.source.uri, location: conflict.source }]
+						: []),
+				]),
+		);
+	}, [thumbnails, visible]);
 
 	const destination = conflictFolder(
 		conflicts,
@@ -250,6 +295,7 @@ export function ConflictDialog({
 							const own = answers.rows.get(conflict.source.uri) ?? '';
 							const effective = effectivePolicy(conflict, answers);
 							const hint = dateHint(conflict);
+							const sizes = sizeHint(conflict);
 							const incomingIsFolder =
 								conflict.kind === 'folderOverFolder' || conflict.kind === 'folderOverFile';
 							const mismatch =
@@ -263,68 +309,112 @@ export function ConflictDialog({
 									? tf('ops.conflict.choice.bulk', { choice: policyLabel(effective) })
 									: t('ops.conflict.choice.placeholder');
 							return (
-								<tr
-									key={conflict.source.uri}
-									className={styles.row}
-									data-kind={conflict.kind}
-									data-answered={effective ? '' : undefined}
-								>
-									<th scope="row" className={styles.name}>
-										{conflict.name}
-									</th>
-									<td>
-										{conflict.withinBatch ? (
-											t('ops.conflict.batch')
-										) : (
-											<>
-												{entryText(
-													existingIsFolder(conflict.kind),
-													conflict.existingSize,
-													conflict.existingModifiedMs,
-													hourCycle,
-												)}
-											</>
-										)}
-									</td>
-									<td>
-										{entryText(
-											incomingIsFolder,
-											conflict.sourceSize,
-											conflict.sourceModifiedMs,
-											hourCycle,
-										)}
-										{hint !== 'unknown' && (
-											<span className={styles.dateHint} data-hint={hint}>
-												{t(`ops.conflict.hint.${hint}` as MessageId)}
-											</span>
-										)}
-									</td>
-									<td>
-										<select
-											className={styles.select}
-											data-danger={effective && isDestructive(effective) ? '' : undefined}
-											value={own}
-											aria-label={tf('ops.conflict.choice.for', { name: conflict.name })}
-											aria-describedby={noteId}
-											onChange={(event) => setRow(conflict, event.target.value)}
-										>
-											<option value="">{covered}</option>
-											{legalChoices(conflict.kind).map((policy) => (
-												<option key={policy} value={policy}>
-													{policyLabel(policy)}
-												</option>
-											))}
-										</select>
-										<span id={noteId} className={styles.note}>
-											{mismatch && <span className={styles.mismatch}>{mismatch}</span>}
-											{effective && (
-												<span data-danger={isDestructive(effective) ? '' : undefined}>
-													{choiceNote(effective, existingIsFolder(conflict.kind), restoring)}
+								<Fragment key={conflict.source.uri}>
+									<tr
+										className={styles.row}
+										data-kind={conflict.kind}
+										data-answered={effective ? '' : undefined}
+									>
+										<th scope="row" className={styles.name}>
+											{conflict.name}
+										</th>
+										<td>
+											<div className={styles.side}>
+												<Thumbnail
+													loader={thumbnails}
+													thumbKey={
+														conflict.kind === 'fileOverFile' && !conflict.withinBatch
+															? conflict.existing.uri
+															: null
+													}
+													group={existingIsFolder(conflict.kind) ? 'folder' : 'other'}
+													className={styles.thumb}
+												/>
+												<span>
+													{conflict.withinBatch
+														? t('ops.conflict.batch')
+														: entryText(
+																existingIsFolder(conflict.kind),
+																conflict.existingSize,
+																conflict.existingModifiedMs,
+																hourCycle,
+															)}
 												</span>
-											)}
-										</span>
-									</td>
-								</tr>
+											</div>
+										</td>
+										<td>
+											<div className={styles.side}>
+												<Thumbnail
+													loader={thumbnails}
+													thumbKey={incomingIsFolder ? null : conflict.source.uri}
+													group={incomingIsFolder ? 'folder' : 'other'}
+													className={styles.thumb}
+												/>
+												<span>
+													{entryText(
+														incomingIsFolder,
+														conflict.sourceSize,
+														conflict.sourceModifiedMs,
+														hourCycle,
+													)}
+													{hint !== 'unknown' && (
+														<span className={styles.dateHint} data-hint={hint}>
+															{t(`ops.conflict.hint.${hint}` as MessageId)}
+														</span>
+													)}
+													{sizes !== 'unknown' && (
+														<span className={styles.dateHint} data-size={sizes}>
+															{t(`ops.conflict.sizeHint.${sizes}` as MessageId)}
+														</span>
+													)}
+												</span>
+											</div>
+										</td>
+										<td>
+											<select
+												className={styles.select}
+												data-danger={effective && isDestructive(effective) ? '' : undefined}
+												value={own}
+												aria-label={tf('ops.conflict.choice.for', { name: conflict.name })}
+												aria-describedby={noteId}
+												onChange={(event) => setRow(conflict, event.target.value)}
+											>
+												<option value="">{covered}</option>
+												{legalChoices(conflict.kind).map((policy) => (
+													<option key={policy} value={policy}>
+														{policyLabel(policy)}
+													</option>
+												))}
+											</select>
+											<span id={noteId} className={styles.note}>
+												{mismatch && <span className={styles.mismatch}>{mismatch}</span>}
+												{effective && (
+													<span data-danger={isDestructive(effective) ? '' : undefined}>
+														{choiceNote(effective, existingIsFolder(conflict.kind), restoring)}
+													</span>
+												)}
+											</span>
+										</td>
+									</tr>
+									{canCompare(conflict) && previews.available && (
+										<tr className={styles.detailRow}>
+											<td />
+											<td colSpan={3}>
+												<PreviewBlock
+													baseId={`${baseId}-p${index}`}
+													conflict={conflict}
+													state={previews.stateOf(conflict)}
+													open={expanded.has(conflict.source.uri)}
+													onCompare={() => {
+														toggle(conflict.source.uri, true);
+														previews.request(conflict);
+													}}
+													onToggle={(open) => toggle(conflict.source.uri, open)}
+												/>
+											</td>
+										</tr>
+									)}
+								</Fragment>
 							);
 						})}
 					</tbody>
@@ -354,4 +444,83 @@ export function ConflictDialog({
 			/>
 		</Dialog>
 	);
+}
+
+interface PreviewBlockProps {
+	baseId: string;
+	conflict: Conflict;
+	state: PreviewState;
+	open: boolean;
+	onCompare(): void;
+	onToggle(open: boolean): void;
+}
+
+/** What comparing one pair of files found: a notice, and for text a diff that opens on request. */
+function PreviewBlock({ baseId, conflict, state, open, onCompare, onToggle }: PreviewBlockProps) {
+	const { name } = conflict;
+	switch (state.status) {
+		case 'idle':
+			return (
+				<button
+					type="button"
+					className={styles.toggle}
+					aria-label={tf('ops.conflict.preview.compareNamed', { name })}
+					onClick={onCompare}
+				>
+					{t('ops.conflict.preview.compare')}
+				</button>
+			);
+		case 'loading':
+			return <p className={styles.previewNote}>{t('ops.conflict.preview.loading')}</p>;
+		case 'failed':
+			return null;
+		case 'ready':
+	}
+	const { kind } = state.preview;
+	switch (kind.type) {
+		case 'identical':
+			return (
+				<p className={styles.previewNote} data-preview="identical">
+					{t('ops.conflict.preview.identical')}
+				</p>
+			);
+		case 'binary':
+			return <p className={styles.previewNote}>{t('ops.conflict.preview.binary')}</p>;
+		case 'tooLarge':
+			return <p className={styles.previewNote}>{t('ops.conflict.preview.tooLarge')}</p>;
+		case 'unavailable':
+			return null;
+		case 'text': {
+			const { diff } = kind;
+			if (diff.added + diff.removed === 0) {
+				return <p className={styles.previewNote}>{t('ops.conflict.preview.same')}</p>;
+			}
+			const diffId = `${baseId}-diff`;
+			return (
+				<div className={styles.preview}>
+					<p className={styles.previewNote}>
+						{pluralText('ops.conflict.preview.added', diff.added)}
+						{', '}
+						{pluralText('ops.conflict.preview.removed', diff.removed)}
+					</p>
+					<button
+						type="button"
+						className={styles.toggle}
+						aria-expanded={open}
+						aria-controls={open ? diffId : undefined}
+						aria-label={tf(
+							open ? 'ops.conflict.preview.hideNamed' : 'ops.conflict.preview.showNamed',
+							{
+								name,
+							},
+						)}
+						onClick={() => onToggle(!open)}
+					>
+						{t(open ? 'ops.conflict.preview.hide' : 'ops.conflict.preview.show')}
+					</button>
+					{open && <ConflictDiff id={diffId} name={name} diff={diff} />}
+				</div>
+			);
+		}
+	}
 }

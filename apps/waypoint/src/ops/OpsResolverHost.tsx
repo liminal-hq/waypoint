@@ -140,6 +140,11 @@ function Host({ handle, windowLabel }: { handle: OpsHandle; windowLabel: string 
 				key={key}
 				job={target}
 				conflicts={reason.conflicts}
+				loadPreview={
+					client.conflictPreview
+						? (conflict) => client.conflictPreview!(target.id, conflict.source)
+						: undefined
+				}
 				onContinue={(answer: ConflictAnswer) => {
 					park(target);
 					announce(tf('ops.conflict.announce', { summary: summaryText(answer.counts) }));

@@ -10,7 +10,11 @@ import { describe, expect, it } from 'vitest';
 // Read the real files from disk: Vitest swaps CSS for empty text, so importing them would make
 // every assertion pass vacuously.
 const here = import.meta.dirname;
-const sheets = ['ConflictDialog.module.css', 'OperationErrorDialog.module.css'].map((name) => ({
+const sheets = [
+	'ConflictDialog.module.css',
+	'ConflictDiff.module.css',
+	'OperationErrorDialog.module.css',
+].map((name) => ({
 	name,
 	css: readFileSync(join(here, name), 'utf8'),
 }));
