@@ -692,7 +692,7 @@ impl Run<'_> {
             source_modified_ms: None,
             existing_modified_ms: existing.modified_ms,
         };
-        let policy = match self.resolutions.policy_for(trashed) {
+        let mut policy = match self.resolutions.policy_for(trashed) {
             Some(policy) => policy,
             None => match self.sink.on_conflict(&conflict) {
                 Some(answer) => {
@@ -709,12 +709,47 @@ impl Run<'_> {
         let taken = OpsError::NameInUse {
             location: receipt.original.clone(),
         };
-        match action_for(policy, kind, None, &receipt.original)? {
-            Some(Action::Skip) => {
+        // A policy kept for every clash (Replace, chosen while they were all file over file) may
+        // meet one it cannot settle. Only a file replaces a file: a folder would be buried or lose
+        // a tree. The run asks again, as the copy engine does, rather than fail with items already
+        // restored; no answer fails there, and a few unsettling answers in a row do the same.
+        let mut asked = 0;
+        let action = loop {
+            let settled = match action_for(policy, kind, None, &receipt.original) {
+                Ok(Some(Action::Replace)) => {
+                    (kind == crate::model::ConflictKind::FileOverFile).then_some(Action::Replace)
+                }
+                Ok(Some(Action::Merge)) | Ok(None) | Err(OpsError::CannotReplace { .. }) => None,
+                Ok(Some(action)) => Some(action),
+                Err(error) => return Err(error),
+            };
+            if let Some(action) = settled {
+                break action;
+            }
+            asked += 1;
+            let answer = if asked > 3 {
+                None
+            } else {
+                self.sink.on_conflict(&conflict)
+            };
+            match answer {
+                Some(answer) => {
+                    self.resolutions.apply(&answer);
+                    policy = answer.policy;
+                }
+                None => {
+                    return Err(OpsError::CannotReplace {
+                        location: receipt.original.clone(),
+                    })
+                }
+            }
+        };
+        match action {
+            Action::Skip => {
                 self.skip(trashed, taken);
                 Ok(None)
             }
-            Some(Action::KeepBoth) => {
+            Action::KeepBoth => {
                 let folder = origin.parent().ok_or_else(|| OpsError::Protected {
                     location: origin.to_location(),
                 })?;
@@ -735,8 +770,7 @@ impl Run<'_> {
                     self.env.trash.restore_to(receipt, &target.to_location())?,
                 ))
             }
-            // Only a file replaces a file: a folder would be buried or lose a tree.
-            Some(Action::Replace) if kind == crate::model::ConflictKind::FileOverFile => {
+            Action::Replace => {
                 let aside = self.partial_path(origin)?;
                 provider.rename(origin, &aside, false)?;
                 match self.env.trash.restore(receipt) {
@@ -751,7 +785,8 @@ impl Run<'_> {
                     }
                 }
             }
-            Some(Action::Replace | Action::Merge) | None => Err(OpsError::CannotReplace {
+            // Settled above: a merge or a replace of a folder never leaves the loop.
+            Action::Merge => Err(OpsError::CannotReplace {
                 location: receipt.original.clone(),
             }),
         }

@@ -190,6 +190,47 @@ fn replace_refuses_a_folder_and_a_mixed_clash_and_changes_nothing() {
 }
 
 #[test]
+fn a_replace_for_all_that_cannot_settle_a_later_folder_clash_asks_instead_of_failing_midway() {
+    each_provider!(|h, rule, links| {
+        let _ = (rule, links);
+        build(&h, &tree(&[("a", "old"), ("d/", ""), ("d/in", "x")]));
+        let receipts = trash_away(&mut h, &["a", "d"]);
+        // A file where the file was, and a folder where the folder was.
+        build(&h, &tree(&[("a", "new"), ("d/", ""), ("d/mine", "m")]));
+        let asked = Rc::new(RefCell::new(Vec::new()));
+        let log = asked.clone();
+        let mut answers = Answers {
+            conflicts: Box::new(move |conflicts| {
+                log.borrow_mut().push(conflicts.len());
+                // Replace for all settles the file; the folder it cannot settle is asked again.
+                let policy = if log.borrow().len() == 1 {
+                    ConflictPolicy::Replace
+                } else {
+                    ConflictPolicy::Skip
+                };
+                vec![Resolution {
+                    source: None,
+                    policy,
+                }]
+            }),
+            errors: Box::new(|_, _| None),
+        };
+        let request = trashed_request(&h, JobKind::Restore, &receipts);
+        let result = run(&mut h, request, &mut answers);
+        done(&result);
+        assert_eq!(asked.borrow().len(), 2, "{:?}", asked.borrow());
+        let t = work_tree(&h);
+        assert_eq!(t.get("a"), Some(&file("old")), "the file was replaced");
+        assert_eq!(
+            t.get("d/mine"),
+            Some(&file("m")),
+            "the folder was left alone"
+        );
+        assert_eq!(h.trash.len(), 1, "the skipped folder is still in the Trash");
+    });
+}
+
+#[test]
 fn a_failed_replace_puts_the_original_back() {
     each_provider!(|h, rule, links| {
         let _ = (rule, links);
