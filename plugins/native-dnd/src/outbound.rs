@@ -92,7 +92,7 @@ pub enum Failure {
     Other(String),
 }
 
-/// Classifies how a drag ended from what the target chose (`selected`, empty when it chose nothing), the failure the system reported, and whether the target asked the source to delete the originals (a completed move).
+/// Classifies how a drag ended from what the target chose (`selected`, empty when it chose nothing), the failure the system reported, and whether the target asked the source to delete the originals (a completed move). Only that request makes a drop a move: a target that chose MOVE but never asked for the delete (it renamed the files itself, or only read them) is a `DroppedCopy`, so a caller never removes originals the target did not hand back.
 pub fn classify(
     selected: Actions,
     failure: Option<&Failure>,
@@ -101,9 +101,9 @@ pub fn classify(
     match failure {
         Some(Failure::UserCancelled) | Some(Failure::NoTarget) => (DragOutcome::Cancelled, None),
         Some(Failure::Other(reason)) => (DragOutcome::Failed, Some(reason.clone())),
-        None if deleted || selected.r#move => (DragOutcome::DroppedMove, None),
+        None if deleted => (DragOutcome::DroppedMove, None),
         None if selected.link => (DragOutcome::DroppedLink, None),
-        None if selected.copy => (DragOutcome::DroppedCopy, None),
+        None if selected.copy || selected.r#move => (DragOutcome::DroppedCopy, None),
         None => (DragOutcome::Cancelled, None),
     }
 }
@@ -139,7 +139,8 @@ pub fn classify_ole(hr: i32, effect: u32) -> (DragOutcome, Option<String>) {
                 r#move: effect & DROPEFFECT_MOVE != 0,
                 link: effect & DROPEFFECT_LINK != 0,
             };
-            classify(selected, None, false)
+            // OLE reports a performed move as the effect itself: the source is to delete.
+            classify(selected, None, selected.r#move)
         }
         DRAGDROP_S_CANCEL => (DragOutcome::Cancelled, None),
         other => (
@@ -636,7 +637,9 @@ mod tests {
         };
         let none = Actions::default();
         assert_eq!(classify(copy, None, false).0, DragOutcome::DroppedCopy);
-        assert_eq!(classify(mv, None, false).0, DragOutcome::DroppedMove);
+        // A chosen MOVE the target never asked the source to delete is not a move.
+        assert_eq!(classify(mv, None, false).0, DragOutcome::DroppedCopy);
+        assert_eq!(classify(mv, None, true).0, DragOutcome::DroppedMove);
         assert_eq!(classify(link, None, false).0, DragOutcome::DroppedLink);
         assert_eq!(classify(copy, None, true).0, DragOutcome::DroppedMove);
         assert_eq!(classify(none, None, false).0, DragOutcome::Cancelled);

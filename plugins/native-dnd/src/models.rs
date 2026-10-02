@@ -131,9 +131,9 @@ pub struct StartDragRequest {
 #[serde(rename_all = "kebab-case")]
 #[ts(export, export_to = "../guest-js/bindings/")]
 pub enum DragOutcome {
-    /// Dropped on a target that copied the files.
+    /// Dropped on a target that took the files without asking for the originals to be removed: a copy, or a move the target carried out itself. The caller leaves the originals alone.
     DroppedCopy,
-    /// Dropped on a target that moved the files; the plugin never deletes anything, so the caller removes the originals if the target did not.
+    /// Dropped on a target that moved the files and asked the source to delete them (GTK `drag-data-delete`; on Windows the `DROPEFFECT_MOVE` result). The plugin never deletes anything, so the caller removes the originals.
     DroppedMove,
     DroppedLink,
     /// Released over nothing that took the files, or abandoned with Escape.
