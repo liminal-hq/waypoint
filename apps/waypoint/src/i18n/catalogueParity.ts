@@ -10,9 +10,10 @@ import { expectedKeys, sourceKeyFor } from './pluralForms';
 
 /**
  * Locales whose catalogue is known to be incomplete, so a missing key is not yet a failure. Empty
- * the entry for `fr-CA` when the full translation lands and the parity test starts failing on a gap.
+ * now that `fr-CA` is complete; list a language here while it is being written, and take it out
+ * when it reaches 100% so a gap fails the parity test.
  */
-export const INCOMPLETE_LOCALES: readonly Locale[] = ['fr-CA'];
+export const INCOMPLETE_LOCALES: readonly Locale[] = [];
 
 export interface Parity {
 	/** Keys English has and the catalogue lacks. */
