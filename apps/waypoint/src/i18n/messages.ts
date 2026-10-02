@@ -32,6 +32,7 @@ export const enMessages = {
 	'settings.section.appearance': 'Appearance',
 	'settings.section.accessibility': 'Accessibility',
 	'settings.section.integrations': 'Integrations',
+	'settings.section.previews': 'Previews & thumbnails',
 	'settings.loading': 'Loading settings…',
 	'settings.group.startup': 'Start-up',
 	'settings.group.browsing': 'Browsing',
@@ -70,6 +71,7 @@ export const enMessages = {
 	'settings.group.vision': 'Vision',
 	'settings.group.motion': 'Motion and transparency',
 	'settings.group.touch': 'Touch',
+	'settings.group.thumbnails': 'Thumbnails',
 	'settings.appearance.mode.label': 'Colour mode',
 	'settings.appearance.mode.description': 'Light, dark, or whatever the system uses.',
 	'settings.appearance.mode.system': 'System',
@@ -198,6 +200,15 @@ export const enMessages = {
 	'settings.dnd.shelf.label': 'Keep the Shelf between sessions',
 	'settings.dnd.shelf.description':
 		'The Shelf keeps its items when Waypoint quits and starts again.',
+	'settings.previews.unavailable': 'Thumbnails are unavailable on this system: {reason}',
+	'settings.previews.unavailable.noReason': 'the thumbnail service could not start.',
+	'settings.previews.show.label': 'Show thumbnails',
+	'settings.previews.show.description':
+		'Draws a picture of an image, video or document in the grid, in tall list rows and on the Shelf, in place of its file type icon. A file with no thumbnail keeps its icon. Only files on this computer get one.',
+	'settings.previews.max.label': 'Largest file to make a thumbnail of',
+	'settings.previews.max.description':
+		'A larger file keeps its icon, so a huge image does not slow a folder down. Thumbnails already made are shared with other file managers and shown whatever the size.',
+	'settings.previews.max.unit': 'MB',
 	'settings.open.failed': 'Could not open the Settings window.',
 
 	'browse.list.label': 'Files',

@@ -1,12 +1,13 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "settings",
-	"description": "Lets the settings window read and change the application settings, including the operations settings the operations plugin owns, and ask the native drag and drop plugin what works so the Drag & drop page can explain what is unavailable. Nothing else of those plugins.",
+	"description": "Lets the settings window read and change the application settings, including the operations settings the operations plugin owns, and ask the native drag and drop plugin what works so the Drag & drop page can explain what is unavailable, and the thumbnails plugin's status for the Previews & thumbnails page. Nothing else of those plugins.",
 	"windows": ["settings"],
 	"permissions": [
 		"waypoint-settings:default",
 		"waypoint-ops:allow-get-settings",
 		"waypoint-ops:allow-set-settings",
-		"native-dnd:allow-get-status"
+		"native-dnd:allow-get-status",
+		"thumbnails:allow-get-status"
 	]
 }

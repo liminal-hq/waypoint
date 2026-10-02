@@ -14,6 +14,7 @@ import {
 	type ReactNode,
 } from 'react';
 import { useStore } from 'zustand';
+import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
 import { t, tf } from '../i18n/messages';
 import type { OpsSettings } from '../services/opsClient';
 import { isSettingsError, type Settings } from '../services/settingsClient';
@@ -48,7 +49,9 @@ export type RowKey =
 	| 'strongFocus'
 	| 'reducedMotion'
 	| 'reducedTransparency'
-	| 'touchMode';
+	| 'touchMode'
+	| 'thumbnails'
+	| 'thumbnailMax';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {
@@ -70,6 +73,8 @@ export interface SettingsEditor {
 	/** Why the operations settings cannot be changed, when they could not be read. */
 	opsUnreadable: string | null;
 	dnd: DndAvailability | null;
+	/** What the thumbnails plugin can do here; `null` until read, and when it could not be. */
+	thumbnails: PluginStatus | null;
 	errors: Partial<Record<RowKey, string>>;
 	/** Asks Rust for the settings `change` makes of the ones in force. The row shows the answer, never the request. */
 	changeSettings(key: RowKey, change: (settings: Settings) => Settings): void;
@@ -103,6 +108,8 @@ interface SettingsEditorProviderProps {
 	ops: OpsSettingsApi;
 	/** Reads what drag and drop can do on this system; a failure leaves the page without the note. */
 	dndStatus?: () => Promise<DndAvailability>;
+	/** Reads what thumbnails can do on this system, for the Previews & thumbnails page; a failure leaves the page without the note. */
+	thumbnailsStatus?: () => Promise<PluginStatus>;
 	children: ReactNode;
 }
 
@@ -115,6 +122,7 @@ export function SettingsEditorProvider({
 	handle,
 	ops: opsApi,
 	dndStatus,
+	thumbnailsStatus,
 	children,
 }: SettingsEditorProviderProps) {
 	const { settings, ready: settingsReady } = useStore(handle.store, (state) => state);
@@ -122,6 +130,7 @@ export function SettingsEditorProvider({
 	const [opsReady, setOpsReady] = useState(false);
 	const [opsUnreadable, setOpsUnreadable] = useState<string | null>(null);
 	const [dnd, setDnd] = useState<DndAvailability | null>(null);
+	const [thumbnails, setThumbnails] = useState<PluginStatus | null>(null);
 	const [errors, setErrors] = useState<Partial<Record<RowKey, string>>>({});
 	const opsNow = useRef<OpsSettings | null>(null);
 	const queue = useRef<Promise<void>>(Promise.resolve());
@@ -160,6 +169,20 @@ export function SettingsEditorProvider({
 			active = false;
 		};
 	}, [dndStatus]);
+
+	useEffect(() => {
+		if (!thumbnailsStatus) return;
+		let active = true;
+		thumbnailsStatus().then(
+			(value) => {
+				if (active) setThumbnails(value);
+			},
+			(error: unknown) => console.warn('could not read the thumbnails status', error),
+		);
+		return () => {
+			active = false;
+		};
+	}, [thumbnailsStatus]);
 
 	const run = useCallback((key: RowKey, work: () => Promise<void>) => {
 		setErrors((current) => {
@@ -203,11 +226,23 @@ export function SettingsEditorProvider({
 			ops,
 			opsUnreadable,
 			dnd,
+			thumbnails,
 			errors,
 			changeSettings,
 			changeOps,
 		}),
-		[settingsReady, opsReady, settings, ops, opsUnreadable, dnd, errors, changeSettings, changeOps],
+		[
+			settingsReady,
+			opsReady,
+			settings,
+			ops,
+			opsUnreadable,
+			dnd,
+			thumbnails,
+			errors,
+			changeSettings,
+			changeOps,
+		],
 	);
 	return <SettingsEditorContext.Provider value={value}>{children}</SettingsEditorContext.Provider>;
 }
