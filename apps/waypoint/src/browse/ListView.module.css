@@ -139,7 +139,8 @@
 
 .iconSpacer {
 	flex: none;
-	width: 22px;
+	/* The icon (or, in a tall row, the picture) and the gap after it. */
+	width: calc(var(--wp-list-icon, 16px) + 6px);
 }
 
 .sortMark {
@@ -225,6 +226,17 @@
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
+}
+
+/* A tall row's picture: the row less its padding, with the icon centred in it until the picture loads. */
+.thumbnail {
+	width: var(--wp-list-icon, 16px);
+	height: var(--wp-list-icon, 16px);
+}
+
+.name .thumbnail > svg {
+	width: 16px;
+	height: 16px;
 }
 
 .nameText {
