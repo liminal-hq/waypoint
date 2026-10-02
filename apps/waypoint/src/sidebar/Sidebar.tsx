@@ -7,6 +7,13 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { Workspace } from '@liminal-hq/waypoint-protocol/generated/Workspace';
 import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 import { useCallback, useId, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import type { Volume } from '@liminal-hq/plugin-volumes';
+import { useVfsClient } from '../browse/VfsClientContext';
+import { visibleVolumes, type DeviceAction } from '../devices/deviceModel';
+import { DeviceList } from '../devices/DeviceList';
+import { useDevicesClient } from '../devices/DevicesClientContext';
+import { UnlockDialog } from '../devices/UnlockDialog';
+import { useDevices } from '../devices/useDevices';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { useNavigation } from '../nav/useNavigation';
@@ -37,6 +44,7 @@ import styles from './Sidebar.module.css';
 
 const TITLES: Record<SidebarSection, MessageId> = {
 	places: 'sidebar.section.places',
+	devices: 'sidebar.section.devices',
 	favourites: 'sidebar.section.favourites',
 	workspaces: 'sidebar.section.workspaces',
 };
@@ -144,6 +152,39 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const [menu, setMenu] = useState<ItemMenuRequest | null>(null);
 	const [renaming, setRenaming] = useState<string | null>(null);
 	const [announcement, setAnnouncement] = useState('');
+
+	const vfs = useVfsClient();
+	const devices = useDevices(
+		useDevicesClient(),
+		useMemo(() => ({ announce: setAnnouncement, notice: onNotice }), [onNotice]),
+	);
+	const [unlocking, setUnlocking] = useState<Volume | null>(null);
+	const { run: runDevice } = devices;
+	const openVolume = useCallback(
+		(volume: Volume) => {
+			if (!volume.mountPoint || !currentLocation) return;
+			vfs.parseLocation(volume.mountPoint, currentLocation).then(goTo, (error: unknown) => {
+				console.warn('could not open a volume', error);
+				onNotice(tf('devices.open.failed', { name: volume.label }));
+			});
+		},
+		[vfs, currentLocation, goTo, onNotice],
+	);
+	const deviceAction = useCallback(
+		(action: DeviceAction, volume: Volume) => {
+			if (action === 'unlock') setUnlocking(volume);
+			else void runDevice(action, volume);
+		},
+		[runDevice],
+	);
+	const activateDevice = useCallback(
+		(volume: Volume) => {
+			if (volume.mountPoint) openVolume(volume);
+			else if (volume.locked) setUnlocking(volume);
+			else void runDevice('mount', volume);
+		},
+		[openVolume, runDevice],
+	);
 
 	const actions: ItemActions = useMemo(
 		() => ({ open: goTo, openInNewTab, openMenu: setMenu }),
@@ -316,6 +357,17 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 								trash={trashInfo}
 							/>
 						</Section>
+						{devices.available && (
+							<Section section="devices">
+								<DeviceList
+									volumes={visibleVolumes(devices.volumes)}
+									status={devices.status}
+									busy={devices.busy}
+									onActivate={activateDevice}
+									onAction={deviceAction}
+								/>
+							</Section>
+						)}
 						<Section
 							section="favourites"
 							title={
@@ -359,6 +411,13 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 					<FolderTree location={currentLocation} showHidden={showHidden} actions={actions} />
 				)}
 			</div>
+			{unlocking && (
+				<UnlockDialog
+					volume={unlocking}
+					onUnlock={devices.unlock}
+					onClose={() => setUnlocking(null)}
+				/>
+			)}
 			<div role="status" className={styles.srOnly}>
 				{announcement}
 			</div>

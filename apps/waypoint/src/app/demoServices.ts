@@ -9,6 +9,7 @@ import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
+import { fakeVolume, FakeDevicesClient } from '../devices/fakeDevicesClient';
 import { FakeTrashClient } from '../trash/fakeTrashClient';
 import type { MainServices } from './mainServices';
 
@@ -33,6 +34,19 @@ export async function startDemoServices(): Promise<MainServices> {
 		timeFormat: new FakeTimeFormatClient('h23'),
 		ops: createFakeOpsClient(),
 		trash: new FakeTrashClient({ count: 3 }),
+		devices: new FakeDevicesClient([
+			fakeVolume('system', {
+				label: 'System',
+				kind: 'internal',
+				isSystem: true,
+				canEject: false,
+				canUnmount: false,
+				mountPoint: '/',
+				total: 500_000_000_000,
+				free: 60_000_000_000,
+			}),
+			fakeVolume('stick', { label: 'USB stick' }),
+		]),
 		demo: { client },
 	};
 }

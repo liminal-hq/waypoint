@@ -1,0 +1,126 @@
+.row {
+	display: flex;
+	align-items: center;
+}
+
+.item {
+	flex: 1;
+	min-width: 0;
+	align-items: flex-start;
+	padding-block: 4px;
+}
+
+.item:disabled {
+	opacity: 0.6;
+}
+
+.text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.detail {
+	overflow: hidden;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bar {
+	display: block;
+	block-size: 4px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: color-mix(in srgb, var(--wp-text-primary) 15%, transparent);
+}
+
+.fill {
+	display: block;
+	block-size: 100%;
+	background: var(--wp-text-secondary);
+}
+
+/* A nearly full volume is hatched as well as written, so colour is never the only signal. */
+.bar[data-full] .fill {
+	background: repeating-linear-gradient(
+		45deg,
+		var(--wp-danger),
+		var(--wp-danger) 3px,
+		transparent 3px,
+		transparent 5px
+	);
+}
+
+.action {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	inline-size: 24px;
+	block-size: 24px;
+	margin-inline-end: 6px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+	cursor: default;
+}
+
+.action:hover:not(:disabled) {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.action:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.action:disabled {
+	opacity: 0.5;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.label {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.input {
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: var(--wp-control-height);
+	padding: 0 8px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--wp-text-primary);
+	font: inherit;
+}
+
+.input:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.input[aria-invalid='true'] {
+	border-color: var(--wp-danger);
+}
+
+.problem {
+	min-block-size: 1.4em;
+	margin: 0;
+	color: var(--wp-danger);
+	font-size: 12px;
+}

@@ -13,6 +13,7 @@ import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
+import type { DevicesClient } from '../devices/devicesClient';
 import type { TrashClient } from '../trash/trashClient';
 import type { VfsClient } from '../services/vfsClient';
 
@@ -38,6 +39,8 @@ export interface MainServices {
 	nativeDnd?: NativeDndClient;
 	/** The Trash's state and jobs; without it the Trash place shows no count and offers no actions. */
 	trash?: TrashClient;
+	/** The drives and volumes behind the sidebar's Devices section; without it the section is not shown. */
+	devices?: DevicesClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -53,6 +56,7 @@ export interface MainServicesDeps {
 	createOsClipboardClient?(): OsClipboardClient;
 	createNativeDndClient?(): NativeDndClient;
 	createTrashClient?(): TrashClient;
+	createDevicesClient?(): DevicesClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -80,6 +84,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		osClipboard: deps.createOsClipboardClient?.(),
 		nativeDnd: deps.createNativeDndClient?.(),
 		trash: deps.createTrashClient?.(),
+		devices: deps.createDevicesClient?.(),
 		home,
 	};
 }
