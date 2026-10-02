@@ -20,6 +20,7 @@ Waypoint's documentation lives here and is maintained alongside the code: a chan
 | [`theming-and-platforms.md`](theming-and-platforms.md) | Light and dark, OS theming, transparency and the per-desktop frames                  |
 | [`os-integrations.md`](os-integrations.md)             | Linux and Windows integrations, fallbacks and where they appear in the UI            |
 | [`accessibility.md`](accessibility.md)                 | The accessibility and focus review: what exists and what to fix                      |
+| [`translating.md`](translating.md)                     | Adding a language, the placeholder and plural rules, and the translator tooling      |
 | [`shared-components.md`](shared-components.md)         | The title bar, context menu and settings shell shared across Liminal HQ apps         |
 | [`tauri-tear-off.md`](tauri-tear-off.md)               | The implementation reference for dragging a tab out into a new window                |
 | [`open-questions.md`](open-questions.md)               | Unresolved questions and assumptions                                                 |
