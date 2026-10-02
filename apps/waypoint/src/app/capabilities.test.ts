@@ -106,4 +106,16 @@ describe('window capabilities', () => {
 			).toEqual([]);
 		}
 	});
+
+	it('lets the Properties windows read which application opens a file, and nothing that opens one or changes a default', () => {
+		const capability = byId('properties');
+		expect(capability.permissions).toEqual([
+			'mime-apps:allow-get-status',
+			'mime-apps:allow-handlers',
+		]);
+		expect(covers(capability, 'properties-3')).toBe(true);
+		for (const label of ['main-1', 'settings', 'ops', 'tear-ghost', 'mystery']) {
+			expect(covers(capability, label), label).toBe(false);
+		}
+	});
 });
