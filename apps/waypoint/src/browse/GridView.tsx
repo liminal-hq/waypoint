@@ -40,6 +40,7 @@ import {
 	type OpenInNewHandler,
 } from './useListInteractions';
 import type { ListingSession, SessionState } from './useListingSession';
+import { formatLocale } from '../i18n/active';
 
 /** Rows drawn beyond the viewport on each side. */
 const OVERSCAN = 4;
@@ -335,14 +336,16 @@ function GridBody({
 		<div className={styles.view}>
 			{scanning && (
 				<div className={styles.notice} role="status" data-notice="scanning">
-					{tf('browse.scanning', { count: new Intl.NumberFormat().format(model.scanned) })}
+					{tf('browse.scanning', {
+						count: new Intl.NumberFormat(formatLocale()).format(model.scanned),
+					})}
 				</div>
 			)}
 			{hiddenItems > 0 && (
 				<div className={styles.notice} role="status" data-notice="capped">
 					{tf('browse.capped', {
-						shown: new Intl.NumberFormat().format(shownItems),
-						total: new Intl.NumberFormat().format(count),
+						shown: new Intl.NumberFormat(formatLocale()).format(shownItems),
+						total: new Intl.NumberFormat(formatLocale()).format(count),
 					})}
 				</div>
 			)}

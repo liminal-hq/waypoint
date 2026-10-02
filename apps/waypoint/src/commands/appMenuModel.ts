@@ -17,6 +17,7 @@ import {
 } from '../icons/MenuIcons';
 import type { CommandFacts } from './commandEnv';
 import { commandDef, viewOf, type CommandId, type CommandView } from './registry';
+import { formatLocale } from '../i18n/active';
 
 /** The submenu rows' ids, which the menu's `onSelect` maps back to what to do. */
 export const MENU_IDS = {
@@ -72,7 +73,7 @@ export function historyTime(atMs: number, now: number = Date.now(), locale?: str
 	const at = new Date(atMs);
 	const sameDay = at.toDateString() === new Date(now).toDateString();
 	return new Intl.DateTimeFormat(
-		locale,
+		locale ?? formatLocale(),
 		sameDay
 			? { hour: 'numeric', minute: '2-digit' }
 			: { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' },

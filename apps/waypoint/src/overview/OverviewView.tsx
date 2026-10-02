@@ -27,6 +27,7 @@ import { TrashCard } from './TrashCard';
 import { homeOf, useOverview } from './useOverview';
 import { VolumeCard } from './VolumeCard';
 import styles from './OverviewView.module.css';
+import { formatLocale } from '../i18n/active';
 
 interface OverviewViewProps {
 	/** The tab this page is the content of: opening a volume or the Trash moves that tab. */
@@ -238,7 +239,7 @@ export function statTiles(
 	const volumes: StatTile = {
 		id: 'volumes',
 		label: t('overview.stat.volumes'),
-		value: new Intl.NumberFormat().format(stats.volumeCount),
+		value: new Intl.NumberFormat(formatLocale()).format(stats.volumeCount),
 		note:
 			stats.fileSystems.length === 0
 				? t('overview.stat.volumes.noSystems')

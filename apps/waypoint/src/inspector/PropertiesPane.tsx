@@ -28,6 +28,7 @@ import { useFolderSize, type FolderSizeState } from './useFolderSize';
 import { useSettled } from './useSettled';
 import { HEAVY_DELAY_MS } from './inspectorModel';
 import styles from './PropertiesPane.module.css';
+import { formatLocale } from '../i18n/active';
 
 interface PropertiesPaneProps {
 	subject: InspectorSubject;
@@ -265,7 +266,9 @@ function EntryProperties({
 								{formatSize(details?.size ?? entry.size ?? 0)}
 								<span className={styles.detail}>
 									{tf('inspector.size.bytes', {
-										bytes: new Intl.NumberFormat().format(details?.size ?? entry.size ?? 0),
+										bytes: new Intl.NumberFormat(formatLocale()).format(
+											details?.size ?? entry.size ?? 0,
+										),
 									})}
 								</span>
 							</Row>

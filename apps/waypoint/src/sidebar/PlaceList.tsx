@@ -15,6 +15,7 @@ import { TrashIcon } from '../icons/MenuIcons';
 import { itemGestures, type ItemActions } from './itemGestures';
 import { ITEM_ATTRIBUTE, moveFocusInList } from './itemList';
 import styles from './Sidebar.module.css';
+import { formatLocale } from '../i18n/active';
 
 export const LABELS: Record<PlaceKind, MessageId> = {
 	overview: 'sidebar.place.overview',
@@ -88,7 +89,7 @@ export function PlaceList({ places, currentUri, actions, trash = null }: PlaceLi
 							{count > 0 && (
 								<>
 									<span className={styles.badge} aria-hidden="true">
-										{new Intl.NumberFormat().format(count)}
+										{new Intl.NumberFormat(formatLocale()).format(count)}
 									</span>
 									<span className={styles.srOnly}>{tn('sidebar.trash.count', count)}</span>
 								</>
