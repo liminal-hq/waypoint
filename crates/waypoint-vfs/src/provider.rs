@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::ffi::{OsStr, OsString};
+use std::io::Read;
 use std::sync::Arc;
 
 use waypoint_path::{CaseRule, VfsPath};
@@ -202,6 +203,28 @@ pub trait Provider: Send + Sync {
     fn open_read(&self, path: &VfsPath) -> Result<ReadStream, VfsError> {
         let _ = path;
         unsupported("reading files here")
+    }
+
+    /// Opens a file for streaming reads starting `start` bytes in (a preview's `Range` request). The
+    /// default opens the whole file and reads past the start; a provider that can seek overrides it.
+    fn open_read_at(&self, path: &VfsPath, start: u64) -> Result<ReadStream, VfsError> {
+        let mut stream = self.open_read(path)?;
+        if start > 0 {
+            let skipped = std::io::copy(&mut (&mut stream).take(start), &mut std::io::sink())
+                .map_err(|error| crate::from_io(&error, &path.to_location()))?;
+            if skipped < start {
+                return Ok(Box::new(std::io::empty()));
+            }
+        }
+        Ok(stream)
+    }
+
+    /// Everything the Inspector shows about one entry. The default builds it from `stat`, the name
+    /// and nothing else, and lists every detail only a local provider can read as unavailable, so a
+    /// remote provider needs to implement nothing to be honest about what it cannot say.
+    fn details(&self, path: &VfsPath) -> Result<crate::EntryDetails, VfsError> {
+        let entry = self.stat(path)?;
+        Ok(crate::inspect::from_scanned(&entry))
     }
 
     /// Opens a file for streaming writes, creating it. See `WriteOptions` for the exclusive mode.

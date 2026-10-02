@@ -242,6 +242,65 @@ pub(crate) fn copy_fast(
     Fast::Unhandled
 }
 
+/// The name of user `uid`, or `None` when the system has none.
+pub(crate) fn user_name(uid: u32) -> Option<String> {
+    let mut buffer = vec![0u8; 4096];
+    loop {
+        let mut entry = std::mem::MaybeUninit::<libc::passwd>::zeroed();
+        let mut found: *mut libc::passwd = std::ptr::null_mut();
+        // SAFETY: `entry`, `buffer` and `found` are valid for the call; on success `found` points
+        // at `entry`, whose strings live in `buffer`, and both outlive the copy below.
+        let status = unsafe {
+            libc::getpwuid_r(
+                uid,
+                entry.as_mut_ptr(),
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut found,
+            )
+        };
+        if status == libc::ERANGE && buffer.len() < 1 << 20 {
+            buffer.resize(buffer.len() * 2, 0);
+            continue;
+        }
+        if status != 0 || found.is_null() {
+            return None;
+        }
+        // SAFETY: the lookup succeeded, so `pw_name` is a NUL-terminated string in `buffer`.
+        let name = unsafe { std::ffi::CStr::from_ptr((*found).pw_name) };
+        return Some(name.to_string_lossy().into_owned());
+    }
+}
+
+/// The name of group `gid`, or `None` when the system has none.
+pub(crate) fn group_name(gid: u32) -> Option<String> {
+    let mut buffer = vec![0u8; 4096];
+    loop {
+        let mut entry = std::mem::MaybeUninit::<libc::group>::zeroed();
+        let mut found: *mut libc::group = std::ptr::null_mut();
+        // SAFETY: as in `user_name`.
+        let status = unsafe {
+            libc::getgrgid_r(
+                gid,
+                entry.as_mut_ptr(),
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut found,
+            )
+        };
+        if status == libc::ERANGE && buffer.len() < 1 << 20 {
+            buffer.resize(buffer.len() * 2, 0);
+            continue;
+        }
+        if status != 0 || found.is_null() {
+            return None;
+        }
+        // SAFETY: the lookup succeeded, so `gr_name` is a NUL-terminated string in `buffer`.
+        let name = unsafe { std::ffi::CStr::from_ptr((*found).gr_name) };
+        return Some(name.to_string_lossy().into_owned());
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unnecessary_cast)]
 mod tests {
