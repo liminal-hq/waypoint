@@ -216,6 +216,23 @@ describe('selection and opening', () => {
 		expect(onMenu).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'background' }));
 	});
 
+	it('opens the entry menu from the menu key, and the empty-space menu from Ctrl plus the menu key', async () => {
+		const { client } = clientWith(30);
+		const onMenu = vi.fn();
+		renderGrid(client, 96, { onMenu });
+		await screen.findByRole('listbox');
+		await waitFor(() => expect(options()[0]).toHaveTextContent(/\w/));
+		fireEvent.click(options()[1]!);
+		fireEvent.keyDown(list(), { key: 'ContextMenu' });
+		expect(onMenu).toHaveBeenLastCalledWith(
+			expect.objectContaining({ kind: 'entry', keyboard: true }),
+		);
+		fireEvent.keyDown(list(), { key: 'ContextMenu', ctrlKey: true });
+		expect(onMenu).toHaveBeenLastCalledWith(
+			expect.objectContaining({ kind: 'background', keyboard: true }),
+		);
+	});
+
 	it('leaves Alt+arrow keys to the window so history and up still work', async () => {
 		const { client } = clientWith(30);
 		renderGrid(client);

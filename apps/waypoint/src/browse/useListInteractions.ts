@@ -79,11 +79,12 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 	const typeAheadEpoch = useRef(0);
 
 	// The menu key asks for the focused entry's menu, placed at its item, or the empty-space menu
-	// when nothing is focused.
+	// when nothing is focused. With Ctrl held it always asks for the empty-space menu, the way to
+	// it in a folder whose rows fill the window and leave no empty space to click.
 	const openMenuFromKeyboard = (event: KeyboardEvent<HTMLElement>) => {
 		event.preventDefault();
 		const at = store.getState().focus;
-		const entry = at === null ? undefined : model.entryAt(at);
+		const entry = at === null || event.ctrlKey ? undefined : model.entryAt(at);
 		const item = at === null ? null : document.getElementById(itemId(at));
 		const rect = (item ?? event.currentTarget).getBoundingClientRect();
 		const position = { x: rect.left + 24, y: rect.bottom };
