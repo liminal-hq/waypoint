@@ -63,6 +63,7 @@ export const enMessages = {
 	'services.name.thumbnails': 'Thumbnails',
 	'services.name.volumes': 'Drives and volumes',
 	'services.name.window-effects': 'Window effects',
+	'services.name.mime-apps': 'File types and Open With',
 	'settings.group.colours': 'Colours',
 	'settings.group.layout': 'Layout',
 	'settings.group.icons': 'Icons',

@@ -176,6 +176,7 @@ describe('the Services panel sources', () => {
 			'thumbnails',
 			'volumes',
 			'window-effects',
+			'mime-apps',
 		]);
 		plugins.vfs.mockResolvedValue({ available: true, reason: null, features: ['listing'] });
 		plugins.trash.mockRejectedValue(new Error('permission denied'));

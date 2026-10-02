@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { getStatus as mimeAppsStatus } from '@liminal-hq/plugin-mime-apps';
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import { getStatus as osPrefsStatus } from '@liminal-hq/plugin-os-prefs';
 import { getStatus as systemAppearanceStatus } from '@liminal-hq/plugin-system-appearance';
@@ -107,6 +108,18 @@ export async function windowEffectsServiceStatus(): Promise<PluginStatus> {
 	);
 }
 
+/** The mime-apps plugin's status in the shared shape: its features carry typed reasons, shown as the sentence they hold. */
+export async function mimeAppsServiceStatus(): Promise<PluginStatus> {
+	const status = await mimeAppsStatus();
+	return summarise(
+		{ available: status.available, reason: status.message },
+		status.features.map(
+			(feature) =>
+				[feature.name, { available: feature.available, reason: feature.message }] as const,
+		),
+	);
+}
+
 /** The native drag and drop plugin's status in the shared shape. */
 export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	const status = await nativeDndStatus();
@@ -133,6 +146,7 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	thumbnails: thumbnailsServiceStatus,
 	volumes: volumesServiceStatus,
 	'window-effects': windowEffectsServiceStatus,
+	'mime-apps': mimeAppsServiceStatus,
 };
 
 /** Asks every plugin whether it works here; one that cannot answer is reported unavailable with the error as its reason. */

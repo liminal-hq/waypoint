@@ -30,6 +30,7 @@ tauri-plugin-window-tearoff = { path = "../../../plugins/window-tearoff" }
 tauri-plugin-trash = { path = "../../../plugins/trash" }
 tauri-plugin-thumbnails = { path = "../../../plugins/thumbnails" }
 tauri-plugin-volumes = { path = "../../../plugins/volumes" }
+tauri-plugin-mime-apps = { path = "../../../plugins/mime-apps" }
 tauri-plugin-opener = "2"
 tauri-plugin-waypoint-vfs = { path = "../../../plugins/waypoint-vfs" }
 tauri-plugin-waypoint-session = { path = "../../../plugins/waypoint-session" }

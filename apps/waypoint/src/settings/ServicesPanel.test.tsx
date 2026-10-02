@@ -69,6 +69,7 @@ describe('the registered sources', () => {
 	it('names every plugin, with a message for each', () => {
 		expect(Object.keys(SERVICE_SOURCES).sort()).toEqual([
 			'file-system',
+			'mime-apps',
 			'native-dnd',
 			'os-prefs',
 			'system-appearance',
