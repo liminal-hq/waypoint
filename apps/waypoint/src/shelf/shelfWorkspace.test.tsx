@@ -122,7 +122,9 @@ describe('showing and hiding', () => {
 		expect(row.lastElementChild).toBe(column);
 		expect(column.querySelector('nav')).toBeNull();
 		// The status bar is below everything, outside the row of sidebar and column.
-		const toggle = screen.getByRole('button', { name: 'Shelf' });
+		const toggle = within(screen.getByRole('group', { name: 'Status bar' })).getByRole('button', {
+			name: 'Shelf',
+		});
 		expect(row.contains(toggle)).toBe(false);
 	});
 
