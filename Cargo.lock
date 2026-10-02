@@ -4278,7 +4278,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-desktop-integration"
 version = "0.2.0"
-source = "git+https://github.com/liminal-hq/tauri-plugins-workspace.git?rev=271654f35356508b7d9d252c53598d8137d8ca7c#271654f35356508b7d9d252c53598d8137d8ca7c"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace.git?rev=0413e1d56c5cc31137f040259d2cc5883412cb3a#0413e1d56c5cc31137f040259d2cc5883412cb3a"
 dependencies = [
  "futures-util",
  "gdk",
@@ -4688,7 +4688,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-xdg-portal"
 version = "0.2.0"
-source = "git+https://github.com/liminal-hq/tauri-plugins-workspace.git?rev=271654f35356508b7d9d252c53598d8137d8ca7c#271654f35356508b7d9d252c53598d8137d8ca7c"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace.git?rev=0413e1d56c5cc31137f040259d2cc5883412cb3a#0413e1d56c5cc31137f040259d2cc5883412cb3a"
 dependencies = [
  "ashpd",
  "futures-util",
