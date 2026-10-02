@@ -9,6 +9,7 @@ import { VfsClientProvider } from '../browse/VfsClientContext';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
+import type { NativeDndClient } from '../services/nativeDndClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { OpsProvider } from '../ops/OpsContext';
@@ -53,12 +54,14 @@ export async function renderWorkspace(
 		ops?: OpsClient;
 		/** The settings the window follows (the defaults when omitted). */
 		settings?: SettingsClient;
+		/** The native drag and drop plugin (drops from other applications, drags out of the window). */
+		nativeDnd?: NativeDndClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
 	const tabbed = (
 		<TabsProvider api={tabs} home={HOME}>
-			<Workspace tearoff={options.tearoff} />
+			<Workspace tearoff={options.tearoff} nativeDnd={options.nativeDnd} />
 		</TabsProvider>
 	);
 	const workspace = options.settings ? (

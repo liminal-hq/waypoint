@@ -12,12 +12,18 @@ import {
 	useState,
 	type ReactNode,
 } from 'react';
+import { frameMargin, outsideVisibleWindow } from '../app/frameMargin';
 import { showNotice } from '../app/notices';
 import type { ListingManager } from '../browse/listingManager';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { useFileCommands } from '../ops/FileCommandsContext';
 import { useOps } from '../ops/OpsContext';
+import {
+	NO_NATIVE_DND,
+	type NativeDndAvailability,
+	type NativeDndClient,
+} from '../services/nativeDndClient';
 import { useSettings } from '../settings/SettingsContext';
 import { useTrashActions } from '../trash/trashJobs';
 import { announce } from '../tabs/announcer';
@@ -26,6 +32,7 @@ import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { ActionPicker } from './ActionPicker';
 import { DragStack } from './DragStack';
 import { createFileDrag, type FileDrag, type FileDragPress, type PickerRequest } from './fileDrag';
+import { connectNativeDnd } from './nativeDndHost';
 import { openFolders } from './openFolders';
 import './dropTargets.css';
 
@@ -46,6 +53,12 @@ export function useFileDragApi(): FileDragApi | null {
 interface FileDragProviderProps {
 	/** Holds the source pane's listing open while a drag springs it elsewhere. */
 	manager: ListingManager;
+	/**
+	 * The native drag and drop plugin. Where it works, files dragged in from other applications and
+	 * windows drop on the same targets, and a drag that leaves the window continues as a system
+	 * drag; without it (or where it does not work) drags stay in the page.
+	 */
+	nativeDnd?: NativeDndClient;
 	children: ReactNode;
 }
 
@@ -55,7 +68,7 @@ interface FileDragProviderProps {
  * effect on the next move. A file drag and a tab drag are different sessions and never run
  * together: a press waits while the tab drag has the pointer.
  */
-export function FileDragProvider({ manager, children }: FileDragProviderProps) {
+export function FileDragProvider({ manager, nativeDnd, children }: FileDragProviderProps) {
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
 	const vfs = useVfsClient();
@@ -67,6 +80,8 @@ export function FileDragProvider({ manager, children }: FileDragProviderProps) {
 	const rule = useSettings((settings) => settings.dnd.defaultActionRule);
 	const springMs = useSettings((settings) => settings.dnd.springLoadMs);
 	const [picker, setPicker] = useState<PickerRequest | null>(null);
+	// What the plugin can do here, read once; the drag asks as it runs.
+	const features = useRef<NativeDndAvailability>(NO_NATIVE_DND);
 
 	// The drag is made once; what it reads changes under it.
 	const latest = useRef({ api, snapshot, vfs, ops, trash, commands, rule, springMs, manager });
@@ -104,6 +119,9 @@ export function FileDragProvider({ manager, children }: FileDragProviderProps) {
 			transfer: async (kind, session, destination) => {
 				await now().commands?.transferTo(kind, session, destination);
 			},
+			transferLocations: async (kind, items, destination) => {
+				await now().commands?.transferLocations(kind, items, destination);
+			},
 			moveToTrash: async (session) => {
 				await now().commands?.moveToTrash(session);
 			},
@@ -122,9 +140,46 @@ export function FileDragProvider({ manager, children }: FileDragProviderProps) {
 				}),
 			openPicker: setPicker,
 			trashAvailable: () => now().trash !== null,
+			...(nativeDnd
+				? {
+						outbound: {
+							available: () => features.current.outbound,
+							outside: (point) =>
+								outsideVisibleWindow(
+									point,
+									{ width: window.innerWidth, height: window.innerHeight },
+									frameMargin(),
+								),
+							resolve: (handle, spec) => {
+								const queue = now().ops;
+								return queue
+									? queue.handle.client.resolveSelection(handle, spec)
+									: Promise.reject(new Error('no queue'));
+							},
+							start: (request) => nativeDnd.startDrag(request),
+						},
+					}
+				: {}),
 		});
 	});
 	useEffect(() => () => drag.dispose(), [drag]);
+	const windowLabel = ops?.windowLabel ?? null;
+	const labelRef = useRef(windowLabel);
+	labelRef.current = windowLabel;
+	useEffect(() => {
+		if (!nativeDnd) return;
+		return connectNativeDnd({
+			client: nativeDnd,
+			drag,
+			windowLabel: () => labelRef.current,
+			onAvailability: (found) => {
+				features.current = found;
+				for (const [feature, reason] of Object.entries(found.reasons)) {
+					console.info(`native drag and drop: ${feature} is unavailable: ${reason}`);
+				}
+			},
+		});
+	}, [nativeDnd, drag]);
 
 	const value = useMemo<FileDragApi>(
 		() => ({

@@ -14,6 +14,7 @@ import { MainOps } from '../ops/MainOps';
 import { collectServiceStatuses } from '../services/serviceStatuses';
 import { tabsApi } from '../services/tabsApi';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
+import { createTauriNativeDndClient } from '../services/tauriNativeDndClient';
 import { createTauriOsClipboardClient } from '../services/tauriOsClipboardClient';
 import { createTauriPlacesClient } from '../services/tauriPlacesClient';
 import { createTauriTearoffClient } from '../services/tauriTearoffClient';
@@ -66,6 +67,7 @@ function start(): Promise<MainServices> {
 		createTimeFormatClient: createTauriTimeFormatClient,
 		createOpsClient: createTauriOpsClient,
 		createOsClipboardClient: createTauriOsClipboardClient,
+		createNativeDndClient: createTauriNativeDndClient,
 		createTrashClient: createTauriTrashClient,
 	});
 }
@@ -127,6 +129,7 @@ export function MainScreen() {
 												<Workspace
 													startup={{ view: startup.services.view, notice: startup.services.notice }}
 													tearoff={startup.services.tearoff}
+													nativeDnd={startup.services.nativeDnd}
 												/>
 											</MainOps>
 											<CommandPaletteHost />

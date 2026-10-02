@@ -43,6 +43,7 @@ import { useNavigation } from '../nav/useNavigation';
 import type { EntryAction } from '../nav/useOpenEntry';
 import { StatusBar } from '../status/StatusBar';
 import { ViewSwitcher } from '../status/ViewSwitcher';
+import type { NativeDndClient } from '../services/nativeDndClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
@@ -82,6 +83,7 @@ import {
 } from '../commands/commandBridge';
 import { useWorkspaceCommands } from '../commands/useWorkspaceCommands';
 import { ActionBar } from './ActionBar';
+import { frameMargin } from './frameMargin';
 import { NoticeToast } from './NoticeToast';
 import { clearPaneFocus } from '../tabs/paneFocus';
 import { dismissNotice } from './notices';
@@ -99,15 +101,6 @@ export interface WorkspaceStartup {
 	notice?: string | null;
 }
 
-/** The transparent margin the window frame draws around the content, in logical pixels (0 where the OS draws the frame). */
-function frameMargin(): number {
-	const value = getComputedStyle(document.documentElement).getPropertyValue(
-		'--wp-window-shadow-margin',
-	);
-	const margin = Number.parseFloat(value);
-	return Number.isFinite(margin) ? margin : 0;
-}
-
 /**
  * The browsing area. It owns the window's view choices (list or grid, icon size, hidden files),
  * and the tear-off hook that the tab drag's new-window phase runs on: without a `tearoff` client
@@ -116,9 +109,12 @@ function frameMargin(): number {
 export function Workspace({
 	startup,
 	tearoff,
+	nativeDnd,
 }: {
 	startup?: WorkspaceStartup;
 	tearoff?: TearoffClient;
+	/** The native drag and drop plugin: files dragged in from other applications, and drags that leave the window. */
+	nativeDnd?: NativeDndClient;
 }) {
 	const [viewStore] = useState(() =>
 		createViewStore(startup?.view ? viewFromPrefs(startup.view) : {}),
@@ -168,6 +164,7 @@ export function Workspace({
 									viewStore={viewStore}
 									sidebarStore={sidebarStore}
 									startupNotice={startup?.notice ?? null}
+									nativeDnd={nativeDnd}
 								/>
 							</CloseGuardHost>
 						</MergeLandingContext.Provider>
@@ -182,10 +179,12 @@ function WorkspaceBody({
 	viewStore,
 	sidebarStore,
 	startupNotice,
+	nativeDnd,
 }: {
 	viewStore: ViewStore;
 	sidebarStore: SidebarStore;
 	startupNotice: string | null;
+	nativeDnd: NativeDndClient | undefined;
 }) {
 	const client = useVfsClient();
 	const api = useTabsApi();
@@ -414,7 +413,7 @@ function WorkspaceBody({
 		<TrashActionsProvider value={trashActions}>
 			<FileCommandsProvider value={commands}>
 				<ClipboardProvider value={clipboard}>
-					<FileDragProvider manager={manager}>
+					<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
 						<div className={styles.workspace}>
 							<TabStrip />
 							<NavigationBar leading={<SidebarToggle />} />
