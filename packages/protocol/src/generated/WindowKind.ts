@@ -2,6 +2,6 @@
 
 /**
  * The kind of window a webview label denotes. Labels are `main-{n}`,
- * `settings`, `properties-{id}`, `ops` and `tear-ghost`.
+ * `settings`, `properties-{id}`, `ops`, `shelf` and `tear-ghost`.
  */
-export type WindowKind = "Main" | "Settings" | "Properties" | "Ops" | "TearGhost";
+export type WindowKind = "Main" | "Settings" | "Properties" | "Ops" | "Shelf" | "TearGhost";

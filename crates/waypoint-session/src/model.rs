@@ -67,6 +67,22 @@ pub struct ShelfItem {
     pub origin: Location,
 }
 
+/// Where the Shelf lives while it is not docked: whether it has its own window, where that window
+/// sits and whether it stays above others. Global, like the Shelf itself, and kept across a restart
+/// so the window comes back as it was left. Absent from documents written before the Shelf could
+/// undock, which load docked.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ShelfWindow {
+    /// The Shelf is its own window (`shelf`), and the main windows keep no dock.
+    pub undocked: bool,
+    /// The window's last place and size; kept while the Shelf is docked, so undocking again puts it back.
+    pub geometry: Option<Geometry>,
+    /// The window stays above others, where the system can do that.
+    pub on_top: bool,
+}
+
 /// A colour label for a tab or a group. The theme decides the actual shade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -331,6 +347,8 @@ pub struct SessionSnapshot {
     pub workspace: Option<WorkspaceId>,
     /// The Shelf (global), in the order items were added.
     pub shelf: Vec<ShelfItem>,
+    /// Whether the Shelf is its own window, and where (global).
+    pub shelf_window: ShelfWindow,
 }
 
 impl SessionSnapshot {
@@ -349,6 +367,7 @@ impl SessionSnapshot {
             workspaces: Vec::new(),
             workspace: None,
             shelf: Vec::new(),
+            shelf_window: ShelfWindow::default(),
         }
     }
 }
@@ -484,6 +503,15 @@ pub enum SessionEvent {
         #[ts(type = "number")]
         revision: u64,
     },
+    /// The Shelf was undocked into its own window or docked again, or its window's on-top choice
+    /// changed; the state is whole. Global, so every window gets this event, and the Shelf window
+    /// too while it exists. A move or resize of the window is saved without an event.
+    ShelfWindowChanged {
+        #[serde(rename = "shelfWindow")]
+        shelf_window: ShelfWindow,
+        #[ts(type = "number")]
+        revision: u64,
+    },
 }
 
 impl SessionEvent {
@@ -509,7 +537,8 @@ impl SessionEvent {
             | Self::GeometryChanged { revision, .. }
             | Self::WorkspacesChanged { revision, .. }
             | Self::WorkspaceActivated { revision, .. }
-            | Self::ShelfChanged { revision, .. } => *revision,
+            | Self::ShelfChanged { revision, .. }
+            | Self::ShelfWindowChanged { revision, .. } => *revision,
         }
     }
 
@@ -535,7 +564,8 @@ impl SessionEvent {
             | Self::GeometryChanged { revision, .. }
             | Self::WorkspacesChanged { revision, .. }
             | Self::WorkspaceActivated { revision, .. }
-            | Self::ShelfChanged { revision, .. } => *revision = value,
+            | Self::ShelfChanged { revision, .. }
+            | Self::ShelfWindowChanged { revision, .. } => *revision = value,
         }
     }
 }
@@ -574,6 +604,9 @@ pub struct StoreSnapshot {
     #[serde(default = "first_shelf_id")]
     #[ts(type = "number")]
     pub next_shelf: u64,
+    /// Absent from documents written before the Shelf could undock, which load docked.
+    #[serde(default)]
+    pub shelf_window: ShelfWindow,
 }
 
 fn first_shelf_id() -> u64 {

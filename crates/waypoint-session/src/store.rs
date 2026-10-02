@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::model::{
-    ClosedTab, SessionEvent, SessionSnapshot, ShelfItem, StoreSnapshot, TabId, ViewPrefs,
-    WindowEvent, WindowState, WindowSummary, Workspace,
+    ClosedTab, SessionEvent, SessionSnapshot, ShelfItem, ShelfWindow, StoreSnapshot, TabId,
+    ViewPrefs, WindowEvent, WindowState, WindowSummary, Workspace,
 };
 use crate::reducer::{reduce, Command, SessionError};
+use waypoint_protocol::SHELF_LABEL;
 
 /// How many closed tabs the store remembers.
 pub const CLOSED_LIMIT: usize = 10;
@@ -87,6 +88,8 @@ pub struct Store {
     /// Global, in the order items were added (the panel shows the newest first).
     pub(crate) shelf: Vec<ShelfItem>,
     pub(crate) next_shelf: u64,
+    /// Global: whether the Shelf is its own window, and where it was left.
+    pub(crate) shelf_window: ShelfWindow,
     pub(crate) policy: StorePolicy,
     /// The view a window made from now on starts with (the Settings window's choice). Not part of
     /// the document: windows already in the store keep their own.
@@ -118,6 +121,7 @@ impl Store {
             next_workspace: 1,
             shelf: Vec::new(),
             next_shelf: 1,
+            shelf_window: ShelfWindow::default(),
             policy,
             new_window_view: ViewPrefs::default(),
         }
@@ -185,6 +189,21 @@ impl Store {
         &self.shelf
     }
 
+    /// Whether the Shelf is its own window, and where it was left.
+    pub fn shelf_window(&self) -> &ShelfWindow {
+        &self.shelf_window
+    }
+
+    /// Whether `label` is a window that may issue Shelf commands: a main window of the store, or
+    /// the Shelf window while the Shelf is undocked. The Shelf is global but its events go to
+    /// windows, so a command needs a live caller: otherwise a change could happen with nobody told.
+    pub(crate) fn require_caller(&self, label: &str) -> Result<(), SessionError> {
+        if label == SHELF_LABEL && self.shelf_window.undocked {
+            return Ok(());
+        }
+        self.window_index(label).map(drop)
+    }
+
     /// Empties the Shelf without a mutation (no revision, no event), keeping the id counter so
     /// ids are still never reused. The app does it at start-up when the Shelf is not to persist.
     pub fn forget_shelf(&mut self) {
@@ -206,8 +225,19 @@ impl Store {
     }
 
     /// One window's session at the current revision, or `None` for an unknown label.
+    ///
+    /// The Shelf window (`SHELF_LABEL`, while the Shelf is undocked) reads a snapshot too: it holds
+    /// no tabs, and shows the global state, the Shelf above all.
     pub fn snapshot(&self, label: &str) -> Option<SessionSnapshot> {
-        let w = self.window(label)?;
+        let shelf_only;
+        let w = match self.window(label) {
+            Some(w) => w,
+            None if label == SHELF_LABEL && self.shelf_window.undocked => {
+                shelf_only = WindowState::new(label);
+                &shelf_only
+            }
+            None => return None,
+        };
         Some(SessionSnapshot {
             revision: self.revision,
             tabs: w.tabs.clone(),
@@ -221,6 +251,7 @@ impl Store {
             workspaces: self.workspaces.clone(),
             workspace: w.workspace,
             shelf: self.shelf.clone(),
+            shelf_window: self.shelf_window,
         })
     }
 
@@ -247,6 +278,7 @@ impl Store {
             next_workspace: self.next_workspace,
             shelf: self.shelf.clone(),
             next_shelf: self.next_shelf,
+            shelf_window: self.shelf_window,
         }
     }
 

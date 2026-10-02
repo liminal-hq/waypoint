@@ -255,6 +255,23 @@ pub enum Command {
         to_index: usize,
     },
 
+    // The Shelf window (global; the caller is a main window or the Shelf window itself).
+    /// Undocks the Shelf into its own window (`SHELF_LABEL`), or docks it back into the main
+    /// windows. The window's last geometry and on-top choice are kept across both.
+    SetShelfUndocked {
+        undocked: bool,
+    },
+    /// Whether the Shelf window stays above others. Only the choice is stored; keeping the window
+    /// there is the app's, where the system can.
+    SetShelfOnTop {
+        on_top: bool,
+    },
+    /// Where the Shelf window sits and how big it is. Saved without an event, as a window's
+    /// geometry is.
+    SetShelfGeometry {
+        geometry: Geometry,
+    },
+
     // Windows.
     /// Makes a window `main-{n}`, with a first tab at `location` when given.
     OpenWindow {
@@ -362,7 +379,10 @@ pub(crate) fn reduce(
         Command::AddToShelf { .. }
         | Command::RemoveFromShelf { .. }
         | Command::ClearShelf
-        | Command::MoveShelfItem { .. } => shelf::apply(&mut next, window, command)?,
+        | Command::MoveShelfItem { .. }
+        | Command::SetShelfUndocked { .. }
+        | Command::SetShelfOnTop { .. }
+        | Command::SetShelfGeometry { .. } => shelf::apply(&mut next, window, command)?,
         Command::OpenWindow { .. }
         | Command::RegisterWindow { .. }
         | Command::CloseWindow
@@ -445,6 +465,7 @@ pub(crate) fn store_from_snapshot(snapshot: &SessionSnapshot) -> Store {
     });
     store.workspaces = snapshot.workspaces.clone();
     store.shelf = snapshot.shelf.clone();
+    store.shelf_window = snapshot.shelf_window;
     store.next_shelf = snapshot.shelf.iter().map(|i| i.id.0).max().unwrap_or(0) + 1;
     store.next_workspace = snapshot
         .workspaces

@@ -121,6 +121,7 @@ pub fn replay(s: &mut SessionSnapshot, event: &SessionEvent) {
         SessionEvent::WorkspacesChanged { workspaces, .. } => s.workspaces = workspaces.clone(),
         SessionEvent::WorkspaceActivated { workspace, .. } => s.workspace = *workspace,
         SessionEvent::ShelfChanged { shelf, .. } => s.shelf = shelf.clone(),
+        SessionEvent::ShelfWindowChanged { shelf_window, .. } => s.shelf_window = *shelf_window,
         SessionEvent::WindowOpened { .. } | SessionEvent::WindowClosed { .. } => {}
     }
 }

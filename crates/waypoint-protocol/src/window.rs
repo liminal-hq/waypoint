@@ -6,8 +6,11 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// The label of the one Shelf window, which holds the Shelf while it is undocked from the main windows.
+pub const SHELF_LABEL: &str = "shelf";
+
 /// The kind of window a webview label denotes. Labels are `main-{n}`,
-/// `settings`, `properties-{id}`, `ops` and `tear-ghost`.
+/// `settings`, `properties-{id}`, `ops`, `shelf` and `tear-ghost`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum WindowKind {
@@ -15,6 +18,7 @@ pub enum WindowKind {
     Settings,
     Properties,
     Ops,
+    Shelf,
     TearGhost,
 }
 
@@ -24,6 +28,7 @@ impl WindowKind {
         match label {
             "settings" => Some(Self::Settings),
             "ops" => Some(Self::Ops),
+            "shelf" => Some(Self::Shelf),
             "tear-ghost" => Some(Self::TearGhost),
             _ if label.starts_with("main-") => Some(Self::Main),
             _ if label.starts_with("properties-") => Some(Self::Properties),
@@ -47,6 +52,8 @@ mod tests {
             WindowKind::from_label("properties-42"),
             Some(WindowKind::Properties)
         );
+        assert_eq!(WindowKind::from_label("shelf"), Some(WindowKind::Shelf));
+        assert_eq!(WindowKind::from_label(SHELF_LABEL), Some(WindowKind::Shelf));
         assert_eq!(
             WindowKind::from_label("tear-ghost"),
             Some(WindowKind::TearGhost)

@@ -4,6 +4,7 @@ import type { Geometry } from "./Geometry";
 import type { Group } from "./Group";
 import type { Pair } from "./Pair";
 import type { ShelfItem } from "./ShelfItem";
+import type { ShelfWindow } from "./ShelfWindow";
 import type { TabId } from "./TabId";
 import type { TabSnapshot } from "./TabSnapshot";
 import type { ViewPrefs } from "./ViewPrefs";
@@ -44,4 +45,8 @@ workspace: WorkspaceId | null,
 /**
  * The Shelf (global), in the order items were added.
  */
-shelf: Array<ShelfItem>, };
+shelf: Array<ShelfItem>, 
+/**
+ * Whether the Shelf is its own window, and where (global).
+ */
+shelfWindow: ShelfWindow, };

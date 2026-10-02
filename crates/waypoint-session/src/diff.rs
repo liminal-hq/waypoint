@@ -4,6 +4,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use waypoint_protocol::SHELF_LABEL;
+
 use crate::model::{SessionEvent, TabId, TabSnapshot, WindowEvent, WindowState};
 use crate::store::Store;
 
@@ -74,8 +76,35 @@ pub(crate) fn store_events(
         if !after.shelf.is_empty() {
             push(&new.label, shelf_changed(after));
         }
+        if after.shelf_window != Default::default() {
+            push(&new.label, shelf_window_changed(after));
+        }
+    }
+    // The Shelf window is a recipient of the global events while the Shelf is undocked (and in the
+    // command that docks it, for the window that is about to close).
+    let shelf_window_open = before.shelf_window.undocked || after.shelf_window.undocked;
+    if shelf_window_open && before.shelf != after.shelf {
+        push(SHELF_LABEL, shelf_changed(after));
+    }
+    // Where the window sits is saved without an event; whether it is there and on top is told to all.
+    if (before.shelf_window.undocked, before.shelf_window.on_top)
+        != (after.shelf_window.undocked, after.shelf_window.on_top)
+    {
+        for window in &after.windows {
+            push(&window.label, shelf_window_changed(after));
+        }
+        if shelf_window_open {
+            push(SHELF_LABEL, shelf_window_changed(after));
+        }
     }
     out
+}
+
+fn shelf_window_changed(after: &Store) -> SessionEvent {
+    SessionEvent::ShelfWindowChanged {
+        shelf_window: after.shelf_window,
+        revision: 0,
+    }
 }
 
 fn shelf_changed(after: &Store) -> SessionEvent {
