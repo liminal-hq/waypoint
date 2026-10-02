@@ -67,6 +67,26 @@ describe('conflicts', () => {
 		).toBeInTheDocument();
 	});
 
+	it('asks the client to compare each clash of the job it is answering', async () => {
+		const fake = createFakeOpsClient({ concurrency: 4 });
+		await mount(fake);
+		const id = await submit(fake);
+		const clashes = conflicts();
+		for (const clash of clashes) {
+			fake.previews.set(clash.source.uri, {
+				existing: { location: clash.existing, size: 1024, modifiedMs: null },
+				incoming: { location: clash.source, size: 2048, modifiedMs: null },
+				kind: { type: 'identical' },
+			});
+		}
+		await run(() => fake.askConflicts(id, clashes));
+		expect(await screen.findAllByText(/Identical contents/)).toHaveLength(2);
+		expect(callsOf(fake, 'conflictPreview').map((call) => [call[0], call[1]])).toEqual([
+			['conflictPreview', id],
+			['conflictPreview', id],
+		]);
+	});
+
 	it('does not open in a window that did not start the job, but "Resolve…" does', async () => {
 		const user = userEvent.setup();
 		const fake = createFakeOpsClient({ concurrency: 4 });
