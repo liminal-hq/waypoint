@@ -125,6 +125,9 @@ The plugin implements the [freedesktop.org Trash specification](https://specific
 
 - **Home trash** at `$XDG_DATA_HOME/Trash` (`~/.local/share/Trash`), with `files/`, `info/` and `directorysizes`, for files on the same device as it. `.trashinfo` files hold an absolute, percent-encoded `Path` and a local-time `DeletionDate`.
 - **Per-volume trashes** for files on other devices: `$topdir/.Trash/$uid` when `$topdir/.Trash` exists, is a real folder (not a link) and has the sticky bit, otherwise `$topdir/.Trash-$uid`, created with mode 0700. `Path` is relative to the top directory. Listing and emptying cover the home trash and every mounted volume's trash.
+- A trash is **trusted only if this user owns it**: the trash directory, `files` and `info` must each be a real folder (not a link) owned by the user, with no group or other write permission. On a shared top directory another user can create `.Trash-$uid` or `.Trash/$uid` before this user does; such a folder is not used (the shared `.Trash` falls back to `.Trash-$uid`, and a refused per-user trash is `trashUnavailable`) and is neither listed nor emptied. Removal walks through directory descriptors with `O_NOFOLLOW`, so a folder swapped for a link mid-walk is unlinked and never followed.
+- A **network mount** (NFS, SMB, `sshfs`, …) is not asked for its device until a file under it is trashed, and listing or emptying skips one that does not answer within two seconds, so one hung server does not stall the trash.
+- Commands that change a trash (`trash`, `restore`, `delete`, `empty`) take turns within the process, so an `empty` cannot remove the `.trashinfo` of an item that a `trash` is still placing.
 - A file is **never copied across devices**. If its volume has no usable trash, `trash` fails with `trashUnavailable` and the file stays where it is.
 - Names that are taken get a number before the extension (`photo.2.jpg`). The `.trashinfo` is created first and exclusively, which reserves the name, and is removed again if the move fails.
 - Paths that are not UTF-8 survive (every byte is percent-encoded). The JSON `originalPath` shows such bytes lossily; use the receipt to act on the item.
@@ -142,7 +145,9 @@ Inside a Flatpak sandbox (`/.flatpak-info` exists) the plugin trashes through `o
 - `list` reads the Recycle Bin shell folder, so every drive's bin is covered. An item's `trashId` is the path of its file in the bin (`C:\$Recycle.Bin\S-1-5-21-…\$R1A2B3C.txt`).
 - `restore` checks the destination itself, then moves the item out with `IFileOperation::MoveItem`. (The shell's "undelete" verb answers conflicts with dialogs.)
 - `empty()` uses `SHEmptyRecycleBinW` without prompts, progress or sound; the age sweep lists the bin and deletes the old items.
-- The shell calls run on the main thread, which the plugin blocks for the duration of an operation.
+- Paths are resolved before they are judged: `.` and `..` are resolved lexically, and the folders above the last part are resolved through links and short names (the last part never is, so a link is trashed itself). `C:\Users\me\Documents\..` is therefore refused as the profile folder. Mount points (a volume mounted in a folder) are not recognised on Windows, only drive roots, the profile folder and its parents, and the Recycle Bin.
+- The shell calls run on the main thread, which the plugin blocks for the duration of an operation. Walking a folder for its size does not: `list` reports folder sizes from a blocking thread after the shell calls return.
+- **Caveats, not verified beyond the live test:** the flags above are meant to make an item that cannot be recycled fail rather than be deleted permanently, but if the shell does ask ("too large for the Recycle Bin, delete permanently?") the prompt is modal and blocks the main thread until answered. `restore` passes no owner window, so a prompt the shell raises has no parent. Run `live_recycle_bin` on Windows after changing the flags.
 
 ### Other systems
 
@@ -151,6 +156,10 @@ Inside a Flatpak sandbox (`/.flatpak-info` exists) the plugin trashes through `o
 ## Tests
 
 `cargo test -p tauri-plugin-trash` runs the freedesktop logic in temporary directories with fake mounts and devices (nothing touches the real trash), plus the plugin through Tauri's mock runtime. The Windows backend's pure parts are unit-tested everywhere. `cargo test -p tauri-plugin-trash live_recycle_bin -- --ignored --nocapture` drives the real Recycle Bin on Windows; set `TRASH_LIVE_EMPTY=1` to also empty it, which removes the user's own items.
+
+## Security
+
+`trash(paths)` and `restore` with `{ kind: 'path', path }` act on paths the caller builds. Grant `trash:default` only to the main windows, and let the operations engine be the caller, which applies the protected-path rules of its own before it reaches this plugin. A window that can run arbitrary script (an extension surface, a webview showing remote content) must not be given the capability.
 
 ## Types
 
