@@ -98,6 +98,9 @@ export function actionBarItems(api: Pick<CommandsApi, 'get'>): ActionBarItem[] {
 			.map((id) => api.get(id))
 			.flatMap(commandRow),
 		(['sortDescending', 'sortFoldersFirst'] as const).map((id) => api.get(id)).flatMap(commandRow),
+		(['groupNone', 'groupKind', 'groupModified', 'groupSize', 'groupName', 'groupType'] as const)
+			.map((id) => api.get(id))
+			.flatMap(commandRow),
 	);
 	if (sortRows.length > 0) {
 		items.push({

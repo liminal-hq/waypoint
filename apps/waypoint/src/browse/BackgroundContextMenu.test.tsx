@@ -42,7 +42,7 @@ describe('the empty-space menu sort keys', () => {
 			groupBy: 'none',
 		});
 		open(session);
-		fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /name/i }));
+		fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /^name$/i }));
 		expect(setSort).not.toHaveBeenCalled();
 	});
 
@@ -54,7 +54,7 @@ describe('the empty-space menu sort keys', () => {
 			groupBy: 'none',
 		});
 		open(session);
-		fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /size/i }));
+		fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /^size$/i }));
 		expect(setSort).toHaveBeenCalledWith({
 			key: 'size',
 			descending: false,
@@ -72,17 +72,26 @@ describe('the empty-space menu group by', () => {
 		groupBy: 'size',
 	};
 
-	/** Opens the Group by submenu and returns it. */
+	/** Opens the menu and returns the Group by section's items (the full names a screen reader hears). */
 	function openGroupBy(session: ListingSession) {
 		open(session);
-		fireEvent.click(screen.getByRole('menuitem', { name: /^Group by/ }));
-		return within(screen.getAllByRole('menu').at(-1)!);
+		const items = screen
+			.getAllByRole('menuitemcheckbox')
+			.filter(
+				(item) =>
+					item.getAttribute('aria-label')?.startsWith('Group by') ||
+					item.getAttribute('aria-label') === 'No grouping',
+			);
+		return {
+			items,
+			getByRole: (_role: string, { name }: { name: string }) =>
+				items.find((item) => item.textContent === name)!,
+		};
 	}
 
 	it('lists no grouping and each grouping with the one in use checked', () => {
 		const { session } = sessionWith(sort);
-		const submenu = openGroupBy(session);
-		const items = submenu.getAllByRole('menuitemcheckbox');
+		const { items } = openGroupBy(session);
 		expect(items.map((item) => item.textContent)).toEqual([
 			'No grouping',
 			'Kind',

@@ -126,6 +126,17 @@ describe('ContextMenu', () => {
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
+	it('speaks a row by its aria label when it has one, and shows the short label', () => {
+		setup({
+			items: [
+				{ type: 'section', label: 'Group by' },
+				{ type: 'checkbox', id: 'g', label: 'Name', ariaLabel: 'Group by Name', checked: false },
+			],
+		});
+		const row = screen.getByRole('menuitemcheckbox', { name: 'Group by Name' });
+		expect(row).toHaveTextContent('Name');
+	});
+
 	it('closes on a second click on the button that opened it, and does not open again', () => {
 		const onOpen = vi.fn();
 		const button = document.createElement('button');

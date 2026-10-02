@@ -19,6 +19,8 @@ interface LabelledMenuItem {
 	disabled?: boolean;
 	/** A native tooltip on the row, for saying why it is disabled. */
 	title?: string;
+	/** What a screen reader says in place of `label`, for rows whose short label repeats in another section (Name under Sort by and under Group by). */
+	ariaLabel?: string;
 }
 
 export interface ActionMenuItem extends LabelledMenuItem {

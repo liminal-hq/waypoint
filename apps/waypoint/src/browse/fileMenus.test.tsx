@@ -248,7 +248,12 @@ describe('the empty-space menu', () => {
 			'descending',
 			'foldersFirst',
 			'|',
-			'groupBy[group:none,group:kind,group:modified,group:size,group:name,group:type]',
+			'group:none',
+			'group:kind',
+			'group:modified',
+			'group:size',
+			'group:name',
+			'group:type',
 			'|',
 			'showHidden',
 		]);

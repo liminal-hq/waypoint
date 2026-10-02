@@ -60,7 +60,12 @@ describe('the Trash empty-space menu', () => {
 			'sort:kind',
 			'descending',
 			'foldersFirst',
-			'groupBy',
+			'group:none',
+			'group:kind',
+			'group:modified',
+			'group:size',
+			'group:name',
+			'group:type',
 			'showHidden',
 		]);
 	});
