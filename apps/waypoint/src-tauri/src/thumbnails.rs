@@ -30,7 +30,7 @@ use tauri_plugin_waypoint_vfs::Vfs;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location};
 use waypoint_settings::Settings;
-use waypoint_vfs::{ListingHandle, SelectionSpec};
+use waypoint_vfs::ListingHandle;
 
 /// The queue behind the bridge. The plugin's `Thumbnails` is one; a test supplies its own.
 pub trait Queue: Send + Sync {
@@ -290,24 +290,25 @@ pub async fn thumbnails_request_entries<R: Runtime>(
 ) -> Result<Ticket, String> {
     let app = window.app_handle().clone();
     let label = window.label().to_owned();
+    // One lookup per entry: resolving them as a selection would walk the whole listing for each.
+    let ids = items.iter().map(|item| item.id).collect::<Vec<_>>();
+    let located = match app.try_state::<Vfs>() {
+        Some(vfs) => vfs
+            .locate_entries(&label, handle, &ids)
+            .map_err(|e| format!("{e:?}")),
+        None => Err("listings are not available".to_owned()),
+    };
     let wanted = items
         .into_iter()
-        .map(|item| {
-            let path = app
-                .try_state::<Vfs>()
-                .ok_or_else(|| "listings are not available".to_owned())
-                .and_then(|vfs| {
-                    vfs.resolve_selection(
-                        &label,
-                        handle,
-                        &SelectionSpec::Chosen { ids: vec![item.id] },
-                    )
-                    .map_err(|e| format!("{e:?}"))
-                })
-                .and_then(|locations| match locations.first() {
-                    Some(location) => path_of_location(location),
-                    None => Err("no longer in the listing".to_owned()),
-                });
+        .enumerate()
+        .map(|(index, item)| {
+            let path = match &located {
+                Err(reason) => Err(reason.clone()),
+                Ok(locations) => match locations.get(index) {
+                    Some(Some(location)) => path_of_location(location),
+                    _ => Err("no longer in the listing".to_owned()),
+                },
+            };
             Wanted {
                 key: item.key,
                 path,

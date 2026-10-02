@@ -55,6 +55,23 @@ impl Vfs {
 }
 
 impl Vfs {
+    /// The location of each of `ids` in `window`'s listing `handle`, in the order given, with `None`
+    /// for one the listing no longer holds. Each id is one lookup, so asking for the pictures of a
+    /// screen of a 100 000-entry folder costs the screen, not the folder (`resolve_selection` walks
+    /// the whole view to put what it finds in view order, which is not wanted here).
+    pub fn locate_entries(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        ids: &[waypoint_protocol::EntryId],
+    ) -> Result<Vec<Option<Location>>, VfsError> {
+        let listing = self.registry.get(window, handle)?;
+        Ok(ids
+            .iter()
+            .map(|id| listing.path_of(*id).ok().map(|path| path.to_location()))
+            .collect())
+    }
+
     /// Starts totalling the folder `window`'s listing `handle` holds as entry `id`, on a thread of
     /// its own at low priority, and returns the run's id at once. `sink` receives the events and
     /// returns `false` when nobody is listening any more (the page went away), which cancels the
