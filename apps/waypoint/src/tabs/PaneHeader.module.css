@@ -4,7 +4,8 @@
 	align-items: center;
 	gap: 6px;
 	height: 28px;
-	padding: 0 4px 0 8px;
+	padding-block: 0;
+	padding-inline: 8px 4px;
 	border-bottom: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-window);
 	color: var(--wp-text-secondary);
