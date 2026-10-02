@@ -54,6 +54,53 @@ A form English does not have (`few`, `many`) takes its note and its placeholders
 4. Run `bun run i18n:status`: it counts what is translated, missing, stale and extra.
 5. When it reaches 100% with nothing stale, take it out of `INCOMPLETE_LOCALES`. From then on a missing, stale or extra message fails `check:i18n`, so an English change cannot ship without the translation being revisited.
 
+## Canadian French (fr-CA) glossary
+
+`fr-CA` is complete and is written in Québec usage (Office québécois de la langue française terms), in the polite "vous" form. Keep these choices when you add or change a message.
+
+| English                    | fr-CA                             | Notes                                                               |
+| -------------------------- | --------------------------------- | ------------------------------------------------------------------- |
+| file, folder               | fichier, dossier                  |                                                                     |
+| Trash                      | Corbeille                         | Capitalised; "mettre à la Corbeille", "vider la Corbeille"          |
+| tab                        | onglet                            | Tab group: groupe d’onglets                                         |
+| panel (sidebar, Inspector) | volet                             | A pane of a split view is a "panneau"                               |
+| sidebar                    | barre latérale                    |                                                                     |
+| split view, pair           | vue divisée, division             | "Diviser" for the verb                                              |
+| window                     | fenêtre                           |                                                                     |
+| Home (the user's folder)   | dossier personnel                 | Never "Accueil"                                                     |
+| Overview                   | Vue d’ensemble                    |                                                                     |
+| Shelf                      | Étagère                           | A feature name; capitalised                                         |
+| Inspector                  | Inspecteur                        |                                                                     |
+| Quick Look, preview        | aperçu                            |                                                                     |
+| Properties                 | Propriétés                        |                                                                     |
+| Settings                   | Paramètres                        |                                                                     |
+| workspace                  | espace de travail                 |                                                                     |
+| favourite                  | favori                            |                                                                     |
+| drag and drop              | glisser-déposer                   | "Glisser" for drag, "déposer" for drop                              |
+| job, operation             | tâche, opération                  | A job is in the queue ("file d’attente")                            |
+| checksum                   | somme de contrôle                 |                                                                     |
+| thumbnail                  | miniature                         |                                                                     |
+| hidden (files)             | masqué                            |                                                                     |
+| link (a shortcut file)     | lien                              |                                                                     |
+| pin, unpin                 | épingler, désépingler             |                                                                     |
+| undo, redo                 | annuler, rétablir                 |                                                                     |
+| delete permanently         | supprimer définitivement          |                                                                     |
+| drive, volume, device      | lecteur, volume, appareil         | "Monter", "démonter", "éjecter"                                     |
+| email, download, upload    | courriel, télécharger, téléverser | None appear in the app yet                                          |
+| item                       | élément                           |                                                                     |
+| Kind (a column)            | Genre                             | Group by Kind: "Regrouper par genre"; Type is the extension: "Type" |
+
+Conventions:
+
+- Sentence case for menus, buttons and titles ("Déplacer vers une nouvelle fenêtre"), as French does, though English capitalises each word.
+- Real apostrophes (’) and guillemets with no-break spaces (« mot »), a no-break space before a colon and a percent sign ("Échec : …", "50 %"), none before ? and !.
+- A question in a dialog title ends with "?" and no space ("Vider la Corbeille?").
+- Sizes use the SI-French units: ko, Mo, Go, and "octets".
+- A message with a {count} that can reach a million needs the `many` form with "de" or "d’" ("1 000 000 d’onglets"); write `one` for 0 and 1.
+- A placeholder that holds a translated word (`{action}`, `{edge}`, `{layout}`) is worded so it fits after the sentence's verb without gender or elision: the device errors quote the verb ("l’action « éjecter »") and the edges are "à gauche", "en haut".
+- Where a sentence needs a past participle that agrees with an unknown noun, it is reworded ("Déplacé : {name} vers {window}"), or the noun is put first ("Onglet {title} épinglé").
+- Fit: French runs about 20% longer than English. Check a new message in the app with the `en-XA` pseudo-locale, and keep column headings, tab strip text and buttons short.
+
 ## Testing in the app
 
 Open Settings → Language & region and choose the language; every window changes at once. A message you have not translated appears in English. A developer build (`bun run tauri:dev`) also lists two pseudo-locales, for checking the layout: `en-XA` (English with accents and about a third more text, to find text that does not fit) and `ar-XB` (mirrored, right to left). They are generated from English, are never translated and are not in the release.
