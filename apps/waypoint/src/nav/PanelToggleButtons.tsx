@@ -12,7 +12,7 @@ import { MoreIcon } from '../icons/MenuIcons';
 import { NavButton } from './NavButton';
 import buttonStyles from './NavButton.module.css';
 import { panelToggles, shouldCollapse } from './panelToggles';
-import styles from './PanelToggles.module.css';
+import styles from './PanelToggleButtons.module.css';
 
 /**
  * Toggle buttons for the panels, each the registry command of the same name: pressed is the

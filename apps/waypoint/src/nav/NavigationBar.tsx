@@ -9,7 +9,7 @@ import { t } from '../i18n/messages';
 import { NavButton } from './NavButton';
 import styles from './NavigationBar.module.css';
 import { requestPaneFocus } from '../tabs/paneFocus';
-import { PanelToggles } from './PanelToggles';
+import { PanelToggles } from './PanelToggleButtons';
 import { PathBar } from './PathBar';
 import { useTabActions } from '../tabs/tabActions';
 import { useWindowActions } from '../tabs/windowActions';
