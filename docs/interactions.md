@@ -41,7 +41,7 @@
 | F5 / Shift+F5             | Copy / move to the other pane (Copy To… / Move To… when there is no pair or the other pane is read-only) |
 | F6                        | Switch the active pane                                                                                   |
 | F9                        | Sidebar · F11 inspector                                                                                  |
-| Space                     | Quick Look                                                                                               |
+| Space                     | Quick Look (Space or Esc closes; Left/Right, or Up/Down in the grid, step through the items)             |
 | Ctrl+C / Ctrl+X / Ctrl+V  | Copy / cut / paste files (the shared and system clipboard)                                               |
 | Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                                                                              |
 | Ctrl+H                    | Hidden files                                                                                             |
