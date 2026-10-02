@@ -76,6 +76,7 @@ The full index, with what each document covers and how the docs are kept current
 | [`docs/theming-and-platforms.md`](docs/theming-and-platforms.md) | Light and dark, OS theming, transparency, per-desktop frames               |
 | [`docs/os-integrations.md`](docs/os-integrations.md)             | Linux and Windows integrations and fallbacks                               |
 | [`docs/accessibility.md`](docs/accessibility.md)                 | Accessibility and focus review                                             |
+| [`docs/translating.md`](docs/translating.md)                     | Adding a language and translating Waypoint                                 |
 | [`docs/open-questions.md`](docs/open-questions.md)               | Unresolved items and assumptions                                           |
 
 ## Contributing
