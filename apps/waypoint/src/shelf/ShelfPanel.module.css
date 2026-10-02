@@ -231,6 +231,17 @@
 	color: var(--wp-text-secondary);
 }
 
+/* The icon, or the picture once it has loaded, in a square a little taller than the icon alone. */
+.tile {
+	width: 28px;
+	height: 28px;
+}
+
+.tile > .icon {
+	width: 16px;
+	height: 16px;
+}
+
 .text {
 	display: flex;
 	flex: 1;
