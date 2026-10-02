@@ -763,6 +763,29 @@ fn the_shelf_is_shared_by_every_window_and_a_full_one_is_a_typed_refusal() {
 }
 
 #[test]
+fn only_a_main_window_can_change_the_shelf() {
+    let t = setup(&["main-1", "settings"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    let refused = tauri::async_runtime::block_on(commands::add_to_shelf(
+        window(&t.app, "settings"),
+        sessions(&t.app),
+        vec![loc("x")],
+    ));
+    assert!(
+        refused.is_err(),
+        "a settings window has no session to change"
+    );
+    assert!(sessions(&t.app).with_store(|s| s.shelf().is_empty()));
+    tauri::async_runtime::block_on(commands::add_to_shelf(
+        window(&t.app, "main-1"),
+        sessions(&t.app),
+        vec![loc("x")],
+    ))
+    .unwrap();
+    assert_eq!(sessions(&t.app).with_store(|s| s.shelf().len()), 1);
+}
+
+#[test]
 fn closing_a_window_by_name_removes_its_session_and_unknown_windows_are_refused() {
     let t = setup(&["main-1", "main-2"]);
     open_tab(&t.app, "main-1", "a").unwrap();
