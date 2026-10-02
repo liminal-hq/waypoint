@@ -20,6 +20,7 @@ const COMMANDS: &[&str] = &[
     "undo",
     "redo",
     "journal_summaries",
+    "journal_entry_of",
     "subscribe_progress",
     "unsubscribe_progress",
     "set_clipboard",

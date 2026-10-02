@@ -11,6 +11,8 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     const OPS_EVENT = 'waypoint-ops://event';
     /** The shared clipboard changed, broadcast to every window. */
     const CLIPBOARD_EVENT = 'waypoint-ops://clipboard';
+    /** A job recorded its journal entry (a `JobJournal`), broadcast to every window. */
+    const JOB_JOURNAL_EVENT = 'waypoint-ops://job-journal';
     /** What the last run left interrupted, sent once at start-up. */
     const RECOVERED_EVENT = 'waypoint-ops://recovered';
     function cmd(name, args) {
@@ -82,16 +84,21 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function journalSummaries() {
         return cmd('journal_summaries');
     }
+    /** The journal entry the job made, or `null` while it has none (unfinished, or it changed nothing). */
+    function journalEntryOf(job) {
+        return cmd('journal_entry_of', { job });
+    }
     /**
      * Hears the progress of the running jobs on this window, at the rate the queue's gate allows
      * (every 100 ms and 1 %). Progress is not an event: only a window that subscribes receives it.
-     * Returns the function that stops listening.
+     * Returns the function that stops listening: it stops this subscription only, so a stop that runs
+     * after the window has subscribed again (a page that mounted twice) leaves the newer one alone.
      */
     async function subscribeProgress(onProgress) {
         const channel = new core.Channel();
         channel.onmessage = onProgress;
-        await cmd('subscribe_progress', { onProgress: channel });
-        return () => cmd('unsubscribe_progress');
+        const token = await cmd('subscribe_progress', { onProgress: channel });
+        return () => cmd('unsubscribe_progress', { token });
     }
     /** Replaces the shared clipboard; an empty list clears it. Every window is told. */
     function setClipboard(mode, items) {
@@ -136,6 +143,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     }
 
     exports.CLIPBOARD_EVENT = CLIPBOARD_EVENT;
+    exports.JOB_JOURNAL_EVENT = JOB_JOURNAL_EVENT;
     exports.OPS_EVENT = OPS_EVENT;
     exports.RECOVERED_EVENT = RECOVERED_EVENT;
     exports.cancel = cancel;
@@ -146,6 +154,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.getSnapshot = getSnapshot;
     exports.getStatus = getStatus;
     exports.jobsTargeting = jobsTargeting;
+    exports.journalEntryOf = journalEntryOf;
     exports.journalSummaries = journalSummaries;
     exports.onClipboardChanged = onClipboardChanged;
     exports.onOpsEvent = onOpsEvent;

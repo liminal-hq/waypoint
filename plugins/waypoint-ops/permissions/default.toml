@@ -17,6 +17,7 @@ permissions = [
   "allow-undo",
   "allow-redo",
   "allow-journal-summaries",
+  "allow-journal-entry-of",
   "allow-subscribe-progress",
   "allow-unsubscribe-progress",
   "allow-set-clipboard",

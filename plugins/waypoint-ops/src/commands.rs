@@ -67,7 +67,12 @@ pub async fn submit<R: Runtime>(
     ops: State<'_, Ops<R>>,
     request: JobRequest,
 ) -> Result<JobId, Error> {
-    ops.submit(window.label(), request)
+    // A selection is resolved as the job is accepted, which reads the listing: not on the runtime.
+    let ops = ops.inner().clone();
+    let label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || ops.submit(&label, request))
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?
 }
 
 #[tauri::command]
@@ -191,24 +196,39 @@ pub async fn journal_summaries<R: Runtime>(
     Ok(ops.journal_summaries())
 }
 
+/// The journal entry the job made, or `None` while it has none (it has not finished, it changed
+/// nothing, or it is not in the queue any more).
+#[tauri::command]
+pub async fn journal_entry_of<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+) -> Result<Option<JournalId>, Error> {
+    Ok(ops.journal_entry_of(job))
+}
+
 /// Sends the calling window the progress of the running jobs on `on_progress`, at the rate the
-/// queue's gate allows. A second call from the same window replaces the first.
+/// queue's gate allows. A second call from the same window replaces the first. Returns the token of
+/// the subscription, which `unsubscribe_progress` takes so that a stop that arrives late cannot end
+/// a newer subscription.
 #[tauri::command]
 pub async fn subscribe_progress<R: Runtime>(
     window: WebviewWindow<R>,
     ops: State<'_, Ops<R>>,
     on_progress: Channel<JobProgress>,
-) -> Result<(), Error> {
-    ops.subscribe_progress(window.label(), on_progress);
-    Ok(())
+) -> Result<u64, Error> {
+    Ok(ops.subscribe_progress(window.label(), on_progress))
 }
 
+/// Stops the window's progress. With the `token` a subscribe returned, only that subscription is
+/// stopped: one that has been replaced since is left alone. Without it, whatever the window has.
 #[tauri::command]
 pub async fn unsubscribe_progress<R: Runtime>(
     window: WebviewWindow<R>,
     ops: State<'_, Ops<R>>,
+    token: Option<u64>,
 ) -> Result<(), Error> {
-    ops.unsubscribe_progress(window.label());
+    ops.unsubscribe_progress(window.label(), token);
     Ok(())
 }
 

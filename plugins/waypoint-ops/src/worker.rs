@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use tauri::Runtime;
+use tauri::{Emitter, Runtime};
 use waypoint_ops::{
     fingerprint_steps, plan_with_progress, prepare_redo, prepare_undo, Conflict, Counts, Decision,
     ExecFailure, ExecReport, ExecSink, Executor, JobId, JobKind, JobState, OpsError, PendingRecord,
@@ -25,6 +25,7 @@ use waypoint_ops::{
 };
 use waypoint_protocol::Location;
 
+use crate::models::JobJournal;
 use crate::ops::{Core, Shared, Stage, Task};
 
 /// What a planning worker takes from the journal before it unlocks.
@@ -434,6 +435,7 @@ fn finish<R: Runtime>(
     let mut store_events = Vec::new();
     let mut journal_events = Vec::new();
     let mut undoable = false;
+    let mut made: Option<waypoint_ops::JournalId> = None;
     match (&prepared, outcome) {
         (Prepared::Undo(undo), Outcome::Undo(result)) => {
             let applied = match &result {
@@ -471,12 +473,14 @@ fn finish<R: Runtime>(
                         report.inverse.clone(),
                     ));
                     // The entry is the one the redo made applied again; no new entry.
+                    made = Some(redo.entry);
                 }
                 Prepared::Redo(redo) => {
                     match Recorded::from_run(&redo.forward, Some(plan), &report) {
                         Some(recorded) => {
                             let (entry, events) = core.journal.finish_redo_partly(id, recorded);
                             undoable = entry.is_some();
+                            made = entry;
                             journal_events.extend(events);
                         }
                         None => core.journal.abort(id),
@@ -486,6 +490,7 @@ fn finish<R: Runtime>(
                     Some(recorded) => {
                         let (entry, events) = core.journal.commit(id, recorded);
                         undoable = entry.is_some();
+                        made = entry;
                         journal_events.extend(events);
                     }
                     None => core.journal.abort(id),
@@ -517,6 +522,13 @@ fn finish<R: Runtime>(
     }
     shared.publish(store_events);
     shared.publish(journal_events);
+    if let Some(entry) = made {
+        core.entries.insert(id, entry);
+        let told = JobJournal { job: id, entry };
+        if let Err(e) = shared.app.emit(crate::JOB_JOURNAL_EVENT, told) {
+            log::warn!("could not announce the entry of job {}: {e}", id.0);
+        }
+    }
     core.ctl.remove(&id);
 }
 

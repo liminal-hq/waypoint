@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_ops::{
-    Conflict, Counts, JobId, JobKind, OpsError, Progress, QueueError, SourcesSummary,
+    Conflict, Counts, JobId, JobKind, JournalId, OpsError, Progress, QueueError, SourcesSummary,
 };
 use waypoint_protocol::Location;
 
@@ -25,6 +25,16 @@ pub struct JobProgress {
     pub revision: u64,
     pub progress: Progress,
     pub counts: Counts,
+}
+
+/// The journal entry a job made, sent once on `waypoint-ops://job-journal` when the entry is
+/// recorded (a notice's Undo names the entry, so it undoes this job's work and nothing newer).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct JobJournal {
+    pub job: JobId,
+    pub entry: JournalId,
 }
 
 /// What a paste does with the entries.

@@ -24,7 +24,8 @@ use waypoint_ops::testing::sandbox::SandboxProvider;
 use waypoint_ops::testing::trash::FakeTrash;
 use waypoint_ops::{
     Clock, ConflictPolicy, CounterIds, JobId, JobKind, JobOptions, JobRequest, JobSnapshot,
-    JobState, OpsEvent, OpsSnapshot, Protected, Providers, RecoveryReport, Sources, SystemClock,
+    JobState, JournalStorage, OpsEvent, OpsSnapshot, Protected, Providers, RecoveryReport, Sources,
+    SystemClock,
 };
 use waypoint_path::{FilePath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
@@ -257,6 +258,9 @@ pub struct Setup {
     pub journal: Arc<MemoryJournalStorage>,
     pub settings: Arc<MemorySettings>,
     pub save_delay: Duration,
+    /// Stands in for `journal` as what the plugin writes to (a slow disk, say); `journal` still
+    /// reads back what reached it.
+    pub storage: Option<Arc<dyn JournalStorage>>,
     /// Runs on the work folder before the plugin starts (a stale partial file, say).
     pub prepare: Prepare,
 }
@@ -267,6 +271,7 @@ impl Default for Setup {
             journal: Arc::new(MemoryJournalStorage::new()),
             settings: Arc::new(MemorySettings::default()),
             save_delay: Duration::from_millis(30),
+            storage: None,
             prepare: Box::new(|_, _| {}),
         }
     }
@@ -300,7 +305,10 @@ pub fn env_with(setup: Setup) -> Env {
         Providers::single(fs.clone()),
         trash.clone(),
         resolver.clone(),
-        setup.journal.clone(),
+        setup
+            .storage
+            .clone()
+            .unwrap_or_else(|| setup.journal.clone()),
         setup.settings.clone(),
         Arc::new(SystemClock),
         Protected::new(vec![base.clone()]),

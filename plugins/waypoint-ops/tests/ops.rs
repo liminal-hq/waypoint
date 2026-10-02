@@ -482,6 +482,7 @@ fn progress_goes_only_to_the_window_that_subscribed() {
     tauri::async_runtime::block_on(commands::unsubscribe_progress(
         env.window("main-2"),
         env.app.state::<Ops<MockRuntime>>(),
+        None,
     ))
     .unwrap();
 
@@ -999,4 +1000,218 @@ fn submitting_an_undo_directly_is_refused() {
             OpsError::Unsupported { .. }
         ))
     ));
+}
+
+/// A journal storage whose writes take as long as the test says, over the in-memory one.
+struct SlowStorage {
+    inner: Arc<waypoint_ops::testing::journal_storage::MemoryJournalStorage>,
+    /// How long the next saves take.
+    delay: Mutex<Duration>,
+}
+
+impl SlowStorage {
+    fn set_delay(&self, delay: Duration) {
+        *self.delay.lock().unwrap() = delay;
+    }
+}
+
+impl JournalStorage for SlowStorage {
+    fn load(&self) -> Result<waypoint_ops::Loaded, waypoint_ops::StorageError> {
+        self.inner.load()
+    }
+
+    fn save(
+        &self,
+        document: &waypoint_ops::JournalDocument,
+    ) -> Result<(), waypoint_ops::StorageError> {
+        let delay = *self.delay.lock().unwrap();
+        std::thread::sleep(delay);
+        self.inner.save(document)
+    }
+}
+
+fn slow_env() -> (Env, Arc<SlowStorage>) {
+    let journal = Arc::new(waypoint_ops::testing::journal_storage::MemoryJournalStorage::new());
+    let slow = Arc::new(SlowStorage {
+        inner: journal.clone(),
+        delay: Mutex::new(Duration::ZERO),
+    });
+    let env = env_with(Setup {
+        journal,
+        storage: Some(slow.clone()),
+        // Only the explicit flushes write.
+        save_delay: Duration::from_secs(600),
+        ..Setup::default()
+    });
+    (env, slow)
+}
+
+fn stored_entries(env: &Env) -> usize {
+    env.journal
+        .current_document()
+        .map_or(0, |d| d.body.entries.len())
+}
+
+#[test]
+fn a_slow_journal_write_on_window_close_does_not_block_commands_or_workers() {
+    let (env, slow) = slow_env();
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("one")),
+    );
+    env.wait_done(id);
+    slow.set_delay(Duration::from_millis(1500));
+    let ops = env.ops();
+    let closing = std::thread::spawn(move || ops.window_closed("main-1"));
+    std::thread::sleep(Duration::from_millis(200));
+
+    // The write is under way. Commands answer at once, and so does a job's whole life.
+    let started = std::time::Instant::now();
+    let _ = env.ops().snapshot();
+    let _ = env.ops().clipboard();
+    let _ = env.ops().set_clipboard(ClipboardMode::Copy, vec![]);
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "commands waited for the disk: {:?}",
+        started.elapsed()
+    );
+    closing.join().unwrap();
+    assert_eq!(stored_entries(&env), 1);
+}
+
+#[test]
+fn a_journal_write_that_started_earlier_never_replaces_a_newer_one() {
+    let (env, slow) = slow_env();
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("one")),
+    );
+    env.wait_done(id);
+    // The first write holds a snapshot of one entry, and is slow.
+    slow.set_delay(Duration::from_millis(800));
+    let ops = env.ops();
+    let first = std::thread::spawn(move || ops.flush_journal());
+    std::thread::sleep(Duration::from_millis(200));
+    // A second entry is made while it is under way, and its own flush is quick.
+    slow.set_delay(Duration::ZERO);
+    let id = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("two")),
+    );
+    env.wait_done(id);
+    env.ops().flush_journal();
+    first.join().unwrap();
+    assert_eq!(
+        stored_entries(&env),
+        2,
+        "the last state is what the file holds"
+    );
+}
+
+#[test]
+fn a_retry_runs_the_sources_the_job_was_accepted_with_not_the_listing_as_it_is_now() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    env.dir("dst");
+    *env.resolver.0.lock().unwrap() = vec![env.loc("a.txt")];
+    let mut request = env.copy(&[], "dst");
+    request.sources = waypoint_ops::Sources::Selection {
+        handle: waypoint_vfs::ListingHandle(1),
+        spec: waypoint_vfs::SelectionSpec::AllExcept { ids: vec![] },
+    };
+    env.gate.block_at(1);
+    let id = env.submit("main-1", request);
+    env.gate.wait_held(1);
+    env.ops().cancel(id).unwrap();
+    env.gate.open();
+    env.wait_state(id, "cancelled", |s| *s == JobState::Cancelled);
+
+    // The listing gains an entry before the retry.
+    *env.resolver.0.lock().unwrap() = vec![env.loc("a.txt"), env.loc("b.txt")];
+    let again = env.ops().retry(id).unwrap();
+    env.wait_done(again);
+    assert_eq!(
+        env.names("dst"),
+        ["a.txt"],
+        "b.txt was never part of the job"
+    );
+}
+
+#[test]
+fn a_late_stop_from_a_replaced_subscription_leaves_the_newer_one_listening() {
+    // A page that mounts twice subscribes, subscribes again, and only then hears the first stop.
+    let env = env();
+    env.write("big.bin", &big(20));
+    env.dir("dst");
+    let channel_into = |sink: Arc<Mutex<Vec<JobProgress>>>| {
+        Channel::<JobProgress>::new(move |body| {
+            if let InvokeResponseBody::Json(text) = body {
+                sink.lock()
+                    .unwrap()
+                    .push(serde_json::from_str(&text).unwrap());
+            }
+            Ok(())
+        })
+    };
+    let (first, second): (Arc<Mutex<Vec<_>>>, Arc<Mutex<Vec<_>>>) = Default::default();
+    let ops = env.ops();
+    let old = ops.subscribe_progress("main-1", channel_into(first.clone()));
+    let new = ops.subscribe_progress("main-1", channel_into(second.clone()));
+    assert_ne!(old, new);
+    ops.unsubscribe_progress("main-1", Some(old));
+
+    let id = env.submit("main-1", env.copy(&["big.bin"], "dst"));
+    env.wait_done(id);
+    assert!(
+        !second.lock().unwrap().is_empty(),
+        "the newer one still hears"
+    );
+    assert!(first.lock().unwrap().is_empty());
+
+    // Its own stop ends it.
+    ops.unsubscribe_progress("main-1", Some(new));
+    let before = second.lock().unwrap().len();
+    env.write("big2.bin", &big(20));
+    let id = env.submit("main-1", env.copy(&["big2.bin"], "dst"));
+    env.wait_done(id);
+    assert_eq!(second.lock().unwrap().len(), before);
+}
+
+#[test]
+fn a_job_says_which_journal_entry_it_made() {
+    use tauri::Listener;
+    let env = env();
+    let heard: Arc<Mutex<Vec<tauri_plugin_waypoint_ops::JobJournal>>> = Arc::default();
+    let sink = heard.clone();
+    env.app
+        .listen(tauri_plugin_waypoint_ops::JOB_JOURNAL_EVENT, move |event| {
+            sink.lock()
+                .unwrap()
+                .push(serde_json::from_str(event.payload()).expect("a job journal"));
+        });
+    let first = env.submit(
+        "main-1",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("one")),
+    );
+    env.wait_done(first);
+    let second = env.submit(
+        "main-2",
+        env.request(JobKind::CreateFolder, &[], Some(""), Some("two")),
+    );
+    env.wait_done(second);
+
+    let a = env.ops().journal_entry_of(first).expect("an entry");
+    let b = env.ops().journal_entry_of(second).expect("an entry");
+    assert_ne!(a, b);
+    // The newest applied entry is the second job's; the first job's is named, not the newest.
+    let summaries = env.ops().journal_summaries();
+    assert_eq!(summaries[0].id, b);
+    assert!(summaries.iter().any(|s| s.id == a));
+    env.wait_for("the events", |_| heard.lock().unwrap().len() == 2);
+    let heard = heard.lock().unwrap().clone();
+    assert_eq!((heard[0].job, heard[0].entry), (first, a));
+    assert_eq!((heard[1].job, heard[1].entry), (second, b));
+    // A job that is not in the queue has none.
+    assert_eq!(env.ops().journal_entry_of(waypoint_ops::JobId(9999)), None);
 }

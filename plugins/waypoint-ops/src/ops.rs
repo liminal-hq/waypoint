@@ -20,9 +20,10 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Runtime};
 use waypoint_ops::{
     plan, Clock, Decision, ExecEnv, IdSource, JobId, JobKind, JobRequest, JobSnapshot, JobState,
-    Journal, JournalDeps, JournalEntrySummary, JournalId, OpsError, OpsEvent, OpsSettings,
-    OpsSnapshot, OpsStore, PlanCtx, PlanWarning, Prepared, QueueError, RecoveryReport, Resolution,
-    SaveRequest, SelectionResolver, SettingsReader, SimpleCopy, Sources,
+    Journal, JournalDeps, JournalDocument, JournalEntrySummary, JournalId, JournalStorage, Loaded,
+    OpsError, OpsEvent, OpsSettings, OpsSnapshot, OpsStore, PlanCtx, PlanWarning, Prepared,
+    QueueError, RecoveryReport, Resolution, SaveRequest, SelectionResolver, SettingsReader,
+    SimpleCopy, Sources, StorageError,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::CancelToken;
@@ -69,6 +70,60 @@ impl SettingsCell {
 impl SettingsReader for SettingsCell {
     fn ops_settings(&self) -> OpsSettings {
         self.get()
+    }
+}
+
+/// The journal's storage with the writes put in order. The journal saves while the core lock is
+/// held, which is right for the write-ahead record (it must be on disk before the job's first
+/// write) but not for a flush on a window closing, which can wait on a slow disk. A flush takes a
+/// copy of the document and a ticket under the lock, and writes with the lock released; every write
+/// goes through here, which keeps them one at a time, drops one whose ticket is older than what was
+/// written (so the last state wins), and skips a document that is already what the file holds.
+struct OrderedStorage {
+    inner: Arc<dyn JournalStorage>,
+    /// Counts tickets; a ticket is taken under the core lock, so a larger one is a later state.
+    tickets: AtomicU64,
+    /// The newest ticket written, and the document it wrote.
+    written: Mutex<(u64, Option<JournalDocument>)>,
+}
+
+impl OrderedStorage {
+    fn new(inner: Arc<dyn JournalStorage>) -> Self {
+        Self {
+            inner,
+            tickets: AtomicU64::new(0),
+            written: Mutex::new((0, None)),
+        }
+    }
+
+    /// The ticket for a document copied just now, with the core lock held.
+    fn ticket(&self) -> u64 {
+        self.tickets.fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    fn write(&self, ticket: u64, document: &JournalDocument) -> Result<(), StorageError> {
+        let mut written = locked(&self.written);
+        if ticket < written.0 || written.1.as_ref() == Some(document) {
+            return Ok(());
+        }
+        self.inner.save(document)?;
+        *written = (ticket, Some(document.clone()));
+        Ok(())
+    }
+}
+
+impl JournalStorage for OrderedStorage {
+    fn load(&self) -> Result<Loaded, StorageError> {
+        self.inner.load()
+    }
+
+    /// The journal's own saves, made under the core lock: the newest state there is.
+    fn save(&self, document: &JournalDocument) -> Result<(), StorageError> {
+        self.write(self.ticket(), document)
+    }
+
+    fn set_aside(&self) -> Option<String> {
+        self.inner.set_aside()
     }
 }
 
@@ -141,6 +196,8 @@ impl Ctl {
 
 struct Subscriber {
     window: String,
+    /// What `subscribe_progress` returned, so a stop that arrives late can tell it is out of date.
+    token: u64,
     channel: Channel<JobProgress>,
 }
 
@@ -156,6 +213,9 @@ pub(crate) struct Core {
     pub clipboard: Clipboard,
     pub ctl: HashMap<JobId, Ctl>,
     subscribers: Vec<Subscriber>,
+    next_token: u64,
+    /// The journal entry each job made, for the jobs the queue still lists.
+    pub entries: HashMap<JobId, JournalId>,
     pub recovery: Option<RecoveryReport>,
     /// Worker threads started, and how many are doing a task.
     pub workers: usize,
@@ -171,6 +231,7 @@ impl Core {
             matches!(ctl.stage, Stage::Planning | Stage::Running)
                 || store.job(*id).is_some_and(|j| !j.state.is_finished())
         });
+        self.entries.retain(|id, _| store.job(*id).is_some());
     }
 }
 
@@ -182,6 +243,7 @@ pub(crate) struct Shared<R: Runtime> {
     pub clock: Arc<dyn Clock>,
     pub settings: Arc<SettingsCell>,
     settings_store: Arc<dyn SettingsStorage>,
+    storage: Arc<OrderedStorage>,
     on_change: Option<ChangeHook>,
     exit_wait: Duration,
     pub core: Mutex<Core>,
@@ -220,11 +282,12 @@ impl<R: Runtime> Ops<R> {
             delay: deps.save_delay,
             flush: flush_hook.clone(),
         });
+        let storage = Arc::new(OrderedStorage::new(deps.journal_storage.clone()));
         let (journal, report) = Journal::open(
             JournalDeps {
                 settings: settings.clone(),
                 clock: deps.clock.clone(),
-                storage: deps.journal_storage.clone(),
+                storage: storage.clone(),
                 saver: debouncer.clone(),
             },
             &deps.providers,
@@ -248,6 +311,7 @@ impl<R: Runtime> Ops<R> {
             clock: deps.clock,
             settings,
             settings_store: deps.settings,
+            storage,
             on_change: deps.on_change,
             exit_wait: deps.exit_wait,
             core: Mutex::new(Core {
@@ -256,6 +320,8 @@ impl<R: Runtime> Ops<R> {
                 clipboard: Clipboard::default(),
                 ctl: HashMap::new(),
                 subscribers: Vec::new(),
+                next_token: 0,
+                entries: HashMap::new(),
                 recovery: recovery.clone(),
                 workers: 0,
                 busy: 0,
@@ -309,11 +375,12 @@ impl<R: Runtime> Ops<R> {
         self.shared.settings.get()
     }
 
-    /// A window closed: it hears no more progress. Jobs are not touched, and the journal is written.
+    /// A window closed: it hears no more progress. Jobs are not touched, and the journal is written
+    /// (with the lock released, so a slow disk holds up nothing else).
     pub fn window_closed(&self, label: &str) {
-        let mut core = locked(&self.shared.core);
-        core.subscribers.retain(|s| s.window != label);
-        drop(core);
+        locked(&self.shared.core)
+            .subscribers
+            .retain(|s| s.window != label);
         self.shared.flush_journal();
     }
 }
@@ -373,10 +440,23 @@ impl<R: Runtime> Shared<R> {
         }
     }
 
+    /// Writes the journal if it has unsaved changes. The copy is taken under the lock and written
+    /// after it is released.
     pub(crate) fn flush_journal(&self) {
-        let mut core = self.lock();
-        if let Err(e) = core.journal.flush() {
-            log::warn!("could not save the undo journal: {e}");
+        let copy = {
+            let core = self.lock();
+            core.journal
+                .is_dirty()
+                .then(|| (self.storage.ticket(), core.journal.document()))
+        };
+        self.write_journal(copy);
+    }
+
+    fn write_journal(&self, copy: Option<(u64, JournalDocument)>) {
+        if let Some((ticket, document)) = copy {
+            if let Err(e) = self.storage.write(ticket, &document) {
+                log::warn!("could not save the undo journal: {e}");
+            }
         }
     }
 
@@ -412,9 +492,12 @@ impl<R: Runtime> Shared<R> {
                 core.busy
             );
         }
-        if let Err(e) = core.journal.flush() {
-            log::warn!("could not save the undo journal: {e}");
-        }
+        let copy = core
+            .journal
+            .is_dirty()
+            .then(|| (self.storage.ticket(), core.journal.document()));
+        drop(core);
+        self.write_journal(copy);
     }
 
     /// Starts a worker when every one is busy and the pool is under its bound: one more than the
@@ -563,6 +646,13 @@ impl<R: Runtime> Ops<R> {
             }));
         }
         request.origin_window = window.to_owned();
+        // A selection is resolved once, here, and the job keeps the locations: a retry, a redo and
+        // the journal then work on the list the user confirmed, not on a listing that has changed
+        // since (an `AllExcept` would pick up new files, and a permanent delete would remove them).
+        if let Sources::Selection { handle, spec } = &request.sources {
+            let locations = self.shared.resolver.resolve(*handle, spec, window)?;
+            request.sources = Sources::Locations { locations };
+        }
         let mut core = self.shared.lock();
         Ok(self.shared.enqueue(&mut core, request))
     }
@@ -727,21 +817,32 @@ impl<R: Runtime> Ops<R> {
     }
 
     /// Subscribes the window to progress ticks on `channel`, replacing an earlier subscription of
-    /// the same window.
-    pub fn subscribe_progress(&self, window: &str, channel: Channel<JobProgress>) {
+    /// the same window. Returns the subscription's token.
+    pub fn subscribe_progress(&self, window: &str, channel: Channel<JobProgress>) -> u64 {
         let mut core = self.shared.lock();
         core.subscribers.retain(|s| s.window != window);
+        core.next_token += 1;
+        let token = core.next_token;
         core.subscribers.push(Subscriber {
             window: window.to_owned(),
+            token,
             channel,
         });
+        token
     }
 
-    pub fn unsubscribe_progress(&self, window: &str) {
+    /// Stops the window's progress. With a `token`, only that subscription: a stop from one that
+    /// was replaced since (a page that mounted twice) leaves the newer one alone.
+    pub fn unsubscribe_progress(&self, window: &str, token: Option<u64>) {
         self.shared
             .lock()
             .subscribers
-            .retain(|s| s.window != window);
+            .retain(|s| s.window != window || token.is_some_and(|t| t != s.token));
+    }
+
+    /// The journal entry the job made, once it has recorded one.
+    pub fn journal_entry_of(&self, job: JobId) -> Option<JournalId> {
+        self.shared.lock().entries.get(&job).copied()
     }
 
     /// Replaces the shared clipboard and tells every window. An empty list clears it.

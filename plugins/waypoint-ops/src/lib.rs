@@ -15,7 +15,7 @@ use tauri::{
 };
 
 pub use deps::{ChangeHook, MemorySettings, OpsDeps, SettingsStorage, EXIT_WAIT, SAVE_DELAY};
-pub use models::{Clipboard, ClipboardMode, Error, JobProgress, PlanNote, PlanPreview};
+pub use models::{Clipboard, ClipboardMode, Error, JobJournal, JobProgress, PlanNote, PlanPreview};
 pub use ops::{Ops, MAX_CONCURRENCY, MAX_UNDO_DEPTH};
 
 /// The event every change to the queue or the journal is broadcast on, to every window; the
@@ -25,6 +25,11 @@ pub const EVENT: &str = "waypoint-ops://event";
 
 /// Sent to every window when the shared clipboard changes, with the `Clipboard`.
 pub const CLIPBOARD_EVENT: &str = "waypoint-ops://clipboard";
+
+/// Sent to every window when a job records its journal entry, with a `JobJournal`. The job's
+/// `JobChanged` events carry `undoable`; this names the entry, and `journal_entry_of` answers the
+/// same for a window that missed the event.
+pub const JOB_JOURNAL_EVENT: &str = "waypoint-ops://job-journal";
 
 /// Sent once at start-up, with a `RecoveryReport`, when the last run left something interrupted or
 /// the journal could not be read. A window that opens later reads it with `take_recovery_report`.
@@ -61,6 +66,7 @@ pub fn init_with<R: Runtime>(
             commands::undo,
             commands::redo,
             commands::journal_summaries,
+            commands::journal_entry_of,
             commands::subscribe_progress,
             commands::unsubscribe_progress,
             commands::set_clipboard,

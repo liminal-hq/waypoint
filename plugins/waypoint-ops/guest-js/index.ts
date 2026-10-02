@@ -10,6 +10,7 @@ import type { ClipboardMode } from '@liminal-hq/waypoint-protocol/generated/Clip
 import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
+import type { JobJournal } from '@liminal-hq/waypoint-protocol/generated/JobJournal';
 import type { JobProgress } from '@liminal-hq/waypoint-protocol/generated/JobProgress';
 import type { JobRequest } from '@liminal-hq/waypoint-protocol/generated/JobRequest';
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
@@ -31,6 +32,7 @@ export type {
 	ConflictPolicy,
 	Decision,
 	JobId,
+	JobJournal,
 	JobProgress,
 	JobRequest,
 	JournalEntrySummary,
@@ -53,6 +55,8 @@ const PREFIX = 'plugin:waypoint-ops|';
 export const OPS_EVENT = 'waypoint-ops://event';
 /** The shared clipboard changed, broadcast to every window. */
 export const CLIPBOARD_EVENT = 'waypoint-ops://clipboard';
+/** A job recorded its journal entry (a `JobJournal`), broadcast to every window. */
+export const JOB_JOURNAL_EVENT = 'waypoint-ops://job-journal';
 /** What the last run left interrupted, sent once at start-up. */
 export const RECOVERED_EVENT = 'waypoint-ops://recovered';
 
@@ -157,18 +161,24 @@ export function journalSummaries(): Promise<JournalEntrySummary[]> {
 	return cmd<JournalEntrySummary[]>('journal_summaries');
 }
 
+/** The journal entry the job made, or `null` while it has none (unfinished, or it changed nothing). */
+export function journalEntryOf(job: JobId): Promise<JournalId | null> {
+	return cmd<JournalId | null>('journal_entry_of', { job });
+}
+
 /**
  * Hears the progress of the running jobs on this window, at the rate the queue's gate allows
  * (every 100 ms and 1 %). Progress is not an event: only a window that subscribes receives it.
- * Returns the function that stops listening.
+ * Returns the function that stops listening: it stops this subscription only, so a stop that runs
+ * after the window has subscribed again (a page that mounted twice) leaves the newer one alone.
  */
 export async function subscribeProgress(
 	onProgress: (progress: JobProgress) => void,
 ): Promise<() => Promise<void>> {
 	const channel = new Channel<JobProgress>();
 	channel.onmessage = onProgress;
-	await cmd<void>('subscribe_progress', { onProgress: channel });
-	return () => cmd<void>('unsubscribe_progress');
+	const token = await cmd<number>('subscribe_progress', { onProgress: channel });
+	return () => cmd<void>('unsubscribe_progress', { token });
 }
 
 /** Replaces the shared clipboard; an empty list clears it. Every window is told. */
