@@ -5,9 +5,32 @@
  */
 :root {
 	color-scheme: light dark;
-	--wp-bg-window: #f4f1ee;
-	--wp-bg-sidebar: #ebe7e3;
-	--wp-bg-content: #fbf9f7;
+	--wp-solid-window: #f4f1ee;
+	--wp-solid-sidebar: #ebe7e3;
+	--wp-solid-content: #fbf9f7;
+	/* What the regions draw. Solid unless `data-transparency='on'` mixes them with the alphas ThemeRoot sets (below). */
+	--wp-bg-window: var(--wp-solid-window);
+	--wp-bg-sidebar: var(--wp-solid-sidebar);
+	--wp-bg-content: var(--wp-solid-content);
+	/* What a window's root draws under its regions: the window colour, and nothing once the regions are translucent, so a region's alpha is not added to the root's. */
+	--wp-bg-screen: var(--wp-solid-window);
+	--wp-bg-body: var(--wp-solid-content);
+
+	/* The Transparency page's sample wallpaper: light, dark and colour bands, so how much shows through is easy to judge. */
+	--wp-preview-wallpaper: linear-gradient(
+		180deg,
+		#ffe14d 0%,
+		#ffe14d 18%,
+		#2a6fdb 18%,
+		#2a6fdb 40%,
+		#ffffff 40%,
+		#ffffff 58%,
+		#101010 58%,
+		#101010 78%,
+		#ff3b6b 78%,
+		#ff3b6b 100%
+	);
+	--wp-preview-window-shadow: 0 6px 18px rgb(0 0 0 / 35%);
 	--wp-bg-raised: #ffffff;
 	--wp-bg-hover: #e3ded9;
 	--wp-bg-selected: #f6d9c8;
@@ -112,9 +135,9 @@
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']) {
 		color-scheme: dark;
-		--wp-bg-window: #1c1917;
-		--wp-bg-sidebar: #211e1b;
-		--wp-bg-content: #171412;
+		--wp-solid-window: #1c1917;
+		--wp-solid-sidebar: #211e1b;
+		--wp-solid-content: #171412;
 		--wp-bg-raised: #292524;
 		--wp-bg-hover: #332e2b;
 		--wp-bg-selected: #4a2a1a;
@@ -153,9 +176,9 @@
 
 :root[data-theme='dark'] {
 	color-scheme: dark;
-	--wp-bg-window: #1c1917;
-	--wp-bg-sidebar: #211e1b;
-	--wp-bg-content: #171412;
+	--wp-solid-window: #1c1917;
+	--wp-solid-sidebar: #211e1b;
+	--wp-solid-content: #171412;
 	--wp-bg-raised: #292524;
 	--wp-bg-hover: #332e2b;
 	--wp-bg-selected: #4a2a1a;
@@ -206,6 +229,55 @@
 
 :root[data-platform='windows'][data-windows11='true'] {
 	--wp-window-radius: 0px;
+}
+
+/*
+ * Transparency (SPEC 9, D117). ThemeRoot sets `data-transparency='on'` only while the window is
+ * meant to be see-through: switched on, no high contrast or reduced transparency, the platform
+ * able to do it, and in front when "Solid when unfocused" is on. It sets the alphas below (never
+ * below the floor that keeps the text at 4.5:1) as custom properties on the root. Off, none of this
+ * applies and every region is the solid colour above.
+ */
+:root[data-transparency='on'] {
+	--wp-bg-window: color-mix(
+		in srgb,
+		var(--wp-solid-window) calc(var(--wp-alpha-rows) * 100%),
+		transparent
+	);
+	--wp-bg-sidebar: color-mix(
+		in srgb,
+		var(--wp-solid-sidebar) calc(var(--wp-alpha-sidebar) * 100%),
+		transparent
+	);
+	--wp-bg-content: color-mix(
+		in srgb,
+		var(--wp-solid-content) calc(var(--wp-alpha-content) * 100%),
+		transparent
+	);
+	--wp-bg-screen: transparent;
+	--wp-bg-body: transparent;
+	--wp-title-bar-opacity: var(--wp-alpha-title-bar);
+	--wp-bg-settings-nav: color-mix(
+		in srgb,
+		var(--wp-bg-chrome) calc(var(--wp-alpha-sidebar) * 100%),
+		transparent
+	);
+	--wp-bg-shell: transparent;
+	--wp-bg-settings-pane: color-mix(
+		in srgb,
+		var(--wp-bg-raised) calc(var(--wp-alpha-content) * 100%),
+		transparent
+	);
+	--wp-bg-menu: color-mix(
+		in srgb,
+		var(--wp-bg-raised) calc(var(--wp-alpha-menu) * 100%),
+		transparent
+	);
+}
+
+/* A translucent menu blurs what is behind it, so its text sits on a smooth backdrop; an opaque one needs none. */
+:root[data-transparency='on'][data-menus='translucent'] {
+	--wp-menu-backdrop: blur(12px);
 }
 
 html,

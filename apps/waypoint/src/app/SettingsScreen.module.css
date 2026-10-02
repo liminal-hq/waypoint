@@ -1,7 +1,7 @@
 .screen {
 	display: flex;
 	flex-direction: column;
-	background: var(--wp-bg-window);
+	background: var(--wp-bg-screen);
 	color: var(--wp-text-primary);
 }
 
@@ -10,7 +10,7 @@
 	flex: 1;
 	min-height: 0;
 	flex-direction: column;
-	background: var(--wp-bg-content);
+	background: var(--wp-bg-body);
 }
 
 .loading {

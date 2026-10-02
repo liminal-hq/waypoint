@@ -25,6 +25,32 @@ const withAccess = (change: Partial<typeof DEFAULT_SETTINGS.accessibility>) => (
 	accessibility: { ...DEFAULT_SETTINGS.accessibility, ...change },
 });
 
+describe('resolveAppearance transparency', () => {
+	const lit = {
+		...DEFAULT_SETTINGS,
+		transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+	};
+
+	it('says why a window that is asked to be translucent is solid', () => {
+		const look = (change: Partial<typeof options> & Record<string, unknown>, o = os({})) =>
+			resolveAppearance(lit, o, { ...options, ...change });
+		expect(look({}).transparencyReason).toBeNull();
+		expect(look({ opacityAvailable: null })).toMatchObject({
+			transparency: 'off',
+			transparencyReason: 'unavailable',
+		});
+		expect(look({ focused: false })).toMatchObject({
+			transparency: 'off',
+			transparencyReason: 'unfocused',
+		});
+		expect(look({}, os({ highContrast: true })).transparencyReason).toBe('high-contrast');
+		expect(look({}, os({ reducedTransparency: true })).transparencyReason).toBe(
+			'reduced-transparency',
+		);
+		expect(resolveAppearance(DEFAULT_SETTINGS, os({}), options).transparencyReason).toBeNull();
+	});
+});
+
 describe('resolveAppearance', () => {
 	it('follows the OS scheme by default and a forced mode otherwise', () => {
 		expect(resolveAppearance(DEFAULT_SETTINGS, os({ scheme: 'dark' }), options).theme).toBe('dark');
