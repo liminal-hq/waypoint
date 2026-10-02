@@ -83,12 +83,12 @@ fn is_partial(name: &OsStr) -> bool {
 /// Whether the platform calls an entry hidden: a leading dot on Linux, the hidden attribute on
 /// Windows (where a leading dot means nothing).
 #[cfg(unix)]
-fn is_hidden(name: &OsStr, _meta: Option<&Metadata>) -> bool {
+pub(crate) fn is_hidden(name: &OsStr, _meta: Option<&Metadata>) -> bool {
     name.as_encoded_bytes().first() == Some(&b'.')
 }
 
 #[cfg(windows)]
-fn is_hidden(name: &OsStr, meta: Option<&Metadata>) -> bool {
+pub(crate) fn is_hidden(name: &OsStr, meta: Option<&Metadata>) -> bool {
     use std::os::windows::fs::MetadataExt;
     const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
     is_partial(name) || meta.is_some_and(|m| m.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0)
