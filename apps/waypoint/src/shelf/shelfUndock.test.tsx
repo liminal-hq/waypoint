@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { dismissNotice } from '../app/notices';
 import { Workspace } from '../app/Workspace';
@@ -45,7 +45,9 @@ async function mount() {
 }
 
 const dock = () => screen.queryByRole('complementary', { name: 'Shelf' });
-const toggle = () => screen.getByRole('button', { name: 'Shelf' });
+// The toolbar has a Shelf toggle too; this is the status bar's.
+const toggle = () =>
+	within(screen.getByRole('group', { name: 'Status bar' })).getByRole('button', { name: 'Shelf' });
 const openDock = async () => {
 	fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
 	return await screen.findByRole('complementary', { name: 'Shelf' });
