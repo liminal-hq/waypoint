@@ -11,6 +11,7 @@ members = [
   "plugins/native-dnd",
   "plugins/os-prefs",
   "plugins/system-appearance",
+  "plugins/thumbnails",
   "plugins/trash",
   "plugins/window-manager",
   "plugins/window-tearoff",
