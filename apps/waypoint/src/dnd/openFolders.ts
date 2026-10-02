@@ -56,14 +56,50 @@ export async function foldersToOpen(
 	vfs: VfsClient,
 ): Promise<Location[]> {
 	const { source } = request;
+	if (source.external) return externalFoldersToOpen(source.external.locations, source.folder, vfs);
+	if (!source.session || source.handle === null || !source.folder) return [];
+	const handle = source.handle;
+	const home = source.folder;
 	const entries = await selectedEntries(
 		source.session.model,
 		source.session.store.getState().selection,
 		MAX_DROP_TABS * 4,
 	);
 	const folders = entries.filter(isFolder).slice(0, MAX_DROP_TABS);
-	if (folders.length === 0) return [source.folder];
-	return Promise.all(folders.map((entry) => vfs.entryLocation(source.handle, entry.id)));
+	if (folders.length === 0) return [home];
+	return Promise.all(folders.map((entry) => vfs.entryLocation(handle, entry.id)));
+}
+
+/**
+ * The same for files dragged in from another application: the dropped locations that are folders
+ * (Rust says which), or else the folder the first file is in. A location that cannot be seen is
+ * passed over.
+ */
+async function externalFoldersToOpen(
+	files: readonly Location[],
+	folder: Location | null,
+	vfs: VfsClient,
+): Promise<Location[]> {
+	const checked = await Promise.all(
+		files.slice(0, MAX_DROP_TABS * 4).map(async (file) => {
+			try {
+				return (await vfs.checkFolder(file)).isFolder ? file : null;
+			} catch {
+				return null;
+			}
+		}),
+	);
+	const folders = checked.filter((file): file is Location => file !== null).slice(0, MAX_DROP_TABS);
+	if (folders.length > 0) return folders;
+	if (folder) return [folder];
+	const first = files[0];
+	const parent = first
+		? await vfs.describeLocation(first).then(
+				(info) => info.parent,
+				() => null,
+			)
+		: null;
+	return parent ? [parent] : [];
 }
 
 /**

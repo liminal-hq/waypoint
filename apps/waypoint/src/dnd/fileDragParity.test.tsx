@@ -11,7 +11,9 @@ import { commandStates } from '../ops/fileCommands';
 import { handleFileKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
 import { clipboardHarness } from '../test/clipboardHarness';
 import {
+	NATIVE_DROP_PATHS,
 	NON_POINTER_PATHS,
+	OUTBOUND_PATHS,
 	TARGET_PATHS,
 	type DropOutcome,
 	type NonPointerPath,
@@ -103,6 +105,38 @@ describe('non-pointer parity of a file drop', () => {
 		expect(Object.keys(TARGET_PATHS).sort()).toEqual([...DROP_KINDS].sort());
 		for (const [kind, path] of Object.entries(TARGET_PATHS)) {
 			expect(path in everything || menuIds.includes(path), `${kind} reaches ${path}`).toBe(true);
+		}
+	});
+
+	it('has a path for every outcome of a drop from another application, naming what exists', async () => {
+		expect(Object.keys(NATIVE_DROP_PATHS).sort()).toEqual([...OUTCOMES].sort());
+		const h = await clipboardHarness();
+		for (const [outcome, path] of Object.entries(NATIVE_DROP_PATHS) as Array<
+			[DropOutcome, NonPointerPath]
+		>) {
+			if (path.kind === 'command') {
+				expect(
+					typeof (h.commands as unknown as Record<string, unknown>)[path.command],
+					outcome,
+				).toBe('function');
+				if (path.command !== 'linkTo') expect(everything[path.command].visible, outcome).toBe(true);
+			} else if (path.kind === 'menu') {
+				expect(menuIds, outcome).toContain(path.item);
+			} else {
+				expect(path.why.length, outcome).toBeGreaterThan(10);
+			}
+		}
+	});
+
+	it('reaches a drag out of the window through Copy and Cut, which put the files on the system clipboard', async () => {
+		const h = await clipboardHarness();
+		for (const [action, path] of Object.entries(OUTBOUND_PATHS)) {
+			expect(path.kind, action).toBe('command');
+			if (path.kind !== 'command') continue;
+			expect(typeof (h.commands as unknown as Record<string, unknown>)[path.command], action).toBe(
+				'function',
+			);
+			expect(everything[path.command as 'copy' | 'cut'].visible, action).toBe(true);
 		}
 	});
 });

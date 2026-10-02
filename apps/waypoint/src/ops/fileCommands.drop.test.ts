@@ -100,3 +100,74 @@ describe('Link To…', () => {
 		expect(submits(h)).toHaveLength(0);
 	});
 });
+
+describe('transferLocations', () => {
+	const files = [
+		{ display: '/srv/with space.txt', uri: 'file:///srv/with%20space.txt' },
+		{ display: '/srv/bad\ufffd.txt', uri: 'file:///srv/bad%FF.txt' },
+	];
+
+	it('copies and moves files from outside as location sources, keeping their lossless URIs', async () => {
+		for (const [kind, job] of [
+			['copy', 'copy'],
+			['move', 'move'],
+		] as const) {
+			const h = await clipboardHarness();
+			const done = h.commands.transferLocations(kind, files, OTHER);
+			await h.finish();
+			await done;
+			expect(h.lastRequest()).toEqual({
+				kind: { kind: job },
+				sources: { kind: 'locations', locations: files },
+				destination: OTHER,
+				name: null,
+				options: { conflict: null, verify: null },
+				originWindow: 'main-1',
+			});
+		}
+	});
+
+	it('links them, which only the engine can refuse', async () => {
+		const h = await clipboardHarness();
+		const done = h.commands.transferLocations('link', files, OTHER);
+		await h.finish();
+		await done;
+		expect(h.lastRequest()).toMatchObject({
+			kind: { kind: 'link' },
+			sources: { kind: 'locations', locations: files },
+			destination: OTHER,
+		});
+	});
+
+	it('makes a duplicate of a copy into the folder the files are in', async () => {
+		const h = await clipboardHarness();
+		const here = [{ display: '/home/test/a.txt', uri: 'file:///home/test/a.txt' }];
+		const done = h.commands.transferLocations('copy', here, FOLDER);
+		await h.finish();
+		await done;
+		expect(h.lastRequest()).toMatchObject({ kind: { kind: 'duplicate' }, destination: null });
+	});
+
+	it('refuses a folder dropped into itself, and a move onto the folder the files are in', async () => {
+		const h = await clipboardHarness();
+		await h.commands.transferLocations(
+			'copy',
+			[{ display: '/home/test', uri: 'file:///home/test' }],
+			{ display: '/home/test/docs', uri: 'file:///home/test/docs' },
+		);
+		expect(h.said.at(-1)).toBe('A folder cannot be put inside itself');
+		await h.commands.transferLocations(
+			'move',
+			[{ display: '/home/test/a.txt', uri: 'file:///home/test/a.txt' }],
+			FOLDER,
+		);
+		expect(h.said.at(-1)).toBe('The items are already in that folder');
+		expect(submits(h)).toHaveLength(0);
+	});
+
+	it('does nothing for no files', async () => {
+		const h = await clipboardHarness();
+		await h.commands.transferLocations('copy', [], OTHER);
+		expect(submits(h)).toHaveLength(0);
+	});
+});

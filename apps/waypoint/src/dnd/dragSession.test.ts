@@ -374,3 +374,83 @@ describe('reduced motion', () => {
 		}
 	});
 });
+
+describe('a drag the system runs (beginExternal)', () => {
+	const start = (session: DragSession<Source, Target>, handlers: DragHandlers<Source, Target>) =>
+		session.beginExternal({ point: { x: 20, y: 30 }, source: { name: 'files' } }, handlers);
+
+	it('is dragging at once, with no press and no threshold, and tells the owner where the files are', () => {
+		const { session, handlers } = setup();
+		const drag = start(session, handlers)!;
+		expect(session.store.getState()).toMatchObject({
+			phase: 'dragging',
+			source: { name: 'files' },
+		});
+		expect(handlers.start).toHaveBeenCalledTimes(1);
+		expect(handlers.move).toHaveBeenCalledWith(expect.anything(), { x: 20, y: 30 });
+		expect(document.documentElement.style.getPropertyValue('--wp-drag-x')).toBe('20px');
+		drag.move({ x: 90, y: 40 });
+		expect(handlers.move).toHaveBeenLastCalledWith(expect.anything(), { x: 90, y: 40 });
+		expect(document.documentElement.style.getPropertyValue('--wp-drag-dx')).toBe('70px');
+		expect(document.documentElement.style.getPropertyValue('--wp-drag-dy')).toBe('10px');
+	});
+
+	it('refuses to begin while a drag runs', () => {
+		const { session, handlers, begin, move } = setup();
+		begin();
+		move(60);
+		expect(start(session, handlers)).toBeNull();
+		session.cancel();
+		const first = start(session, handlers);
+		expect(first).not.toBeNull();
+		expect(start(session, handlers)).toBeNull();
+	});
+
+	it('drops with a last look at where it ended, then settles', () => {
+		const { session, handlers, clock } = setup();
+		const drag = start(session, handlers)!;
+		drag.drop({ x: 55, y: 66 });
+		expect(handlers.move).toHaveBeenLastCalledWith(expect.anything(), { x: 55, y: 66 });
+		expect(handlers.drop).toHaveBeenCalledWith(expect.anything(), { x: 55, y: 66 });
+		expect(session.store.getState().phase).toBe('dropped');
+		clock.advance(140);
+		expect(session.store.getState().phase).toBe('idle');
+		// Once dropped it takes no more.
+		drag.move({ x: 1, y: 1 });
+		drag.drop({ x: 1, y: 1 });
+		expect(handlers.drop).toHaveBeenCalledTimes(1);
+	});
+
+	it('cancels with the reason it is given, and takes no more positions', () => {
+		const { session, handlers } = setup();
+		const drag = start(session, handlers)!;
+		drag.cancel('left');
+		expect(handlers.cancel).toHaveBeenCalledWith(expect.anything(), 'left');
+		expect(session.store.getState().phase).toBe('cancelled');
+		const moves = handlers.move.mock.calls.length;
+		drag.move({ x: 1, y: 1 });
+		expect(handlers.move).toHaveBeenCalledTimes(moves);
+	});
+
+	it('is ended by Esc where the page hears it, and a stale feed does nothing to the next drag', () => {
+		const { session, handlers } = setup();
+		const stale = start(session, handlers)!;
+		fireEvent.keyDown(window, { key: 'Escape' });
+		expect(handlers.cancel).toHaveBeenCalledWith(expect.anything(), 'escape');
+		const fresh = start(session, handlers)!;
+		stale.cancel();
+		stale.drop({ x: 1, y: 1 });
+		expect(session.store.getState().phase).toBe('dragging');
+		fresh.cancel();
+	});
+
+	it('holds, like any drag, only while it is dragging', () => {
+		const { session, handlers, clock } = setup();
+		const drag = start(session, handlers)!;
+		const fn = vi.fn();
+		handlers.move.mockImplementation((control) => control.hold('x', 100, fn));
+		drag.move({ x: 2, y: 2 });
+		clock.advance(100);
+		expect(fn).toHaveBeenCalledTimes(1);
+	});
+});

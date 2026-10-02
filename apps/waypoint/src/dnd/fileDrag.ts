@@ -17,7 +17,15 @@ import type {
 	Location,
 	OpsCommandError,
 	PlanPreview,
+	SelectionSpec,
 } from '../services/opsClient';
+import {
+	nativeDndErrorKind,
+	type DragAction,
+	type DragEnded,
+	type OutboundRequest,
+	type OutboundStarted,
+} from '../services/nativeDndClient';
 import {
 	createDragSession,
 	type DragClock,
@@ -40,6 +48,7 @@ import {
 } from './dropTargets';
 import {
 	blockedText,
+	canLinkSource,
 	dragText,
 	evaluateTarget,
 	isSourceFolder,
@@ -50,6 +59,7 @@ import {
 	type FileDropTarget,
 	type PlanFact,
 } from './fileDragModel';
+import { externalSource, sameUris } from './nativeDropModel';
 import type { DropActionRule } from '@liminal-hq/waypoint-protocol/generated/DropActionRule';
 
 /** The pointer travels this far before a press on a row becomes a drag (the same 4 px as a tab's). */
@@ -60,6 +70,12 @@ export const PLAN_REST_MS = 120;
 
 /** A spring that has just opened something waits for the pointer to move this far before it opens another. */
 export const SPRING_JITTER_PX = 6;
+
+/** A selection of up to this many items has its locations resolved as the drag begins, so leaving the window can hand over at once. */
+export const PREFETCH_LIMIT = 500;
+
+/** How long a finished outbound drag is still remembered: the platform may deliver its drop after it has ended. */
+export const OWN_DRAG_MS = 1500;
 
 /** How often a drag near the edge of a list scrolls it. */
 const SCROLL_TICK_MS = 16;
@@ -94,6 +110,34 @@ export interface PickerRequest {
 	choose(verb: 'copy' | 'move' | 'link'): void;
 	/** The picker was dismissed. */
 	cancel(): void;
+}
+
+/** What a drag that leaves the window needs to become a system drag (`NativeDndClient` and the operations plugin). */
+export interface OutboundDeps {
+	/** The plugin can start a system drag here. */
+	available(): boolean;
+	/** The pointer is outside the visible window. */
+	outside(point: Point): boolean;
+	/** The lossless locations of a selection of a listing this window opened. */
+	resolve(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]>;
+	start(request: OutboundRequest): Promise<OutboundStarted>;
+}
+
+/** Files that came from outside the window, as the plugin reports them. */
+export interface NativeFiles {
+	/** The `file:` locations, in the order given. */
+	files: Location[];
+	point: Point;
+	modifiers: DropModifiers;
+}
+
+/** The feed of a drag the system runs over the window: where it is, and how it ends. */
+export interface NativeFeed {
+	move(point: Point, modifiers: DropModifiers): void;
+	/** `selfDrop`: the platform says the files are the ones this process offered. */
+	drop(point: Point, modifiers: DropModifiers, selfDrop: boolean): void | Promise<void>;
+	/** The files left the window, or the system ended the drag, without a drop. */
+	leave(): void;
 }
 
 export interface OpenFoldersRequest {
@@ -131,10 +175,18 @@ export interface FileDragDeps {
 		session: ListingSession,
 		destination: Location,
 	): Promise<void>;
+	/** Copies, moves or links files that came from outside the window's listings. */
+	transferLocations?(
+		kind: 'copy' | 'move' | 'link',
+		items: Location[],
+		destination: Location,
+	): Promise<void>;
 	moveToTrash(session: ListingSession): Promise<void>;
 	openFolders(request: OpenFoldersRequest): Promise<void>;
 	openPicker(request: PickerRequest): void;
 	trashAvailable(): boolean;
+	/** Hands a drag that leaves the window to the system; without it such a drag stays in the page. */
+	outbound?: OutboundDeps;
 	/** The document's hit test, or a stand-in. */
 	hit?: HitRoot;
 	clock?: DragClock;
@@ -152,6 +204,16 @@ export interface FileDrag {
 	 * caller opens the menu itself.
 	 */
 	deferMenu(open: () => void): boolean;
+	/**
+	 * Starts the drag of files the system is dragging over the window (from another application or
+	 * window, or this window's own drag coming back); `null` when a drag is already running or the
+	 * window has no queue. The caller feeds the returned drag the system's events.
+	 */
+	beginNative(input: NativeFiles): NativeFeed | null;
+	/** The system's drag that this window started has ended, however it ended. */
+	dragEnded(event: DragEnded): void;
+	/** The document saw the pointer leave the window during a press, which hands the drag to the system. */
+	leftWindow(): void;
 	dispose(): void;
 }
 
@@ -179,6 +241,17 @@ function commandFailure(error: unknown): OpsError | null {
 /** The icons of the stack: the pressed row's, then plain pages for the rest, up to three. */
 function stackGroups(first: IconGroup, count: number): IconGroup[] {
 	return [first, ...Array.from({ length: Math.min(count, 3) - 1 }, (): IconGroup => 'document')];
+}
+
+/** The system drag this window started: what it carried, and whether it came back to a drop here. */
+interface OwnDrag {
+	source: FileDragSource;
+	uris: string[];
+	id: number;
+	/** A drop landed in this window, which acts on it itself: the end of the drag says nothing more. */
+	droppedHere: boolean;
+	/** The end has been reported (the plugin sends it as an event and, on Windows, with the command's answer too). */
+	finished: boolean;
 }
 
 /**
@@ -225,6 +298,15 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	const facts = new Map<string, PlanFact>();
 	const planning = new Set<string>();
 	let pressed: FileDragPress | null = null;
+	// Leaving the window: the hand-over to the system, and the system drag this window started.
+	let leftDocument = false;
+	let handing = false;
+	let handedOver = false;
+	let handOffFailed = false;
+	let prefetch: Promise<Location[]> | null = null;
+	let own: OwnDrag | null = null;
+	let ownTimer: unknown = null;
+	let pendingEnded: DragEnded | null = null;
 
 	const rootElement = () =>
 		deps.root ? deps.root() : typeof document === 'undefined' ? null : document.documentElement;
@@ -270,10 +352,23 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	};
 
 	const canLink = (source: FileDragSource, location: Location | null) =>
-		source.folder.uri.startsWith('file:') && (location ? location.uri.startsWith('file:') : true);
+		canLinkSource(source) && (location ? location.uri.startsWith('file:') : true);
 
 	const planKey = (source: FileDragSource, location: Location) =>
-		`${source.handle}|${normaliseUri(location.uri)}`;
+		`${source.handle ?? 'external'}|${normaliseUri(location.uri)}`;
+
+	/** Copies, moves or links the dragged files into `destination`, by selection or, for files from outside, by location. */
+	const transferFiles = async (
+		source: FileDragSource,
+		kind: 'copy' | 'move' | 'link',
+		destination: Location,
+	): Promise<void> => {
+		if (source.external) {
+			await deps.transferLocations?.(kind, source.external.locations, destination);
+		} else if (source.session) {
+			await deps.transfer(kind, source.session, destination);
+		}
+	};
 
 	const askPlanner = (source: FileDragSource, location: Location) => {
 		const key = planKey(source, location);
@@ -282,7 +377,9 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		planning.add(key);
 		const request: JobRequest = {
 			kind: { kind: 'copy' },
-			sources: { kind: 'selection', handle: source.handle, spec: source.spec },
+			sources: source.external
+				? { kind: 'locations', locations: source.external.locations }
+				: { kind: 'selection', handle: source.handle!, spec: source.spec! },
 			destination: location,
 			name: null,
 			options: NO_OPTIONS,
@@ -426,10 +523,16 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		settleSprings(spot);
 		const { location, readOnly } = locationOf(spot);
 		const ref = spot.kind === 'folder' ? parseFolderRef(spot.ref) : null;
-		const selfRow =
-			ref !== null &&
-			ref.handle === source.handle &&
-			isSelected(source.session.store.getState().selection, ref.entry);
+		const selfRow = source.external
+			? spot.kind === 'folder' &&
+				location !== null &&
+				source.external.locations.some(
+					(file) => normaliseUri(file.uri) === normaliseUri(location.uri),
+				)
+			: ref !== null &&
+				source.session !== null &&
+				ref.handle === source.handle &&
+				isSelected(source.session.store.getState().selection, ref.entry);
 		const here = isSourceFolder(source, location);
 		// The pane the files are in, showing the folder they are in: nothing to drop on.
 		if (spot.kind === 'pane' && here) {
@@ -545,6 +648,10 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		modifiers = NO_MODIFIERS;
 		pressed = null;
 		pressRight = false;
+		leftDocument = false;
+		handing = false;
+		handOffFailed = false;
+		prefetch = null;
 	};
 
 	const releaseSource = () => {
@@ -589,7 +696,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		try {
 			switch (target.outcome) {
 				case 'trash':
-					await deps.moveToTrash(source.session);
+					if (source.session) await deps.moveToTrash(source.session);
 					return;
 				case 'open':
 					await deps.openFolders({
@@ -603,7 +710,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				case 'move':
 				case 'link': {
 					const location = await destinationOf(spot, target);
-					if (location) await deps.transfer(target.outcome, source.session, location);
+					if (location) await transferFiles(source, target.outcome, location);
 					return;
 				}
 				case 'ask': {
@@ -624,7 +731,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 						target: { ...target, location },
 						verbs,
 						choose: (verb) => {
-							void deps.transfer(verb, source.session, location).finally(handOver);
+							void transferFiles(source, verb, location).finally(handOver);
 						},
 						cancel: () => {
 							deps.announce(t('dnd.announce.pickerCancelled'));
@@ -651,26 +758,172 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		return ref ? resolveFolder(spot.ref, ref.handle, ref.entry) : null;
 	};
 
+	// --- Leaving the window ------------------------------------------------------------------
+
+	const dragging = (control: DragControl<FileDragSource, FileDropTarget>) =>
+		controlRef === control && session.store.getState().phase === 'dragging';
+
+	/** Resolves the dragged items' locations ahead of time, for a selection small enough to be cheap. */
+	const prefetchLocations = (source: FileDragSource) => {
+		const out = deps.outbound;
+		if (!out?.available() || !source.session || source.handle === null || !source.spec) return;
+		if (source.count > PREFETCH_LIMIT) return;
+		prefetch = out.resolve(source.handle, source.spec);
+		// A failure is reported when the drag leaves the window and asks again.
+		prefetch.catch(() => {});
+	};
+
+	const wantsToLeave = (source: FileDragSource, point: Point): boolean => {
+		const out = deps.outbound;
+		if (!out || !out.available() || handing || handOffFailed) return false;
+		// Only a drag of a listing's selection with the primary button can become a system drag.
+		if (source.external || source.rightButton) return false;
+		return leftDocument || out.outside(point);
+	};
+
+	const forgetOwn = () => {
+		if (ownTimer !== null) clock.clearTimeout(ownTimer);
+		ownTimer = null;
+		own = null;
+	};
+
+	/** What the end of this window's system drag says, once; the drop that came back here says its own. */
+	const finishOutbound = (ended: DragEnded) => {
+		const record = own;
+		if (!record || record.finished || ended.id !== record.id) return;
+		record.finished = true;
+		const what = subjectText(record.source);
+		if (!record.droppedHere) {
+			switch (ended.outcome) {
+				case 'dropped-copy':
+					deps.announce(tf('dnd.out.copied', { what }));
+					break;
+				// The application that took the files moved them itself, so no job runs here and the
+				// listing follows its watcher.
+				case 'dropped-move':
+					deps.announce(tf('dnd.out.moved', { what }));
+					break;
+				case 'dropped-link':
+					deps.announce(tf('dnd.out.linked', { what }));
+					break;
+				case 'cancelled':
+					deps.announce(t('drag.announce.cancelled'));
+					break;
+				case 'failed':
+					deps.say(tf('dnd.out.failed', { reason: ended.reason ?? what }));
+					break;
+			}
+		}
+		// A drop can still arrive after the end (Windows delivers it once the drag has returned).
+		if (ownTimer !== null) clock.clearTimeout(ownTimer);
+		ownTimer = clock.setTimeout(forgetOwn, OWN_DRAG_MS);
+	};
+
+	/**
+	 * The pointer has left the window with files in hand: the drag continues as the system's. The
+	 * locations come from Rust (a prefetch when the selection is small), the plugin starts the drag
+	 * with the allowed actions, and on success the in-page drag ends quietly. A drag that cannot be
+	 * handed over stays in the page, says so, and tries again only after the pointer has been back inside.
+	 */
+	const handOff = async (control: DragControl<FileDragSource, FileDropTarget>) => {
+		const out = deps.outbound;
+		const source = control.source;
+		if (!out || handing || !source.session || source.handle === null || !source.spec) return;
+		handing = true;
+		// Nothing in the window is a target any more.
+		apply(control, null);
+		control.setPill(null);
+		const what = subjectText(source);
+		const fail = (text: string) => {
+			handing = false;
+			handOffFailed = true;
+			deps.say(text);
+			// The drag carries on in the page, so it shows what is dragged again.
+			if (dragging(control)) apply(control, null);
+		};
+		let locations: Location[];
+		try {
+			locations = await (prefetch ?? out.resolve(source.handle, source.spec));
+		} catch (error) {
+			console.warn('could not resolve the dragged items', error);
+			return fail(tf('dnd.out.refused', { what }));
+		}
+		// The drag ended while the locations were coming: there is nothing to hand over.
+		if (!dragging(control)) {
+			handing = false;
+			return;
+		}
+		const uris = locations.map((location) => location.uri);
+		if (uris.length === 0 || !uris.every((uri) => uri.startsWith('file:'))) {
+			return fail(tf('dnd.out.unsupported', { what: capitalise(what) }));
+		}
+		const actions: DragAction[] = [
+			'copy',
+			...(source.readOnly ? [] : (['move'] as const)),
+			...(canLinkSource(source) ? (['link'] as const) : []),
+		];
+		let started: OutboundStarted;
+		try {
+			started = await out.start({ uris, actions });
+		} catch (error) {
+			const kind = nativeDndErrorKind(error);
+			console.warn('the system drag did not start', error);
+			return fail(
+				kind === 'buttonNotPressed' || kind === 'alreadyActive'
+					? tf('dnd.out.refused', { what })
+					: tf('dnd.out.failed', {
+							reason: (error as { message?: string } | null)?.message ?? what,
+						}),
+			);
+		}
+		forgetOwn();
+		own = { source, uris, id: started.id, droppedHere: false, finished: false };
+		handing = false;
+		// The system has the pointer now: the in-page drag is over, and says where the files went.
+		if (dragging(control)) {
+			handedOver = true;
+			session.cancel();
+			handedOver = false;
+		}
+		const ended = started.ended ?? (pendingEnded?.id === started.id ? pendingEnded : null);
+		pendingEnded = null;
+		if (ended) finishOutbound(ended);
+	};
+
 	const handlers: DragHandlers<FileDragSource, FileDropTarget> = {
 		start(control, point) {
 			const current = pressed;
-			if (!current) return;
+			// A drag has a press behind it, or it is files the system is dragging in.
+			if (!current && !control.source.external) return;
 			controlRef = control;
 			sourceRef = control.source;
 			lastPoint = point;
 			pendingMenu = null;
-			const { store } = current.session;
-			if (!isSelected(store.getState().selection, current.entry.id)) {
-				store.getState().click(current.position, current.entry.id);
+			if (current) {
+				const { store } = current.session;
+				if (!isSelected(store.getState().selection, current.entry.id)) {
+					store.getState().click(current.position, current.entry.id);
+				}
+				if (current.tab !== null) release = deps.retain(current.tab);
 			}
-			if (current.tab !== null) release = deps.retain(current.tab);
 			rootElement()?.setAttribute(FILE_DRAG_ATTRIBUTE, 'idle');
 			control.announce(dragText(control.source));
 			show(control, pillFor(control.source, null));
+			if (current) prefetchLocations(control.source);
 		},
 		move(control, point) {
 			controlRef = control;
 			lastPoint = point;
+			if (!deps.outbound?.outside(point)) {
+				leftDocument = false;
+				if (!control.source.external) handOffFailed = false;
+			}
+			if (wantsToLeave(control.source, point)) {
+				void handOff(control);
+				return;
+			}
+			// While the hand-over is under way nothing in the window is a target.
+			if (handing) return;
 			const spot = hit(point);
 			followEdge(spot?.scroller ?? null, point);
 			apply(control, spot);
@@ -685,15 +938,21 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			reset();
 			return outcome;
 		},
-		cancel(control) {
+		cancel(control, reason) {
 			revertSprings();
-			control.announce(t('drag.announce.cancelled'));
+			if (handedOver) {
+				control.announce(tf('dnd.out.started', { what: subjectText(control.source) }));
+			} else if (reason === 'left') {
+				control.announce(t('dnd.announce.left'));
+			} else {
+				control.announce(t('drag.announce.cancelled'));
+			}
 			releaseSource();
 			reset();
 		},
 	};
 
-	return {
+	const drag: FileDrag = {
 		session,
 		press(input) {
 			if (!deps.windowLabel()) return false;
@@ -747,7 +1006,12 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			window.addEventListener('pointerup', upOrCancel, true);
 			window.addEventListener('pointercancel', upOrCancel, true);
 			document.addEventListener('selectstart', noSelect, true);
+			// Where the pointer is not captured, the document is what sees it leave the window.
+			const root = rootElement();
+			const onDocumentLeave = () => drag.leftWindow();
+			root?.addEventListener('pointerleave', onDocumentLeave);
 			cleanup = () => {
+				root?.removeEventListener('pointerleave', onDocumentLeave);
 				window.removeEventListener('pointermove', track, true);
 				window.removeEventListener('keydown', track, true);
 				window.removeEventListener('keyup', track, true);
@@ -779,9 +1043,60 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			pendingMenu = open;
 			return true;
 		},
+		beginNative(input) {
+			if (!deps.windowLabel() || input.files.length === 0) return null;
+			const uris = input.files.map((file) => file.uri);
+			const returning = own !== null && sameUris(own.uris, uris) ? own : null;
+			// This window's own drag coming back keeps what it was (the folder, whether it could be
+			// moved); anything else is files from another application or window.
+			const source: FileDragSource = returning
+				? {
+						...returning.source,
+						session: null,
+						handle: null,
+						spec: null,
+						tab: null,
+						rightButton: false,
+						external: { locations: [...input.files], own: true },
+					}
+				: externalSource(input.files);
+			modifiers = input.modifiers;
+			const external = session.beginExternal({ point: input.point, source }, handlers);
+			if (!external) return null;
+			return {
+				move(point, keys) {
+					modifiers = keys;
+					external.move(point);
+				},
+				drop(point, keys, selfDrop) {
+					modifiers = keys;
+					if (returning && (selfDrop || own === returning)) returning.droppedHere = true;
+					return external.drop(point);
+				},
+				leave: () => external.cancel('left'),
+			};
+		},
+		dragEnded(event) {
+			if (own) finishOutbound(event);
+			else if (handing) pendingEnded = event;
+		},
+		leftWindow() {
+			leftDocument = true;
+			const control = controlRef;
+			if (control && dragging(control) && wantsToLeave(control.source, lastPoint)) {
+				void handOff(control);
+			}
+		},
 		dispose() {
 			session.dispose();
 			reset();
+			forgetOwn();
 		},
 	};
+	return drag;
+}
+
+/** A sentence's first letter in capitals. */
+function capitalise(text: string): string {
+	return text.charAt(0).toUpperCase() + text.slice(1);
 }

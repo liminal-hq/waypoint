@@ -21,21 +21,31 @@ import {
 } from './dropAction';
 import type { DropKind, DropSpot } from './dropTargets';
 
-/** What is being dragged: the selection of one listing, as Rust will resolve it. */
+/** Files that came from outside any listing of this window: from another application or window, or this window's own drag coming back. */
+export interface ExternalFiles {
+	/** Each file's location, from the lossless `file:` URIs the system gave. */
+	locations: Location[];
+	/** The files are the ones this window handed to the system as an outbound drag. */
+	own: boolean;
+}
+
+/** What is being dragged: the selection of one listing, as Rust will resolve it, or files from outside the window. */
 export interface FileDragSource {
-	/** The listing the files are in; held open for the drag (`ListingManager.retain`). */
-	session: ListingSession;
+	/** The listing the files are in; held open for the drag (`ListingManager.retain`). `null` for external files. */
+	session: ListingSession | null;
 	/** The pane (tab) the drag began in, when the view is a pane's. */
 	tab: number | null;
-	handle: ListingHandle;
-	spec: SelectionSpec;
+	handle: ListingHandle | null;
+	spec: SelectionSpec | null;
+	/** Set for files that came from outside the window; the drag then names them by location, not by selection. */
+	external?: ExternalFiles;
 	count: number;
 	/** The one name, when exactly one item is dragged. */
 	name: string | null;
 	/** The icons of the stack: up to three. */
 	groups: IconGroup[];
-	/** The folder the files are in. */
-	folder: Location;
+	/** The folder the files are in; `null` for external files that are not all in one folder. */
+	folder: Location | null;
 	/** The folder cannot be written to, so the files cannot be moved or trashed out of it. */
 	readOnly: boolean;
 	/** The right button started the drag, which opens the picker on release. */
@@ -116,8 +126,22 @@ export function isTrashUri(uri: string): boolean {
 }
 
 /** Whether `location` is the folder the files are already in. */
-export function isSourceFolder(source: FileDragSource, location: Location | null): boolean {
-	return location !== null && normaliseUri(location.uri) === normaliseUri(source.folder.uri);
+export function isSourceFolder(
+	source: Pick<FileDragSource, 'folder'>,
+	location: Location | null,
+): boolean {
+	return (
+		location !== null &&
+		source.folder !== null &&
+		normaliseUri(location.uri) === normaliseUri(source.folder.uri)
+	);
+}
+
+/** Whether links to the files can be made: they, and the folder they are in, are local. */
+export function canLinkSource(source: Pick<FileDragSource, 'folder' | 'external'>): boolean {
+	return source.external
+		? source.external.locations.every((location) => location.uri.startsWith('file:'))
+		: (source.folder?.uri.startsWith('file:') ?? false);
 }
 
 /**
@@ -147,7 +171,10 @@ export function evaluateTarget(input: EvaluateInput): FileDropTarget {
 	switch (spot.kind) {
 		case 'trash':
 			if (spot.unavailable || !input.trashAvailable) return block({ kind: 'unavailable' });
-			if (source.readOnly || isTrashUri(source.folder.uri)) return block({ kind: 'trashSource' });
+			// Files from another application are not trashed by a drop: Delete in their own file manager does that.
+			if (source.external || source.readOnly || (source.folder && isTrashUri(source.folder.uri))) {
+				return block({ kind: 'trashSource' });
+			}
 			return { ...base, outcome: 'trash' };
 		case 'plus':
 		case 'chip':
@@ -237,7 +264,7 @@ function verbWord(target: FileDropTarget): string {
  * target says what is being dragged.
  */
 export function pillFor(
-	source: FileDragSource,
+	source: Pick<FileDragSource, 'count' | 'name'>,
 	target: FileDropTarget | null,
 	alt = false,
 ): DragPill {
@@ -308,6 +335,35 @@ export const NON_POINTER_PATHS: Record<DropOutcome, NonPointerPath> = {
 		kind: 'none',
 		why: 'the picker only chooses between copy, move and link, each of which has its own path',
 	},
+};
+
+/**
+ * The same outcomes for files dragged in from another application. Copy and Cut there put the
+ * files on the system clipboard, which a paste in Waypoint adopts (D107), so Paste is the way to a
+ * copy or a move; a link, the Trash and tabs are made from Waypoint's own selection or commands.
+ */
+export const NATIVE_DROP_PATHS: Record<DropOutcome, NonPointerPath> = {
+	copy: { kind: 'command', command: 'paste', keys: 'Ctrl+V' },
+	move: { kind: 'command', command: 'paste', keys: 'Ctrl+V' },
+	link: {
+		kind: 'none',
+		why: 'a link to files in another application is made in that application, or with Link To… once they are in a Waypoint folder',
+	},
+	trash: {
+		kind: 'none',
+		why: 'a drop never trashes files that came from another application: they are deleted where they are',
+	},
+	open: { kind: 'menu', item: 'openInNewTab' },
+	ask: {
+		kind: 'none',
+		why: 'the picker only chooses between copy, move and link, each of which has its own path',
+	},
+};
+
+/** How a drag out of the window to another application is done without a pointer: put the files on the system clipboard and paste there. */
+export const OUTBOUND_PATHS: Record<'copy' | 'move', NonPointerPath> = {
+	copy: { kind: 'command', command: 'copy', keys: 'Ctrl+C' },
+	move: { kind: 'command', command: 'cut', keys: 'Ctrl+X' },
 };
 
 /**

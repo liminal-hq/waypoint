@@ -300,6 +300,17 @@ export interface FileCommands {
 		session: ListingSession,
 		destination: Location,
 	): Promise<void>;
+	/**
+	 * What a drop of files from outside the window does (another application, or another window):
+	 * copies, moves or links `items`, named by location, into `destination`. A folder dropped into
+	 * itself and a move onto the folder the items are in are refused as a paste refuses them
+	 * (`pasteRefusal`); a copy beside the originals is a duplicate.
+	 */
+	transferLocations(
+		kind: 'copy' | 'move' | 'link',
+		items: Location[],
+		destination: Location,
+	): Promise<void>;
 	undo(): Promise<void>;
 	redo(): Promise<void>;
 	/** The undo history, newest first, as the Undo History menu lists it. */
@@ -768,6 +779,33 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		async transferTo(kind, session, destination) {
 			const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
 			if (found) await transfer(kind, found, destination);
+		},
+
+		async transferLocations(kind, items, destination) {
+			if (items.length === 0) return;
+			if (kind !== 'link') {
+				const refusal = pasteRefusal(kind === 'move' ? 'cut' : 'copy', items, destination);
+				if (refusal) {
+					say(errorText(refusal));
+					return;
+				}
+			}
+			const request: JobRequest =
+				kind === 'link'
+					? {
+							kind: { kind: 'link' },
+							sources: { kind: 'locations', locations: [...items] },
+							destination,
+							name: null,
+							options: NO_OPTIONS,
+							originWindow: windowLabel,
+						}
+					: pasteRequest(
+							{ mode: kind === 'move' ? 'cut' : 'copy', items },
+							destination,
+							windowLabel,
+						);
+			reportFailure(await run(request));
 		},
 
 		async undo() {
