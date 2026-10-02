@@ -212,6 +212,11 @@ impl<P: Provider> Provider for SandboxProvider<P> {
         self.inner.read_link(path)
     }
 
+    fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
+        self.guard(path, true);
+        self.inner.canonicalize(path)
+    }
+
     fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
         self.guard(path, true);
         self.inner.volume_id(path)

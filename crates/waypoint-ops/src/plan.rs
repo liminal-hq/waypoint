@@ -139,6 +139,30 @@ fn failure(message: impl Into<String>) -> OpsError {
     }
 }
 
+/// Whether copying or moving the folder `source` into the folder `dest` would put it inside
+/// itself. The lexical comparison catches the plain case. A destination reached through a symlinked
+/// ancestor (`/link/x` where `/link` is `/a`, copying `/a`) only shows once both ends have their
+/// links resolved, so both are canonicalised and compared again; a provider that cannot resolve
+/// links (`Unsupported`) or fails to is left with the lexical answer.
+fn lands_inside(
+    source_provider: &dyn Provider,
+    dest_provider: &dyn Provider,
+    source: &VfsPath,
+    dest: &VfsPath,
+    rule: CaseRule,
+) -> bool {
+    if is_within(dest, source, rule) {
+        return true;
+    }
+    match (
+        source_provider.canonicalize(source),
+        dest_provider.canonicalize(dest),
+    ) {
+        (Ok(source), Ok(dest)) => is_within(&dest, &source, rule),
+        _ => false,
+    }
+}
+
 fn check(cancel: &CancelToken) -> Result<(), OpsError> {
     if cancel.is_cancelled() {
         Err(OpsError::Cancelled)
@@ -531,7 +555,13 @@ impl Planner<'_, '_> {
             validate_name(&name, rule)?;
             if entry.kind == EntryKind::Directory
                 && provider.scheme() == dest_provider.scheme()
-                && is_within(&dest, &source, src_rule)
+                && lands_inside(
+                    provider.as_ref(),
+                    dest_provider.as_ref(),
+                    &source,
+                    &dest,
+                    src_rule,
+                )
             {
                 return Err(OpsError::IntoItself);
             }

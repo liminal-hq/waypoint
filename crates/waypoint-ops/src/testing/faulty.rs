@@ -415,6 +415,12 @@ impl<P: Provider> Provider for FaultyProvider<P> {
         self.inner.read_link(path)
     }
 
+    fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
+        // Not a counted call: resolving links is a read the planner makes, and scripted faults
+        // count the operations the executors make.
+        self.inner.canonicalize(path)
+    }
+
     fn volume_id(&self, path: &VfsPath) -> Option<VolumeId> {
         self.inner.volume_id(path)
     }

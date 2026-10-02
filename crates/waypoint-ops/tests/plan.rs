@@ -308,6 +308,33 @@ fn the_same_volume_is_known_not_assumed() {
     assert!(plan_ok(&lh, &lh.request(JobKind::Move, &["a"], Some("d"), None)).same_volume);
 }
 
+// Only the local provider walks a path through a symlink; the in-memory one resolves links in the
+// last component only, so its `canonicalize` is covered by the provider conformance tests instead.
+#[cfg(unix)]
+#[test]
+fn a_destination_reached_through_a_symlinked_ancestor_is_still_inside_the_source() {
+    {
+        let (h, _dir) = local_harness();
+        let mut t = tree(&[("a/", ""), ("a/b/", ""), ("a/b/c/", ""), ("other/", "")]);
+        t.insert("link".to_owned(), Node::Link("a".to_owned()));
+        t.insert("deep".to_owned(), Node::Link("a/b".to_owned()));
+        build(&h, &t);
+        for kind in [JobKind::Copy, JobKind::Move] {
+            // `link` is `a`, so `link/b/c` is `a/b/c`; `deep/c` is too. (A link itself is not a
+            // folder to put things in, so only the ancestor case reaches the check.)
+            for dest in ["link/b", "link/b/c", "deep/c"] {
+                assert_eq!(
+                    plan_err(&h, &h.request(kind, &["a"], Some(dest), None)),
+                    OpsError::IntoItself,
+                    "{kind:?} into {dest}"
+                );
+            }
+            // A link to somewhere else is no problem.
+            plan_ok(&h, &h.request(kind, &["a"], Some("other"), None));
+        }
+    }
+}
+
 #[test]
 fn a_delete_never_enters_a_folder_on_another_volume() {
     let dir = tempfile::tempdir().unwrap();
