@@ -141,6 +141,12 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 - Autocomplete draws on child folders, bookmarks, remotes and history. Tab completes.
 - Each segment has a chevron that opens a sibling list, and every segment is a drop target.
 
+### 5.1 Panel toggles
+
+- Right of the path bar: Sidebar (F9), Split View (F3) and Shelf (Ctrl+B). Each is a toggle button (`aria-pressed` is the panel's state) whose tooltip is its name and key, and a press runs the same registry command as the menu, the palette and the key.
+- Each button is a tab stop in the toolbar's order, like back, forward and up. Inspector and Terminal drawer toggles join them when those panels exist.
+- On a narrow toolbar (under 560 px) they collapse into one More button; its menu has the same commands as checkable rows.
+
 ## 6. Context menu (Liminal Notes and Jar pattern)
 
 Sections separated by rules, with an icon, a label, a right-aligned shortcut and a submenu chevron. Items can be checkboxes, and danger items (such as Delete) come last and in red. It's positioned to stay within the viewport and fully navigable by keyboard. Plugin actions go in a labelled section.
