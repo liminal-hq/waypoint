@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Volume } from '@liminal-hq/plugin-volumes';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useCallback, useId, useMemo, useState } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { formatSize } from '../browse/format';
@@ -17,18 +18,19 @@ import { showNotice } from '../app/notices';
 import { useTrashClient } from '../trash/TrashClientContext';
 import { useTrashActions } from '../trash/trashJobs';
 import { TRASH_LOCATION } from '../trash/trashLocation';
+import { useHourCycle } from '../browse/TimeFormatContext';
+import { formatModified } from '../browse/format';
 import { useHomeMeasure, type HomeMeasure } from './homeMeasure';
+import { HomeUsage } from './HomeUsage';
 import type { Stats, VolumeCardModel } from './overviewModel';
 import { TrashCard } from './TrashCard';
-import { useOverview } from './useOverview';
+import { homeOf, useOverview } from './useOverview';
 import { VolumeCard } from './VolumeCard';
 import styles from './OverviewView.module.css';
 
 interface OverviewViewProps {
 	/** The tab this page is the content of: opening a volume or the Trash moves that tab. */
 	tabId: number;
-	/** What is known of the size of Home; the directory-size scan provides it (Overview reads it from `useHomeMeasure` when omitted). */
-	homeMeasure?: HomeMeasure;
 }
 
 /**
@@ -38,17 +40,21 @@ interface OverviewViewProps {
  * on it is reachable by keyboard in reading order: the headline stats, then each card's open
  * button and its actions, then the Trash's.
  */
-export function OverviewView({ tabId, homeMeasure }: OverviewViewProps) {
+export function OverviewView({ tabId }: OverviewViewProps) {
 	const titleId = useId();
 	const [announcement, setAnnouncement] = useState('');
-	const measureOfHome = useHomeMeasure();
+	const places = usePlaces(usePlacesClient());
+	const home = homeOf(places);
+	const usage = useHomeMeasure(home);
+	const homeNow = usage.measure;
+	const hourCycle = useHourCycle();
 	const trashClient = useTrashClient();
 	const overview = useOverview({
 		devices: useDevicesClient(),
 		trash: trashClient,
 		vfs: useVfsClient(),
-		places: usePlaces(usePlacesClient()),
-		homeMeasure: homeMeasure ?? measureOfHome,
+		places,
+		homeMeasure: homeNow,
 		announce: setAnnouncement,
 		notice: showNotice,
 	});
@@ -73,8 +79,20 @@ export function OverviewView({ tabId, homeMeasure }: OverviewViewProps) {
 		[vfs, here, goTo],
 	);
 
-	const homeNow = homeMeasure ?? measureOfHome;
-	const stats = useMemo(() => statTiles(overview.stats, homeNow), [overview.stats, homeNow]);
+	const asOf =
+		homeNow.status === 'done' && homeNow.asOfMs !== null
+			? formatModified(homeNow.asOfMs, undefined, hourCycle)
+			: null;
+	const stats = useMemo(
+		() => statTiles(overview.stats, homeNow, asOf),
+		[overview.stats, homeNow, asOf],
+	);
+	const openFolder = useCallback(
+		(location: Location) => {
+			goTo(location).catch((error: unknown) => console.warn('could not open a folder', error));
+		},
+		[goTo],
+	);
 
 	return (
 		<div className={styles.page} role="region" aria-labelledby={titleId} tabIndex={-1}>
@@ -145,6 +163,10 @@ export function OverviewView({ tabId, homeMeasure }: OverviewViewProps) {
 				</div>
 			</section>
 
+			{usage.available && (
+				<HomeUsage usage={usage} asOf={asOf} onOpen={openFolder} announce={setAnnouncement} />
+			)}
+
 			{unlocking && (
 				<UnlockDialog
 					volume={unlocking}
@@ -167,7 +189,11 @@ interface StatTile {
 }
 
 /** The four headline stats, worded. Home reads "Not measured yet" until the directory-size scan provides it. */
-export function statTiles(stats: Stats, homeMeasure: HomeMeasure): StatTile[] {
+export function statTiles(
+	stats: Stats,
+	homeMeasure: HomeMeasure,
+	asOf: string | null = null,
+): StatTile[] {
 	const capacity: StatTile = {
 		id: 'capacity',
 		label: t('overview.stat.capacity'),
@@ -185,17 +211,18 @@ export function statTiles(stats: Stats, homeMeasure: HomeMeasure): StatTile[] {
 	};
 	let home: StatTile;
 	if (stats.home.status === 'done') {
+		const share =
+			stats.home.sharePercent === null || stats.home.volume === null
+				? t('overview.stat.home.noteUnknown')
+				: tf('overview.stat.home.note', {
+						percent: stats.home.sharePercent,
+						volume: stats.home.volume,
+					});
 		home = {
 			id: 'home',
 			label: t('overview.stat.home'),
 			value: formatSize(stats.home.bytes),
-			note:
-				stats.home.sharePercent === null || stats.home.volume === null
-					? t('overview.stat.home.noteUnknown')
-					: tf('overview.stat.home.note', {
-							percent: stats.home.sharePercent,
-							volume: stats.home.volume,
-						}),
+			note: asOf === null ? share : `${share} · ${tf('overview.home.asOf', { time: asOf })}`,
 		};
 	} else {
 		home = {
