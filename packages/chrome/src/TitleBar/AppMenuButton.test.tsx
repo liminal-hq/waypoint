@@ -74,6 +74,47 @@ describe('AppMenuButton', () => {
 		expect(await screen.findByRole('menu')).toBeInTheDocument();
 	});
 
+	it('closes on a second lone Alt press and returns focus to where it was', async () => {
+		const { button } = setup();
+		key({ key: 'Alt', altKey: true });
+		fireEvent.keyUp(window, { key: 'Alt' });
+		const first = await screen.findByRole('menuitem', { name: 'File' });
+		fireEvent.keyDown(first, { key: 'Alt', altKey: true });
+		fireEvent.keyUp(first, { key: 'Alt' });
+		await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+		expect(button).toHaveFocus();
+	});
+
+	it('closes on a second F10 and reopens on a third', async () => {
+		const { button } = setup();
+		key({ key: 'F10' });
+		const first = await screen.findByRole('menuitem', { name: 'File' });
+		fireEvent.keyDown(first, { key: 'F10' });
+		await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+		expect(button).toHaveFocus();
+		key({ key: 'F10' });
+		expect(await screen.findByRole('menu')).toBeInTheDocument();
+	});
+
+	it('keeps a menu open when Alt is used as a chord inside it', async () => {
+		setup();
+		key({ key: 'f', altKey: true });
+		const newTab = await screen.findByRole('menuitem', { name: /New Tab/ });
+		fireEvent.keyDown(newTab, { key: 'Alt', altKey: true });
+		fireEvent.keyDown(newTab, { key: '3', altKey: true });
+		fireEvent.keyUp(newTab, { key: 'Alt' });
+		expect(screen.getByRole('menu', { name: 'File' })).toBeInTheDocument();
+	});
+
+	it('Alt plus the same mnemonic again leaves that menu open with its first item focused', async () => {
+		setup();
+		key({ key: 'f', altKey: true });
+		const newTab = await screen.findByRole('menuitem', { name: /New Tab/ });
+		fireEvent.keyDown(newTab, { key: 'f', altKey: true });
+		expect(await screen.findByRole('menuitem', { name: /New Tab/ })).toHaveFocus();
+		expect(screen.getAllByRole('menu')).toHaveLength(2);
+	});
+
 	it('does not open on Alt used with another key', () => {
 		setup();
 		key({ key: 'Alt', altKey: true });

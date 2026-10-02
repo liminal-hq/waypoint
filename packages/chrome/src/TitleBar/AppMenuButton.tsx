@@ -16,7 +16,7 @@ export interface AppMenuButtonProps {
 	mark?: ReactNode;
 	items: MenuItem[];
 	onSelect: (item: SelectableMenuItem) => void;
-	/** Opens on F10 and on a lone Alt press. Defaults to true. */
+	/** Toggles on F10 and on a lone Alt press. Defaults to true. */
 	acceleratorKeys?: boolean;
 	/**
 	 * Alt plus a letter opens the menu with that top-level submenu open: the keys are lower-case
@@ -46,6 +46,11 @@ export function AppMenuButton({
 		serial: number;
 	} | null>(null);
 
+	// The accelerator listeners read this rather than the state, so they need not re-subscribe on
+	// every opening and always see whether the menu is up now.
+	const isOpen = useRef(false);
+	isOpen.current = open !== null;
+
 	const openMenu = useCallback((viaKeyboard: boolean, submenu?: string) => {
 		const box = buttonRef.current?.getBoundingClientRect();
 		setOpen((previous) => ({
@@ -62,7 +67,10 @@ export function AppMenuButton({
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'F10' && !event.shiftKey) {
 				event.preventDefault();
-				openMenu(true);
+				altAlone = false;
+				// F10 toggles: the menu's own unmount returns focus to where it was.
+				if (isOpen.current) setOpen(null);
+				else openMenu(true);
 				return;
 			}
 			const target =
@@ -80,14 +88,17 @@ export function AppMenuButton({
 		const onKeyUp = (event: KeyboardEvent) => {
 			if (event.key === 'Alt' && altAlone) {
 				altAlone = false;
-				openMenu(true);
+				if (isOpen.current) setOpen(null);
+				else openMenu(true);
 			}
 		};
-		window.addEventListener('keydown', onKeyDown);
-		window.addEventListener('keyup', onKeyUp);
+		// Captured, because the open menu stops its keys from bubbling to the window: a second Alt
+		// or F10 pressed with focus inside the menu must still reach this.
+		window.addEventListener('keydown', onKeyDown, true);
+		window.addEventListener('keyup', onKeyUp, true);
 		return () => {
-			window.removeEventListener('keydown', onKeyDown);
-			window.removeEventListener('keyup', onKeyUp);
+			window.removeEventListener('keydown', onKeyDown, true);
+			window.removeEventListener('keyup', onKeyUp, true);
 		};
 	}, [acceleratorKeys, mnemonics, openMenu]);
 

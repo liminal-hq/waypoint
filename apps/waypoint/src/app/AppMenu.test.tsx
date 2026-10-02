@@ -117,6 +117,22 @@ describe('the application menu button', () => {
 		expect(screen.getByRole('menu', { name: t('appMenu.view') })).toBeInTheDocument();
 	});
 
+	it('toggles on a lone Alt and on F10: a second press closes the menu and returns focus', async () => {
+		const { button } = setup();
+		fireEvent.keyDown(window, { key: 'Alt', altKey: true });
+		fireEvent.keyUp(window, { key: 'Alt' });
+		const file = await screen.findByRole('menuitem', { name: /File/ });
+		fireEvent.keyDown(file, { key: 'Alt', altKey: true });
+		fireEvent.keyUp(file, { key: 'Alt' });
+		await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+		expect(button).toHaveFocus();
+
+		fireEvent.keyDown(window, { key: 'F10' });
+		fireEvent.keyDown(await screen.findByRole('menuitem', { name: /File/ }), { key: 'F10' });
+		await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+		expect(button).toHaveFocus();
+	});
+
 	it('runs a view command with the keyboard', async () => {
 		const { actions } = setup();
 		fireEvent.keyDown(window, { key: 'v', altKey: true });
