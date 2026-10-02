@@ -74,6 +74,58 @@ describe('ThemeRoot', () => {
 	});
 });
 
+describe('ThemeRoot lang and dir', () => {
+	const withLocale = (language: string, direction: 'auto' | 'ltr' | 'rtl' = 'auto') => ({
+		...DEFAULT_SETTINGS,
+		locale: { language, direction },
+	});
+	const mount = async (fake = createFakeSettingsClient()) => {
+		await act(async () => {
+			render(
+				<ThemeRoot client={fake} os={fakeOs().source}>
+					<p>content</p>
+				</ThemeRoot>,
+			);
+		});
+		return fake;
+	};
+	afterEach(() => {
+		document.documentElement.removeAttribute('lang');
+		document.documentElement.removeAttribute('dir');
+	});
+
+	it('sets lang and dir from the chosen language and follows a change live', async () => {
+		const fake = await mount(createFakeSettingsClient(withLocale('fr-CA')));
+		expect(document.documentElement.lang).toBe('fr-CA');
+		expect(document.documentElement.dir).toBe('ltr');
+		await act(async () => {
+			await fake.set(withLocale('en-CA'));
+		});
+		expect(document.documentElement.lang).toBe('en-CA');
+	});
+
+	it('is right to left for the Arabic pseudo-locale, and the direction setting overrides the language', async () => {
+		const fake = await mount(createFakeSettingsClient(withLocale('ar-XB')));
+		expect(document.documentElement.lang).toBe('ar-XB');
+		expect(document.documentElement.dir).toBe('rtl');
+		await act(async () => {
+			await fake.set(withLocale('ar-XB', 'ltr'));
+		});
+		expect(document.documentElement.dir).toBe('ltr');
+		await act(async () => {
+			await fake.set(withLocale('en-CA', 'rtl'));
+		});
+		expect(document.documentElement.lang).toBe('en-CA');
+		expect(document.documentElement.dir).toBe('rtl');
+	});
+
+	it('names the language of the text in force for "system", English where there is no catalogue', async () => {
+		await mount();
+		expect(document.documentElement.lang).toBe('en-CA');
+		expect(document.documentElement.dir).toBe('ltr');
+	});
+});
+
 describe('ThemeRoot transparency', () => {
 	const lit = {
 		...DEFAULT_SETTINGS,
