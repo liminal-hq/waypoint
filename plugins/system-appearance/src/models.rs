@@ -111,11 +111,11 @@ pub struct TitlebarPreferences {
 
 /// Whether the plugin could read the platform's preferences, and how.
 ///
-/// `available` is true when the titlebar preferences or any appearance preference could be read;
-/// `reason` says why the titlebar preferences could not. `features` names the titlebar sources
-/// that worked (`portal`, `kwin-config`, ...) followed by the appearance features that did
-/// (`colourScheme`, ...), and `appearance` reports every appearance feature with its reason when
-/// it does not work.
+/// `available`, `reason` and `features` describe the titlebar preferences only: `available` is
+/// true when a titlebar source answered, `reason` says why none did, and `features` names the
+/// sources that worked (`portal`, `kwin-config`, ...). The appearance preferences are reported
+/// separately: `appearanceAvailable` is true when any appearance feature works, and `appearance`
+/// reports every appearance feature with its reason when it does not.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
@@ -123,16 +123,15 @@ pub struct PluginStatus {
     pub available: bool,
     pub reason: Option<String>,
     pub features: Vec<String>,
+    pub appearance_available: bool,
     pub appearance: Vec<AppearanceFeatureStatus>,
 }
 
 impl PluginStatus {
-    /// Adds the availability of the appearance features to a titlebar status.
+    /// Adds the availability of the appearance features to a titlebar status, leaving the
+    /// titlebar part (`available`, `reason` and `features`) as it was.
     pub fn with_appearance(mut self, appearance: Vec<AppearanceFeatureStatus>) -> Self {
-        for feature in appearance.iter().filter(|status| status.available) {
-            self.features.push(feature.feature.name().to_string());
-        }
-        self.available = self.available || appearance.iter().any(|status| status.available);
+        self.appearance_available = appearance.iter().any(|status| status.available);
         self.appearance = appearance;
         self
     }
@@ -195,6 +194,7 @@ impl Snapshot {
                 available: true,
                 reason: None,
                 features: vec![feature.to_string()],
+                appearance_available: false,
                 appearance: Vec::new(),
             },
         }
@@ -208,6 +208,7 @@ impl Snapshot {
                 available: false,
                 reason: Some(reason.into()),
                 features: Vec::new(),
+                appearance_available: false,
                 appearance: Vec::new(),
             },
         }
@@ -242,16 +243,19 @@ mod tests {
         ]);
         assert!(status.available);
         assert_eq!(status.reason, titlebar.reason);
-        assert_eq!(status.features, vec!["portal", "colourScheme"]);
+        assert_eq!(status.features, vec!["portal"]);
+        assert!(status.appearance_available);
         assert_eq!(status.appearance.len(), 2);
     }
 
     #[test]
-    fn working_appearance_makes_the_plugin_available_when_the_titlebar_is_not() {
+    fn working_appearance_does_not_make_the_titlebar_available() {
         let titlebar = Snapshot::unavailable(DesktopEnvironment::Unknown, "no portal").status;
         let status = titlebar.with_appearance(vec![feature(AppearanceFeature::TextScale, true)]);
-        assert!(status.available);
+        assert!(!status.available);
+        assert!(status.features.is_empty());
         assert_eq!(status.reason.as_deref(), Some("no portal"));
+        assert!(status.appearance_available);
     }
 
     #[test]
@@ -259,6 +263,7 @@ mod tests {
         let titlebar = Snapshot::unavailable(DesktopEnvironment::Unknown, "no portal").status;
         let status = titlebar.with_appearance(vec![feature(AppearanceFeature::TextScale, false)]);
         assert!(!status.available);
+        assert!(!status.appearance_available);
         assert!(status.features.is_empty());
     }
 }

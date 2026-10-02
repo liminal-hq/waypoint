@@ -8,6 +8,7 @@ import {
 	collectServiceStatuses,
 	nativeDndServiceStatus,
 	SERVICE_SOURCES,
+	systemAppearanceServiceStatus,
 	trashServiceStatus,
 	windowEffectsServiceStatus,
 } from './serviceStatuses';
@@ -19,9 +20,11 @@ const plugins = vi.hoisted(() => ({
 	vfs: vi.fn(),
 	windowManager: vi.fn(),
 	effects: vi.fn(),
+	appearance: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
+vi.mock('@liminal-hq/plugin-system-appearance', () => ({ getStatus: plugins.appearance }));
 vi.mock('@liminal-hq/plugin-window-effects', () => ({ getStatus: plugins.effects }));
 vi.mock('@liminal-hq/waypoint-plugin-ops', () => ({ getStatus: plugins.ops }));
 vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({ getStatus: plugins.vfs }));
@@ -32,6 +35,67 @@ beforeEach(() => {
 });
 
 const feature = (available: boolean, reason: string | null = null) => ({ available, reason });
+
+const appearanceFeature = (name: string, available: boolean, detail: string | null = null) => ({
+	feature: name,
+	available,
+	source: available ? 'portal' : null,
+	reason: available ? null : 'noSource',
+	detail,
+});
+
+describe('the system appearance status', () => {
+	it('is available through the appearance features when the titlebar has no source', async () => {
+		plugins.appearance.mockResolvedValue({
+			available: false,
+			reason: 'no portal',
+			features: [],
+			appearanceAvailable: true,
+			appearance: [
+				appearanceFeature('colourScheme', true),
+				appearanceFeature('contrast', false, 'no contrast setting'),
+			],
+		});
+		expect(await systemAppearanceServiceStatus()).toEqual({
+			available: true,
+			reason: 'no portal',
+			features: ['colourScheme'],
+		});
+	});
+
+	it('lists the titlebar sources and the working appearance features, and gives the first reason', async () => {
+		plugins.appearance.mockResolvedValue({
+			available: true,
+			reason: null,
+			features: ['portal'],
+			appearanceAvailable: true,
+			appearance: [
+				appearanceFeature('colourScheme', true),
+				appearanceFeature('reducedTransparency', false, 'the portal has no such setting'),
+			],
+		});
+		expect(await systemAppearanceServiceStatus()).toEqual({
+			available: true,
+			reason: 'the portal has no such setting',
+			features: ['portal', 'colourScheme'],
+		});
+	});
+
+	it('is unavailable when nothing works', async () => {
+		plugins.appearance.mockResolvedValue({
+			available: false,
+			reason: 'no portal',
+			features: [],
+			appearanceAvailable: false,
+			appearance: [appearanceFeature('colourScheme', false, 'no source')],
+		});
+		expect(await systemAppearanceServiceStatus()).toEqual({
+			available: false,
+			reason: 'no portal',
+			features: [],
+		});
+	});
+});
 
 describe('the Trash status', () => {
 	it('lists the features that work and has no reason when everything does', async () => {

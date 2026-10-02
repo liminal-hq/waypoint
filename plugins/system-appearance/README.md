@@ -65,7 +65,7 @@ Both the read and the event carry a `revision`, a counter that starts at 1 and i
 
 `getAppearance()` resolves to the colour scheme (`light`, `dark` or `noPreference`), the accent colour as lower-case `#rrggbb` (or `null`), the contrast (`normal` or `more`), whether reduced motion and reduced transparency are asked for, the text scale as a multiplier (1 is the default size), the icon-theme name (or `null`) and a `sources` object that says which source supplied each one. `onAppearanceChanged` delivers the same object, with a higher `revision`, whenever a value or a source changes. The revision works as it does for the titlebar preferences: start at 1, increase on change, keep the highest seen, and subscribe before reading.
 
-A preference that nothing could answer holds a neutral value (`noPreference`, `null`, `normal`, `false` or a text scale of 1) and its entry in `sources` is `null`. Do not take the neutral value for the user's choice: `getStatus().appearance` lists every feature (`colourScheme`, `accent`, `contrast`, `reducedMotion`, `reducedTransparency`, `textScale`, `iconTheme`) with `available`, the `source` it comes from, and, when it does not work, a typed `reason` (`platformUnsupported`, `noSource`, `portalUnavailable`, `toolMissing`, `sourceMissing` or `readFailed`) and a `detail` string. Hide options whose feature is unavailable.
+A preference that nothing could answer holds a neutral value (`noPreference`, `null`, `normal`, `false` or a text scale of 1) and its entry in `sources` is `null`. Do not take the neutral value for the user's choice: `getStatus().appearanceAvailable` says whether any of them works (`getStatus().available` keeps describing the titlebar preferences only), and `getStatus().appearance` lists every feature (`colourScheme`, `accent`, `contrast`, `reducedMotion`, `reducedTransparency`, `textScale`, `iconTheme`) with `available`, the `source` it comes from, and, when it does not work, a typed `reason` (`platformUnsupported`, `noSource`, `portalUnavailable`, `toolMissing`, `sourceMissing` or `readFailed`) and a `detail` string. Hide options whose feature is unavailable.
 
 Where several sources exist they are tried from the most to the least authoritative, the first answer wins, and the winner is recorded in `sources`.
 
@@ -158,14 +158,15 @@ interface TitlebarPreferences {
 	source: LayoutSource;
 }
 
-// `available` is true when the titlebar preferences or any appearance feature could be read, and
-// `reason` says why the titlebar preferences could not. `features` names the titlebar sources that
-// worked ('portal', 'kwin-config', 'gsettings', 'xfconf' or 'platform') followed by the appearance
-// features that did; `appearance` reports all of them.
+// `available`, `reason` and `features` describe the titlebar preferences: `available` is true when
+// a titlebar source answered, `reason` says why none did, and `features` names the sources that
+// worked ('portal', 'kwin-config', 'gsettings', 'xfconf' or 'platform'). `appearanceAvailable` is
+// true when any appearance feature works, and `appearance` reports each one.
 interface PluginStatus {
 	available: boolean;
 	reason: string | null;
 	features: string[];
+	appearanceAvailable: boolean;
 	appearance: AppearanceFeatureStatus[];
 }
 

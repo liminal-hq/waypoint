@@ -120,6 +120,25 @@ export async function mimeAppsServiceStatus(): Promise<PluginStatus> {
 	);
 }
 
+/**
+ * The system appearance plugin's status in the shared shape. Its own `available`, `reason` and
+ * `features` describe the titlebar preferences only, so the plugin counts as available when the
+ * titlebar or any appearance preference works, and lists the titlebar sources and the appearance
+ * features that work; the first reason is the titlebar's, then the first appearance feature's that
+ * does not work.
+ */
+export async function systemAppearanceServiceStatus(): Promise<PluginStatus> {
+	const status = await systemAppearanceStatus();
+	const summary = summarise(
+		{ available: status.available || status.appearanceAvailable, reason: status.reason },
+		status.appearance.map(
+			(feature) =>
+				[feature.feature, { available: feature.available, reason: feature.detail }] as const,
+		),
+	);
+	return { ...summary, features: [...status.features, ...summary.features] };
+}
+
 /** The native drag and drop plugin's status in the shared shape. */
 export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	const status = await nativeDndStatus();
@@ -141,7 +160,7 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'waypoint-session': sessionStatus,
 	'waypoint-settings': settingsStatus,
 	'os-prefs': osPrefsServiceStatus,
-	'system-appearance': systemAppearanceStatus,
+	'system-appearance': systemAppearanceServiceStatus,
 	'window-tearoff': windowTearoffStatus,
 	thumbnails: thumbnailsServiceStatus,
 	volumes: volumesServiceStatus,
