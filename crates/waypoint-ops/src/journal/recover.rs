@@ -10,6 +10,11 @@
 // moves its file aside under such a name between its two steps, and then the partial file is the
 // only copy. When the original name is gone and a partial of that name is there, it is renamed
 // back instead of removed.
+//
+// A replacement sets what it replaces aside under `.waypoint-replaced-{job}-{n}-{name}` and removes
+// it only once the new entry is in place. A crash between the two leaves that entry as the only
+// copy of what the name held, so recovery never removes one: where the name is free again it is
+// renamed back (and listed as restored), and otherwise it stays and is listed as left.
 
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -134,6 +139,7 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
         left: Vec::new(),
     };
     let prefix = format!(".waypoint-partial-{}-", record.job.0);
+    let aside_prefix = format!(".waypoint-replaced-{}-", record.job.0);
     let mut visited: Vec<VfsPath> = Vec::new();
     for folder in &record.folders {
         let Ok((path, provider)) = providers.for_location(folder) else {
@@ -155,6 +161,16 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
         };
         for entry in entries {
             let name = entry.name.to_string_lossy().into_owned();
+            if let Some(rest) = partial_rest(&name, &aside_prefix) {
+                let Ok(child) = path.join(&entry.name) else {
+                    continue;
+                };
+                match restore_replaced(provider.as_ref(), &path, &child, &name, rest) {
+                    Ok(original) => done.restored.push(original),
+                    Err(()) => done.left.push(child.to_location()),
+                }
+                continue;
+            }
             let Some(rest) = partial_rest(&name, &prefix) else {
                 continue;
             };
@@ -173,6 +189,31 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
         }
     }
     done
+}
+
+/// What a replacement set aside under `aside` (named `aside_name`, with the original name `rest`)
+/// goes back to when that name is free. `Err` leaves it where it is: the name is taken (the new
+/// entry is in, and the old one is not ours to delete), the rename failed, or the waiting name was
+/// cut short to fit so the original name is not certain.
+fn restore_replaced(
+    provider: &dyn Provider,
+    folder: &VfsPath,
+    aside: &VfsPath,
+    aside_name: &str,
+    rest: &str,
+) -> Result<Location, ()> {
+    // `sibling` cuts a long name to keep the whole under 255 bytes (and by up to a character).
+    if rest.is_empty() || aside_name.len() + 4 > 255 {
+        return Err(());
+    }
+    let original = folder.join(OsStr::new(rest)).map_err(|_| ())?;
+    match provider.stat(&original) {
+        Err(VfsError::NotFound { .. }) => provider
+            .rename(aside, &original, false)
+            .map(|()| original.to_location())
+            .map_err(|_| ()),
+        _ => Err(()),
+    }
 }
 
 /// A case-only rename's file that was set aside under a partial name and whose own name is now

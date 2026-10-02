@@ -12,6 +12,8 @@ use std::sync::Arc;
 use common::*;
 use journal_support::*;
 use waypoint_ops::testing::journal_storage::CountingSaver;
+use waypoint_protocol::Location;
+use waypoint_vfs::CancelToken;
 
 fn create_folder<P: Provider + 'static>(h: &JournalHarness<P>, name: &str) -> JobRequest {
     h.request(JobKind::CreateFolder, &[], Some(""), Some(name))
@@ -561,3 +563,113 @@ sweep_over_providers!(
     a_crash_at_any_call_is_recovered_to_a_consistent_tree_and_one_report,
     crash_sweep
 );
+
+struct Quiet;
+
+impl ExecSink for Quiet {
+    fn progress(&mut self, _: &Progress, _: &Counts) {}
+    fn on_error(&mut self, _: &Location, _: &OpsError) -> Option<Decision> {
+        None
+    }
+}
+
+/// Runs a copy of `src/a` over `dst/a` with the write-ahead record in place, as the plugin's worker
+/// does, and crashes at `crash` (a call counted from the first of the run) if given.
+fn replacing_copy<P: Provider + 'static>(h: &mut JournalHarness<P>, crash: Option<usize>) {
+    let request = h.request(JobKind::Copy, &["src/a"], Some("dst"), None);
+    let plan = h.plan(&request).unwrap();
+    let id = JobId(7);
+    h.journal
+        .begin(PendingRecord::for_plan(id, 0, &request, &plan))
+        .unwrap();
+    h.provider.reset();
+    if let Some(call) = crash {
+        h.provider.crash_at(call);
+    }
+    let options = RunOptions {
+        resolutions: Resolutions::new(Some(ConflictPolicy::Replace)),
+        ..RunOptions::default()
+    };
+    // A crash at a call whose failure the job swallows (the last removal) still ends Ok.
+    let _ =
+        Executor::new(h.env.clone()).run_with(id, &plan, &CancelToken::new(), &mut Quiet, options);
+}
+
+/// A displayed path with `/` separators, which is how the trees name their entries (Windows
+/// displays `\`).
+fn slashed(display: &str) -> String {
+    display.replace('\\', "/")
+}
+
+#[test]
+fn a_crash_at_any_call_of_a_replace_never_loses_the_original_it_set_aside() {
+    fn sweep<P: Provider + 'static>(make: &dyn Fn() -> (JournalHarness<P>, tempfile::TempDir)) {
+        let start = || {
+            let (h, guard) = make();
+            jbuild(
+                &h,
+                &tree(&[
+                    ("src/", ""),
+                    ("src/a", "new"),
+                    ("dst/", ""),
+                    ("dst/a", "old"),
+                ]),
+            );
+            (h, guard)
+        };
+        let (mut baseline, _g) = start();
+        replacing_copy(&mut baseline, None);
+        let calls = baseline.provider.calls();
+        assert!(calls > 3);
+        let (mut restored_any, mut left_any) = (false, false);
+        for call in 1..=calls {
+            let (mut h, _g) = start();
+            replacing_copy(&mut h, Some(call));
+            let report = h.restart();
+            let tree_now = jwork(&h);
+            let at = format!("crash at call {call}/{calls}: {tree_now:?} {report:?}");
+            assert!(partials(&tree_now).is_empty(), "{at}");
+            // Whatever the crash caught, the name holds the old file or the new one.
+            let held = tree_now.get("dst/a");
+            assert!(
+                held == Some(&Node::File(b"old".to_vec()))
+                    || held == Some(&Node::File(b"new".to_vec())),
+                "{at}"
+            );
+            // What is still under a waiting name is reported and is never deleted.
+            let interrupted = report.interrupted.first();
+            for key in tree_now
+                .keys()
+                .filter(|k| k.split('/').any(|n| n.starts_with(".waypoint-replaced-")))
+            {
+                let listed = interrupted.is_some_and(|j| {
+                    j.left
+                        .iter()
+                        .any(|l| slashed(&l.display).ends_with(key.as_str()))
+                });
+                assert!(listed, "{at}: {key} is not reported");
+            }
+            if let Some(job) = interrupted {
+                restored_any |= !job.restored.is_empty();
+                left_any |= !job.left.is_empty();
+                assert!(
+                    job.restored
+                        .iter()
+                        .all(|r| slashed(&r.display).ends_with("dst/a")),
+                    "{at}"
+                );
+            }
+        }
+        assert!(
+            restored_any,
+            "no crash landed between the set-aside and the rename-in"
+        );
+        assert!(
+            left_any,
+            "no crash landed between the rename-in and the removal"
+        );
+    }
+    sweep(&local_jh);
+    sweep(&|| memory_jh(CaseRule::Sensitive));
+    sweep(&|| memory_jh(CaseRule::Insensitive));
+}
