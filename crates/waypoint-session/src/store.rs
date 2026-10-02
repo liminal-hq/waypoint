@@ -180,14 +180,6 @@ impl Store {
         &self.workspaces
     }
 
-    /// This store without its windows: the saved workspaces, the closed tabs and every counter
-    /// stay, so a start that opens one fresh window (the "Open Home" start-up setting) does not
-    /// lose what the document holds besides windows, and ids are still never reused.
-    pub fn without_windows(mut self) -> Store {
-        self.windows.clear();
-        self
-    }
-
     /// The Shelf, in the order items were added.
     pub fn shelf(&self) -> &[ShelfItem] {
         &self.shelf
