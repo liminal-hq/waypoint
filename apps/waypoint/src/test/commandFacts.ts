@@ -32,6 +32,7 @@ export const entry = (id: number, label: string, extra: Partial<JournalEntrySumm
 		atMs: new Date(2026, 9, 1, 14, 30).getTime(),
 		undoable: true,
 		redoable: false,
+		partlyUndone: false,
 		...extra,
 	}) as JournalEntrySummary;
 

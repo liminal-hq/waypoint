@@ -175,6 +175,8 @@ pub struct JournalEntrySummary {
     pub at_ms: i64,
     pub undoable: bool,
     pub redoable: bool,
+    /// An undo of this entry stopped part way: undoing it again finishes the rest, and it cannot be redone until then.
+    pub partly_undone: bool,
 }
 
 /// What the app needs to label Undo and Redo, at one revision.

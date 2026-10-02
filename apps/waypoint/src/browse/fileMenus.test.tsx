@@ -289,7 +289,7 @@ describe('the empty-space menu', () => {
 			commands: commands({
 				states: commandStates({
 					...base,
-					undo: { id: 1, label: 'Move 3 items to Trash', atMs: 0, undoable: true, redoable: false },
+					undo: { id: 1, label: 'Move 3 items to Trash', atMs: 0, undoable: true, redoable: false, partlyUndone: false },
 				}),
 				undoLabel: 'Move 3 items to Trash',
 			}),
@@ -391,8 +391,8 @@ describe('a key for every menu item', () => {
 			paired: true,
 			otherPaneWritable: true,
 			clipboardItems: 1,
-			undo: { id: 1, label: 'x', atMs: 0, undoable: true, redoable: false },
-			redo: { id: 1, label: 'x', atMs: 0, undoable: false, redoable: true },
+			undo: { id: 1, label: 'x', atMs: 0, undoable: true, redoable: false, partlyUndone: false },
+			redo: { id: 1, label: 'x', atMs: 0, undoable: false, redoable: true, partlyUndone: false },
 		});
 		const items = actions([
 			...entryMenuItems(file, everything),

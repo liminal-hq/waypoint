@@ -60,6 +60,7 @@ fn summary(entry: &JournalEntry) -> JournalEntrySummary {
         at_ms: entry.at_ms,
         undoable: entry.state == EntryState::Applied && !entry.inverse.is_empty(),
         redoable: entry.state == EntryState::Undone && !entry.partly_undone,
+        partly_undone: entry.partly_undone,
     }
 }
 

@@ -127,6 +127,7 @@ describe('where the commands are offered', () => {
 			atMs: 0,
 			undoable: true,
 			redoable: false,
+			partlyUndone: false,
 		};
 		expect(commandStates(context({ undo: entry })).undo.enabled).toBe(true);
 		expect(commandStates(context()).undo.enabled).toBe(false);

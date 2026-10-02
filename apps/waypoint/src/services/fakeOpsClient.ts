@@ -176,6 +176,7 @@ export class FakeOpsClient implements OpsClient {
 			atMs: row.atMs,
 			undoable: row.applied,
 			redoable: !row.applied,
+			partlyUndone: false,
 		};
 	}
 

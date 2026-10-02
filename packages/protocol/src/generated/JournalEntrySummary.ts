@@ -4,4 +4,8 @@ import type { JournalId } from "./JournalId";
 /**
  * An entry as a menu or the palette lists it.
  */
-export type JournalEntrySummary = { id: JournalId, label: string, atMs: number, undoable: boolean, redoable: boolean, };
+export type JournalEntrySummary = { id: JournalId, label: string, atMs: number, undoable: boolean, redoable: boolean, 
+/**
+ * An undo of this entry stopped part way: undoing it again finishes the rest, and it cannot be redone until then.
+ */
+partlyUndone: boolean, };
