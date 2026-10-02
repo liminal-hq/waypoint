@@ -21,7 +21,12 @@ pub(crate) fn remove_tree(
     each: &mut dyn FnMut(&VfsPath),
 ) -> Result<(), VfsError> {
     let top = provider.stat(root)?;
-    let volume = provider.volume_id(root);
+    // A symlink root is removed as a link: its volume is not asked (the answer follows the link).
+    let volume = if top.kind == EntryKind::Directory {
+        provider.volume_id(root)
+    } else {
+        None
+    };
     // (path, kind, children already queued)
     let mut stack = vec![(root.clone(), top.kind, false)];
     while let Some((path, kind, expanded)) = stack.pop() {
