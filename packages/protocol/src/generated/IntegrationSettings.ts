@@ -5,6 +5,17 @@
  */
 export type IntegrationSettings = { notifications: boolean, launcherProgress: boolean, preventSleep: boolean, 
 /**
- * The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none when unset.
+ * Take `org.freedesktop.FileManager1` while Waypoint runs, so other applications' "Show in
+ * folder" opens Waypoint. Linux only; making Waypoint the default for folders is a one-off
+ * action on the page, not a setting.
+ */
+defaultFileManager: boolean, 
+/**
+ * Whether the global shortcut is registered.
+ */
+globalShortcutEnabled: boolean, 
+/**
+ * The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none means the
+ * default (`DEFAULT_ACCELERATOR`).
  */
 globalShortcut: string | null, };

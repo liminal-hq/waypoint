@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+use crate::accelerator::validate_accelerator;
+
 /// The shortest spring-load delay: below this a drag passing over a folder would open it.
 pub const SPRING_LOAD_MIN_MS: u32 = 200;
 
@@ -158,9 +160,6 @@ pub fn language_available(language: &str) -> bool {
     SUPPORTED_LANGUAGES.contains(&language)
         || (cfg!(debug_assertions) && PSEUDO_LANGUAGES.contains(&language))
 }
-
-/// The longest a global shortcut's text may be.
-pub const SHORTCUT_MAX_LEN: usize = 64;
 
 /// Light, dark, or whatever the OS says (SPEC 9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
@@ -409,7 +408,14 @@ pub struct IntegrationSettings {
     pub notifications: bool,
     pub launcher_progress: bool,
     pub prevent_sleep: bool,
-    /// The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none when unset.
+    /// Take `org.freedesktop.FileManager1` while Waypoint runs, so other applications' "Show in
+    /// folder" opens Waypoint. Linux only; making Waypoint the default for folders is a one-off
+    /// action on the page, not a setting.
+    pub default_file_manager: bool,
+    /// Whether the global shortcut is registered.
+    pub global_shortcut_enabled: bool,
+    /// The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none means the
+    /// default (`DEFAULT_ACCELERATOR`).
     pub global_shortcut: Option<String>,
 }
 
@@ -508,15 +514,10 @@ impl Settings {
             });
         }
         if let Some(shortcut) = &self.integrations.global_shortcut {
-            if shortcut.trim().is_empty()
-                || shortcut.len() > SHORTCUT_MAX_LEN
-                || shortcut.chars().any(char::is_control)
-            {
-                return Err(SettingsError::Invalid {
-                    field: "integrations.globalShortcut",
-                    reason: "write it like Ctrl+Alt+W",
-                });
-            }
+            validate_accelerator(shortcut).map_err(|reason| SettingsError::Invalid {
+                field: "integrations.globalShortcut",
+                reason,
+            })?;
         }
         Ok(())
     }
@@ -554,11 +555,7 @@ impl Settings {
             .integrations
             .global_shortcut
             .as_deref()
-            .is_some_and(|text| {
-                text.trim().is_empty()
-                    || text.len() > SHORTCUT_MAX_LEN
-                    || text.chars().any(char::is_control)
-            })
+            .is_some_and(|text| validate_accelerator(text).is_err())
         {
             self.integrations.global_shortcut = None;
         }
@@ -700,6 +697,8 @@ mod tests {
         assert!(!s.integrations.notifications);
         assert!(!s.integrations.launcher_progress);
         assert!(!s.integrations.prevent_sleep);
+        assert!(!s.integrations.default_file_manager);
+        assert!(!s.integrations.global_shortcut_enabled);
         assert_eq!(s.integrations.global_shortcut, None);
         assert_eq!(s.validate(), Ok(()));
     }
@@ -758,6 +757,8 @@ mod tests {
         assert!(edit(&|s| s.integrations.global_shortcut = Some("Ctrl+Alt+W".into())).is_ok());
         assert!(edit(&|s| s.integrations.global_shortcut = Some("  ".into())).is_err());
         assert!(edit(&|s| s.integrations.global_shortcut = Some("x".repeat(65))).is_err());
+        // A bare key would take that key from every application.
+        assert!(edit(&|s| s.integrations.global_shortcut = Some("W".into())).is_err());
     }
 
     #[test]
@@ -810,6 +811,8 @@ mod tests {
             json["integrations"]["globalShortcut"],
             serde_json::Value::Null
         );
+        assert_eq!(json["integrations"]["defaultFileManager"], false);
+        assert_eq!(json["integrations"]["globalShortcutEnabled"], false);
         let custom: Settings = serde_json::from_str(
             r##"{"appearance":{"accent":{"kind":"custom","hex":"#112233"}}}"##,
         )

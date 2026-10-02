@@ -72,6 +72,8 @@ describe('the milestone 5 sections', () => {
 			notifications: false,
 			launcherProgress: false,
 			preventSleep: false,
+			defaultFileManager: false,
+			globalShortcutEnabled: false,
 			globalShortcut: null,
 		});
 	});

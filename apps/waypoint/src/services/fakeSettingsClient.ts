@@ -20,6 +20,7 @@ import {
 	type SettingsCommandError,
 	type SettingsSnapshot,
 } from './settingsClient';
+import { isAccelerator } from './accelerator';
 
 export interface FakeSettings extends SettingsClient {
 	/** Every `setUi` the page sent, in order. */
@@ -79,7 +80,7 @@ function refusal(settings: Settings): SettingsCommandError | null {
 		return invalidError('locale.language', 'not a language Waypoint has');
 	}
 	const shortcut = settings.integrations.globalShortcut;
-	if (shortcut !== null && (shortcut.trim() === '' || shortcut.length > 64)) {
+	if (shortcut !== null && !isAccelerator(shortcut)) {
 		return invalidError('integrations.globalShortcut', 'write it like Ctrl+Alt+W');
 	}
 	return null;

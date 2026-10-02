@@ -106,6 +106,8 @@ export const DEFAULT_SETTINGS: Settings = {
 		notifications: false,
 		launcherProgress: false,
 		preventSleep: false,
+		defaultFileManager: false,
+		globalShortcutEnabled: false,
 		globalShortcut: null,
 	},
 };
