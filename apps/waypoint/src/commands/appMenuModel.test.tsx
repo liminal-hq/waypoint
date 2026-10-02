@@ -75,10 +75,11 @@ describe('the menus', () => {
 			'closeTab',
 			'reopenClosedTab',
 			'closeWindow',
+			'settings',
 		]);
 	});
 
-	it('Edit: Undo and Redo with the history, then the clipboard, copy and move, the selection, and Settings last', () => {
+	it('Edit: Undo and Redo with the history, then the clipboard, copy and move, and the selection', () => {
 		const edit = submenu(build(writable), MENU_IDS.edit);
 		expect(idsOf(edit.items)).toEqual([
 			'undo',
@@ -93,7 +94,6 @@ describe('the menus', () => {
 			'addToShelf',
 			'selectAll',
 			'invertSelection',
-			'settings',
 		]);
 		expect(rowOf(edit.items, 'undo').label).toBe('Undo Move 3 items to Trash');
 	});
