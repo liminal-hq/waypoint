@@ -50,6 +50,7 @@ export function createTauriOpsClient(): OpsClient {
 		setClipboard: (mode, items, source) => ops.setClipboard(mode, items, source),
 		setClipboardFromSelection: (handle, spec, mode) =>
 			ops.setClipboardFromSelection(handle, spec, mode),
+		resolveSelection: (handle, spec) => ops.resolveSelection(handle, spec),
 		getSettings: () => ops.getSettings(),
 		setSettings: (settings) => ops.setSettings(settings),
 		takeRecoveryReport: () => ops.takeRecoveryReport(),

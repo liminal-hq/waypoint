@@ -250,6 +250,23 @@ describe('FakeOpsClient', () => {
 		expect((await fake.getClipboard()).revision).toBe(3);
 	});
 
+	it('resolves a selection for a drag out of the window, leaving the clipboard alone', async () => {
+		const fake = createFakeOpsClient({
+			resolveSelection: (_handle, spec) =>
+				spec.kind === 'some'
+					? spec.ids.map((id) => ({ display: `/a/${id}`, uri: `file:///a/${id}` }))
+					: [],
+		});
+		const items = await fake.resolveSelection(1, { kind: 'some', ids: [7, 8] });
+		expect(items.map((item) => item.uri)).toEqual(['file:///a/7', 'file:///a/8']);
+		expect((await fake.getClipboard()).revision).toBe(0);
+		await expect(fake.resolveSelection(1, { kind: 'some', ids: [] })).rejects.toMatchObject({
+			kind: 'ops',
+			error: { kind: 'unsupported' },
+		});
+		expect(fake.calls.filter((call) => call[0] === 'resolveSelection')).toHaveLength(2);
+	});
+
 	it('hands over the recovery report once', async () => {
 		const fake = createFakeOpsClient();
 		fake.setRecoveryReport({ interrupted: [], discarded: null, fromPrevious: false, repairs: [] });

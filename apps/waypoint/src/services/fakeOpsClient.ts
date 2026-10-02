@@ -408,6 +408,18 @@ export class FakeOpsClient implements OpsClient {
 		return this.setClipboard(mode, items, 'app');
 	}
 
+	async resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]> {
+		this.calls.push(['resolveSelection', handle, spec]);
+		const items = (await this.options.resolveSelection?.(handle, spec)) ?? [];
+		if (items.length === 0) {
+			throw refusal('dragging an empty selection', 'ops', {
+				kind: 'unsupported',
+				what: 'dragging an empty selection',
+			});
+		}
+		return items;
+	}
+
 	async getSettings(): Promise<OpsSettings> {
 		return { ...this.settings };
 	}

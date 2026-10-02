@@ -70,6 +70,7 @@ describe('createTauriOpsClient', () => {
 		await client.getClipboard();
 		await client.setClipboard('copy', []);
 		await client.setClipboardFromSelection(1, { kind: 'some', ids: [2] }, 'cut');
+		await client.resolveSelection(1, { kind: 'some', ids: [2] });
 		await client.getSettings();
 		await client.setSettings({} as never);
 		await client.takeRecoveryReport();
@@ -95,6 +96,7 @@ describe('createTauriOpsClient', () => {
 			'get_clipboard',
 			'set_clipboard',
 			'set_clipboard_from_selection',
+			'resolve_selection',
 			'get_settings',
 			'set_settings',
 			'take_recovery_report',

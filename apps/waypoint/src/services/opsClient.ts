@@ -100,6 +100,11 @@ export interface OpsClient {
 		spec: SelectionSpec,
 		mode: ClipboardMode,
 	): Promise<Clipboard>;
+	/**
+	 * The locations a selection of a listing this window opened covers, resolved by Rust, for a
+	 * drag of the selection out of the window. The clipboard is left alone; a selection of nothing is refused.
+	 */
+	resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]>;
 	getSettings(): Promise<OpsSettings>;
 	setSettings(settings: OpsSettings): Promise<OpsSettings>;
 	/** What start-up recovery found, once; `null` when there was nothing to tell and after the first call. */
