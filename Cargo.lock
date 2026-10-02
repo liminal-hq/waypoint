@@ -4385,6 +4385,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-volumes"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "windows 0.62.2",
+ "zbus 4.4.0",
+]
+
+[[package]]
 name = "tauri-plugin-waypoint-ops"
 version = "0.1.0"
 dependencies = [
@@ -5322,6 +5340,7 @@ dependencies = [
  "tauri-plugin-system-appearance",
  "tauri-plugin-thumbnails",
  "tauri-plugin-trash",
+ "tauri-plugin-volumes",
  "tauri-plugin-waypoint-ops",
  "tauri-plugin-waypoint-session",
  "tauri-plugin-waypoint-settings",

@@ -1,0 +1,301 @@
+{
+	"objects": {
+		"/org/freedesktop/UDisks2/drives/Samsung_SSD_980": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "",
+				"Model": "Samsung SSD 980 500GB",
+				"Removable": false,
+				"Ejectable": false,
+				"CanPowerOff": false,
+				"Optical": false,
+				"MediaAvailable": true,
+				"ConnectionBus": "",
+				"Size": 500107862016
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/nvme0n1p1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/nvme0n1p1",
+				"Drive": "/org/freedesktop/UDisks2/drives/Samsung_SSD_980",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "EFI",
+				"IdType": "vfat",
+				"Size": 629145600,
+				"HintSystem": true,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": ["/boot/efi"] }
+		},
+		"/org/freedesktop/UDisks2/block_devices/nvme0n1p2": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/nvme0n1p2",
+				"Drive": "/org/freedesktop/UDisks2/drives/Samsung_SSD_980",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "fedora",
+				"IdType": "btrfs",
+				"Size": 500000000000,
+				"HintSystem": true,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": ["/home", "/"] }
+		},
+		"/org/freedesktop/UDisks2/block_devices/nvme0n1p3": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/nvme0n1p3",
+				"Drive": "/org/freedesktop/UDisks2/drives/Samsung_SSD_980",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "",
+				"IdType": "swap",
+				"Size": 8000000000,
+				"HintSystem": true,
+				"HintIgnore": false
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/nvme0n1p4": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/nvme0n1p4",
+				"Drive": "/org/freedesktop/UDisks2/drives/Samsung_SSD_980",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "Recovery",
+				"IdType": "ntfs",
+				"Size": 1000000000,
+				"HintSystem": true,
+				"HintIgnore": true
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": [] }
+		},
+
+		"/org/freedesktop/UDisks2/drives/Kingston_DataTraveler": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "Kingston",
+				"Model": "DataTraveler 3.0",
+				"Removable": true,
+				"Ejectable": true,
+				"CanPowerOff": true,
+				"Optical": false,
+				"MediaAvailable": true,
+				"ConnectionBus": "usb",
+				"Size": 16000000000
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sdb1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sdb1",
+				"Drive": "/org/freedesktop/UDisks2/drives/Kingston_DataTraveler",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "KINGSTON",
+				"IdType": "vfat",
+				"Size": 16000000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": ["/run/media/scott/KINGSTON"] }
+		},
+
+		"/org/freedesktop/UDisks2/drives/WD_Elements": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "WD",
+				"Model": "Elements 25A2",
+				"Removable": false,
+				"Ejectable": false,
+				"CanPowerOff": true,
+				"Optical": false,
+				"MediaAvailable": true,
+				"ConnectionBus": "usb",
+				"Size": 2000000000000
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sdc1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sdc1",
+				"Drive": "/org/freedesktop/UDisks2/drives/WD_Elements",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "BACKUP",
+				"IdType": "ext4",
+				"Size": 2000000000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": [] }
+		},
+
+		"/org/freedesktop/UDisks2/drives/Vault_Stick": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "Generic",
+				"Model": "Flash Disk",
+				"Removable": true,
+				"Ejectable": true,
+				"CanPowerOff": true,
+				"Optical": false,
+				"MediaAvailable": true,
+				"ConnectionBus": "usb",
+				"Size": 32000000000
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sdd1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sdd1",
+				"Drive": "/org/freedesktop/UDisks2/drives/Vault_Stick",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "",
+				"IdType": "crypto_LUKS",
+				"Size": 32000000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Encrypted": { "HintEncryptionType": "luks2" }
+		},
+
+		"/org/freedesktop/UDisks2/drives/Vault_Stick_2": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "Generic",
+				"Model": "Flash Disk",
+				"Removable": true,
+				"Ejectable": true,
+				"CanPowerOff": true,
+				"Optical": false,
+				"MediaAvailable": true,
+				"ConnectionBus": "usb",
+				"Size": 32000000000
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sde1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sde1",
+				"Drive": "/org/freedesktop/UDisks2/drives/Vault_Stick_2",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "",
+				"IdType": "crypto_LUKS",
+				"Size": 32000000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Encrypted": { "HintEncryptionType": "luks2" }
+		},
+		"/org/freedesktop/UDisks2/block_devices/dm_2d0": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/dm-0",
+				"Drive": "/",
+				"CryptoBackingDevice": "/org/freedesktop/UDisks2/block_devices/sde1",
+				"IdLabel": "Vault",
+				"IdType": "ext4",
+				"Size": 31900000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": ["/run/media/scott/Vault"] }
+		},
+
+		"/org/freedesktop/UDisks2/drives/Optiarc_DVD": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "Optiarc",
+				"Model": "DVD RW AD-7260S",
+				"Removable": true,
+				"Ejectable": true,
+				"CanPowerOff": false,
+				"Optical": true,
+				"MediaAvailable": true,
+				"ConnectionBus": "",
+				"Size": 4700000000
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sr0": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sr0",
+				"Drive": "/org/freedesktop/UDisks2/drives/Optiarc_DVD",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "Install Disc",
+				"IdType": "iso9660",
+				"Size": 4700000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": ["/run/media/scott/Install Disc"] }
+		},
+
+		"/org/freedesktop/UDisks2/drives/Empty_DVD": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "HL-DT-ST",
+				"Model": "DVDRAM GH24NSD1",
+				"Removable": true,
+				"Ejectable": true,
+				"CanPowerOff": false,
+				"Optical": true,
+				"MediaAvailable": false,
+				"ConnectionBus": "",
+				"Size": 0
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sr1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sr1",
+				"Drive": "/org/freedesktop/UDisks2/drives/Empty_DVD",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "",
+				"IdType": "",
+				"Size": 0,
+				"HintSystem": false,
+				"HintIgnore": false
+			}
+		},
+
+		"/org/freedesktop/UDisks2/block_devices/loop0": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/loop0",
+				"Drive": "/",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "Image",
+				"IdType": "ext4",
+				"Size": 104857600,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": [] },
+			"org.freedesktop.UDisks2.Loop": { "BackingFile": "/home/scott/disk.img", "Autoclear": true }
+		},
+		"/org/freedesktop/UDisks2/block_devices/loop1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/loop1",
+				"Drive": "/",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "",
+				"IdType": "squashfs",
+				"Size": 66000000,
+				"HintSystem": false,
+				"HintIgnore": true
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": ["/snap/core22/1"] },
+			"org.freedesktop.UDisks2.Loop": {
+				"BackingFile": "/var/lib/snapd/snaps/core22_1.snap",
+				"Autoclear": true
+			}
+		},
+
+		"/org/freedesktop/UDisks2/drives/SanDisk_Ultra": {
+			"org.freedesktop.UDisks2.Drive": {
+				"Vendor": "SanDisk",
+				"Model": "Ultra",
+				"Removable": true,
+				"Ejectable": false,
+				"CanPowerOff": true,
+				"Optical": false,
+				"MediaAvailable": true,
+				"ConnectionBus": "usb",
+				"Size": 64000000000
+			}
+		},
+		"/org/freedesktop/UDisks2/block_devices/sdf1": {
+			"org.freedesktop.UDisks2.Block": {
+				"Device": "/dev/sdf1",
+				"Drive": "/org/freedesktop/UDisks2/drives/SanDisk_Ultra",
+				"CryptoBackingDevice": "/",
+				"IdLabel": "",
+				"IdType": "exfat",
+				"Size": 64000000000,
+				"HintSystem": false,
+				"HintIgnore": false
+			},
+			"org.freedesktop.UDisks2.Filesystem": { "MountPoints": [] }
+		}
+	}
+}

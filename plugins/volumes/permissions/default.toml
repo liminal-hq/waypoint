@@ -1,0 +1,11 @@
+[default]
+description = "Default permissions for the volumes plugin: report its status, list volumes, measure one, and mount, unmount, eject and unlock them"
+permissions = [
+  "allow-get-status",
+  "allow-list",
+  "allow-refresh-space",
+  "allow-mount",
+  "allow-unmount",
+  "allow-eject",
+  "allow-unlock",
+]
