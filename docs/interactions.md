@@ -153,7 +153,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 Sections separated by rules, with an icon, a label, a right-aligned shortcut and a submenu chevron. Items can be checkboxes, and danger items (such as Delete) come last and in red. It's positioned to stay within the viewport and fully navigable by keyboard. Plugin actions go in a labelled section.
 
-Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Group by ▸ · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window | Cut (Ctrl+X) · Copy (Ctrl+C) · Paste (Ctrl+V; Paste Into Folder on a folder) · Add to Favourites (folders) · Copy Path | Rename (F2) · Rename Selected… (Ctrl+F2, several selected) · Duplicate (Ctrl+Shift+D) | Copy To… · Move To… · Copy to Other Pane (F5) · Move to Other Pane (Shift+F5; the last two only in a pair) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Cut, Paste, Move To… and the other-pane move are hidden in a read-only location while Copy, Copy To… and Copy to Other Pane stay; Paste and Paste Into Folder are disabled while the clipboard is empty, and the other-pane items while the other pane's folder cannot be written to (F5 then opens the dialog). Paste is in the empty-space menu directly after New. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
+Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Group by ▸ · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window · Open With ▸ (the default application, the recommended ones with their icons, Other Application…; only where the system can offer it and the selection is of one type) | Cut (Ctrl+X) · Copy (Ctrl+C) · Paste (Ctrl+V; Paste Into Folder on a folder) · Add to Favourites (folders) · Copy Path | Rename (F2) · Rename Selected… (Ctrl+F2, several selected) · Duplicate (Ctrl+Shift+D) | Copy To… · Move To… · Copy to Other Pane (F5) · Move to Other Pane (Shift+F5; the last two only in a pair) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Cut, Paste, Move To… and the other-pane move are hidden in a read-only location while Copy, Copy To… and Copy to Other Pane stay; Paste and Paste Into Folder are disabled while the clipboard is empty, and the other-pane items while the other pane's folder cannot be written to (F5 then opens the dialog). Paste is in the empty-space menu directly after New. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
 
 ## 7. Tab groups and pairs
 
@@ -201,20 +201,21 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 
 ## 9. Navigation, selection and errors
 
-| Input                     | Target                                | Result                               |
-| ------------------------- | ------------------------------------- | ------------------------------------ |
-| Right-click or long-press | Back, Forward                         | History list                         |
-| Ctrl+Shift+G              | Anywhere                              | Go to…                               |
-| Ctrl+S                    | File view                             | Select by pattern                    |
-| Ctrl+I                    | File view                             | Invert selection                     |
-| Ctrl+D                    | Anywhere                              | Add the current folder to Favourites |
-| Right-click               | List header                           | Columns                              |
-| Right-click               | Sidebar Places, Favourites, servers   | Rename, move, remove                 |
-| Drag                      | Sidebar Places, Favourites rows       | Reorder                              |
-| Drop folder               | Places or Favourites heading          | Add it                               |
-| Right-click               | Tree node                             | Expand, new folder, add to Places    |
-| Menu                      | File → Copy To… / Move To…            | Destination dialog                   |
-| Menu                      | File → Open With → Other Application… | App chooser                          |
+| Input                     | Target                                | Result                                                                  |
+| ------------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
+| Right-click or long-press | Back, Forward                         | History list                                                            |
+| Ctrl+Shift+G              | Anywhere                              | Go to…                                                                  |
+| Ctrl+S                    | File view                             | Select by pattern                                                       |
+| Ctrl+I                    | File view                             | Invert selection                                                        |
+| Ctrl+D                    | Anywhere                              | Add the current folder to Favourites                                    |
+| Right-click               | List header                           | Columns                                                                 |
+| Right-click               | Sidebar Places, Favourites, servers   | Rename, move, remove                                                    |
+| Drag                      | Sidebar Places, Favourites rows       | Reorder                                                                 |
+| Drop folder               | Places or Favourites heading          | Add it                                                                  |
+| Right-click               | Tree node                             | Expand, new folder, add to Places                                       |
+| Menu                      | File → Copy To… / Move To…            | Destination dialog                                                      |
+| Menu                      | File → Open With → Other Application… | App chooser                                                             |
+| Menu or palette           | File → Open With…, Open With…         | App chooser listing every application, or the system's own for one file |
 
 ## 10. Operations and tools
 

@@ -159,6 +159,7 @@ export function appMenuItems(
 	const file = menuSections(
 		rows('newWindow', 'newTab'),
 		rows('newFolder', 'newFile'),
+		rows('openWith'),
 		rows('rename', 'batchRename', 'duplicate'),
 		rows('moveToTrash', 'deletePermanently'),
 		rows('closeTab', 'reopenClosedTab', 'closeWindow'),

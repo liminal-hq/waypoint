@@ -32,6 +32,8 @@ export interface CommandFacts {
 	local: boolean;
 	/** The platform can make links without a privilege the person may not hold (not Windows). */
 	linkSupported: boolean;
+	/** The mime-apps plugin can list applications or has a chooser of its own, so Open With… can work here. */
+	openWith: boolean;
 	/** The places the sidebar offers, which "Go to" commands open. */
 	places: readonly PlaceKind[];
 	/** The pane can be written to and has a selection: Batch Rename can open. */
@@ -70,6 +72,8 @@ export interface CommandActions {
 	/** The file commands act on the active pane; `null` in a window with no queue. */
 	files: FileCommands | null;
 	batchRename(): void;
+	/** Open With… for the active pane's selection. */
+	openWith(): void;
 	/** The Trash view's Restore and Delete Permanently, on the selection (the latter asks first). */
 	restoreFromTrash(): void;
 	deleteFromTrash(): void;
@@ -130,6 +134,7 @@ export function emptyFacts(): CommandFacts {
 		trash: false,
 		local: false,
 		linkSupported: true,
+		openWith: false,
 		places: [],
 		batchRename: false,
 		sort: null,
@@ -160,6 +165,7 @@ export function idleActions(): CommandActions {
 	return {
 		files: null,
 		batchRename: nothing,
+		openWith: nothing,
 		restoreFromTrash: nothing,
 		deleteFromTrash: nothing,
 		selectAll: nothing,

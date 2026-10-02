@@ -1,0 +1,6 @@
+.icon {
+	display: block;
+	inline-size: 16px;
+	block-size: 16px;
+	object-fit: contain;
+}

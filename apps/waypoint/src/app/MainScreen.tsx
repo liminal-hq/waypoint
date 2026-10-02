@@ -24,6 +24,8 @@ import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
 import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
+import { createTauriOpenWithClient } from '../openWith/tauriOpenWithClient';
+import { OpenWithProvider } from '../openWith/OpenWithContext';
 import { createTauriTrashClient } from '../trash/tauriTrashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
 import { TabsProvider } from '../tabs/TabsContext';
@@ -74,6 +76,7 @@ function start(): Promise<MainServices> {
 		createNativeDndClient: createTauriNativeDndClient,
 		createTrashClient: createTauriTrashClient,
 		createDevicesClient: createTauriDevicesClient,
+		createOpenWithClient: createTauriOpenWithClient,
 	});
 }
 
@@ -124,32 +127,34 @@ export function MainScreen() {
 							<TimeFormatProvider client={startup.services.timeFormat}>
 								<TrashClientProvider client={startup.services.trash}>
 									<DevicesClientProvider client={startup.services.devices}>
-										<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
-											<main className={styles.content}>
-												{DevLiveControls && startup.services.demo && (
-													<Suspense fallback={null}>
-														<DevLiveControls
-															client={startup.services.demo.client}
-															location={startup.services.home}
+										<OpenWithProvider client={startup.services.openWith}>
+											<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
+												<main className={styles.content}>
+													{DevLiveControls && startup.services.demo && (
+														<Suspense fallback={null}>
+															<DevLiveControls
+																client={startup.services.demo.client}
+																location={startup.services.home}
+															/>
+														</Suspense>
+													)}
+													<MainOps
+														client={startup.services.ops}
+														osClipboard={startup.services.osClipboard}
+													>
+														<Workspace
+															startup={{
+																view: startup.services.view,
+																notice: startup.services.notice,
+															}}
+															tearoff={startup.services.tearoff}
+															nativeDnd={startup.services.nativeDnd}
 														/>
-													</Suspense>
-												)}
-												<MainOps
-													client={startup.services.ops}
-													osClipboard={startup.services.osClipboard}
-												>
-													<Workspace
-														startup={{
-															view: startup.services.view,
-															notice: startup.services.notice,
-														}}
-														tearoff={startup.services.tearoff}
-														nativeDnd={startup.services.nativeDnd}
-													/>
-												</MainOps>
-												<CommandPaletteHost />
-											</main>
-										</TabsProvider>
+													</MainOps>
+													<CommandPaletteHost />
+												</main>
+											</TabsProvider>
+										</OpenWithProvider>
 									</DevicesClientProvider>
 								</TrashClientProvider>
 							</TimeFormatProvider>

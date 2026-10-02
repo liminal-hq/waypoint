@@ -227,6 +227,27 @@ describe('availability', () => {
 		expect(result.sortDescending.checked).toBe(false);
 	});
 
+	it('lists Open With… where the plugin can do it, for a selection of local files', () => {
+		expect(commandDef('openWith').shortcut).toBeUndefined();
+		const on = { openWith: true };
+		expect(read(states(factsFor({ selected: 1 }, on)).openWith)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 0 }, on)).openWith)).toBe(
+			`disabled: ${t('cmd.reason.nothingSelected')}`,
+		);
+		// The plugin reports nothing that works, the folder is not on this computer, or there is no listing.
+		expect(read(states(factsFor({ selected: 1 })).openWith)).toBe('hidden');
+		expect(read(states(factsFor({ selected: 1 }, { ...on, local: false })).openWith)).toBe(
+			'hidden',
+		);
+		expect(read(states(factsFor({ listing: false }, on)).openWith)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true, selected: 1 }, on)).openWith)).toBe(
+			'hidden',
+		);
+		const actions = { ...idleActions(), openWith: vi.fn() };
+		expect(runCommand('openWith', actions, factsFor({ selected: 1 }, on))).toBe(true);
+		expect(actions.openWith).toHaveBeenCalledTimes(1);
+	});
+
 	it('lists the Shelf: Ctrl+B toggles it, Add to Shelf needs a selection, Focus Shelf is always there', () => {
 		expect(commandDef('toggleShelf').shortcut).toBe('Ctrl+B');
 		expect(commandDef('addToShelf').shortcut).toBeUndefined();
