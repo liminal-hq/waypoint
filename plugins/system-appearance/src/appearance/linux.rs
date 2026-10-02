@@ -9,7 +9,10 @@ mod portal;
 
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::resolve::{resolve, Resolution, SourceReading};
+use super::{
+    models::{AppearanceSource, UnavailableReason},
+    resolve::{resolve, Resolution, SourceReading},
+};
 use crate::{linux::cli, models::DesktopEnvironment, parse, service::Readiness};
 
 /// Keeps the change watchers alive; dropping it stops them and kills any child processes.
@@ -29,19 +32,15 @@ fn current_desktop() -> DesktopEnvironment {
     parse::desktop_environment(&std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default())
 }
 
-/// Runs a blocking reader off the async executor.
-async fn blocking<F>(reader: F) -> SourceReading
+/// Runs a blocking reader off the async executor; if the task panics, the reading fails as `source`.
+async fn blocking<F>(source: AppearanceSource, reader: F) -> SourceReading
 where
     F: FnOnce() -> SourceReading + Send + 'static,
 {
     tauri::async_runtime::spawn_blocking(reader)
         .await
         .unwrap_or_else(|error| {
-            SourceReading::failed(
-                super::models::AppearanceSource::Gsettings,
-                super::models::UnavailableReason::ReadFailed,
-                error.to_string(),
-            )
+            SourceReading::failed(source, UnavailableReason::ReadFailed, error.to_string())
         })
 }
 
@@ -56,13 +55,23 @@ pub async fn read() -> Resolution {
     let missing = portal.values.missing();
     let mut readings = vec![portal];
     match desktop {
-        DesktopEnvironment::Kde => readings.push(blocking(kdeglobals::read).await),
-        DesktopEnvironment::Cinnamon => {
-            readings.push(blocking(move || gsettings::read(&gsettings::CINNAMON, &missing)).await)
+        DesktopEnvironment::Kde => {
+            readings.push(blocking(AppearanceSource::KdeGlobals, kdeglobals::read).await)
         }
+        DesktopEnvironment::Cinnamon => readings.push(
+            blocking(AppearanceSource::Gsettings, move || {
+                gsettings::read(&gsettings::CINNAMON, &missing)
+            })
+            .await,
+        ),
         DesktopEnvironment::Mate | DesktopEnvironment::Xfce => {}
         _ if missing.is_empty() => {}
-        _ => readings.push(blocking(move || gsettings::read(&gsettings::GNOME, &missing)).await),
+        _ => readings.push(
+            blocking(AppearanceSource::Gsettings, move || {
+                gsettings::read(&gsettings::GNOME, &missing)
+            })
+            .await,
+        ),
     }
     resolve(&readings)
 }
@@ -99,6 +108,19 @@ pub fn watch(changed: UnboundedSender<()>) -> Watcher {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_panicking_reader_is_labelled_with_its_own_source() {
+        let reading =
+            tauri::async_runtime::block_on(blocking(AppearanceSource::KdeGlobals, || {
+                panic!("boom")
+            }));
+        assert_eq!(reading.source, AppearanceSource::KdeGlobals);
+        assert!(reading
+            .misses
+            .iter()
+            .all(|m| m.reason == UnavailableReason::ReadFailed));
+    }
 
     /// Live read of this machine's appearance preferences; prints what each source reported and
     /// what won. Read-only. Run with `cargo test live_appearance_read -- --ignored --nocapture`.
