@@ -198,18 +198,45 @@ pub fn on_webview_ready<R: Runtime>(webview: &Webview<R>) {
             });
         }
     });
-    view.connect_drag_motion(move |_, context, _, _, _| {
-        if context.drag_get_source_widget().is_some() {
-            DRAGS.with(|drags| {
-                drags
-                    .borrow_mut()
-                    .entry(label.clone())
-                    .or_default()
-                    .source_is_ours = true;
-            });
+    view.connect_drag_motion({
+        let label = label.clone();
+        move |_, context, _, _, _| {
+            let targets: Vec<String> = context
+                .list_targets()
+                .iter()
+                .map(|atom| atom.name().to_string())
+                .collect();
+            note_source(&label, context.drag_get_source_widget().is_some(), &targets);
+            // Not handled here: wry's handler and WebKit's own decide whether the drag is accepted.
+            false
         }
-        // Not handled here: wry's handler and WebKit's own decide whether the drag is accepted.
-        false
+    });
+    // GTK also emits this just before a drop, but the drop's `drag-data-received` records the flag again.
+    view.connect_drag_leave(move |_, _, _| clear_source(&label));
+}
+
+/// Records that the drag over `label` began in this process, but only for a drag of files: a text, link or image drag from our own webview raises no `Enter` from wry, so nothing would consume a flag set for it and the next outside drop would arrive flagged as a self-drop. Returns whether it was recorded.
+fn note_source(label: &str, source_is_ours: bool, targets: &[String]) -> bool {
+    let files = targets.iter().any(|name| name == URI_LIST);
+    if !(source_is_ours && files) {
+        return false;
+    }
+    DRAGS.with(|drags| {
+        drags
+            .borrow_mut()
+            .entry(label.to_string())
+            .or_default()
+            .source_is_ours = true;
+    });
+    true
+}
+
+/// Forgets that the drag over `label` began here; the rest of what was recorded stays for the drop.
+fn clear_source(label: &str) {
+    DRAGS.with(|drags| {
+        if let Some(info) = drags.borrow_mut().get_mut(label) {
+            info.source_is_ours = false;
+        }
     });
 }
 
@@ -462,7 +489,7 @@ pub fn set_files(files: &ClipboardFiles) -> Result<()> {
     ];
     let clipboard = gtk::Clipboard::get(&gdk::SELECTION_CLIPBOARD);
     let raw = Box::into_raw(held);
-    // SAFETY: the entries point at static C strings; GTK copies the target list; `raw` is freed by `clipboard_clear`, which GTK calls even if the call fails.
+    // SAFETY: the entries point at static C strings; GTK copies the target list; `raw` is freed by `clipboard_clear` when GTK later replaces or drops the offer; if the call itself fails, the code below frees the box instead, so it is never freed twice.
     let set = unsafe {
         gtk::ffi::gtk_clipboard_set_with_data(
             clipboard.to_glib_none().0,
@@ -584,6 +611,21 @@ mod tests {
         );
         assert!(inbound_extras("a", true).raw_uris.is_some());
         assert!(inbound_extras("a", false).raw_uris.is_none());
+    }
+
+    #[test]
+    fn only_a_file_drag_from_this_process_is_marked_as_ours() {
+        let text = vec!["text/plain".to_string(), "UTF8_STRING".to_string()];
+        let files = vec![URI_LIST.to_string(), "text/plain".to_string()];
+        assert!(!note_source("src-text", true, &text));
+        assert!(!inbound_extras("src-text", false).source_is_ours);
+        assert!(!note_source("src-ext", false, &files));
+        assert!(!inbound_extras("src-ext", false).source_is_ours);
+        assert!(note_source("src-files", true, &files));
+        assert!(inbound_extras("src-files", false).source_is_ours);
+        // Leaving clears the flag only; the rest stays for the drop.
+        clear_source("src-files");
+        assert!(!inbound_extras("src-files", true).source_is_ours);
     }
 
     #[test]
