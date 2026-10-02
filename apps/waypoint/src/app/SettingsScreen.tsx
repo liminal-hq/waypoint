@@ -5,6 +5,10 @@
 
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import {
+	getStatus as windowEffectsPluginStatus,
+	type PluginStatus as WindowEffectsStatus,
+} from '@liminal-hq/plugin-window-effects';
+import {
 	getStatus as thumbnailsPluginStatus,
 	type PluginStatus,
 } from '@liminal-hq/plugin-thumbnails';
@@ -36,6 +40,8 @@ interface SettingsScreenProps {
 	dndStatus?: () => Promise<DndAvailability>;
 	/** What thumbnails can do here; the thumbnails plugin's status unless a test supplies its own. */
 	thumbnailsStatus?: () => Promise<PluginStatus>;
+	/** What window effects can do here; the window effects plugin's status unless a test supplies its own. */
+	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
 }
 
 /** The native drag and drop plugin's status in the shape the page needs. */
@@ -69,7 +75,8 @@ function Editor({
 	ops,
 	dndStatus,
 	thumbnailsStatus,
-}: Pick<SettingsScreenProps, 'ops' | 'dndStatus' | 'thumbnailsStatus'>) {
+	windowEffectsStatus,
+}: Pick<SettingsScreenProps, 'ops' | 'dndStatus' | 'thumbnailsStatus' | 'windowEffectsStatus'>) {
 	const handle = useSettingsHandle();
 	const [ownOps] = useState<OpsSettingsApi>(() => ops ?? createTauriOpsClient());
 	if (!handle) return null;
@@ -79,6 +86,7 @@ function Editor({
 			ops={ownOps}
 			dndStatus={dndStatus ?? nativeDndAvailability}
 			thumbnailsStatus={thumbnailsStatus ?? thumbnailsPluginStatus}
+			windowEffectsStatus={windowEffectsStatus ?? windowEffectsPluginStatus}
 		>
 			<Pages />
 		</SettingsEditorProvider>
@@ -90,14 +98,25 @@ function Editor({
  * and a row shows what Rust says is in force, with a refusal under it. Both documents are edited
  * through their owners, the settings plugin and the operations plugin.
  */
-export function SettingsScreen({ client, ops, dndStatus, thumbnailsStatus }: SettingsScreenProps) {
+export function SettingsScreen({
+	client,
+	ops,
+	dndStatus,
+	thumbnailsStatus,
+	windowEffectsStatus,
+}: SettingsScreenProps) {
 	const [own] = useState(() => client ?? createTauriSettingsClient());
 	return (
 		<WindowFrame className={styles.screen}>
 			<AppTitleBar title={t('window.settings.title')} />
 			<main className={styles.content}>
 				<SettingsProvider client={own}>
-					<Editor ops={ops} dndStatus={dndStatus} thumbnailsStatus={thumbnailsStatus} />
+					<Editor
+						ops={ops}
+						dndStatus={dndStatus}
+						thumbnailsStatus={thumbnailsStatus}
+						windowEffectsStatus={windowEffectsStatus}
+					/>
 				</SettingsProvider>
 			</main>
 			<NoticeToast />
