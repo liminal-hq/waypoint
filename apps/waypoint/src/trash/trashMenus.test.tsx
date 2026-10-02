@@ -23,7 +23,12 @@ describe('the Trash item menu', () => {
 });
 
 describe('the Trash empty-space menu', () => {
-	const sort = { key: 'name' as const, descending: false, directoriesFirst: true };
+	const sort = {
+		key: 'name' as const,
+		descending: false,
+		directoriesFirst: true,
+		groupBy: 'none' as const,
+	};
 
 	it('sorts by name, size and date deleted, never modified or kind', () => {
 		const items = backgroundMenuItems(sort, false, { trash: { count: 2 } });
@@ -55,6 +60,7 @@ describe('the Trash empty-space menu', () => {
 			'sort:kind',
 			'descending',
 			'foldersFirst',
+			'groupBy',
 			'showHidden',
 		]);
 	});

@@ -552,6 +552,13 @@ export const enMessages = {
 	'menu.sort.kind': 'Kind',
 	'menu.sort.descending': 'Descending',
 	'menu.sort.foldersFirst': 'Folders first',
+	'menu.groupBy': 'Group by',
+	'menu.group.none': 'No grouping',
+	'menu.group.kind': 'Kind',
+	'menu.group.modified': 'Modified',
+	'menu.group.size': 'Size',
+	'menu.group.name': 'Name',
+	'menu.group.type': 'Type',
 	'menu.showHidden': 'Show hidden files',
 
 	'files.default.folder': 'untitled folder',

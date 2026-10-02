@@ -230,7 +230,7 @@ describe('the entry menu', () => {
 });
 
 describe('the empty-space menu', () => {
-	const sort = { key: 'name', descending: false, directoriesFirst: true } as const;
+	const sort = { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' } as const;
 	const commands = (overrides: Partial<BackgroundCommands> = {}): BackgroundCommands => ({
 		states: writable,
 		undoLabel: null,
@@ -247,6 +247,8 @@ describe('the empty-space menu', () => {
 			'|',
 			'descending',
 			'foldersFirst',
+			'|',
+			'groupBy[group:none,group:kind,group:modified,group:size,group:name,group:type]',
 			'|',
 			'showHidden',
 		]);
