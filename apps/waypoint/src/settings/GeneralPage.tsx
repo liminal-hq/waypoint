@@ -71,6 +71,17 @@ export function GeneralPage() {
 					}
 				/>
 			</SettingsGroup>
+			<SettingsGroup title={t('settings.group.titleBar')}>
+				<ToggleRow
+					label={t('settings.general.appMenuLabel.label')}
+					description={t('settings.general.appMenuLabel.description')}
+					error={errors.appMenuLabel}
+					checked={settings.ui.appMenuLabel}
+					onChange={(appMenuLabel) =>
+						changeSettings('appMenuLabel', (s) => ({ ...s, ui: { ...s.ui, appMenuLabel } }))
+					}
+				/>
+			</SettingsGroup>
 			<SettingsGroup title={t('settings.group.deleting')}>
 				<ToggleRow
 					label={t('settings.general.confirmTrash.label')}

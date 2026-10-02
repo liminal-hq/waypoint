@@ -157,7 +157,11 @@ describe('hiding the bar and its labels', () => {
 		await userEvent.click(screen.getByRole('menuitem', { name: 'Hide Labels' }));
 		await waitFor(() => expect(lastUiChange(settings)).toEqual({ actionBarLabels: false }));
 		expect(settings.calls).toEqual([]);
-		expect(settings.current().settings.ui).toEqual({ actionBar: true, actionBarLabels: false });
+		expect(settings.current().settings.ui).toEqual({
+			actionBar: true,
+			actionBarLabels: false,
+			appMenuLabel: false,
+		});
 		await waitFor(() => expect(barButton('Cut')).toHaveTextContent(''));
 	});
 
@@ -183,7 +187,10 @@ describe('hiding the bar and its labels', () => {
 		await waitFor(() => expect(bar()).toBeInTheDocument());
 		const current = settings.current().settings;
 		act(() => {
-			settings.change({ ...current, ui: { actionBar: false, actionBarLabels: true } });
+			settings.change({
+				...current,
+				ui: { actionBar: false, actionBarLabels: true, appMenuLabel: false },
+			});
 		});
 		await waitFor(() => expect(bar()).not.toBeInTheDocument());
 	});
@@ -195,7 +202,7 @@ describe('hiding the bar and its labels', () => {
 		await tabs.openTab(HOME);
 		const settings = createFakeSettingsClient({
 			...createFakeSettingsClient().current().settings,
-			ui: { actionBar: true, actionBarLabels: false },
+			ui: { actionBar: true, actionBarLabels: false, appMenuLabel: false },
 		});
 		render(
 			<VfsClientProvider client={vfs}>
