@@ -29,6 +29,8 @@ import { OpenWithProvider } from '../openWith/OpenWithContext';
 import { createTauriTrashClient } from '../trash/tauriTrashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
 import { TabsProvider } from '../tabs/TabsContext';
+import { createTauriThumbnailsClient } from '../thumbnails/tauriThumbnailsClient';
+import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
 import { CommandPaletteHost } from '../commands/CommandPaletteHost';
 import { AppMenu } from './AppMenu';
@@ -77,6 +79,7 @@ function start(): Promise<MainServices> {
 		createTrashClient: createTauriTrashClient,
 		createDevicesClient: createTauriDevicesClient,
 		createOpenWithClient: createTauriOpenWithClient,
+		createThumbnailsClient: createTauriThumbnailsClient,
 	});
 }
 
@@ -128,32 +131,34 @@ export function MainScreen() {
 								<TrashClientProvider client={startup.services.trash}>
 									<DevicesClientProvider client={startup.services.devices}>
 										<OpenWithProvider client={startup.services.openWith}>
-											<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
-												<main className={styles.content}>
-													{DevLiveControls && startup.services.demo && (
-														<Suspense fallback={null}>
-															<DevLiveControls
-																client={startup.services.demo.client}
-																location={startup.services.home}
+											<ThumbnailsProvider client={startup.services.thumbnails}>
+												<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
+													<main className={styles.content}>
+														{DevLiveControls && startup.services.demo && (
+															<Suspense fallback={null}>
+																<DevLiveControls
+																	client={startup.services.demo.client}
+																	location={startup.services.home}
+																/>
+															</Suspense>
+														)}
+														<MainOps
+															client={startup.services.ops}
+															osClipboard={startup.services.osClipboard}
+														>
+															<Workspace
+																startup={{
+																	view: startup.services.view,
+																	notice: startup.services.notice,
+																}}
+																tearoff={startup.services.tearoff}
+																nativeDnd={startup.services.nativeDnd}
 															/>
-														</Suspense>
-													)}
-													<MainOps
-														client={startup.services.ops}
-														osClipboard={startup.services.osClipboard}
-													>
-														<Workspace
-															startup={{
-																view: startup.services.view,
-																notice: startup.services.notice,
-															}}
-															tearoff={startup.services.tearoff}
-															nativeDnd={startup.services.nativeDnd}
-														/>
-													</MainOps>
-													<CommandPaletteHost />
-												</main>
-											</TabsProvider>
+														</MainOps>
+														<CommandPaletteHost />
+													</main>
+												</TabsProvider>
+											</ThumbnailsProvider>
 										</OpenWithProvider>
 									</DevicesClientProvider>
 								</TrashClientProvider>

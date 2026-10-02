@@ -23,6 +23,8 @@ import { DevicesClientProvider } from '../devices/DevicesClientContext';
 import type { DevicesClient } from '../devices/devicesClient';
 import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
+import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
+import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
 
 export const HOME = fileLocation('/home/test');
 export const DOCS = fileLocation('/home/test/docs');
@@ -63,6 +65,8 @@ export async function renderWorkspace(
 		nativeDnd?: NativeDndClient;
 		/** The Shelf window's raise and hide, while the Shelf is undocked. */
 		shelfWindow?: ShelfWindowClient;
+		/** The thumbnails service (the views keep their icons when omitted). */
+		thumbnails?: ThumbnailsClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
@@ -75,10 +79,15 @@ export async function renderWorkspace(
 			/>
 		</TabsProvider>
 	);
-	const workspace = options.settings ? (
-		<SettingsProvider client={options.settings}>{tabbed}</SettingsProvider>
+	const thumbed = options.thumbnails ? (
+		<ThumbnailsProvider client={options.thumbnails}>{tabbed}</ThumbnailsProvider>
 	) : (
 		tabbed
+	);
+	const workspace = options.settings ? (
+		<SettingsProvider client={options.settings}>{thumbed}</SettingsProvider>
+	) : (
+		thumbed
 	);
 	const view = render(
 		<VfsClientProvider client={client}>

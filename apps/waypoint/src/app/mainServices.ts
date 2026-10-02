@@ -15,6 +15,7 @@ import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
 import type { DevicesClient } from '../devices/devicesClient';
+import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
 import type { TrashClient } from '../trash/trashClient';
 import type { VfsClient } from '../services/vfsClient';
 
@@ -44,6 +45,8 @@ export interface MainServices {
 	devices?: DevicesClient;
 	/** Open With: the default and other applications for a file; without it Open With is not offered. */
 	openWith?: OpenWithClient;
+	/** Thumbnails for the views; without it every view keeps its icons. */
+	thumbnails?: ThumbnailsClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -61,6 +64,7 @@ export interface MainServicesDeps {
 	createTrashClient?(): TrashClient;
 	createDevicesClient?(): DevicesClient;
 	createOpenWithClient?(): OpenWithClient;
+	createThumbnailsClient?(): ThumbnailsClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -90,6 +94,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		trash: deps.createTrashClient?.(),
 		devices: deps.createDevicesClient?.(),
 		openWith: deps.createOpenWithClient?.(),
+		thumbnails: deps.createThumbnailsClient?.(),
 		home,
 	};
 }

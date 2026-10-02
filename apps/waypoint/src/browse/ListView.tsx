@@ -23,6 +23,16 @@ import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
+import { Thumbnail } from '../thumbnails/Thumbnail';
+import { devicePixelRatio, useEntryThumbnailLoader } from '../thumbnails/ThumbnailsContext';
+import {
+	entryThumbKey,
+	listShowsThumbnails,
+	listThumbnailPixels,
+	thumbSizeFor,
+	wantsThumbnail,
+} from '../thumbnails/thumbnailModel';
+import { useViewportThumbnails } from '../thumbnails/useViewportThumbnails';
 import { FileIcon } from './FileIcon';
 import { InlineRename } from './InlineRename';
 import styles from './ListView.module.css';
@@ -177,6 +187,26 @@ function ListingBody({
 	const first = items[0]?.index ?? 0;
 	const last = items[items.length - 1]?.index ?? 0;
 
+	// Rows tall enough for a picture (the Roomy density, touch mode) show thumbnails; the others keep icons.
+	const withPictures = listShowsThumbnails(rowHeight);
+	const pictureSize = listThumbnailPixels(rowHeight);
+	const thumbnails = useEntryThumbnailLoader(
+		model.handle,
+		withPictures ? thumbSizeFor(pictureSize, devicePixelRatio()) : null,
+	);
+	const inView = virtualizer.range;
+	useViewportThumbnails({
+		loader: thumbnails,
+		first: inView?.startIndex ?? first,
+		last: inView?.endIndex ?? last,
+		count: shown,
+		version,
+		itemAt: (position) => {
+			const entry = model.entryAt(position);
+			return entry && wantsThumbnail(entry) ? { key: entryThumbKey(entry), id: entry.id } : null;
+		},
+	});
+
 	// The scroller only exists once there are rows (or a scan under way), so measure when it appears,
 	// not just on mount: a listing that opens empty would otherwise keep the default height.
 	const scanning = model.phase === 'scanning' || model.phase === 'rescanning';
@@ -307,6 +337,7 @@ function ListingBody({
 		scrollToHeader,
 		onOpen,
 		onMenu,
+		thumbnailOf: (entry) => thumbnails?.urlOf(entryThumbKey(entry)) ?? null,
 		move: (key, from, last) => {
 			switch (key) {
 				case 'ArrowDown':
@@ -353,7 +384,11 @@ function ListingBody({
 				: `${listId}-row-${focus}`;
 
 	return (
-		<div className={styles.view} data-layout={model.layout}>
+		<div
+			className={styles.view}
+			data-layout={model.layout}
+			style={withPictures ? ({ '--wp-list-icon': `${pictureSize}px` } as CSSProperties) : undefined}
+		>
 			<div
 				className={`${styles.columns} ${styles.header}`}
 				role="group"
@@ -506,7 +541,16 @@ function ListingBody({
 									{entry ? (
 										<>
 											<span className={styles.name}>
-												<FileIcon group={entry.group} />
+												{withPictures ? (
+													<Thumbnail
+														loader={thumbnails}
+														thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
+														group={entry.group}
+														className={styles.thumbnail}
+													/>
+												) : (
+													<FileIcon group={entry.group} />
+												)}
 												{commands && renaming === entry.id ? (
 													<InlineRename
 														entry={entry}

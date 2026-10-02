@@ -63,6 +63,8 @@ export interface InteractionOptions {
 	scrollToHeader?: (group: number) => void;
 	onOpen: OpenHandler | undefined;
 	onMenu: ((request: MenuRequest) => void) | undefined;
+	/** The address of an entry's thumbnail when it has loaded, for the drag's stack. */
+	thumbnailOf?: ((entry: Entry) => string | null) | undefined;
 }
 
 export interface Interactions {
@@ -84,7 +86,7 @@ export interface Interactions {
  * scroll a position into sight.
  */
 export function useListInteractions(options: InteractionOptions): Interactions {
-	const { session, itemId, shown, move, scrollTo, onOpen, onMenu } = options;
+	const { session, itemId, shown, move, scrollTo, onOpen, onMenu, thumbnailOf } = options;
 	const layout = options.layout ?? UNGROUPED;
 	const pageRows = options.pageRows ?? (() => 1);
 	const scrollToHeader = options.scrollToHeader ?? (() => {});
@@ -254,6 +256,7 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 			session,
 			position,
 			entry,
+			thumbnail: thumbnailOf?.(entry) ?? null,
 			tab: paneOf(row),
 			modifiers: modifiersOf(event),
 		});
