@@ -82,6 +82,17 @@ jobs:
         id: services
         run: bash scripts/check-services.sh
 
+      # The logical-CSS check below is a Bun script over the workspace.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      # Layout uses logical properties so it mirrors under right-to-left languages (A68).
+      - name: Check stylesheets use logical properties
+        id: logical_css
+        run: bash scripts/check-logical-css.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -93,6 +104,7 @@ jobs:
             echo "- Case collisions: \`${{ steps.case.outcome }}\` (\`bash scripts/check-case-collisions.sh\`)"
             echo "- Operations sandbox: \`${{ steps.ops_sandbox.outcome }}\` (\`bash scripts/check-ops-sandbox.sh\`)"
             echo "- Services panel: \`${{ steps.services.outcome }}\` (\`bash scripts/check-services.sh\`)"
+            echo "- Logical CSS: \`${{ steps.logical_css.outcome }}\` (\`bash scripts/check-logical-css.sh\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   frontend-tests:
