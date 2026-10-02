@@ -1,37 +1,37 @@
 {
   "settings.section.general": {
     "message": "Général",
-    "note": "Area: settings.",
+    "description": "Area: settings.",
     "source": "c910d474"
   },
   "settings.section.appearance": {
     "message": "Apparence",
-    "note": "Area: settings.",
+    "description": "Area: settings.",
     "source": "3907fa7f"
   },
   "settings.section.accessibility": {
     "message": "Accessibilité",
-    "note": "Area: settings.",
+    "description": "Area: settings.",
     "source": "d3368cbf"
   },
   "settings.section.language": {
     "message": "Langue et région",
-    "note": "Area: settings.",
+    "description": "Area: settings.",
     "source": "003e8754"
   },
   "settings.loading": {
     "message": "Chargement des paramètres…",
-    "note": "Area: settings.",
+    "description": "Area: settings.",
     "source": "e71a1345"
   },
   "tabs.count.one": {
     "message": "{count} onglet",
-    "note": "Area: tabs. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are tabs.count.many, tabs.count.other.",
+    "description": "Area: tabs. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are tabs.count.many, tabs.count.other.",
     "source": "219e92dc"
   },
   "tabs.count.other": {
     "message": "{count} onglets",
-    "note": "Area: tabs. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are tabs.count.one, tabs.count.many.",
+    "description": "Area: tabs. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are tabs.count.one, tabs.count.many.",
     "source": "ba82764a"
   }
 }
