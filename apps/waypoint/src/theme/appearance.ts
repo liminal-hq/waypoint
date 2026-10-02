@@ -20,7 +20,7 @@ export interface OsAppearance {
 	accent: string | null;
 }
 
-/** Where the OS preferences come from; the `system-appearance` plugin supplies them where it can. */
+/** Where the OS preferences come from: `pluginOsAppearance` (the `system-appearance` plugin over the media queries), or the media queries alone. */
 export interface OsAppearanceSource {
 	read(): OsAppearance;
 	/** Calls `listener` when any preference changes; returns the way to stop. */
@@ -46,7 +46,8 @@ const QUERIES = {
 
 /**
  * The webview's own media queries: all there is where the OS reports nothing better. WebKitGTK does
- * not report every one reliably, which is why Rust's answer replaces this where it has one (A58).
+ * not report every one reliably, nor the text scale or the accent at all, which is why Rust's answer
+ * (`pluginOsAppearance`) is laid over this wherever it has one (A58).
  */
 export function webOsAppearance(): OsAppearanceSource {
 	const lists = (): MediaQueryList[] => {

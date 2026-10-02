@@ -8,6 +8,8 @@
 4. **Density:** Comfortable or Compact.
 5. **Icon theme:** Follow the OS (freedesktop lookup), or Waypoint's own set. The Waypoint set is also the fallback.
 
+**[eng]** Where the OS preferences come from: each window's `ThemeRoot` listens to the `system-appearance` plugin's `appearance-changed` event, then reads `get_appearance` (so a change made while starting is not lost), and lays the answer over the webview's media queries through `theme/pluginAppearance.ts`. A preference the plugin has no source for (its `sources` entry is empty), a failed call and a missing plugin all leave the media-query value in place. The settings still win: an explicit colour scheme, contrast, motion or transparency choice replaces the OS value, the accent applies only when the accent setting follows the system (through the contrast picker, so the text on it keeps 4.5:1), and `--wp-text-scale` is the larger of the Settings text size and the OS text scale, which is limited to 1–3×.
+
 ## Tokens (semantic)
 
 `bg.window`, `bg.sidebar`, `bg.content`, `bg.raised`, `bg.hover`, `bg.selected`, `border.subtle`, `text.primary`, `text.secondary`, `text.muted`, `accent`, `accent.fg`, `danger`, `success`, `warning`, `focus.ring`.
