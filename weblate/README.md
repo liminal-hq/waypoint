@@ -28,7 +28,7 @@ Create the Weblate project with `en-CA` as the source language and a licence tha
 1. Weblate commits to its own branch and opens a pull request, or a maintainer pulls the branch. The pull request title follows the usual rules (human readable, no Conventional Commit prefix).
 2. A maintainer checks out the branch and runs `bun run i18n:import`, then commits the regenerated `catalogues/<locale>.ts` onto it. Weblate edits only the JSON; the app reads the TypeScript, and `bun run check:i18n` (part of `validate` and CI) fails until the two agree.
 3. `bun run i18n:export` after an English change refreshes the JSON Weblate reads, so a changed English message reaches it; commit that with the English change.
-4. A locale with gaps stays in `INCOMPLETE_LOCALES` (`apps/waypoint/src/i18n/catalogueParity.ts`) until it is complete, and `bun run i18n:status` shows how far along it is.
+4. A locale with gaps stays in `INCOMPLETE_LOCALES` (it is empty while `fr-CA` and English are both complete) (`apps/waypoint/src/i18n/catalogueParity.ts`) until it is complete, and `bun run i18n:status` shows how far along it is.
 
 ## Optional: import automatically
 
