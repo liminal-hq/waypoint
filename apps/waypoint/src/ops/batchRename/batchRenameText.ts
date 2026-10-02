@@ -20,6 +20,10 @@ export function problemText(problem: Problem, rows: readonly PreviewRow[]): stri
 		}
 		case 'existsInFolder':
 			return t('batchRename.problem.exists');
+		case 'nestedSelection': {
+			const outer = rows.find((row) => row.index === problem.with);
+			return tf('batchRename.problem.nested', { other: outer?.from ?? '' });
+		}
 		case 'unchangedSkip':
 			return t('batchRename.row.unchanged');
 	}

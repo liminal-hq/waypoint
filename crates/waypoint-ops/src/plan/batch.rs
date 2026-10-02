@@ -12,7 +12,7 @@ use waypoint_vfs::{child_path, EntryKind, ScannedEntry};
 
 use super::{check, failure, Plan, PlanCtx, PlanItem, Planner};
 use crate::model::{JobKind, JobRequest, OpsError};
-use crate::names::{file_name_of, same_name, same_path};
+use crate::names::{file_name_of, is_within, same_name, same_path};
 use crate::rename_clash::{
     plan_batch, preview_batch_rename, BatchEntry, BatchPreview, FolderInputs, Place,
     PreviewRequest, PreviewRow, Problem,
@@ -145,7 +145,8 @@ impl Planner<'_, '_> {
 
     pub(super) fn batch_rename(&mut self) -> Result<Plan, OpsError> {
         let gathered = self.gather()?;
-        let preview = preview_batch_rename(&gathered.request());
+        let mut preview = preview_batch_rename(&gathered.request());
+        flag_nested(&gathered, &mut preview);
         refuse_if_unfit(&gathered, &preview)?;
         if preview.changes == 0 {
             return Err(OpsError::InvalidName {
@@ -232,6 +233,12 @@ fn problem_error(gathered: &Gathered, row: &PreviewRow, problem: &Problem) -> Op
             name: row.to.clone(),
             reason: reason.clone(),
         },
+        Problem::NestedSelection { .. } => OpsError::InvalidName {
+            name: row.from.clone(),
+            reason:
+                "it is inside another selected entry that is being renamed; select one or the other"
+                    .to_owned(),
+        },
         _ => {
             let folder = gathered.sources[row.index].parent();
             let location = folder
@@ -273,5 +280,38 @@ pub fn preview_batch(request: &JobRequest, ctx: &PlanCtx<'_>) -> Result<BatchPre
         warnings: Vec::new(),
     };
     let gathered = planner.gather()?;
-    Ok(preview_batch_rename(&gathered.request()))
+    let mut preview = preview_batch_rename(&gathered.request());
+    flag_nested(&gathered, &mut preview);
+    Ok(preview)
+}
+
+/// Marks an entry that is inside another selected entry whose name changes. The steps are ordered
+/// within each folder, so renaming the outer entry first would leave the inner one's path pointing
+/// at nothing and the job would fail (and roll back) at that step; the preview says so up front.
+/// An outer entry that keeps its name is no obstacle.
+fn flag_nested(gathered: &Gathered, preview: &mut BatchPreview) {
+    let mut changed = vec![false; gathered.sources.len()];
+    for row in &preview.rows {
+        changed[row.index] = row.changed;
+    }
+    for row in &mut preview.rows {
+        let path = &gathered.sources[row.index];
+        let rule = gathered
+            .groups
+            .iter()
+            .find(|g| g.members.contains(&row.index))
+            .map_or(CaseRule::Sensitive, |g| g.rule);
+        let outer = gathered.sources.iter().enumerate().find(|(at, other)| {
+            *at != row.index
+                && changed[*at]
+                && is_within(path, other, rule)
+                && !same_path(path, other, rule)
+        });
+        if let Some((with, _)) = outer {
+            if !row.problems.iter().any(Problem::blocks) {
+                preview.problems += 1;
+            }
+            row.problems.push(Problem::NestedSelection { with });
+        }
+    }
 }

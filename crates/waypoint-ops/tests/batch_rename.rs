@@ -247,6 +247,44 @@ fn entries_in_several_folders_are_judged_each_in_its_own() {
     });
 }
 
+#[test]
+fn a_folder_and_something_inside_it_cannot_be_renamed_together() {
+    each_provider!(|h, rule, links| {
+        let _ = (rule, links);
+        let start = tree(&[("d/", ""), ("d/x", "1"), ("keep", "k")]);
+        build(&h, &start);
+        let both = batch(
+            &h,
+            &["d", "d/x"],
+            vec![replace("d", "e"), replace("x", "y")],
+        );
+
+        // The preview says so on the inner entry, and is not ready.
+        let cancel = CancelToken::new();
+        let preview = waypoint_ops::preview_batch(&both, &h.plan_ctx(&cancel)).unwrap();
+        assert_eq!(preview.rows[0].problems, vec![]);
+        assert_eq!(
+            preview.rows[1].problems,
+            vec![Problem::NestedSelection { with: 0 }]
+        );
+        assert_eq!(preview.problems, 1);
+        assert!(!preview.ready());
+
+        // The job is refused before anything is written, where it used to fail at its second step.
+        let result = h.run(both);
+        assert!(matches!(
+            error_of(&result.state),
+            OpsError::InvalidName { .. }
+        ));
+        assert_eq!(h.provider.write_calls(), 0);
+        assert_eq!(work_tree(&h), start);
+
+        // The folder staying as it is, the entry inside it can be renamed with it selected.
+        ok(batch(&h, &["d", "d/x"], vec![replace("x", "y")]), &mut h);
+        assert_eq!(work_tree(&h), renamed(&start, &[("d/x", "d/y")]));
+    });
+}
+
 fn renamed_in(start: &Tree, moves: &[(&str, &str)]) -> Tree {
     let mut out = start.clone();
     for (from, to) in moves {

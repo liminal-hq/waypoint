@@ -3,4 +3,4 @@
 /**
  * Why a result cannot be used, or that there is nothing to do for the entry.
  */
-export type Problem = { "kind": "invalid", reason: string, } | { "kind": "duplicateTarget", with: number, } | { "kind": "existsInFolder" } | { "kind": "unchangedSkip" };
+export type Problem = { "kind": "invalid", reason: string, } | { "kind": "duplicateTarget", with: number, } | { "kind": "existsInFolder" } | { "kind": "unchangedSkip" } | { "kind": "nestedSelection", with: number, };

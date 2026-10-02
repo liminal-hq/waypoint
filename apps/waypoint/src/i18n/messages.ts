@@ -422,6 +422,8 @@ export const enMessages = {
 	'batchRename.problem.duplicate': 'The same name as “{other}”',
 	'batchRename.problem.exists': 'A file or folder with this name is already here',
 	'batchRename.problem.invalid': '{reason}',
+	'batchRename.problem.nested':
+		'Inside “{other}”, which is also being renamed; select one or the other',
 	'batchRename.summary.problems.one': '{count} problem',
 	'batchRename.summary.problems.other': '{count} problems',
 	'batchRename.summary.changes.one': '{count} item will be renamed',

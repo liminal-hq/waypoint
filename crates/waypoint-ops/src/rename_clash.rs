@@ -44,6 +44,9 @@ pub enum Problem {
     ExistsInFolder,
     /// The rules leave the name as it is. Not a reason to refuse the rename.
     UnchangedSkip,
+    /// The entry is inside another selected entry (`with` is that entry's index) whose name changes,
+    /// so renaming it too would aim at a path that stops existing first. Select one or the other.
+    NestedSelection { with: usize },
 }
 
 impl Problem {

@@ -23,6 +23,12 @@ describe('problemText', () => {
 		expect(problemText({ kind: 'duplicateTarget', with: 0 }, rows)).toBe('The same name as “x”');
 	});
 
+	it('names the folder a nested entry is inside', () => {
+		expect(problemText({ kind: 'nestedSelection', with: 0 }, rows)).toBe(
+			'Inside “a”, which is also being renamed; select one or the other',
+		);
+	});
+
 	it('says a name is taken, and that nothing changes', () => {
 		expect(problemText({ kind: 'existsInFolder' }, rows)).toBe(
 			'A file or folder with this name is already here',
