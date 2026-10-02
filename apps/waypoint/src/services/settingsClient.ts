@@ -64,7 +64,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	ui: {
 		actionBar: true,
 		actionBarLabels: true,
-		appMenuLabel: false,
+		appNameInTitle: false,
 	},
 };
 

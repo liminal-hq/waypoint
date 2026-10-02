@@ -14,6 +14,6 @@ actionBar: boolean,
  */
 actionBarLabels: boolean, 
 /**
- * Whether the app menu button shows "Waypoint" beside the logo; off, the logo stands alone.
+ * Whether the title bar's label starts with "Waypoint"; off, it is just the window's name.
  */
-appMenuLabel: boolean, };
+appNameInTitle: boolean, };

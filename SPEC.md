@@ -55,7 +55,7 @@ Assumed stack, matching the family: Tauri v2, React and Rust. The spec is writte
 ```
 Window
 ├─ Title bar (shared Liminal component; app menu, title, window controls)
-│   (the app menu button shows the Waypoint logo; Settings → General → Title bar adds the name beside it, off by default)
+│   (the app menu button shows the Waypoint logo and name; Settings → General → Title bar starts the title's label with “Waypoint”, off by default)
 ├─ Tab strip (own row, below the title bar)
 ├─ Toolbar row: back/forward/up · path bar · search · view switcher · panel toggles
 ├─ Body
