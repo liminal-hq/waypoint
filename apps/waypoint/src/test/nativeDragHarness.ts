@@ -124,6 +124,8 @@ export interface NativeHarness {
 	over(...elements: Element[]): void;
 	/** Presses a row and drags 10 px: an in-page drag has begun. */
 	startDrag(position?: number, over?: Partial<Parameters<FileDrag['press']>[0]>): void;
+	/** Presses a Shelf row (references, no listing) and drags 10 px: an in-page drag of locations has begun. */
+	startShelfDrag(locations?: Location[]): void;
 	move(x: number, y?: number): void;
 	up(x?: number, y?: number): void;
 }
@@ -264,6 +266,26 @@ export async function nativeHarness(
 					tab: 1,
 					modifiers: NO_KEYS,
 					...over,
+				}),
+			).toBe(true);
+			harness.move(110);
+			expect(harness.phase()).toBe('dragging');
+		},
+		startShelfDrag(
+			locations = [fileLocation('/home/test/a.txt'), fileLocation('/home/test/b.txt')],
+		) {
+			expect(
+				drag.pressLocations({
+					pointerId: 1,
+					clientX: 100,
+					clientY: 100,
+					button: 0,
+					element,
+					locations,
+					name: locations.length === 1 ? 'a.txt' : null,
+					groups: ['document', 'document'],
+					folder: FOLDER,
+					modifiers: NO_KEYS,
 				}),
 			).toBe(true);
 			harness.move(110);

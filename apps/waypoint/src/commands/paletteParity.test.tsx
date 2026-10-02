@@ -103,6 +103,39 @@ describe('the Action bar', () => {
 	});
 });
 
+describe('the Shelf commands', () => {
+	it('are listed with the labels and the key the registry gives them', () => {
+		expect(rowByCommand.get('toggleShelf')).toMatchObject({
+			label: t('cmd.shelf'),
+			shortcut: 'Ctrl+B',
+			enabled: true,
+		});
+		expect(rowByCommand.get('addToShelf')).toMatchObject({
+			label: t('cmd.addToShelf'),
+			shortcut: commandDef('addToShelf').shortcut,
+			enabled: true,
+		});
+		expect(rowByCommand.get('focusShelf')).toMatchObject({
+			label: t('cmd.focusShelf'),
+			shortcut: commandDef('focusShelf').shortcut,
+			enabled: true,
+		});
+	});
+
+	it('are found by what the palette is typed', () => {
+		const found = (query: string) =>
+			paletteRows({ commands: views, history: [], query, recents: [] }).map((row) => row.label);
+		expect(found('shelf')).toEqual(
+			expect.arrayContaining([t('cmd.shelf'), t('cmd.addToShelf'), t('cmd.focusShelf')]),
+		);
+	});
+
+	it('are in the View and Edit menus alongside the palette’s and the Link To… entries', () => {
+		const ids = menuCommandItems(appMenuItems(views, facts)).map((item) => item.id);
+		expect(ids).toEqual(expect.arrayContaining(['toggleShelf', 'addToShelf', 'linkTo']));
+	});
+});
+
 describe('commands only the palette reaches', () => {
 	it('lists Link To… where a link can be made, hidden where it cannot', () => {
 		expect(rowByCommand.get('linkTo')).toMatchObject({ label: t('cmd.linkTo'), enabled: true });
