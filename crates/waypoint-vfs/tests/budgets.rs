@@ -143,6 +143,7 @@ fn sort(key: SortKey, descending: bool) -> SortSpec {
         key,
         descending,
         directories_first: true,
+        ..SortSpec::default()
     }
 }
 

@@ -7,8 +7,10 @@ use std::sync::Mutex;
 
 use waypoint_session::{
     Command, Document, DocumentError, GroupId, MoveTo, MoveWhat, PairLayout, SessionStorage,
-    StorageError, Store, TabColour, TabHints, TabId, WorkspaceId, DOCUMENT_VERSION,
+    StorageError, Store, TabColour, TabHints, TabId, ViewMode, ViewPrefs, WorkspaceId,
+    DOCUMENT_VERSION,
 };
+use waypoint_vfs::{GroupBy, SortKey, SortSpec};
 
 mod common;
 use common::{assert_ok, loc, run, store_with};
@@ -431,4 +433,22 @@ fn deleting_the_active_workspace_sends_every_window_back_to_the_bookmarks() {
         assert_eq!(s.window(label).unwrap().workspace, None);
     }
     assert_ok(&s);
+}
+
+#[test]
+fn a_view_saved_before_sort_and_group_were_kept_reads_as_the_default_sort() {
+    let old = r#"{"mode":"grid","showHidden":true,"iconSize":96}"#;
+    let view: ViewPrefs = serde_json::from_str(old).unwrap();
+    assert_eq!(view.mode, ViewMode::Grid);
+    assert_eq!(view.sort, SortSpec::default());
+    let sort = SortSpec {
+        key: SortKey::Size,
+        group_by: GroupBy::Size,
+        ..SortSpec::default()
+    };
+    let saved = serde_json::to_string(&ViewPrefs { sort, ..view }).unwrap();
+    assert_eq!(
+        serde_json::from_str::<ViewPrefs>(&saved).unwrap().sort,
+        sort
+    );
 }

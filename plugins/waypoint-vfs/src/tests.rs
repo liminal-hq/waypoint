@@ -178,6 +178,7 @@ fn sort_and_filter_return_new_revisions_and_reorder_the_view() {
             key: SortKey::Name,
             descending: true,
             directories_first: true,
+            ..SortSpec::default()
         },
     ))
     .unwrap();

@@ -77,6 +77,28 @@ pub enum SortKey {
     Deleted,
 }
 
+/// What a listing is divided into headed groups by. A group is a contiguous run of the sorted rows,
+/// so grouping is the first part of the order and the sort orders the rows inside each group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum GroupBy {
+    /// One run of rows with no headers.
+    #[default]
+    None,
+    /// The icon group: folders, images, audio, video, archives, code, documents and the rest.
+    Kind,
+    /// How long ago: today, yesterday, earlier this week, the last 7 and 30 days, this year, then
+    /// each earlier year.
+    Modified,
+    /// A band of file sizes, from empty to gigantic; folders and unknown sizes have a band of their own.
+    Size,
+    /// The first letter of the name (digits and symbols together).
+    Name,
+    /// The extension, with folders and names without one ahead of it.
+    Type,
+}
+
 /// How a listing is ordered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -86,6 +108,10 @@ pub struct SortSpec {
     pub descending: bool,
     /// Folders sort before files whatever the key (a setting, on by default).
     pub directories_first: bool,
+    /// Divides the sorted rows into groups. Absent in a sort saved before grouping existed, which
+    /// reads as no grouping.
+    #[serde(default)]
+    pub group_by: GroupBy,
 }
 
 impl Default for SortSpec {
@@ -94,8 +120,80 @@ impl Default for SortSpec {
             key: SortKey::Name,
             descending: false,
             directories_first: true,
+            group_by: GroupBy::None,
         }
     }
+}
+
+/// How long ago an entry was modified, as a group of its own. The bands are calendar days in the
+/// local time zone, and a week starts on Monday.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ModifiedBucket {
+    Today,
+    Yesterday,
+    EarlierThisWeek,
+    Last7Days,
+    Last30Days,
+    ThisYear,
+    /// No modified time is known.
+    Unknown,
+}
+
+/// A band of file sizes (the thresholds are decimal: 10 kB, 100 kB, 1 MB, 16 MB and 128 MB).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum SizeBand {
+    /// Folders and entries whose size is not known.
+    Unspecified,
+    Empty,
+    Tiny,
+    Small,
+    Medium,
+    Large,
+    Huge,
+    Gigantic,
+}
+
+/// What one group is, as a typed key the page turns into a translated heading.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum GroupKey {
+    /// An icon group (grouping by kind, and the folders ahead of the rest when grouping by type).
+    Kind {
+        group: IconGroup,
+    },
+    Modified {
+        bucket: ModifiedBucket,
+    },
+    /// An earlier calendar year than this one.
+    Year {
+        year: i32,
+    },
+    Size {
+        band: SizeBand,
+    },
+    /// An upper-case letter, or `#` for a name that starts with a digit or a symbol.
+    Name {
+        initial: String,
+    },
+    /// A lower-case extension without its dot; empty for a name without one.
+    Type {
+        extension: String,
+    },
+}
+
+/// One group of the view: the contiguous run of `count` rows from view position `start`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct GroupRun {
+    pub key: GroupKey,
+    pub start: u32,
+    pub count: u32,
 }
 
 /// Restricts a listing to one kind of entry. A symlink to a folder counts as a folder.
@@ -170,6 +268,8 @@ pub struct ListingSnapshot {
     /// The provider writes nothing here, so the view offers no new, rename, paste or drop.
     pub read_only: bool,
     pub layout: ListingLayout,
+    /// The groups of the view in order, covering every row; empty when the sort does not group.
+    pub groups: Vec<GroupRun>,
 }
 
 /// One edit to the current view, in view positions.
@@ -200,6 +300,11 @@ pub enum ListingEvent {
         phase: ListingPhase,
         scanned: u32,
         count: u32,
+        /// The groups of the view when a scan has just filled it (and the sort groups); absent
+        /// otherwise, where they have not changed.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        groups: Option<Vec<GroupRun>>,
     },
     /// The view changed; apply the operations in order to any cached pages.
     Changed {
@@ -211,6 +316,11 @@ pub enum ListingEvent {
         /// (a rename, or a new size under a size sort). They keep their `EntryId`, so a consumer
         /// keeps what it holds by id (a selection) instead of forgetting it with the removal.
         moved: Vec<EntryId>,
+        /// The groups of the view after the `ops`, whole, when the sort groups: a row that changed
+        /// group moved with its header, so boundaries are sent again rather than patched.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        groups: Option<Vec<GroupRun>>,
     },
     /// The listing cannot continue.
     Failed {
@@ -309,6 +419,25 @@ mod tests {
         assert!(!sort.descending);
         assert!(sort.directories_first);
         assert!(!Filter::default().show_hidden);
+        assert_eq!(sort.group_by, GroupBy::None);
+    }
+
+    #[test]
+    fn a_sort_saved_before_grouping_reads_as_ungrouped() {
+        let sort: SortSpec =
+            serde_json::from_str(r#"{"key":"size","descending":true,"directoriesFirst":false}"#)
+                .unwrap();
+        assert_eq!(sort.key, SortKey::Size);
+        assert_eq!(sort.group_by, GroupBy::None);
+    }
+
+    #[test]
+    fn group_keys_are_tagged_with_their_value() {
+        let json = serde_json::to_string(&GroupKey::Modified {
+            bucket: ModifiedBucket::EarlierThisWeek,
+        })
+        .unwrap();
+        assert_eq!(json, r#"{"kind":"modified","bucket":"earlierThisWeek"}"#);
     }
 
     #[test]
@@ -319,6 +448,7 @@ mod tests {
             phase: ListingPhase::Scanning,
             scanned: 10,
             count: 10,
+            groups: None,
         })
         .unwrap();
         assert_eq!(

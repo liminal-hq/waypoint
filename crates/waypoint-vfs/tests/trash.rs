@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{EntryId, VfsError};
 use waypoint_vfs::{
-    CancelToken, EntryKind, Filter, Listing, ListingEvent, ListingHandle, ListingLayout,
+    CancelToken, EntryKind, Filter, GroupBy, Listing, ListingEvent, ListingHandle, ListingLayout,
     ListingOptions, MemoryTrashSource, PatchOp, Provider, SelectionSpec, SortKey, SortSpec,
     TrashProvider, TrashSource, TrashedItem, WatchState,
 };
@@ -88,6 +88,7 @@ fn by(key: SortKey, descending: bool) -> SortSpec {
         key,
         descending,
         directories_first: false,
+        ..SortSpec::default()
     }
 }
 
@@ -457,4 +458,17 @@ fn the_source_restores_deletes_and_empties() {
             "empty:all"
         ]
     );
+}
+
+#[test]
+fn the_trash_does_not_group_whatever_sort_it_is_given() {
+    let source = three();
+    let grouped = SortSpec {
+        group_by: GroupBy::Name,
+        ..SortSpec::default()
+    };
+    let (listing, _) = open(provider(&source, 50), grouped);
+    assert_eq!(listing.snapshot().sort.group_by, GroupBy::None);
+    assert!(listing.snapshot().groups.is_empty());
+    assert_eq!(listing.set_sort(grouped).sort.group_by, GroupBy::None);
 }
