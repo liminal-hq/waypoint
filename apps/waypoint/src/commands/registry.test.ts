@@ -230,6 +230,47 @@ describe('availability', () => {
 		}
 	});
 
+	it('offers Link To… for a selection of local items, and hides it where a link cannot be relied on', () => {
+		expect(read(states(factsFor({ selected: 1 }, { local: true })).linkTo)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 0 }, { local: true })).linkTo)).toBe(
+			`disabled: ${t('cmd.reason.nothingSelected')}`,
+		);
+		// Not on Windows (a link needs a privilege), not for a remote or virtual listing, not in the Trash.
+		expect(read(states(factsFor({ selected: 1 }, { linkSupported: false })).linkTo)).toBe('hidden');
+		expect(read(states(factsFor({ selected: 1 }, { local: false })).linkTo)).toBe('hidden');
+		expect(read(states(factsFor({ selected: 1, trash: true, readOnly: true })).linkTo)).toBe(
+			'hidden',
+		);
+		expect(read(states(factsFor({ queue: false, selected: 1 })).linkTo)).toBe('hidden');
+	});
+
+	it('offers a Go to command for each place the sidebar has, and for a tab to open it in', () => {
+		const ids = [
+			'goHome',
+			'goDesktop',
+			'goDocuments',
+			'goDownloads',
+			'goPictures',
+			'goMusic',
+			'goVideos',
+			'goTrash',
+		] as const;
+		for (const id of ids) expect(read(states()[id]), id).toBe('enabled');
+		const some = states(factsFor({}, { places: ['home', 'downloads'] }));
+		expect(read(some.goHome)).toBe('enabled');
+		expect(read(some.goDownloads)).toBe('enabled');
+		expect(read(some.goMusic)).toBe('hidden');
+		expect(read(states(factsFor({}, { tab: false })).goHome)).toBe(
+			`disabled: ${t('cmd.reason.noTab')}`,
+		);
+		expect(states().goDownloads.label).toBe('Go to Downloads');
+	});
+
+	it('always offers the command palette, with its key', () => {
+		expect(read(states(emptyFacts()).commandPalette)).toBe('enabled');
+		expect(commandDef('commandPalette').shortcut).toBe('Ctrl+Shift+P');
+	});
+
 	it('agrees with `commandStates` for every file command', () => {
 		const context = {
 			queue: true,
@@ -291,6 +332,25 @@ describe('running', () => {
 		expect(files.newFolder).toHaveBeenCalledTimes(1);
 		expect(files.paste).toHaveBeenCalledTimes(1);
 		expect(files.undo).toHaveBeenCalledTimes(1);
+	});
+
+	it('sends a Go to command to the place it names, Link To… to the file commands, and the palette to its action', async () => {
+		const files = { linkTo: vi.fn().mockResolvedValue(undefined) };
+		const actions = {
+			...idleActions(),
+			files: files as never,
+			goToPlace: vi.fn(),
+			openPalette: vi.fn(),
+		};
+		const facts = factsFor({ selected: 1 }, { local: true });
+		expect(runCommand('goDownloads', actions, facts)).toBe(true);
+		expect(actions.goToPlace).toHaveBeenCalledWith('downloads');
+		expect(runCommand('goTrash', actions, facts)).toBe(true);
+		expect(actions.goToPlace).toHaveBeenLastCalledWith('trash');
+		expect(runCommand('linkTo', actions, facts)).toBe(true);
+		expect(files.linkTo).toHaveBeenCalledTimes(1);
+		expect(runCommand('commandPalette', actions, facts)).toBe(true);
+		expect(actions.openPalette).toHaveBeenCalledTimes(1);
 	});
 
 	it('changes the sort the way each sort command says', () => {

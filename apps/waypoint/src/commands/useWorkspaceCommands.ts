@@ -15,12 +15,14 @@ import type { FileCommands } from '../ops/fileCommands';
 import { useOps } from '../ops/OpsContext';
 import { isSettingsError } from '../services/settingsClient';
 import { useSettings, useSettingsHandle } from '../settings/SettingsContext';
+import { usePlacesClient } from '../sidebar/PlacesClientContext';
 import type { SidebarStore } from '../sidebar/sidebarStore';
+import { usePlaces } from '../sidebar/usePlaces';
 import { usePairActions } from '../tabs/pairActions';
 import { pairOfTab } from '../tabs/pairLayout';
 import { useTabActions } from '../tabs/tabActions';
 import { useTabExtras } from '../tabs/tabExtras';
-import { useTabsSnapshot } from '../tabs/TabsContext';
+import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { useWindowActions } from '../tabs/windowActions';
 import { useCommandBridge } from './commandBridge';
 import { startCommandFeed, type CommandFeed } from './commandFeed';
@@ -53,6 +55,8 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 	const windows = useWindowActions();
 	const settings = useSettingsHandle();
 	const ui = useSettings((value) => value.ui);
+	const tabsApi = useTabsApi();
+	const places = usePlaces(usePlacesClient());
 	const feed = useRef<CommandFeed | null>(null);
 
 	const latest = useRef({
@@ -63,8 +67,20 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		pairActions,
 		windows,
 		settings,
+		tabsApi,
+		places,
 	});
-	latest.current = { ...sources, snapshot, tabActions, extras, pairActions, windows, settings };
+	latest.current = {
+		...sources,
+		snapshot,
+		tabActions,
+		extras,
+		pairActions,
+		windows,
+		settings,
+		tabsApi,
+		places,
+	};
 
 	const { commands, clipboard, view, sidebar, subscribePanes } = sources;
 	const handle = ops?.handle ?? null;
@@ -100,6 +116,17 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		// Another tab's pane is now the one the file commands act on.
 		feed.current?.refresh();
 	}, [bridge, active, tabCount, paired, ui.actionBar, ui.actionBarLabels]);
+
+	// The places the "Go to" commands open; a place the sidebar does not have is not offered.
+	const placeKinds = (places?.places ?? []).map((place) => place.kind);
+	const placeKey = placeKinds.join(',');
+	useEffect(() => {
+		bridge.patchFacts({
+			places: placeKey === '' ? [] : (placeKey.split(',') as typeof placeKinds),
+			// Making a link on Windows needs a privilege the person may not hold, and only fails per item.
+			linkSupported: document.documentElement.dataset.platform !== 'windows',
+		});
+	}, [bridge, placeKey]);
 
 	useEffect(() => {
 		const activeId = () => latest.current.snapshot?.active ?? null;
@@ -150,6 +177,15 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 			moveTabToNewWindow: () => {
 				const tab = activeTab();
 				if (tab) void latest.current.windows.moveToNewWindow(tab);
+			},
+			goToPlace: (kind) => {
+				const place = latest.current.places?.places.find((candidate) => candidate.kind === kind);
+				const id = activeId();
+				if (place && id !== null) {
+					latest.current.tabsApi.navigate(id, place.location).catch((error: unknown) => {
+						console.warn('could not open the place', error);
+					});
+				}
 			},
 			setViewMode: (mode) => latest.current.view.getState().setMode(mode),
 			toggleHidden: () => latest.current.view.getState().toggleHidden(),

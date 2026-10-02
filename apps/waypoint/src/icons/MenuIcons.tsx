@@ -342,3 +342,9 @@ export const MoreIcon = (props: IconProps) => (
 		<path d="M3.5 8h.01M8 8h.01M12.5 8h.01" strokeWidth={2} />
 	</Glyph>
 );
+
+export const CommandPaletteIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M3 4.5 7 8l-4 3.5M8.5 12H13" />
+	</Glyph>
+);

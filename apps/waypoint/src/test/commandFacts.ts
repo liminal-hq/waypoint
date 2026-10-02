@@ -23,6 +23,17 @@ export interface WindowState {
 	redo?: JournalEntrySummary | null;
 }
 
+export const PLACES = [
+	'home',
+	'desktop',
+	'documents',
+	'downloads',
+	'pictures',
+	'music',
+	'videos',
+	'trash',
+] as const;
+
 export const SORT: SortSpec = { key: 'name', descending: false, directoriesFirst: true };
 
 export const entry = (id: number, label: string, extra: Partial<JournalEntrySummary> = {}) =>
@@ -60,6 +71,8 @@ export function factsFor(state: WindowState = {}, extra: Partial<CommandFacts> =
 		selected,
 		listing,
 		trash: state.trash ?? false,
+		local: listing && !(state.trash ?? false),
+		places: PLACES,
 		batchRename: selected > 0 && !(state.readOnly ?? false),
 		sort: listing ? SORT : null,
 		undoLabel: undo?.label ?? null,

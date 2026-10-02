@@ -85,6 +85,7 @@ export function startCommandFeed(bridge: CommandBridge, sources: CommandFeedSour
 			file: files ? files.states(session) : emptyFacts().file,
 			selected: session && selection ? selectedCount(selection, session.model.count) : 0,
 			listing: session !== null,
+			local: session?.model.location.uri.startsWith('file:') ?? false,
 			trash: session?.model.layout === 'trash',
 			batchRename: batchRenameSelection(session) !== null,
 			sort: session?.model.sort ?? null,

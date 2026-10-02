@@ -3,16 +3,25 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKind';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { ComponentType } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
 import type { IconProps } from '../icons/AppIcons';
-import { FolderTabIcon, GridViewIcon, ListViewIcon, PinIcon, SidebarIcon } from '../icons/AppIcons';
+import {
+	FolderTabIcon,
+	GridViewIcon,
+	HomeIcon,
+	ListViewIcon,
+	PinIcon,
+	SidebarIcon,
+} from '../icons/AppIcons';
 import {
 	ActionBarIcon,
 	ArrowDownIcon,
 	ClockIcon,
 	ColumnsIcon,
+	CommandPaletteIcon,
 	CopyIcon,
 	CopyToIcon,
 	CutIcon,
@@ -22,6 +31,7 @@ import {
 	EyeIcon,
 	FolderOpenIcon,
 	InvertSelectionIcon,
+	LinkIcon,
 	MoveToIcon,
 	NewFileIcon,
 	NewFolderIcon,
@@ -43,7 +53,18 @@ import type { CommandActions, CommandFacts } from './commandEnv';
 import type { FileCommandId } from '../ops/fileCommands';
 
 /** Where a command lives in the menus; the palette groups by it too. */
-export type CommandGroup = 'file' | 'edit' | 'view' | 'tabs' | 'window' | 'app';
+export type CommandGroup = 'file' | 'edit' | 'view' | 'go' | 'tabs' | 'window' | 'app';
+
+/** The order the palette lists groups in when scores tie. */
+export const GROUP_ORDER: readonly CommandGroup[] = [
+	'file',
+	'edit',
+	'view',
+	'go',
+	'tabs',
+	'window',
+	'app',
+];
 
 export type CommandId =
 	| Exclude<FileCommandId, 'pasteInto'>
@@ -71,7 +92,21 @@ export type CommandId =
 	| 'actionBar'
 	| 'alwaysOnTop'
 	| 'closeWindow'
-	| 'settings';
+	| 'settings'
+	| 'commandPalette'
+	| 'linkTo'
+	| GoCommandId;
+
+/** The commands that open a place of the sidebar. */
+export type GoCommandId =
+	| 'goHome'
+	| 'goDesktop'
+	| 'goDocuments'
+	| 'goDownloads'
+	| 'goPictures'
+	| 'goMusic'
+	| 'goVideos'
+	| 'goTrash';
 
 /** Whether a command is offered now, and if it is offered but cannot run, why. */
 export type Availability =
@@ -172,6 +207,24 @@ function sortByKey(
 		// The active key stays as it is (Descending is its own command); a new key starts ascending.
 		run: (actions) =>
 			actions.changeSort((sort) => (sort.key === key ? sort : { ...sort, key, descending: false })),
+	};
+}
+
+/** "Go to Downloads": opens one of the sidebar's places, offered where the sidebar has it. */
+function goToPlace(
+	place: PlaceKind,
+	id: GoCommandId,
+	label: MessageId,
+	icon: ComponentType<IconProps>,
+): CommandDef {
+	return {
+		id,
+		label,
+		icon,
+		group: 'go',
+		when: (facts) =>
+			!facts.places.includes(place) ? HIDDEN : facts.tab ? SHOWN : blocked('cmd.reason.noTab'),
+		run: (actions) => actions.goToPlace(place),
 	};
 }
 
@@ -349,6 +402,21 @@ export const COMMANDS: readonly CommandDef[] = [
 		run: (a) => void a.files?.moveTo(),
 	},
 	{
+		id: 'linkTo',
+		label: 'cmd.linkTo',
+		icon: LinkIcon,
+		group: 'edit',
+		// Links point at local items, and making one on Windows needs a privilege the engine only
+		// reports per item, so the command is offered where a link can be relied on to work.
+		when: (f) =>
+			!f.file.copyTo.visible || !f.local || !f.linkSupported
+				? HIDDEN
+				: f.selected > 0
+					? SHOWN
+					: blocked('cmd.reason.nothingSelected'),
+		run: (a) => void a.files?.linkTo(),
+	},
+	{
 		id: 'copyToOtherPane',
 		label: 'menu.copyToOtherPane',
 		shortcut: 'F5',
@@ -470,6 +538,16 @@ export const COMMANDS: readonly CommandDef[] = [
 		run: (a) => a.changeSort((sort) => ({ ...sort, directoriesFirst: !sort.directoriesFirst })),
 	},
 
+	// Go
+	goToPlace('home', 'goHome', 'cmd.goTo.home', HomeIcon),
+	goToPlace('desktop', 'goDesktop', 'cmd.goTo.desktop', FolderOpenIcon),
+	goToPlace('documents', 'goDocuments', 'cmd.goTo.documents', FolderOpenIcon),
+	goToPlace('downloads', 'goDownloads', 'cmd.goTo.downloads', FolderOpenIcon),
+	goToPlace('pictures', 'goPictures', 'cmd.goTo.pictures', FolderOpenIcon),
+	goToPlace('music', 'goMusic', 'cmd.goTo.music', FolderOpenIcon),
+	goToPlace('videos', 'goVideos', 'cmd.goTo.videos', FolderOpenIcon),
+	goToPlace('trash', 'goTrash', 'cmd.goTo.trash', TrashIcon),
+
 	// Tabs
 	{
 		id: 'reopenClosedTab',
@@ -518,6 +596,15 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'app',
 		when: () => SHOWN,
 		run: (a) => a.openSettings(),
+	},
+	{
+		id: 'commandPalette',
+		label: 'cmd.commandPalette',
+		shortcut: 'Ctrl+Shift+P',
+		icon: CommandPaletteIcon,
+		group: 'app',
+		when: () => SHOWN,
+		run: (a) => a.openPalette(),
 	},
 ];
 

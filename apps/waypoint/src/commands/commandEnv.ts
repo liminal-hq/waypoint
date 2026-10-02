@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
+import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKind';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { ViewMode } from '../browse/viewStore';
 import {
@@ -27,6 +28,12 @@ export interface CommandFacts {
 	listing: boolean;
 	/** The active pane lists the Trash. */
 	trash: boolean;
+	/** The active pane lists a folder on this computer, which is what a link can point at. */
+	local: boolean;
+	/** The platform can make links without a privilege the person may not hold (not Windows). */
+	linkSupported: boolean;
+	/** The places the sidebar offers, which "Go to" commands open. */
+	places: readonly PlaceKind[];
 	/** The pane can be written to and has a selection: Batch Rename can open. */
 	batchRename: boolean;
 	/** The active pane's sort, or `null` with no listing open. */
@@ -80,6 +87,10 @@ export interface CommandActions {
 	setAlwaysOnTop(on: boolean): void;
 	closeWindow(): void;
 	openSettings(): void;
+	/** Opens the command palette, with `query` typed into it. */
+	openPalette(query?: string): void;
+	/** Opens one of the sidebar's places in the active tab. */
+	goToPlace(place: PlaceKind): void;
 }
 
 export interface CommandEnv {
@@ -102,6 +113,9 @@ export function emptyFacts(): CommandFacts {
 		selected: 0,
 		listing: false,
 		trash: false,
+		local: false,
+		linkSupported: true,
+		places: [],
 		batchRename: false,
 		sort: null,
 		undoLabel: null,
@@ -148,5 +162,7 @@ export function idleActions(): CommandActions {
 		setAlwaysOnTop: nothing,
 		closeWindow: nothing,
 		openSettings: nothing,
+		openPalette: nothing,
+		goToPlace: nothing,
 	};
 }
