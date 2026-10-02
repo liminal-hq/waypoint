@@ -25,13 +25,21 @@ import {
 	type NativeDndClient,
 } from '../services/nativeDndClient';
 import { useSettings } from '../settings/SettingsContext';
+import { useShelfActions } from '../shelf/ShelfContext';
 import { useTrashActions } from '../trash/trashJobs';
 import { announce } from '../tabs/announcer';
 import { useSeparateSession, useTabDragSession } from '../tabs/TabDragContext';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { ActionPicker } from './ActionPicker';
 import { DragStack } from './DragStack';
-import { createFileDrag, type FileDrag, type FileDragPress, type PickerRequest } from './fileDrag';
+import {
+	createFileDrag,
+	type FileDrag,
+	type FileDragPress,
+	type LocationsDragPress,
+	type PickerRequest,
+} from './fileDrag';
+import { isLocationsSource } from './fileDragModel';
 import { connectNativeDnd } from './nativeDndHost';
 import { openFolders } from './openFolders';
 import './dropTargets.css';
@@ -39,6 +47,8 @@ import './dropTargets.css';
 /** What a file view uses: start a drag from a press, hold a right-click menu back, and swallow the click that ends a drag. */
 export interface FileDragApi {
 	press(press: FileDragPress): boolean;
+	/** Starts a drag of references (the Shelf's rows) rather than of a listing's selection. */
+	pressLocations(press: LocationsDragPress): boolean;
 	deferMenu(open: () => void): boolean;
 	consumeClick(): boolean;
 }
@@ -75,6 +85,7 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 	const ops = useOps();
 	const trash = useTrashActions();
 	const commands = useFileCommands();
+	const shelf = useShelfActions();
 	const tabDrag = useTabDragSession();
 	const separate = useSeparateSession();
 	const rule = useSettings((settings) => settings.dnd.defaultActionRule);
@@ -84,8 +95,19 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 	const features = useRef<NativeDndAvailability>(NO_NATIVE_DND);
 
 	// The drag is made once; what it reads changes under it.
-	const latest = useRef({ api, snapshot, vfs, ops, trash, commands, rule, springMs, manager });
-	latest.current = { api, snapshot, vfs, ops, trash, commands, rule, springMs, manager };
+	const latest = useRef({
+		api,
+		snapshot,
+		vfs,
+		ops,
+		trash,
+		commands,
+		shelf,
+		rule,
+		springMs,
+		manager,
+	});
+	latest.current = { api, snapshot, vfs, ops, trash, commands, shelf, rule, springMs, manager };
 
 	const [drag] = useState<FileDrag>(() => {
 		const now = () => latest.current;
@@ -119,11 +141,17 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 			transfer: async (kind, session, destination) => {
 				await now().commands?.transferTo(kind, session, destination);
 			},
-			transferLocations: async (kind, items, destination) => {
-				await now().commands?.transferLocations(kind, items, destination);
-			},
 			moveToTrash: async (session) => {
 				await now().commands?.moveToTrash(session);
+			},
+			transferLocations: async (kind, items, destination) => {
+				const job = await now().commands?.transferLocations(kind, items, destination);
+				// A move took the files out of where the Shelf points: the ones that left have no entry to keep.
+				if (kind === 'move' && job?.state.state === 'done') await now().shelf?.afterMove(items);
+			},
+			addToShelf: async (source) => {
+				if (isLocationsSource(source)) await now().shelf?.add(source.locations);
+				else await now().shelf?.addSelection(source.session);
 			},
 			openFolders: (request) =>
 				openFolders(
@@ -181,20 +209,19 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 		});
 	}, [nativeDnd, drag]);
 
-	const value = useMemo<FileDragApi>(
-		() => ({
-			press: (press) => {
-				// A tab drag, or a pane's grip, has the pointer: a file drag does not begin beside it.
-				const busy = [tabDrag.store.getState().phase, separate.store.getState().phase].some(
-					(phase) => phase === 'pending' || phase === 'dragging',
-				);
-				return busy ? false : drag.press(press);
-			},
+	const value = useMemo<FileDragApi>(() => {
+		// A tab drag, or a pane's grip, has the pointer: a file drag does not begin beside it.
+		const busy = () =>
+			[tabDrag.store.getState().phase, separate.store.getState().phase].some(
+				(phase) => phase === 'pending' || phase === 'dragging',
+			);
+		return {
+			press: (press) => (busy() ? false : drag.press(press)),
+			pressLocations: (press) => (busy() ? false : drag.pressLocations(press)),
 			deferMenu: (open) => drag.deferMenu(open),
 			consumeClick: () => drag.session.consumeClick(),
-		}),
-		[drag, tabDrag, separate],
-	);
+		};
+	}, [drag, tabDrag, separate]);
 
 	return (
 		<FileDragContext.Provider value={value}>

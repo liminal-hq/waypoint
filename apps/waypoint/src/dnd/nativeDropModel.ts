@@ -6,7 +6,7 @@
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import { normaliseUri } from '../ops/clipboardRules';
 import type { Location } from '../services/opsClient';
-import type { FileDragSource } from './fileDragModel';
+import type { LocationsDragSource } from './fileDragModel';
 
 /** The icons of a stack of files whose kinds are not known (no listing has them): plain pages, up to three. */
 const STACK: IconGroup[] = ['document', 'document', 'document'];
@@ -78,13 +78,12 @@ export function sameUris(a: readonly string[], b: readonly string[]): boolean {
  * stack shows plain pages, and a drop never moves them out of a folder that cannot be written to
  * (the other side decides that).
  */
-export function externalSource(files: readonly Location[], own = false): FileDragSource {
+export function externalSource(files: readonly Location[], own = false): LocationsDragSource {
 	const count = files.length;
 	return {
-		session: null,
+		kind: 'locations',
+		locations: [...files],
 		tab: null,
-		handle: null,
-		spec: null,
 		external: { locations: [...files], own },
 		count,
 		name: count === 1 ? leafOfPath(files[0]!.display) : null,

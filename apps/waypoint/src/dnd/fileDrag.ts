@@ -51,13 +51,17 @@ import {
 	canLinkSource,
 	dragText,
 	evaluateTarget,
+	isLocationsSource,
+	isShelfSource,
 	isSourceFolder,
 	pillFor,
 	sameFileTarget,
 	subjectText,
 	type FileDragSource,
 	type FileDropTarget,
+	type LocationsDragSource,
 	type PlanFact,
+	type SelectionDragSource,
 } from './fileDragModel';
 import { externalSource, sameUris } from './nativeDropModel';
 import type { DropActionRule } from '@liminal-hq/waypoint-protocol/generated/DropActionRule';
@@ -100,6 +104,22 @@ export interface FileDragPress {
 	entry: Entry;
 	/** The pane the row is in. */
 	tab: number | null;
+	modifiers: DropModifiers;
+}
+
+/** A press on one of the Shelf's rows that may become a drag: the references it drags out, as `Sources::Locations`. */
+export interface LocationsDragPress {
+	pointerId: number;
+	clientX: number;
+	clientY: number;
+	button: number;
+	element: Element | null;
+	locations: Location[];
+	/** The one name, when exactly one item is dragged. */
+	name: string | null;
+	groups: IconGroup[];
+	/** The folder every item sits in, or `null` when they come from several. */
+	folder: Location | null;
 	modifiers: DropModifiers;
 }
 
@@ -178,13 +198,15 @@ export interface FileDragDeps {
 		session: ListingSession,
 		destination: Location,
 	): Promise<void>;
-	/** Copies, moves or links files that came from outside the window's listings. */
-	transferLocations?(
+	/** Copies, moves or links files named by location: the Shelf's items, or files that came from outside the window. */
+	transferLocations(
 		kind: 'copy' | 'move' | 'link',
 		items: Location[],
 		destination: Location,
 	): Promise<void>;
 	moveToTrash(session: ListingSession): Promise<void>;
+	/** Puts what the drag carries on the Shelf as references. */
+	addToShelf(source: FileDragSource): Promise<void>;
 	openFolders(request: OpenFoldersRequest): Promise<void>;
 	openPicker(request: PickerRequest): void;
 	trashAvailable(): boolean;
@@ -201,6 +223,8 @@ export interface FileDrag {
 	session: DragSession<FileDragSource, FileDropTarget>;
 	/** Starts tracking a press on a row; false when a drag is already running, or the row cannot be dragged. */
 	press(press: FileDragPress): boolean;
+	/** Starts tracking a press on a Shelf row, which drags references rather than a selection. */
+	pressLocations(press: LocationsDragPress): boolean;
 	/**
 	 * Holds a context menu back while a right-button press may still become a drag. The press
 	 * ending without a drag runs `open`; a drag drops it. False when there is no such press, so the
@@ -358,17 +382,17 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		canLinkSource(source) && (location ? location.uri.startsWith('file:') : true);
 
 	const planKey = (source: FileDragSource, location: Location) =>
-		`${source.handle ?? 'external'}|${normaliseUri(location.uri)}`;
+		`${isLocationsSource(source) ? source.locations.map((l) => l.uri).join('\n') : source.handle}|${normaliseUri(location.uri)}`;
 
-	/** Copies, moves or links the dragged files into `destination`, by selection or, for files from outside, by location. */
+	/** Copies, moves or links the dragged files into `destination`: by selection, or by location for the Shelf's items and files from outside. */
 	const transferFiles = async (
 		source: FileDragSource,
 		kind: 'copy' | 'move' | 'link',
 		destination: Location,
 	): Promise<void> => {
-		if (source.external) {
-			await deps.transferLocations?.(kind, source.external.locations, destination);
-		} else if (source.session) {
+		if (isLocationsSource(source)) {
+			await deps.transferLocations(kind, source.locations, destination);
+		} else {
 			await deps.transfer(kind, source.session, destination);
 		}
 	};
@@ -380,9 +404,9 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		planning.add(key);
 		const request: JobRequest = {
 			kind: { kind: 'copy' },
-			sources: source.external
-				? { kind: 'locations', locations: source.external.locations }
-				: { kind: 'selection', handle: source.handle!, spec: source.spec! },
+			sources: isLocationsSource(source)
+				? { kind: 'locations', locations: source.locations }
+				: { kind: 'selection', handle: source.handle, spec: source.spec },
 			destination: location,
 			name: null,
 			options: NO_OPTIONS,
@@ -526,14 +550,11 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		settleSprings(spot);
 		const { location, readOnly } = locationOf(spot);
 		const ref = spot.kind === 'folder' ? parseFolderRef(spot.ref) : null;
-		const selfRow = source.external
+		const selfRow = isLocationsSource(source)
 			? spot.kind === 'folder' &&
 				location !== null &&
-				source.external.locations.some(
-					(file) => normaliseUri(file.uri) === normaliseUri(location.uri),
-				)
+				source.locations.some((file) => normaliseUri(file.uri) === normaliseUri(location.uri))
 			: ref !== null &&
-				source.session !== null &&
 				ref.handle === source.handle &&
 				isSelected(source.session.store.getState().selection, ref.entry);
 		const here = isSourceFolder(source, location);
@@ -699,9 +720,13 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		try {
 			switch (target.outcome) {
 				case 'trash':
-					if (source.session) await deps.moveToTrash(source.session);
+					if (!isLocationsSource(source)) await deps.moveToTrash(source.session);
+					return;
+				case 'shelf':
+					await deps.addToShelf(source);
 					return;
 				case 'open':
+					if (isShelfSource(source)) return;
 					await deps.openFolders({
 						source,
 						target: target.kind === 'chip' ? 'chip' : 'plus',
@@ -769,7 +794,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	/** Resolves the dragged items' locations ahead of time, for a selection small enough to be cheap. */
 	const prefetchLocations = (source: FileDragSource) => {
 		const out = deps.outbound;
-		if (!out?.available() || !source.session || source.handle === null || !source.spec) return;
+		if (!out?.available() || isLocationsSource(source)) return;
 		if (source.count > PREFETCH_LIMIT) return;
 		prefetch = out.resolve(source.handle, source.spec);
 		// A failure is reported when the drag leaves the window and asks again.
@@ -779,7 +804,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	const wantsToLeave = (source: FileDragSource, point: Point): boolean => {
 		const out = deps.outbound;
 		if (!out || !out.available() || handing || handOffFailed) return false;
-		// Only a drag of a listing's selection with the primary button can become a system drag.
+		// Only a drag of a selection or of the Shelf's items with the primary button can become a system drag.
 		if (source.external || source.rightButton) return false;
 		return leftDocument || out.outside(point);
 	};
@@ -831,7 +856,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	const handOff = async (control: DragControl<FileDragSource, FileDropTarget>) => {
 		const out = deps.outbound;
 		const source = control.source;
-		if (!out || handing || !source.session || source.handle === null || !source.spec) return;
+		if (!out || handing) return;
 		handing = true;
 		// Nothing in the window is a target any more.
 		apply(control, null);
@@ -846,7 +871,10 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		};
 		let locations: Location[];
 		try {
-			locations = await (prefetch ?? out.resolve(source.handle, source.spec));
+			// A drag of references already names its files; a selection is resolved by Rust.
+			locations = isLocationsSource(source)
+				? source.locations
+				: await (prefetch ?? out.resolve(source.handle, source.spec));
 		} catch (error) {
 			console.warn('could not resolve the dragged items', error);
 			return fail(tf('dnd.out.refused', { what }));
@@ -899,7 +927,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		start(control, point) {
 			const current = pressed;
 			// A drag has a press behind it, or it is files the system is dragging in.
-			if (!current && !control.source.external) return;
+			if (!current && !isLocationsSource(control.source)) return;
 			controlRef = control;
 			sourceRef = control.source;
 			lastPoint = point;
@@ -957,6 +985,77 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		},
 	};
 
+	/** Tracks the keys and the pointer for the length of one press and begins the session; false when it could not begin. */
+	const begin = (
+		input: {
+			pointerId: number;
+			clientX: number;
+			clientY: number;
+			element: Element | null;
+			button: number;
+			modifiers: DropModifiers;
+		},
+		source: FileDragSource,
+	): boolean => {
+		modifiers = input.modifiers;
+		pressRight = input.button === 2;
+		const track = (event: KeyboardEvent | PointerEvent) => {
+			modifiers = modifiersOf(event);
+			if (event.type === 'keydown' || event.type === 'keyup') {
+				if (
+					(event as KeyboardEvent).key === 'Alt' &&
+					session.store.getState().phase === 'dragging'
+				) {
+					// Alt alone would move focus to the window's menu; here it opens the picker.
+					event.preventDefault();
+				}
+				refresh();
+			}
+		};
+		const upOrCancel = () => {
+			// Ended before the threshold: it was a click. After it, the session's own handlers finish the drag.
+			if (session.store.getState().phase === 'pending') endClick();
+		};
+		const noSelect = (event: Event) => event.preventDefault();
+		// Where the pointer is not captured, the document is what sees it leave the window.
+		const root = rootElement();
+		const onDocumentLeave = () => drag.leftWindow();
+		root?.addEventListener('pointerleave', onDocumentLeave);
+		window.addEventListener('pointermove', track, true);
+		window.addEventListener('keydown', track, true);
+		window.addEventListener('keyup', track, true);
+		window.addEventListener('pointerup', track, true);
+		window.addEventListener('pointerup', upOrCancel, true);
+		window.addEventListener('pointercancel', upOrCancel, true);
+		document.addEventListener('selectstart', noSelect, true);
+		cleanup = () => {
+			root?.removeEventListener('pointerleave', onDocumentLeave);
+			window.removeEventListener('pointermove', track, true);
+			window.removeEventListener('keydown', track, true);
+			window.removeEventListener('keyup', track, true);
+			window.removeEventListener('pointerup', track, true);
+			window.removeEventListener('pointerup', upOrCancel, true);
+			window.removeEventListener('pointercancel', upOrCancel, true);
+			document.removeEventListener('selectstart', noSelect, true);
+		};
+		const started = session.begin(
+			{
+				pointerId: input.pointerId,
+				clientX: input.clientX,
+				clientY: input.clientY,
+				element: input.element,
+				source,
+			},
+			handlers,
+		);
+		if (!started) {
+			cleanup();
+			cleanup = null;
+			pressed = null;
+			pressRight = false;
+		}
+		return started;
+	};
 	const drag: FileDrag = {
 		session,
 		press(input) {
@@ -971,7 +1070,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			const selection = selected ? state.selection : selectOnly(input.entry.id);
 			const count = selectedCount(selection, model.count);
 			if (count === 0) return false;
-			const source: FileDragSource = {
+			const source: SelectionDragSource = {
 				session: input.session,
 				tab: input.tab,
 				handle: model.handle,
@@ -984,64 +1083,23 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				rightButton: input.button === 2,
 			};
 			pressed = input;
-			modifiers = input.modifiers;
-			pressRight = input.button === 2;
-			const track = (event: KeyboardEvent | PointerEvent) => {
-				modifiers = modifiersOf(event);
-				if (event.type === 'keydown' || event.type === 'keyup') {
-					if (
-						(event as KeyboardEvent).key === 'Alt' &&
-						session.store.getState().phase === 'dragging'
-					) {
-						// Alt alone would move focus to the window's menu; here it opens the picker.
-						event.preventDefault();
-					}
-					refresh();
-				}
+			return begin(input, source);
+		},
+		pressLocations(input) {
+			if (!deps.windowLabel() || input.locations.length === 0) return false;
+			const source: LocationsDragSource = {
+				kind: 'locations',
+				locations: input.locations,
+				tab: null,
+				count: input.locations.length,
+				name: input.locations.length === 1 ? input.name : null,
+				groups: input.groups,
+				folder: input.folder,
+				readOnly: false,
+				rightButton: input.button === 2,
 			};
-			const upOrCancel = () => {
-				// Ended before the threshold: it was a click. After it, the session's own handlers finish the drag.
-				if (session.store.getState().phase === 'pending') endClick();
-			};
-			const noSelect = (event: Event) => event.preventDefault();
-			window.addEventListener('pointermove', track, true);
-			window.addEventListener('keydown', track, true);
-			window.addEventListener('keyup', track, true);
-			window.addEventListener('pointerup', track, true);
-			window.addEventListener('pointerup', upOrCancel, true);
-			window.addEventListener('pointercancel', upOrCancel, true);
-			document.addEventListener('selectstart', noSelect, true);
-			// Where the pointer is not captured, the document is what sees it leave the window.
-			const root = rootElement();
-			const onDocumentLeave = () => drag.leftWindow();
-			root?.addEventListener('pointerleave', onDocumentLeave);
-			cleanup = () => {
-				root?.removeEventListener('pointerleave', onDocumentLeave);
-				window.removeEventListener('pointermove', track, true);
-				window.removeEventListener('keydown', track, true);
-				window.removeEventListener('keyup', track, true);
-				window.removeEventListener('pointerup', track, true);
-				window.removeEventListener('pointerup', upOrCancel, true);
-				window.removeEventListener('pointercancel', upOrCancel, true);
-				document.removeEventListener('selectstart', noSelect, true);
-			};
-			const started = session.begin(
-				{
-					pointerId: input.pointerId,
-					clientX: input.clientX,
-					clientY: input.clientY,
-					element: input.element,
-					source,
-				},
-				handlers,
-			);
-			if (!started) {
-				cleanup();
-				cleanup = null;
-				pressed = null;
-				pressRight = false;
-			}
-			return started;
+			pressed = null;
+			return begin(input, source);
 		},
 		deferMenu(open) {
 			if (!pressRight || session.store.getState().phase !== 'pending') return false;
@@ -1056,13 +1114,12 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			// moved); anything else is files from another application or window.
 			const source: FileDragSource = returning
 				? {
-						...returning.source,
-						session: null,
-						handle: null,
-						spec: null,
-						tab: null,
-						rightButton: false,
-						external: { locations: [...input.files], own: true },
+						...externalSource(input.files, true),
+						count: returning.source.count,
+						name: returning.source.name,
+						groups: returning.source.groups,
+						folder: returning.source.folder,
+						readOnly: returning.source.readOnly,
 					}
 				: externalSource(input.files);
 			modifiers = input.modifiers;

@@ -20,6 +20,7 @@ const screens = import.meta.glob<string>(
 		'../settings/*.tsx',
 		'../tabs/*.tsx',
 		'../status/*.tsx',
+		'../shelf/*.tsx',
 		'../sidebar/*.tsx',
 		'../trash/*.tsx',
 	],
@@ -269,5 +270,34 @@ describe('the palette and history messages', () => {
 			const sidebar = enMessages[`sidebar.place.${place}` as keyof typeof enMessages];
 			expect(enMessages[`cmd.goTo.${place}` as keyof typeof enMessages]).toBe(`Go to ${sidebar}`);
 		}
+	});
+});
+
+describe('the Shelf messages', () => {
+	it('have a one and an other form for what is counted', () => {
+		expect(tn('shelf.added', 1, 'en-CA')).toBe('Added 1 item to the Shelf');
+		expect(tn('shelf.added', 1200, 'en-CA')).toBe('Added 1,200 items to the Shelf');
+		expect(tn('shelf.removed', 2, 'en-CA')).toBe('Removed 2 items from the Shelf');
+		expect(tn('shelf.copied', 1, 'en-CA')).toBe('Copied 1 item from the Shelf');
+		expect(tn('shelf.clear.confirm.message', 3, 'en-CA')).toBe(
+			'All 3 items will be removed from the Shelf. The files are not deleted.',
+		);
+	});
+
+	it('say that removing never deletes a file, wherever it offers removal', () => {
+		expect(t('shelf.remove.title')).toMatch(/not deleted/);
+		expect(tn('shelf.clear.confirm.message', 2, 'en-CA')).toMatch(/not deleted/);
+	});
+
+	it('fill in the names and limits they mention', () => {
+		expect(tf('shelf.group.label', { name: 'docs', count: 3 })).toBe('docs (3)');
+		expect(tf('shelf.full', { limit: 500 })).toBe('The Shelf is full: it holds at most 500 items');
+		expect(tf('dnd.pill.shelf', { what: '3 items' })).toBe('Add 3 items to the Shelf');
+	});
+
+	it('use the same word for the Shelf in the command, the panel and the button', () => {
+		expect(t('cmd.shelf')).toBe(t('shelf.title'));
+		expect(t('shelf.toggle')).toBe(t('shelf.title'));
+		expect(t('menu.addToShelf')).toBe(t('cmd.addToShelf'));
 	});
 });

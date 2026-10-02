@@ -8,14 +8,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ListingSession } from '../browse/useListingSession';
 import { createDragSession } from './dragSession';
 import { DragStack } from './DragStack';
-import type { FileDragSource, FileDropTarget } from './fileDragModel';
+import type { FileDragSource, FileDropTarget, SelectionDragSource } from './fileDragModel';
 
 afterEach(() => {
 	cleanup();
 	document.body.innerHTML = '';
 });
 
-const source = (over: Partial<FileDragSource> = {}): FileDragSource => ({
+const source = (over: Partial<SelectionDragSource> = {}): FileDragSource => ({
 	session: {} as ListingSession,
 	tab: 1,
 	handle: 1,
@@ -30,7 +30,7 @@ const source = (over: Partial<FileDragSource> = {}): FileDragSource => ({
 });
 
 /** A session in the dragging phase with `pill`, as the file drag leaves it. */
-function dragging(over: Partial<FileDragSource>, pill: { text: string; kind: string } | null) {
+function dragging(over: Partial<SelectionDragSource>, pill: { text: string; kind: string } | null) {
 	const session = createDragSession<FileDragSource, FileDropTarget>({
 		startThresholdPx: 0,
 		reducedMotion: () => true,

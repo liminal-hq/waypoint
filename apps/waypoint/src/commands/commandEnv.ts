@@ -58,6 +58,9 @@ export interface CommandFacts {
 	actionBarLabels: boolean;
 	/** Whether the window manager can keep the window on top here, and whether it is. */
 	alwaysOnTop: { supported: boolean; on: boolean };
+	/** The Shelf panel is open, and how many items the Shelf holds. */
+	shelfOpen: boolean;
+	shelfCount: number;
 }
 
 /** The window's actions. Each one is what a shortcut, a menu or the Action bar already does; none is a second implementation. */
@@ -91,6 +94,10 @@ export interface CommandActions {
 	openPalette(query?: string): void;
 	/** Opens one of the sidebar's places in the active tab. */
 	goToPlace(place: PlaceKind): void;
+	/** The Shelf panel: show or hide it, move the keyboard into it, and put the active pane's selection on it. */
+	toggleShelf(): void;
+	focusShelf(): void;
+	addToShelf(): void;
 }
 
 export interface CommandEnv {
@@ -132,6 +139,8 @@ export function emptyFacts(): CommandFacts {
 		actionBar: true,
 		actionBarLabels: true,
 		alwaysOnTop: { supported: false, on: false },
+		shelfOpen: false,
+		shelfCount: 0,
 	};
 }
 
@@ -164,5 +173,8 @@ export function idleActions(): CommandActions {
 		openSettings: nothing,
 		openPalette: nothing,
 		goToPlace: nothing,
+		toggleShelf: nothing,
+		focusShelf: nothing,
+		addToShelf: nothing,
 	};
 }

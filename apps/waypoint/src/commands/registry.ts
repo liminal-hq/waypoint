@@ -49,6 +49,7 @@ import {
 	WindowIcon,
 	CloseOthersIcon,
 } from '../icons/MenuIcons';
+import { AddToShelfIcon, ShelfIcon } from '../shelf/ShelfIcons';
 import type { CommandActions, CommandFacts } from './commandEnv';
 import type { FileCommandId } from '../ops/fileCommands';
 
@@ -95,7 +96,11 @@ export type CommandId =
 	| 'settings'
 	| 'commandPalette'
 	| 'linkTo'
-	| GoCommandId;
+	| GoCommandId
+	// The Shelf
+	| 'toggleShelf'
+	| 'addToShelf'
+	| 'focusShelf';
 
 /** The commands that open a place of the sidebar. */
 export type GoCommandId =
@@ -605,6 +610,40 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'app',
 		when: () => SHOWN,
 		run: (a) => a.openPalette(),
+	},
+
+	// The Shelf
+	{
+		id: 'toggleShelf',
+		label: 'cmd.shelf',
+		shortcut: 'Ctrl+B',
+		icon: ShelfIcon,
+		group: 'view',
+		when: () => SHOWN,
+		checked: (f) => f.shelfOpen,
+		run: (a) => a.toggleShelf(),
+	},
+	{
+		id: 'addToShelf',
+		label: 'cmd.addToShelf',
+		icon: AddToShelfIcon,
+		group: 'edit',
+		// References only: it reads the selection, so any listing that is not the Trash can offer it.
+		when: (f) =>
+			!f.listing || f.trash
+				? HIDDEN
+				: f.selected > 0
+					? SHOWN
+					: blocked('cmd.reason.nothingSelected'),
+		run: (a) => a.addToShelf(),
+	},
+	{
+		id: 'focusShelf',
+		label: 'cmd.focusShelf',
+		icon: ShelfIcon,
+		group: 'view',
+		when: () => SHOWN,
+		run: (a) => a.focusShelf(),
 	},
 ];
 

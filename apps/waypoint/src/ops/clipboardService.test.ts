@@ -84,6 +84,20 @@ describe('the mirror', () => {
 	});
 });
 
+describe('Copy of locations that are not a listing’s selection', () => {
+	it('puts them on the clipboard as a copy and on the system clipboard too', async () => {
+		const { client, os, window, dispose } = setup();
+		const service = window();
+		const locations = [child(FOLDER, 'a.txt'), child(FOLDER, 'z.txt')];
+		const set = await service.setFromLocations(locations, 'copy');
+		expect(set).toMatchObject({ mode: 'copy', items: locations });
+		expect(board(service)).toEqual(set);
+		expect(client.calls.find((c) => c[0] === 'setClipboard')).toBeDefined();
+		expect(os?.files).toMatchObject({ cut: false });
+		dispose();
+	});
+});
+
 describe('Cut and Copy of a selection', () => {
 	it('puts what Rust resolved on the clipboard and says it was the app', async () => {
 		const { client, window, dispose } = setup();

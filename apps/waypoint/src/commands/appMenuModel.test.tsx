@@ -90,6 +90,7 @@ describe('the menus', () => {
 			'copyTo',
 			'moveTo',
 			'linkTo',
+			'addToShelf',
 			'selectAll',
 			'invertSelection',
 		]);
@@ -103,6 +104,7 @@ describe('the menus', () => {
 			'viewGrid',
 			'showHidden',
 			'sidebar',
+			'toggleShelf',
 			'actionBar',
 			'splitView',
 			'commandPalette',

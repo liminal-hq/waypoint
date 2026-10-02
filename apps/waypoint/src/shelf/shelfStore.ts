@@ -1,0 +1,164 @@
+// The window's copy of the Shelf and what the panel remembers: revision-gated items, selection, collapsed groups, width and what is known of each file
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import type { ShelfItem } from '@liminal-hq/waypoint-protocol/generated/ShelfItem';
+import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfItemId';
+import { createContext, useContext } from 'react';
+import { useStore } from 'zustand';
+import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { ItemState } from './shelfModel';
+
+/** The panel's width in pixels: where it starts, and the least and most it may take. */
+export const DEFAULT_WIDTH = 280;
+export const MIN_WIDTH = 200;
+export const MAX_WIDTH = 560;
+
+export interface ShelfState {
+	/** In the order added (oldest first), as Rust keeps them. */
+	items: readonly ShelfItem[];
+	/** The revision `items` is as of; an older one never replaces a newer. */
+	revision: number;
+	open: boolean;
+	width: number;
+	selected: ReadonlySet<ShelfItemId>;
+	/** Where a Shift selection starts from. */
+	anchor: ShelfItemId | null;
+	/** The row the keyboard is on: an `item:` or a `group:` key (`shelfModel.ts`). */
+	focus: string | null;
+	/** The `uri` of every origin folder whose group is collapsed. */
+	collapsed: ReadonlySet<string>;
+	/** What was last found out about each item's file, by the item's location `uri`. */
+	status: ReadonlyMap<string, ItemState>;
+	/** Counts up each time something asks for the panel's focus (the Focus Shelf command). */
+	focusRequests: number;
+}
+
+export interface ShelfActions {
+	/** Takes the session's Shelf as of `revision`; an older revision than the one held is ignored. */
+	sync(items: readonly ShelfItem[], revision: number): void;
+	setOpen(open: boolean): void;
+	toggleOpen(): void;
+	setWidth(width: number): void;
+	/**
+	 * A click or a key on an item. `only` selects just it, `toggle` flips it (Ctrl), and `range`
+	 * selects from the anchor to it through `order` (Shift).
+	 */
+	select(id: ShelfItemId, how: 'only' | 'toggle' | 'range', order: readonly ShelfItemId[]): void;
+	selectAll(order: readonly ShelfItemId[]): void;
+	clearSelection(): void;
+	setFocus(key: string | null): void;
+	toggleGroup(uri: string, collapsed?: boolean): void;
+	/** Records what was found out about files; each entry replaces the one held. */
+	setStatus(entries: ReadonlyMap<string, ItemState>): void;
+	requestFocus(): void;
+}
+
+export type ShelfStore = StoreApi<ShelfState & ShelfActions>;
+
+export function clampWidth(width: number): number {
+	return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)));
+}
+
+/**
+ * Memory for the window only: the Shelf's items come from the session (A56), and whether the panel
+ * is open, its width and its collapsed groups are this window's own and last as long as it does.
+ */
+export function createShelfStore(initial: Partial<ShelfState> = {}): ShelfStore {
+	return createStore<ShelfState & ShelfActions>()((set, get) => ({
+		items: [],
+		revision: -1,
+		open: false,
+		width: DEFAULT_WIDTH,
+		selected: new Set<ShelfItemId>(),
+		anchor: null,
+		focus: null,
+		collapsed: new Set<string>(),
+		status: new Map<string, ItemState>(),
+		focusRequests: 0,
+		...initial,
+
+		sync: (items, revision) => {
+			const state = get();
+			if (revision < state.revision) return;
+			const ids = new Set(items.map((item) => item.id));
+			const uris = new Set(items.map((item) => item.location.uri));
+			const selected = new Set([...state.selected].filter((id) => ids.has(id)));
+			const status = new Map([...state.status].filter(([uri]) => uris.has(uri)));
+			set({
+				items,
+				revision,
+				selected: selected.size === state.selected.size ? state.selected : selected,
+				anchor: state.anchor !== null && ids.has(state.anchor) ? state.anchor : null,
+				focus: stillThere(state.focus, items) ? state.focus : null,
+				status: status.size === state.status.size ? state.status : status,
+			});
+		},
+		setOpen: (open) => set({ open }),
+		toggleOpen: () => set((state) => ({ open: !state.open })),
+		setWidth: (width) => set({ width: clampWidth(width) }),
+		select: (id, how, order) => {
+			const state = get();
+			if (how === 'only') {
+				set({ selected: new Set([id]), anchor: id, focus: `item:${id}` });
+			} else if (how === 'toggle') {
+				const next = new Set(state.selected);
+				if (!next.delete(id)) next.add(id);
+				set({ selected: next, anchor: id, focus: `item:${id}` });
+			} else {
+				const from = order.indexOf(state.anchor ?? id);
+				const to = order.indexOf(id);
+				if (from < 0 || to < 0) {
+					set({ selected: new Set([id]), anchor: id, focus: `item:${id}` });
+					return;
+				}
+				const [lo, hi] = from <= to ? [from, to] : [to, from];
+				set({ selected: new Set(order.slice(lo, hi + 1)), focus: `item:${id}` });
+			}
+		},
+		selectAll: (order) => set({ selected: new Set(order) }),
+		clearSelection: () => {
+			if (get().selected.size > 0) set({ selected: new Set(), anchor: null });
+		},
+		setFocus: (focus) => set({ focus }),
+		toggleGroup: (uri, collapsed) => {
+			const next = new Set(get().collapsed);
+			const shouldCollapse = collapsed ?? !next.has(uri);
+			if (shouldCollapse) next.add(uri);
+			else next.delete(uri);
+			set({ collapsed: next });
+		},
+		setStatus: (entries) => {
+			const next = new Map(get().status);
+			let changed = false;
+			for (const [uri, value] of entries) {
+				if (next.get(uri) !== value) {
+					next.set(uri, value);
+					changed = true;
+				}
+			}
+			if (changed) set({ status: next });
+		},
+		requestFocus: () => set((state) => ({ focusRequests: state.focusRequests + 1 })),
+	}));
+}
+
+/** Whether the row a key names is still on the Shelf (a group is, while any item has its origin). */
+function stillThere(key: string | null, items: readonly ShelfItem[]): boolean {
+	if (key === null) return true;
+	if (key.startsWith('item:')) return items.some((item) => `item:${item.id}` === key);
+	return items.some((item) => `group:${item.origin.uri}` === key);
+}
+
+export const ShelfStoreContext = createContext<ShelfStore | null>(null);
+
+export function useShelfStore(): ShelfStore {
+	const store = useContext(ShelfStoreContext);
+	if (!store) throw new Error('useShelfStore must be used inside a ShelfProvider');
+	return store;
+}
+
+export function useShelfState<T>(select: (state: ShelfState & ShelfActions) => T): T {
+	return useStore(useShelfStore(), select);
+}

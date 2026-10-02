@@ -22,7 +22,9 @@ export type DropKind =
 	/** The + button: drop opens the folders in new tabs. */
 	| 'plus'
 	/** A group chip: drop opens the folders as new tabs in that group. */
-	| 'chip';
+	| 'chip'
+	/** The Shelf panel: drop adds the files to the Shelf as references; no file operation. */
+	| 'shelf';
 
 export const DROP_KINDS: readonly DropKind[] = [
 	'folder',
@@ -33,6 +35,7 @@ export const DROP_KINDS: readonly DropKind[] = [
 	'tab',
 	'plus',
 	'chip',
+	'shelf',
 ];
 
 /** The attributes a view puts on an element to make it a target; `data-drop` is the kind. */

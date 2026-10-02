@@ -19,6 +19,7 @@ import {
 	TARGET_PATHS,
 	type EvaluateInput,
 	type FileDragSource,
+	type SelectionDragSource,
 	type FileDropTarget,
 	type PlanFact,
 } from './fileDragModel';
@@ -26,7 +27,7 @@ import {
 const HOME = { display: '/home/test', uri: 'file:///home/test' };
 const DOCS = { display: '/home/test/docs', uri: 'file:///home/test/docs' };
 
-const source = (over: Partial<FileDragSource> = {}): FileDragSource => ({
+const source = (over: Partial<SelectionDragSource> = {}): FileDragSource => ({
 	session: {} as ListingSession,
 	tab: 1,
 	handle: 7,
@@ -272,10 +273,10 @@ describe('sameFileTarget', () => {
 describe('the paths without a pointer', () => {
 	it('has one for every outcome and every kind of target', () => {
 		expect(Object.keys(NON_POINTER_PATHS).sort()).toEqual(
-			['ask', 'copy', 'link', 'move', 'open', 'trash'].sort(),
+			['ask', 'copy', 'link', 'move', 'open', 'shelf', 'trash'].sort(),
 		);
 		expect(Object.keys(TARGET_PATHS).sort()).toEqual(
-			['chip', 'crumb', 'folder', 'pane', 'place', 'plus', 'tab', 'trash'].sort(),
+			['chip', 'crumb', 'folder', 'pane', 'place', 'plus', 'shelf', 'tab', 'trash'].sort(),
 		);
 	});
 });

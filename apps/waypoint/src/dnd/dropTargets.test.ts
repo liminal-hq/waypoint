@@ -54,7 +54,7 @@ describe('dropAttributes', () => {
 
 	it('has a kind for every target the engine knows', () => {
 		expect([...DROP_KINDS].sort()).toEqual(
-			['chip', 'crumb', 'folder', 'pane', 'place', 'plus', 'tab', 'trash'].sort(),
+			['chip', 'crumb', 'folder', 'pane', 'place', 'plus', 'shelf', 'tab', 'trash'].sort(),
 		);
 	});
 });

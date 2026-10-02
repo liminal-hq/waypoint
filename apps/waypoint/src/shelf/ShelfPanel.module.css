@@ -1,0 +1,268 @@
+/*
+ * The Shelf, docked at the right edge of the window's content. Tokens only: colours come from the
+ * theme, and a dropped file is shown by the drag's own outline (`[data-drop-over]`).
+ */
+.shelf {
+	position: relative;
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	box-sizing: border-box;
+	min-width: 0;
+	border-inline-start: 1px solid var(--wp-border-subtle);
+	background: var(--wp-bg-sidebar);
+	color: var(--wp-text-primary);
+}
+
+.divider {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: -3px;
+	z-index: 1;
+	width: 6px;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.divider:hover,
+.divider:focus-visible,
+.divider[data-dragging] {
+	background: var(--wp-accent);
+	opacity: 0.45;
+}
+
+.divider:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+	opacity: 1;
+}
+
+.header {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 4px 4px 12px;
+}
+
+.title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.count {
+	margin-inline-start: 6px;
+	color: var(--wp-text-muted);
+	font-weight: 400;
+}
+
+.iconButton {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+	cursor: default;
+}
+
+.iconButton:hover:not(:disabled) {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.iconButton:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.iconButton:disabled {
+	opacity: 0.45;
+}
+
+.empty {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 6px;
+	padding: 16px 16px 24px;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.emptyTitle {
+	margin: 0;
+	color: var(--wp-text-primary);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.emptyBody {
+	margin: 0;
+}
+
+.tree {
+	flex: 1;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	overflow: auto;
+	list-style: none;
+}
+
+.tree:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.group {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.groupHeader {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-height: var(--wp-row-height);
+	padding: 0 8px 0 4px;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+	font-weight: 600;
+	cursor: default;
+	user-select: none;
+}
+
+.groupHeader:hover {
+	color: var(--wp-text-primary);
+}
+
+.chevron {
+	flex: none;
+	transition: transform 120ms ease;
+}
+
+.groupHeader[aria-expanded='true'] .chevron {
+	transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.chevron {
+		transition: none;
+	}
+}
+
+.groupName {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	min-height: calc(var(--wp-row-height) + 8px);
+	padding: 2px 4px 2px 20px;
+	cursor: default;
+	user-select: none;
+}
+
+.row:hover {
+	background: var(--wp-bg-hover);
+}
+
+.row[aria-selected='true'] {
+	background: var(--wp-bg-selected);
+}
+
+.row[data-focused] {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.groupHeader[data-focused] {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.row[data-missing] .text {
+	opacity: 0.55;
+}
+
+.icon {
+	flex: none;
+	color: var(--wp-text-secondary);
+}
+
+.text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.origin {
+	overflow: hidden;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.missing {
+	flex: none;
+	padding: 0 6px;
+	border: 1px dashed var(--wp-border-subtle);
+	border-radius: 999px;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+}
+
+.remove {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+	cursor: default;
+	opacity: 0;
+}
+
+.row:hover .remove,
+.row[data-focused] .remove,
+.remove:focus-visible {
+	opacity: 1;
+}
+
+.remove:hover {
+	background: var(--wp-bg-hover);
+	color: var(--wp-danger);
+}
+
+.remove:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}

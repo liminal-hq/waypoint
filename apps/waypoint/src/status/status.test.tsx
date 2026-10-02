@@ -186,7 +186,7 @@ describe('the context menu', () => {
 			within(menu)
 				.getAllByRole('menuitem')
 				.map((i) => i.textContent),
-		).toEqual([expect.stringContaining('Open'), 'Copy Path']);
+		).toEqual([expect.stringContaining('Open'), 'Add to Shelf', 'Copy Path']);
 		expect(row).toHaveAttribute('aria-selected', 'true');
 		fireEvent.click(within(menu).getByRole('menuitem', { name: /^Open/ }));
 		await waitFor(() => expect(client.opened).toHaveLength(1));

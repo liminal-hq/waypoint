@@ -301,16 +301,18 @@ export interface FileCommands {
 		destination: Location,
 	): Promise<void>;
 	/**
-	 * What a drop of files from outside the window does (another application, or another window):
-	 * copies, moves or links `items`, named by location, into `destination`. A folder dropped into
-	 * itself and a move onto the folder the items are in are refused as a paste refuses them
-	 * (`pasteRefusal`); a copy beside the originals is a duplicate.
+	 * What a drop of files named by location does (files from another application or window, or the
+	 * Shelf's items dragged into a folder): copies, moves or links `items` into `destination`. A
+	 * folder dropped into itself and a move onto the folder the items are in are refused as a paste
+	 * refuses them (`pasteRefusal`); a copy beside the originals is a duplicate. Resolves to the job
+	 * once it ended (`null` when it was refused or did not end in time), so the caller can tell
+	 * whether a move happened.
 	 */
 	transferLocations(
 		kind: 'copy' | 'move' | 'link',
 		items: Location[],
 		destination: Location,
-	): Promise<void>;
+	): Promise<JobSnapshot | null>;
 	undo(): Promise<void>;
 	redo(): Promise<void>;
 	/** The undo history, newest first, as the Undo History menu lists it. */
@@ -782,12 +784,12 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		},
 
 		async transferLocations(kind, items, destination) {
-			if (items.length === 0) return;
+			if (items.length === 0) return null;
 			if (kind !== 'link') {
 				const refusal = pasteRefusal(kind === 'move' ? 'cut' : 'copy', items, destination);
 				if (refusal) {
 					say(errorText(refusal));
-					return;
+					return null;
 				}
 			}
 			const request: JobRequest =
@@ -805,7 +807,9 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 							destination,
 							windowLabel,
 						);
-			reportFailure(await run(request));
+			const job = await run(request);
+			reportFailure(job);
+			return job;
 		},
 
 		async undo() {

@@ -174,12 +174,12 @@ export function appMenuItems(
 				items: historyItems(facts, now, locale),
 			} satisfies MenuItem,
 		].filter((item) => item.type !== 'submenu' || byId.get('undo')?.visible),
-		rows('cut', 'copy', 'paste', 'copyTo', 'moveTo', 'linkTo'),
+		rows('cut', 'copy', 'paste', 'copyTo', 'moveTo', 'linkTo', 'addToShelf'),
 		rows('selectAll', 'invertSelection'),
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
-		rows('showHidden', 'sidebar', 'actionBar'),
+		rows('showHidden', 'sidebar', 'toggleShelf', 'actionBar'),
 		rows('splitView'),
 		rows('commandPalette'),
 	);

@@ -19,7 +19,7 @@ import {
 	type OutboundDeps,
 	type PickerRequest,
 } from '../dnd/fileDrag';
-import type { FileDropTarget } from '../dnd/fileDragModel';
+import { isLocationsSource, type FileDropTarget } from '../dnd/fileDragModel';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { OutboundRequest, OutboundStarted } from '../services/nativeDndClient';
 import type { Location, PlanPreview } from '../services/opsClient';
@@ -97,6 +97,8 @@ export interface NativeHarness {
 	opened: OpenFoldersRequest[];
 	plans: unknown[];
 	transfers: Array<{ kind: string; items: Location[]; destination: Location }>;
+	/** What the drag put on the Shelf, as locations. */
+	shelved: Location[][];
 	moved: Array<{ kind: string; destination: Location }>;
 	state: {
 		sameVolume: boolean;
@@ -158,6 +160,7 @@ export async function nativeHarness(
 	const opened: OpenFoldersRequest[] = [];
 	const plans: unknown[] = [];
 	const transfers: NativeHarness['transfers'] = [];
+	const shelved: Location[][] = [];
 	const moved: NativeHarness['moved'] = [];
 	const started: OutboundRequest[] = [];
 	const stack: Element[] = [];
@@ -202,6 +205,8 @@ export async function nativeHarness(
 		transferLocations: async (kind, items, destination) =>
 			void transfers.push({ kind, items, destination }),
 		moveToTrash: async () => {},
+		addToShelf: async (source) =>
+			void shelved.push(isLocationsSource(source) ? source.locations : []),
 		openFolders: async (request) => void opened.push(request),
 		openPicker: (request) => void pickers.push(request),
 		trashAvailable: () => true,
@@ -227,6 +232,7 @@ export async function nativeHarness(
 		opened,
 		plans,
 		transfers,
+		shelved,
 		moved,
 		state,
 		started,

@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { SessionEvent } from '@liminal-hq/waypoint-protocol/generated/SessionEvent';
+import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/SessionSnapshot';
 import { FakeTabsApi } from './fakeTabsApi';
 import { SHELF_LIMIT, originOf } from './fakeTabsStore';
 import { fileLocation } from './fakeVfsClient';
@@ -49,7 +50,7 @@ describe('the Shelf on FakeTabsApi', () => {
 		await api.clearShelf();
 		await api.clearShelf();
 		expect(events.map((e) => e.kind)).toEqual(['shelfChanged', 'shelfChanged', 'shelfChanged']);
-		let mirror = { ...snapshot, shelf: [], revision: 0 };
+		let mirror: SessionSnapshot = { ...snapshot, shelf: [], revision: 0 };
 		for (const e of events) mirror = applyTabsEvent(mirror, e);
 		snapshot = await api.getSnapshot();
 		expect(mirror.shelf).toEqual(snapshot.shelf);

@@ -13,6 +13,8 @@ import { isBatchRenameKey } from '../ops/batchRename/useBatchRenameShortcut';
 import { handleFileKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
 import { isSettingsShortcut } from '../settings/openSettingsWindow';
 import { createSidebarStore } from '../sidebar/sidebarStore';
+import { createShelfStore } from '../shelf/shelfStore';
+import { useShelfShortcuts } from '../shelf/useShelfShortcuts';
 import { useSidebarShortcuts } from '../sidebar/useSidebarShortcuts';
 import { handlePairKey } from '../tabs/usePairShortcuts';
 import { handleTabKey, type TabKeyHandlers } from '../tabs/useTabShortcuts';
@@ -195,6 +197,12 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 		renderHook(() => useSidebarShortcuts(store, undefined, () => {}));
 		dispatchOnWindow(s);
 		expect(store.getState().open).toBe(false);
+	},
+	toggleShelf: (s) => {
+		const store = createShelfStore({ open: false });
+		renderHook(() => useShelfShortcuts(store));
+		dispatchOnWindow(s);
+		expect(store.getState().open).toBe(true);
 	},
 	selectAll: async (s) => {
 		const h = await commandsHarness();

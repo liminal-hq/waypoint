@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 import { backgroundMenuItems } from '../browse/BackgroundContextMenu';
 import { entryMenuItems } from '../browse/EntryContextMenu';
 import { historyMenuItems } from '../nav/NavButton';
+import { shelfItemMenuItems, shelfPanelMenuItems } from '../shelf/shelfMenu';
 import { sidebarMenuItems } from '../sidebar/SidebarMenu';
 import { trashEntryMenuItems } from '../trash/TrashEntryMenu';
 import { workspaceMenuItems } from '../sidebar/WorkspaceMenu';
@@ -115,6 +116,12 @@ describe('context menu icons', () => {
 
 	it('gives the history menu an icon on every item', () => {
 		expectEveryItemHasIcon(historyMenuItems([place, place], 'Recent folders'));
+	});
+
+	it('gives the Shelf’s menus an icon on every item', () => {
+		expectEveryItemHasIcon(shelfItemMenuItems(1, true));
+		expectEveryItemHasIcon(shelfItemMenuItems(3, false));
+		expectEveryItemHasIcon(shelfPanelMenuItems(2));
 	});
 
 	it('fails, naming the item, when one has no icon', () => {

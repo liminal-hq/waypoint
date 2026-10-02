@@ -112,7 +112,8 @@
 .pill[data-kind='link'],
 .pill[data-kind='trash'],
 .pill[data-kind='ask'],
-.pill[data-kind='open'] {
+.pill[data-kind='open'],
+.pill[data-kind='shelf'] {
 	border-color: var(--wp-accent);
 }
 

@@ -451,3 +451,46 @@ describe('states of the active pane', () => {
 		expect(emptySelection.kind).toBe('some');
 	});
 });
+
+describe('transferLocations (the Shelf’s items dropped into a folder)', () => {
+	const A = { display: '/home/test/a.txt', uri: 'file:///home/test/a.txt' };
+	const B = { display: '/home/test/b.txt', uri: 'file:///home/test/b.txt' };
+	const DEST = { display: '/home/test/docs', uri: 'file:///home/test/docs' };
+
+	it('submits a job on the locations, and resolves to it once it ended', async () => {
+		const h = await commandsHarness();
+		const done = h.commands.transferLocations('move', [A, B], DEST);
+		await h.finish();
+		const job = await done;
+		expect(job?.state.state).toBe('done');
+		expect(h.fake.calls.find((c) => c[0] === 'submit')?.[1]).toMatchObject({
+			kind: { kind: 'move' },
+			sources: { kind: 'locations', locations: [A, B] },
+			destination: DEST,
+			originWindow: 'main-1',
+		});
+	});
+
+	it('refuses a move into the folder the items are in, and says so', async () => {
+		const h = await commandsHarness();
+		expect(await h.commands.transferLocations('move', [A], FOLDER)).toBeNull();
+		expect(h.said[0]).toMatch(/already in/i);
+		expect(h.fake.calls.some((c) => c[0] === 'submit')).toBe(false);
+	});
+
+	it('makes a copy into that folder a duplicate, and a copy or link elsewhere what it says', async () => {
+		const h = await commandsHarness();
+		void h.commands.transferLocations('copy', [A], FOLDER);
+		await h.finish(1);
+		void h.commands.transferLocations('link', [A], DEST);
+		await h.finish(2);
+		const submits = h.fake.calls.filter((c) => c[0] === 'submit').map((c) => c[1]);
+		expect(submits[0]).toMatchObject({ kind: { kind: 'duplicate' }, destination: null });
+		expect(submits[1]).toMatchObject({ kind: { kind: 'link' }, destination: DEST });
+	});
+
+	it('does nothing for no locations', async () => {
+		const h = await commandsHarness();
+		expect(await h.commands.transferLocations('copy', [], DEST)).toBeNull();
+	});
+});

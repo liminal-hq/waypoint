@@ -8,6 +8,9 @@ import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { t } from '../i18n/messages';
+import { useShelfActions } from '../shelf/ShelfContext';
+import { AddToShelfIcon } from '../shelf/ShelfIcons';
+import type { ListingSession } from './useListingSession';
 import { isFolder } from '../nav/useOpenEntry';
 import { StarIcon } from '../icons/AppIcons';
 import {
@@ -43,6 +46,8 @@ interface EntryContextMenuProps {
 	onCommand?: ((command: EntryCommand, entry: Entry) => void) | undefined;
 	/** More than one entry is selected, so Rename Selected… (batch rename) is offered. */
 	batchRename?: boolean | undefined;
+	/** The listing the entry is in, whose selection Add to Shelf puts on the Shelf. */
+	session?: ListingSession | null | undefined;
 }
 
 /** The commands the entry menu can run. */
@@ -328,6 +333,7 @@ export function entryMenuItems(
 					} as const,
 				]
 			: []),
+		{ type: 'action', id: 'addToShelf', label: t('menu.addToShelf'), icon: <AddToShelfIcon /> },
 		{ type: 'action', id: 'copyPath', label: t('menu.copyPath'), icon: <LinkIcon /> },
 		...(commands ? writeItems(commands, batchRename) : []),
 	];
@@ -351,7 +357,9 @@ export function EntryContextMenu({
 	commands,
 	onCommand,
 	batchRename = false,
+	session,
 }: EntryContextMenuProps) {
+	const shelf = useShelfActions();
 	const items = entryMenuItems(entry, commands, batchRename);
 	return (
 		<ContextMenu
@@ -367,7 +375,9 @@ export function EntryContextMenu({
 				else if (item.id === 'openInNewWindow') onOpenInNewTab(entry, handle, true);
 				else if (item.id === 'copyPath') onCopyPath(entry, handle);
 				else if (item.id === 'addToFavourites') onAddToFavourites(entry, handle);
-				else if (ENTRY_COMMANDS.includes(item.id as EntryCommand)) {
+				else if (item.id === 'addToShelf') {
+					if (session) void shelf?.addSelection(session);
+				} else if (ENTRY_COMMANDS.includes(item.id as EntryCommand)) {
 					onCommand?.(item.id as EntryCommand, entry);
 				}
 			}}

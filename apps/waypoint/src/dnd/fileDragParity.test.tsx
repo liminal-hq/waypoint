@@ -28,6 +28,7 @@ const OUTCOMES = [
 	'ask',
 	'trash',
 	'open',
+	'shelf',
 ] as const satisfies readonly DropOutcome[];
 type Missing = Exclude<DropOutcome, (typeof OUTCOMES)[number]>;
 const complete: [Missing] extends [never] ? true : never = true;

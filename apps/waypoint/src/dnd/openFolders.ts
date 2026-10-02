@@ -12,6 +12,7 @@ import { t, tn } from '../i18n/messages';
 import type { TabsApi } from '../services/tabsApi';
 import type { VfsClient } from '../services/vfsClient';
 import type { OpenFoldersRequest } from './fileDrag';
+import { isLocationsSource } from './fileDragModel';
 
 /** No more tabs than this open from one drop. */
 export const MAX_DROP_TABS = 8;
@@ -56,8 +57,13 @@ export async function foldersToOpen(
 	vfs: VfsClient,
 ): Promise<Location[]> {
 	const { source } = request;
-	if (source.external) return externalFoldersToOpen(source.external.locations, source.folder, vfs);
-	if (!source.session || source.handle === null || !source.folder) return [];
+	if (isLocationsSource(source)) {
+		// Files from outside a listing; the Shelf's items are not dropped on + or a chip.
+		return source.external
+			? externalFoldersToOpen(source.external.locations, source.folder, vfs)
+			: [];
+	}
+	if (!source.folder) return [];
 	const handle = source.handle;
 	const home = source.folder;
 	const entries = await selectedEntries(

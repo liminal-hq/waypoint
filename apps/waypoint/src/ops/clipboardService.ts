@@ -31,6 +31,8 @@ export interface ClipboardService {
 		spec: SelectionSpec,
 		mode: ClipboardMode,
 	): Promise<Clipboard>;
+	/** Copy of references that are not a listing's selection (the Shelf's items). Resolves to what was set; rejects as the plugin does. */
+	setFromLocations(locations: Location[], mode: ClipboardMode): Promise<Clipboard>;
 	/**
 	 * The clipboard a paste uses, after the system clipboard has been looked at: files another
 	 * application copied since are adopted first (see `chooseClipboard`).
@@ -175,6 +177,12 @@ export function createClipboardService(options: ClipboardServiceOptions): Clipbo
 		ready,
 		async setFromSelection(handle, spec, mode) {
 			const set = await client.setClipboardFromSelection(handle, spec, mode);
+			apply(set);
+			await publish(set);
+			return set;
+		},
+		async setFromLocations(locations, mode) {
+			const set = await client.setClipboard(mode, locations);
 			apply(set);
 			await publish(set);
 			return set;

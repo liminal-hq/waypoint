@@ -216,6 +216,40 @@ describe('availability', () => {
 		expect(result.sortDescending.checked).toBe(false);
 	});
 
+	it('lists the Shelf: Ctrl+B toggles it, Add to Shelf needs a selection, Focus Shelf is always there', () => {
+		expect(commandDef('toggleShelf').shortcut).toBe('Ctrl+B');
+		expect(commandDef('addToShelf').shortcut).toBeUndefined();
+		const closed = states(factsFor({ selected: 1 }));
+		expect(read(closed.toggleShelf)).toBe('enabled');
+		expect(closed.toggleShelf.checked).toBe(false);
+		expect(states(factsFor({}, { shelfOpen: true })).toggleShelf.checked).toBe(true);
+		expect(read(closed.addToShelf)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 0 })).addToShelf)).toBe(
+			`disabled: ${t('cmd.reason.nothingSelected')}`,
+		);
+		expect(read(states(factsFor({ listing: false })).addToShelf)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true, selected: 1 })).addToShelf)).toBe(
+			'hidden',
+		);
+		expect(read(states(emptyFacts()).focusShelf)).toBe('enabled');
+	});
+
+	it('runs the Shelf commands through the window’s actions', () => {
+		const actions = {
+			...idleActions(),
+			toggleShelf: vi.fn(),
+			addToShelf: vi.fn(),
+			focusShelf: vi.fn(),
+		};
+		const facts = factsFor({ selected: 1 });
+		for (const id of ['toggleShelf', 'addToShelf', 'focusShelf'] as const) {
+			expect(runCommand(id, actions, facts), id).toBe(true);
+			expect(actions[id], id).toHaveBeenCalledTimes(1);
+		}
+		expect(runCommand('addToShelf', actions, factsFor({ selected: 0 }))).toBe(false);
+		expect(actions.addToShelf).toHaveBeenCalledTimes(1);
+	});
+
 	it('offers Always on Top only where the window manager can do it', () => {
 		expect(read(states().alwaysOnTop)).toBe('hidden');
 		const supported = states(factsFor({}, { alwaysOnTop: { supported: true, on: true } }));

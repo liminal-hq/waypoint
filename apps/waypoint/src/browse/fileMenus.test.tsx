@@ -49,13 +49,14 @@ function shape(items: readonly MenuItem[]): string[] {
 
 describe('the entry menu', () => {
 	it('keeps its current order and gains no write items without commands', () => {
-		expect(shape(entryMenuItems(file))).toEqual(['open', '|', 'copyPath']);
+		expect(shape(entryMenuItems(file))).toEqual(['open', '|', 'addToShelf', 'copyPath']);
 		expect(shape(entryMenuItems(folder))).toEqual([
 			'open',
 			'openInNewTab',
 			'openInNewWindow',
 			'|',
 			'addToFavourites',
+			'addToShelf',
 			'copyPath',
 		]);
 	});
@@ -67,6 +68,7 @@ describe('the entry menu', () => {
 			'cut',
 			'copy',
 			'paste',
+			'addToShelf',
 			'copyPath',
 			'|',
 			'rename',
@@ -136,7 +138,8 @@ describe('the entry menu', () => {
 
 	it('adds Rename Selected… after Rename only when more than one entry is selected', () => {
 		expect(shape(entryMenuItems(file, writable))).not.toContain('batchRename');
-		expect(shape(entryMenuItems(file, writable, true)).slice(5, 11)).toEqual([
+		expect(shape(entryMenuItems(file, writable, true)).slice(5, 12)).toEqual([
+			'addToShelf',
 			'copyPath',
 			'|',
 			'rename',
@@ -175,6 +178,7 @@ describe('the entry menu', () => {
 			'open',
 			'|',
 			'copy',
+			'addToShelf',
 			'copyPath',
 			'|',
 			'copyTo',
@@ -187,7 +191,7 @@ describe('the entry menu', () => {
 
 	it('copies nowhere from the Trash, which has its own menu', () => {
 		const trash = commandStates({ ...base, readOnly: true, trash: true });
-		expect(shape(entryMenuItems(file, trash))).toEqual(['open', '|', 'copyPath']);
+		expect(shape(entryMenuItems(file, trash))).toEqual(['open', '|', 'addToShelf', 'copyPath']);
 	});
 
 	it('gives every item an icon', () => {

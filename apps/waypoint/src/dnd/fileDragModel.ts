@@ -29,16 +29,10 @@ export interface ExternalFiles {
 	own: boolean;
 }
 
-/** What is being dragged: the selection of one listing, as Rust will resolve it, or files from outside the window. */
-export interface FileDragSource {
-	/** The listing the files are in; held open for the drag (`ListingManager.retain`). `null` for external files. */
-	session: ListingSession | null;
+/** What every drag carries, whatever it was taken from. */
+interface FileDragBase {
 	/** The pane (tab) the drag began in, when the view is a pane's. */
 	tab: number | null;
-	handle: ListingHandle | null;
-	spec: SelectionSpec | null;
-	/** Set for files that came from outside the window; the drag then names them by location, not by selection. */
-	external?: ExternalFiles;
 	count: number;
 	/** The one name, when exactly one item is dragged. */
 	name: string | null;
@@ -52,6 +46,39 @@ export interface FileDragSource {
 	rightButton: boolean;
 }
 
+/** What is being dragged: the selection of one listing, as Rust will resolve it. */
+export interface SelectionDragSource extends FileDragBase {
+	kind?: 'selection';
+	/** The listing the files are in; held open for the drag (`ListingManager.retain`). */
+	session: ListingSession;
+	handle: ListingHandle;
+	spec: SelectionSpec;
+	external?: undefined;
+}
+
+/**
+ * What is being dragged: references, as `Sources::Locations`. They are the Shelf's items, or, when
+ * `external` is set, files that came from outside any listing of this window. Either way the files
+ * are named by location and no listing is held open.
+ */
+export interface LocationsDragSource extends FileDragBase {
+	kind: 'locations';
+	locations: Location[];
+	/** Set for files that came from another application or window (or this window's own outbound drag coming back). */
+	external?: ExternalFiles;
+}
+
+export type FileDragSource = SelectionDragSource | LocationsDragSource;
+
+export function isLocationsSource(source: FileDragSource): source is LocationsDragSource {
+	return source.kind === 'locations';
+}
+
+/** Items taken from the Shelf: references that did not come from outside the window. */
+export function isShelfSource(source: FileDragSource): source is LocationsDragSource {
+	return source.kind === 'locations' && !source.external;
+}
+
 /** Why a target refuses the drop. */
 export type BlockReason =
 	| { kind: 'sameFolder' }
@@ -62,11 +89,15 @@ export type BlockReason =
 	/** The Trash as a folder: items are trashed by dropping on the sidebar's Trash. */
 	| { kind: 'trashView' }
 	| { kind: 'trashSource' }
+	/** Items taken from the Shelf can only be dropped into folders. */
+	| { kind: 'shelfSource' }
+	/** The Shelf is the target and the items are already on it. */
+	| { kind: 'onShelf' }
 	| { kind: 'unavailable' }
 	| { kind: 'refused'; error: OpsError };
 
-/** What a release does: a job (copy, move, link, trash), the picker, or opening tabs. */
-export type DropOutcome = DropVerb | 'trash' | 'open';
+/** What a release does: a job (copy, move, link, trash), the picker, opening tabs, or putting references on the Shelf. */
+export type DropOutcome = DropVerb | 'trash' | 'open' | 'shelf';
 
 /** The target under the pointer and what a release over it would do. It is the drag's store `target`. */
 export interface FileDropTarget {
@@ -138,9 +169,9 @@ export function isSourceFolder(
 }
 
 /** Whether links to the files can be made: they, and the folder they are in, are local. */
-export function canLinkSource(source: Pick<FileDragSource, 'folder' | 'external'>): boolean {
-	return source.external
-		? source.external.locations.every((location) => location.uri.startsWith('file:'))
+export function canLinkSource(source: FileDragSource): boolean {
+	return isLocationsSource(source)
+		? source.locations.every((location) => location.uri.startsWith('file:'))
 		: (source.folder?.uri.startsWith('file:') ?? false);
 }
 
@@ -168,6 +199,11 @@ export function evaluateTarget(input: EvaluateInput): FileDropTarget {
 	};
 	const block = (blocked: BlockReason): FileDropTarget => ({ ...base, blocked });
 
+	// References taken from the Shelf go into folders; the Trash, the + button and a chip are not that.
+	if (isShelfSource(source) && ['trash', 'plus', 'chip'].includes(spot.kind)) {
+		return block({ kind: 'shelfSource' });
+	}
+
 	switch (spot.kind) {
 		case 'trash':
 			if (spot.unavailable || !input.trashAvailable) return block({ kind: 'unavailable' });
@@ -179,6 +215,9 @@ export function evaluateTarget(input: EvaluateInput): FileDropTarget {
 		case 'plus':
 		case 'chip':
 			return { ...base, outcome: 'open' };
+		// Dropping on the Shelf writes no file: it adds references, so nothing can refuse it here.
+		case 'shelf':
+			return isShelfSource(source) ? block({ kind: 'onShelf' }) : { ...base, outcome: 'shelf' };
 		default:
 			break;
 	}
@@ -232,6 +271,10 @@ export function blockedText(blocked: BlockReason, target: Pick<FileDropTarget, '
 			return t('dnd.blocked.trashView');
 		case 'trashSource':
 			return t('dnd.blocked.trashSource');
+		case 'shelfSource':
+			return t('dnd.blocked.shelfSource');
+		case 'onShelf':
+			return t('dnd.blocked.onShelf');
 		case 'unavailable':
 			return t('dnd.blocked.unavailable');
 		case 'refused':
@@ -243,7 +286,7 @@ export function blockedText(blocked: BlockReason, target: Pick<FileDropTarget, '
 
 /** The pill kinds, which the stylesheet and the badge key on. */
 export type PillKind =
-	'idle' | 'copy' | 'move' | 'link' | 'ask' | 'trash' | 'open' | 'blocked' | 'pending';
+	'idle' | 'copy' | 'move' | 'link' | 'ask' | 'trash' | 'open' | 'shelf' | 'blocked' | 'pending';
 
 function verbWord(target: FileDropTarget): string {
 	if (target.pending && target.outcome === 'copy') return t('dnd.verb.moveOrCopy');
@@ -254,6 +297,7 @@ function verbWord(target: FileDropTarget): string {
 		case 'ask':
 		case 'trash':
 		case 'open':
+		case 'shelf':
 			return t(`dnd.verb.${target.outcome}`);
 		default:
 			return '';
@@ -298,6 +342,8 @@ export function pillFor(
 			return { text: tf('dnd.pill.ask', { what, target: name }), kind: 'ask', announce };
 		case 'trash':
 			return { text: tf('dnd.pill.trash', { what }), kind: 'trash', announce };
+		case 'shelf':
+			return { text: tf('dnd.pill.shelf', { what }), kind: 'shelf', announce };
 		case 'open':
 			return {
 				text:
@@ -333,6 +379,7 @@ export const NON_POINTER_PATHS: Record<DropOutcome, NonPointerPath> = {
 	link: { kind: 'command', command: 'linkTo' },
 	trash: { kind: 'command', command: 'moveToTrash', keys: 'Delete' },
 	open: { kind: 'menu', item: 'openInNewTab' },
+	shelf: { kind: 'menu', item: 'addToShelf' },
 	ask: {
 		kind: 'none',
 		why: 'the picker only chooses between copy, move and link, each of which has its own path',
@@ -356,6 +403,10 @@ export const NATIVE_DROP_PATHS: Record<DropOutcome, NonPointerPath> = {
 		why: 'a drop never trashes files that came from another application: they are deleted where they are',
 	},
 	open: { kind: 'menu', item: 'openInNewTab' },
+	shelf: {
+		kind: 'none',
+		why: 'files in another application are put on the Shelf by dropping them there, or with Add to Shelf once they are in a Waypoint folder',
+	},
 	ask: {
 		kind: 'none',
 		why: 'the picker only chooses between copy, move and link, each of which has its own path',
@@ -382,4 +433,5 @@ export const TARGET_PATHS: Record<DropKind, string> = {
 	trash: 'moveToTrash',
 	plus: 'openInNewTab',
 	chip: 'openInNewTab',
+	shelf: 'addToShelf',
 };

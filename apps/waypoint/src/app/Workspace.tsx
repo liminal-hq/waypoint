@@ -65,6 +65,8 @@ import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import { useWindowShortcuts } from '../tabs/windowActions';
 import { CloseGuardHost } from '../tabs/CloseGuardHost';
 import { FileDragProvider } from '../dnd/FileDragContext';
+import { ShelfProvider } from '../shelf/ShelfContext';
+import { ShelfDock, ShelfToggle } from '../shelf/ShelfToggle';
 import { useFileCommandsHost } from '../ops/useFileCommandsHost';
 import { FileCommandsProvider } from '../ops/FileCommandsContext';
 import { useFileShortcuts } from '../ops/useFileShortcuts';
@@ -413,101 +415,108 @@ function WorkspaceBody({
 		<TrashActionsProvider value={trashActions}>
 			<FileCommandsProvider value={commands}>
 				<ClipboardProvider value={clipboard}>
-					<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
-						<div className={styles.workspace}>
-							<TabStrip />
-							<NavigationBar leading={<SidebarToggle />} />
-							<ActionBar />
-							<div className={styles.middle}>
-								{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-								<div
-									className={styles.files}
-									role="tabpanel"
-									id={TAB_PANEL_ID}
-									aria-label={tab ? undefined : t('tabs.panel.label')}
-									aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-								>
-									{panes.length > 0 && (
-										<PaneArea
-											panes={panes}
-											pair={panes.length > 1 ? pair : undefined}
-											active={tab?.id ?? null}
-											stateFor={stateFor}
-											mode={mode}
-											gridSize={gridSize}
-											onFailure={onFailure}
-											onMenu={setMenu}
+					<ShelfProvider activeSession={activeSession}>
+						<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
+							<div className={styles.workspace}>
+								<TabStrip />
+								<NavigationBar leading={<SidebarToggle />} />
+								<ActionBar />
+								<div className={styles.middle}>
+									{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
+									<div
+										className={styles.files}
+										role="tabpanel"
+										id={TAB_PANEL_ID}
+										aria-label={tab ? undefined : t('tabs.panel.label')}
+										aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+									>
+										{panes.length > 0 && (
+											<PaneArea
+												panes={panes}
+												pair={panes.length > 1 ? pair : undefined}
+												active={tab?.id ?? null}
+												stateFor={stateFor}
+												mode={mode}
+												gridSize={gridSize}
+												onFailure={onFailure}
+												onMenu={setMenu}
+											/>
+										)}
+									</div>
+									<ShelfDock />
+								</div>
+								<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
+									<ViewSwitcher />
+									<ShelfToggle />
+								</StatusBar>
+								<NoticeToast />
+								{commandDialog}
+								<BatchRenameHost api={batchRenameApi} announce={notify} />
+								<DestinationHost />
+								{trashDialogs}
+								{menu?.kind === 'background' && (
+									<BackgroundContextMenu
+										session={menu.session}
+										showHidden={showHidden}
+										position={menu.position}
+										keyboard={menu.keyboard}
+										onToggleHidden={() => viewStore.getState().toggleHidden()}
+										onEmptyTrash={
+											trashActions
+												? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
+												: undefined
+										}
+										onClose={() => setMenu(null)}
+										commands={
+											commands
+												? {
+														states: commands.states(menu.session),
+														undoLabel: commands.history().undo?.label ?? null,
+														redoLabel: commands.history().redo?.label ?? null,
+													}
+												: undefined
+										}
+										onCommand={runCommand}
+									/>
+								)}
+								{menu?.kind === 'entry' &&
+									menu.session?.model.layout === 'trash' &&
+									trashActions && (
+										<TrashEntryMenu
+											position={menu.position}
+											keyboard={menu.keyboard}
+											onRestore={() => menu.session && trashActions.restore(menu.session)}
+											onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
+											onClose={() => setMenu(null)}
 										/>
 									)}
-								</div>
+								{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
+									<EntryContextMenu
+										entry={menu.entry}
+										handle={menu.handle}
+										position={menu.position}
+										keyboard={menu.keyboard}
+										onClose={() => setMenu(null)}
+										onOpen={menu.openers.open}
+										onOpenInNewTab={menu.openers.openInNewTab}
+										onCopyPath={menu.openers.copyPath}
+										session={menu.session}
+										onAddToFavourites={menu.openers.addToFavourites}
+										commands={commands?.states(menu.session)}
+										batchRename={
+											menu.session
+												? selectedCount(
+														menu.session.store.getState().selection,
+														menu.session.model.count,
+													) > 1
+												: false
+										}
+										onCommand={runCommand}
+									/>
+								)}
 							</div>
-							<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
-								<ViewSwitcher />
-							</StatusBar>
-							<NoticeToast />
-							{commandDialog}
-							<BatchRenameHost api={batchRenameApi} announce={notify} />
-							<DestinationHost />
-							{trashDialogs}
-							{menu?.kind === 'background' && (
-								<BackgroundContextMenu
-									session={menu.session}
-									showHidden={showHidden}
-									position={menu.position}
-									keyboard={menu.keyboard}
-									onToggleHidden={() => viewStore.getState().toggleHidden()}
-									onEmptyTrash={
-										trashActions
-											? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
-											: undefined
-									}
-									onClose={() => setMenu(null)}
-									commands={
-										commands
-											? {
-													states: commands.states(menu.session),
-													undoLabel: commands.history().undo?.label ?? null,
-													redoLabel: commands.history().redo?.label ?? null,
-												}
-											: undefined
-									}
-									onCommand={runCommand}
-								/>
-							)}
-							{menu?.kind === 'entry' && menu.session?.model.layout === 'trash' && trashActions && (
-								<TrashEntryMenu
-									position={menu.position}
-									keyboard={menu.keyboard}
-									onRestore={() => menu.session && trashActions.restore(menu.session)}
-									onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
-									onClose={() => setMenu(null)}
-								/>
-							)}
-							{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
-								<EntryContextMenu
-									entry={menu.entry}
-									handle={menu.handle}
-									position={menu.position}
-									keyboard={menu.keyboard}
-									onClose={() => setMenu(null)}
-									onOpen={menu.openers.open}
-									onOpenInNewTab={menu.openers.openInNewTab}
-									onCopyPath={menu.openers.copyPath}
-									onAddToFavourites={menu.openers.addToFavourites}
-									commands={commands?.states(menu.session)}
-									batchRename={
-										menu.session
-											? selectedCount(
-													menu.session.store.getState().selection,
-													menu.session.model.count,
-												) > 1
-											: false
-									}
-									onCommand={runCommand}
-								/>
-							)}
-						</div>
-					</FileDragProvider>
+						</FileDragProvider>
+					</ShelfProvider>
 				</ClipboardProvider>
 			</FileCommandsProvider>
 		</TrashActionsProvider>

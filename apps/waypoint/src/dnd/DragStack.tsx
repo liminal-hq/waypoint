@@ -25,6 +25,7 @@ const BADGES: Partial<Record<PillKind, ReactNode>> = {
 	link: <LinkIcon />,
 	trash: <TrashIcon />,
 	open: <PlusIcon />,
+	shelf: <PlusIcon />,
 	ask: (
 		<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="currentColor">
 			<circle cx="3.5" cy="8" r="1.4" />

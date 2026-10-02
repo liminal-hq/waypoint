@@ -12,7 +12,7 @@ import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClien
 import { FOLDER } from '../test/browseHarness';
 import type { OpenFoldersRequest } from './fileDrag';
 import { foldersToOpen, MAX_DROP_TABS, openFolders, selectedEntries } from './openFolders';
-import type { FileDragSource } from './fileDragModel';
+import type { SelectionDragSource } from './fileDragModel';
 
 const ENTRIES = [
 	makeEntry(1, 'docs', { kind: 'directory' }),
@@ -41,7 +41,7 @@ async function setup(selected: number[], options: { tabs?: number } = {}) {
 		folder: FOLDER,
 		readOnly: false,
 		rightButton: false,
-	} as FileDragSource;
+	} as SelectionDragSource;
 	const announce = vi.fn();
 	// The deps read the newest snapshot; the test refreshes it after each change.
 	let latest = await api.getSnapshot();
@@ -58,7 +58,7 @@ async function setup(selected: number[], options: { tabs?: number } = {}) {
 }
 
 const request = (
-	source: FileDragSource,
+	source: SelectionDragSource,
 	over: Partial<OpenFoldersRequest> = {},
 ): OpenFoldersRequest => ({
 	source,
@@ -99,7 +99,7 @@ describe('foldersToOpen', () => {
 		);
 		const session = createListingSession(await openListingModel(vfs, FOLDER));
 		session.store.getState().selectAll();
-		const source = { session, handle: session.model.handle, folder: FOLDER } as FileDragSource;
+		const source = { session, handle: session.model.handle, folder: FOLDER } as SelectionDragSource;
 		expect(await foldersToOpen(request(source), vfs)).toHaveLength(MAX_DROP_TABS);
 	});
 });
