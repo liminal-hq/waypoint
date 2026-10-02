@@ -1,4 +1,4 @@
-// The Shelf panel: references grouped by the folder they came from, which can be selected, removed, opened and dragged out
+// The Shelf dock: references grouped by the folder they came from, laid out as a strip of tiles along the bottom, which can be selected, removed, opened and dragged out
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -29,16 +29,16 @@ import { useShelfActions } from './ShelfContext';
 import {
 	commonOrigin,
 	groupItems,
-	groupKey,
 	iconFor,
 	itemKey,
 	orderOf,
+	rowOnAdjacentLine,
 	visibleRows,
 	type ItemState,
 	type ShelfRow,
 } from './shelfModel';
 import { shelfItemMenuItems, shelfPanelMenuItems, type ShelfItemCommand } from './shelfMenu';
-import { DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH, useShelfStore } from './shelfStore';
+import { DEFAULT_HEIGHT, MAX_HEIGHT, MIN_HEIGHT, useShelfStore } from './shelfStore';
 import styles from './ShelfPanel.module.css';
 
 /** How far an arrow key moves the divider, and how far with Shift. */
@@ -54,18 +54,20 @@ interface MenuRequest {
 }
 
 /**
- * The docked Shelf. The whole panel is a drop target (`data-drop="shelf"`), and each row is a
- * drag source of references (`pressLocations`). The list is a tree with one level of groups; the
- * keyboard moves through the rows (Up, Down, Home, End; Left and Right close and open a group),
- * Enter opens an item, Space and Ctrl+Space select, Shift extends, Delete removes from the Shelf
- * (never a file), Ctrl+C copies the items for a paste, and the Menu key opens the item's menu.
+ * The Shelf, docked along the bottom of the window. The whole dock is a drop target
+ * (`data-drop="shelf"`), and each tile is a drag source of references (`pressLocations`). It is a
+ * tree with one level of groups laid out as a wrapping strip: a group's chip, then its tiles. The
+ * keyboard moves along the strip (Left and Right; Up and Down between the lines when it wraps;
+ * Home, End), Enter opens an item or toggles a group, Space and Ctrl+Space select, Shift extends,
+ * Delete removes from the Shelf (never a file), Ctrl+C copies the items for a paste, and the Menu
+ * key opens the item's menu.
  */
 export function ShelfPanel() {
 	const store = useShelfStore();
 	const actions = useShelfActions();
 	const drag = useFileDragApi();
 	const items = useStore(store, (s) => s.items);
-	const width = useStore(store, (s) => s.width);
+	const height = useStore(store, (s) => s.height);
 	const selected = useStore(store, (s) => s.selected);
 	const focus = useStore(store, (s) => s.focus);
 	const collapsed = useStore(store, (s) => s.collapsed);
@@ -107,6 +109,16 @@ export function ShelfPanel() {
 	);
 	const rowElement = (key: string) => document.getElementById(rowDomId(key));
 
+	/** The row Up or Down lands on: on the next line of the strip, nearest across. */
+	const rowOnLine = (from: number, direction: 1 | -1): ShelfRow | undefined => {
+		const boxes = rows.map((row) => {
+			const box = rowElement(row.key)?.getBoundingClientRect();
+			return { top: box?.top ?? 0, left: box?.left ?? 0, width: box?.width ?? 0 };
+		});
+		const to = rowOnAdjacentLine(boxes, from, direction);
+		return to === null ? undefined : rows[to];
+	};
+
 	const itemMenuAt = (position: { x: number; y: number }, keyboard: boolean) =>
 		setMenu({ kind: 'item', position, keyboard });
 
@@ -117,35 +129,26 @@ export function ShelfPanel() {
 		const ctrl = event.ctrlKey || event.metaKey;
 		const consume = () => event.preventDefault();
 		switch (event.key) {
-			case 'ArrowDown':
+			case 'ArrowRight':
+			case 'ArrowLeft': {
 				consume();
-				return moveFocus(rows[at < 0 ? 0 : Math.min(rows.length - 1, at + 1)], event.shiftKey);
+				// Along the strip, the way the text runs: Right is toward the end in left-to-right text.
+				const rtl = getComputedStyle(event.currentTarget).direction === 'rtl';
+				const forward = (event.key === 'ArrowRight') !== rtl;
+				const to = at < 0 ? 0 : forward ? Math.min(rows.length - 1, at + 1) : Math.max(0, at - 1);
+				return moveFocus(rows[to], event.shiftKey);
+			}
+			case 'ArrowDown':
 			case 'ArrowUp':
 				consume();
-				return moveFocus(rows[at < 0 ? 0 : Math.max(0, at - 1)], event.shiftKey);
+				if (at < 0) return moveFocus(rows[0], event.shiftKey);
+				return moveFocus(rowOnLine(at, event.key === 'ArrowDown' ? 1 : -1), event.shiftKey);
 			case 'Home':
 				consume();
 				return moveFocus(rows[0], event.shiftKey);
 			case 'End':
 				consume();
 				return moveFocus(rows[rows.length - 1], event.shiftKey);
-			case 'ArrowRight':
-				consume();
-				if (focusedRow?.kind === 'group' && !focusedRow.expanded) {
-					state.toggleGroup(focusedRow.group.origin.uri, false);
-				} else if (focusedRow?.kind === 'group') moveFocus(rows[at + 1], false);
-				return;
-			case 'ArrowLeft':
-				consume();
-				if (focusedRow?.kind === 'group' && focusedRow.expanded) {
-					state.toggleGroup(focusedRow.group.origin.uri, true);
-				} else if (focusedRow?.kind === 'item') {
-					moveFocus(
-						rows.find((row) => row.key === groupKey(focusedRow.group.origin)),
-						false,
-					);
-				}
-				return;
 			case 'Enter':
 				consume();
 				if (focusedRow?.kind === 'group') state.toggleGroup(focusedRow.group.origin.uri);
@@ -285,7 +288,7 @@ export function ShelfPanel() {
 		<aside
 			className={styles.shelf}
 			aria-label={t('shelf.label')}
-			style={{ width, '--wp-shelf-width': `${width}px` } as CSSProperties}
+			style={{ height, '--wp-shelf-height': `${height}px` } as CSSProperties}
 			data-shelf=""
 			{...dropAttributes('shelf', 'shelf', t('shelf.title'))}
 		>
@@ -490,37 +493,26 @@ function ItemRow({
 	);
 }
 
-/** The edge that resizes the panel: drag it, or focus it and use the arrow keys (Shift for bigger steps). */
+/** The top edge that resizes the dock: drag it, or focus it and use Up and Down (Shift for bigger steps). */
 function ShelfDivider() {
 	const store = useShelfStore();
-	const width = useStore(store, (s) => s.width);
-	const drag = useRef<{
-		startX: number;
-		startWidth: number;
-		sign: 1 | -1;
-		pointerId: number;
-	} | null>(null);
+	const height = useStore(store, (s) => s.height);
+	const drag = useRef<{ startY: number; startHeight: number; pointerId: number } | null>(null);
 	const [dragging, setDragging] = useState(false);
 
 	const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
 		if (event.button !== 0) return;
-		const rtl = getComputedStyle(event.currentTarget).direction === 'rtl';
 		event.currentTarget.setPointerCapture?.(event.pointerId);
 		event.preventDefault();
 		event.currentTarget.focus();
-		// The panel is docked at the end edge: dragging toward the start widens it.
-		drag.current = {
-			startX: event.clientX,
-			startWidth: width,
-			sign: rtl ? 1 : -1,
-			pointerId: event.pointerId,
-		};
+		drag.current = { startY: event.clientY, startHeight: height, pointerId: event.pointerId };
 		setDragging(true);
 	};
 	const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
 		const state = drag.current;
 		if (!state) return;
-		store.getState().setWidth(state.startWidth + (event.clientX - state.startX) * state.sign);
+		// The dock sits at the bottom: dragging its top edge up makes it taller.
+		store.getState().setHeight(state.startHeight + (state.startY - event.clientY));
 	};
 	const finish = (event: PointerEvent<HTMLDivElement>, keep: boolean) => {
 		const state = drag.current;
@@ -528,16 +520,13 @@ function ShelfDivider() {
 		drag.current = null;
 		setDragging(false);
 		event.currentTarget.releasePointerCapture?.(state.pointerId);
-		if (!keep) store.getState().setWidth(state.startWidth);
+		if (!keep) store.getState().setHeight(state.startHeight);
 	};
 	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-		const rtl = getComputedStyle(event.currentTarget).direction === 'rtl';
 		const step = event.shiftKey ? DIVIDER_BIG_STEP : DIVIDER_STEP;
-		// The start edge is the one that moves: Left widens in left-to-right text.
-		const wider = rtl ? 'ArrowRight' : 'ArrowLeft';
-		const narrower = rtl ? 'ArrowLeft' : 'ArrowRight';
-		if (event.key === wider) store.getState().setWidth(width + step);
-		else if (event.key === narrower) store.getState().setWidth(width - step);
+		// The top edge is the one that moves: Up makes the dock taller.
+		if (event.key === 'ArrowUp') store.getState().setHeight(height + step);
+		else if (event.key === 'ArrowDown') store.getState().setHeight(height - step);
 		else return;
 		event.preventDefault();
 	};
@@ -545,7 +534,7 @@ function ShelfDivider() {
 		const onKey = (event: globalThis.KeyboardEvent) => {
 			if (event.key !== 'Escape' || !drag.current) return;
 			event.stopPropagation();
-			store.getState().setWidth(drag.current.startWidth);
+			store.getState().setHeight(drag.current.startHeight);
 			drag.current = null;
 			setDragging(false);
 		};
@@ -558,18 +547,18 @@ function ShelfDivider() {
 			role="separator"
 			tabIndex={0}
 			className={styles.divider}
-			aria-orientation="vertical"
+			aria-orientation="horizontal"
 			aria-label={t('shelf.divider.label')}
-			aria-valuenow={width}
-			aria-valuemin={MIN_WIDTH}
-			aria-valuemax={MAX_WIDTH}
-			aria-valuetext={tf('shelf.divider.value', { width })}
+			aria-valuenow={height}
+			aria-valuemin={MIN_HEIGHT}
+			aria-valuemax={MAX_HEIGHT}
+			aria-valuetext={tf('shelf.divider.value', { height })}
 			data-dragging={dragging ? '' : undefined}
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}
 			onPointerUp={(event) => finish(event, true)}
 			onPointerCancel={(event) => finish(event, false)}
-			onDoubleClick={() => store.getState().setWidth(DEFAULT_WIDTH)}
+			onDoubleClick={() => store.getState().setHeight(DEFAULT_HEIGHT)}
 			onKeyDown={onKeyDown}
 		/>
 	);

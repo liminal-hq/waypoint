@@ -1,4 +1,4 @@
-// Tests the Shelf store: revision gating, pruning, selection, collapsing and width
+// Tests the Shelf store: revision gating, pruning, selection, collapsing and height
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -6,7 +6,13 @@
 import type { ShelfItem } from '@liminal-hq/waypoint-protocol/generated/ShelfItem';
 import { describe, expect, it } from 'vitest';
 import { fileLocation } from '../services/fakeVfsClient';
-import { clampWidth, createShelfStore, DEFAULT_WIDTH, MAX_WIDTH, MIN_WIDTH } from './shelfStore';
+import {
+	clampHeight,
+	createShelfStore,
+	DEFAULT_HEIGHT,
+	MAX_HEIGHT,
+	MIN_HEIGHT,
+} from './shelfStore';
 
 const make = (id: number, path = `/d/f${id}`): ShelfItem => ({
 	id,
@@ -99,14 +105,14 @@ describe('the panel’s own state', () => {
 		expect(store.getState().collapsed.has('file:///d')).toBe(false);
 	});
 
-	it('keeps the width between its limits', () => {
+	it('keeps the height between its limits', () => {
 		const store = createShelfStore();
-		expect(store.getState().width).toBe(DEFAULT_WIDTH);
-		store.getState().setWidth(10);
-		expect(store.getState().width).toBe(MIN_WIDTH);
-		store.getState().setWidth(5000);
-		expect(store.getState().width).toBe(MAX_WIDTH);
-		expect(clampWidth(333.4)).toBe(333);
+		expect(store.getState().height).toBe(DEFAULT_HEIGHT);
+		store.getState().setHeight(10);
+		expect(store.getState().height).toBe(MIN_HEIGHT);
+		store.getState().setHeight(5000);
+		expect(store.getState().height).toBe(MAX_HEIGHT);
+		expect(clampHeight(333.4)).toBe(333);
 	});
 
 	it('records file facts, replacing and leaving the rest, and counts focus requests', () => {

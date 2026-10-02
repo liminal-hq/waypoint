@@ -1,4 +1,4 @@
-// The window's copy of the Shelf and what the panel remembers: revision-gated items, selection, collapsed groups, width and what is known of each file
+// The window's copy of the Shelf and what the panel remembers: revision-gated items, selection, collapsed groups, height and what is known of each file
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -10,10 +10,10 @@ import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { ItemState } from './shelfModel';
 
-/** The panel's width in pixels: where it starts, and the least and most it may take. */
-export const DEFAULT_WIDTH = 280;
-export const MIN_WIDTH = 200;
-export const MAX_WIDTH = 560;
+/** The dock's height in pixels: where it starts, and the least and most it may take. */
+export const DEFAULT_HEIGHT = 132;
+export const MIN_HEIGHT = 88;
+export const MAX_HEIGHT = 360;
 
 export interface ShelfState {
 	/** In the order added (oldest first), as Rust keeps them. */
@@ -21,7 +21,7 @@ export interface ShelfState {
 	/** The revision `items` is as of; an older one never replaces a newer. */
 	revision: number;
 	open: boolean;
-	width: number;
+	height: number;
 	selected: ReadonlySet<ShelfItemId>;
 	/** Where a Shift selection starts from. */
 	anchor: ShelfItemId | null;
@@ -40,7 +40,7 @@ export interface ShelfActions {
 	sync(items: readonly ShelfItem[], revision: number): void;
 	setOpen(open: boolean): void;
 	toggleOpen(): void;
-	setWidth(width: number): void;
+	setHeight(height: number): void;
 	/**
 	 * A click or a key on an item. `only` selects just it, `toggle` flips it (Ctrl), and `range`
 	 * selects from the anchor to it through `order` (Shift).
@@ -57,20 +57,20 @@ export interface ShelfActions {
 
 export type ShelfStore = StoreApi<ShelfState & ShelfActions>;
 
-export function clampWidth(width: number): number {
-	return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(width)));
+export function clampHeight(height: number): number {
+	return Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, Math.round(height)));
 }
 
 /**
  * Memory for the window only: the Shelf's items come from the session (A56), and whether the panel
- * is open, its width and its collapsed groups are this window's own and last as long as it does.
+ * is open, its height and its collapsed groups are this window's own and last as long as it does.
  */
 export function createShelfStore(initial: Partial<ShelfState> = {}): ShelfStore {
 	return createStore<ShelfState & ShelfActions>()((set, get) => ({
 		items: [],
 		revision: -1,
 		open: false,
-		width: DEFAULT_WIDTH,
+		height: DEFAULT_HEIGHT,
 		selected: new Set<ShelfItemId>(),
 		anchor: null,
 		focus: null,
@@ -97,7 +97,7 @@ export function createShelfStore(initial: Partial<ShelfState> = {}): ShelfStore 
 		},
 		setOpen: (open) => set({ open }),
 		toggleOpen: () => set((state) => ({ open: !state.open })),
-		setWidth: (width) => set({ width: clampWidth(width) }),
+		setHeight: (height) => set({ height: clampHeight(height) }),
 		select: (id, how, order) => {
 			const state = get();
 			if (how === 'only') {

@@ -14,6 +14,7 @@ import {
 	itemKey,
 	leafName,
 	orderOf,
+	rowOnAdjacentLine,
 	visibleRows,
 } from './shelfModel';
 
@@ -97,5 +98,36 @@ describe('the small rules', () => {
 		expect(commonOrigin([a, a2])).toEqual(fileLocation('/a'));
 		expect(commonOrigin([a, b])).toBeNull();
 		expect(commonOrigin([])).toBeNull();
+	});
+});
+
+describe('rowOnAdjacentLine', () => {
+	// Two lines of three tiles, the second line one tile short and offset.
+	const boxes = [
+		{ top: 0, left: 0, width: 100 },
+		{ top: 0, left: 100, width: 100 },
+		{ top: 1, left: 200, width: 100 },
+		{ top: 40, left: 0, width: 100 },
+		{ top: 40, left: 100, width: 100 },
+	];
+
+	it('goes down to the tile whose centre is nearest, and back up', () => {
+		expect(rowOnAdjacentLine(boxes, 0, 1)).toBe(3);
+		expect(rowOnAdjacentLine(boxes, 1, 1)).toBe(4);
+		expect(rowOnAdjacentLine(boxes, 2, 1)).toBe(4);
+		expect(rowOnAdjacentLine(boxes, 4, -1)).toBe(1);
+	});
+
+	it('has nowhere to go past the first or last line, or on a single line', () => {
+		expect(rowOnAdjacentLine(boxes, 0, -1)).toBeNull();
+		expect(rowOnAdjacentLine(boxes, 3, 1)).toBeNull();
+		expect(rowOnAdjacentLine(boxes.slice(0, 3), 1, 1)).toBeNull();
+		expect(rowOnAdjacentLine(boxes, 9, 1)).toBeNull();
+	});
+
+	it('steps one line at a time', () => {
+		const three = [...boxes, { top: 80, left: 0, width: 100 }];
+		expect(rowOnAdjacentLine(three, 0, 1)).toBe(3);
+		expect(rowOnAdjacentLine(three, 3, 1)).toBe(5);
 	});
 });

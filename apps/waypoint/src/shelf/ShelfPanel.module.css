@@ -1,5 +1,5 @@
 /*
- * The Shelf, docked at the right edge of the window's content. Tokens only: colours come from the
+ * The Shelf, docked along the bottom of the window, between the panes and the status bar. Tokens only: colours come from the
  * theme, and a dropped file is shown by the drag's own outline (`[data-drop-over]`).
  */
 .shelf {
@@ -9,18 +9,20 @@
 	flex-direction: column;
 	box-sizing: border-box;
 	min-width: 0;
-	border-inline-start: 1px solid var(--wp-border-subtle);
+	min-height: 0;
+	max-height: 60%;
+	border-block-start: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-sidebar);
 	color: var(--wp-text-primary);
 }
 
 .divider {
 	position: absolute;
-	inset-block: 0;
-	inset-inline-start: -3px;
+	inset-inline: 0;
+	inset-block-start: -3px;
 	z-index: 1;
-	width: 6px;
-	cursor: col-resize;
+	height: 6px;
+	cursor: row-resize;
 	touch-action: none;
 }
 
@@ -42,7 +44,7 @@
 	flex: none;
 	align-items: center;
 	gap: 4px;
-	padding: 4px 4px 4px 12px;
+	padding: 2px 4px 0 12px;
 }
 
 .title {
@@ -91,8 +93,9 @@
 	display: flex;
 	flex: 1;
 	flex-direction: column;
-	gap: 6px;
-	padding: 16px 16px 24px;
+	justify-content: center;
+	gap: 2px;
+	padding: 4px 16px 12px;
 	color: var(--wp-text-secondary);
 	font-size: 12px;
 	line-height: 1.45;
@@ -109,12 +112,19 @@
 	margin: 0;
 }
 
+/* A strip of tiles that wraps onto more lines as the dock grows, and scrolls when it still does not fit. */
 .tree {
+	display: flex;
 	flex: 1;
+	flex-flow: row wrap;
+	align-content: flex-start;
+	align-items: flex-start;
+	gap: 4px 6px;
 	min-height: 0;
 	margin: 0;
-	padding: 0;
-	overflow: auto;
+	padding: 4px 8px 8px;
+	overflow-x: hidden;
+	overflow-y: auto;
 	list-style: none;
 }
 
@@ -131,10 +141,14 @@
 
 .groupHeader {
 	display: flex;
+	flex: none;
 	align-items: center;
 	gap: 2px;
-	min-height: var(--wp-row-height);
+	box-sizing: border-box;
+	max-width: 200px;
+	min-height: calc(var(--wp-row-height) + 8px);
 	padding: 0 8px 0 4px;
+	border-radius: 4px;
 	color: var(--wp-text-muted);
 	font-size: 12px;
 	font-weight: 600;
@@ -170,11 +184,15 @@
 
 .row {
 	display: flex;
+	flex: none;
 	align-items: center;
 	gap: 6px;
 	box-sizing: border-box;
+	width: 176px;
 	min-height: calc(var(--wp-row-height) + 8px);
-	padding: 2px 4px 2px 20px;
+	padding: 2px 4px 2px 8px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
 	cursor: default;
 	user-select: none;
 }

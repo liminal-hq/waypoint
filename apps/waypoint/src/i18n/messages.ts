@@ -1160,7 +1160,7 @@ export const enMessages = {
 	'shelf.missing': 'Missing',
 	'shelf.missing.title': 'This item is no longer at {path}',
 	'shelf.divider.label': 'Resize the Shelf',
-	'shelf.divider.value': '{width} pixels wide',
+	'shelf.divider.value': '{height} pixels tall',
 	'shelf.added.one': 'Added {count} item to the Shelf',
 	'shelf.added.other': 'Added {count} items to the Shelf',
 	'shelf.added.already': 'Already on the Shelf',
