@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	collectServiceStatuses,
+	integrationServiceStatus,
 	nativeDndServiceStatus,
 	SERVICE_SOURCES,
 	systemAppearanceServiceStatus,
@@ -21,6 +22,7 @@ const plugins = vi.hoisted(() => ({
 	windowManager: vi.fn(),
 	effects: vi.fn(),
 	appearance: vi.fn(),
+	integrations: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
@@ -29,6 +31,9 @@ vi.mock('@liminal-hq/plugin-window-effects', () => ({ getStatus: plugins.effects
 vi.mock('@liminal-hq/waypoint-plugin-ops', () => ({ getStatus: plugins.ops }));
 vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({ getStatus: plugins.vfs }));
 vi.mock('@liminal-hq/plugin-window-manager', () => ({ getStatus: plugins.windowManager }));
+vi.mock('./tauriIntegrationsClient', () => ({
+	createTauriIntegrationsClient: () => ({ statuses: plugins.integrations }),
+}));
 
 beforeEach(() => {
 	for (const fn of Object.values(plugins)) fn.mockReset();
@@ -241,6 +246,8 @@ describe('the Services panel sources', () => {
 			'volumes',
 			'window-effects',
 			'mime-apps',
+			'xdg-portal',
+			'desktop-integration',
 		]);
 		plugins.vfs.mockResolvedValue({ available: true, reason: null, features: ['listing'] });
 		plugins.trash.mockRejectedValue(new Error('permission denied'));
@@ -267,5 +274,38 @@ describe('the Services panel sources', () => {
 		expect(statuses['file-system']?.features).toEqual(['listing']);
 		// The Shelf window's always-on-top is among the features the window manager reports (or lacks).
 		expect(statuses['window-manager']?.features).toEqual(['system-window-menu']);
+	});
+});
+
+describe('the Rust-only plugins', () => {
+	const portal = { available: false, reason: 'No desktop portal is running.', features: [] };
+	const desktop = { available: true, reason: null, features: ['notify'] };
+
+	it('are in the panel and report through the app command, asked once for both', async () => {
+		plugins.integrations.mockResolvedValue({
+			'xdg-portal': portal,
+			'desktop-integration': desktop,
+		});
+		const sources = {
+			'xdg-portal': SERVICE_SOURCES['xdg-portal']!,
+			'desktop-integration': SERVICE_SOURCES['desktop-integration']!,
+		};
+		const [a, b] = await Promise.all([sources['xdg-portal'](), sources['desktop-integration']()]);
+		expect(a).toEqual(portal);
+		expect(b).toEqual(desktop);
+		expect(plugins.integrations).toHaveBeenCalledTimes(1);
+	});
+
+	it('are unavailable when the command does not report one, and the panel survives a failed command', async () => {
+		plugins.integrations.mockResolvedValue({});
+		expect(await integrationServiceStatus('xdg-portal')()).toEqual({
+			available: false,
+			reason: null,
+			features: [],
+		});
+		plugins.integrations.mockRejectedValue(new Error('no command'));
+		const all = await collectServiceStatuses();
+		expect(all['xdg-portal']).toMatchObject({ available: false, reason: 'no command' });
+		expect(all['desktop-integration']).toMatchObject({ available: false, reason: 'no command' });
 	});
 });

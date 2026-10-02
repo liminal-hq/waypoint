@@ -75,6 +75,41 @@ export const enMessages = {
 	'services.name.volumes': 'Drives and volumes',
 	'services.name.window-effects': 'Window effects',
 	'services.name.mime-apps': 'File types and Open With',
+	'services.name.xdg-portal': 'Desktop portal',
+	'services.name.desktop-integration': 'Desktop services',
+	'settings.group.notifications': 'Notifications and progress',
+	'settings.group.fileManager': 'File manager',
+	'settings.group.shortcut': 'Global shortcut',
+	'settings.integrations.unreadable': 'Waypoint could not check what this system can do.',
+	'settings.integrations.notifications.label': 'Notify when a job finishes',
+	'settings.integrations.notifications.description':
+		'Shows a notification when a job finishes or fails while no Waypoint window is in front or after it ran for more than 10 seconds, and whenever a job needs your answer. Clicking it brings Waypoint forward.',
+	'settings.integrations.progress.label': 'Show progress on the app icon',
+	'settings.integrations.progress.description':
+		'Shows how far the running jobs have got on Waypoint’s dock or taskbar icon.',
+	'settings.integrations.sleep.label': 'Keep the computer awake during jobs',
+	'settings.integrations.sleep.description':
+		'Stops the computer from going to sleep while a job is running, and lets it sleep again afterwards.',
+	'settings.integrations.fileManager.make.label': 'Make Waypoint the default file manager',
+	'settings.integrations.fileManager.make.description':
+		'Folders that other applications open will open in Waypoint.',
+	'settings.integrations.fileManager.make.action': 'Make default',
+	'settings.integrations.fileManager.settings.label': 'Choose Waypoint in your system settings',
+	'settings.integrations.fileManager.settings.description':
+		'Windows lets only you change the default. Open Default apps, then choose Waypoint for folders.',
+	'settings.integrations.fileManager.settings.action': 'Open Default apps',
+	'settings.integrations.fileManager.state.default': 'Waypoint is the default file manager.',
+	'settings.integrations.fileManager.state.other': 'The default file manager is {name}.',
+	'settings.integrations.fileManager.failed': 'Could not make Waypoint the default: {reason}',
+	'settings.integrations.fileManager.service.label': 'Open folders other applications ask for',
+	'settings.integrations.fileManager.service.description':
+		'While this is on, “Show in folder” and similar requests from other applications open in Waypoint, each folder in a new tab.',
+	'settings.integrations.shortcut.enabled.label': 'Bring Waypoint forward with a shortcut',
+	'settings.integrations.shortcut.enabled.description':
+		'Works from any application: raises the window you used last, or opens a new one.',
+	'settings.integrations.shortcut.key.label': 'Shortcut',
+	'settings.integrations.shortcut.key.description':
+		'One or more of Ctrl, Alt, Shift and Super, then one key, such as Ctrl+Alt+W.',
 	'settings.group.colours': 'Colours',
 	'settings.group.layout': 'Layout',
 	'settings.group.icons': 'Icons',

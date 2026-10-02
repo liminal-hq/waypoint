@@ -211,6 +211,114 @@
     "message": "File types and Open With",
     "description": "Area: services."
   },
+  "services.name.xdg-portal": {
+    "message": "Desktop portal",
+    "description": "Area: services."
+  },
+  "services.name.desktop-integration": {
+    "message": "Desktop services",
+    "description": "Area: services."
+  },
+  "settings.group.notifications": {
+    "message": "Notifications and progress",
+    "description": "Area: settings."
+  },
+  "settings.group.fileManager": {
+    "message": "File manager",
+    "description": "Area: settings."
+  },
+  "settings.group.shortcut": {
+    "message": "Global shortcut",
+    "description": "Area: settings."
+  },
+  "settings.integrations.unreadable": {
+    "message": "Waypoint could not check what this system can do.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.notifications.label": {
+    "message": "Notify when a job finishes",
+    "description": "Area: settings."
+  },
+  "settings.integrations.notifications.description": {
+    "message": "Shows a notification when a job finishes or fails while no Waypoint window is in front or after it ran for more than 10 seconds, and whenever a job needs your answer. Clicking it brings Waypoint forward.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.progress.label": {
+    "message": "Show progress on the app icon",
+    "description": "Area: settings."
+  },
+  "settings.integrations.progress.description": {
+    "message": "Shows how far the running jobs have got on Waypoint’s dock or taskbar icon.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.sleep.label": {
+    "message": "Keep the computer awake during jobs",
+    "description": "Area: settings."
+  },
+  "settings.integrations.sleep.description": {
+    "message": "Stops the computer from going to sleep while a job is running, and lets it sleep again afterwards.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.make.label": {
+    "message": "Make Waypoint the default file manager",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.make.description": {
+    "message": "Folders that other applications open will open in Waypoint.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.make.action": {
+    "message": "Make default",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.settings.label": {
+    "message": "Choose Waypoint in your system settings",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.settings.description": {
+    "message": "Windows lets only you change the default. Open Default apps, then choose Waypoint for folders.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.settings.action": {
+    "message": "Open Default apps",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.state.default": {
+    "message": "Waypoint is the default file manager.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.state.other": {
+    "message": "The default file manager is {name}.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "settings.integrations.fileManager.failed": {
+    "message": "Could not make Waypoint the default: {reason}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
+  "settings.integrations.fileManager.service.label": {
+    "message": "Open folders other applications ask for",
+    "description": "Area: settings."
+  },
+  "settings.integrations.fileManager.service.description": {
+    "message": "While this is on, “Show in folder” and similar requests from other applications open in Waypoint, each folder in a new tab.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.shortcut.enabled.label": {
+    "message": "Bring Waypoint forward with a shortcut",
+    "description": "Area: settings."
+  },
+  "settings.integrations.shortcut.enabled.description": {
+    "message": "Works from any application: raises the window you used last, or opens a new one.",
+    "description": "Area: settings."
+  },
+  "settings.integrations.shortcut.key.label": {
+    "message": "Shortcut",
+    "description": "Area: settings."
+  },
+  "settings.integrations.shortcut.key.description": {
+    "message": "One or more of Ctrl, Alt, Shift and Super, then one key, such as Ctrl+Alt+W.",
+    "description": "Area: settings."
+  },
   "settings.group.colours": {
     "message": "Colours",
     "description": "Area: settings."

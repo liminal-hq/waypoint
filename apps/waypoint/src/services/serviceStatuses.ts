@@ -19,6 +19,7 @@ import { getStatus as settingsStatus } from '@liminal-hq/waypoint-plugin-setting
 import { getStatus as vfsStatus } from '@liminal-hq/waypoint-plugin-vfs';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import { collectStatuses, type StatusSource } from './status';
+import { createTauriIntegrationsClient } from './tauriIntegrationsClient';
 
 /** One feature of a reusable plugin: whether it works and, when it does not, why. */
 interface FeatureReport {
@@ -145,6 +146,31 @@ export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	return summarise(status, Object.entries(status.features));
 }
 
+let inflight: Promise<Record<string, PluginStatus>> | null = null;
+
+/**
+ * The statuses of the two shared plugins that only Rust uses (A65), asked of the app's own command.
+ * Both entries of one load share a single probe, which talks to the session bus.
+ */
+function integrationStatuses(): Promise<Record<string, PluginStatus>> {
+	inflight ??= createTauriIntegrationsClient()
+		.statuses()
+		.finally(() => {
+			inflight = null;
+		});
+	return inflight;
+}
+
+/** One of the two Rust-only plugins' status: a plugin the command did not report is unavailable. */
+export function integrationServiceStatus(key: string): StatusSource {
+	return async () =>
+		(await integrationStatuses())[key] ?? {
+			available: false,
+			reason: null,
+			features: [],
+		};
+}
+
 /**
  * The plugins the panel reports, each through its own guest-js `getStatus`. Every plugin
  * `src-tauri` registers has an entry (`scripts/check-services.sh` fails the build otherwise); the
@@ -166,6 +192,9 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	volumes: volumesServiceStatus,
 	'window-effects': windowEffectsServiceStatus,
 	'mime-apps': mimeAppsServiceStatus,
+	// Used only from Rust, so they report through the app's `get_integration_statuses` (A66).
+	'xdg-portal': integrationServiceStatus('xdg-portal'),
+	'desktop-integration': integrationServiceStatus('desktop-integration'),
 };
 
 /** Asks every plugin whether it works here; one that cannot answer is reported unavailable with the error as its reason. */
