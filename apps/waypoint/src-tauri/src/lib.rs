@@ -3,10 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod checksum;
 mod effects;
 mod ops;
 mod ops_window;
 mod persistence;
+mod properties_window;
 mod settings;
 mod settings_window;
 mod shelf_window;
@@ -106,6 +108,17 @@ fn show_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
     window.show().map_err(|e| e.to_string())
 }
 
+/// A Properties window has closed: its place is free for another, and a checksum it was running stops.
+fn forget_properties_window<R: tauri::Runtime>(window: &tauri::Window<R>) {
+    let app = window.app_handle();
+    if let Some(windows) = app.try_state::<properties_window::PropertiesWindows>() {
+        windows.forget(window.label());
+    }
+    if let Some(runs) = app.try_state::<checksum::Checksums>() {
+        runs.cancel_window(window.label());
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let saver = Arc::new(Saver::new());
@@ -162,6 +175,8 @@ pub fn run() {
         .manage(Arc::clone(&saver))
         .manage(HoldNextWindow::default())
         .manage(effects::Driver::default())
+        .manage(properties_window::PropertiesWindows::default())
+        .manage(checksum::Checksums::default())
         .manage(thumbnails::ThumbnailBridge::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
@@ -173,6 +188,11 @@ pub fn run() {
             shelf_window::toggle_shelf_window,
             shelf_window::hide_shelf_window,
             shelf_window::shelf_window_visible,
+            properties_window::open_properties_window,
+            properties_window::properties_subject,
+            properties_window::properties_set_subject,
+            checksum::file_checksum,
+            checksum::cancel_checksum,
             thumbnails::thumbnails_request_entries,
             thumbnails::thumbnails_request_locations,
             thumbnails::thumbnails_cancel,
@@ -199,6 +219,11 @@ pub fn run() {
             let flush = Arc::new(CloseFlush::default());
             move |window, event| {
                 effects::on_window_event(window, event);
+                if matches!(event, WindowEvent::Destroyed)
+                    && window.label().starts_with(properties_window::LABEL_PREFIX)
+                {
+                    forget_properties_window(window);
+                }
                 let kind = WindowKind::from_label(window.label());
                 // The Shelf window's place and size are kept too; closing it is not a session close.
                 if kind == Some(WindowKind::Shelf) {
