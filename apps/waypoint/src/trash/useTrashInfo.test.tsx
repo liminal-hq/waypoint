@@ -26,7 +26,20 @@ describe('useTrashInfo', () => {
 		const { result } = renderHook(() => useTrashInfo(client));
 		expect(result.current).toBeNull();
 		await settle();
-		expect(result.current).toEqual({ available: true, reason: null, count: 4 });
+		expect(result.current).toEqual({ available: true, reason: null, count: 4, totalBytes: null });
+	});
+
+	it('asks for the total size only when told to, and says so in what it returns', async () => {
+		const client = new FakeTrashClient({ count: 2 });
+		client.bytes = 4096;
+		const plain = renderHook(() => useTrashInfo(client));
+		await settle();
+		expect(plain.result.current?.totalBytes).toBeNull();
+		expect(client.asked).toEqual([false]);
+		const measured = renderHook(() => useTrashInfo(client, { withBytes: true }));
+		await settle();
+		expect(measured.result.current?.totalBytes).toBe(4096);
+		expect(client.asked).toEqual([false, true]);
 	});
 
 	it('reads again when the window gains focus', async () => {
