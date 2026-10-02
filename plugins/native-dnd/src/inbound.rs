@@ -155,7 +155,8 @@ pub fn translate(window: &str, raw: RawEvent, env: &Env, outbound: &Outbound) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::DragOutcome;
+    use crate::models::{DragAction, DragOutcome, StartDragRequest};
+    use crate::outbound::DragRequest;
 
     fn env() -> Env {
         Env {
@@ -372,6 +373,39 @@ mod tests {
         // Other files while it ran are not.
         env.raw_uris = Some(vec!["file:///t/other".into()]);
         assert!(!drop(&env).self_drop);
+    }
+
+    #[test]
+    fn a_windows_drive_drop_of_the_live_outbound_drag_is_a_self_drop() {
+        let outbound = Outbound::default();
+        // The frontend offers the drive URI with a raw colon; the plugin stores it normalised.
+        let offered = DragRequest::validate(&StartDragRequest {
+            uris: vec!["file:///C:/a%20b".into(), "file://Server/Share/x".into()],
+            actions: vec![DragAction::Copy],
+            icon: None,
+        })
+        .unwrap();
+        outbound.begin(&offered.uris).unwrap();
+        let mut env = env();
+        // What the Windows drop handler builds from the dropped paths.
+        env.raw_uris = Some(vec![
+            uri::windows_path_to_uri(r"C:\a b").unwrap(),
+            uri::windows_path_to_uri(r"\\Server\Share\x").unwrap(),
+        ]);
+        let out = translate(
+            "w",
+            RawEvent::Drop {
+                paths: vec![],
+                position: (0.0, 0.0),
+            },
+            &env,
+            &outbound,
+        );
+        let Translated::Drop(drop) = out else {
+            panic!("{out:?}")
+        };
+        assert!(drop.self_drop);
+        assert_eq!(drop.uris, offered.uris);
     }
 
     #[test]

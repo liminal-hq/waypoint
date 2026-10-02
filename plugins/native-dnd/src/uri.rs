@@ -78,6 +78,11 @@ fn split_file_uri(uri: &[u8]) -> Option<FileUri> {
     if path.is_empty() {
         return None;
     }
+    let path = percent_decode(path);
+    // `file:rel/x` names no absolute file, and re-spelled as `file://rel/x` it would parse as a host.
+    if path.first() != Some(&b'/') {
+        return None;
+    }
     let host = host.to_ascii_lowercase();
     Some(FileUri {
         host: if host == b"localhost" {
@@ -85,7 +90,7 @@ fn split_file_uri(uri: &[u8]) -> Option<FileUri> {
         } else {
             host
         },
-        path: percent_decode(path),
+        path,
     })
 }
 
@@ -138,8 +143,12 @@ pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     }
 }
 
-/// A Windows path as a `file:` URI: `C:\a b\c` is `file:///C:/a%20b/c` and `\\server\share\x` is `file://server/share/x`. A `\\?\` prefix is dropped. `None` for a path that is neither a drive path nor a UNC path.
+/// A Windows path as a `file:` URI in the canonical spelling `normalise` gives, so an inbound URI and an outbound one compare equal: `C:\a b\c` is `file:///C%3A/a%20b/c` and `\\Server\share\x` is `file://server/share/x`. A `\\?\` prefix is dropped. `None` for a path that is neither a drive path nor a UNC path.
 pub fn windows_path_to_uri(path: &str) -> Option<String> {
+    windows_path_to_raw_uri(path).and_then(|uri| normalise(uri.as_bytes()))
+}
+
+fn windows_path_to_raw_uri(path: &str) -> Option<String> {
     let path = path.strip_prefix(r"\\?\UNC\").map_or_else(
         || path.strip_prefix(r"\\?\").unwrap_or(path).to_string(),
         |unc| format!(r"\\{unc}"),
@@ -162,7 +171,8 @@ pub fn windows_path_to_uri(path: &str) -> Option<String> {
         let rest = &slashed[2..];
         if rest.is_empty() || rest.starts_with('/') {
             return Some(format!(
-                "file:///{drive}{}",
+                "file:///{}{}",
+                percent_encode(drive.as_bytes()),
                 percent_encode(rest.as_bytes())
             ));
         }
@@ -365,6 +375,8 @@ mod tests {
             "ftp://h/a",
             "file:",
             "file://",
+            "file:etc/passwd",
+            "file:rel/x",
             "",
             "/plain/path",
         ] {
@@ -452,10 +464,13 @@ mod tests {
     #[test]
     fn windows_paths_become_uris_and_back() {
         for (path, uri) in [
-            (r"C:\Users\me\a b.txt", "file:///C:/Users/me/a%20b.txt"),
-            (r"D:\", "file:///D:/"),
-            (r"C:\x\café ✓.txt", "file:///C:/x/caf%C3%A9%20%E2%9C%93.txt"),
-            (r"C:\x\hash#tag.txt", "file:///C:/x/hash%23tag.txt"),
+            (r"C:\Users\me\a b.txt", "file:///C%3A/Users/me/a%20b.txt"),
+            (r"D:\", "file:///D%3A/"),
+            (
+                r"C:\x\café ✓.txt",
+                "file:///C%3A/x/caf%C3%A9%20%E2%9C%93.txt",
+            ),
+            (r"C:\x\hash#tag.txt", "file:///C%3A/x/hash%23tag.txt"),
             (r"\\server\share\dir\f.txt", "file://server/share/dir/f.txt"),
         ] {
             assert_eq!(windows_path_to_uri(path).as_deref(), Some(uri), "{path}");
@@ -463,11 +478,15 @@ mod tests {
         }
         assert_eq!(
             windows_path_to_uri(r"\\?\C:\x\y").as_deref(),
-            Some("file:///C:/x/y")
+            Some("file:///C%3A/x/y")
         );
         assert_eq!(
             windows_path_to_uri(r"\\?\UNC\srv\sh\y").as_deref(),
             Some("file://srv/sh/y")
+        );
+        assert_eq!(
+            windows_path_to_uri(r"\\Server\share\x").as_deref(),
+            Some("file://server/share/x")
         );
         assert_eq!(windows_path_to_uri(r"relative\path"), None);
         assert_eq!(windows_path_to_uri(r"\\"), None);
@@ -480,6 +499,25 @@ mod tests {
             Some(r"C:\a")
         );
         assert_eq!(uri_to_windows_path("https://x/y"), None);
+    }
+
+    #[test]
+    fn normalise_is_idempotent_and_an_inbound_windows_uri_matches_an_outbound_one() {
+        for uri in [
+            "file:///C:/a",
+            "file:///C%3A/a",
+            "file://Server/Share/a",
+            "file://localhost/p/a%20b",
+            "file:///t/bad%FF",
+        ] {
+            let once = normalise(uri.as_bytes()).unwrap();
+            assert_eq!(normalise(once.as_bytes()).as_deref(), Some(once.as_str()));
+        }
+        assert_eq!(
+            windows_path_to_uri(r"C:\a"),
+            normalise(b"file:///C:/a"),
+            "inbound and outbound spellings agree"
+        );
     }
 
     #[cfg(unix)]
