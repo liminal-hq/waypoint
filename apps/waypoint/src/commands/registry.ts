@@ -120,7 +120,8 @@ export type CommandId =
 	| 'dockShelf'
 	// The Inspector
 	| 'toggleInspector'
-	| 'showProperties';
+	| 'showProperties'
+	| 'propertiesInWindow';
 
 /** The commands that open a place of the sidebar. */
 export type GoCommandId =
@@ -765,6 +766,22 @@ export const COMMANDS: readonly CommandDef[] = [
 		// The Trash's items have no details to read, so the tab is not offered there.
 		when: (f) => (!f.listing || f.trash ? HIDDEN : SHOWN),
 		run: (a) => a.showProperties(),
+	},
+	{
+		id: 'propertiesInWindow',
+		label: 'cmd.propertiesInWindow',
+		shortcut: 'Alt+Enter',
+		icon: PropertiesIcon,
+		group: 'view',
+		// A window is about one thing: one item, or the folder when nothing is selected. Not in the
+		// Trash, whose items have no details to read, and not where the service does not exist.
+		when: (f) =>
+			!f.listing || f.trash || !f.propertiesWindow
+				? HIDDEN
+				: f.selected > 1
+					? blocked('cmd.reason.selectOne')
+					: SHOWN,
+		run: (a) => a.openPropertiesWindow(),
 	},
 ];
 

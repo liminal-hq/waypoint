@@ -11,6 +11,7 @@ import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
 import type { OsClipboardClient } from '../services/osClipboardClient';
 import type { DetailsClient } from '../services/detailsClient';
+import type { PropertiesWindowClient } from '../services/propertiesWindowClient';
 import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
@@ -50,6 +51,8 @@ export interface MainServices {
 	thumbnails?: ThumbnailsClient;
 	/** Entry details, text heads and preview addresses, for Quick Look; without it Space does nothing. */
 	details?: DetailsClient;
+	/** Properties windows; without it Alt+Enter, the item menu and the Inspector offer none. */
+	propertiesWindow?: PropertiesWindowClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -69,6 +72,7 @@ export interface MainServicesDeps {
 	createOpenWithClient?(): OpenWithClient;
 	createThumbnailsClient?(): ThumbnailsClient;
 	createDetailsClient?(): DetailsClient;
+	createPropertiesWindowClient?(): PropertiesWindowClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -100,6 +104,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		openWith: deps.createOpenWithClient?.(),
 		thumbnails: deps.createThumbnailsClient?.(),
 		details: deps.createDetailsClient?.(),
+		propertiesWindow: deps.createPropertiesWindowClient?.(),
 		home,
 	};
 }

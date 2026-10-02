@@ -67,6 +67,8 @@ export interface CommandFacts {
 	shelfUndocked: boolean;
 	/** The Inspector panel is open. */
 	inspectorOpen: boolean;
+	/** Properties windows can be opened from here (the service exists). */
+	propertiesWindow: boolean;
 }
 
 /** The window's actions. Each one is what a shortcut, a menu or the Action bar already does; none is a second implementation. */
@@ -115,6 +117,8 @@ export interface CommandActions {
 	/** The Inspector: show or hide it, and open it on the Properties tab. */
 	toggleInspector(): void;
 	showProperties(): void;
+	/** Opens a Properties window for the active pane's one selected entry, or its folder. */
+	openPropertiesWindow(): void;
 }
 
 export interface CommandEnv {
@@ -161,6 +165,7 @@ export function emptyFacts(): CommandFacts {
 		shelfCount: 0,
 		shelfUndocked: false,
 		inspectorOpen: false,
+		propertiesWindow: false,
 	};
 }
 
@@ -203,5 +208,6 @@ export function idleActions(): CommandActions {
 		dockShelf: nothing,
 		toggleInspector: nothing,
 		showProperties: nothing,
+		openPropertiesWindow: nothing,
 	};
 }

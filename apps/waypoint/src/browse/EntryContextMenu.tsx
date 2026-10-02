@@ -50,6 +50,8 @@ interface EntryContextMenuProps {
 	batchRename?: boolean | undefined;
 	/** The listing the entry is in, whose selection Add to Shelf puts on the Shelf. */
 	session?: ListingSession | null | undefined;
+	/** Properties windows can be opened here, so "Properties in a Window" is listed. */
+	propertiesWindow?: boolean | undefined;
 }
 
 /** The commands the entry menu can run. */
@@ -67,7 +69,8 @@ export type EntryCommand =
 	| 'moveTo'
 	| 'copyToOtherPane'
 	| 'moveToOtherPane'
-	| 'properties';
+	| 'properties'
+	| 'propertiesWindow';
 
 const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
@@ -84,6 +87,7 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'copyToOtherPane',
 	'moveToOtherPane',
 	'properties',
+	'propertiesWindow',
 ];
 
 /**
@@ -302,6 +306,7 @@ export function entryMenuItems(
 	commands?: Partial<Record<FileCommandId, CommandState>>,
 	batchRename = false,
 	openWith: SubmenuMenuItem | null = null,
+	propertiesWindow = false,
 ): MenuItem[] {
 	return [
 		{
@@ -350,6 +355,17 @@ export function entryMenuItems(
 			label: t('menu.properties'),
 			icon: <PropertiesIcon />,
 		},
+		...(propertiesWindow
+			? [
+					{
+						type: 'action',
+						id: 'propertiesWindow',
+						label: t('menu.propertiesInWindow'),
+						icon: <PropertiesIcon />,
+						shortcut: 'Alt+Enter',
+					} as const,
+				]
+			: []),
 	];
 }
 
@@ -372,10 +388,11 @@ export function EntryContextMenu({
 	onCommand,
 	batchRename = false,
 	session,
+	propertiesWindow = false,
 }: EntryContextMenuProps) {
 	const shelf = useShelfActions();
 	const openWith = useOpenWithMenu({ session, entry, handle });
-	const items = entryMenuItems(entry, commands, batchRename, openWith.item);
+	const items = entryMenuItems(entry, commands, batchRename, openWith.item, propertiesWindow);
 	return (
 		<ContextMenu
 			items={items}

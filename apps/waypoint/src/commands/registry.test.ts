@@ -301,6 +301,40 @@ describe('availability', () => {
 		}
 	});
 
+	it('lists Properties in a Window on Alt+Enter: for one item or none, with the service, outside the Trash', () => {
+		expect(commandDef('propertiesInWindow').shortcut).toBe('Alt+Enter');
+		const on = { propertiesWindow: true };
+		expect(read(states(factsFor({ selected: 0 }, on)).propertiesInWindow)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 1 }, on)).propertiesInWindow)).toBe('enabled');
+		const many = states(factsFor({ selected: 2 }, on)).propertiesInWindow;
+		expect(read(many)).toBe('disabled: Select one item, or none for the folder');
+		expect(read(states(factsFor({ selected: 1 })).propertiesInWindow)).toBe('hidden');
+		expect(read(states(factsFor({ listing: false }, on)).propertiesInWindow)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true }, on)).propertiesInWindow)).toBe(
+			'hidden',
+		);
+	});
+
+	it('runs Properties in a Window through the window’s action, only where it is offered', () => {
+		const actions = { ...idleActions(), openPropertiesWindow: vi.fn() };
+		expect(
+			runCommand(
+				'propertiesInWindow',
+				actions,
+				factsFor({ selected: 1 }, { propertiesWindow: true }),
+			),
+		).toBe(true);
+		expect(actions.openPropertiesWindow).toHaveBeenCalledTimes(1);
+		expect(
+			runCommand(
+				'propertiesInWindow',
+				actions,
+				factsFor({ selected: 3 }, { propertiesWindow: true }),
+			),
+		).toBe(false);
+		expect(actions.openPropertiesWindow).toHaveBeenCalledTimes(1);
+	});
+
 	it('offers Always on Top only where the window manager can do it', () => {
 		expect(read(states().alwaysOnTop)).toBe('hidden');
 		const supported = states(factsFor({}, { alwaysOnTop: { supported: true, on: true } }));

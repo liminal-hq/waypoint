@@ -15,6 +15,7 @@ import { isSettingsShortcut } from '../settings/openSettingsWindow';
 import { createSidebarStore } from '../sidebar/sidebarStore';
 import { createInspectorStore } from '../inspector/inspectorStore';
 import { useInspectorShortcuts } from '../inspector/useInspectorShortcuts';
+import { isPropertiesWindowKey } from '../inspector/usePropertiesWindowShortcut';
 import { createShelfStore } from '../shelf/shelfStore';
 import { useShelfShortcuts } from '../shelf/useShelfShortcuts';
 import { useSidebarShortcuts } from '../sidebar/useSidebarShortcuts';
@@ -224,6 +225,8 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 		dispatchOnWindow(s);
 		expect(store.getState().open).toBe(true);
 	},
+	propertiesInWindow: (s) =>
+		expect(isPropertiesWindowKey(new KeyboardEvent('keydown', keyEventInit(s)))).toBe(true),
 	selectAll: async (s) => {
 		const h = await commandsHarness();
 		await select(h, 0);

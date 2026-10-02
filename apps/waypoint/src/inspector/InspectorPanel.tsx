@@ -27,6 +27,7 @@ import {
 	type InspectorTab,
 } from './inspectorStore';
 import { baseName } from './inspectorModel';
+import { OpenInWindowButton } from './OpenInWindowButton';
 import { PropertiesPane } from './PropertiesPane';
 import { useEntryDetails } from './useEntryDetails';
 import { useInspectorSubject, type InspectorSubject } from './useInspectorSubject';
@@ -142,14 +143,17 @@ export function InspectorPanel({
 						(which === 'preview' ? (
 							<PreviewBody subject={subject} client={client} details={details} />
 						) : (
-							<PropertiesPane
-								subject={subject}
-								session={session}
-								client={client}
-								details={details}
-								folder={location}
-								active
-							/>
+							<>
+								<PropertiesPane
+									subject={subject}
+									session={session}
+									client={client}
+									details={details}
+									folder={location}
+									active
+								/>
+								{session?.model.layout !== 'trash' && <OpenInWindowButton subject={subject} />}
+							</>
 						))}
 				</div>
 			))}

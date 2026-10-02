@@ -68,6 +68,8 @@ import { FileDragProvider } from '../dnd/FileDragContext';
 import { OpenWithHost } from '../openWith/OpenWithHost';
 import { QuickLookHost } from '../quicklook/QuickLookHost';
 import { InspectorProvider } from '../inspector/InspectorContext';
+import { usePropertiesWindowClient } from '../inspector/PropertiesWindowContext';
+import { usePropertiesWindowHost } from '../inspector/usePropertiesWindowHost';
 import { InspectorDock } from '../inspector/InspectorPanel';
 import { createInspectorStore } from '../inspector/inspectorStore';
 import { ShelfProvider } from '../shelf/ShelfContext';
@@ -86,6 +88,7 @@ import { useBatchRenameShortcut } from '../ops/batchRename/useBatchRenameShortcu
 import {
 	CommandBridgeProvider,
 	createCommandBridge,
+	useCommandBridge,
 	useProvidedCommandBridge,
 } from '../commands/commandBridge';
 import { useWorkspaceCommands } from '../commands/useWorkspaceCommands';
@@ -350,6 +353,9 @@ function WorkspaceBody({
 		sidebar: sidebarStore,
 		trash: trashActions,
 	});
+	// Alt+Enter, the item menu and the palette open a Properties window for the active pane's subject.
+	const openProperties = usePropertiesWindowHost(useCommandBridge(), activeSession);
+	const propertiesWindowAvailable = usePropertiesWindowClient() !== null;
 	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
 	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
 	const currentBatchSelection = useCallback(
@@ -387,6 +393,7 @@ function WorkspaceBody({
 	const runCommand = (command: EntryCommand | BackgroundCommand, entry?: Entry) => {
 		const from = menu?.session ?? null;
 		if (command === 'properties') return inspectorStore.getState().showProperties();
+		if (command === 'propertiesWindow') return openProperties(from, entry);
 		if (!commands) return;
 		switch (command) {
 			case 'newFolder':
@@ -543,6 +550,7 @@ function WorkspaceBody({
 														) > 1
 													: false
 											}
+											propertiesWindow={propertiesWindowAvailable}
 											onCommand={runCommand}
 										/>
 									)}

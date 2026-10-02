@@ -26,6 +26,8 @@ import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
 import { createTauriOpenWithClient } from '../openWith/tauriOpenWithClient';
 import { DetailsClientProvider } from '../inspector/DetailsClientContext';
+import { PropertiesWindowProvider } from '../inspector/PropertiesWindowContext';
+import { createTauriPropertiesWindowClient } from '../services/tauriPropertiesWindowClient';
 import { OpenWithProvider } from '../openWith/OpenWithContext';
 import { createTauriTrashClient } from '../trash/tauriTrashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
@@ -83,6 +85,7 @@ function start(): Promise<MainServices> {
 		createOpenWithClient: createTauriOpenWithClient,
 		createThumbnailsClient: createTauriThumbnailsClient,
 		createDetailsClient: createTauriDetailsClient,
+		createPropertiesWindowClient: createTauriPropertiesWindowClient,
 	});
 }
 
@@ -136,32 +139,37 @@ export function MainScreen() {
 										<OpenWithProvider client={startup.services.openWith}>
 											<ThumbnailsProvider client={startup.services.thumbnails}>
 												<DetailsClientProvider client={startup.services.details}>
-													<TabsProvider api={startup.services.tabsApi} home={startup.services.home}>
-														<main className={styles.content}>
-															{DevLiveControls && startup.services.demo && (
-																<Suspense fallback={null}>
-																	<DevLiveControls
-																		client={startup.services.demo.client}
-																		location={startup.services.home}
+													<PropertiesWindowProvider client={startup.services.propertiesWindow}>
+														<TabsProvider
+															api={startup.services.tabsApi}
+															home={startup.services.home}
+														>
+															<main className={styles.content}>
+																{DevLiveControls && startup.services.demo && (
+																	<Suspense fallback={null}>
+																		<DevLiveControls
+																			client={startup.services.demo.client}
+																			location={startup.services.home}
+																		/>
+																	</Suspense>
+																)}
+																<MainOps
+																	client={startup.services.ops}
+																	osClipboard={startup.services.osClipboard}
+																>
+																	<Workspace
+																		startup={{
+																			view: startup.services.view,
+																			notice: startup.services.notice,
+																		}}
+																		tearoff={startup.services.tearoff}
+																		nativeDnd={startup.services.nativeDnd}
 																	/>
-																</Suspense>
-															)}
-															<MainOps
-																client={startup.services.ops}
-																osClipboard={startup.services.osClipboard}
-															>
-																<Workspace
-																	startup={{
-																		view: startup.services.view,
-																		notice: startup.services.notice,
-																	}}
-																	tearoff={startup.services.tearoff}
-																	nativeDnd={startup.services.nativeDnd}
-																/>
-															</MainOps>
-															<CommandPaletteHost />
-														</main>
-													</TabsProvider>
+																</MainOps>
+																<CommandPaletteHost />
+															</main>
+														</TabsProvider>
+													</PropertiesWindowProvider>
 												</DetailsClientProvider>
 											</ThumbnailsProvider>
 										</OpenWithProvider>
