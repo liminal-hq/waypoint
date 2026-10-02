@@ -126,6 +126,37 @@ describe('ContextMenu', () => {
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
+	it('closes on a second click on the button that opened it, and does not open again', () => {
+		const onOpen = vi.fn();
+		const button = document.createElement('button');
+		button.setAttribute('aria-haspopup', 'menu');
+		button.addEventListener('click', onOpen);
+		document.body.append(button);
+		button.focus();
+		const { onClose } = setup({ returnFocusTo: button });
+		fireEvent.pointerDown(button);
+		expect(onClose).toHaveBeenCalledTimes(1);
+		fireEvent.click(button);
+		expect(onOpen).not.toHaveBeenCalled();
+		// Only that one click is swallowed.
+		fireEvent.click(button);
+		expect(onOpen).toHaveBeenCalledTimes(1);
+		button.remove();
+	});
+
+	it('lets a click through on something that is not a menu button', () => {
+		const onOpen = vi.fn();
+		const row = document.createElement('div');
+		row.addEventListener('click', onOpen);
+		document.body.append(row);
+		const { onClose } = setup({ returnFocusTo: row });
+		fireEvent.pointerDown(row);
+		expect(onClose).toHaveBeenCalledTimes(1);
+		fireEvent.click(row);
+		expect(onOpen).toHaveBeenCalledTimes(1);
+		row.remove();
+	});
+
 	it('closes on an outside pointer press', async () => {
 		const user = userEvent.setup();
 		const { onClose } = setup();

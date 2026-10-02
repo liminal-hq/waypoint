@@ -52,6 +52,22 @@ function menuPlacement(placed: MenuPosition): CSSProperties {
 	return { '--wp-menu-x': `${placed.x}px`, '--wp-menu-y': `${placed.y}px` } as CSSProperties;
 }
 
+/** A control that says it opens a menu, as opposed to a list or a page the menu was merely opened over. */
+function isMenuButton(element: HTMLElement): boolean {
+	return element.hasAttribute('aria-haspopup');
+}
+
+/** Stops the click that finishes the press just seen on `element`, for a moment at most. */
+function swallowNextClickOn(element: HTMLElement): void {
+	const swallow = (event: Event) => {
+		if (!(event.target instanceof Node) || !element.contains(event.target)) return;
+		event.stopPropagation();
+		event.preventDefault();
+	};
+	document.addEventListener('click', swallow, { capture: true, once: true });
+	window.setTimeout(() => document.removeEventListener('click', swallow, true), 600);
+}
+
 export function ContextMenu({
 	items,
 	position,
@@ -94,6 +110,16 @@ export function ContextMenu({
 		const onPointerDown = (event: Event) => {
 			const target = event.target;
 			if (target instanceof Element && target.closest('[data-wp-menu-root]')) return;
+			// A press on the button that opened the menu closes it, and the click that follows must
+			// not open it again: the second click on a menu button is a close.
+			if (
+				target instanceof Element &&
+				trigger instanceof HTMLElement &&
+				isMenuButton(trigger) &&
+				trigger.contains(target)
+			) {
+				swallowNextClickOn(trigger);
+			}
 			dismiss();
 		};
 		document.addEventListener('pointerdown', onPointerDown, true);
@@ -104,7 +130,7 @@ export function ContextMenu({
 			window.removeEventListener('blur', dismiss);
 			window.removeEventListener('resize', dismiss);
 		};
-	}, [hasProvider]);
+	}, [hasProvider, trigger]);
 
 	const handleSelect = useCallback(
 		(item: SelectableMenuItem) => {
