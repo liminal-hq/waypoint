@@ -53,6 +53,13 @@ pub trait TrashSource: Send + Sync {
     /// Everything in the Trash, on every volume, in no particular order.
     fn list(&self) -> Result<Vec<TrashedItem>, VfsError>;
 
+    /// One item by its id, or `None` when it is not (or no longer) in the Trash. The provider's
+    /// `stat` calls it for each source an operation names, so a source that can look one item up
+    /// without listing everything should: the default lists and picks.
+    fn get(&self, id: &str) -> Result<Option<TrashedItem>, VfsError> {
+        Ok(self.list()?.into_iter().find(|item| item.id == id))
+    }
+
     /// Puts the item back where it was and returns that place. A name already taken there is
     /// `AlreadyExists`, and nothing is replaced.
     fn restore(&self, id: &str) -> Result<waypoint_protocol::Location, VfsError>;
@@ -222,9 +229,8 @@ impl Provider for TrashProvider {
             TrashPath::Item(id) => {
                 self.check_available()?;
                 self.source
-                    .list()?
-                    .iter()
-                    .find(|item| &item.id == id)
+                    .get(id)?
+                    .as_ref()
                     .map(entry_of)
                     .ok_or_else(|| VfsError::NotFound {
                         location: path.to_location(),
@@ -477,6 +483,14 @@ mod memory {
                 return Err(error.clone());
             }
             Ok(inner.items.clone())
+        }
+
+        fn get(&self, id: &str) -> Result<Option<TrashedItem>, VfsError> {
+            let inner = self.lock();
+            if let Some(error) = &inner.fail_lists {
+                return Err(error.clone());
+            }
+            Ok(inner.items.iter().find(|item| item.id == id).cloned())
         }
 
         fn restore(&self, id: &str) -> Result<Location, VfsError> {

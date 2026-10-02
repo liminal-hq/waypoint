@@ -137,40 +137,91 @@ impl KeyValue for MemoryKv {
 /// within a second.
 const LIST_TTL: Duration = Duration::from_secs(1);
 
+/// A list kept for `LIST_TTL`, which can drop single entries without being read again.
+struct ListCache<T> {
+    listed: Mutex<Option<(Instant, Arc<Vec<T>>)>>,
+}
+
+impl<T> ListCache<T> {
+    fn new() -> Self {
+        Self {
+            listed: Mutex::new(None),
+        }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Option<(Instant, Arc<Vec<T>>)>> {
+        self.listed.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// The kept list while it is fresh, else the one `load` reads (which is then kept).
+    fn get_or_load<E>(&self, load: impl FnOnce() -> Result<Vec<T>, E>) -> Result<Arc<Vec<T>>, E> {
+        if let Some((at, items)) = &*self.lock() {
+            if at.elapsed() < LIST_TTL {
+                return Ok(items.clone());
+            }
+        }
+        let items = Arc::new(load()?);
+        *self.lock() = Some((Instant::now(), items.clone()));
+        Ok(items)
+    }
+
+    /// Drops the whole list: the next read loads again.
+    fn forget_all(&self) {
+        *self.lock() = None;
+    }
+
+    /// Drops the entries `gone` names and keeps the rest, for a change that is known to have
+    /// removed just those: restoring or deleting one item must not make the next lookup read the
+    /// whole Trash again.
+    fn forget_where(&self, gone: impl Fn(&T) -> bool)
+    where
+        T: Clone,
+    {
+        let mut listed = self.lock();
+        if let Some((_, items)) = &mut *listed {
+            if items.iter().any(&gone) {
+                *items = Arc::new(items.iter().filter(|i| !gone(i)).cloned().collect());
+            }
+        }
+    }
+}
+
 /// The `trash` plugin behind the engine's `Trash` and the Trash view's `TrashSource` (A4: this is
 /// where the plugins meet). The engine's workers are plain threads, so a call blocks one of them on
 /// the plugin's async API without touching the async runtime's threads.
 pub struct TrashAdapter<R: Runtime = Wry> {
     app: AppHandle<R>,
-    listed: Mutex<Option<(Instant, Arc<Vec<tauri_plugin_trash::TrashedItem>>)>>,
+    listed: ListCache<tauri_plugin_trash::TrashedItem>,
 }
 
 impl<R: Runtime> TrashAdapter<R> {
     pub fn new(app: AppHandle<R>) -> Self {
         Self {
             app,
-            listed: Mutex::new(None),
+            listed: ListCache::new(),
         }
     }
 
+    /// Drops the whole list: a change whose effect on it is not known.
     fn forget_list(&self) {
-        *self.listed.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.listed.forget_all();
+    }
+
+    /// After one item left the Trash (restored or deleted): drops just that item from the list, so
+    /// the next item's lookup is not a scan of the whole Trash. A failed change forgets everything,
+    /// since what is left is not known.
+    fn forget_item(&self, id: &str, changed: bool) {
+        if changed {
+            self.listed.forget_where(|item| item.receipt.trash_id == id);
+        } else {
+            self.listed.forget_all();
+        }
     }
 
     /// Everything in the Trash, from the plugin or from a list taken a moment ago.
     fn items(&self) -> Result<Arc<Vec<tauri_plugin_trash::TrashedItem>>, TrashError> {
-        {
-            let listed = self.listed.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some((at, items)) = &*listed {
-                if at.elapsed() < LIST_TTL {
-                    return Ok(items.clone());
-                }
-            }
-        }
-        let items = Arc::new(tauri::async_runtime::block_on(self.app.trash().list())?);
-        *self.listed.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some((Instant::now(), items.clone()));
-        Ok(items)
+        self.listed
+            .get_or_load(|| tauri::async_runtime::block_on(self.app.trash().list()))
     }
 
     /// Whether a feature of the plugin works here, and if not why.
@@ -329,7 +380,7 @@ impl<R: Runtime> Trash for TrashAdapter<R> {
         let restored = tauri::async_runtime::block_on(
             self.app.trash().restore(&given, RestoreTarget::Original),
         );
-        self.forget_list();
+        self.forget_item(&receipt.id, restored.is_ok());
         let restored = restored.map_err(|e| ops_error(e, &receipt.original))?;
         location_of(&restored.original_path)
     }
@@ -342,7 +393,7 @@ impl<R: Runtime> Trash for TrashAdapter<R> {
                 .trash()
                 .restore(&given, RestoreTarget::Path { path }),
         );
-        self.forget_list();
+        self.forget_item(&receipt.id, restored.is_ok());
         let restored = restored.map_err(|e| ops_error(e, target))?;
         location_of(&restored.original_path)
     }
@@ -350,7 +401,7 @@ impl<R: Runtime> Trash for TrashAdapter<R> {
     fn delete(&self, receipt: &TrashReceipt) -> Result<(), OpsError> {
         let given = plugin_receipt(receipt)?;
         let deleted = tauri::async_runtime::block_on(self.app.trash().delete(&given));
-        self.forget_list();
+        self.forget_item(&receipt.id, deleted.is_ok());
         deleted.map_err(|e| ops_error(e, &trashed_location(&receipt.id)))
     }
 
@@ -412,6 +463,16 @@ impl<R: Runtime> TrashSource for TrashAdapter<R> {
         let at = trashed_location("");
         let items = self.items().map_err(|e| vfs_error(e, &at))?;
         Ok(items.iter().map(view_item).collect())
+    }
+
+    /// One item from the list kept for the moment, without copying the rest of it.
+    fn get(&self, id: &str) -> Result<Option<TrashedItem>, VfsError> {
+        let at = trashed_location(id);
+        let items = self.items().map_err(|e| vfs_error(e, &at))?;
+        Ok(items
+            .iter()
+            .find(|item| item.receipt.trash_id == id)
+            .map(view_item))
     }
 
     fn restore(&self, id: &str) -> Result<Location, VfsError> {
@@ -886,6 +947,31 @@ mod tests {
                 PathBuf::from("/mnt/my disk")
             ]
         );
+    }
+
+    #[test]
+    fn restoring_a_thousand_items_reads_the_trash_once() {
+        // Each restore looks its item up and then drops it from the kept list; none may send the
+        // next lookup back to the disk.
+        let cache: ListCache<(u32, &str)> = ListCache::new();
+        let loads = std::cell::Cell::new(0);
+        let load = || {
+            loads.set(loads.get() + 1);
+            Ok::<_, ()>((0..1000).map(|i| (i, "item")).collect())
+        };
+        for id in 0..1000 {
+            let items = cache.get_or_load(load).unwrap();
+            assert!(items.iter().any(|(i, _)| *i == id), "{id} is still listed");
+            assert_eq!(items.len(), 1000 - id as usize);
+            cache.forget_where(|(i, _)| *i == id);
+        }
+        assert_eq!(loads.get(), 1, "one list for the whole job");
+        assert!(cache.get_or_load(load).unwrap().is_empty());
+        assert_eq!(loads.get(), 1);
+        // A change whose effect is not known forgets everything.
+        cache.forget_all();
+        assert_eq!(cache.get_or_load(load).unwrap().len(), 1000);
+        assert_eq!(loads.get(), 2);
     }
 
     #[test]

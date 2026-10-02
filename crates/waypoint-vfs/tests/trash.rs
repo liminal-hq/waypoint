@@ -236,6 +236,27 @@ fn stat_and_resolve_link_work_and_a_missing_item_is_not_found() {
 }
 
 #[test]
+fn a_stat_looks_one_item_up_and_does_not_list_the_whole_trash() {
+    // The planner stats every source it is given: a thousand restores must not be a thousand scans.
+    let source = Arc::new(MemoryTrashSource::new());
+    for i in 0..1000 {
+        source.add(item(&format!("id{i}"), &format!("file{i}.txt"), 0));
+    }
+    let provider = TrashProvider::new(source.clone());
+    for i in 0..1000 {
+        let path = VfsPath::parse_input(&format!("trash:/id{i}")).unwrap();
+        let entry = provider.stat(&path).unwrap();
+        assert_eq!(entry.name, OsStr::new(&format!("id{i}")));
+    }
+    assert_eq!(source.list_calls(), 0, "no stat listed the Trash");
+    let missing = VfsPath::parse_input("trash:/nope").unwrap();
+    assert!(matches!(
+        provider.stat(&missing),
+        Err(VfsError::NotFound { .. })
+    ));
+}
+
+#[test]
 fn what_is_inside_an_item_cannot_be_listed() {
     let source = three();
     let p = provider(&source, 50);
