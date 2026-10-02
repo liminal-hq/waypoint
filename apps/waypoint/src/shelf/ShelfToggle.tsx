@@ -41,8 +41,8 @@ export function ShelfToggle() {
 }
 
 /**
- * The dock along the bottom of the window, between the panes and the status bar, while the Shelf is
- * open and docked. While the Shelf is undocked into its own window no main window keeps a dock.
+ * The dock along the bottom of the content column, under the pane or panes and beside the sidebar,
+ * while the Shelf is open and docked. While the Shelf is undocked into its own window no main window keeps a dock.
  */
 export function ShelfDock() {
 	const store = useShelfStore();

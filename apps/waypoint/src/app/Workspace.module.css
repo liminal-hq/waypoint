@@ -11,6 +11,15 @@
 	min-height: 0;
 }
 
+/* The column beside the sidebar: the panes over the Shelf's dock, whose 60% cap is of this column. */
+.content {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
 .files {
 	flex: 1;
 	min-width: 0;
