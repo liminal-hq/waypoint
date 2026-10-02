@@ -301,6 +301,28 @@ pub(crate) fn group_name(gid: u32) -> Option<String> {
     }
 }
 
+/// Lowers the calling thread's CPU priority (nice 19) and, on Linux, puts its disk I/O in the idle
+/// class, so a long walk yields to anything the person is doing. Failures are ignored: the walk
+/// is only slower to yield.
+pub(crate) fn lower_thread_priority() {
+    // On Linux `setpriority(PRIO_PROCESS, 0, …)` applies to the calling thread, not the process.
+    // SAFETY: plain system calls with no pointers.
+    unsafe {
+        libc::setpriority(libc::PRIO_PROCESS, 0, 19);
+        #[cfg(target_os = "linux")]
+        {
+            const IOPRIO_WHO_PROCESS: libc::c_long = 1;
+            const IOPRIO_CLASS_IDLE: libc::c_long = 3;
+            libc::syscall(
+                libc::SYS_ioprio_set,
+                IOPRIO_WHO_PROCESS,
+                0 as libc::c_long,
+                IOPRIO_CLASS_IDLE << 13,
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unnecessary_cast)]
 mod tests {

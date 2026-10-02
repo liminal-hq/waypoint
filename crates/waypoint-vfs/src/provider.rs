@@ -227,6 +227,19 @@ pub trait Provider: Send + Sync {
         Ok(crate::inspect::from_scanned(&entry))
     }
 
+    /// The total size of everything under a folder, counted by walking it (see `size` for what a
+    /// walk skips). `report` receives the running total about every 100 ms; `cancel` stops the walk,
+    /// which then returns what it had counted with `cancelled` set. The default walks through `list`
+    /// and trusts the sizes it reports; the local provider reads each entry itself.
+    fn folder_size(
+        &self,
+        path: &VfsPath,
+        cancel: &CancelToken,
+        report: &mut dyn FnMut(&crate::FolderSizeTotals),
+    ) -> Result<crate::FolderSizeRun, VfsError> {
+        crate::size::listed_folder_size(self, path, cancel, report)
+    }
+
     /// Opens a file for streaming writes, creating it. See `WriteOptions` for the exclusive mode.
     fn create_write(
         &self,

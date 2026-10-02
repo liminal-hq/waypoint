@@ -20,7 +20,7 @@ use crate::provider::{Capabilities, Provider, ScannedEntry, Watch, WatchSink};
 use crate::sys;
 use crate::watch::{self, WatchOptions};
 use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
-use crate::{CancelToken, DetailField, EntryDetails, VolumeSpace};
+use crate::{CancelToken, DetailField, EntryDetails, FolderSizeTotals, VolumeSpace};
 
 /// How often a scan reports how far it has got. The listing throttles what it forwards.
 const PROGRESS_EVERY: u32 = 1024;
@@ -42,7 +42,7 @@ impl LocalProvider {
     }
 }
 
-fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
+pub(crate) fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
     match path {
         VfsPath::File(path) => Ok(path),
         other => Err(VfsError::Unsupported {
@@ -439,6 +439,15 @@ impl Provider for LocalProvider {
 
     fn details(&self, path: &VfsPath) -> Result<EntryDetails, VfsError> {
         local_details(path)
+    }
+
+    fn folder_size(
+        &self,
+        path: &VfsPath,
+        cancel: &CancelToken,
+        report: &mut dyn FnMut(&FolderSizeTotals),
+    ) -> Result<crate::FolderSizeRun, VfsError> {
+        crate::size::local_folder_size(path, cancel, report)
     }
 
     fn create_write(
