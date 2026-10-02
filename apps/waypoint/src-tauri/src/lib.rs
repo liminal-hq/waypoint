@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod effects;
 mod ops;
 mod ops_window;
 mod persistence;
@@ -160,6 +161,7 @@ pub fn run() {
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
         .manage(HoldNextWindow::default())
+        .manage(effects::Driver::default())
         .manage(thumbnails::ThumbnailBridge::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
@@ -180,15 +182,23 @@ pub fn run() {
             let saver = Arc::clone(&saver);
             move |app| {
                 settings::wire(app.handle());
+                effects::wire(app.handle());
                 thumbnails::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
+            }
+        })
+        // A window's page starts loading once the window exists: it gets the effects the settings ask for.
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                effects::on_page_load(webview);
             }
         })
         .on_window_event({
             let saver = Arc::clone(&saver);
             let flush = Arc::new(CloseFlush::default());
             move |window, event| {
+                effects::on_window_event(window, event);
                 let kind = WindowKind::from_label(window.label());
                 // The Shelf window's place and size are kept too; closing it is not a session close.
                 if kind == Some(WindowKind::Shelf) {
