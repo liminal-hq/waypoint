@@ -67,6 +67,12 @@ Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highligh
 | Onto the terminal          | Insert quoted paths       |
 | Onto a Shelf slot          | Add a reference           |
 
+**Built in milestone 4 (slice 12): drags inside the window.** The Source → Target table above holds for same volume and different volume (a volume is what the planner says; until it answers the pill reads "Move or copy 3 items to Documents" and a drop copies). The "Always copy" and "Always ask" settings replace the default. Drops on archives, apps, the terminal and the Shelf, remote targets and drags to and from other applications arrive with their own slices.
+
+- **Pill text** (read out as "Over Documents: will move", and "Dragging 3 items" at the start): "Copy 3 items to Documents", "Move report.pdf to Documents", "Link 3 items in Documents", "Choose what to do with 3 items in Documents", "Move 3 items to the Trash", "Open in a new tab", "Open in a split pair" (Alt over +), "Open in a new tab in Work" (a chip), and "Not allowed: already in Documents" / "…a folder cannot go into itself" / "…Documents cannot be changed" / "…use the Trash in the sidebar" for a refusal, which also draws the target with a dashed edge, shakes the pill (not under Reduce motion) and is said again as a notice on release.
+- **Targets:** a folder row (into that folder), a pane's file area (into its folder; none over the pane the files are in), a sidebar place, favourite or folder, a breadcrumb segment, a tab (into its folder), the Trash (move to Trash), the + button (a new tab at each dropped folder, or at the parent of a dropped file) and a group chip (the same, in that group).
+- **Starting:** a press on a row moves 4 px; a selected row drags the whole selection, an unselected one is selected first; a right-button press holds its context menu until the release so it can become a drag. Esc cancels.
+
 ### 3.2 Modifiers (held at release)
 
 Ctrl copies. Shift moves. Ctrl+Shift links. **Alt opens the action picker**, and a right-drag also opens it on release. The picker lists Copy here, Move here, Link here, Compress here, Extract here (for archives), plus plugin drop actions (for example, "Convert to WebP here"). The cursor badge updates live with the action glyph, the count and the target name.
@@ -81,7 +87,9 @@ Ctrl copies. Shift moves. Ctrl+Shift links. **Alt opens the action picker**, and
 | Breadcrumb segment | 400 ms | Opens a dropdown of siblings                          |
 | Window edge        | 800 ms | Opens a new tab                                       |
 
-Leaving a sprung target returns you to where you started unless you dropped. Esc cancels the whole drag.
+Built in milestone 4: folder rows, tabs and sidebar places spring after the delay in Settings (200 to 2000 ms, 600 by default; the target draws a ring that fills over it, or a steady dotted edge under Reduce motion). A folder row opens in the pane it is in, a place in the active pane and a tab comes to the front. Breadcrumb segments and the window edge do not spring yet. After a spring opens something, the next one waits for the pointer to move.
+
+Leaving a sprung target returns you to where you started unless you dropped. Esc cancels the whole drag. A drag near the top or bottom edge of a list scrolls it.
 
 ### 3.4 Shelf
 

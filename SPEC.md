@@ -252,6 +252,8 @@ Full rules are in `docs/interactions.md` §3. Summary:
 | Out to apps            | Drag files to other apps as URIs, and drop files from other apps into any folder. Drag files to a terminal to insert quoted paths. Hold Alt while dragging to the terminal drawer to `cd` there instead.                             |
 | Drag feedback          | A stack preview with a count, a live action badge, a target highlight and an invalid-target shake.                                                                                                                                   |
 
+**Milestone 4 ships the drags inside the window** (slice 12): rows from the list or the grid onto folder rows, panes, sidebar places and favourites, breadcrumbs, tabs, the + button, group chips and the Trash, with the default rule (Settings → Drag & drop), Ctrl, Shift, Ctrl+Shift, Alt and the right button as above, spring-loading for folders, tabs and sidebar places (breadcrumb dropdowns and the window edge later), the stack ghost, the live pill and refusals. Drops from and to other applications are slice 13 and the Shelf slice 14; Compress, Extract and plugin actions arrive with archives and extensions. Every outcome also has a menu or key path (Copy To…, Move To…, Link To…, Delete, Open in New Tab, Paste Into Folder).
+
 ## 7. Remote & virtual locations
 
 | Provider     | URI                                        | Notes                                                                      |
