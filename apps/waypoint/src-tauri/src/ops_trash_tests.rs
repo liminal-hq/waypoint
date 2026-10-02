@@ -39,7 +39,8 @@ fn fixture() -> Fixture {
     let env = TrashEnv {
         data_home: root.join("home/.local/share"),
         home_dir: root.join("home"),
-        uid: 4242,
+        // The trash folders must belong to this user, as the plugin checks: the test's own.
+        uid: std::os::unix::fs::MetadataExt::uid(&std::fs::metadata(&root).unwrap()),
         // The temporary directory is its own volume, so the home trash is the one used.
         mounts: vec![MountInfo {
             mount_point: root.clone(),
