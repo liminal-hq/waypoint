@@ -14,6 +14,8 @@ import { useHomeLocation, useTabsApi, useTabsSnapshot } from './TabsContext';
 export interface TabActions {
 	/** A new tab in the current folder, next to the active tab, and active. */
 	newTab(): void;
+	/** A new tab in the current folder at the end of the strip, and active: the double-click on the strip's empty space. */
+	newTabAtEnd(): void;
 	/** A new tab at Home, at the end of the strip. */
 	newTabAtHome(): void;
 	/** Opens `location` in a tab next to the active one, without leaving the current tab. */
@@ -64,6 +66,7 @@ export function createTabActions(
 	};
 	return {
 		newTab: () => run(api.openTab(active?.location ?? home, active ? { after: active.id } : {})),
+		newTabAtEnd: () => run(api.openTab(active?.location ?? home)),
 		newTabAtHome: () => run(api.openTab(home)),
 		openInBackground: (location) =>
 			run(api.openTab(location, { activate: false, ...(active ? { after: active.id } : {}) })),
