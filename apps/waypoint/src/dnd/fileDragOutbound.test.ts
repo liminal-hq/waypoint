@@ -15,7 +15,7 @@ import {
 	settle,
 	type NativeHarness,
 } from '../test/nativeDragHarness';
-import { FILE_DRAG_ATTRIBUTE, OWN_DRAG_MS, PREFETCH_LIMIT } from './fileDrag';
+import { FILE_DRAG_ATTRIBUTE, OWN_DRAG_MAX_MS, OWN_DRAG_MS, PREFETCH_LIMIT } from './fileDrag';
 import { folderRef } from './dropTargets';
 
 afterEach(() => {
@@ -366,6 +366,21 @@ describe('the drag coming back', () => {
 		h.clock.advance(OWN_DRAG_MS + 1);
 		h.enter(OWN);
 		expect(h.drag.session.store.getState().source!.external?.own).toBe(false);
+	});
+
+	it('stops remembering its own drag when the end never arrives, so the same files from elsewhere are not mistaken for it', async () => {
+		const h = await nativeHarness({ readOnly: true });
+		await leave(h);
+		// No `drag-ended` comes. A long hold is still its own drag.
+		h.clock.advance(OWN_DRAG_MAX_MS - 1000);
+		h.enter(OWN);
+		expect(h.drag.session.store.getState().source!.external?.own).toBe(true);
+		h.drag.session.cancel();
+		h.clock.advance(1001);
+		h.enter(OWN);
+		const source = h.drag.session.store.getState().source!;
+		expect(source.external?.own).toBe(false);
+		expect(source.readOnly).toBe(false);
 	});
 
 	it('is files from elsewhere when the files are not the ones that were offered', async () => {

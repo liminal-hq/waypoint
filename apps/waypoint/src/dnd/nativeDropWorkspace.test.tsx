@@ -80,20 +80,20 @@ const rest = () =>
 const FILES = ['file:///srv/share/with%20space.txt', 'file:///srv/share/bad%FF%FE.txt'];
 
 describe('files dragged in from another application', () => {
-	it('copy or move onto a folder row as a job over the lossless URIs', async () => {
+	it('copy onto a folder row as a job over the lossless URIs, and move with Shift', async () => {
 		const { ops, native } = await mount();
 		await waitFor(() => expect(row('docs')).toBeDefined());
 		native.enter(FILES, { x: 100, y: 100 });
 		pointAt(row('docs'));
 		native.over({ x: 140, y: 100 });
-		await waitFor(() => expect(pill()).toContain('Move or copy 2 items to docs'));
+		await waitFor(() => expect(pill()).toContain('Copy 2 items to docs'));
 		await rest();
-		await waitFor(() => expect(pill()).toContain('Move 2 items to docs'));
+		await waitFor(() => expect(pill()).toContain('Copy 2 items to docs'));
 		expect(row('docs')).toHaveAttribute('data-drop-over', 'ok');
 		native.drop(FILES, { x: 140, y: 100 });
 		await waitFor(() => expect(submits(ops)).toHaveLength(1));
 		expect(lastSubmit(ops)).toMatchObject({
-			kind: { kind: 'move' },
+			kind: { kind: 'copy' },
 			sources: {
 				kind: 'locations',
 				locations: [
@@ -106,6 +106,18 @@ describe('files dragged in from another application', () => {
 		});
 		expect(row('docs')).not.toHaveAttribute('data-drop-over');
 		expect(pill()).toBeNull();
+	});
+
+	it('moves with Shift where the platform reports it', async () => {
+		const { ops, native } = await mount();
+		await waitFor(() => expect(row('docs')).toBeDefined());
+		native.enter(FILES, { x: 100, y: 100 });
+		pointAt(row('docs'));
+		native.over({ x: 140, y: 100 }, { modifiers: { shift: true } });
+		await waitFor(() => expect(pill()).toContain('Move 2 items to docs'));
+		native.drop(FILES, { x: 140, y: 100 }, { modifiers: { shift: true } });
+		await waitFor(() => expect(submits(ops)).toHaveLength(1));
+		expect(lastSubmit(ops)).toMatchObject({ kind: { kind: 'move' } });
 	});
 
 	it('copies with Ctrl where the platform reports it, and the queue says the job is under way', async () => {

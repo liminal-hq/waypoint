@@ -120,3 +120,16 @@ describe('modifiersOf', () => {
 		);
 	});
 });
+
+describe('files from another application', () => {
+	it('are copied under the by-volume rule even on one volume, and moved only by a modifier or the picker', () => {
+		const foreign = (over: Partial<DropActionInput> = {}) =>
+			chooseDropAction(input({ foreign: true, ...over }));
+		expect(foreign()).toEqual({ verb: 'copy', pending: false, forced: false });
+		expect(foreign({ volume: 'unknown' })).toEqual({ verb: 'copy', pending: false, forced: false });
+		expect(foreign({ modifiers: mods('shift') }).verb).toBe('move');
+		expect(foreign({ rightButton: true }).verb).toBe('ask');
+		// The other rules are the person's choice and stay as they are.
+		expect(foreign({ rule: 'alwaysAsk' }).verb).toBe('ask');
+	});
+});

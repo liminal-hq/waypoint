@@ -73,15 +73,15 @@ describe('entering', () => {
 const noKeys = { ctrl: false, shift: false, alt: false };
 
 describe('a folder row', () => {
-	it('guesses a copy until the planner says the volume, then moves on the same volume', async () => {
+	it('copies files from another application even on the same volume, since nothing says its source allows a move', async () => {
 		const h = await nativeHarness();
 		const feed = h.enter();
 		h.over(mark('folder', folderRef(h.session.model.handle, 1), 'docs'));
 		feed.move({ x: 140, y: 100 }, noKeys);
 		await settle();
-		expect(h.pill()).toBe('Move or copy 2 items to docs');
+		expect(h.pill()).toBe('Copy 2 items to docs');
 		await rest(h);
-		expect(h.pill()).toBe('Move 2 items to docs');
+		expect(h.pill()).toBe('Copy 2 items to docs');
 		expect(h.plans).toHaveLength(1);
 		expect(h.plans[0]).toMatchObject({
 			kind: { kind: 'copy' },
@@ -92,7 +92,7 @@ describe('a folder row', () => {
 		await feed.drop({ x: 140, y: 100 }, noKeys, false);
 		await settle();
 		expect(h.transfers).toEqual([
-			{ kind: 'move', items: OUTSIDE, destination: expect.objectContaining({ uri: DOCS.uri }) },
+			{ kind: 'copy', items: OUTSIDE, destination: expect.objectContaining({ uri: DOCS.uri }) },
 		]);
 		expect(h.phase()).not.toBe('dragging');
 		expect(document.documentElement.hasAttribute(FILE_DRAG_ATTRIBUTE)).toBe(false);

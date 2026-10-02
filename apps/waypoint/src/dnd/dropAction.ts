@@ -30,6 +30,13 @@ export interface DropActionInput {
 	canMove: boolean;
 	/** The engine can link them here (both ends are local). */
 	canLink: boolean;
+	/**
+	 * The files come from another application, which did not say what it allows (a drag in carries
+	 * no allowed actions, and on Wayland no modifier keys either), so a copy-only source (an
+	 * archive manager, a mail attachment, a browser's temporary file) cannot be told from the rest.
+	 * With no modifier they are copied under the by-volume rule, never moved.
+	 */
+	foreign?: boolean;
 }
 
 export interface DropChoice {
@@ -46,11 +53,12 @@ export interface DropChoice {
  * - Ctrl copies, Shift moves, Ctrl+Shift links (where the engine can; otherwise it copies, the
  *   safe half of the chord), and a move asked for from a folder that cannot be written to copies;
  * - with no modifier the rule decides: always copy, always ask, or by volume (a move on one
- *   volume, a copy across). While the volume is unknown the verb is a copy and `pending` is set,
+ *   volume, a copy across; files from another application are always copied, since nothing says
+ *   what their source allows). While the volume is unknown the verb is a copy and `pending` is set,
  *   so the pill can say "Move or copy" and nothing waits on the answer.
  */
 export function chooseDropAction(input: DropActionInput): DropChoice {
-	const { rule, volume, modifiers, rightButton, canMove, canLink } = input;
+	const { rule, volume, modifiers, rightButton, canMove, canLink, foreign = false } = input;
 	const forced = (verb: DropVerb): DropChoice => ({ verb, pending: false, forced: true });
 	if (rightButton || modifiers.alt) return forced('ask');
 	if (modifiers.ctrl && modifiers.shift) return forced(canLink ? 'link' : 'copy');
@@ -62,6 +70,7 @@ export function chooseDropAction(input: DropActionInput): DropChoice {
 		case 'alwaysAsk':
 			return { verb: 'ask', pending: false, forced: false };
 		case 'byVolume':
+			if (foreign) return { verb: 'copy', pending: false, forced: false };
 			if (volume === 'unknown') return { verb: 'copy', pending: true, forced: false };
 			return {
 				verb: volume === 'same' && canMove ? 'move' : 'copy',

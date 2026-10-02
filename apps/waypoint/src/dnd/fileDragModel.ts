@@ -197,6 +197,8 @@ export function evaluateTarget(input: EvaluateInput): FileDropTarget {
 		rightButton: source.rightButton,
 		canMove: !source.readOnly,
 		canLink: input.canLink,
+		// This window's own drag coming back is known to be movable; anything else from outside is not.
+		foreign: source.external !== undefined && !source.external.own,
 	});
 	if (here && choice.verb === 'move') return block({ kind: 'sameFolder' });
 	return { ...base, volume, outcome: choice.verb, pending: choice.pending };

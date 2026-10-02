@@ -77,6 +77,9 @@ export const PREFETCH_LIMIT = 500;
 /** How long a finished outbound drag is still remembered: the platform may deliver its drop after it has ended. */
 export const OWN_DRAG_MS = 1500;
 
+/** The longest this window's system drag is remembered without hearing that it ended (`drag-ended` is lost or never comes). */
+export const OWN_DRAG_MAX_MS = 5 * 60 * 1000;
+
 /** How often a drag near the edge of a list scrolls it. */
 const SCROLL_TICK_MS = 16;
 
@@ -798,8 +801,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				case 'dropped-copy':
 					deps.announce(tf('dnd.out.copied', { what }));
 					break;
-				// The application that took the files moved them itself, so no job runs here and the
-				// listing follows its watcher.
+				// Nothing is deleted or assumed gone here: whoever moved the files (or asked for them to
+				// be moved) accounts for the originals, and the listing follows its watcher.
 				case 'dropped-move':
 					deps.announce(tf('dnd.out.moved', { what }));
 					break;
@@ -878,6 +881,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		}
 		forgetOwn();
 		own = { source, uris, id: started.id, droppedHere: false, finished: false };
+		// If the end never arrives, a later drop of the same files from elsewhere must not pass for this one.
+		ownTimer = clock.setTimeout(forgetOwn, OWN_DRAG_MAX_MS);
 		handing = false;
 		// The system has the pointer now: the in-page drag is over, and says where the files went.
 		if (dragging(control)) {
