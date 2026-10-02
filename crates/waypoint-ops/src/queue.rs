@@ -25,6 +25,7 @@
 use std::sync::Arc;
 
 use thiserror::Error;
+use waypoint_path::TrashPath;
 use waypoint_protocol::Location;
 use waypoint_vfs::CancelToken;
 
@@ -269,9 +270,7 @@ impl OpsStore {
                 Sources::Selection { .. } => None,
             },
             first: match &request.sources {
-                Sources::Locations { locations } => {
-                    locations.first().map(|l| last_segment(&l.display))
-                }
+                Sources::Locations { locations } => locations.first().map(source_name),
                 Sources::Selection { .. } => None,
             },
         };
@@ -725,6 +724,17 @@ fn inside(child: &str, tree: &str) -> bool {
             .is_some_and(|rest| tree.ends_with('/') || rest.starts_with('/'))
 }
 
+/// What a job's first source is called in a title: the last segment of its path, or for an item in
+/// the Trash the name it was trashed under (its id is `{trash folder}|{name}`, which no person reads).
+fn source_name(location: &Location) -> String {
+    if let Ok(TrashPath::Item(id)) = TrashPath::from_uri(&location.uri) {
+        if let Some((_, name)) = id.rsplit_once('|') {
+            return name.to_owned();
+        }
+    }
+    last_segment(&location.display)
+}
+
 fn last_segment(display: &str) -> String {
     display
         .trim_end_matches(['/', '\\'])
@@ -737,6 +747,26 @@ fn last_segment(display: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_trashed_source_is_named_by_the_name_it_was_trashed_under() {
+        let item = |id: &str| {
+            let path = TrashPath::Item(id.to_owned());
+            Location {
+                display: path.display(),
+                uri: path.to_uri(),
+            }
+        };
+        assert_eq!(
+            source_name(&item("/home/a/.local/share/Trash|report (2).txt")),
+            "report (2).txt"
+        );
+        let plain = Location {
+            display: "/home/a/notes.txt".to_owned(),
+            uri: "file:///home/a/notes.txt".to_owned(),
+        };
+        assert_eq!(source_name(&plain), "notes.txt");
+    }
 
     #[test]
     fn the_gate_passes_the_first_report_and_then_waits_for_time_and_progress() {
