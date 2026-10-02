@@ -96,6 +96,7 @@ struct State {
     /// The accelerator registered now.
     shortcut: Option<String>,
     /// A shortcut has been registered this run, so a later one is an update (Linux).
+    #[cfg(target_os = "linux")]
     shortcut_started: bool,
 }
 
@@ -784,4 +785,60 @@ pub async fn get_integration_availability<R: Runtime>(
     app: AppHandle<R>,
 ) -> IntegrationAvailability {
     probe(&app).await.availability
+}
+
+#[cfg(test)]
+mod live {
+    //! Talks to the real session bus: run by hand with
+    //! `cargo test -p waypoint live_ -- --ignored --nocapture`. It shows one notification and holds
+    //! a sleep inhibitor for a few seconds (`systemd-inhibit --list` shows it meanwhile).
+
+    use super::*;
+    use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+
+    fn app() -> tauri::App<MockRuntime> {
+        mock_builder()
+            .plugin(tauri_plugin_xdg_portal::init())
+            .plugin(tauri_plugin_desktop_integration::init())
+            .build(mock_context(noop_assets()))
+            .expect("a mock app")
+    }
+
+    #[test]
+    #[ignore = "talks to the real session bus and shows a notification"]
+    fn live_statuses_notification_and_inhibitor() {
+        let app = app();
+        let handle = app.handle().clone();
+        tauri::async_runtime::block_on(async {
+            let probes = probe(&handle).await;
+            println!("portal: {:#?}", probes.portal);
+            println!("desktop: {:#?}", probes.desktop);
+            println!("availability: {:#?}", probes.availability);
+            let route = notify_route(&probes.portal, &probes.desktop);
+            println!("notification route: {route:?}");
+            if let Some(route) = route {
+                show_notice(
+                    &handle,
+                    route,
+                    Notice {
+                        id: "waypoint-job-live".into(),
+                        title: "Copy 3 items".into(),
+                        body: "Finished.".into(),
+                    },
+                )
+                .await;
+            }
+            let route = inhibit_route(&probes.portal, &probes.desktop);
+            println!("inhibit route: {route:?}");
+            if let Some(route) = route {
+                let held = acquire(&handle, route).await;
+                println!("acquired: {held:?}");
+                if let Ok(held) = held {
+                    tokio::time::sleep(Duration::from_secs(12)).await;
+                    release(&handle, held).await;
+                    println!("released");
+                }
+            }
+        });
+    }
 }
