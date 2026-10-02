@@ -8,6 +8,7 @@ import { BackIcon, ForwardIcon, UpIcon } from '../icons/AppIcons';
 import { t } from '../i18n/messages';
 import { NavButton } from './NavButton';
 import styles from './NavigationBar.module.css';
+import { requestPaneFocus } from '../tabs/paneFocus';
 import { PathBar } from './PathBar';
 import { useNavigation, type Navigation } from './useNavigation';
 
@@ -119,6 +120,8 @@ export function NavigationBar({ leading }: NavigationBarProps) {
 					editing={editing}
 					onEditingChange={setEditing}
 					onNavigate={navigation.goTo}
+					// The list takes focus, so the arrow keys work straight after Enter.
+					onCommitted={() => requestPaneFocus(tab.id)}
 				/>
 			)}
 		</div>
