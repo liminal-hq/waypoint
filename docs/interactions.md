@@ -216,6 +216,13 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Menu                      | File → Copy To… / Move To…            | Destination dialog                                                      |
 | Menu                      | File → Open With → Other Application… | App chooser                                                             |
 | Menu or palette           | File → Open With…, Open With…         | App chooser listing every application, or the system's own for one file |
+| Click or Enter            | Sidebar Places → Overview             | Opens Overview in this tab (middle-click: a new tab beside it)          |
+| Palette                   | Open Overview                         | Opens Overview in the active tab                                        |
+| Click or Enter            | Overview → a volume's name            | Opens that volume in this tab                                           |
+| Click or Enter            | Overview → Measure                    | Measures that network volume, which is not measured by default          |
+| Click or Enter            | Overview → Unlock                     | Passphrase dialog, as in the sidebar's Devices                          |
+| Click or Enter            | Overview → Open Trash                 | Opens the Trash in this tab                                             |
+| Click or Enter            | Overview → Empty Trash                | The Trash's own confirmation, then empties it                           |
 
 ## 10. Operations and tools
 
