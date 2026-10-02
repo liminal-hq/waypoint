@@ -34,6 +34,8 @@ permissions = [
   "allow-remove-from-shelf",
   "allow-clear-shelf",
   "allow-move-shelf-item",
+  "allow-set-shelf-undocked",
+  "allow-set-shelf-on-top",
   "allow-join-pair",
   "allow-separate-pair",
   "allow-set-pair-layout",

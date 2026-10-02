@@ -177,6 +177,8 @@ describe('history rows', () => {
 		const result = typed('undo');
 		expect(result.map((row) => row.label)).toEqual([
 			'Undo Move 3 items to Trash',
+			// "Undock Shelf" matches the letters of "undo" too, and sorts among the commands.
+			'Undock Shelf',
 			'Undo 2 changes back to: New folder',
 			'Undo 3 changes back to: Rename report',
 		]);

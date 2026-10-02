@@ -112,6 +112,13 @@ export interface TabsApi {
 	clearShelf(): Promise<void>;
 	/** Moves an item to `toIndex` in the Shelf's order. */
 	moveShelfItem(id: ShelfItemId, toIndex: number): Promise<void>;
+	/**
+	 * Undocks the Shelf into its own window, or docks it back into the main windows (which closes
+	 * the Shelf window). Rejects when the window cannot be made, leaving the Shelf docked.
+	 */
+	setShelfUndocked(undocked: boolean): Promise<void>;
+	/** Remembers whether the Shelf window stays above other windows; the window itself is the caller's to raise. */
+	setShelfOnTop(onTop: boolean): Promise<void>;
 
 	/** Pairs two or more tabs; resolves to the new pair's id. */
 	joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId>;
@@ -235,6 +242,9 @@ export function applyTabsEvent(snapshot: SessionSnapshot, event: SessionEvent): 
 		case 'shelfChanged':
 			next.shelf = event.shelf;
 			break;
+		case 'shelfWindowChanged':
+			next.shelfWindow = event.shelfWindow;
+			break;
 		case 'windowOpened':
 		case 'windowClosed':
 			// Nothing in this window's own state changes; the revision still advances.
@@ -284,6 +294,8 @@ export const tabsApi: TabsApi = {
 	removeFromShelf: (ids) => session.removeFromShelf(ids),
 	clearShelf: () => session.clearShelf(),
 	moveShelfItem: (id, toIndex) => session.moveShelfItem(id, toIndex),
+	setShelfUndocked: (undocked) => session.setShelfUndocked(undocked),
+	setShelfOnTop: (onTop) => session.setShelfOnTop(onTop),
 	joinPair: (tabs, layout) => session.joinPair(tabs, layout),
 	separatePair: (pair) => session.separatePair(pair),
 	setPairLayout: (pair, layout) => session.setPairLayout(pair, layout),

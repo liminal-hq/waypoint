@@ -212,7 +212,7 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 	},
 	toggleShelf: (s) => {
 		const store = createShelfStore({ open: false });
-		renderHook(() => useShelfShortcuts(store));
+		renderHook(() => useShelfShortcuts(() => store.getState().toggleOpen()));
 		dispatchOnWindow(s);
 		expect(store.getState().open).toBe(true);
 	},

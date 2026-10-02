@@ -18,9 +18,12 @@ import type { ListingSession } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { useCommandBridge } from '../commands/commandBridge';
 import { useClipboardService } from '../ops/ClipboardContext';
+import type { ShelfWindowClient } from '../services/shelfWindowClient';
+import { createTauriShelfWindowClient } from '../services/tauriShelfWindowClient';
 import { announce } from '../tabs/announcer';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { createShelfActions, type ShelfActions } from './shelfActions';
+import { createShelfPlacement, type ShelfPlacement } from './shelfPlacement';
 import { createShelfStore, ShelfStoreContext, type ShelfStore } from './shelfStore';
 import { useShelfCommands } from './useShelfCommands';
 import { useShelfShortcuts } from './useShelfShortcuts';
@@ -35,6 +38,13 @@ export function useShelfActions(): ShelfActions | null {
 	return useContext(ShelfActionsContext);
 }
 
+const ShelfPlacementContext = createContext<ShelfPlacement | null>(null);
+
+/** Where the Shelf is shown and the moves between the dock and its window, or `null` outside a provider. */
+export function useShelfPlacement(): ShelfPlacement | null {
+	return useContext(ShelfPlacementContext);
+}
+
 /** The Shelf's store, or `null` outside a provider. */
 export function useOptionalShelfStore(): ShelfStore | null {
 	return useContext(ShelfStoreContext);
@@ -45,13 +55,24 @@ export function useOptionalShelfStore(): ShelfStore | null {
  * the tabs snapshot and is taken here with its revision), and whether the panel is open and how
  * wide is this window's own. The files are looked at only while the panel is open: when it opens,
  * when items arrive, and when the window is focused again (at most every `RECHECK_MS`).
+ *
+ * Where the Shelf lives is the session's too (`snapshot.shelfWindow`): undocked, it is the Shelf
+ * window's, every main window keeps no dock, and the toggles act on that window. The Shelf window
+ * mounts this provider as well (`inWindow`), so it follows the same items, groups and selection
+ * rules; its panel is always open.
  */
 export function ShelfProvider({
 	activeSession,
+	inWindow = false,
+	windowClient,
 	children,
 }: {
 	/** The listing the Add to Shelf command acts on: the active pane's. */
 	activeSession: () => ListingSession | null;
+	/** This is the Shelf window, not a main window with a dock. */
+	inWindow?: boolean;
+	/** What raises and hides the Shelf window; the real one unless a test supplies its own. */
+	windowClient?: ShelfWindowClient;
 	children: ReactNode;
 }) {
 	const api = useTabsApi();
@@ -59,7 +80,12 @@ export function ShelfProvider({
 	const vfs = useVfsClient();
 	const clipboard = useClipboardService();
 	const bridge = useCommandBridge();
-	const [store] = useState<ShelfStore>(() => createShelfStore());
+	const [store] = useState<ShelfStore>(() =>
+		createShelfStore(inWindow ? { open: true, undocked: true } : {}),
+	);
+	const [client] = useState<ShelfWindowClient>(
+		() => windowClient ?? createTauriShelfWindowClient(),
+	);
 
 	const latest = useRef({ snapshot, clipboard, activeSession });
 	latest.current = { snapshot, clipboard, activeSession };
@@ -78,10 +104,56 @@ export function ShelfProvider({
 		[store, api, vfs],
 	);
 
+	const placement = useMemo(
+		() =>
+			createShelfPlacement({
+				store,
+				api,
+				client,
+				inWindow,
+				say: (text) => void showNotice(text),
+				announce,
+			}),
+		[store, api, client, inWindow],
+	);
+
 	// The session's Shelf, as of its revision; an older one never replaces a newer.
 	useEffect(() => {
-		if (snapshot) store.getState().sync(snapshot.shelf, snapshot.revision);
+		if (!snapshot) return;
+		store.getState().sync(snapshot.shelf, snapshot.revision);
+		store.getState().setWindow(snapshot.shelfWindow);
 	}, [store, snapshot]);
+
+	// Docking again (by the button, or by closing the Shelf window) brings the dock back in this window.
+	const undocked = useStore(store, (state) => state.undocked);
+	const wasUndocked = useRef(undocked);
+	useEffect(() => {
+		if (wasUndocked.current && !undocked && !inWindow) store.getState().setOpen(true);
+		wasUndocked.current = undocked;
+	}, [store, undocked, inWindow]);
+
+	// While the Shelf is its own window, follow whether it is on screen (subscribe first, then read).
+	useEffect(() => {
+		if (!undocked) return;
+		let active = true;
+		let changed = false;
+		store.getState().setWindowShown(true);
+		const stop = client.onVisibleChange((shown) => {
+			if (!active) return;
+			changed = true;
+			store.getState().setWindowShown(shown);
+		});
+		client.visible().then(
+			(shown) => {
+				if (active && !changed) store.getState().setWindowShown(shown);
+			},
+			() => {},
+		);
+		return () => {
+			active = false;
+			stop();
+		};
+	}, [store, client, undocked]);
 
 	// Look at the files while the panel shows: now, when the Shelf changes, and when the window returns.
 	const open = useStore(store, (state) => state.open);
@@ -101,12 +173,14 @@ export function ShelfProvider({
 		return () => window.removeEventListener('focus', onFocus);
 	}, [open, actions, store]);
 
-	useShelfShortcuts(store);
-	useShelfCommands(bridge, store, actions, () => latest.current.activeSession());
+	useShelfShortcuts(placement.toggle);
+	useShelfCommands(bridge, store, actions, () => latest.current.activeSession(), placement);
 
 	return (
 		<ShelfStoreContext.Provider value={store}>
-			<ShelfActionsContext.Provider value={actions}>{children}</ShelfActionsContext.Provider>
+			<ShelfPlacementContext.Provider value={placement}>
+				<ShelfActionsContext.Provider value={actions}>{children}</ShelfActionsContext.Provider>
+			</ShelfPlacementContext.Provider>
 		</ShelfStoreContext.Provider>
 	);
 }

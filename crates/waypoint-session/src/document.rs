@@ -99,6 +99,7 @@ impl Store {
         repair_workspaces(&mut store, body.workspaces, &mut notes);
         store.next_shelf = body.next_shelf.max(1);
         repair_shelf(&mut store, body.shelf, &mut notes);
+        store.shelf_window = body.shelf_window;
 
         let mut labels: HashSet<String> = HashSet::new();
         let mut tabs: HashSet<TabId> = HashSet::new();

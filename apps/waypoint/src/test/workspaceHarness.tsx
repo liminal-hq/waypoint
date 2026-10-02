@@ -10,6 +10,7 @@ import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { FakeVfsClient, fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
+import type { ShelfWindowClient } from '../services/shelfWindowClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { OpsProvider } from '../ops/OpsContext';
@@ -56,12 +57,18 @@ export async function renderWorkspace(
 		settings?: SettingsClient;
 		/** The native drag and drop plugin (drops from other applications, drags out of the window). */
 		nativeDnd?: NativeDndClient;
+		/** The Shelf window's raise and hide, while the Shelf is undocked. */
+		shelfWindow?: ShelfWindowClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
 	const tabbed = (
 		<TabsProvider api={tabs} home={HOME}>
-			<Workspace tearoff={options.tearoff} nativeDnd={options.nativeDnd} />
+			<Workspace
+				tearoff={options.tearoff}
+				nativeDnd={options.nativeDnd}
+				shelfWindow={options.shelfWindow}
+			/>
 		</TabsProvider>
 	);
 	const workspace = options.settings ? (

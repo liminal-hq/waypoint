@@ -7,8 +7,10 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ListingSession } from '../browse/useListingSession';
 import { createCommandBridge } from '../commands/commandBridge';
+import { FakeShelfWindowClient } from '../services/fakeShelfWindowClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import type { ShelfActions } from './shelfActions';
+import { createShelfPlacement } from './shelfPlacement';
 import { createShelfStore } from './shelfStore';
 import { useShelfCommands } from './useShelfCommands';
 
@@ -16,7 +18,15 @@ function setup(session: ListingSession | null = null) {
 	const bridge = createCommandBridge();
 	const store = createShelfStore();
 	const actions = { addSelection: vi.fn(async () => 1) } as unknown as ShelfActions;
-	renderHook(() => useShelfCommands(bridge, store, actions, () => session));
+	const placement = createShelfPlacement({
+		store,
+		api: { setShelfUndocked: vi.fn(async () => {}) },
+		client: new FakeShelfWindowClient(),
+		inWindow: false,
+		say: () => {},
+		announce: () => {},
+	});
+	renderHook(() => useShelfCommands(bridge, store, actions, () => session, placement));
 	return { bridge, store, actions };
 }
 

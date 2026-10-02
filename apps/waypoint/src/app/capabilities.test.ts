@@ -33,7 +33,7 @@ const covers = (capability: Capability, label: string) =>
 	capability.windows.some((pattern) => matches(pattern, label));
 
 // One label for each kind `main.tsx` routes to a screen with the shared title bar.
-const ROUTED_LABELS = ['main-1', 'settings', 'properties-42', 'ops', 'tear-ghost'];
+const ROUTED_LABELS = ['main-1', 'settings', 'properties-42', 'ops', 'shelf', 'tear-ghost'];
 
 describe('window capabilities', () => {
 	it('lets the main windows save the Action bar choices (the ui part only), and no other command of the settings plugin beyond reading', () => {
@@ -86,8 +86,24 @@ describe('window capabilities', () => {
 		expect(covers(capability, 'main-1')).toBe(true);
 		expect(covers(capability, 'main-7')).toBe(true);
 		expect(covers(capability, 'tear-ghost')).toBe(true);
-		for (const label of ['settings', 'properties-42', 'ops', 'mystery']) {
+		for (const label of ['settings', 'properties-42', 'ops', 'shelf', 'mystery']) {
 			expect(covers(capability, label), label).toBe(false);
+		}
+	});
+
+	it('gives the Shelf window what its panel needs and no more: the queue and native drag and drop for drags out, and the settings to read', () => {
+		for (const identifier of ['ops', 'native-dnd', 'shelf']) {
+			expect(covers(byId(identifier), 'shelf'), identifier).toBe(true);
+		}
+		expect(byId('shelf').permissions).toEqual(['waypoint-settings:allow-get-settings']);
+		// It is not a main window: no trash, no platform reads, and it may not change settings.
+		expect(covers(byId('main'), 'shelf')).toBe(false);
+		for (const capability of capabilities) {
+			if (!covers(capability, 'shelf')) continue;
+			expect(
+				capability.permissions.filter((p) => /set-(ui-)?settings|set_settings/.test(p)),
+				capability.identifier,
+			).toEqual([]);
 		}
 	});
 });

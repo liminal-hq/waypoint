@@ -12,6 +12,7 @@ describe('windowKindFromLabel', () => {
 		expect(windowKindFromLabel('settings')).toBe('Settings');
 		expect(windowKindFromLabel('properties-42')).toBe('Properties');
 		expect(windowKindFromLabel('ops')).toBe('Ops');
+		expect(windowKindFromLabel('shelf')).toBe('Shelf');
 		expect(windowKindFromLabel('tear-ghost')).toBe('TearGhost');
 	});
 

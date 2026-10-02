@@ -80,9 +80,7 @@ fn item(id: u64, location: Location, added_ms: u64) -> ShelfItem {
 }
 
 pub(crate) fn apply(store: &mut Store, window: &str, command: Command) -> Result<(), SessionError> {
-    // The Shelf is global but its events go to windows, so a command needs a live caller:
-    // otherwise a change could happen with nobody told.
-    store.window_index(window)?;
+    store.require_caller(window)?;
     match command {
         Command::AddToShelf {
             locations,
@@ -117,6 +115,9 @@ pub(crate) fn apply(store: &mut Store, window: &str, command: Command) -> Result
             let moved = store.shelf.remove(at);
             store.shelf.insert(to_index.min(store.shelf.len()), moved);
         }
+        Command::SetShelfUndocked { undocked } => store.shelf_window.undocked = undocked,
+        Command::SetShelfOnTop { on_top } => store.shelf_window.on_top = on_top,
+        Command::SetShelfGeometry { geometry } => store.shelf_window.geometry = Some(geometry),
         _ => unreachable!("only Shelf commands reach the Shelf module"),
     }
     Ok(())

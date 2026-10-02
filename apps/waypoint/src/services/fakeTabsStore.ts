@@ -28,6 +28,7 @@ import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/Wind
 import type { Handoff } from './tabsApi';
 import type { ShelfItem } from '@liminal-hq/waypoint-protocol/generated/ShelfItem';
 import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfItemId';
+import type { ShelfWindow } from '@liminal-hq/waypoint-protocol/generated/ShelfWindow';
 import type { Workspace } from '@liminal-hq/waypoint-protocol/generated/Workspace';
 import type { WorkspaceId } from '@liminal-hq/waypoint-protocol/generated/WorkspaceId';
 
@@ -90,6 +91,9 @@ export type FakeCommand =
 	| { kind: 'removeFromShelf'; ids: ShelfItemId[] }
 	| { kind: 'clearShelf' }
 	| { kind: 'moveShelfItem'; id: ShelfItemId; toIndex: number }
+	| { kind: 'setShelfUndocked'; undocked: boolean }
+	| { kind: 'setShelfOnTop'; onTop: boolean }
+	| { kind: 'setShelfGeometry'; geometry: Geometry }
 	| { kind: 'registerWindow'; label: string }
 	| { kind: 'openWindow'; location: Location | null; geometry: Geometry | null }
 	| { kind: 'closeWindow' }
@@ -126,7 +130,13 @@ interface State {
 	nextWorkspace: number;
 	shelf: ShelfItem[];
 	nextShelf: number;
+	shelfWindow: ShelfWindow;
 }
+
+/** The label of the Shelf window (`SHELF_LABEL` in `waypoint-protocol`). */
+export const SHELF_LABEL = 'shelf';
+
+const EMPTY_SHELF_WINDOW: ShelfWindow = { undocked: false, geometry: null, onTop: false };
 
 const defaultView = (): ViewPrefs => ({
 	mode: 'list',
@@ -525,6 +535,30 @@ function storeEvents(before: State, after: State, reopened: TabId | null): Windo
 		if (after.shelf.length > 0) {
 			push(now.label, { kind: 'shelfChanged', shelf: after.shelf, revision: R });
 		}
+		if (!deepEqual(after.shelfWindow, EMPTY_SHELF_WINDOW)) {
+			push(now.label, { kind: 'shelfWindowChanged', shelfWindow: after.shelfWindow, revision: R });
+		}
+	}
+	// The Shelf window hears the Shelf while it exists (and in the command that docks it); where it
+	// sits is saved without an event, but whether it is there and on top is told to every window.
+	const shelfWindowOpen = before.shelfWindow.undocked || after.shelfWindow.undocked;
+	if (shelfWindowOpen && !deepEqual(before.shelf, after.shelf)) {
+		push(SHELF_LABEL, { kind: 'shelfChanged', shelf: after.shelf, revision: R });
+	}
+	if (
+		before.shelfWindow.undocked !== after.shelfWindow.undocked ||
+		before.shelfWindow.onTop !== after.shelfWindow.onTop
+	) {
+		for (const w of after.windows) {
+			push(w.label, { kind: 'shelfWindowChanged', shelfWindow: after.shelfWindow, revision: R });
+		}
+		if (shelfWindowOpen) {
+			push(SHELF_LABEL, {
+				kind: 'shelfWindowChanged',
+				shelfWindow: after.shelfWindow,
+				revision: R,
+			});
+		}
 	}
 	return out;
 }
@@ -640,6 +674,7 @@ export class FakeTabsStore {
 		nextWorkspace: 1,
 		shelf: [],
 		nextShelf: 1,
+		shelfWindow: { ...EMPTY_SHELF_WINDOW },
 	};
 	private readonly listeners = new Map<string, Set<Listener>>();
 	private readonly handoffListeners = new Map<string, Set<(handoff: Handoff) => void>>();
@@ -682,7 +717,12 @@ export class FakeTabsStore {
 
 	/** One window's session at the current revision. */
 	snapshot(label: string): SessionSnapshot {
-		const w = this.state.windows.find((x) => x.label === label);
+		// The Shelf window holds no tabs and reads the global state, while the Shelf is undocked.
+		const w =
+			this.state.windows.find((x) => x.label === label) ??
+			(label === SHELF_LABEL && this.state.shelfWindow.undocked
+				? newWindowState(label)
+				: undefined);
 		if (!w) throw unknownWindow(label);
 		return structuredClone({
 			revision: this.state.revision,
@@ -697,6 +737,7 @@ export class FakeTabsStore {
 			workspaces: this.state.workspaces,
 			workspace: w.workspace,
 			shelf: this.state.shelf,
+			shelfWindow: this.state.shelfWindow,
 		});
 	}
 
@@ -714,6 +755,7 @@ export class FakeTabsStore {
 			nextWorkspace: this.state.nextWorkspace,
 			shelf: this.state.shelf,
 			nextShelf: this.state.nextShelf,
+			shelfWindow: this.state.shelfWindow,
 		});
 	}
 
@@ -823,6 +865,13 @@ export class FakeTabsStore {
 
 	/** A window that went away (its webview was destroyed): its session closes. */
 	destroyWindow(label: string): void {
+		// The Shelf window going away docks the Shelf again.
+		if (label === SHELF_LABEL) {
+			if (this.state.shelfWindow.undocked) {
+				this.dispatch(SHELF_LABEL, { kind: 'setShelfUndocked', undocked: false });
+			}
+			return;
+		}
 		if (this.state.windows.some((w) => w.label === label))
 			this.dispatch(label, { kind: 'closeWindow' });
 	}
@@ -853,6 +902,14 @@ export class FakeTabsStore {
 					const geometry = next.windows.find((w) => w.label === opening)?.geometry ?? null;
 					this.options.createWindow?.(opening, geometry);
 				}
+			} catch (e) {
+				this.state = before;
+				throw `could not create the window: ${String(e)}`;
+			}
+		}
+		if (command.kind === 'setShelfUndocked' && command.undocked && !before.shelfWindow.undocked) {
+			try {
+				this.options.createWindow?.(SHELF_LABEL, next.shelfWindow.geometry);
 			} catch (e) {
 				this.state = before;
 				throw `could not create the window: ${String(e)}`;
@@ -959,6 +1016,9 @@ class Reducer {
 			case 'removeFromShelf':
 			case 'clearShelf':
 			case 'moveShelfItem':
+			case 'setShelfUndocked':
+			case 'setShelfOnTop':
+			case 'setShelfGeometry':
 				return this.shelf(c);
 			case 'createGroup':
 			case 'addToGroup':
@@ -1048,9 +1108,19 @@ class Reducer {
 
 	private shelf(c: FakeCommand): void {
 		const s = this.s;
-		// The Shelf is global but its events go to windows, so a command needs a live caller.
-		this.win();
+		// The Shelf is global but its events go to windows, so a command needs a live caller: a main
+		// window, or the Shelf window while the Shelf is undocked.
+		if (!(this.label === SHELF_LABEL && s.shelfWindow.undocked)) this.win();
 		switch (c.kind) {
+			case 'setShelfUndocked':
+				s.shelfWindow.undocked = c.undocked;
+				return;
+			case 'setShelfOnTop':
+				s.shelfWindow.onTop = c.onTop;
+				return;
+			case 'setShelfGeometry':
+				s.shelfWindow.geometry = c.geometry;
+				return;
 			case 'addToShelf': {
 				const seen = new Set(s.shelf.map((i) => i.location.uri));
 				const fresh = c.locations.filter((l) => !seen.has(l.uri) && seen.add(l.uri));

@@ -466,6 +466,28 @@ pub async fn clear_shelf<R: Runtime>(
     run(&window, &sessions, Command::ClearShelf).map(drop)
 }
 
+/// Undocks the Shelf into its own window, or docks it back into the main windows. The window is
+/// made (or closed) with the change; docking from the Shelf window itself closes it.
+#[tauri::command]
+pub async fn set_shelf_undocked<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    undocked: bool,
+) -> Result<(), Error> {
+    run(&window, &sessions, Command::SetShelfUndocked { undocked }).map(drop)
+}
+
+/// Whether the Shelf window stays above other windows. Only the choice is kept here; the window
+/// itself is put above (or not) by the caller, where the system allows it.
+#[tauri::command]
+pub async fn set_shelf_on_top<R: Runtime>(
+    window: WebviewWindow<R>,
+    sessions: State<'_, Sessions<R>>,
+    on_top: bool,
+) -> Result<(), Error> {
+    run(&window, &sessions, Command::SetShelfOnTop { on_top }).map(drop)
+}
+
 /// Moves a Shelf item to `to_index` in the Shelf's order.
 #[tauri::command]
 pub async fn move_shelf_item<R: Runtime>(

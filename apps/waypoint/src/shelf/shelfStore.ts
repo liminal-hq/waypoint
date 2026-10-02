@@ -8,6 +8,7 @@ import type { ShelfItemId } from '@liminal-hq/waypoint-protocol/generated/ShelfI
 import { createContext, useContext } from 'react';
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { ShelfWindow } from '@liminal-hq/waypoint-protocol/generated/ShelfWindow';
 import type { ItemState } from './shelfModel';
 
 /** The dock's height in pixels: where it starts, and the least and most it may take. */
@@ -33,6 +34,12 @@ export interface ShelfState {
 	status: ReadonlyMap<string, ItemState>;
 	/** Counts up each time something asks for the panel's focus (the Focus Shelf command). */
 	focusRequests: number;
+	/** The Shelf is its own window: every main window keeps no dock, and the toggles raise or hide that window. The session's, as of the snapshot. */
+	undocked: boolean;
+	/** The Shelf window stays above other windows (the session's choice). */
+	onTop: boolean;
+	/** The Shelf window is on screen; only meaningful while `undocked`. A window starts shown. */
+	windowShown: boolean;
 }
 
 export interface ShelfActions {
@@ -53,6 +60,9 @@ export interface ShelfActions {
 	/** Records what was found out about files; each entry replaces the one held. */
 	setStatus(entries: ReadonlyMap<string, ItemState>): void;
 	requestFocus(): void;
+	/** Takes where the Shelf lives from the session: docked, or in its own window and whether that stays on top. */
+	setWindow(window: Pick<ShelfWindow, 'undocked' | 'onTop'>): void;
+	setWindowShown(shown: boolean): void;
 }
 
 export type ShelfStore = StoreApi<ShelfState & ShelfActions>;
@@ -77,6 +87,9 @@ export function createShelfStore(initial: Partial<ShelfState> = {}): ShelfStore 
 		collapsed: new Set<string>(),
 		status: new Map<string, ItemState>(),
 		focusRequests: 0,
+		undocked: false,
+		onTop: false,
+		windowShown: true,
 		...initial,
 
 		sync: (items, revision) => {
@@ -141,6 +154,13 @@ export function createShelfStore(initial: Partial<ShelfState> = {}): ShelfStore 
 			if (changed) set({ status: next });
 		},
 		requestFocus: () => set((state) => ({ focusRequests: state.focusRequests + 1 })),
+		setWindow: ({ undocked, onTop }) => {
+			const state = get();
+			if (state.undocked !== undocked || state.onTop !== onTop) set({ undocked, onTop });
+		},
+		setWindowShown: (windowShown) => {
+			if (get().windowShown !== windowShown) set({ windowShown });
+		},
 	}));
 }
 

@@ -213,6 +213,20 @@ export function clearShelf(): Promise<void> {
 	return cmd<void>('clear_shelf');
 }
 
+/**
+ * Undocks the Shelf into its own window (`shelf`), or docks it back into the main windows. The
+ * window is made or closed with the change, and every window hears it as `shelfWindowChanged`.
+ * Rejects when the system cannot make the window.
+ */
+export function setShelfUndocked(undocked: boolean): Promise<void> {
+	return cmd<void>('set_shelf_undocked', { undocked });
+}
+
+/** Remembers whether the Shelf window stays above other windows. It does not move the window: the caller does that where the system allows it. */
+export function setShelfOnTop(onTop: boolean): Promise<void> {
+	return cmd<void>('set_shelf_on_top', { onTop });
+}
+
 /** Moves an item to `toIndex` in the Shelf's order. */
 export function moveShelfItem(id: ShelfItemId, toIndex: number): Promise<void> {
 	return cmd<void>('move_shelf_item', { id, toIndex });

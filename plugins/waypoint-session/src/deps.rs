@@ -9,7 +9,9 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Runtime, Wry};
 use thiserror::Error;
-use waypoint_session::{Document, Geometry, SessionStorage, StorageError, Store, StorePolicy};
+use waypoint_session::{
+    Document, Geometry, SessionStorage, ShelfWindow, StorageError, Store, StorePolicy,
+};
 
 /// How long after a change the `on_change` hook runs, so a burst of changes makes one call.
 pub const CHANGE_DELAY: Duration = Duration::from_secs(1);
@@ -37,6 +39,19 @@ pub trait WindowFactory<R: Runtime = Wry>: Send + Sync {
         geometry: Option<&Geometry>,
         opener: Option<&str>,
     ) -> Result<(), WindowError>;
+
+    /// Creates the Shelf window (`SHELF_LABEL`) when the Shelf is undocked, placed from `shelf`.
+    /// The same contract as `create`: it runs with the store locked, an error undoes the change,
+    /// and `opener` is the window that asked (`None` when the app restores it). A factory that
+    /// cannot make the window leaves this as it is, which refuses undocking.
+    fn create_shelf(
+        &self,
+        _app: &AppHandle<R>,
+        _shelf: &ShelfWindow,
+        _opener: Option<&str>,
+    ) -> Result<(), WindowError> {
+        Err(WindowError::NotAvailable)
+    }
 }
 
 /// Runs when the last window of the store closes.

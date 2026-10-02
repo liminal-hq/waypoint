@@ -11,9 +11,9 @@ use std::time::{Duration, Instant};
 
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
 use tauri::{AppHandle, Listener, Manager, WebviewUrl, WebviewWindowBuilder};
-use waypoint_protocol::Location;
+use waypoint_protocol::{Location, SHELF_LABEL};
 use waypoint_session::{
-    Command, Geometry, MoveTo, MoveWhat, PairLayout, SessionEvent, StorePolicy, TabId,
+    Command, Geometry, MoveTo, MoveWhat, PairLayout, SessionEvent, ShelfWindow, StorePolicy, TabId,
 };
 
 use crate::commands;
@@ -29,6 +29,9 @@ type App = tauri::App<MockRuntime>;
 struct Factory {
     created: Mutex<Vec<(String, Option<Geometry>)>>,
     fail: Mutex<Option<WindowError>>,
+    /// The Shelf windows it was asked for; `can_shelf` false leaves `create_shelf` at its default.
+    shelves: Mutex<Vec<ShelfWindow>>,
+    cannot_shelf: Mutex<bool>,
 }
 
 impl WindowFactory<MockRuntime> for Factory {
@@ -49,6 +52,22 @@ impl WindowFactory<MockRuntime> for Factory {
             .lock()
             .unwrap()
             .push((label.to_string(), geometry.copied()));
+        Ok(())
+    }
+
+    fn create_shelf(
+        &self,
+        app: &AppHandle<MockRuntime>,
+        shelf: &ShelfWindow,
+        _opener: Option<&str>,
+    ) -> Result<(), WindowError> {
+        if *self.cannot_shelf.lock().unwrap() {
+            return Err(WindowError::NotAvailable);
+        }
+        WebviewWindowBuilder::new(app, SHELF_LABEL, WebviewUrl::App("index.html".into()))
+            .build()
+            .map_err(|e| WindowError::Failed(e.to_string()))?;
+        self.shelves.lock().unwrap().push(*shelf);
         Ok(())
     }
 }
@@ -984,4 +1003,162 @@ fn an_existing_target_window_is_told_about_the_hand_off() {
             true
         })
     });
+}
+
+fn set_undocked(app: &App, label: &str, undocked: bool) -> Result<(), Error> {
+    tauri::async_runtime::block_on(commands::set_shelf_undocked(
+        window(app, label),
+        sessions(app),
+        undocked,
+    ))
+}
+
+fn undocked(app: &App) -> bool {
+    sessions(app).with_store(|s| s.shelf_window().undocked)
+}
+
+#[test]
+fn undocking_makes_the_shelf_window_once_and_tells_the_main_windows() {
+    let t = setup(&["main-1", "main-2"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    open_tab(&t.app, "main-2", "b").unwrap();
+    let heard = events(&t.app, "main-2");
+    set_undocked(&t.app, "main-1", true).unwrap();
+    assert!(undocked(&t.app));
+    assert_eq!(t.factory.shelves.lock().unwrap().len(), 1);
+    assert!(t.app.get_webview_window(SHELF_LABEL).is_some());
+    assert!(drain(&heard).iter().any(
+        |e| matches!(e, SessionEvent::ShelfWindowChanged { shelf_window, .. } if shelf_window.undocked)
+    ));
+    // Asking again, from either window, makes no second window.
+    set_undocked(&t.app, "main-2", true).unwrap();
+    assert_eq!(t.factory.shelves.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn a_factory_that_cannot_make_the_window_leaves_the_shelf_docked() {
+    let t = setup(&["main-1"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    *t.factory.cannot_shelf.lock().unwrap() = true;
+    let revision = sessions(&t.app).with_store(|s| s.revision());
+    assert!(set_undocked(&t.app, "main-1", true).is_err());
+    assert!(!undocked(&t.app));
+    assert_eq!(sessions(&t.app).with_store(|s| s.revision()), revision);
+    assert!(t.app.get_webview_window(SHELF_LABEL).is_none());
+}
+
+#[test]
+fn the_shelf_window_reads_the_shared_shelf_and_changes_it() {
+    let t = setup(&["main-1"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    set_undocked(&t.app, "main-1", true).unwrap();
+    let from_shelf = events(&t.app, SHELF_LABEL);
+    let from_main = events(&t.app, "main-1");
+    tauri::async_runtime::block_on(commands::add_to_shelf(
+        window(&t.app, SHELF_LABEL),
+        sessions(&t.app),
+        vec![loc("x")],
+    ))
+    .unwrap();
+    let snapshot = tauri::async_runtime::block_on(commands::get_snapshot(
+        window(&t.app, SHELF_LABEL),
+        sessions(&t.app),
+    ))
+    .unwrap();
+    assert_eq!(snapshot.shelf.len(), 1);
+    assert!(snapshot.tabs.is_empty() && snapshot.shelf_window.undocked);
+    for heard in [&from_shelf, &from_main] {
+        assert!(drain(heard)
+            .iter()
+            .any(|e| matches!(e, SessionEvent::ShelfChanged { shelf, .. } if shelf.len() == 1)));
+    }
+}
+
+#[test]
+fn the_shelf_window_cannot_read_or_change_anything_while_the_shelf_is_docked() {
+    let t = setup(&["main-1", "settings"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    // The window exists (a stray one), but the store holds no Shelf window.
+    WebviewWindowBuilder::new(&t.app, SHELF_LABEL, WebviewUrl::App("index.html".into()))
+        .build()
+        .unwrap();
+    assert!(tauri::async_runtime::block_on(commands::get_snapshot(
+        window(&t.app, SHELF_LABEL),
+        sessions(&t.app),
+    ))
+    .is_err());
+    assert!(tauri::async_runtime::block_on(commands::add_to_shelf(
+        window(&t.app, SHELF_LABEL),
+        sessions(&t.app),
+        vec![loc("x")],
+    ))
+    .is_err());
+}
+
+#[test]
+fn docking_closes_the_shelf_window_and_closing_it_docks() {
+    let t = setup(&["main-1"]);
+    open_tab(&t.app, "main-1", "a").unwrap();
+    set_undocked(&t.app, "main-1", true).unwrap();
+    set_undocked(&t.app, SHELF_LABEL, false).unwrap();
+    assert!(!undocked(&t.app));
+    // (The mock runtime never reports the window gone, so its closing is not asserted here.)
+
+    // The person closes the window: the Shelf docks, and the main windows hear it.
+    set_undocked(&t.app, "main-1", true).unwrap();
+    let heard = events(&t.app, "main-1");
+    destroyed(&t.app, SHELF_LABEL);
+    wait_until("the Shelf to dock", || !undocked(&t.app));
+    wait_until("the main window to hear it", || {
+        drain(&heard).iter().any(|e| {
+            matches!(e, SessionEvent::ShelfWindowChanged { shelf_window, .. } if !shelf_window.undocked)
+        })
+    });
+    // A window closing that was never the Shelf's changes nothing.
+    destroyed(&t.app, SHELF_LABEL);
+}
+
+#[test]
+fn the_choice_of_staying_on_top_and_the_geometry_are_kept_and_the_geometry_is_saved() {
+    let saved = Arc::new(AtomicUsize::new(0));
+    let counter = saved.clone();
+    let t = setup_with(
+        m2_policy(),
+        move |deps| {
+            deps.change_delay = Duration::from_millis(5);
+            deps.on_change = Some(Arc::new(move |_| {
+                counter.fetch_add(1, Ordering::SeqCst);
+            }));
+        },
+        &["main-1"],
+    );
+    open_tab(&t.app, "main-1", "a").unwrap();
+    set_undocked(&t.app, "main-1", true).unwrap();
+    tauri::async_runtime::block_on(commands::set_shelf_on_top(
+        window(&t.app, SHELF_LABEL),
+        sessions(&t.app),
+        true,
+    ))
+    .unwrap();
+    let before = saved.load(Ordering::SeqCst);
+    let geometry = Geometry {
+        x: Some(5),
+        y: Some(6),
+        width: 600,
+        height: 200,
+        maximised: false,
+    };
+    sessions(&t.app)
+        .run_existing(
+            t.app.handle(),
+            SHELF_LABEL,
+            Command::SetShelfGeometry { geometry },
+        )
+        .unwrap();
+    wait_until("the geometry to be saved", || {
+        saved.load(Ordering::SeqCst) > before
+    });
+    let state = sessions(&t.app).with_store(|s| *s.shelf_window());
+    assert!(state.on_top && state.undocked);
+    assert_eq!(state.geometry, Some(geometry));
 }

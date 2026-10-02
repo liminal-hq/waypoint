@@ -224,6 +224,14 @@ export class FakeTabsApi implements TabsApi {
 		this.run({ kind: 'moveShelfItem', id, toIndex });
 	}
 
+	async setShelfUndocked(undocked: boolean): Promise<void> {
+		this.run({ kind: 'setShelfUndocked', undocked });
+	}
+
+	async setShelfOnTop(onTop: boolean): Promise<void> {
+		this.run({ kind: 'setShelfOnTop', onTop });
+	}
+
 	async joinPair(tabs: TabId[], layout: PairLayout): Promise<PairId> {
 		const outcome = this.run({ kind: 'joinPair', tabs, layout });
 		return this.fromEvents(outcome, 'joining a pair', (e) =>
