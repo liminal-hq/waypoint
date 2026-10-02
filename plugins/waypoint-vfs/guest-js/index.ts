@@ -244,9 +244,10 @@ export function previewUrl(handle: ListingHandle, id: EntryId): string {
 /**
  * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
  * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+ * `withBytes` also adds up the sizes into `totalBytes`; ask only while Overview is visible.
  */
-export function getTrashInfo(): Promise<TrashInfo> {
-	return cmd<TrashInfo>('get_trash_info');
+export function getTrashInfo(withBytes = false): Promise<TrashInfo> {
+	return cmd<TrashInfo>('get_trash_info', { withBytes });
 }
 
 /** Home, the user folders that exist, and the favourites. */

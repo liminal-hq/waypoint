@@ -90,16 +90,31 @@ pub struct TrashInfo {
     pub reason: Option<String>,
     /// How many items it holds (0 when it cannot be read).
     pub count: u32,
+    /// The total size of what it holds, in bytes. Present only when it was asked for (Overview
+    /// asks while it is visible) and the Trash could be read; `None` is "not measured", never zero.
+    #[ts(type = "number | null")]
+    pub total_bytes: Option<u64>,
 }
 
 impl TrashInfo {
-    /// Reads the state of `source`: availability first, then the count.
+    /// Reads the state of `source`: availability first, then the count. The size is not worked out.
     pub fn of(source: &dyn TrashSource) -> Self {
+        Self::read(source, false)
+    }
+
+    /// Like `of`, and also adds up the sizes of the items (a folder counts as the total of what is
+    /// in it, which the source takes from the Trash's own `directorysizes` where it can).
+    pub fn with_bytes(source: &dyn TrashSource) -> Self {
+        Self::read(source, true)
+    }
+
+    fn read(source: &dyn TrashSource, bytes: bool) -> Self {
         if let Err(reason) = source.available() {
             return Self {
                 available: false,
                 reason: Some(reason),
                 count: 0,
+                total_bytes: None,
             };
         }
         match source.list() {
@@ -107,11 +122,14 @@ impl TrashInfo {
                 available: true,
                 reason: None,
                 count: u32::try_from(items.len()).unwrap_or(u32::MAX),
+                total_bytes: bytes
+                    .then(|| items.iter().fold(0u64, |sum, i| sum.saturating_add(i.size))),
             },
             Err(error) => Self {
                 available: false,
                 reason: Some(format!("{error:?}")),
                 count: 0,
+                total_bytes: None,
             },
         }
     }

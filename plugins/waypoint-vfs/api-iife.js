@@ -155,9 +155,10 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     /**
      * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
      * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+     * `withBytes` also adds up the sizes into `totalBytes`; ask only while Overview is visible.
      */
-    function getTrashInfo() {
-        return cmd('get_trash_info');
+    function getTrashInfo(withBytes = false) {
+        return cmd('get_trash_info', { withBytes });
     }
     /** Home, the user folders that exist, and the favourites. */
     function listPlaces() {

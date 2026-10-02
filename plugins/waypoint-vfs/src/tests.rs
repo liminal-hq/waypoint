@@ -556,9 +556,10 @@ fn the_trash_cannot_be_opened_until_the_app_gives_the_plugin_one() {
     let error = open(&app, "main", trash_location()).unwrap_err();
     assert!(matches!(error, Error::Vfs(VfsError::Unsupported { .. })));
     let info =
-        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
     assert!(!info.available);
     assert_eq!(info.count, 0);
+    assert_eq!(info.total_bytes, None);
     assert!(info.reason.is_some());
 }
 
@@ -579,6 +580,16 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
     assert_eq!(names(&entries), ["apple.txt", "zebra.txt"]);
     assert_eq!(entries[0].original_path.as_deref(), Some("/home/a"));
     assert_eq!(entries[0].deleted_ms, Some(1_700_000_000_000));
+
+    // The sizes are added up only when asked for.
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
+    assert_eq!((info.count, info.total_bytes), (2, None));
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), Some(true)))
+            .unwrap();
+    assert_eq!(info.count, 2);
+    assert_eq!(info.total_bytes, Some(10));
 
     // An entry resolves to its `trash:` location, losslessly.
     let at = tauri::async_runtime::block_on(commands::entry_location(
@@ -602,7 +613,7 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
 
     // What the sidebar reads.
     let info =
-        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
     assert_eq!((info.available, info.count), (true, 2));
     let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
     assert!(status.features.contains(&"trash-view".to_owned()));
@@ -615,7 +626,7 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
         Error::Vfs(VfsError::Unsupported { what }) if what.contains("portal")
     ));
     let info =
-        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
     assert!(!info.available);
     let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
     assert!(!status.features.contains(&"trash-view".to_owned()));

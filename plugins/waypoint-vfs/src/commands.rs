@@ -617,17 +617,30 @@ pub async fn read_text_head<R: Runtime>(
 
 /// Whether the Trash can be browsed, why not, and how many items it holds, for the sidebar's Trash
 /// place. Reading it lists the Trash, so ask when the sidebar needs the number, not on a timer
-/// shorter than a few seconds.
+/// shorter than a few seconds. `with_bytes` also adds up the sizes (`total_bytes`); Overview asks
+/// for that while it is visible and the sidebar never does.
 #[tauri::command]
-pub async fn get_trash_info(state: State<'_, Vfs>) -> Result<TrashInfo, Error> {
+pub async fn get_trash_info(
+    state: State<'_, Vfs>,
+    with_bytes: Option<bool>,
+) -> Result<TrashInfo, Error> {
     let Some(provider) = state.trash_provider() else {
         return Ok(TrashInfo {
             available: false,
             reason: Some("the Trash cannot be read here".to_owned()),
             count: 0,
+            total_bytes: None,
         });
     };
-    blocking(move || TrashInfo::of(provider.source().as_ref())).await
+    let with_bytes = with_bytes.unwrap_or(false);
+    blocking(move || {
+        if with_bytes {
+            TrashInfo::with_bytes(provider.source().as_ref())
+        } else {
+            TrashInfo::of(provider.source().as_ref())
+        }
+    })
+    .await
 }
 
 /// The folder a window opens at first.
