@@ -52,6 +52,7 @@ import {
 	CloseOthersIcon,
 } from '../icons/MenuIcons';
 import { OpenWithIcon } from '../openWith/OpenWithIcons';
+import { OverviewIcon } from '../overview/OverviewIcons';
 import { InspectorIcon, PropertiesIcon } from '../inspector/InspectorIcons';
 import { AddToShelfIcon, ShelfIcon } from '../shelf/ShelfIcons';
 import type { CommandActions, CommandFacts } from './commandEnv';
@@ -130,7 +131,8 @@ export type GoCommandId =
 	| 'goPictures'
 	| 'goMusic'
 	| 'goVideos'
-	| 'goTrash';
+	| 'goTrash'
+	| 'openOverview';
 
 /** Whether a command is offered now, and if it is offered but cannot run, why. */
 export type Availability =
@@ -632,6 +634,8 @@ export const COMMANDS: readonly CommandDef[] = [
 	goToPlace('music', 'goMusic', 'cmd.goTo.music', FolderOpenIcon),
 	goToPlace('videos', 'goVideos', 'cmd.goTo.videos', FolderOpenIcon),
 	goToPlace('trash', 'goTrash', 'cmd.goTo.trash', TrashIcon),
+	// Overview is a place that opens as the tab's content, so the palette says "Open".
+	goToPlace('overview', 'openOverview', 'cmd.openOverview', OverviewIcon),
 
 	// Tabs
 	{

@@ -43,11 +43,14 @@ export interface ItemGestureProps {
 export function itemGestures(
 	actions: ItemActions,
 	item: { kind: ItemKind; location: Location; label: string },
+	{ droppable = true }: { droppable?: boolean } = {},
 ): ItemGestureProps {
 	const menu = (element: HTMLElement, position: MenuPosition, keyboard: boolean) =>
 		actions.openMenu({ ...item, position, keyboard, returnFocus: element });
 	return {
-		...dropAttributes(item.kind === 'trash' ? 'trash' : 'place', item.location.uri, item.label),
+		...(droppable
+			? dropAttributes(item.kind === 'trash' ? 'trash' : 'place', item.location.uri, item.label)
+			: {}),
 		onClick: (event) => {
 			// A click with the middle button is reported by `auxclick`, never here; Ctrl-click has no meaning yet.
 			if (event.button === 0) actions.open(item.location);

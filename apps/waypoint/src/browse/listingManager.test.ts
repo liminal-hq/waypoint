@@ -46,6 +46,21 @@ describe('ListingManager', () => {
 		expect(client.openCount).toBe(1);
 	});
 
+	it('holds no listing for Overview, which is a page, and lets go of the folder a tab moves off', async () => {
+		const { client, manager } = setup();
+		const overview = { display: 'Overview', uri: 'overview:/' };
+		manager.sync([tab(1, overview)], new Set([1]));
+		await settle();
+		expect(manager.stateFor(1)).toBeUndefined();
+		expect(client.openCount).toBe(0);
+		manager.sync([tab(1, A)], new Set([1]));
+		await settle();
+		expect(manager.stateFor(1)?.status).toBe('ready');
+		manager.sync([tab(1, overview)], new Set([1]));
+		expect(manager.stateFor(1)).toBeUndefined();
+		expect(manager.openCount).toBe(0);
+	});
+
 	it('opens a live listing for every visible tab, and evicts one that leaves the screen', async () => {
 		vi.useFakeTimers();
 		const { client, manager } = setup({ evictDelayMs: 1000 });

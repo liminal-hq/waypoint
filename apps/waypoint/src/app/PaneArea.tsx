@@ -31,6 +31,8 @@ import { clearPaneFocus, subscribePaneFocus, wantedPaneFocus } from '../tabs/pan
 import { equalSizes } from '../tabs/pairLayout';
 import { usePairActions } from '../tabs/pairActions';
 import { useSeparateDrag } from '../tabs/paneDrag';
+import { OverviewView } from '../overview/OverviewView';
+import { isOverviewLocation } from '../overview/overviewLocation';
 import { useTabActions } from '../tabs/tabActions';
 import { locationLabel, useTabTitle } from '../tabs/tabTitle';
 import styles from './PaneArea.module.css';
@@ -223,15 +225,19 @@ function Pane({
 				<PaneHeader tab={tab} active={active} onClose={() => onClose(tab.id)} onGrip={onGrip} />
 			) : null}
 			<div className={styles.content}>
-				<FileView
-					state={state}
-					mode={mode}
-					gridSize={gridSize}
-					location={tab.location}
-					onOpen={openers.open}
-					onOpenInNewTab={openers.openInNewTab}
-					onMenu={(request) => onMenu({ ...request, openers, session })}
-				/>
+				{isOverviewLocation(tab.location) ? (
+					<OverviewView tabId={tab.id} />
+				) : (
+					<FileView
+						state={state}
+						mode={mode}
+						gridSize={gridSize}
+						location={tab.location}
+						onOpen={openers.open}
+						onOpenInNewTab={openers.openInNewTab}
+						onMenu={(request) => onMenu({ ...request, openers, session })}
+					/>
+				)}
 			</div>
 		</div>
 	);
