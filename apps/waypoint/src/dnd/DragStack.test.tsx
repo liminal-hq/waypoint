@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ListingSession } from '../browse/useListingSession';
 import { createDragSession } from './dragSession';
@@ -119,5 +119,38 @@ describe('DragStack', () => {
 		render(<DragStack session={session} />);
 		act(() => session.cancel());
 		expect(document.querySelector('[data-drag-stack]')).toBeNull();
+	});
+});
+
+describe('DragStack thumbnails', () => {
+	it('draws a loaded thumbnail over the front icon, as decoration', () => {
+		const session = dragging(
+			{ groups: ['image', 'document'], count: 2, thumbnails: ['thumb://localhost/normal/a.png'] },
+			{ text: 'x', kind: 'idle' },
+		);
+		render(<DragStack session={session} />);
+		const images = document.querySelectorAll<HTMLImageElement>('[data-drag-stack] img');
+		expect(images).toHaveLength(1);
+		expect(images[0]!.getAttribute('src')).toBe('thumb://localhost/normal/a.png');
+		expect(images[0]!.getAttribute('alt')).toBe('');
+		// The icons stay under it, so a picture that cannot load falls back to its icon.
+		expect(document.querySelectorAll('[data-drag-stack] svg[data-group]')).toHaveLength(2);
+	});
+
+	it('hides a thumbnail that cannot be loaded', () => {
+		const session = dragging(
+			{ thumbnails: ['thumb://localhost/normal/gone.png'] },
+			{ text: 'x', kind: 'idle' },
+		);
+		render(<DragStack session={session} />);
+		const image = document.querySelector<HTMLImageElement>('[data-drag-stack] img')!;
+		fireEvent.error(image);
+		expect(image.hidden).toBe(true);
+	});
+
+	it('draws no pictures when none had loaded', () => {
+		const session = dragging({ thumbnails: [] }, { text: 'x', kind: 'idle' });
+		render(<DragStack session={session} />);
+		expect(document.querySelector('[data-drag-stack] img')).toBeNull();
 	});
 });
