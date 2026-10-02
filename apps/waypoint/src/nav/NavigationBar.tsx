@@ -10,6 +10,8 @@ import { NavButton } from './NavButton';
 import styles from './NavigationBar.module.css';
 import { requestPaneFocus } from '../tabs/paneFocus';
 import { PathBar } from './PathBar';
+import { useTabActions } from '../tabs/tabActions';
+import { useWindowActions } from '../tabs/windowActions';
 import { useNavigation, type Navigation } from './useNavigation';
 
 /**
@@ -78,6 +80,8 @@ interface NavigationBarProps {
 
 export function NavigationBar({ leading }: NavigationBarProps) {
 	const navigation = useNavigation();
+	const { openInBackground } = useTabActions();
+	const { openInNewWindow } = useWindowActions();
 	const [editing, setEditing] = useState(false);
 	const editPath = useCallback(() => setEditing(true), []);
 	useNavigationShortcuts(navigation, editPath);
@@ -120,6 +124,9 @@ export function NavigationBar({ leading }: NavigationBarProps) {
 					editing={editing}
 					onEditingChange={setEditing}
 					onNavigate={navigation.goTo}
+					onOpenInNewTab={(location, inNewWindow) =>
+						inNewWindow ? openInNewWindow(location) : openInBackground(location)
+					}
 					// The list takes focus, so the arrow keys work straight after Enter.
 					onCommitted={() => requestPaneFocus(tab.id)}
 				/>
