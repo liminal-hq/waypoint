@@ -144,6 +144,19 @@
         "typescript": "^5.9.3",
       },
     },
+    "plugins/volumes": {
+      "name": "@liminal-hq/plugin-volumes",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
     "plugins/waypoint-ops": {
       "name": "@liminal-hq/waypoint-plugin-ops",
       "version": "0.0.0",
@@ -341,6 +354,8 @@
     "@liminal-hq/plugin-thumbnails": ["@liminal-hq/plugin-thumbnails@workspace:plugins/thumbnails"],
 
     "@liminal-hq/plugin-trash": ["@liminal-hq/plugin-trash@workspace:plugins/trash"],
+
+    "@liminal-hq/plugin-volumes": ["@liminal-hq/plugin-volumes@workspace:plugins/volumes"],
 
     "@liminal-hq/plugin-window-manager": ["@liminal-hq/plugin-window-manager@workspace:plugins/window-manager"],
 
