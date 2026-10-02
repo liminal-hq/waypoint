@@ -119,6 +119,8 @@ export const PREVIEW_MAX_MB_MIN = 1;
 export const PREVIEW_MAX_MB_MAX = 2048;
 /** The languages with a message catalogue, as BCP 47 tags; `system` follows the OS. */
 export const SUPPORTED_LANGUAGES = ['en-CA', 'fr-CA'] as const;
+/** The developer-only pseudo-locales, which a debug build of Rust accepts too. */
+export const PSEUDO_LANGUAGES = ['en-XA', 'ar-XB'] as const;
 
 /** The spring-load delay's range in milliseconds, which Rust enforces and the page offers. */
 export const SPRING_LOAD_MIN_MS = 200;

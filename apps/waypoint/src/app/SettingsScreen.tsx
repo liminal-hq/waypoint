@@ -15,6 +15,7 @@ import {
 import { SettingsShell } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsShell';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { useMemo, useState } from 'react';
+import { useLocaleVersion } from '../i18n/active';
 import { t } from '../i18n/messages';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
@@ -53,7 +54,10 @@ async function nativeDndAvailability(): Promise<DndAvailability> {
 function Pages() {
 	const { ready } = useSettingsEditor();
 	const [active, setActive] = useState<SectionId>('general');
-	const sections = useMemo(() => settingsSections(), []);
+	// A new language re-renders the pages in place, so the page the person is on stays open.
+	const version = useLocaleVersion();
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const sections = useMemo(() => settingsSections(), [version]);
 	if (!ready) {
 		return (
 			<p role="status" className={styles.loading}>
@@ -106,6 +110,8 @@ export function SettingsScreen({
 	windowEffectsStatus,
 }: SettingsScreenProps) {
 	const [own] = useState(() => client ?? createTauriSettingsClient());
+	// The title bar and the pages render their messages themselves, so a new language needs a render.
+	useLocaleVersion();
 	return (
 		<WindowFrame className={styles.screen}>
 			<AppTitleBar title={t('window.settings.title')} />

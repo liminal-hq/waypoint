@@ -134,6 +134,7 @@ describe('SettingsScreen', () => {
 			'Appearance',
 			'Transparency',
 			'Accessibility',
+			'Language & region',
 			'Previews & thumbnails',
 			'Operations',
 			'Drag & drop',
@@ -574,6 +575,45 @@ describe('the Appearance page', () => {
 		);
 		await userEvent.selectOptions(screen.getByLabelText('Accent colour'), 'ember');
 		await waitFor(() => expect(screen.queryByLabelText('Custom accent')).toBeNull());
+	});
+});
+
+describe('the Language & region page', () => {
+	it('offers the languages that ship, the pseudo-locales in a developer build, and the direction', async () => {
+		await open();
+		await goTo('Language & region');
+		const language = screen.getByLabelText('Language');
+		expect(language).toHaveValue('system');
+		expect([...language.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+			'System default',
+			'English (Canada)',
+			'Français (Canada)',
+			'English with accents (en-XA, for developers)',
+			'Mirrored, right to left (ar-XB, for developers)',
+		]);
+		const direction = within(screen.getByRole('radiogroup', { name: 'Direction' }));
+		expect(direction.getByRole('radio', { name: 'Automatic' })).toBeChecked();
+	});
+
+	it('saves the language and the direction through Rust', async () => {
+		const { settings } = await open();
+		await goTo('Language & region');
+		await userEvent.selectOptions(screen.getByLabelText('Language'), 'fr-CA');
+		await waitFor(() => expect(settings.calls.at(-1)?.locale.language).toBe('fr-CA'));
+		await userEvent.click(screen.getByRole('radio', { name: 'Right to left' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.locale.direction).toBe('rtl'));
+		expect(settings.calls.at(-1)?.locale.language).toBe('fr-CA');
+	});
+
+	it('shows a language this build does not offer as the system default', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				locale: { ...DEFAULT_SETTINGS.locale, language: 'xx' },
+			},
+		});
+		await goTo('Language & region');
+		expect(screen.getByLabelText('Language')).toHaveValue('system');
 	});
 });
 

@@ -12,6 +12,7 @@ import {
 	PREVIEW_MAX_MB_MIN,
 	SPRING_LOAD_MAX_MS,
 	SPRING_LOAD_MIN_MS,
+	PSEUDO_LANGUAGES,
 	SUPPORTED_LANGUAGES,
 	TEXT_SIZES,
 	type Settings,
@@ -71,7 +72,10 @@ function refusal(settings: Settings): SettingsCommandError | null {
 		return invalidError('appearance.accent', 'write it as #rrggbb');
 	}
 	const language = settings.locale.language;
-	if (language !== 'system' && !(SUPPORTED_LANGUAGES as readonly string[]).includes(language)) {
+	const offered: readonly string[] = import.meta.env.DEV
+		? [...SUPPORTED_LANGUAGES, ...PSEUDO_LANGUAGES]
+		: SUPPORTED_LANGUAGES;
+	if (language !== 'system' && !offered.includes(language)) {
 		return invalidError('locale.language', 'not a language Waypoint has');
 	}
 	const shortcut = settings.integrations.globalShortcut;
