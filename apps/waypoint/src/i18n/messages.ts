@@ -61,6 +61,7 @@ export const enMessages = {
 	'services.name.window-manager': 'Window manager',
 	'services.name.window-tearoff': 'Tab tear-off',
 	'services.name.thumbnails': 'Thumbnails',
+	'services.name.volumes': 'Drives and volumes',
 	'settings.group.colours': 'Colours',
 	'settings.group.layout': 'Layout',
 	'settings.group.icons': 'Icons',
