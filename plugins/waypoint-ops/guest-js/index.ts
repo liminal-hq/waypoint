@@ -10,6 +10,7 @@ import type { Clipboard } from '@liminal-hq/waypoint-protocol/generated/Clipboar
 import type { ClipboardSource } from '@liminal-hq/waypoint-protocol/generated/ClipboardSource';
 import type { ClipboardMode } from '@liminal-hq/waypoint-protocol/generated/ClipboardMode';
 import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/ConflictPolicy';
+import type { ConflictPreview } from '@liminal-hq/waypoint-protocol/generated/ConflictPreview';
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
 import type { JobJournal } from '@liminal-hq/waypoint-protocol/generated/JobJournal';
@@ -23,6 +24,7 @@ import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError'
 import type { OpsEvent } from '@liminal-hq/waypoint-protocol/generated/OpsEvent';
 import type { OpsSettings } from '@liminal-hq/waypoint-protocol/generated/OpsSettings';
 import type { OpsSnapshot } from '@liminal-hq/waypoint-protocol/generated/OpsSnapshot';
+import type { DiffLine } from '@liminal-hq/waypoint-protocol/generated/DiffLine';
 import type { PlanNote } from '@liminal-hq/waypoint-protocol/generated/PlanNote';
 import type { PlanPreview } from '@liminal-hq/waypoint-protocol/generated/PlanPreview';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
@@ -30,10 +32,13 @@ import type { RecoveryReport } from '@liminal-hq/waypoint-protocol/generated/Rec
 import type { RenameRule } from '@liminal-hq/waypoint-protocol/generated/RenameRule';
 import type { RenameSpec } from '@liminal-hq/waypoint-protocol/generated/RenameSpec';
 import type { Resolution } from '@liminal-hq/waypoint-protocol/generated/Resolution';
+import type { PreviewKind } from '@liminal-hq/waypoint-protocol/generated/PreviewKind';
+import type { PreviewSide } from '@liminal-hq/waypoint-protocol/generated/PreviewSide';
 import type { PreviewRow } from '@liminal-hq/waypoint-protocol/generated/PreviewRow';
 import type { Problem } from '@liminal-hq/waypoint-protocol/generated/Problem';
 import type { RuleError } from '@liminal-hq/waypoint-protocol/generated/RuleError';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
+import type { TextDiff } from '@liminal-hq/waypoint-protocol/generated/TextDiff';
 
 export type {
 	BatchPreview,
@@ -41,7 +46,9 @@ export type {
 	ClipboardMode,
 	ClipboardSource,
 	ConflictPolicy,
+	ConflictPreview,
 	Decision,
+	DiffLine,
 	JobId,
 	JobJournal,
 	JobProgress,
@@ -57,7 +64,9 @@ export type {
 	PlanNote,
 	PlanPreview,
 	PluginStatus,
+	PreviewKind,
 	PreviewRow,
+	PreviewSide,
 	Problem,
 	RecoveryReport,
 	RenameRule,
@@ -65,6 +74,7 @@ export type {
 	Resolution,
 	RuleError,
 	SelectionSpec,
+	TextDiff,
 };
 
 const PREFIX = 'plugin:waypoint-ops|';
@@ -167,6 +177,14 @@ export function resolve(
 	applyToAll?: ConflictPolicy,
 ): Promise<void> {
 	return cmd<void>('resolve', { job, decisions, applyToAll: applyToAll ?? null });
+}
+
+/**
+ * The two files of one clash a waiting job holds (`item` is the clash's source): their size and
+ * time and, for small text files, a line diff. Rejects when the job does not wait on that clash.
+ */
+export function conflictPreview(job: JobId, item: Location): Promise<ConflictPreview> {
+	return cmd<ConflictPreview>('conflict_preview', { job, item });
 }
 
 /** Answers the error a job waits on. */

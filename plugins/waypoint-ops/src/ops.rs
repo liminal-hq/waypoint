@@ -708,6 +708,44 @@ impl<R: Runtime> Ops<R> {
         self.shared.preview(&request)
     }
 
+    /// Compares the two files of one clash a job waits on. The job's cancel token stops the reads,
+    /// and nothing holds the queue's lock while they run.
+    pub fn conflict_preview(
+        &self,
+        job: JobId,
+        item: &Location,
+    ) -> Result<waypoint_ops::ConflictPreview, Error> {
+        let (conflict, cancel) = {
+            let core = self.shared.lock();
+            let snapshot = self.shared.job(&core, job)?;
+            let JobState::Waiting {
+                reason: waypoint_ops::WaitReason::Conflicts { conflicts },
+            } = snapshot.state
+            else {
+                return Err(Error::Invalid(format!(
+                    "job {} is not waiting on conflicts",
+                    job.0
+                )));
+            };
+            let conflict = conflicts
+                .into_iter()
+                .find(|c| &c.source == item)
+                .ok_or_else(|| {
+                    Error::Invalid(format!("{} is not a clash of job {}", item.display, job.0))
+                })?;
+            let cancel = core
+                .store
+                .cancel_token(job)
+                .ok_or(Error::Queue(QueueError::UnknownJob(job)))?;
+            (conflict, cancel)
+        };
+        Ok(waypoint_ops::conflict_preview(
+            &self.shared.env.providers,
+            &conflict,
+            &cancel,
+        )?)
+    }
+
     pub fn pause(&self, id: JobId) -> Result<(), Error> {
         let mut core = self.shared.lock();
         let events = core.store.pause(id)?;

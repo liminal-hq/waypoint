@@ -77,6 +77,13 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function resolve(job, decisions, applyToAll) {
         return cmd('resolve', { job, decisions, applyToAll: applyToAll ?? null });
     }
+    /**
+     * The two files of one clash a waiting job holds (`item` is the clash's source): their size and
+     * time and, for small text files, a line diff. Rejects when the job does not wait on that clash.
+     */
+    function conflictPreview(job, item) {
+        return cmd('conflict_preview', { job, item });
+    }
     /** Answers the error a job waits on. */
     function resolveError(job, decision) {
         return cmd('resolve_error', { job, decision });
@@ -175,6 +182,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.OPS_EVENT = OPS_EVENT;
     exports.RECOVERED_EVENT = RECOVERED_EVENT;
     exports.cancel = cancel;
+    exports.conflictPreview = conflictPreview;
     exports.dismiss = dismiss;
     exports.dismissFinished = dismissFinished;
     exports.getClipboard = getClipboard;
