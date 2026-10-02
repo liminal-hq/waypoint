@@ -108,6 +108,24 @@ describe('showing and hiding', () => {
 		expect(shelf()).toBeNull();
 	});
 
+	it('docks under the panes, beside the sidebar, and above the status bar', async () => {
+		await mount();
+		await waitFor(() => expect(options().length).toBeGreaterThan(0));
+		const panel = await openShelf();
+		const files = document.getElementById('wp-tabpanel')!;
+		const column = files.parentElement!;
+		// The dock shares the panes' column, after them, so the sidebar is not under it.
+		expect(panel.parentElement).toBe(column);
+		expect(files.compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		// The column is one child of the row it shares with the sidebar, which is not inside it.
+		const row = column.parentElement!;
+		expect(row.lastElementChild).toBe(column);
+		expect(column.querySelector('nav')).toBeNull();
+		// The status bar is below everything, outside the row of sidebar and column.
+		const toggle = screen.getByRole('button', { name: 'Shelf' });
+		expect(row.contains(toggle)).toBe(false);
+	});
+
 	it('leaves Ctrl+B to a text field', async () => {
 		await mount();
 		const input = document.createElement('input');

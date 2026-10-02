@@ -1,5 +1,5 @@
 /*
- * The Shelf, docked along the bottom of the window, between the panes and the status bar. Tokens only: colours come from the
+ * The Shelf, docked along the bottom of the content column, under the pane or panes and beside the sidebar. Tokens only: colours come from the
  * theme, and a dropped file is shown by the drag's own outline (`[data-drop-over]`).
  */
 .shelf {

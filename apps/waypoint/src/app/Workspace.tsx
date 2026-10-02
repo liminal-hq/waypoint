@@ -435,28 +435,30 @@ function WorkspaceBody({
 								<ActionBar />
 								<div className={styles.middle}>
 									{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-									<div
-										className={styles.files}
-										role="tabpanel"
-										id={TAB_PANEL_ID}
-										aria-label={tab ? undefined : t('tabs.panel.label')}
-										aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-									>
-										{panes.length > 0 && (
-											<PaneArea
-												panes={panes}
-												pair={panes.length > 1 ? pair : undefined}
-												active={tab?.id ?? null}
-												stateFor={stateFor}
-												mode={mode}
-												gridSize={gridSize}
-												onFailure={onFailure}
-												onMenu={setMenu}
-											/>
-										)}
+									<div className={styles.content}>
+										<div
+											className={styles.files}
+											role="tabpanel"
+											id={TAB_PANEL_ID}
+											aria-label={tab ? undefined : t('tabs.panel.label')}
+											aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+										>
+											{panes.length > 0 && (
+												<PaneArea
+													panes={panes}
+													pair={panes.length > 1 ? pair : undefined}
+													active={tab?.id ?? null}
+													stateFor={stateFor}
+													mode={mode}
+													gridSize={gridSize}
+													onFailure={onFailure}
+													onMenu={setMenu}
+												/>
+											)}
+										</div>
+										<ShelfDock />
 									</div>
 								</div>
-								<ShelfDock />
 								<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
 									<ViewSwitcher />
 									<ShelfToggle />
