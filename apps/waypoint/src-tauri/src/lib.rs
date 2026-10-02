@@ -10,6 +10,7 @@ mod settings;
 mod settings_window;
 mod shelf_window;
 mod storage;
+mod thumbnails;
 mod windows;
 
 use std::sync::Arc;
@@ -159,6 +160,7 @@ pub fn run() {
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
         .manage(HoldNextWindow::default())
+        .manage(thumbnails::ThumbnailBridge::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
             hold_next_window,
@@ -168,12 +170,17 @@ pub fn run() {
             shelf_window::raise_shelf_window,
             shelf_window::toggle_shelf_window,
             shelf_window::hide_shelf_window,
-            shelf_window::shelf_window_visible
+            shelf_window::shelf_window_visible,
+            thumbnails::thumbnails_request_entries,
+            thumbnails::thumbnails_request_locations,
+            thumbnails::thumbnails_cancel,
+            thumbnails::thumbnails_prioritise
         ])
         .setup({
             let saver = Arc::clone(&saver);
             move |app| {
                 settings::wire(app.handle());
+                thumbnails::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
             }
