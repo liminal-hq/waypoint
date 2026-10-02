@@ -19,6 +19,8 @@ import type { OpsClient } from '../services/opsClient';
 import type { SettingsClient } from '../services/settingsClient';
 import { SettingsProvider } from '../settings/SettingsContext';
 import { TabsProvider } from '../tabs/TabsContext';
+import { DevicesClientProvider } from '../devices/DevicesClientContext';
+import type { DevicesClient } from '../devices/devicesClient';
 import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
 
@@ -51,6 +53,8 @@ export async function renderWorkspace(
 		sidebar?: boolean;
 		tearoff?: TearoffClient;
 		trash?: TrashClient;
+		/** The volumes service behind the sidebar's Devices section. */
+		devices?: DevicesClient;
 		/** The operations queue: the window follows it and answers the jobs it started (`main-1`). */
 		ops?: OpsClient;
 		/** The settings the window follows (the defaults when omitted). */
@@ -80,14 +84,16 @@ export async function renderWorkspace(
 		<VfsClientProvider client={client}>
 			<PlacesClientProvider client={places}>
 				<TrashClientProvider client={options.trash}>
-					{options.ops ? (
-						<OpsProvider client={options.ops} windowLabel="main-1">
-							{workspace}
-							<OpsResolverHost />
-						</OpsProvider>
-					) : (
-						workspace
-					)}
+					<DevicesClientProvider client={options.devices}>
+						{options.ops ? (
+							<OpsProvider client={options.ops} windowLabel="main-1">
+								{workspace}
+								<OpsResolverHost />
+							</OpsProvider>
+						) : (
+							workspace
+						)}
+					</DevicesClientProvider>
 				</TrashClientProvider>
 			</PlacesClientProvider>
 		</VfsClientProvider>,
