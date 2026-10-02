@@ -144,7 +144,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 ### 5.1 Panel toggles
 
-- Right of the path bar: Sidebar (F9), Split View (F3) and Shelf (Ctrl+B). Each is a toggle button (`aria-pressed` is the panel's state) whose tooltip is its name and key, and a press runs the same registry command as the menu, the palette and the key.
+- Right of the path bar: Sidebar (F9) and Split View (F3); the Shelf has its button in the status bar. Each is a toggle button (`aria-pressed` is the panel's state) whose tooltip is its name and key, and a press runs the same registry command as the menu, the palette and the key.
 - Each button is a tab stop in the toolbar's order, like back, forward and up. Inspector and Terminal drawer toggles join them when those panels exist.
 - On a narrow toolbar (under 560 px) they collapse into one More button; its menu has the same commands as checkable rows.
 

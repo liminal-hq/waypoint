@@ -1,4 +1,4 @@
-// The toolbar's panel toggles (sidebar, split view, Shelf), or a More menu with them when the toolbar is narrow
+// The toolbar's panel toggles (sidebar, split view), or a More menu with them when the toolbar is narrow
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
