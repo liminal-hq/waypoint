@@ -112,13 +112,12 @@ pub fn gsettings_name(value: &str) -> Option<String> {
     (!name.is_empty()).then(|| name.to_string())
 }
 
-/// What KDE's `kdeglobals` says; each field is `None` when the file does not say.
+/// What KDE's `kdeglobals` says (the text scale is in `kcmfonts`, see `kde_text_scale`); each field is `None` when the file does not say.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct KdeGlobals {
     pub colour_scheme: Option<ColourScheme>,
     pub accent: Option<String>,
     pub reduced_motion: Option<bool>,
-    pub text_scale: Option<f64>,
     pub icon_theme: Option<String>,
 }
 
@@ -152,8 +151,7 @@ pub fn is_dark(red: u8, green: u8, blue: u8) -> bool {
 ///
 /// The colour scheme comes from the window background colour, so a custom scheme counts as dark or
 /// light by what it paints; the scheme's name is only a fallback. Animations count as reduced when
-/// the duration factor is zero. A text scale is the forced font DPI over 96, and an absent or zero
-/// DPI means the default size.
+/// the duration factor is zero.
 pub fn kde_globals(text: &str) -> KdeGlobals {
     let colour_scheme = ini_value(text, "Colors:Window", "BackgroundNormal")
         .and_then(|value| kde_rgb(&value))
@@ -179,21 +177,27 @@ pub fn kde_globals(text: &str) -> KdeGlobals {
     let reduced_motion = ini_value(text, "KDE", "AnimationDurationFactor")
         .and_then(|value| value.parse::<f64>().ok())
         .map(|factor| factor <= 0.0);
-    let dpi = ini_value(text, "General", "forceFontDPI")
-        .and_then(|value| value.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    let text_scale = if dpi > 0.0 {
-        text_scale(dpi / 96.0)
-    } else {
-        Some(1.0)
-    };
     let icon_theme = ini_value(text, "Icons", "Theme").filter(|name| !name.is_empty());
     KdeGlobals {
         colour_scheme,
         accent,
         reduced_motion,
-        text_scale,
         icon_theme,
+    }
+}
+
+/// Reads the text scale out of KDE's `kcmfonts` text: `[General] forceFontDPI` over 96.
+///
+/// A DPI of 0 is how KDE records "use the system default", which is a scale of 1. Without the
+/// key the file does not say, so there is no answer.
+pub fn kde_text_scale(text: &str) -> Option<f64> {
+    let dpi = ini_value(text, "General", "forceFontDPI")?
+        .parse::<f64>()
+        .ok()?;
+    if dpi == 0.0 {
+        Some(1.0)
+    } else {
+        text_scale(dpi / 96.0)
     }
 }
 
@@ -316,7 +320,6 @@ mod tests {
 [General]
 AccentColor=61,174,233
 ColorScheme=BreezeDark
-forceFontDPI=120
 
 [Colors:Window]
 BackgroundNormal=35,38,41
@@ -333,7 +336,6 @@ AnimationDurationFactor=0
                 colour_scheme: Some(ColourScheme::Dark),
                 accent: Some("#3daee9".to_string()),
                 reduced_motion: Some(true),
-                text_scale: Some(1.25),
                 icon_theme: Some("breeze-dark".to_string()),
             }
         );
@@ -346,9 +348,22 @@ AnimationDurationFactor=0
         let parsed = kde_globals(text);
         assert_eq!(parsed.colour_scheme, Some(ColourScheme::Light));
         assert_eq!(parsed.reduced_motion, Some(false));
-        assert_eq!(parsed.text_scale, Some(1.0));
         assert_eq!(parsed.accent, None);
         assert_eq!(parsed.icon_theme, None);
+    }
+
+    #[test]
+    fn kcmfonts_forced_dpi_is_the_text_scale() {
+        assert_eq!(kde_text_scale("[General]\nforceFontDPI=120\n"), Some(1.25));
+        assert_eq!(kde_text_scale("[General]\nforceFontDPI=96\n"), Some(1.0));
+        // Zero is "use the system default".
+        assert_eq!(kde_text_scale("[General]\nforceFontDPI=0\n"), Some(1.0));
+        // Not the file's key, an unreadable value or an absurd one: no answer.
+        assert_eq!(kde_text_scale(""), None);
+        assert_eq!(kde_text_scale("[General]\nfont=Noto Sans,10\n"), None);
+        assert_eq!(kde_text_scale("[General]\nforceFontDPI=abc\n"), None);
+        assert_eq!(kde_text_scale("[General]\nforceFontDPI=-96\n"), None);
+        assert_eq!(kde_text_scale("[Other]\nforceFontDPI=120\n"), None);
     }
 
     #[test]

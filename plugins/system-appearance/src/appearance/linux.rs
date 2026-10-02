@@ -47,7 +47,7 @@ where
 
 /// Reads every source this desktop has, most authoritative first.
 ///
-/// The portal always goes first. KDE adds `kdeglobals`; Cinnamon and the GNOME family (and
+/// The portal always goes first. KDE adds `kdeglobals` (and `kcmfonts` for the text scale); Cinnamon and the GNOME family (and
 /// desktops this plugin does not recognise) add `gsettings`, asked only for what the portal did
 /// not answer. MATE and Xfce keep their settings elsewhere, so only the portal is asked there.
 pub async fn read() -> Resolution {
@@ -72,10 +72,9 @@ pub fn watch(changed: UnboundedSender<()>) -> Watcher {
     let readiness = match current_desktop() {
         DesktopEnvironment::Kde => {
             // The file watcher is registered before `watch_file` returns.
-            guards.extend(crate::linux::kwin::watch_file(
-                kdeglobals::FILE_NAME,
-                changed,
-            ));
+            for name in [kdeglobals::FILE_NAME, kdeglobals::FONTS_FILE_NAME] {
+                guards.extend(crate::linux::kwin::watch_file(name, changed.clone()));
+            }
             Readiness::Signal(portal_ready)
         }
         DesktopEnvironment::Cinnamon => {
