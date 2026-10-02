@@ -450,6 +450,15 @@ describe('the Previews & thumbnails page', () => {
 		expect(screen.queryByRole('spinbutton')).toBeNull();
 	});
 
+	it('saves "Measure Home when Overview opens", on by default, and keeps it where thumbnails are unavailable', async () => {
+		const { settings } = await open({ thumbnails: brokenStatus('No cache.') });
+		await goTo('Previews & thumbnails');
+		const row = await screen.findByRole('switch', { name: 'Measure Home when Overview opens' });
+		expect(row).toBeChecked();
+		await userEvent.click(row);
+		await waitFor(() => expect(settings.current().settings.previews.measureHomeOnOpen).toBe(false));
+	});
+
 	it('keeps the options when the status cannot be read', async () => {
 		vi.spyOn(console, 'warn').mockImplementation(() => {});
 		await open({ thumbnails: new Error('no plugin') });

@@ -14,7 +14,7 @@ import { useSettingsEditor } from './SettingsEditor';
 /**
  * Thumbnails over the `previews` settings. Where the plugin reports itself unavailable the options
  * are not shown: the page says why, in the plugin's own words, instead (the Services panel lists
- * the same reason). The other `previews` settings (folder peeks, hover to peek, measuring Home) arrive
+ * the same reason). "Measure Home when Overview opens" is always shown; the other `previews` settings (folder peeks, hover to peek) arrive
  * with the features they switch.
  */
 export function PreviewsPage() {
@@ -65,6 +65,20 @@ export function PreviewsPage() {
 					/>
 				</SettingsGroup>
 			)}
+			<SettingsGroup title={t('settings.group.overview')}>
+				<ToggleRow
+					label={t('settings.previews.measureHome.label')}
+					description={t('settings.previews.measureHome.description')}
+					error={errors.measureHomeOnOpen}
+					checked={previews.measureHomeOnOpen}
+					onChange={(value) =>
+						changeSettings('measureHomeOnOpen', (s) => ({
+							...s,
+							previews: { ...s.previews, measureHomeOnOpen: value },
+						}))
+					}
+				/>
+			</SettingsGroup>
 		</SettingsSection>
 	);
 }
