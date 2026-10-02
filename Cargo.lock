@@ -77,11 +77,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb8421aaa9644a5faf26735f258b669b15f063313ef8f8e2bdb28912a1a6f111"
 dependencies = [
  "enumflags2",
+ "futures-channel",
  "futures-util",
  "getrandom 0.4.3",
  "serde",
  "serde_repr",
  "tokio",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
  "zbus 5.19.0",
 ]
 
@@ -1550,6 +1554,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "global-hotkey"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c386b0a4a70cb2d39fffd74480f985b6f0bfbcb934b6a6b6b7e630e448f242e"
+dependencies = [
+ "crossbeam-channel",
+ "keyboard-types 0.7.0",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "once_cell",
+ "serde",
+ "thiserror 2.0.21",
+ "windows-sys 0.59.0",
+ "x11rb",
+ "xkeysym",
+]
+
+[[package]]
 name = "gobject-sys"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2173,6 +2195,17 @@ dependencies = [
 
 [[package]]
 name = "keyboard-types"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b750dcadc39a09dbadd74e118f6dd6598df77fa01df0cfcdc52c28dece74528a"
+dependencies = [
+ "bitflags 2.13.2",
+ "serde",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "keyboard-types"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
@@ -2394,7 +2427,7 @@ dependencies = [
  "crossbeam-channel",
  "dpi",
  "gtk",
- "keyboard-types",
+ "keyboard-types 0.8.3",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
@@ -4243,6 +4276,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-desktop-integration"
+version = "0.2.0"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace.git?rev=271654f35356508b7d9d252c53598d8137d8ca7c#271654f35356508b7d9d252c53598d8137d8ca7c"
+dependencies = [
+ "futures-util",
+ "gdk",
+ "gdkx11",
+ "gtk",
+ "log",
+ "raw-window-handle",
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-xdg-portal",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "url",
+ "windows 0.62.2",
+ "zbus 5.19.0",
+]
+
+[[package]]
+name = "tauri-plugin-global-shortcut"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bd2e1f725891a1613af8f25bf918ba3357654b0fd3f2d794c0ce76cbdd92ed2"
+dependencies = [
+ "global-hotkey",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "tauri-plugin-log"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4611,6 +4683,25 @@ dependencies = [
  "ts-rs",
  "wayland-toplevel-drag",
  "windows 0.62.2",
+]
+
+[[package]]
+name = "tauri-plugin-xdg-portal"
+version = "0.2.0"
+source = "git+https://github.com/liminal-hq/tauri-plugins-workspace.git?rev=271654f35356508b7d9d252c53598d8137d8ca7c#271654f35356508b7d9d252c53598d8137d8ca7c"
+dependencies = [
+ "ashpd",
+ "futures-util",
+ "libc",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.21",
+ "tokio",
+ "ts-rs",
+ "url",
 ]
 
 [[package]]
@@ -5453,6 +5544,8 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "tauri-plugin-desktop-integration",
+ "tauri-plugin-global-shortcut",
  "tauri-plugin-log",
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-mime-apps",
@@ -5472,7 +5565,9 @@ dependencies = [
  "tauri-plugin-window-effects",
  "tauri-plugin-window-manager",
  "tauri-plugin-window-tearoff",
+ "tauri-plugin-xdg-portal",
  "tempfile",
+ "tokio",
  "waypoint-ops",
  "waypoint-path",
  "waypoint-protocol",
@@ -6317,6 +6412,12 @@ dependencies = [
  "libc",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "xkeysym"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "yoke"
