@@ -16,6 +16,7 @@ import { SettingsGroup } from './SettingsGroup';
 import { SettingsRow } from './SettingsRow';
 import { SettingsSection } from './SettingsSection';
 import { SettingsShell } from './SettingsShell';
+import { SliderRow } from './SliderRow';
 import { ToggleRow } from './ToggleRow';
 import type { SettingsSectionDef } from './types';
 
@@ -496,5 +497,50 @@ describe('ButtonRow and LinkRow', () => {
 		render(<LinkRow label="Docs" href="https://example.com" unavailableReason="offline" />);
 		expect(screen.queryByRole('link')).toBeNull();
 		expect(screen.getByText('Unavailable: offline')).toBeInTheDocument();
+	});
+});
+
+describe('SliderRow', () => {
+	it('previews every step while it is dragged and applies the value that settles', () => {
+		const onInput = vi.fn();
+		const onChange = vi.fn();
+		render(
+			<SliderRow
+				label="Opacity"
+				value={80}
+				min={40}
+				max={100}
+				unit="%"
+				onInput={onInput}
+				onChange={onChange}
+			/>,
+		);
+		const slider = screen.getByRole('slider', { name: 'Opacity' });
+		expect(slider).toHaveValue('80');
+		// A drag is a run of `input` events; the page's preview follows, and nothing is saved yet.
+		fireEvent.input(slider, { target: { value: '70' } });
+		fireEvent.input(slider, { target: { value: '60' } });
+		expect(onInput.mock.calls.map(([value]) => value)).toEqual([70, 60]);
+		expect(onChange).not.toHaveBeenCalled();
+		expect(screen.getByText('60%')).toBeInTheDocument();
+		// Letting go is the native `change` event.
+		fireEvent.change(slider);
+		expect(onChange).toHaveBeenCalledExactlyOnceWith(60);
+	});
+
+	it('goes back to the value in force when the change is refused', () => {
+		const onChange = vi.fn();
+		render(<SliderRow label="Opacity" value={80} min={40} max={100} onChange={onChange} />);
+		const slider = screen.getByRole('slider', { name: 'Opacity' });
+		fireEvent.input(slider, { target: { value: '50' } });
+		fireEvent.change(slider);
+		expect(onChange).toHaveBeenCalledWith(50);
+		// The parent keeps `value` at 80, as it does when Rust refuses the change.
+		expect(slider).toHaveValue('80');
+	});
+
+	it('is dimmed and cannot be moved when its row is disabled', () => {
+		render(<SliderRow label="Opacity" value={80} min={40} max={100} disabled onChange={vi.fn()} />);
+		expect(screen.getByRole('slider', { name: 'Opacity' })).toBeDisabled();
 	});
 });

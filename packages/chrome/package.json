@@ -71,6 +71,7 @@
 		"./SettingsShell/SettingsRow": "./src/SettingsShell/SettingsRow.tsx",
 		"./SettingsShell/SettingsSection": "./src/SettingsShell/SettingsSection.tsx",
 		"./SettingsShell/SettingsShell": "./src/SettingsShell/SettingsShell.tsx",
+		"./SettingsShell/SliderRow": "./src/SettingsShell/SliderRow.tsx",
 		"./SettingsShell/ToggleRow": "./src/SettingsShell/ToggleRow.tsx",
 		"./SettingsShell/labels": "./src/SettingsShell/labels.ts",
 		"./SettingsShell/types": "./src/SettingsShell/types.ts"

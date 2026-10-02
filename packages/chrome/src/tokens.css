@@ -12,6 +12,12 @@
 	--wp-bg-raised: #2b2d31;
 	--wp-bg-chrome: #1e1f22;
 	--wp-bg-chrome-unfocused: var(--wp-bg-chrome);
+	/* Transparency hooks: a host that makes its windows see-through redefines these (see-through is opt-in, so each defaults to the solid colour it replaces). */
+	--wp-bg-menu: var(--wp-bg-raised);
+	--wp-menu-backdrop: none;
+	--wp-bg-shell: var(--wp-bg-raised);
+	--wp-bg-settings-pane: transparent;
+	--wp-bg-settings-nav: var(--wp-bg-chrome);
 	--wp-text-primary: #e6e6e6;
 	--wp-text-secondary: #c4c4c4;
 	--wp-text-muted: #9a9a9a;
