@@ -173,6 +173,8 @@
 	min-height: 0;
 	overflow-y: scroll;
 	scrollbar-gutter: stable;
+	/* Blank space after the last row, so a folder that fills the window still has somewhere to right-click for the empty-space menu. */
+	padding-block-end: 40px;
 }
 
 .emptyArea {
