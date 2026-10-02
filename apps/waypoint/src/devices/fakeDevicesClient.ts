@@ -53,7 +53,7 @@ export function fakeStatus(unavailable: readonly string[] = []): PluginStatus {
 
 /** What an action did, for a test to read. */
 export interface FakeCall {
-	action: 'mount' | 'unmount' | 'eject' | 'unlock';
+	action: 'mount' | 'unmount' | 'eject' | 'unlock' | 'refreshSpace';
 	id: string;
 	passphrase?: string;
 }
@@ -88,6 +88,17 @@ export class FakeDevicesClient implements DevicesClient {
 	async list(): Promise<Volume[]> {
 		this.listCalls += 1;
 		return structuredClone(this.volumes);
+	}
+
+	/** The `free` and `total` a network volume reports once measured, by id; a volume not in the map stays unmeasured. */
+	measurements = new Map<string, { total: number; free: number }>();
+
+	async refreshSpace(id: string): Promise<Volume> {
+		this.calls.push({ action: 'refreshSpace', id });
+		await this.begin(null);
+		const measured = this.measurements.get(id);
+		if (measured) this.replace(id, measured);
+		return structuredClone(this.find(id));
 	}
 
 	async mount(id: string): Promise<string> {
@@ -174,8 +185,8 @@ export class FakeDevicesClient implements DevicesClient {
 		for (const listener of [...this.listeners]) listener(event);
 	}
 
-	private async begin(call: FakeCall): Promise<void> {
-		this.calls.push(call);
+	private async begin(call: FakeCall | null): Promise<void> {
+		if (call) this.calls.push(call);
 		if (this.gate) {
 			const gate = this.gate;
 			this.gate = null;

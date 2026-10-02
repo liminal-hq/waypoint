@@ -18,6 +18,8 @@ export interface DevicesClient {
 	getStatus(): Promise<PluginStatus>;
 	/** Every volume now. */
 	list(): Promise<Volume[]>;
+	/** Measures one volume, network or not, within the plugin's timeout, and resolves with it and its `total` and `free` when they were found. */
+	refreshSpace(id: string): Promise<Volume>;
 	/** Mounts a volume and resolves with its mount point. */
 	mount(id: string): Promise<string>;
 	unmount(id: string): Promise<void>;

@@ -13,6 +13,7 @@ const plugin = vi.hoisted(() => ({
 	unmount: vi.fn(),
 	eject: vi.fn(),
 	unlock: vi.fn(),
+	refreshSpace: vi.fn(),
 	onChanged: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-volumes', () => plugin);
@@ -33,6 +34,16 @@ describe('createTauriDevicesClient', () => {
 		expect(plugin.unmount).toHaveBeenCalledWith('vol-1');
 		expect(plugin.eject).toHaveBeenCalledWith('vol-1');
 		expect(plugin.unlock).toHaveBeenCalledWith('vol-3', 'secret');
+	});
+
+	it('measures one volume on request', async () => {
+		plugin.refreshSpace.mockResolvedValue({ id: 'nas', total: 10, free: 4 });
+		expect(await createTauriDevicesClient().refreshSpace('nas')).toEqual({
+			id: 'nas',
+			total: 10,
+			free: 4,
+		});
+		expect(plugin.refreshSpace).toHaveBeenCalledWith('nas');
 	});
 
 	it('lists without measuring network volumes', async () => {
