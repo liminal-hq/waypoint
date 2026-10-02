@@ -12,6 +12,7 @@ import { createFakeOpsClient, type FakeOpsClient } from '../services/fakeOpsClie
 import { createFakeSettingsClient, type FakeSettings } from '../services/fakeSettingsClient';
 import { DEFAULT_SETTINGS, type Settings } from '../services/settingsClient';
 import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
+import type { PluginStatus as WindowEffectsStatus } from '@liminal-hq/plugin-window-effects';
 import { brokenStatus, workingStatus } from '../thumbnails/fakeThumbnailsClient';
 import type { DndAvailability, OpsSettingsApi } from '../settings/SettingsEditor';
 import { SettingsScreen } from './SettingsScreen';
@@ -33,6 +34,42 @@ vi.mock('@tauri-apps/api/window', () => ({
 
 afterEach(cleanup);
 
+/** What the window effects plugin reports on GNOME Wayland: windows can be see-through, nothing can blur behind them. */
+function gnomeEffects(): WindowEffectsStatus {
+	const feature = (name: string, available: boolean, reason: string | null = null) => ({
+		name,
+		available,
+		reason: (reason ? 'compositor-has-no-blur' : null) as 'compositor-has-no-blur' | null,
+		message: reason,
+	});
+	return {
+		available: true,
+		reason: 'compositor-has-no-blur',
+		message: 'GNOME does not let apps blur behind their windows',
+		flavour: 'wayland',
+		features: [
+			feature('opacity', true),
+			feature('blur', false, 'GNOME does not let apps blur behind their windows'),
+			feature('mica', false),
+			feature('acrylic', false),
+			feature('shadowInset', true),
+		],
+	};
+}
+
+/** KDE Wayland: blur works too. */
+function kdeEffects(): WindowEffectsStatus {
+	const status = gnomeEffects();
+	return {
+		...status,
+		reason: null,
+		message: null,
+		features: status.features.map((f) =>
+			f.name === 'blur' ? { ...f, available: true, reason: null, message: null } : f,
+		),
+	};
+}
+
 const AVAILABLE: DndAvailability = { outbound: { available: true, reason: null } };
 
 interface Rig {
@@ -47,6 +84,7 @@ async function open(
 		settings?: Settings;
 		dnd?: DndAvailability | Error;
 		thumbnails?: PluginStatus | Error;
+		effects?: WindowEffectsStatus | Error;
 		opsApi?: (ops: FakeOpsClient) => OpsSettingsApi;
 	} = {},
 ): Promise<Rig> {
@@ -62,6 +100,7 @@ async function open(
 	};
 	const dnd = options.dnd ?? AVAILABLE;
 	const thumbnails = options.thumbnails ?? workingStatus();
+	const effects = options.effects ?? gnomeEffects();
 	render(
 		<WindowChromeProvider controls={tauriWindowControls}>
 			<SettingsScreen
@@ -70,6 +109,9 @@ async function open(
 				dndStatus={() => (dnd instanceof Error ? Promise.reject(dnd) : Promise.resolve(dnd))}
 				thumbnailsStatus={() =>
 					thumbnails instanceof Error ? Promise.reject(thumbnails) : Promise.resolve(thumbnails)
+				}
+				windowEffectsStatus={() =>
+					effects instanceof Error ? Promise.reject(effects) : Promise.resolve(effects)
 				}
 			/>
 		</WindowChromeProvider>,
@@ -90,6 +132,7 @@ describe('SettingsScreen', () => {
 		expect(nav.getAllByRole('button').map((b) => b.textContent)).toEqual([
 			'General',
 			'Appearance',
+			'Transparency',
 			'Accessibility',
 			'Previews & thumbnails',
 			'Operations',
@@ -548,5 +591,150 @@ describe('the Accessibility page', () => {
 		await waitFor(() => expect(settings.calls.at(-1)?.accessibility.strongFocusRing).toBe(true));
 		await userEvent.click(screen.getByRole('radio', { name: 'On' }));
 		await waitFor(() => expect(settings.calls.at(-1)?.accessibility.touchMode).toBe('on'));
+	});
+});
+
+describe('the Transparency page', () => {
+	const slider = (name: string) => screen.getByRole('slider', { name });
+
+	it('is off by default, labelled Experimental on Linux, with every other control dimmed', async () => {
+		await open();
+		await goTo('Transparency');
+		const master = screen.getByRole('switch', { name: /Transparent window/ });
+		expect(master).toHaveAttribute('aria-checked', 'false');
+		expect(screen.getByText('Experimental')).toBeInTheDocument();
+		expect(slider('Window opacity')).toBeDisabled();
+		expect(screen.getByRole('switch', { name: /Solid when not in front/ })).toBeDisabled();
+	});
+
+	it('hides the blur row where the compositor cannot blur and says why', async () => {
+		await open();
+		await goTo('Transparency');
+		expect(screen.queryByRole('radiogroup', { name: /Blur behind the window/ })).toBeNull();
+		expect(
+			screen.getByText(/Blur is not available here: GNOME does not let apps blur/),
+		).toBeInTheDocument();
+	});
+
+	it('offers blur where the compositor can, and saves the level', async () => {
+		const { settings } = await open({
+			effects: kdeEffects(),
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		await userEvent.click(
+			within(screen.getByRole('radiogroup', { name: /Blur behind the window/ })).getByRole(
+				'radio',
+				{
+					name: 'High',
+				},
+			),
+		);
+		await waitFor(() => expect(settings.current().settings.transparency.blur).toBe('high'));
+	});
+
+	it('turns the master switch on through Rust', async () => {
+		const { settings } = await open();
+		await goTo('Transparency');
+		await userEvent.click(screen.getByRole('switch', { name: /Transparent window/ }));
+		await waitFor(() => expect(settings.current().settings.transparency.enabled).toBe(true));
+		expect(slider('Window opacity')).toBeEnabled();
+	});
+
+	it('previews the opacity while the slider is dragged and saves only when it is let go', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		const titleBar = () =>
+			document.querySelector<HTMLElement>('[data-region="titleBar"]')!.dataset.alpha;
+		const before = titleBar();
+		fireEvent.input(slider('Window opacity'), { target: { value: '45' } });
+		expect(before).toBe('0.82');
+		// No theme colours in a test, so the fallback floor lifts the 45 % to 70 %.
+		expect(titleBar()).toBe('0.7');
+		expect(settings.calls).toHaveLength(0);
+		fireEvent.change(slider('Window opacity'));
+		await waitFor(() => expect(settings.current().settings.transparency.opacity).toBe(45));
+	});
+
+	it('shows the refusal under the row and keeps the value in force', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		settings.failNext({
+			kind: 'invalid',
+			message: 'transparency.opacity must be between 40 and 100',
+			field: 'transparency.opacity',
+			min: 40,
+			max: 100,
+		});
+		fireEvent.input(slider('Window opacity'), { target: { value: '50' } });
+		fireEvent.change(slider('Window opacity'));
+		expect(await screen.findByRole('alert')).toHaveTextContent('between 40 and 100');
+		expect(slider('Window opacity')).toHaveValue('82');
+	});
+
+	it('keeps the menu opacity dimmed until menus are translucent', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		expect(slider('Menu opacity')).toBeDisabled();
+		await userEvent.click(screen.getByRole('switch', { name: /Translucent menus/ }));
+		await waitFor(() => expect(slider('Menu opacity')).toBeEnabled());
+	});
+
+	it('offers nothing where windows cannot be see-through, and says why', async () => {
+		const status = gnomeEffects();
+		await open({
+			effects: {
+				...status,
+				features: status.features.map((f) =>
+					f.name === 'opacity'
+						? {
+								...f,
+								available: false,
+								reason: 'x11-no-compositor' as never,
+								message: 'no compositing manager is running, so windows cannot be transparent',
+							}
+						: f,
+				),
+			},
+		});
+		await goTo('Transparency');
+		expect(
+			screen.getByText(/Transparency is unavailable on this system: no compositing/),
+		).toBeInTheDocument();
+		expect(screen.queryByRole('switch')).toBeNull();
+	});
+
+	it('does not offer anything when the plugin cannot be read', async () => {
+		await open({ effects: new Error('no plugin') });
+		await goTo('Transparency');
+		expect(
+			screen.getByText(/could not tell whether this system can show the desktop/),
+		).toBeInTheDocument();
+		expect(screen.queryByRole('switch')).toBeNull();
+	});
+
+	it('is not labelled Experimental on Windows', async () => {
+		const status = gnomeEffects();
+		await open({ effects: { ...status, flavour: 'windows' } });
+		await goTo('Transparency');
+		expect(screen.queryByText('Experimental')).toBeNull();
 	});
 });

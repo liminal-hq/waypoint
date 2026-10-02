@@ -33,6 +33,7 @@ export const enMessages = {
 	'settings.section.accessibility': 'Accessibility',
 	'settings.section.integrations': 'Integrations',
 	'settings.section.previews': 'Previews & thumbnails',
+	'settings.section.transparency': 'Transparency',
 	'settings.loading': 'Loading settings…',
 	'settings.group.startup': 'Start-up',
 	'settings.group.browsing': 'Browsing',
@@ -209,6 +210,69 @@ export const enMessages = {
 	'settings.previews.max.description':
 		'A larger file keeps its icon, so a huge image does not slow a folder down. Thumbnails already made are shared with other file managers and shown whatever the size.',
 	'settings.previews.max.unit': 'MB',
+	'settings.transparency.unavailable': 'Transparency is unavailable on this system: {reason}',
+	'settings.transparency.unknown':
+		'Waypoint could not tell whether this system can show the desktop through a window, so windows stay solid.',
+	'settings.transparency.preview.caption':
+		'A sample window over a bright, busy wallpaper, drawn with the settings below.',
+	'settings.transparency.preview.sidebar': 'Sidebar',
+	'settings.transparency.preview.title': 'Documents',
+	'settings.transparency.preview.file': 'Report.pdf',
+	'settings.transparency.preview.menu.open': 'Open',
+	'settings.transparency.preview.menu.rename': 'Rename',
+	'settings.transparency.preview.menu.trash': 'Move to Trash',
+	'settings.transparency.preview.label': 'Preview of a translucent window',
+	'settings.transparency.experimental': 'Experimental',
+	'settings.transparency.enable.label': 'Transparent window',
+	'settings.transparency.enable.description':
+		'Lets the desktop show through the window. It is off until you turn it on, and it is always off under high contrast or reduced transparency.',
+	'settings.transparency.enable.experimental':
+		'On Linux this is experimental: how it looks depends on the compositor and on WebKitGTK, and it is the first thing to turn off if a window looks wrong.',
+	'settings.transparency.off.highContrast':
+		'Transparency is off while high contrast is on (Accessibility).',
+	'settings.transparency.off.reducedTransparency':
+		'Transparency is off while reduced transparency is on (Accessibility).',
+	'settings.transparency.off.unavailable':
+		'Transparency is on in the settings, but this window cannot be see-through.',
+	'settings.transparency.off.unfocused': 'This window is solid while it is not in front.',
+	'settings.transparency.opacity.label': 'Window opacity',
+	'settings.transparency.opacity.description':
+		'How solid the title bar is; the rest of the window is a little more solid than that, so the structure stays readable. Lower is more see-through.',
+	'settings.transparency.opacity.raised':
+		'To keep text readable on this theme, some parts stay at least {percent}% opaque.',
+	'settings.transparency.opacity.unit': '%',
+	'settings.transparency.blur.label': 'Blur behind the window',
+	'settings.transparency.blur.description':
+		'Blurs what is behind the window where it shows through. Low is a soft material, High a stronger one (Windows); on Linux both blur the same.',
+	'settings.transparency.blur.off': 'Off',
+	'settings.transparency.blur.low': 'Low',
+	'settings.transparency.blur.high': 'High',
+	'settings.transparency.blur.unavailable': 'Blur is not available here: {reason}',
+	'settings.transparency.blur.unavailable.noReason':
+		'this system offers no way to blur behind a window.',
+	'settings.group.transparencyWindow': 'Window',
+	'settings.group.transparencyPreview': 'Preview',
+	'settings.group.transparencyRegions': 'Parts of the window',
+	'settings.group.transparencyMenus': 'Menus',
+	'settings.group.transparencyFocus': 'When the window is not in front',
+	'settings.transparency.regions.titleBar.label': 'Title bar, tabs and toolbar',
+	'settings.transparency.regions.titleBar.description':
+		'The rows above the files. The title bar uses the window opacity; the tabs, toolbar and status bar are a little more solid.',
+	'settings.transparency.regions.sidebar.label': 'Sidebar and side panels',
+	'settings.transparency.regions.sidebar.description':
+		'The sidebar, the Inspector and the Shelf, more solid than the title bar.',
+	'settings.transparency.regions.content.label': 'File area',
+	'settings.transparency.regions.content.description':
+		'The list and the grid, the most solid part of the window. Off keeps files on a solid background.',
+	'settings.transparency.menus.label': 'Translucent menus',
+	'settings.transparency.menus.description':
+		'Context menus and the application menu show what is behind them, blurred.',
+	'settings.transparency.menuOpacity.label': 'Menu opacity',
+	'settings.transparency.menuOpacity.description':
+		'Menus stay close to solid so their text is easy to read.',
+	'settings.transparency.solidUnfocused.label': 'Solid when not in front',
+	'settings.transparency.solidUnfocused.description':
+		'A window you are not using draws solid and gives up its blur, which also saves the compositor some work.',
 	'settings.open.failed': 'Could not open the Settings window.',
 
 	'browse.list.label': 'Files',

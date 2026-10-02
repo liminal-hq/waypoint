@@ -14,6 +14,7 @@ import {
 	type ReactNode,
 } from 'react';
 import { useStore } from 'zustand';
+import type { PluginStatus as WindowEffectsStatus } from '@liminal-hq/plugin-window-effects';
 import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
 import { t, tf } from '../i18n/messages';
 import type { OpsSettings } from '../services/opsClient';
@@ -51,7 +52,16 @@ export type RowKey =
 	| 'reducedTransparency'
 	| 'touchMode'
 	| 'thumbnails'
-	| 'thumbnailMax';
+	| 'thumbnailMax'
+	| 'transparency'
+	| 'opacity'
+	| 'blur'
+	| 'regionTitleBar'
+	| 'regionSidebar'
+	| 'regionContent'
+	| 'menus'
+	| 'menuOpacity'
+	| 'solidUnfocused';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {
@@ -75,6 +85,8 @@ export interface SettingsEditor {
 	dnd: DndAvailability | null;
 	/** What the thumbnails plugin can do here; `null` until read, and when it could not be. */
 	thumbnails: PluginStatus | null;
+	/** What the window effects plugin can do here; `null` until read, and when it could not be. */
+	windowEffects: WindowEffectsStatus | null;
 	errors: Partial<Record<RowKey, string>>;
 	/** Asks Rust for the settings `change` makes of the ones in force. The row shows the answer, never the request. */
 	changeSettings(key: RowKey, change: (settings: Settings) => Settings): void;
@@ -110,6 +122,8 @@ interface SettingsEditorProviderProps {
 	dndStatus?: () => Promise<DndAvailability>;
 	/** Reads what thumbnails can do on this system, for the Previews & thumbnails page; a failure leaves the page without the note. */
 	thumbnailsStatus?: () => Promise<PluginStatus>;
+	/** Reads what window effects can do on this system, for the Transparency page; a failure leaves the page saying it could not tell. */
+	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
 	children: ReactNode;
 }
 
@@ -123,6 +137,7 @@ export function SettingsEditorProvider({
 	ops: opsApi,
 	dndStatus,
 	thumbnailsStatus,
+	windowEffectsStatus,
 	children,
 }: SettingsEditorProviderProps) {
 	const { settings, ready: settingsReady } = useStore(handle.store, (state) => state);
@@ -131,6 +146,7 @@ export function SettingsEditorProvider({
 	const [opsUnreadable, setOpsUnreadable] = useState<string | null>(null);
 	const [dnd, setDnd] = useState<DndAvailability | null>(null);
 	const [thumbnails, setThumbnails] = useState<PluginStatus | null>(null);
+	const [windowEffects, setWindowEffects] = useState<WindowEffectsStatus | null>(null);
 	const [errors, setErrors] = useState<Partial<Record<RowKey, string>>>({});
 	const opsNow = useRef<OpsSettings | null>(null);
 	const queue = useRef<Promise<void>>(Promise.resolve());
@@ -184,6 +200,20 @@ export function SettingsEditorProvider({
 		};
 	}, [thumbnailsStatus]);
 
+	useEffect(() => {
+		if (!windowEffectsStatus) return;
+		let active = true;
+		windowEffectsStatus().then(
+			(value) => {
+				if (active) setWindowEffects(value);
+			},
+			(error: unknown) => console.warn('could not read the window effects status', error),
+		);
+		return () => {
+			active = false;
+		};
+	}, [windowEffectsStatus]);
+
 	const run = useCallback((key: RowKey, work: () => Promise<void>) => {
 		setErrors((current) => {
 			if (!(key in current)) return current;
@@ -227,6 +257,7 @@ export function SettingsEditorProvider({
 			opsUnreadable,
 			dnd,
 			thumbnails,
+			windowEffects,
 			errors,
 			changeSettings,
 			changeOps,
@@ -239,6 +270,7 @@ export function SettingsEditorProvider({
 			opsUnreadable,
 			dnd,
 			thumbnails,
+			windowEffects,
 			errors,
 			changeSettings,
 			changeOps,

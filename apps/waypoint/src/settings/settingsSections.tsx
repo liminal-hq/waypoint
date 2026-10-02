@@ -12,9 +12,17 @@ import { GeneralPage } from './GeneralPage';
 import { IntegrationsPage } from './IntegrationsPage';
 import { OperationsPage } from './OperationsPage';
 import { PreviewsPage } from './PreviewsPage';
+import { TransparencyPage } from './TransparencyPage';
 
 export type SectionId =
-	'general' | 'appearance' | 'accessibility' | 'previews' | 'operations' | 'dnd' | 'integrations';
+	| 'general'
+	| 'appearance'
+	| 'transparency'
+	| 'accessibility'
+	| 'previews'
+	| 'operations'
+	| 'dnd'
+	| 'integrations';
 
 /**
  * A page that is not built yet is absent, not a placeholder: the other pages of SPEC 11
@@ -24,6 +32,11 @@ export function settingsSections(): SettingsSectionDef[] {
 	return [
 		{ id: 'general', label: t('settings.section.general'), render: () => <GeneralPage /> },
 		{ id: 'appearance', label: t('settings.section.appearance'), render: () => <AppearancePage /> },
+		{
+			id: 'transparency',
+			label: t('settings.section.transparency'),
+			render: () => <TransparencyPage />,
+		},
 		{
 			id: 'accessibility',
 			label: t('settings.section.accessibility'),
