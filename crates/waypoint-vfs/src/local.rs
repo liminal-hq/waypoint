@@ -70,6 +70,16 @@ fn to_ms(time: SystemTime) -> i64 {
     }
 }
 
+/// The start of the name a file gets while a copy is still writing it. It is never a file the
+/// person made, so every platform lists it as hidden, a leading dot meaning nothing on Windows.
+#[cfg(windows)]
+const PARTIAL_PREFIX: &[u8] = b".waypoint-partial-";
+
+#[cfg(windows)]
+fn is_partial(name: &OsStr) -> bool {
+    name.as_encoded_bytes().starts_with(PARTIAL_PREFIX)
+}
+
 /// Whether the platform calls an entry hidden: a leading dot on Linux, the hidden attribute on
 /// Windows (where a leading dot means nothing).
 #[cfg(unix)]
@@ -78,10 +88,10 @@ fn is_hidden(name: &OsStr, _meta: Option<&Metadata>) -> bool {
 }
 
 #[cfg(windows)]
-fn is_hidden(_name: &OsStr, meta: Option<&Metadata>) -> bool {
+fn is_hidden(name: &OsStr, meta: Option<&Metadata>) -> bool {
     use std::os::windows::fs::MetadataExt;
     const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
-    meta.is_some_and(|m| m.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0)
+    is_partial(name) || meta.is_some_and(|m| m.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0)
 }
 
 /// Follows a symlink to learn what it points at. A broken link, a loop or a permission error all
@@ -536,6 +546,17 @@ pub(crate) fn stat_child(folder: &Path, name: &OsStr) -> io::Result<ScannedEntry
 
 #[cfg(test)]
 mod tests {
+    #[cfg(windows)]
+    #[test]
+    fn a_file_a_copy_is_still_writing_is_listed_as_hidden() {
+        use std::ffi::OsStr;
+        assert!(super::is_hidden(
+            OsStr::new(".waypoint-partial-3-7-report.pdf"),
+            None
+        ));
+        assert!(!super::is_hidden(OsStr::new("report.pdf"), None));
+    }
+
     use super::*;
 
     #[test]
