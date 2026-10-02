@@ -28,6 +28,26 @@ pub struct Keys {
     pub desktop: &'static str,
 }
 
+impl Keys {
+    /// The keys that hold `feature`; empty when this desktop has none.
+    fn table(&self, feature: AppearanceFeature) -> &'static [Key] {
+        match feature {
+            AppearanceFeature::ColourScheme => self.colour_scheme,
+            AppearanceFeature::Accent => self.accent,
+            AppearanceFeature::Contrast => self.contrast,
+            AppearanceFeature::ReducedMotion => self.animations,
+            AppearanceFeature::TextScale => self.text_scale,
+            AppearanceFeature::IconTheme => self.icon_theme,
+            AppearanceFeature::ReducedTransparency => &[],
+        }
+    }
+
+    /// Whether `gsettings` has a key for `feature` on this desktop, so asking can find an answer.
+    pub fn supplies(&self, feature: AppearanceFeature) -> bool {
+        !self.table(feature).is_empty()
+    }
+}
+
 pub const GNOME: Keys = Keys {
     colour_scheme: &[("org.gnome.desktop.interface", "color-scheme")],
     accent: &[("org.gnome.desktop.interface", "accent-color")],
@@ -94,15 +114,7 @@ pub fn read_with(
 ) -> SourceReading {
     let mut reading = SourceReading::new(AppearanceSource::Gsettings);
     for &feature in wanted {
-        let table: &[Key] = match feature {
-            AppearanceFeature::ColourScheme => keys.colour_scheme,
-            AppearanceFeature::Accent => keys.accent,
-            AppearanceFeature::Contrast => keys.contrast,
-            AppearanceFeature::ReducedMotion => keys.animations,
-            AppearanceFeature::TextScale => keys.text_scale,
-            AppearanceFeature::IconTheme => keys.icon_theme,
-            AppearanceFeature::ReducedTransparency => &[],
-        };
+        let table = keys.table(feature);
         if table.is_empty() {
             reading.miss(
                 feature,
