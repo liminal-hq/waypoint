@@ -823,3 +823,147 @@ mod folder_size {
         assert!(second.is_cancelled());
     }
 }
+
+mod dir_scan {
+    use std::sync::mpsc::{channel, Receiver};
+
+    use waypoint_vfs::{DirScanCache, DirScanEvent, DirScanOptions};
+
+    use super::*;
+
+    fn start(
+        app: &tauri::App<MockRuntime>,
+        label: &str,
+        root: &Path,
+        cache: Option<DirScanCache>,
+    ) -> (Result<u64, VfsError>, Receiver<DirScanEvent>) {
+        let (sender, receiver) = channel();
+        let started = app.state::<Vfs>().start_dir_scan(
+            label,
+            location(root),
+            DirScanOptions::default(),
+            cache,
+            move |event| sender.send(event).is_ok(),
+        );
+        (started, receiver)
+    }
+
+    fn terminal(receiver: &Receiver<DirScanEvent>) -> DirScanEvent {
+        loop {
+            let event = receiver
+                .recv_timeout(Duration::from_secs(10))
+                .expect("the scan ended");
+            if !matches!(
+                event,
+                DirScanEvent::Progress { .. } | DirScanEvent::Partial { .. }
+            ) {
+                return event;
+            }
+        }
+    }
+
+    fn tree() -> tempfile::TempDir {
+        let dir = folder_with(&["loose"]);
+        fs::create_dir_all(dir.path().join("A/inner")).unwrap();
+        fs::write(dir.path().join("A/inner/x"), vec![0u8; 40]).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_status_reports_the_scan() {
+        let app = app();
+        let status =
+            tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
+        assert!(status.features.iter().any(|f| f == "dir-size-scan"));
+    }
+
+    #[test]
+    fn a_scan_ends_with_done_is_cached_and_is_forgotten() {
+        let dir = tree();
+        let data = tempfile::tempdir().unwrap();
+        let app = app();
+        let cache = DirScanCache::in_dir(data.path());
+        let (job, events) = start(&app, "main", dir.path(), Some(cache.clone()));
+        assert_eq!(job.unwrap(), 1);
+        let DirScanEvent::Done { result } = terminal(&events) else {
+            panic!("expected done");
+        };
+        assert_eq!(result.rows[0].name, "A");
+        assert_eq!(result.rows[0].bytes, 40);
+        assert_eq!(cache.load(&location(dir.path())), Some(result));
+        for _ in 0..100 {
+            if app.state::<Vfs>().size_jobs.len() == 0 {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("the finished scan was not forgotten");
+    }
+
+    #[test]
+    fn a_missing_root_fails_and_a_cancelled_scan_is_not_cached() {
+        let data = tempfile::tempdir().unwrap();
+        let cache = DirScanCache::in_dir(data.path());
+        let app = app();
+        let (_, events) = start(
+            &app,
+            "main",
+            Path::new("/definitely/not/here"),
+            Some(cache.clone()),
+        );
+        assert!(matches!(terminal(&events), DirScanEvent::Failed { .. }));
+
+        let dir = tree();
+        let (job, events) = {
+            let (sender, receiver) = channel();
+            let calls = std::sync::atomic::AtomicUsize::new(0);
+            let job = app
+                .state::<Vfs>()
+                .start_dir_scan(
+                    "main",
+                    location(dir.path()),
+                    DirScanOptions::default(),
+                    Some(cache.clone()),
+                    move |event| {
+                        // Refuse the first event: a page that went away cancels the scan.
+                        let keep = calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) > 0;
+                        let _ = sender.send(event);
+                        keep
+                    },
+                )
+                .unwrap();
+            (job, receiver)
+        };
+        assert!(job > 0);
+        // A scan this small may finish before the refusal lands; either way one terminal event.
+        let end = terminal(&events);
+        assert!(matches!(
+            end,
+            DirScanEvent::Done { .. } | DirScanEvent::Cancelled { .. }
+        ));
+        if matches!(end, DirScanEvent::Cancelled { .. }) {
+            assert_eq!(cache.load(&location(dir.path())), None);
+        }
+    }
+
+    #[test]
+    fn a_window_cancels_only_its_own_scan() {
+        let app = app();
+        let vfs = app.state::<Vfs>();
+        let (id, token) = vfs.size_jobs.start("main");
+        tauri::async_runtime::block_on(commands::cancel_dir_scan(
+            window(&app, "other"),
+            app.state::<Vfs>(),
+            id,
+        ))
+        .unwrap();
+        assert!(!token.is_cancelled());
+        tauri::async_runtime::block_on(commands::cancel_dir_scan(
+            window(&app, "main"),
+            app.state::<Vfs>(),
+            id,
+        ))
+        .unwrap();
+        assert!(token.is_cancelled());
+    }
+}

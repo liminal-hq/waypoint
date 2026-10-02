@@ -109,6 +109,32 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
         return cmd('cancel_folder_size', { job });
     }
     /**
+     * Starts scanning the top-level folders of `location` for their sizes and resolves with the run as
+     * soon as it has started. `onEvent` gets `progress` about every 100 ms, a `partial` result after
+     * each top-level folder (every row so far, with its share of what has been scanned, and a
+     * remainder row for loose files and hidden items), and then exactly one `done`, `cancelled` or
+     * `failed`. The scan is low priority on a thread of its own, stays on one volume, never follows a
+     * symlink and never downloads a cloud placeholder. A finished scan is cached for
+     * `getCachedDirScan`.
+     */
+    async function scanDirSizes(location, onEvent, options) {
+        const channel = new core.Channel();
+        channel.onmessage = onEvent;
+        const job = await cmd('scan_dir_sizes', { location, options, onEvent: channel });
+        return { job, cancel: () => cancelDirScan(job) };
+    }
+    /** Stops a directory-size scan of this window. A scan that has ended is not an error. */
+    function cancelDirScan(job) {
+        return cmd('cancel_dir_scan', { job });
+    }
+    /**
+     * The last finished scan of `location`, with `measuredAtMs` for "as of <time>", or `null` when
+     * there is none.
+     */
+    function getCachedDirScan(location) {
+        return cmd('get_cached_dir_scan', { location });
+    }
+    /**
      * The first bytes of a file of an open listing as text: at most `max` bytes (default and ceiling
      * 256 KiB), decoded as UTF-8 with invalid sequences replaced. Rejects with `notText` for a binary
      * file and `isADirectory` for a folder.
@@ -164,6 +190,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
 
     exports.PREVIEW_SCHEME = PREVIEW_SCHEME;
     exports.addFavourite = addFavourite;
+    exports.cancelDirScan = cancelDirScan;
     exports.cancelFolderSize = cancelFolderSize;
     exports.checkFolder = checkFolder;
     exports.closeListing = closeListing;
@@ -171,6 +198,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     exports.entryDetails = entryDetails;
     exports.entryLocation = entryLocation;
     exports.folderSize = folderSize;
+    exports.getCachedDirScan = getCachedDirScan;
     exports.getFreeSpace = getFreeSpace;
     exports.getHome = getHome;
     exports.getRange = getRange;
@@ -186,6 +214,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     exports.readTextHead = readTextHead;
     exports.removeFavourite = removeFavourite;
     exports.renameFavourite = renameFavourite;
+    exports.scanDirSizes = scanDirSizes;
     exports.setFilter = setFilter;
     exports.setSort = setSort;
     exports.summariseSelection = summariseSelection;
