@@ -493,6 +493,37 @@ fn delete_refuses_roots_the_home_folder_and_mount_points() {
 }
 
 #[test]
+fn delete_and_trash_refuse_a_folder_that_holds_a_protected_path() {
+    each_provider!(|h, rule, links| {
+        let _ = (rule, links);
+        build(
+            &h,
+            &tree(&[
+                ("outer/", ""),
+                ("outer/mnt/", ""),
+                ("outer/mnt/data", "d"),
+                ("outer/other", "o"),
+            ]),
+        );
+        h.protected = Protected::new(vec![h.path("outer/mnt")]);
+        h.env.protected = h.protected.clone();
+        for kind in [JobKind::Delete, JobKind::Trash] {
+            assert!(matches!(
+                refused(h.request(kind, &["outer"], None, None), &mut h),
+                OpsError::Protected { .. }
+            ));
+        }
+        assert_eq!(work_tree(&h).len(), 4, "nothing was removed");
+        // Below the protected path and beside it, removal is fine.
+        let report = done(
+            h.request(JobKind::Delete, &["outer/other"], None, None),
+            &mut h,
+        );
+        assert_eq!(report.deleted.len(), 1);
+    });
+}
+
+#[test]
 fn delete_of_something_missing_is_refused_before_any_removal() {
     each_provider!(|h, rule, links| {
         let _ = (rule, links);

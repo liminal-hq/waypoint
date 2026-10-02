@@ -182,19 +182,57 @@ impl Protected {
         Self { paths }
     }
 
-    /// Whether `path` is a root or one of the listed paths (compared under `rule`).
+    /// Whether `path` is a root, one of the listed paths, or an ancestor of one (compared under
+    /// `rule`). An ancestor counts because removing or moving it takes the listed path with it:
+    /// `/home` when `~` is listed, or a folder with a mount point somewhere inside.
     pub fn contains(&self, path: &VfsPath, rule: CaseRule) -> bool {
         path.parent().is_none()
             || self
                 .paths
                 .iter()
-                .any(|p| crate::names::same_path(p, path, rule))
+                .any(|p| crate::names::is_within(p, path, rule))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn path(text: &str) -> VfsPath {
+        VfsPath::parse_input(&format!(
+            "{}{text}",
+            if cfg!(windows) { r"C:\" } else { "/" }
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn protection_covers_the_listed_paths_their_ancestors_and_roots() {
+        let protected = Protected::new(vec![path("home/me"), path("mnt/usb")]);
+        let rule = CaseRule::Sensitive;
+        // Listed, and an ancestor of a listed path (it would take the listed path with it).
+        for listed in ["home/me", "home", "mnt/usb", "mnt"] {
+            assert!(protected.contains(&path(listed), rule), "{listed}");
+        }
+        assert!(protected.contains(&path(""), rule), "a root");
+        // Below a listed path, a sibling and a lookalike are free.
+        for free in [
+            "home/me/docs",
+            "home/other",
+            "home/me2",
+            "mnt/usb/x",
+            "mnt/disk",
+        ] {
+            assert!(!protected.contains(&path(free), rule), "{free}");
+        }
+    }
+
+    #[test]
+    fn protection_compares_ancestors_under_the_case_rule() {
+        let protected = Protected::new(vec![path("Home/Me")]);
+        assert!(protected.contains(&path("home"), CaseRule::Insensitive));
+        assert!(!protected.contains(&path("home"), CaseRule::Sensitive));
+    }
 
     #[test]
     fn counter_ids_count_up_from_one() {
