@@ -6,6 +6,7 @@
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import { getStatus as osPrefsStatus } from '@liminal-hq/plugin-os-prefs';
 import { getStatus as systemAppearanceStatus } from '@liminal-hq/plugin-system-appearance';
+import { getStatus as thumbnailsStatus } from '@liminal-hq/plugin-thumbnails';
 import { getStatus as trashStatus } from '@liminal-hq/plugin-trash';
 import { getStatus as windowManagerStatus } from '@liminal-hq/plugin-window-manager';
 import { getStatus as windowTearoffStatus } from '@liminal-hq/plugin-window-tearoff';
@@ -55,6 +56,21 @@ export async function osPrefsServiceStatus(): Promise<PluginStatus> {
 	);
 }
 
+/** The thumbnails plugin's status in the shared shape: its features carry their own reasons. */
+export async function thumbnailsServiceStatus(): Promise<PluginStatus> {
+	const status = await thumbnailsStatus();
+	return summarise(
+		{ available: status.available, reason: status.reason?.message ?? null },
+		status.features.map(
+			(feature) =>
+				[
+					feature.name,
+					{ available: feature.available, reason: feature.reason?.message ?? null },
+				] as const,
+		),
+	);
+}
+
 /** The native drag and drop plugin's status in the shared shape. */
 export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	const status = await nativeDndStatus();
@@ -78,6 +94,7 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'os-prefs': osPrefsServiceStatus,
 	'system-appearance': systemAppearanceStatus,
 	'window-tearoff': windowTearoffStatus,
+	thumbnails: thumbnailsServiceStatus,
 };
 
 /** Asks every plugin whether it works here; one that cannot answer is reported unavailable with the error as its reason. */

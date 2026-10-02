@@ -21,6 +21,7 @@
 	},
 	"dependencies": {
 		"@liminal-hq/plugin-os-prefs": "workspace:*",
+		"@liminal-hq/plugin-thumbnails": "workspace:*",
 		"@liminal-hq/plugin-trash": "workspace:*",
 		"@liminal-hq/plugin-system-appearance": "workspace:*",
 		"@liminal-hq/plugin-window-manager": "workspace:*",
