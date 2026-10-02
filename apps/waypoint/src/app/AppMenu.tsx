@@ -12,7 +12,6 @@ import {
 	parseHistoryRow,
 } from '../commands/appMenuModel';
 import { useCommandBridge, useCommands } from '../commands/commandBridge';
-import { useSettings } from '../settings/SettingsContext';
 import type { CommandId } from '../commands/registry';
 import { t } from '../i18n/messages';
 import { AppMarkIcon } from '../icons/AppIcons';
@@ -26,7 +25,6 @@ import { AppMarkIcon } from '../icons/AppIcons';
 export function AppMenu() {
 	const { commands, facts, run } = useCommands();
 	const bridge = useCommandBridge();
-	const showLabel = useSettings((value) => value.ui.appMenuLabel);
 	const items = useMemo(() => appMenuItems(commands, facts), [commands, facts]);
 	const onSelect = useCallback(
 		(item: { id: string }) => {
@@ -49,7 +47,6 @@ export function AppMenu() {
 		<AppMenuButton
 			label={t('app.name')}
 			mark={<AppMarkIcon />}
-			showLabel={showLabel}
 			items={items}
 			onSelect={onSelect}
 			mnemonics={APP_MENU_MNEMONICS}

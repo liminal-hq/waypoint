@@ -73,12 +73,12 @@ export function GeneralPage() {
 			</SettingsGroup>
 			<SettingsGroup title={t('settings.group.titleBar')}>
 				<ToggleRow
-					label={t('settings.general.appMenuLabel.label')}
-					description={t('settings.general.appMenuLabel.description')}
-					error={errors.appMenuLabel}
-					checked={settings.ui.appMenuLabel}
-					onChange={(appMenuLabel) =>
-						changeSettings('appMenuLabel', (s) => ({ ...s, ui: { ...s.ui, appMenuLabel } }))
+					label={t('settings.general.appNameInTitle.label')}
+					description={t('settings.general.appNameInTitle.description')}
+					error={errors.appNameInTitle}
+					checked={settings.ui.appNameInTitle}
+					onChange={(appNameInTitle) =>
+						changeSettings('appNameInTitle', (s) => ({ ...s, ui: { ...s.ui, appNameInTitle } }))
 					}
 				/>
 			</SettingsGroup>

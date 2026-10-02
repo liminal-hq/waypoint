@@ -10,6 +10,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
+import { useSettings } from '../settings/SettingsContext';
 import { MainOps } from '../ops/MainOps';
 import { collectServiceStatuses } from '../services/serviceStatuses';
 import { tabsApi } from '../services/tabsApi';
@@ -78,6 +79,7 @@ type Startup =
 	| { state: 'failed'; reason: string };
 
 export function MainScreen() {
+	const appName = useSettings((value) => value.ui.appNameInTitle);
 	// What the menu, the Action bar and the keys' commands read: the workspace and the window publish into it.
 	const [bridge] = useState(createCommandBridge);
 	const [startup, setStartup] = useState<Startup>({ state: 'starting' });
@@ -100,7 +102,10 @@ export function MainScreen() {
 		<CommandBridgeProvider value={bridge}>
 			<WindowFrame className={styles.screen}>
 				<WindowCommands />
-				<AppTitleBar title={t('window.main.title')} start={<AppMenu />} />
+				<AppTitleBar
+					title={t(appName ? 'window.main.titleWithApp' : 'window.main.title')}
+					start={<AppMenu />}
+				/>
 				{startup.state === 'failed' ? (
 					<main className={styles.content}>
 						<p role="alert" className={styles.failure}>
