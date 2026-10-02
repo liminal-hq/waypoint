@@ -156,8 +156,15 @@ mod linux {
         progress: &mut dyn FnMut(u64),
         cancel: &CancelToken,
     ) -> Fast {
-        let input = match File::open(src) {
+        // A symlink source is `Unhandled` (as on Windows), so the caller decides what copying a link
+        // means instead of this path silently copying its target.
+        let input = match OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(src)
+        {
             Ok(file) => file,
+            Err(e) if e.raw_os_error() == Some(libc::ELOOP) => return Fast::Unhandled,
             Err(e) => return Fast::Failed(e),
         };
         let meta = match input.metadata() {
@@ -268,6 +275,24 @@ mod tests {
         if set_times(&path, times).is_ok() {
             assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), old);
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_fast_copy_leaves_a_symlink_source_to_the_caller() {
+        let dir = tempfile::tempdir().unwrap();
+        let (real, link, dst) = (
+            dir.path().join("real"),
+            dir.path().join("link"),
+            dir.path().join("dst"),
+        );
+        fs::write(&real, b"data").unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let fast = copy_fast(&link, &dst, &mut |_| {}, &CancelToken::new());
+        assert!(matches!(fast, Fast::Unhandled));
+        assert!(!dst.exists());
+        let fast = copy_fast(&real, &dst, &mut |_| {}, &CancelToken::new());
+        assert!(matches!(fast, Fast::Done(4)));
     }
 
     #[test]
