@@ -1,14 +1,15 @@
-// The toolbar row: back, forward and up with their history, and the path bar
+// The toolbar row: back, forward and up with their history, the path bar and the panel toggles
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BackIcon, ForwardIcon, UpIcon } from '../icons/AppIcons';
 import { t } from '../i18n/messages';
 import { NavButton } from './NavButton';
 import styles from './NavigationBar.module.css';
 import { requestPaneFocus } from '../tabs/paneFocus';
+import { PanelToggles } from './PanelToggles';
 import { PathBar } from './PathBar';
 import { useTabActions } from '../tabs/tabActions';
 import { useWindowActions } from '../tabs/windowActions';
@@ -73,12 +74,7 @@ function useNavigationShortcuts(navigation: Navigation, editPath: () => void): v
 	}, [navigation, editPath]);
 }
 
-interface NavigationBarProps {
-	/** Controls that come before back and forward, such as the sidebar toggle. */
-	leading?: ReactNode;
-}
-
-export function NavigationBar({ leading }: NavigationBarProps) {
+export function NavigationBar() {
 	const navigation = useNavigation();
 	const { openInBackground } = useTabActions();
 	const { openInNewWindow } = useWindowActions();
@@ -93,7 +89,6 @@ export function NavigationBar({ leading }: NavigationBarProps) {
 
 	return (
 		<div className={styles.bar} role="toolbar" aria-label={t('nav.toolbar.label')}>
-			{leading}
 			<NavButton
 				label={t('nav.back')}
 				icon={<BackIcon />}
@@ -131,6 +126,7 @@ export function NavigationBar({ leading }: NavigationBarProps) {
 					onCommitted={() => requestPaneFocus(tab.id)}
 				/>
 			)}
+			<PanelToggles />
 		</div>
 	);
 }

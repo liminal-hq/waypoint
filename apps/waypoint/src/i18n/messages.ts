@@ -173,6 +173,8 @@ export const enMessages = {
 	'browse.selection.other': '{count} items selected',
 
 	'nav.toolbar.label': 'Navigation',
+	'nav.panels.label': 'Panels',
+	'nav.panels.more': 'More panels',
 	'nav.back': 'Back',
 	'nav.forward': 'Forward',
 	'nav.up': 'Up',
@@ -494,7 +496,6 @@ export const enMessages = {
 	'view.gridSize.value': '{size} pixels',
 
 	'sidebar.label': 'Sidebar',
-	'sidebar.toggle': 'Sidebar',
 	'sidebar.section.places': 'Places',
 	'sidebar.section.favourites': 'Favourites',
 	'sidebar.section.favouritesIn': 'Favourites · {name}',

@@ -92,7 +92,9 @@ describe('showing and hiding', () => {
 		await mount();
 		await waitFor(() => expect(options().length).toBeGreaterThan(0));
 		expect(shelf()).toBeNull();
-		const toggle = screen.getByRole('button', { name: 'Shelf' });
+		const toggle = within(screen.getByRole('group', { name: 'Status bar' })).getByRole('button', {
+			name: 'Shelf',
+		});
 		expect(toggle).toHaveAttribute('aria-pressed', 'false');
 		const panel = await openShelf();
 		expect(toggle).toHaveAttribute('aria-pressed', 'true');

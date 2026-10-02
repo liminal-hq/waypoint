@@ -1,0 +1,7 @@
+.group {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
+	margin-inline-start: 4px;
+}
