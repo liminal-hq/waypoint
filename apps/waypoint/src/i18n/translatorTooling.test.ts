@@ -144,7 +144,7 @@ describe('export', () => {
 	it('writes English in source order with a message and a note, and no hash', () => {
 		const out = exportEnglish(english);
 		expect(Object.keys(out)).toEqual(english.keys);
-		expect(Object.keys(out['a.name']!)).toEqual(['message', 'note']);
+		expect(Object.keys(out['a.name']!)).toEqual(['message', 'description']);
 		const text = stringifyTranslations(out);
 		expect(text.startsWith('{\n  "a.name": {\n    "message": "Name",')).toBe(true);
 		expect(text.endsWith('}\n')).toBe(true);
@@ -162,7 +162,7 @@ describe('export', () => {
 		expect(Object.keys(out)).toEqual(['a.name', 'a.tabs.one', 'a.tabs.many', 'zzz.extra']);
 		expect(out['a.tabs.many']!.source).toBe('00000000');
 		expect(out['a.name']!.source).toBe(hashMessage('Name'));
-		expect(out['zzz.extra']!.note).toContain('Not a message English has');
+		expect(out['zzz.extra']!.description).toContain('Not a message English has');
 	});
 });
 
@@ -442,10 +442,10 @@ describe('the checked-in translation files', () => {
 	it('hold every English message, in source order, in en-CA.json', () => {
 		const file = JSON.parse(readFileSync(translationPath(ws, 'en-CA'), 'utf8')) as Record<
 			string,
-			{ message: string; note: string }
+			{ message: string; description: string }
 		>;
 		expect(Object.keys(file)).toEqual(Object.keys(enMessages));
-		expect(file['browse.column.kind']!.note).toContain('Not the file extension');
+		expect(file['browse.column.kind']!.description).toContain('Not the file extension');
 	});
 
 	it('pass the whole check', async () => {

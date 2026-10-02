@@ -20,13 +20,13 @@ A flat JSON object in English source order, one entry per message:
 ```json
 "tabs.count.one": {
   "message": "{count} onglet",
-  "note": "Area: tabs. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are tabs.count.many, tabs.count.other.",
+  "description": "Area: tabs. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are tabs.count.many, tabs.count.other.",
   "source": "219e92dc"
 }
 ```
 
 - `message` is the translation. An empty message counts as untranslated.
-- `note` is written for you by the exporter; changing it does nothing. It gives the **area** (the first part of the key: `settings`, `browse`, `ops`), each `{placeholder}` and what it stands for, whether the message is one of a **plural** group and its other forms, and any comment the developers wrote for the translator in the English source, which is where a word like "Kind" or "Open" says which sense is meant.
+- `description` is the note written for you by the exporter; changing it does nothing. It gives the **area** (the first part of the key: `settings`, `browse`, `ops`), each `{placeholder}` and what it stands for, whether the message is one of a **plural** group and its other forms, and any comment the developers wrote for the translator in the English source, which is where a word like "Kind" or "Open" says which sense is meant.
 - `source` is a short hash of the English text the translation was made from. When English changes, the hash no longer matches, the message is **stale**, and `bun run i18n:status` lists it as needing review. English's own file, `en-CA.json`, has `message` and `note` only.
 
 ## Placeholders

@@ -41,7 +41,7 @@ export interface CatalogueEntry {
 /** One entry of a `translations/<locale>.json` file. */
 export interface TranslationEntry {
 	message: string;
-	note: string;
+	description: string;
 	/** Present in a translation file, absent from the English one. */
 	source?: string;
 }
@@ -375,7 +375,7 @@ export function noteFor(key: string, english: EnglishContext, tag: string): stri
 export function exportEnglish(english: EnglishContext): Record<string, TranslationEntry> {
 	const out: Record<string, TranslationEntry> = {};
 	for (const entry of english.entries) {
-		out[entry.key] = { message: entry.message, note: noteFor(entry.key, english, 'en') };
+		out[entry.key] = { message: entry.message, description: noteFor(entry.key, english, 'en') };
 	}
 	return out;
 }
@@ -406,7 +406,7 @@ export function exportTranslation(
 		const current = sourceKey ? hashMessage(english.byKey.get(sourceKey)!.message) : '';
 		out[key] = {
 			message: entry.message,
-			note: noteFor(key, english, tag),
+			description: noteFor(key, english, tag),
 			source: recordedSource(entry.comments) ?? current,
 		};
 	}
