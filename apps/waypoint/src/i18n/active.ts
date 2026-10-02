@@ -5,10 +5,17 @@
 
 import { useSyncExternalStore } from 'react';
 import { FALLBACK_LOCALE, pluralTagFor, type Locale } from './locales';
-import type { MessageId } from './messages';
+import type { MessageId, PluralId } from './messages';
+import type { PluralCategory } from './pluralForms';
 
-/** A catalogue: some or all of the messages, in one locale. A missing one falls back to English. */
-export type Catalogue = Partial<Record<MessageId, string>>;
+/** A plural form of a group in any category, such as `tabs.count.few`; English only has `one` and `other`. */
+export type PluralFormId = `${PluralId}.${PluralCategory}`;
+
+/**
+ * A catalogue: some or all of the messages, in one locale. A missing one falls back to English. A
+ * plural group holds the categories the locale's rules list, which may be more than English's two.
+ */
+export type Catalogue = Partial<Record<MessageId | PluralFormId, string>>;
 
 interface ActiveLocale {
 	locale: Locale;

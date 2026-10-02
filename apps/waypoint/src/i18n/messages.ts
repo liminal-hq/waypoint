@@ -10,7 +10,8 @@ import { activeMessages, formatLocale, pluralLocale } from './active';
  * Screens and the chrome's labels read their copy through `t()`, never from a literal in JSX; the
  * other locales are catalogues with the same keys that `loadCatalogue` brings in on demand (A68).
  * Keys are `area.thing`, and a value is plain text with `{name}` tokens; plurals are a `.one` and
- * an `.other` message, chosen by `tn` with `Intl.PluralRules`.
+ * an `.other` message here (another language may add `.zero`, `.two`, `.few` and `.many`), chosen by
+ * `tn` with `Intl.PluralRules`.
  */
 export const enMessages = {
 	'window.main.title': 'Main',
@@ -1787,7 +1788,7 @@ export function tf(id: MessageId, values: Record<string, string | number>): stri
 	);
 }
 
-/** Message identifiers that have a `.one` and an `.other` form, named by their shared prefix. */
+/** Message identifiers that have plural forms, named by their shared prefix (`tabs.count`). */
 export type PluralId = MessageId extends infer K
 	? K extends `${infer Base}.other`
 		? Base
@@ -1796,12 +1797,14 @@ export type PluralId = MessageId extends infer K
 
 /**
  * The message for `count` of something, choosing the plural form the locale's rules give
- * (`Intl.PluralRules`; a form the catalogue does not spell out uses `.other`) and replacing
- * `{count}` with the number formatted for that locale.
+ * (`Intl.PluralRules`: `zero`, `one`, `two`, `few`, `many` or `other`). A form neither the catalogue
+ * nor English spells out uses `.other`. `{count}` is replaced with the number formatted for that
+ * locale.
  */
 export function tn(id: PluralId, count: number, locale?: string): string {
 	const form = new Intl.PluralRules(locale ?? pluralLocale()).select(count);
-	const key = `${id}.${form}`;
-	const chosen = (key in enMessages || key in activeMessages() ? key : `${id}.other`) as MessageId;
+	const exact = `${id}.${form}`;
+	const own = activeMessages() as Record<string, string | undefined>;
+	const chosen = (exact in enMessages || exact in own ? exact : `${id}.other`) as MessageId;
 	return tf(chosen, { count: new Intl.NumberFormat(locale ?? formatLocale()).format(count) });
 }
