@@ -59,6 +59,13 @@ describe('what the dialog shows', () => {
 		).toBeInTheDocument();
 	});
 
+	it('names the nested folder a conflict is in, not the job’s destination', () => {
+		mount([conflictFor('clash.txt', { existing: fileLocation('/dest/tree/clash.txt') })]);
+		expect(
+			screen.getByRole('dialog', { name: '1 item already exists in /dest/tree' }),
+		).toBeInTheDocument();
+	});
+
 	it('uses the singular for one', () => {
 		mount([conflictFor('a.txt')]);
 		expect(

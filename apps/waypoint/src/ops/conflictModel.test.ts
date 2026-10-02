@@ -9,6 +9,7 @@ import {
 	NO_ANSWERS,
 	buildAnswer,
 	bulkChoices,
+	conflictFolder,
 	conflictsKey,
 	coverage,
 	dateHint,
@@ -161,5 +162,31 @@ describe('conflictsKey', () => {
 	it('changes with the set of clashes, not with their order of arrival of equal ones', () => {
 		expect(conflictsKey([conflictFor('a')])).toBe(conflictsKey([conflictFor('a')]));
 		expect(conflictsKey([conflictFor('a')])).not.toBe(conflictsKey([conflictFor('b')]));
+	});
+});
+
+describe('conflictFolder', () => {
+	const inFolder = (folder: string, name: string) =>
+		conflictFor(name, {
+			existing: { uri: `file://${folder}/${name}`, display: `${folder}/${name}` },
+		});
+
+	it('names the folder the clashing entries are in, not the job’s destination', () => {
+		expect(
+			conflictFolder([inFolder('/dest/tree', 'a'), inFolder('/dest/tree', 'b')], '/dest'),
+		).toBe('/dest/tree');
+	});
+
+	it('falls back to the destination when they are in different folders or have no parent', () => {
+		expect(conflictFolder([inFolder('/dest/x', 'a'), inFolder('/dest/y', 'b')], '/dest')).toBe(
+			'/dest',
+		);
+		expect(conflictFolder([], '/dest')).toBe('/dest');
+		expect(
+			conflictFolder(
+				[conflictFor('a', { existing: { uri: 'file:///a', display: '/a' } })],
+				'/dest',
+			),
+		).toBe('/dest');
 	});
 });
