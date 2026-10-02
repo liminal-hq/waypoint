@@ -24,6 +24,7 @@
 		"@liminal-hq/plugin-thumbnails": "workspace:*",
 		"@liminal-hq/plugin-trash": "workspace:*",
 		"@liminal-hq/plugin-volumes": "workspace:*",
+		"@liminal-hq/plugin-mime-apps": "workspace:*",
 		"@liminal-hq/plugin-system-appearance": "workspace:*",
 		"@liminal-hq/plugin-window-effects": "workspace:*",
 		"@liminal-hq/plugin-window-manager": "workspace:*",

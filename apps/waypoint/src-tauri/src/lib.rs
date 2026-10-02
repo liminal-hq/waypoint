@@ -148,6 +148,7 @@ pub fn run() {
         .plugin(tauri_plugin_thumbnails::init())
         .plugin(tauri_plugin_volumes::init())
         .plugin(tauri_plugin_window_effects::init())
+        .plugin(tauri_plugin_mime_apps::init())
         .plugin(tauri_plugin_native_dnd::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
         // After the store plugin it saves through; the session reads its choices (start-up, the view
