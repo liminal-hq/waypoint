@@ -74,6 +74,7 @@ describe('the registered sources', () => {
 			'system-appearance',
 			'thumbnails',
 			'trash',
+			'volumes',
 			'waypoint-ops',
 			'waypoint-session',
 			'waypoint-settings',
