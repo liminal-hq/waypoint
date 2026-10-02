@@ -22,6 +22,8 @@ import { createTauriTearoffClient } from '../services/tauriTearoffClient';
 import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
+import { createTauriDirScanClient } from '../services/tauriDirScanClient';
+import { HomeScanProvider } from '../overview/HomeScanContext';
 import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
 import { createTauriOpenWithClient } from '../openWith/tauriOpenWithClient';
@@ -86,6 +88,7 @@ function start(): Promise<MainServices> {
 		createThumbnailsClient: createTauriThumbnailsClient,
 		createDetailsClient: createTauriDetailsClient,
 		createPropertiesWindowClient: createTauriPropertiesWindowClient,
+		createDirScanClient: createTauriDirScanClient,
 	});
 }
 
@@ -140,35 +143,37 @@ export function MainScreen() {
 											<ThumbnailsProvider client={startup.services.thumbnails}>
 												<DetailsClientProvider client={startup.services.details}>
 													<PropertiesWindowProvider client={startup.services.propertiesWindow}>
-														<TabsProvider
-															api={startup.services.tabsApi}
-															home={startup.services.home}
-														>
-															<main className={styles.content}>
-																{DevLiveControls && startup.services.demo && (
-																	<Suspense fallback={null}>
-																		<DevLiveControls
-																			client={startup.services.demo.client}
-																			location={startup.services.home}
+														<HomeScanProvider client={startup.services.dirScan}>
+															<TabsProvider
+																api={startup.services.tabsApi}
+																home={startup.services.home}
+															>
+																<main className={styles.content}>
+																	{DevLiveControls && startup.services.demo && (
+																		<Suspense fallback={null}>
+																			<DevLiveControls
+																				client={startup.services.demo.client}
+																				location={startup.services.home}
+																			/>
+																		</Suspense>
+																	)}
+																	<MainOps
+																		client={startup.services.ops}
+																		osClipboard={startup.services.osClipboard}
+																	>
+																		<Workspace
+																			startup={{
+																				view: startup.services.view,
+																				notice: startup.services.notice,
+																			}}
+																			tearoff={startup.services.tearoff}
+																			nativeDnd={startup.services.nativeDnd}
 																		/>
-																	</Suspense>
-																)}
-																<MainOps
-																	client={startup.services.ops}
-																	osClipboard={startup.services.osClipboard}
-																>
-																	<Workspace
-																		startup={{
-																			view: startup.services.view,
-																			notice: startup.services.notice,
-																		}}
-																		tearoff={startup.services.tearoff}
-																		nativeDnd={startup.services.nativeDnd}
-																	/>
-																</MainOps>
-																<CommandPaletteHost />
-															</main>
-														</TabsProvider>
+																	</MainOps>
+																	<CommandPaletteHost />
+																</main>
+															</TabsProvider>
+														</HomeScanProvider>
 													</PropertiesWindowProvider>
 												</DetailsClientProvider>
 											</ThumbnailsProvider>

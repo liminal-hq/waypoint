@@ -29,6 +29,8 @@ import { DetailsClientProvider } from '../inspector/DetailsClientContext';
 import type { DetailsClient } from '../services/detailsClient';
 import { PropertiesWindowProvider } from '../inspector/PropertiesWindowContext';
 import type { PropertiesWindowClient } from '../services/propertiesWindowClient';
+import type { DirScanClient } from '../services/dirScanClient';
+import { HomeScanProvider } from '../overview/HomeScanContext';
 
 export const HOME = fileLocation('/home/test');
 export const DOCS = fileLocation('/home/test/docs');
@@ -75,6 +77,8 @@ export async function renderWorkspace(
 		details?: DetailsClient;
 		/** The Properties windows service (Alt+Enter and the item menu offer none when omitted). */
 		propertiesWindow?: PropertiesWindowClient;
+		/** The directory-size scan behind Overview's biggest folders in Home (Overview offers no measurement when omitted). */
+		dirScan?: DirScanClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
@@ -114,14 +118,16 @@ export async function renderWorkspace(
 			<PlacesClientProvider client={places}>
 				<TrashClientProvider client={options.trash}>
 					<DevicesClientProvider client={options.devices}>
-						{options.ops ? (
-							<OpsProvider client={options.ops} windowLabel="main-1">
-								{workspace}
-								<OpsResolverHost />
-							</OpsProvider>
-						) : (
-							workspace
-						)}
+						<HomeScanProvider client={options.dirScan}>
+							{options.ops ? (
+								<OpsProvider client={options.ops} windowLabel="main-1">
+									{workspace}
+									<OpsResolverHost />
+								</OpsProvider>
+							) : (
+								workspace
+							)}
+						</HomeScanProvider>
 					</DevicesClientProvider>
 				</TrashClientProvider>
 			</PlacesClientProvider>
