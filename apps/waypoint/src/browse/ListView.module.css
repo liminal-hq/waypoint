@@ -193,7 +193,7 @@
 .row {
 	position: absolute;
 	top: 0;
-	left: 0;
+	inset-inline-start: 0;
 	width: 100%;
 	height: var(--wp-row-height);
 	transform: translateY(var(--wp-row-y));
@@ -278,7 +278,7 @@
 .groupHeader {
 	position: absolute;
 	top: 0;
-	left: 0;
+	inset-inline-start: 0;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -316,7 +316,7 @@
 .groupHeader[data-collapsed] .chevron {
 	border-inline: 0;
 	border-block: 4px solid transparent;
-	border-left: 5px solid currentcolor;
+	border-inline-start: 5px solid currentcolor;
 }
 
 .groupTitle {
