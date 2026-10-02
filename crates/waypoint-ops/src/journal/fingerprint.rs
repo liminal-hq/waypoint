@@ -56,9 +56,9 @@ fn describe(
 ) -> Result<Fingerprint, VfsError> {
     match entry.kind {
         EntryKind::Directory => {
-            // (path below the folder, kind, size, file time), sorted so the hash does not depend
-            // on the order the provider lists in.
-            let mut rows: Vec<(String, u64, u64, i64)> = Vec::new();
+            // (path below the folder, kind, size, file time, link text), sorted so the hash does not
+            // depend on the order the provider lists in.
+            let mut rows: Vec<(String, u64, u64, i64, String)> = Vec::new();
             let mut stack = vec![(path.clone(), String::new())];
             let cancel = CancelToken::new();
             while let Some((folder, prefix)) = stack.pop() {
@@ -66,6 +66,18 @@ fn describe(
                     let name = child.name.to_string_lossy().into_owned();
                     let key = format!("{prefix}{name}");
                     let is_file = child.kind == EntryKind::File;
+                    // A child link is kept by where it points, so a retargeted one is a change.
+                    let link = if child.kind == EntryKind::Symlink {
+                        let at = folder
+                            .join(&child.name)
+                            .map_err(|_| VfsError::InvalidName {
+                                name: name.clone(),
+                                reason: "not a usable name".to_owned(),
+                            })?;
+                        provider.read_link(&at)?.to_string_lossy().into_owned()
+                    } else {
+                        String::new()
+                    };
                     rows.push((
                         key.clone(),
                         kind_code(child.kind),
@@ -75,6 +87,7 @@ fn describe(
                         } else {
                             0
                         },
+                        link,
                     ));
                     if child.kind == EntryKind::Directory {
                         let below =
@@ -90,11 +103,14 @@ fn describe(
             }
             rows.sort();
             let mut hash = Fnv::new();
-            for (key, kind, size, modified) in &rows {
+            for (key, kind, size, modified, link) in &rows {
                 hash.bytes(key.as_bytes());
                 hash.number(*kind);
                 hash.number(*size);
                 hash.number(*modified as u64);
+                hash.bytes(link.as_bytes());
+                // Keeps `a` + `bc` apart from `ab` + `c`.
+                hash.number(link.len() as u64);
             }
             Ok(Fingerprint {
                 is_dir: true,

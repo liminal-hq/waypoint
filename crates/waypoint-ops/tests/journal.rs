@@ -634,3 +634,30 @@ fn the_wire_shapes_are_plain() {
     );
     assert!(error.to_string().contains("cannot be undone"));
 }
+
+#[test]
+fn a_folders_fingerprint_notices_a_child_link_that_was_retargeted() {
+    each_journal_provider!(|h, rule, links| {
+        let _ = rule;
+        if !links {
+            return;
+        }
+        let mut t = tree(&[("d/", ""), ("d/f", "x")]);
+        t.insert("d/ln".to_owned(), Node::Link("f".to_owned()));
+        jbuild(&h, &t);
+        let at = h.path("d");
+        let before = fingerprint(h.provider.as_ref(), &at).unwrap();
+        assert!(same_fingerprint(
+            &before,
+            &fingerprint(h.provider.as_ref(), &at).unwrap()
+        ));
+        // The link is replaced by one that points elsewhere; nothing else changes.
+        let link = h.path("d/ln");
+        h.provider.remove_file(&link).unwrap();
+        h.provider
+            .symlink(&link, std::ffi::OsStr::new("elsewhere"))
+            .unwrap();
+        let after = fingerprint(h.provider.as_ref(), &at).unwrap();
+        assert!(!same_fingerprint(&before, &after));
+    });
+}
