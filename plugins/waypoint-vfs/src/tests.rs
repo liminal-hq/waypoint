@@ -458,6 +458,45 @@ fn a_selection_resolves_to_locations_in_view_order_for_the_owning_window_only() 
 }
 
 #[test]
+fn entries_are_located_one_by_one_in_the_order_asked_for_the_owning_window_only() {
+    let dir = folder_with(&["a.txt", "b.txt", "c.txt"]);
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let id = |name: &str| entries.iter().find(|e| e.name == name).unwrap().id;
+    let vfs = app.state::<Vfs>();
+
+    // The order asked for is kept (not the view's), and a repeated id is answered twice.
+    let ids = [
+        id("c.txt"),
+        id("a.txt"),
+        id("c.txt"),
+        waypoint_protocol::EntryId(9999),
+    ];
+    let located = vfs.locate_entries("main", snapshot.handle, &ids).unwrap();
+    let tail = |l: &Option<Location>| {
+        l.as_ref()
+            .map(|l| l.display.rsplit('/').next().unwrap().to_owned())
+    };
+    let names: Vec<_> = located.iter().map(tail).collect();
+    assert_eq!(
+        names,
+        [
+            Some("c.txt".to_owned()),
+            Some("a.txt".to_owned()),
+            Some("c.txt".to_owned()),
+            None
+        ]
+    );
+    assert!(located[0].as_ref().unwrap().uri.starts_with("file://"));
+
+    // Another window cannot locate this window's entries.
+    assert_eq!(
+        vfs.locate_entries("other", snapshot.handle, &ids),
+        Err(VfsError::StaleHandle)
+    );
+}
+
+#[test]
 fn entry_commands_are_scoped_to_the_owning_window() {
     let dir = folder_with(&["a.txt"]);
     let app = app();
