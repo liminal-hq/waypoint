@@ -250,7 +250,8 @@ fn a_job_that_replaced_something_is_not_journalled_and_says_so() {
                 break;
             }
         }
-        // A folder replace too.
+        // A Replace chosen for all never replaces a whole folder: the folders merge, nothing is
+        // replaced, and the job is journalled like any other merge.
         let run = h.run_journalled(transfer(
             &h,
             JobKind::Copy,
@@ -259,8 +260,8 @@ fn a_job_that_replaced_something_is_not_journalled_and_says_so() {
             Some(ConflictPolicy::Replace),
         ));
         finished(&run, &h);
-        assert_eq!(run.entry, None);
-        assert!(run.report.unwrap().transfer.unjournalled.is_some());
+        assert!(run.entry.is_some());
+        assert!(run.report.unwrap().transfer.unjournalled.is_none());
     });
 }
 
