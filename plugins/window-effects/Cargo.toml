@@ -1,0 +1,59 @@
+[package]
+name = "tauri-plugin-window-effects"
+version = "0.1.0"
+description = "Tauri plugin for window effects: report which of transparency, background blur, Mica, Acrylic and the shadow inset work, and apply them per window, on Windows, and on Linux through the Wayland blur protocols, X11 and GTK"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-window-effects"
+keywords = ["tauri", "plugin", "blur", "mica", "acrylic", "transparency"]
+categories = ["api-bindings", "gui"]
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Mica needs Windows 11 (build 22000 or later), Acrylic needs Windows 10 version 1809 or later and Blur works on both, all through Tauri's `set_effects`, with the build number read through `RtlGetVersion`; type-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the plugin's ignored `live_mica` test. The shadow inset is reported unavailable" }
+linux = { level = "partial", notes = "Blur is set on Wayland through `ext_background_effect_manager_v1` or KDE's `org_kde_kwin_blur_manager` (on GTK's own surface) and on X11 through `_KDE_NET_WM_BLUR_BEHIND_REGION`; GNOME and Cinnamon cannot blur behind a window and report why. The shadow inset is `gdk_window_set_shadow_width`" }
+macos = { level = "none", notes = "Reports every feature unavailable" }
+android = { level = "none", notes = "Desktop only" }
+ios = { level = "none", notes = "Desktop only" }
+
+[lib]
+name = "tauri_plugin_window_effects"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+log = { workspace = true }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gdk = "0.18"
+gdkx11 = "0.18"
+gtk = "0.18"
+libc = "0.2"
+wayland-backend = { version = "0.3", features = ["client_system"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-protocols-plasma = { version = "0.3", features = ["client"] }
+x11rb = { version = "0.13", default-features = false }
+
+# Matches the version Tauri resolves, so the types line up.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Wdk_System_SystemServices",
+  "Win32_Foundation",
+  "Win32_System_SystemInformation",
+] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tokio = { workspace = true, features = ["rt", "macros", "sync", "time"] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
