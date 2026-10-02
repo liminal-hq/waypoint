@@ -17,7 +17,8 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SO
 
 SRC="${OPS_SANDBOX_SRC:-crates/waypoint-ops/src}"
 
-# Each pattern is an extended regular expression.
+# Each pattern is an extended regular expression. `.canonicalize()` is the standard library's
+# argument-less `Path` method; `Provider::canonicalize(path)` takes an argument and is allowed.
 PATTERNS=(
   'std::fs'
   '\bfs::[a-z_]+\('
@@ -28,7 +29,7 @@ PATTERNS=(
   'HOME'
   'XDG_'
   'tempfile'
-  '\.canonicalize\('
+  '\.canonicalize\(\)'
   '\.exists\(\)'
   '\.is_dir\(\)'
   '\.is_file\(\)'
