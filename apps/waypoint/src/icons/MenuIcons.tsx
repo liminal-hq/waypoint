@@ -305,7 +305,16 @@ export const MoveToIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+/** Settings: a gear with eight teeth around a hub. */
 export const SettingsIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M6.90 3.23 L7.08 1.46 L8.92 1.46 L9.10 3.23 L10.60 3.84 L11.97 2.73 L13.27 4.03 L12.16 5.40 L12.77 6.90 L14.54 7.08 L14.54 8.92 L12.77 9.10 L12.16 10.60 L13.27 11.97 L11.97 13.27 L10.60 12.16 L9.10 12.77 L8.92 14.54 L7.08 14.54 L6.90 12.77 L5.40 12.16 L4.03 13.27 L2.73 11.97 L3.84 10.60 L3.23 9.10 L1.46 8.92 L1.46 7.08 L3.23 6.90 L3.84 5.40 L2.73 4.03 L4.03 2.73 L5.40 3.84z" />
+		<circle cx="8" cy="8" r="2" />
+	</Glyph>
+);
+
+/** The radial mark that was Settings' first icon, kept as a spare: a hub with eight spokes. */
+export const SunburstIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<circle cx="8" cy="8" r="2" />
 		<path d="M8 1.8v1.7M8 12.5v1.7M1.8 8h1.7M12.5 8h1.7M3.6 3.6l1.2 1.2M11.2 11.2l1.2 1.2M12.4 3.6l-1.2 1.2M4.8 11.2l-1.2 1.2" />
