@@ -550,7 +550,12 @@ macro_rules! sweep_over_providers {
                             scenario.name
                         );
                     }
-                    if rule == CaseRule::Insensitive && scenario.name.contains("case-only") {
+                    // A forward case-only rename is direct where the provider allows it; only the undo goes
+                    // through a set-aside name that a crash can leave behind.
+                    if rule == CaseRule::Insensitive
+                        && scenario.name.contains("case-only")
+                        && scenario.name.starts_with("undo")
+                    {
                         assert!(restored > 0, "{}: recovery put nothing back", scenario.name);
                     }
                 }
