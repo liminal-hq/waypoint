@@ -1,0 +1,112 @@
+/* The preview body: a stage for the picture, text or media, and the name, kind and size under it. */
+.preview {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-inline-size: 0;
+}
+
+.stage {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	min-block-size: 160px;
+	padding: 8px;
+	border-radius: 6px;
+	background: var(--wp-bg-hover);
+	overflow: hidden;
+}
+
+.thumbnail {
+	inline-size: 128px;
+	block-size: 128px;
+	color: var(--wp-text-muted);
+}
+
+/* An image is drawn over the thumbnail once it has loaded, and the thumbnail is the stage until then. */
+.image {
+	position: absolute;
+	inset: 8px;
+	inline-size: calc(100% - 16px);
+	block-size: calc(100% - 16px);
+	object-fit: contain;
+	opacity: 0;
+}
+
+.image[data-loaded] {
+	opacity: 1;
+}
+
+.stage[data-preview='image'] {
+	min-block-size: 200px;
+}
+
+.media {
+	inline-size: 100%;
+	max-inline-size: 100%;
+}
+
+.stage[data-preview='audio'] .thumbnail,
+.stage[data-preview='text'] .thumbnail {
+	inline-size: 48px;
+	block-size: 48px;
+}
+
+.textBlock {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-inline-size: 0;
+}
+
+.text {
+	box-sizing: border-box;
+	max-block-size: 260px;
+	margin: 0;
+	padding: 8px;
+	overflow: auto;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	background: var(--wp-bg-sidebar);
+	color: var(--wp-text-primary);
+	font-family: var(--wp-font-mono, ui-monospace, monospace);
+	font-size: 12px;
+	line-height: 1.4;
+	white-space: pre;
+	tab-size: 4;
+}
+
+.text:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.notice {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+}
+
+.summary {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.name {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.facts {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}
