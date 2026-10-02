@@ -17,6 +17,8 @@
 	--wp-text-muted: #7d756e;
 	--wp-accent: #c2410c;
 	--wp-accent-fg: #ffffff;
+	/* What the chrome reads for text on the accent: always the same colour as `--wp-accent-fg`, whatever the scheme. */
+	--wp-accent-contrast: var(--wp-accent-fg);
 	--wp-danger: #b91c1c;
 	--wp-success: #15803d;
 	--wp-warning: #a16207;
@@ -57,7 +59,9 @@
 	--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 45%, transparent);
 
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
-	--wp-row-height: 28px;
+	--wp-text-scale: 1;
+	--wp-row-height: calc(28px * var(--wp-text-scale));
+	--wp-hit-target: 28px;
 
 	/* The operations ring, its popover and the job rows. Built from the base tokens, so every theme
 	   (light, dark, high contrast) follows without redefining them. */
@@ -215,7 +219,7 @@ body,
 
 body {
 	font-family: system-ui, sans-serif;
-	font-size: 14px;
+	font-size: calc(14px * var(--wp-text-scale, 1));
 	/* A window is not a web page: labels, file names and chrome are not selectable text. */
 	-webkit-user-select: none;
 	user-select: none;
@@ -240,4 +244,81 @@ select,
 		--wp-ops-motion: 0ms;
 		--wp-file-drag-shake: 0px;
 	}
+}
+
+/*
+ * What the theme engine (`theme/appearance.ts`) decides, as attributes on the root: density,
+ * touch, text scale (`--wp-text-scale`), reduced motion, high contrast and a stronger focus ring.
+ */
+:root[data-density='compact'] {
+	--wp-row-height: calc(24px * var(--wp-text-scale));
+}
+
+:root[data-density='spacious'] {
+	--wp-row-height: calc(34px * var(--wp-text-scale));
+}
+
+/* Touch mode: hit targets of at least 44 px. */
+:root[data-touch='true'] {
+	--wp-row-height: calc(44px * var(--wp-text-scale));
+	--wp-hit-target: 44px;
+}
+
+:root[data-motion='reduce'] {
+	--wp-drag-motion: 0ms;
+	--wp-drag-hold-split: 0ms;
+	--wp-palette-motion: 0ms;
+}
+
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+	animation-duration: 0.01ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.01ms !important;
+	scroll-behavior: auto !important;
+}
+
+:root[data-focus='strong'] {
+	--wp-focus-ring-width: 3px;
+}
+
+/* High contrast: black on white or white on black, strong borders, and an accent that keeps 7:1 or better. */
+:root[data-contrast='high'] {
+	--wp-bg-window: #ffffff;
+	--wp-bg-sidebar: #ffffff;
+	--wp-bg-content: #ffffff;
+	--wp-bg-raised: #ffffff;
+	--wp-bg-hover: #e6e6e6;
+	--wp-bg-selected: #cfe0ff;
+	--wp-border-subtle: #000000;
+	--wp-text-primary: #000000;
+	--wp-text-secondary: #000000;
+	--wp-text-muted: #1a1a1a;
+	--wp-accent: #0000b3;
+	--wp-accent-fg: #ffffff;
+	--wp-danger: #9b0000;
+	--wp-success: #00561f;
+	--wp-warning: #6b3f00;
+	--wp-focus-ring: #000000;
+	--wp-focus-ring-width: 3px;
+}
+
+:root[data-contrast='high'][data-theme='dark'] {
+	--wp-bg-window: #000000;
+	--wp-bg-sidebar: #000000;
+	--wp-bg-content: #000000;
+	--wp-bg-raised: #000000;
+	--wp-bg-hover: #262626;
+	--wp-bg-selected: #003a8c;
+	--wp-border-subtle: #ffffff;
+	--wp-text-primary: #ffffff;
+	--wp-text-secondary: #ffffff;
+	--wp-text-muted: #e6e6e6;
+	--wp-accent: #ffff00;
+	--wp-accent-fg: #000000;
+	--wp-danger: #ff8080;
+	--wp-success: #80ff9f;
+	--wp-warning: #ffd966;
+	--wp-focus-ring: #ffffff;
 }

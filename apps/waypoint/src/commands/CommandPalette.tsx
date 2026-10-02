@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { prefersReducedMotion } from '../theme/motion';
 import {
 	useEffect,
 	useId,
@@ -43,14 +44,6 @@ export interface CommandPaletteProps {
 	/** A row that can run was chosen. The host closes the palette and runs it. */
 	onChoose: (target: PaletteTarget) => void;
 	onClose: () => void;
-}
-
-function prefersReducedMotion(): boolean {
-	try {
-		return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-	} catch {
-		return false;
-	}
 }
 
 /**
