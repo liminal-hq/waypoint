@@ -210,6 +210,13 @@ impl Store {
         self.shelf.clear();
     }
 
+    /// Docks the Shelf without a mutation (no revision, no event), keeping the window's geometry and
+    /// on-top choice. The app does it at start-up when the session is not being restored, so a
+    /// fresh start opens one window with the Shelf docked in it.
+    pub fn dock_shelf(&mut self) {
+        self.shelf_window.undocked = false;
+    }
+
     /// This store without its windows: the saved workspaces, the closed tabs and every counter
     /// stay, so a start that opens one fresh window (the "Open Home" start-up setting) does not
     /// lose what the document holds besides windows, and ids are still never reused. The Shelf

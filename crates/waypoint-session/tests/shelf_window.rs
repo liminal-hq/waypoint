@@ -251,3 +251,14 @@ fn the_state_survives_a_round_trip_and_an_older_document_loads_docked() {
     let (older, _) = Store::from_document(doc).unwrap();
     assert_eq!(*older.shelf_window(), ShelfWindow::default());
 }
+
+#[test]
+fn docking_for_a_fresh_start_is_silent_and_keeps_the_choices() {
+    let mut s = store_with(&["a"]);
+    undock(&mut s, W);
+    run(&mut s, SHELF_LABEL, Command::SetShelfOnTop { on_top: true });
+    let revision = s.revision();
+    s.dock_shelf();
+    assert_eq!(s.revision(), revision);
+    assert!(!s.shelf_window().undocked && s.shelf_window().on_top);
+}

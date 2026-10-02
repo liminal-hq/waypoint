@@ -18,7 +18,8 @@ use tauri::{
     WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_waypoint_session::{Sessions, WindowError, WindowFactory};
-use waypoint_session::{Command, Geometry};
+use waypoint_protocol::SHELF_LABEL;
+use waypoint_session::{Command, Geometry, ShelfWindow};
 
 /// The size a window opens at when the session has no geometry for it, in logical pixels.
 const DEFAULT_SIZE: (f64, f64) = (1100.0, 720.0);
@@ -277,7 +278,7 @@ pub fn position_applies() -> bool {
         && std::env::var("GDK_BACKEND").map_or(true, |b| !b.starts_with("x11")))
 }
 
-fn monitors<R: Runtime>(app: &AppHandle<R>) -> Vec<Area> {
+pub(crate) fn monitors<R: Runtime>(app: &AppHandle<R>) -> Vec<Area> {
     app.available_monitors()
         .unwrap_or_default()
         .iter()
@@ -431,6 +432,15 @@ impl<R: Runtime> WindowFactory<R> for TauriWindowFactory {
             .is_some_and(|hold| hold.take(opener, Instant::now()));
         build_main_window(app, label, geometry.or(placed.as_ref()), hidden).map(drop)
     }
+
+    fn create_shelf(
+        &self,
+        app: &AppHandle<R>,
+        shelf: &ShelfWindow,
+        _opener: Option<&str>,
+    ) -> Result<(), WindowError> {
+        crate::shelf_window::build(app, shelf).map(drop)
+    }
 }
 
 /// Sends a window's geometry to the store, at most once per `GEOMETRY_DELAY` per window.
@@ -492,7 +502,7 @@ fn read_geometry<R: Runtime>(
 }
 
 impl GeometryCapture {
-    /// Call for every window event of a main window.
+    /// Call for every window event of a main window or the Shelf window.
     pub fn on_event<R: Runtime>(&self, window: &tauri::Window<R>, event: &WindowEvent) {
         if !matches!(event, WindowEvent::Moved(_) | WindowEvent::Resized(_)) {
             return;
@@ -518,15 +528,26 @@ impl GeometryCapture {
                 return;
             };
             let sessions = app.state::<Sessions<R>>();
-            let previous = sessions.with_store(|s| s.window(&label).and_then(|w| w.geometry));
+            // The Shelf window's geometry is the store's own, kept apart from every main window's.
+            let shelf = label == SHELF_LABEL;
+            let previous = sessions.with_store(|s| {
+                if shelf {
+                    s.shelf_window().geometry
+                } else {
+                    s.window(&label).and_then(|w| w.geometry)
+                }
+            });
             if let Some(geometry) = read_geometry(&window, previous) {
                 if previous != Some(geometry) {
+                    let command = if shelf {
+                        Command::SetShelfGeometry { geometry }
+                    } else {
+                        Command::SetGeometry { geometry }
+                    };
                     // A window the store no longer holds (closing) is not an error worth more
                     // than a debug line, and must not be registered again: that would save an
                     // empty ghost window.
-                    if let Err(e) =
-                        sessions.run_existing(&app, &label, Command::SetGeometry { geometry })
-                    {
+                    if let Err(e) = sessions.run_existing(&app, &label, command) {
                         log::debug!("geometry of `{label}` not saved: {e}");
                     }
                 }

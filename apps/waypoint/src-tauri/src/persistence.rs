@@ -265,6 +265,10 @@ pub(crate) fn restored_for(mut store: Store, settings: &Settings) -> Store {
     if !settings.dnd.shelf_persist {
         store.forget_shelf();
     }
+    // A start that restores no windows opens one fresh window, and the Shelf docks in it.
+    if !crate::settings::restores_session(settings) {
+        store.dock_shelf();
+    }
     store
 }
 
@@ -319,7 +323,27 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
             log::error!("could not open the first window: {e}");
         }
     }
+    restore_shelf_window(app, &sessions);
     log::info!("session restored: {created} window(s)");
+}
+
+/// Brings the Shelf window back when the session left the Shelf undocked. When it cannot be made
+/// the Shelf docks again, so no main window is left without a dock and without a Shelf window.
+fn restore_shelf_window(app: &AppHandle, sessions: &Sessions<Wry>) {
+    let shelf = sessions.with_store(|s| *s.shelf_window());
+    if !shelf.undocked {
+        return;
+    }
+    if let Err(e) = crate::shelf_window::build(app, &shelf) {
+        log::warn!("could not restore the Shelf window: {e}; docking the Shelf");
+        if let Err(e) = sessions.run_existing(
+            app,
+            waypoint_protocol::SHELF_LABEL,
+            waypoint_session::Command::SetShelfUndocked { undocked: false },
+        ) {
+            log::warn!("could not dock the Shelf: {e}");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -398,6 +422,45 @@ mod tests {
         settings.general.startup = StartupMode::RestoreSession;
         let (store, _) = Store::from_document(saved_document()).unwrap();
         assert_eq!(restored_for(store.clone(), &settings), store);
+    }
+
+    fn undocked_document() -> Document {
+        let mut store = Store::new();
+        store
+            .dispatch(
+                "main-1",
+                Command::OpenWindow {
+                    location: Some(waypoint_protocol::Location::new("/", "file:///")),
+                    geometry: None,
+                },
+            )
+            .unwrap();
+        store
+            .dispatch("main-1", Command::SetShelfUndocked { undocked: true })
+            .unwrap();
+        store
+            .dispatch("shelf", Command::SetShelfOnTop { on_top: true })
+            .unwrap();
+        store.to_document()
+    }
+
+    #[test]
+    fn an_undocked_shelf_comes_back_undocked_when_the_session_is_restored() {
+        let mut settings = Settings::default();
+        settings.general.startup = StartupMode::RestoreSession;
+        let (store, _) = Store::from_document(undocked_document()).unwrap();
+        let restored = restored_for(store, &settings);
+        assert!(restored.shelf_window().undocked && restored.shelf_window().on_top);
+    }
+
+    #[test]
+    fn a_start_that_restores_no_windows_docks_the_shelf_and_keeps_its_choices() {
+        let mut settings = Settings::default();
+        settings.general.startup = StartupMode::Home;
+        let (store, _) = Store::from_document(undocked_document()).unwrap();
+        let restored = restored_for(store, &settings);
+        assert!(!restored.shelf_window().undocked);
+        assert!(restored.shelf_window().on_top);
     }
 
     #[test]

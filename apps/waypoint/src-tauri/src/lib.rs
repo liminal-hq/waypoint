@@ -8,6 +8,7 @@ mod ops_window;
 mod persistence;
 mod settings;
 mod settings_window;
+mod shelf_window;
 mod storage;
 mod windows;
 
@@ -159,7 +160,11 @@ pub fn run() {
             hold_next_window,
             show_window,
             ops_window::open_ops_window,
-            settings_window::open_settings_window
+            settings_window::open_settings_window,
+            shelf_window::raise_shelf_window,
+            shelf_window::toggle_shelf_window,
+            shelf_window::hide_shelf_window,
+            shelf_window::shelf_window_visible
         ])
         .setup({
             let saver = Arc::clone(&saver);
@@ -173,7 +178,13 @@ pub fn run() {
             let saver = Arc::clone(&saver);
             let flush = Arc::new(CloseFlush::default());
             move |window, event| {
-                if WindowKind::from_label(window.label()) != Some(WindowKind::Main) {
+                let kind = WindowKind::from_label(window.label());
+                // The Shelf window's place and size are kept too; closing it is not a session close.
+                if kind == Some(WindowKind::Shelf) {
+                    geometry.on_event(window, event);
+                    return;
+                }
+                if kind != Some(WindowKind::Main) {
                     return;
                 }
                 geometry.on_event(window, event);
