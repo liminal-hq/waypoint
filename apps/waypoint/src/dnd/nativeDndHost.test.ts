@@ -101,6 +101,44 @@ describe('files dragged in', () => {
 		expect(marked()).toBe(false);
 	});
 
+	it("follows a drag of this app's own files that the plugin reports while the operating system holds its events back (Windows)", async () => {
+		// The plugin sends enter, over and leave from the drag's own loop, then only the drop arrives.
+		const h = await nativeHarness();
+		const client = new FakeNativeDndClient();
+		await connect(client, h);
+		const marked = () => document.documentElement.hasAttribute(WINDOW_DROP_ATTRIBUTE);
+		client.enter(FILES, { x: 10, y: 10 });
+		expect(marked()).toBe(true);
+		expect(h.phase()).toBe('dragging');
+		client.over({ x: 30, y: 10 });
+		client.over({ x: 60, y: 10 });
+		expect(marked()).toBe(true);
+		client.leave();
+		expect(marked()).toBe(false);
+		expect(h.phase()).not.toBe('dragging');
+		client.enter(FILES, { x: 100, y: 100 });
+		expect(marked()).toBe(true);
+		h.over(mark('place', MUSIC.uri, 'Music'));
+		client.over({ x: 140, y: 100 }, { modifiers: { ctrl: true } });
+		client.drop(FILES, { x: 140, y: 100 }, { modifiers: { ctrl: true }, selfDrop: true });
+		await settle();
+		expect(marked()).toBe(false);
+		expect(h.transfers).toHaveLength(1);
+	});
+
+	it('does not begin a second drag for a drop that follows its own enter', async () => {
+		const h = await nativeHarness();
+		const client = new FakeNativeDndClient();
+		await connect(client, h);
+		h.over(mark('place', MUSIC.uri, 'Music'));
+		client.enter(FILES, { x: 100, y: 100 });
+		client.over({ x: 120, y: 100 });
+		client.drop(FILES, { x: 120, y: 100 });
+		await settle();
+		expect(h.transfers).toHaveLength(1);
+		expect(h.phase()).not.toBe('dragging');
+	});
+
 	it('does not mark the window for a drag of something that is not files', async () => {
 		const h = await nativeHarness();
 		const client = new FakeNativeDndClient();
