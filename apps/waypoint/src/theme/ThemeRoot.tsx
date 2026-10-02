@@ -6,6 +6,7 @@
 import { getStatus as windowEffectsStatus, hasFeature } from '@liminal-hq/plugin-window-effects';
 import { useEffect, useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, type SettingsClient } from '../services/settingsClient';
+import { createTauriOsAppearanceClient } from '../services/tauriOsAppearanceClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
 import {
 	applyAppearance,
@@ -13,12 +14,13 @@ import {
 	webOsAppearance,
 	type OsAppearanceSource,
 } from './appearance';
+import { pluginOsAppearance } from './pluginAppearance';
 import { applyTransparency } from './transparencyDom';
 
 interface ThemeRootProps {
 	/** The settings plugin's client; the real one unless a test supplies its own. */
 	client?: SettingsClient;
-	/** Where the OS preferences come from; the webview's media queries unless supplied. */
+	/** Where the OS preferences come from; the `system-appearance` plugin over the webview's media queries unless supplied. */
 	os?: OsAppearanceSource;
 	/** Whether the platform can make windows see-through: the window effects plugin's `opacity` feature unless supplied. */
 	opacityAvailable?: () => Promise<boolean>;
@@ -66,7 +68,9 @@ function hasFinePointer(): boolean {
  */
 export function ThemeRoot({ client, os, opacityAvailable, children }: ThemeRootProps) {
 	const [settingsClient] = useState(() => client ?? createTauriSettingsClient());
-	const [source] = useState(() => os ?? webOsAppearance());
+	const [source] = useState(
+		() => os ?? pluginOsAppearance(createTauriOsAppearanceClient(), webOsAppearance()),
+	);
 	const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 	const [touchPointer, setTouchPointer] = useState(false);
 	const [osVersion, setOsVersion] = useState(0);
