@@ -13,6 +13,8 @@ import { isBatchRenameKey } from '../ops/batchRename/useBatchRenameShortcut';
 import { handleFileKey, isRestoreKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
 import { isSettingsShortcut } from '../settings/openSettingsWindow';
 import { createSidebarStore } from '../sidebar/sidebarStore';
+import { createInspectorStore } from '../inspector/inspectorStore';
+import { useInspectorShortcuts } from '../inspector/useInspectorShortcuts';
 import { createShelfStore } from '../shelf/shelfStore';
 import { useShelfShortcuts } from '../shelf/useShelfShortcuts';
 import { useSidebarShortcuts } from '../sidebar/useSidebarShortcuts';
@@ -213,6 +215,12 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 	toggleShelf: (s) => {
 		const store = createShelfStore({ open: false });
 		renderHook(() => useShelfShortcuts(() => store.getState().toggleOpen()));
+		dispatchOnWindow(s);
+		expect(store.getState().open).toBe(true);
+	},
+	toggleInspector: (s) => {
+		const store = createInspectorStore({ open: false });
+		renderHook(() => useInspectorShortcuts(store));
 		dispatchOnWindow(s);
 		expect(store.getState().open).toBe(true);
 	},

@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { useStore } from 'zustand';
-import { useDetailsClient } from './DetailsClientContext';
+import { useDetailsClient } from '../inspector/DetailsClientContext';
 import { QuickLook } from './QuickLook';
 import { quickLookStore, type QuickLookStore } from './quickLookStore';
 

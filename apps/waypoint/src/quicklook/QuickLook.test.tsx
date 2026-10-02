@@ -16,7 +16,7 @@ import { FakeVfsClient, makeEntry } from '../services/fakeVfsClient';
 import { FOLDER, stubLayout } from '../test/browseHarness';
 import { createFakeThumbnailsClient } from '../thumbnails/fakeThumbnailsClient';
 import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
-import { DetailsClientProvider } from './DetailsClientContext';
+import { DetailsClientProvider } from '../inspector/DetailsClientContext';
 import { QuickLookHost } from './QuickLookHost';
 
 // In listing order: the folder first, then by name.

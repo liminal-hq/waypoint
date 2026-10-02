@@ -282,6 +282,25 @@ describe('availability', () => {
 		expect(actions.addToShelf).toHaveBeenCalledTimes(1);
 	});
 
+	it('lists the Inspector: F11 toggles it, and Properties needs a listing that is not the Trash', () => {
+		expect(commandDef('toggleInspector').shortcut).toBe('F11');
+		const closed = states(factsFor({ selected: 1 }));
+		expect(read(closed.toggleInspector)).toBe('enabled');
+		expect(closed.toggleInspector.checked).toBe(false);
+		expect(states(factsFor({}, { inspectorOpen: true })).toggleInspector.checked).toBe(true);
+		expect(read(closed.showProperties)).toBe('enabled');
+		expect(read(states(factsFor({ listing: false })).showProperties)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true })).showProperties)).toBe('hidden');
+	});
+
+	it('runs the Inspector commands through the window’s actions', () => {
+		const actions = { ...idleActions(), toggleInspector: vi.fn(), showProperties: vi.fn() };
+		for (const id of ['toggleInspector', 'showProperties'] as const) {
+			expect(runCommand(id, actions, factsFor({ selected: 1 })), id).toBe(true);
+			expect(actions[id], id).toHaveBeenCalledTimes(1);
+		}
+	});
+
 	it('offers Always on Top only where the window manager can do it', () => {
 		expect(read(states().alwaysOnTop)).toBe('hidden');
 		const supported = states(factsFor({}, { alwaysOnTop: { supported: true, on: true } }));

@@ -181,7 +181,15 @@ export function appMenuItems(
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
-		rows('showHidden', 'sidebar', 'toggleShelf', 'undockShelf', 'dockShelf', 'actionBar'),
+		rows(
+			'showHidden',
+			'sidebar',
+			'toggleShelf',
+			'undockShelf',
+			'dockShelf',
+			'toggleInspector',
+			'actionBar',
+		),
 		rows('splitView'),
 		rows('commandPalette'),
 	);

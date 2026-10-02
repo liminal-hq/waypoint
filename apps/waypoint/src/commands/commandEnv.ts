@@ -65,6 +65,8 @@ export interface CommandFacts {
 	shelfCount: number;
 	/** The Shelf is in its own window rather than docked in the main windows. */
 	shelfUndocked: boolean;
+	/** The Inspector panel is open. */
+	inspectorOpen: boolean;
 }
 
 /** The window's actions. Each one is what a shortcut, a menu or the Action bar already does; none is a second implementation. */
@@ -110,6 +112,9 @@ export interface CommandActions {
 	/** Moves the Shelf into its own window, and back into the main windows' docks. */
 	undockShelf(): void;
 	dockShelf(): void;
+	/** The Inspector: show or hide it, and open it on the Properties tab. */
+	toggleInspector(): void;
+	showProperties(): void;
 }
 
 export interface CommandEnv {
@@ -155,6 +160,7 @@ export function emptyFacts(): CommandFacts {
 		shelfOpen: false,
 		shelfCount: 0,
 		shelfUndocked: false,
+		inspectorOpen: false,
 	};
 }
 
@@ -195,5 +201,7 @@ export function idleActions(): CommandActions {
 		addToShelf: nothing,
 		undockShelf: nothing,
 		dockShelf: nothing,
+		toggleInspector: nothing,
+		showProperties: nothing,
 	};
 }
