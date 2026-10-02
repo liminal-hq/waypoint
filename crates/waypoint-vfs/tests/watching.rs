@@ -129,6 +129,7 @@ fn a_deleted_file_is_removed_from_its_position() {
     let (listing, events) = watched(dir.path());
     fs::remove_file(dir.path().join("b")).unwrap();
     wait_until("the removal", || names(&listing).len() == 2);
+    wait_until("the removal's event", || !changed(&events).is_empty());
     assert_eq!(names(&listing), ["a", "c"]);
     assert_eq!(
         changed(&events).concat(),
@@ -146,6 +147,7 @@ fn a_changed_file_is_updated_in_place() {
     wait_until("the update", || {
         listing.get_range(1, 1).first().and_then(|e| e.size) == Some(500)
     });
+    wait_until("the update's event", || !changed(&events).is_empty());
     assert_eq!(
         changed(&events).concat(),
         [PatchOp::Update { at: 1, count: 1 }]

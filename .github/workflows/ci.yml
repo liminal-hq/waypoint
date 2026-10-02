@@ -146,8 +146,16 @@ jobs:
           path: ${{ github.event_path }}
 
   rust-tests:
-    name: Rust tests
-    runs-on: ubuntu-latest
+    name: ${{ matrix.arch == 'x64' && 'Rust tests' || format('Rust tests ({0})', matrix.arch) }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
     container:
       image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
       credentials:
@@ -165,8 +173,10 @@ jobs:
       - run: bun run build
       - uses: Swatinem/rust-cache@v2
 
+      # Formatting and the generated bindings do not depend on the architecture, so x64 checks them.
       - name: Check formatting
         id: fmt
+        if: matrix.arch == 'x64'
         run: cargo fmt --all -- --check
 
       - name: Lint
@@ -184,13 +194,14 @@ jobs:
       # runs after the tests so the test build is reused and nothing compiles twice.
       - name: Check generated bindings for drift
         id: drift
+        if: matrix.arch == 'x64'
         run: bash scripts/check-bindings-drift.sh
 
       - name: Job summary
         if: always()
         run: |
           {
-            echo "## Rust tests"
+            echo "## Rust tests (${{ matrix.arch }})"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
             echo "| Format | \`${{ steps.fmt.outcome }}\` | \`cargo fmt --all -- --check\` |"
@@ -205,7 +216,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: rust-test-results
+          name: ${{ matrix.arch == 'x64' && 'rust-test-results' || format('rust-test-results-{0}', matrix.arch) }}
           path: target/nextest/ci/junit.xml
           if-no-files-found: error
 
@@ -214,13 +225,23 @@ jobs:
   # jobs so they build in parallel, and the tests run on nextest, which runs every test binary at once
   # (`cargo test` runs them one after another).
   windows-lint:
-    name: Windows lint
-    runs-on: windows-latest
+    name: ${{ matrix.arch == 'x64' && 'Windows lint' || format('Windows lint ({0})', matrix.arch) }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.arch == 'arm64'
       # The Tauri build script needs the built frontend (`frontendDist`).
       - run: bun install --frozen-lockfile
       # `bun run build` runs `tsc` first, so a module-name collision that only a case-insensitive file
@@ -237,17 +258,27 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Windows lint"
+            echo "## Windows lint (${{ matrix.arch }})"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
             echo "| Clippy | \`${{ steps.clippy.outcome }}\` | \`cargo clippy --workspace --all-targets -- -D warnings\` |"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   windows-tests:
-    name: Windows tests
-    runs-on: windows-latest
+    name: ${{ matrix.arch == 'x64' && 'Windows tests' || format('Windows tests ({0})', matrix.arch) }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.arch == 'arm64'
       # The crates under test do not embed the frontend, so there is nothing to build first.
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
@@ -267,7 +298,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Windows tests"
+            echo "## Windows tests (${{ matrix.arch }})"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
             echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
