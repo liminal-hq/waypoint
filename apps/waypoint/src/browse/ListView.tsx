@@ -54,6 +54,7 @@ import {
 	type OpenHandler,
 	type OpenInNewHandler,
 } from './useListInteractions';
+import { formatLocale } from '../i18n/active';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
@@ -436,14 +437,16 @@ function ListingBody({
 
 			{scanning && (
 				<div className={styles.notice} role="status" data-notice="scanning">
-					{tf('browse.scanning', { count: new Intl.NumberFormat().format(model.scanned) })}
+					{tf('browse.scanning', {
+						count: new Intl.NumberFormat(formatLocale()).format(model.scanned),
+					})}
 				</div>
 			)}
 			{hidden > 0 && (
 				<div className={styles.notice} role="status" data-notice="capped">
 					{tf('browse.capped', {
-						shown: new Intl.NumberFormat().format(shown),
-						total: new Intl.NumberFormat().format(count),
+						shown: new Intl.NumberFormat(formatLocale()).format(shown),
+						total: new Intl.NumberFormat(formatLocale()).format(count),
 					})}
 				</div>
 			)}

@@ -30,6 +30,7 @@ import { QuickLookPreview } from './QuickLookPreview';
 import { isPreviewable, neighbourPositions, stepTarget } from './quickLookModel';
 import type { ViewMove } from './quickLookStore';
 import styles from './QuickLook.module.css';
+import { formatLocale } from '../i18n/active';
 
 interface QuickLookProps {
 	session: ListingSession;
@@ -134,7 +135,7 @@ export function QuickLook({ session, move, client, onOpen, onClose }: QuickLookP
 	const canOpenWith =
 		openWith !== null && openWithCommandAvailable(openWithAbilities(openWith.status));
 
-	const number = (value: number) => new Intl.NumberFormat().format(value);
+	const number = (value: number) => new Intl.NumberFormat(formatLocale()).format(value);
 	const position = focus === null ? '' : number(focus + 1);
 	const total = number(count);
 	const name = entry?.name ?? t('quickLook.loading');

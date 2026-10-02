@@ -10,6 +10,7 @@ import type { HourCycle } from '../services/timeFormatClient';
 import { fuzzyMatch, type MatchRange } from './fuzzy';
 import { exactTime, relativeTime, type HistoryRow } from './historyCommands';
 import { GROUP_ORDER, type CommandId, type CommandView } from './registry';
+import { pluralLocale } from '../i18n/active';
 
 /** How many of the commands run last come first in an empty palette. */
 export const RECENT_LIMIT = 5;
@@ -184,7 +185,7 @@ export function paletteRows(input: PaletteInput): PaletteRow[] {
 /** The count the live region announces after the list changes. */
 export function countText(count: number): string {
 	if (count === 0) return t('palette.count.none');
-	const form = new Intl.PluralRules().select(count) === 'one' ? 'one' : 'other';
+	const form = new Intl.PluralRules(pluralLocale()).select(count) === 'one' ? 'one' : 'other';
 	return tf(`palette.count.${form}`, { count });
 }
 

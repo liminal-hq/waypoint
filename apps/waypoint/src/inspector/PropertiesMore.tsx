@@ -21,6 +21,7 @@ import {
 } from './propertiesDetailModel';
 import { permissionString } from './inspectorModel';
 import styles from './PropertiesMore.module.css';
+import { formatLocale } from '../i18n/active';
 
 const WHO_MESSAGE = {
 	owner: 'properties.perm.who.owner',
@@ -91,14 +92,16 @@ export function PropertiesMore({ entry, details }: { entry: Entry; details: Entr
 				{accessed && <Row label={t('inspector.field.accessed')}>{accessed}</Row>}
 				{size !== null && details.kind !== 'directory' && (
 					<Row label={t('properties.field.exactSize')}>
-						{tf('inspector.size.bytes', { bytes: new Intl.NumberFormat().format(size) })}
+						{tf('inspector.size.bytes', {
+							bytes: new Intl.NumberFormat(formatLocale()).format(size),
+						})}
 						<span className={styles.detail}>{formatSize(size)}</span>
 					</Row>
 				)}
 				{details.allocatedSize !== null && !missing('allocatedSize') && (
 					<Row label={t('properties.field.allocated')}>
 						{tf('inspector.size.bytes', {
-							bytes: new Intl.NumberFormat().format(details.allocatedSize),
+							bytes: new Intl.NumberFormat(formatLocale()).format(details.allocatedSize),
 						})}
 					</Row>
 				)}

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { HourCycle } from '../services/timeFormatClient';
+import { formatLocale } from '../i18n/active';
 
 export type PermissionWho = 'owner' | 'group' | 'others';
 
@@ -43,7 +44,7 @@ export function octalMode(mode: number): string {
 
 /** A moment written out in full for the person's locale, to the second (the system's 12 or 24-hour choice applies). */
 export function formatFullTime(ms: number, hourCycle?: HourCycle, locale?: string): string {
-	return new Intl.DateTimeFormat(locale, {
+	return new Intl.DateTimeFormat(locale ?? formatLocale(), {
 		dateStyle: 'full',
 		timeStyle: 'medium',
 		...(hourCycle ? { hour12: hourCycle === 'h12' } : {}),

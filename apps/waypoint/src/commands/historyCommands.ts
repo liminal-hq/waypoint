@@ -8,6 +8,7 @@ import { formatModified } from '../browse/format';
 import { t, tf } from '../i18n/messages';
 import type { ConfirmSpec, HistoryStepOutcome } from '../ops/fileCommands';
 import type { HourCycle } from '../services/timeFormatClient';
+import { formatLocale } from '../i18n/active';
 
 export type HistoryKind = 'undo' | 'redo';
 
@@ -181,7 +182,7 @@ export function relativeTime(
 ): string {
 	const seconds = Math.round((atMs - now) / 1000);
 	const away = Math.abs(seconds);
-	const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+	const format = new Intl.RelativeTimeFormat(locale ?? formatLocale(), { numeric: 'auto' });
 	if (away < 45) return format.format(0, 'second');
 	if (away < 45 * 60) return format.format(Math.round(seconds / 60), 'minute');
 	if (away < 22 * 3600) return format.format(Math.round(seconds / 3600), 'hour');
