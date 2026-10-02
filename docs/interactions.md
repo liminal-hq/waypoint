@@ -26,7 +26,7 @@
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous tab (most recently used)                                                                 |
 | Alt+1…9                   | Go to tab                                                                                                |
 | Ctrl+Shift+N              | New window (one tab at Home)                                                                             |
-| F10 / lone Alt            | Open the application menu with its first row focused                                                     |
+| F10 / lone Alt            | Open the application menu with its first row focused; again, close it and return focus                   |
 | Alt+F / E / V / W         | Open the application menu's File, Edit, View or Window menu                                              |
 | F7 / Shift+F7             | New folder / new file                                                                                    |
 | Ctrl+Shift+D              | Duplicate                                                                                                |
