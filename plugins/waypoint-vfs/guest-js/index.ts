@@ -3,9 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, convertFileSrc, invoke } from '@tauri-apps/api/core';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import type { EntryDetails } from '@liminal-hq/waypoint-protocol/generated/EntryDetails';
+import type { FolderSizeEvent } from '@liminal-hq/waypoint-protocol/generated/FolderSizeEvent';
+import type { FolderSizeTotals } from '@liminal-hq/waypoint-protocol/generated/FolderSizeTotals';
+import type { TextHead } from '@liminal-hq/waypoint-protocol/generated/TextHead';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
@@ -42,7 +46,7 @@ export interface OpenOptions {
 
 /**
  * Reports whether the file system plugin works here, and which features: `listing`, `watch`,
- * `places`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
+ * `places`, `entry-details`, `folder-size`, `text-head`, `preview-protocol`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
  * kept up to date by polling.
  */
 export function getStatus(): Promise<PluginStatus> {
@@ -134,6 +138,66 @@ export function openEntry(handle: ListingHandle, id: EntryId): Promise<void> {
 }
 
 /**
+ * Everything the Inspector shows about one entry of an open listing: kind, exact and allocated
+ * size, times, owner and group, permissions, symlink target, hidden flag and content type. A field
+ * the provider cannot report is named in `unavailable`; a field the entry does not have is `null`.
+ */
+export function entryDetails(handle: ListingHandle, id: EntryId): Promise<EntryDetails> {
+	return cmd<EntryDetails>('entry_details', { handle, id });
+}
+
+/** A running folder-size total. */
+export interface FolderSizeRun {
+	/** The run's id, which `cancelFolderSize` takes. */
+	job: number;
+	/** Stops the run; it ends with a `cancelled` event carrying the partial total. */
+	cancel(): Promise<void>;
+}
+
+/**
+ * Starts totalling a folder of an open listing and resolves with the run as soon as it has
+ * started. `onEvent` gets `progress` about every 100 ms and then exactly one `done`, `cancelled`
+ * or `failed`. The walk is low priority, stays on one volume, never follows a symlink and never
+ * downloads a cloud placeholder. Rejects (`notADirectory`) for an entry that is not a folder.
+ */
+export async function folderSize(
+	handle: ListingHandle,
+	id: EntryId,
+	onEvent: (event: FolderSizeEvent) => void,
+): Promise<FolderSizeRun> {
+	const channel = new Channel<FolderSizeEvent>();
+	channel.onmessage = onEvent;
+	const job = await cmd<number>('folder_size', { handle, id, onEvent: channel });
+	return { job, cancel: () => cancelFolderSize(job) };
+}
+
+/** Stops a folder-size run of this window. A run that has ended is not an error. */
+export function cancelFolderSize(job: number): Promise<void> {
+	return cmd<void>('cancel_folder_size', { job });
+}
+
+/**
+ * The first bytes of a file of an open listing as text: at most `max` bytes (default and ceiling
+ * 256 KiB), decoded as UTF-8 with invalid sequences replaced. Rejects with `notText` for a binary
+ * file and `isADirectory` for a folder.
+ */
+export function readTextHead(handle: ListingHandle, id: EntryId, max?: number): Promise<TextHead> {
+	return cmd<TextHead>('read_text_head', { handle, id, max: max ?? null });
+}
+
+/** The custom scheme that serves entries to this window. */
+export const PREVIEW_SCHEME = 'wpfile';
+
+/**
+ * The URL that serves an entry's bytes through the `wpfile` protocol, for an `<img>`, `<audio>`,
+ * `<video>` or `fetch`, with `Range` support. It is a token over this window's own listings, never
+ * a path: another window's URL, a closed listing and an entry that has gone all answer 404.
+ */
+export function previewUrl(handle: ListingHandle, id: EntryId): string {
+	return convertFileSrc(`${handle}-${id}`, PREVIEW_SCHEME);
+}
+
+/**
  * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
  * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
  */
@@ -179,6 +243,10 @@ export function onListingEvent(handler: (_event: ListingEvent) => void): Promise
 
 export type {
 	Entry,
+	EntryDetails,
+	FolderSizeEvent,
+	FolderSizeTotals,
+	TextHead,
 	EntryId,
 	Filter,
 	FolderCheck,
