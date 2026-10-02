@@ -30,6 +30,55 @@ pub fn normalise(path: &str) -> String {
     text
 }
 
+/// Drops the verbatim prefix `std::fs::canonicalize` adds: `\\\\?\\C:\\a` becomes `C:\\a` and `\\\\?\\UNC\\server\\share\\a` becomes `\\\\server\\share\\a`. Any other path is returned as it is.
+pub fn strip_verbatim(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix("\\\\?\\UNC\\") {
+        return format!("\\\\{rest}");
+    }
+    match path.strip_prefix("\\\\?\\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_string(),
+        _ => path.to_string(),
+    }
+}
+
+/// Resolves `.` and `..` parts without touching the file system, after turning slashes into backslashes: `C:\Users\me\Documents\..` is `C:\Users\me`. A `..` at the top of a drive or share stays there, as Windows does. The drive (`C:`) or share (`\\server\share`) is kept as it is.
+pub fn clean(path: &str) -> String {
+    let text = path.replace('/', "\\");
+    let (prefix, rest) = if let Some(unc) = text.strip_prefix("\\\\") {
+        let mut parts = unc.splitn(3, '\\');
+        let (server, share) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+        (
+            format!("\\\\{server}\\{share}"),
+            parts.next().unwrap_or("").to_string(),
+        )
+    } else if text.as_bytes().get(1) == Some(&b':') {
+        (text[..2].to_string(), text[2..].to_string())
+    } else {
+        (String::new(), text.clone())
+    };
+    let mut kept: Vec<&str> = Vec::new();
+    for part in rest.split('\\') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                kept.pop();
+            }
+            name => kept.push(name),
+        }
+    }
+    if kept.is_empty() {
+        return if prefix.ends_with(':') {
+            format!("{prefix}\\")
+        } else {
+            prefix
+        };
+    }
+    if prefix.is_empty() {
+        return kept.join("\\");
+    }
+    format!("{prefix}\\{}", kept.join("\\"))
+}
+
 /// Whether two Windows paths name the same thing: the same text, ignoring case and a trailing separator.
 pub fn same_path(a: &str, b: &str) -> bool {
     normalise(a).to_lowercase() == normalise(b).to_lowercase()
@@ -81,7 +130,8 @@ pub fn original_name(display: &str, bin_path: &str) -> String {
 
 /// Why the plugin will not trash a path on Windows: a drive root, the user's profile folder or one of its parents, or something in a Recycle Bin. `None` when the path is fine.
 pub fn refusal(path: &str, profile: Option<&str>) -> Option<&'static str> {
-    let path = normalise(path);
+    // `Documents\..` names the folder above it, so judge the path with its `.` and `..` resolved.
+    let path = clean(path);
     if split_parent(&path).is_none() {
         return Some("a drive or a root cannot be trashed");
     }
@@ -90,7 +140,7 @@ pub fn refusal(path: &str, profile: Option<&str>) -> Option<&'static str> {
         return Some("the Recycle Bin cannot be trashed");
     }
     if let Some(profile) = profile {
-        let profile = normalise(profile).to_lowercase();
+        let profile = clean(profile).to_lowercase();
         if profile == lower || profile.starts_with(&format!("{}\\", lower.trim_end_matches('\\'))) {
             return Some("the user's profile folder and its parents cannot be trashed");
         }
@@ -206,6 +256,52 @@ mod tests {
         assert!(refusal("C:\\Users\\mellow", profile).is_none());
         assert!(refusal("C:\\$Recycle.Bin\\S-1\\$R1", profile).is_some());
         assert!(refusal("D:\\a", None).is_none());
+    }
+
+    #[test]
+    fn dots_are_resolved_without_the_file_system() {
+        assert_eq!(clean("C:\\Users\\me\\Documents\\.."), "C:\\Users\\me");
+        assert_eq!(
+            clean("C:/Users/me/./Documents/../a.txt"),
+            "C:\\Users\\me\\a.txt"
+        );
+        assert_eq!(clean("C:\\a\\..\\.."), "C:\\");
+        assert_eq!(clean("C:\\..\\x"), "C:\\x");
+        assert_eq!(clean("C:\\"), "C:\\");
+        // No drive: nothing is invented.
+        assert_eq!(clean("a\\.\\b"), "a\\b");
+        assert_eq!(clean("name"), "name");
+        assert_eq!(clean("C:\\a\\\\b\\"), "C:\\a\\b");
+        assert_eq!(clean("\\\\server\\share\\a\\..\\b"), "\\\\server\\share\\b");
+        assert_eq!(clean("\\\\server\\share\\.."), "\\\\server\\share");
+    }
+
+    #[test]
+    fn the_verbatim_prefix_is_dropped() {
+        assert_eq!(strip_verbatim("\\\\?\\C:\\Users\\me"), "C:\\Users\\me");
+        assert_eq!(
+            strip_verbatim("\\\\?\\UNC\\server\\share\\a"),
+            "\\\\server\\share\\a"
+        );
+        assert_eq!(strip_verbatim("C:\\a"), "C:\\a");
+        // A device path is not a drive path and stays as it is.
+        assert_eq!(strip_verbatim("\\\\?\\Volume{1}\\a"), "\\\\?\\Volume{1}\\a");
+    }
+
+    #[test]
+    fn dot_dot_cannot_hide_a_protected_path() {
+        let profile = Some("C:\\Users\\me");
+        assert!(refusal("C:\\Users\\me\\Documents\\..", profile).is_some());
+        assert!(refusal("C:\\Users\\me\\a\\..\\..", profile).is_some());
+        assert!(refusal("C:\\Users\\me\\a\\..\\..\\..", profile).is_some());
+        assert!(refusal("C:\\Users\\me\\.", profile).is_some());
+        assert!(refusal("C:/Users/me/Documents/../..", profile).is_some());
+        assert!(refusal("C:\\x\\..\\$Recycle.Bin\\S-1\\$R1", profile).is_some());
+        assert!(refusal("C:\\Users\\me\\Documents\\..\\Pictures\\a.txt", profile).is_none());
+        // The profile may itself be given with dots.
+        assert!(refusal("C:\\Users\\me", Some("C:\\Users\\other\\..\\me")).is_some());
+        assert!(refusal("C:\\a\\..", None).is_some());
+        assert!(refusal("name", None).is_some(), "a bare name is not a path");
     }
 
     #[test]

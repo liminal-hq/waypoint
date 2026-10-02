@@ -100,18 +100,31 @@ struct BinItem {
     item: TrashedItem,
 }
 
-fn item_size(path: &Path) -> (u64, bool) {
-    fn total(path: &Path) -> u64 {
-        match std::fs::symlink_metadata(path) {
-            Ok(metadata) if metadata.is_dir() => std::fs::read_dir(path)
-                .map(|read| read.flatten().map(|entry| total(&entry.path())).sum())
-                .unwrap_or(0),
-            Ok(metadata) => metadata.len(),
-            Err(_) => 0,
-        }
+/// What a bin item is, from one `stat`: whether it is a folder, and its size when it is a file. A folder's size takes a walk of its whole tree, which must not happen on the main thread, so it is left 0 here and filled in by `fill_folder_sizes`.
+fn item_kind(path: &Path) -> (u64, bool) {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() => (0, true),
+        Ok(metadata) => (metadata.len(), false),
+        Err(_) => (0, false),
     }
-    let is_dir = std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_dir());
-    (total(path), is_dir)
+}
+
+/// The total size of the files under `path`, not following links.
+fn tree_size(path: &Path) -> u64 {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() => std::fs::read_dir(path)
+            .map(|read| read.flatten().map(|entry| tree_size(&entry.path())).sum())
+            .unwrap_or(0),
+        Ok(metadata) => metadata.len(),
+        Err(_) => 0,
+    }
+}
+
+/// Fills in the size of every folder in `items` by walking it. It touches no COM object, so it runs on any thread, and `Platform::list` runs it on a blocking one instead of the main thread.
+pub fn fill_folder_sizes(items: &mut [TrashedItem]) {
+    for item in items.iter_mut().filter(|item| item.is_dir) {
+        item.size = tree_size(Path::new(&item.receipt.trash_id));
+    }
 }
 
 /// Every item in every drive's Recycle Bin.
@@ -164,7 +177,7 @@ fn read_item(shell: &IShellItem) -> Option<TrashedItem> {
         (location, deleted)
     };
     let original = winmap::join_original(&location, &name);
-    let (size, is_dir) = item_size(Path::new(&bin_path));
+    let (size, is_dir) = item_kind(Path::new(&bin_path));
     Some(TrashedItem {
         receipt: TrashReceipt {
             trash_id: bin_path,
@@ -210,6 +223,23 @@ fn perform(operation: &IFileOperation) -> Result<(), TrashError> {
     Ok(())
 }
 
+/// A folder with its links and short names resolved, as the file system spells it.
+fn resolve_folder(folder: &str) -> String {
+    let cleaned = winmap::clean(folder);
+    std::fs::canonicalize(&cleaned).map_or(cleaned, |real| {
+        winmap::strip_verbatim(&real.to_string_lossy())
+    })
+}
+
+/// The path to trash, resolved the way the Linux side does: `.` and `..` are resolved first, then the folders above the last part are resolved through links, but never the last part, so a link is trashed itself. The protected-path check then sees where the path really leads.
+fn resolve_target(path: &Path) -> String {
+    let cleaned = winmap::clean(&path.to_string_lossy());
+    match winmap::split_parent(&cleaned) {
+        Some((parent, name)) => winmap::join_original(&resolve_folder(&parent), &name),
+        None => cleaned,
+    }
+}
+
 fn exists(path: &str) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }
@@ -219,7 +249,9 @@ fn exists(path: &str) -> bool {
 /// Moves the paths to the Recycle Bin in one operation. Each path gets its own outcome: what is still there afterwards failed, and what is gone has its receipt looked up in the bin.
 pub fn trash_blocking(paths: &[PathBuf]) -> Vec<Result<TrashReceipt, TrashError>> {
     let _com = ComGuard::new();
-    let profile = std::env::var("USERPROFILE").ok();
+    let profile = std::env::var("USERPROFILE")
+        .ok()
+        .map(|profile| resolve_folder(&profile));
     let mut results: Vec<Option<Result<TrashReceipt, TrashError>>> = vec![None; paths.len()];
     let mut queued: Vec<(usize, String, IShellItem)> = Vec::new();
     let operation = match new_operation(
@@ -230,7 +262,7 @@ pub fn trash_blocking(paths: &[PathBuf]) -> Vec<Result<TrashReceipt, TrashError>
     };
 
     for (index, path) in paths.iter().enumerate() {
-        let text = winmap::normalise(&path.to_string_lossy());
+        let text = resolve_target(path);
         if !path.is_absolute() {
             results[index] = Some(Err(TrashError::io("the path must be absolute")));
         } else if let Some(reason) = winmap::refusal(&text, profile.as_deref()) {
@@ -286,7 +318,8 @@ pub fn trash_blocking(paths: &[PathBuf]) -> Vec<Result<TrashReceipt, TrashError>
         .collect()
 }
 
-pub fn list_blocking() -> Result<Vec<TrashedItem>, TrashError> {
+/// The items of the bin, oldest first, with folder sizes still 0 (see `fill_folder_sizes`). This is the part that needs COM.
+fn list_unsized_blocking() -> Result<Vec<TrashedItem>, TrashError> {
     let _com = ComGuard::new();
     let mut items: Vec<TrashedItem> = bin_items()?.into_iter().map(|entry| entry.item).collect();
     items.sort_by(|a, b| {
@@ -294,6 +327,14 @@ pub fn list_blocking() -> Result<Vec<TrashedItem>, TrashError> {
             .cmp(&b.deleted_at)
             .then_with(|| a.receipt.trash_id.cmp(&b.receipt.trash_id))
     });
+    Ok(items)
+}
+
+/// The items of the bin with every size filled in, on the calling thread (what the live test uses).
+#[cfg(test)]
+pub fn list_blocking() -> Result<Vec<TrashedItem>, TrashError> {
+    let mut items = list_unsized_blocking()?;
+    fill_folder_sizes(&mut items);
     Ok(items)
 }
 
@@ -493,7 +534,14 @@ impl Platform {
         &self,
         app: &AppHandle<R>,
     ) -> Result<Vec<TrashedItem>, TrashError> {
-        on_main_thread(app, list_blocking).await?
+        // Only the COM calls run on the main thread; walking the folders for their sizes does not.
+        let mut items = on_main_thread(app, list_unsized_blocking).await??;
+        tauri::async_runtime::spawn_blocking(move || {
+            fill_folder_sizes(&mut items);
+            items
+        })
+        .await
+        .map_err(|error| TrashError::io(format!("the size task failed: {error}")))
     }
 
     pub async fn restore<R: Runtime>(
