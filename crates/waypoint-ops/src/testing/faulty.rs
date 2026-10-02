@@ -70,6 +70,9 @@ pub enum FaultKind {
     CrossesDevices,
     Interrupted,
     NotFound,
+    /// Not in `ALL`: it is a refusal a particular step expects (a rename onto a name the file
+    /// system sees as taken), not a failure every step has to survive.
+    AlreadyExists,
 }
 
 impl FaultKind {
@@ -95,6 +98,7 @@ impl FaultKind {
                 location: Some(location),
             },
             FaultKind::NotFound => VfsError::NotFound { location },
+            FaultKind::AlreadyExists => VfsError::AlreadyExists { location },
         }
     }
 }

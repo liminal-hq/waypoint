@@ -334,13 +334,22 @@ impl Run<'_> {
         let provider = self.env.providers.for_path(source)?;
         Self::confirm_source(provider.as_ref(), source, item)?;
         if item.case_only {
-            // The file system sees both spellings as one name, so the rename goes through a
-            // third name; if the second step fails the first is undone.
-            let aside = self.partial_path(source)?;
-            provider.rename(source, &aside, false)?;
-            if let Err(error) = provider.rename(&aside, target, false) {
-                let _ = provider.rename(&aside, source, false);
-                return Err(error.into());
+            // A provider that keeps the case of a name (Windows, macOS, a case-folded volume)
+            // takes a case-only rename directly. One that answers "the name is taken" because it
+            // sees both spellings as one name leaves the entry alone, and then the rename goes
+            // through a third name instead; if the second step fails the first is undone. (A crash
+            // between the two steps leaves the entry under that name, which recovery knows.)
+            match provider.rename(source, target, false) {
+                Ok(()) => {}
+                Err(VfsError::AlreadyExists { .. }) => {
+                    let aside = self.partial_path(source)?;
+                    provider.rename(source, &aside, false)?;
+                    if let Err(error) = provider.rename(&aside, target, false) {
+                        let _ = provider.rename(&aside, source, false);
+                        return Err(error.into());
+                    }
+                }
+                Err(error) => return Err(error.into()),
             }
         } else {
             provider.rename(source, target, false)?;

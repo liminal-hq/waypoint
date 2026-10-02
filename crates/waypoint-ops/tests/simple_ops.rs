@@ -207,9 +207,9 @@ fn rename_refuses_what_is_taken_or_meaningless() {
 }
 
 #[test]
-fn a_case_only_rename_goes_through_a_third_name_where_case_folds() {
+fn a_case_only_rename_is_direct_where_the_provider_takes_it() {
     each_provider!(|h, rule, links| {
-        let _ = links;
+        let _ = (rule, links);
         build(&h, &tree(&[("readme.md", "x")]));
         let renames_before = h.provider.calls_of(Op::Rename);
         done(
@@ -219,8 +219,30 @@ fn a_case_only_rename_goes_through_a_third_name_where_case_folds() {
         let t = work_tree(&h);
         assert_eq!(t.get("README.MD"), Some(&file("x")));
         assert!(!t.contains_key("readme.md"));
-        let steps = h.provider.calls_of(Op::Rename) - renames_before;
-        assert_eq!(steps, if rule == CaseRule::Insensitive { 2 } else { 1 });
+        assert_eq!(h.provider.calls_of(Op::Rename) - renames_before, 1);
+    });
+}
+
+#[test]
+fn a_case_only_rename_goes_through_a_third_name_where_the_provider_sees_one_name() {
+    each_provider!(|h, rule, links| {
+        let _ = links;
+        if rule == CaseRule::Sensitive {
+            continue_next();
+        } else {
+            build(&h, &tree(&[("readme.md", "x")]));
+            // The direct rename is refused as "taken", as a case-folding volume does.
+            h.provider.fail_nth(Op::Rename, 1, FaultKind::AlreadyExists);
+            let renames_before = h.provider.calls_of(Op::Rename);
+            done(
+                h.request(JobKind::Rename, &["readme.md"], None, Some("README.MD")),
+                &mut h,
+            );
+            let t = work_tree(&h);
+            assert_eq!(t.get("README.MD"), Some(&file("x")));
+            assert_eq!(h.provider.calls_of(Op::Rename) - renames_before, 3);
+            assert!(partials(&t).is_empty());
+        }
     });
 }
 
@@ -232,8 +254,9 @@ fn a_failed_second_step_of_a_case_only_rename_restores_the_name() {
             continue_next();
         } else {
             build(&h, &tree(&[("readme.md", "x")]));
+            h.provider.fail_nth(Op::Rename, 1, FaultKind::AlreadyExists);
             h.provider
-                .fail_nth(Op::Rename, 2, FaultKind::PermissionDenied);
+                .fail_nth(Op::Rename, 3, FaultKind::PermissionDenied);
             let result = h.run(h.request(JobKind::Rename, &["readme.md"], None, Some("README.MD")));
             assert!(matches!(
                 error_of(&result.state),
