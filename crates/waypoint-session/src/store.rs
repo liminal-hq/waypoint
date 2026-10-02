@@ -199,14 +199,13 @@ impl Store {
         self.shelf.clear();
     }
 
-    /// A fresh store (no windows, closed tabs or workspaces) that keeps only this one's Shelf and
-    /// the counter that stops its ids being reused. The app starts from it when the start-up
-    /// setting is not to restore the session but the Shelf is still kept.
-    pub fn shelf_only(&self) -> Store {
-        let mut store = Store::with_policy(self.policy);
-        store.shelf = self.shelf.clone();
-        store.next_shelf = self.next_shelf;
-        store
+    /// This store without its windows: the saved workspaces, the closed tabs and every counter
+    /// stay, so a start that opens one fresh window (the "Open Home" start-up setting) does not
+    /// lose what the document holds besides windows, and ids are still never reused. The Shelf
+    /// stays too; `forget_shelf` empties it when it is not to be kept.
+    pub fn without_windows(mut self) -> Store {
+        self.windows.clear();
+        self
     }
 
     /// The window `tab` is in.

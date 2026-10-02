@@ -253,11 +253,11 @@ impl CloseFlush {
 }
 
 /// What the saved store becomes at start-up under `settings`. The session's windows come back
-/// only when the start-up setting says so; with "Open Home" the document is still read and
-/// everything that is not a window (the saved workspaces, the closed tabs, the Shelf, the id
-/// counters) is carried over, because the first save of the run replaces the document and must
-/// not empty it. The Shelf is emptied when it is not kept between sessions; the ids it has used
-/// stay used either way.
+/// only when the start-up setting says so; with "Open Home" everything that is not a window (the
+/// saved workspaces, the closed tabs, the Shelf, the id counters) is carried over, because the
+/// first save of the run replaces the document and must not empty it. The Shelf is emptied when
+/// it is not kept between sessions, and the ids it has used stay used either way, so a later item
+/// never takes a forgotten one's id.
 pub(crate) fn restored_for(mut store: Store, settings: &Settings) -> Store {
     if !crate::settings::restores_session(settings) {
         store = store.without_windows();
@@ -280,7 +280,9 @@ pub fn restore(app: &AppHandle, saver: &Saver) {
     }
     let sessions = app.state::<Sessions<Wry>>();
     // "Open Home" (General settings) starts with the one window a first run gets, but the saved
-    // document is still read: its workspaces and closed tabs carry over into the run's first save.
+    // document is always read: its workspaces, closed tabs and Shelf carry over into the run's
+    // first save (`restored_for` decides what is kept), so a start that restores nothing cannot
+    // empty them.
     let settings = crate::settings::current(app);
     if !crate::settings::restores_session(&settings) {
         log::info!("the start-up setting is Home: not restoring the last session's windows");
@@ -486,6 +488,35 @@ mod tests {
             )
             .unwrap();
         assert_eq!(restored.shelf()[0].id.0, 3);
+    }
+
+    #[test]
+    fn open_home_keeps_the_workspaces_across_start_ups_whether_or_not_the_shelf_is_kept() {
+        for shelf_persist in [true, false] {
+            let mut settings = Settings::default();
+            settings.general.startup = waypoint_settings::StartupMode::Home;
+            settings.dnd.shelf_persist = shelf_persist;
+            let mut document = store_with_shelf().to_document();
+            document.body.workspaces.push(waypoint_session::Workspace {
+                id: waypoint_session::WorkspaceId(1),
+                name: "Work".to_string(),
+                locations: Vec::new(),
+            });
+            document.body.next_workspace = 2;
+            // Two Home start-ups in a row, each saving what it started with.
+            for _ in 0..2 {
+                let (store, _) = Store::from_document(document).unwrap();
+                document = restored_for(store, &settings).to_document();
+            }
+            assert!(document.body.windows.is_empty());
+            assert_eq!(
+                document.body.workspaces.len(),
+                1,
+                "shelf_persist {shelf_persist}"
+            );
+            assert_eq!(document.body.next_workspace, 2);
+            assert_eq!(document.body.shelf.len(), if shelf_persist { 2 } else { 0 });
+        }
     }
 
     #[test]
