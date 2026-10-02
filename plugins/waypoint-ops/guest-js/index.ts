@@ -234,6 +234,15 @@ export function setClipboardFromSelection(
 	return cmd<Clipboard>('set_clipboard_from_selection', { handle, spec, mode });
 }
 
+/**
+ * The locations a selection covers, resolved by Rust from the listing this window opened, for a
+ * drag that leaves the window. Each location's `uri` is the lossless `file://` form. Rejects
+ * (`unsupported`) for a selection of nothing.
+ */
+export function resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]> {
+	return cmd<Location[]>('resolve_selection', { handle, spec });
+}
+
 export function getClipboard(): Promise<Clipboard> {
 	return cmd<Clipboard>('get_clipboard');
 }

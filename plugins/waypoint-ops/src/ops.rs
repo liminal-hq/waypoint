@@ -934,6 +934,24 @@ impl<R: Runtime> Ops<R> {
         Ok(self.set_clipboard(mode, items))
     }
 
+    /// The locations `spec` selects in the listing `handle` (which `window` opened), resolved by
+    /// the app's resolver so the page never builds a path. The page hands them to the system as an
+    /// outbound drag. A selection of nothing is refused, as it is for the clipboard.
+    pub fn resolve_selection(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        spec: &SelectionSpec,
+    ) -> Result<Vec<Location>, Error> {
+        let items = self.shared.resolver.resolve(handle, spec, window)?;
+        if items.is_empty() {
+            return Err(Error::Ops(OpsError::Unsupported {
+                what: "dragging an empty selection".to_owned(),
+            }));
+        }
+        Ok(items)
+    }
+
     /// The unfinished jobs that read from, write into, or remove something that holds `location`.
     pub fn jobs_targeting(&self, location: &Location) -> Vec<JobId> {
         self.shared.lock().store.jobs_targeting(location)

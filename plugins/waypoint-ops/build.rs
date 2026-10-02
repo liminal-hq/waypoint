@@ -26,6 +26,7 @@ const COMMANDS: &[&str] = &[
     "unsubscribe_progress",
     "set_clipboard",
     "set_clipboard_from_selection",
+    "resolve_selection",
     "get_clipboard",
     "jobs_targeting",
     "get_settings",

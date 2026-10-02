@@ -281,6 +281,23 @@ pub async fn set_clipboard_from_selection<R: Runtime>(
     .map_err(|e| Error::Internal(e.to_string()))?
 }
 
+/// The locations a selection covers, resolved from the listing the calling window opened (A47),
+/// for a drag that leaves the window. The page sends a handle and a selection and gets back the
+/// lossless `uri` of each item.
+#[tauri::command]
+pub async fn resolve_selection<R: Runtime>(
+    window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    handle: ListingHandle,
+    spec: SelectionSpec,
+) -> Result<Vec<Location>, Error> {
+    let ops = ops.inner().clone();
+    let label = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || ops.resolve_selection(&label, handle, &spec))
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?
+}
+
 #[tauri::command]
 pub async fn get_clipboard<R: Runtime>(
     _window: WebviewWindow<R>,

@@ -23,6 +23,7 @@ permissions = [
   "allow-unsubscribe-progress",
   "allow-set-clipboard",
   "allow-set-clipboard-from-selection",
+  "allow-resolve-selection",
   "allow-get-clipboard",
   "allow-jobs-targeting",
   "allow-get-settings",

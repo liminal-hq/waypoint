@@ -75,6 +75,7 @@ pub fn init_with<R: Runtime>(
             commands::unsubscribe_progress,
             commands::set_clipboard,
             commands::set_clipboard_from_selection,
+            commands::resolve_selection,
             commands::get_clipboard,
             commands::jobs_targeting,
             commands::get_settings,

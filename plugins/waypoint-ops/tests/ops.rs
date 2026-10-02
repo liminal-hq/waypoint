@@ -703,6 +703,33 @@ fn a_selection_goes_on_the_clipboard_resolved_by_the_apps_resolver() {
 }
 
 #[test]
+fn a_selection_is_resolved_for_an_outbound_drag_and_the_clipboard_is_left_alone() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    *env.resolver.0.lock().unwrap() = vec![env.loc("a.txt"), env.loc("b.txt")];
+    let before = env.ops().clipboard();
+    let items = tauri::async_runtime::block_on(commands::resolve_selection(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        waypoint_vfs::ListingHandle(1),
+        waypoint_vfs::SelectionSpec::AllExcept { ids: vec![] },
+    ))
+    .unwrap();
+    assert_eq!(items, vec![env.loc("a.txt"), env.loc("b.txt")]);
+    assert_eq!(env.ops().clipboard(), before);
+    // Nothing selected is refused rather than starting a drag of nothing.
+    *env.resolver.0.lock().unwrap() = Vec::new();
+    let refused = tauri::async_runtime::block_on(commands::resolve_selection(
+        env.window("main-2"),
+        env.app.state::<Ops<MockRuntime>>(),
+        waypoint_vfs::ListingHandle(1),
+        waypoint_vfs::SelectionSpec::Chosen { ids: vec![] },
+    ));
+    assert!(refused.is_err());
+}
+
+#[test]
 fn a_closing_window_does_not_stop_its_jobs() {
     let env = env();
     env.write("a.txt", b"alpha");

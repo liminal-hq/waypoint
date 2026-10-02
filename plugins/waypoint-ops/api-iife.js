@@ -124,6 +124,14 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function setClipboardFromSelection(handle, spec, mode) {
         return cmd('set_clipboard_from_selection', { handle, spec, mode });
     }
+    /**
+     * The locations a selection covers, resolved by Rust from the listing this window opened, for a
+     * drag that leaves the window. Each location's `uri` is the lossless `file://` form. Rejects
+     * (`unsupported`) for a selection of nothing.
+     */
+    function resolveSelection(handle, spec) {
+        return cmd('resolve_selection', { handle, spec });
+    }
     function getClipboard() {
         return cmd('get_clipboard');
     }
@@ -186,6 +194,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.reorder = reorder;
     exports.resolve = resolve;
     exports.resolveError = resolveError;
+    exports.resolveSelection = resolveSelection;
     exports.resume = resume;
     exports.retry = retry;
     exports.setClipboard = setClipboard;
