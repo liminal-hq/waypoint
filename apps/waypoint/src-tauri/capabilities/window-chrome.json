@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "window-chrome",
-	"description": "Every window draws the shared title bar, so every window may control itself, read the OS titlebar preferences, and reach the window manager's own menu.",
+	"description": "Every window draws the shared title bar, so every window may control itself, read the OS titlebar preferences, reach the window manager's own menu, and put a background effect behind itself.",
 	"windows": ["main-*", "settings", "properties-*", "ops", "shelf", "tear-ghost"],
 	"permissions": [
 		"core:default",
@@ -22,6 +22,7 @@
 		"system-appearance:default",
 		"waypoint-session:default",
 		"waypoint-vfs:default",
+		"window-effects:default",
 		"window-manager:default"
 	]
 }

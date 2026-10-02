@@ -78,6 +78,7 @@ describe('the registered sources', () => {
 			'waypoint-ops',
 			'waypoint-session',
 			'waypoint-settings',
+			'window-effects',
 			'window-manager',
 			'window-tearoff',
 		]);

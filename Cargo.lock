@@ -5442,6 +5442,7 @@ dependencies = [
  "tauri-plugin-waypoint-session",
  "tauri-plugin-waypoint-settings",
  "tauri-plugin-waypoint-vfs",
+ "tauri-plugin-window-effects",
  "tauri-plugin-window-manager",
  "tauri-plugin-window-tearoff",
  "tempfile",

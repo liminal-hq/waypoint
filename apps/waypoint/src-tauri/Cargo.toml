@@ -23,6 +23,7 @@ tauri-plugin-os = "2"
 tauri-plugin-store = "2"
 tauri-plugin-os-prefs = { path = "../../../plugins/os-prefs" }
 tauri-plugin-system-appearance = { path = "../../../plugins/system-appearance" }
+tauri-plugin-window-effects = { path = "../../../plugins/window-effects" }
 tauri-plugin-window-manager = { path = "../../../plugins/window-manager" }
 tauri-plugin-native-dnd = { path = "../../../plugins/native-dnd" }
 tauri-plugin-window-tearoff = { path = "../../../plugins/window-tearoff" }

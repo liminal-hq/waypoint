@@ -19,6 +19,7 @@
         "@liminal-hq/plugin-thumbnails": "workspace:*",
         "@liminal-hq/plugin-trash": "workspace:*",
         "@liminal-hq/plugin-volumes": "workspace:*",
+        "@liminal-hq/plugin-window-effects": "workspace:*",
         "@liminal-hq/plugin-window-manager": "workspace:*",
         "@liminal-hq/plugin-window-tearoff": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
@@ -214,6 +215,19 @@
         "typescript": "^5.9.3",
       },
     },
+    "plugins/window-effects": {
+      "name": "@liminal-hq/plugin-window-effects",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
     "plugins/window-manager": {
       "name": "@liminal-hq/plugin-window-manager",
       "version": "0.2.0",
@@ -357,6 +371,8 @@
     "@liminal-hq/plugin-trash": ["@liminal-hq/plugin-trash@workspace:plugins/trash"],
 
     "@liminal-hq/plugin-volumes": ["@liminal-hq/plugin-volumes@workspace:plugins/volumes"],
+
+    "@liminal-hq/plugin-window-effects": ["@liminal-hq/plugin-window-effects@workspace:plugins/window-effects"],
 
     "@liminal-hq/plugin-window-manager": ["@liminal-hq/plugin-window-manager@workspace:plugins/window-manager"],
 
