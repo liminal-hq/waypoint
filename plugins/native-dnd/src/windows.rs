@@ -57,6 +57,7 @@ use crate::{
     outbound::{classify_ole, ole_effects, Begun, DragRequest, Finisher},
     platform::InboundExtras,
     uri,
+    windows_hover::Tracker,
 };
 
 /// Windows reports physical client-area pixels.
@@ -275,17 +276,20 @@ impl IDataObject_Impl for FileData_Impl {
     }
 }
 
-/// Ends a drag when Escape is pressed (cancel) or when the mouse button that started it is released (drop).
+/// Ends a drag when Escape is pressed (cancel) or when the mouse button that started it is released (drop). Each query also reports where the cursor is to `tracker`, since `DoDragDrop` holds back the webview's own drag events for the windows of this process until it returns.
 #[implement(IDropSource)]
-#[derive(Default)]
 struct DropSource {
     /// The mouse buttons that were down when the drag began, learnt from the first query.
     held: Cell<Option<u32>>,
+    tracker: Option<Tracker>,
 }
 
 impl IDropSource_Impl for DropSource_Impl {
     fn QueryContinueDrag(&self, fescapepressed: BOOL, grfkeystate: MODIFIERKEYS_FLAGS) -> HRESULT {
         if fescapepressed.as_bool() {
+            if let Some(tracker) = &self.tracker {
+                tracker.ended(true);
+            }
             return DRAGDROP_S_CANCEL;
         }
         let buttons = grfkeystate.0 & (MK_LBUTTON.0 | MK_RBUTTON.0);
@@ -297,8 +301,14 @@ impl IDropSource_Impl for DropSource_Impl {
             }
         };
         if buttons & started_with == 0 {
+            if let Some(tracker) = &self.tracker {
+                tracker.ended(false);
+            }
             DRAGDROP_S_DROP
         } else {
+            if let Some(tracker) = &self.tracker {
+                tracker.sample();
+            }
             S_OK
         }
     }
@@ -317,7 +327,7 @@ fn initialise_ole() {
 
 /// Runs a drag to its end on the main thread. The drag image is drawn by Windows, so `request.icon` is not used.
 pub fn begin_drag<R: Runtime>(
-    _app: &AppHandle<R>,
+    app: &AppHandle<R>,
     _window: &WebviewWindow<R>,
     _id: u32,
     request: &DragRequest,
@@ -331,10 +341,19 @@ pub fn begin_drag<R: Runtime>(
         DROPEFFECT_MOVE.0
     };
     let data: IDataObject = FileData::new(&request.uris, preferred)?.into();
-    let source: IDropSource = DropSource::default().into();
+    let tracker = Tracker::new(app, &request.uris);
+    let source: IDropSource = DropSource {
+        held: Cell::new(None),
+        tracker: tracker.clone(),
+    }
+    .into();
     let mut effect = DROPEFFECT(0);
     // SAFETY: both objects are live COM objects for the call, and `effect` is a valid out pointer. The modal loop runs here and returns when the drag is over.
     let hr = unsafe { DoDragDrop(&data, &source, DROPEFFECT(offered), &mut effect) };
+    if let Some(tracker) = &tracker {
+        // A drag that ended some other way than through the source (the target failed) is over too.
+        tracker.ended(true);
+    }
     let (outcome, reason) = classify_ole(hr.0, effect.0);
     Ok(Begun::Done(outcome, reason))
 }
