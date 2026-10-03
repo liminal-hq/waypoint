@@ -45,9 +45,11 @@
 	background: transparent;
 }
 
-/* A nearly full volume is hatched as well as written. */
+/* A nearly full volume is hatched as well as written, and its legend swatches wear the same hatching so the bar's colours are all explained. */
 .track[data-full] .segment[data-part='used'],
-.track[data-full] .segment[data-part='other'] {
+.track[data-full] .segment[data-part='other'],
+.legend[data-full] .swatch[data-part='used'],
+.legend[data-full] .swatch[data-part='other'] {
 	background: repeating-linear-gradient(
 		45deg,
 		var(--wp-danger),

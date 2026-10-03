@@ -174,6 +174,19 @@ describe('a volume card', () => {
 		expect(within(tight).getByRole('img')).toHaveAccessibleName(/Almost full\.$/);
 	});
 
+	it('marks the legend of a nearly full volume, so the red hatching of its bar is explained', async () => {
+		await setup({
+			volumes: [
+				fakeVolume('t', { label: 'Tight', total: 1000, free: 20 }),
+				fakeVolume('r', { label: 'Roomy', total: 1000, free: 700 }),
+			],
+		});
+		const full = within(await card('Tight')).getByRole('list', { name: /Tight/ });
+		const roomy = within(await card('Roomy')).getByRole('list', { name: /Roomy/ });
+		expect(full).toHaveAttribute('data-full');
+		expect(roomy).not.toHaveAttribute('data-full');
+	});
+
 	it('says Size unavailable for a mounted volume whose space cannot be read', async () => {
 		await setup({ volumes: [fakeVolume('u', { label: 'Odd', total: null, free: null })] });
 		expect(within(await card('Odd')).getByText('Size unavailable')).toBeInTheDocument();

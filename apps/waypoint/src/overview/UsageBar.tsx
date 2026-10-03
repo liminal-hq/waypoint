@@ -50,7 +50,11 @@ export function UsageBar({ bar, name, pending }: UsageBarProps) {
 						/>
 					))}
 			</div>
-			<ul className={styles.legend} aria-label={tf('overview.bar.legend', { name })}>
+			<ul
+				className={styles.legend}
+				aria-label={tf('overview.bar.legend', { name })}
+				data-full={bar.almostFull ? '' : undefined}
+			>
 				{bar.legend.map((item) => (
 					<li key={item.key} className={styles.item}>
 						<span className={styles.swatch} data-part={item.key} aria-hidden="true" />
