@@ -600,12 +600,35 @@ describe('the Appearance page icon rows', () => {
 		await goTo('Appearance');
 		expect(screen.queryByRole('radiogroup', { name: 'Folder colour' })).toBeNull();
 		expect(screen.getByText(/Folder colours apply to the Portage icon theme/)).toBeInTheDocument();
-		expect(screen.getByLabelText('Icon style')).toBeEnabled();
+		const style = screen.getByRole('radiogroup', { name: 'Icon style' });
+		expect(style).not.toHaveAttribute('aria-disabled');
+		expect(
+			within(style)
+				.getAllByRole('radio')
+				.map((radio) => radio.title),
+		).toEqual(['Light', 'Regular', 'Bold', 'Filled']);
 		await userEvent.click(screen.getByRole('radio', { name: 'Portage' }));
 		await screen.findByRole('radiogroup', { name: 'Folder colour' });
 		expect(screen.queryByText(/Folder colours apply to the Portage icon theme/)).toBeNull();
-		expect(screen.getByLabelText('Icon style')).toBeDisabled();
+		const greyed = screen.getByRole('radiogroup', { name: 'Icon style' });
+		expect(greyed).toHaveAttribute('aria-disabled', 'true');
+		expect(
+			within(greyed)
+				.getAllByRole('radio')
+				.every((radio) => (radio as HTMLButtonElement).disabled),
+		).toBe(true);
 		expect(screen.getByText(/does not apply to Portage/)).toBeInTheDocument();
+	});
+
+	it('saves the icon style through Rust and shows each style in a sample strip', async () => {
+		const { settings } = await open();
+		await goTo('Appearance');
+		const style = screen.getByRole('radiogroup', { name: 'Icon style' });
+		expect(within(style).getByRole('radio', { name: 'Regular' })).toBeChecked();
+		expect(style.querySelectorAll('[data-icon-style-preview]')).toHaveLength(4);
+		await userEvent.click(within(style).getByRole('radio', { name: 'Bold' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.iconStyle).toBe('bold'));
+		await waitFor(() => expect(within(style).getByRole('radio', { name: 'Bold' })).toBeChecked());
 	});
 
 	it('saves the theme and the colour through Rust, and shows all ten named swatches', async () => {
