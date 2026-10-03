@@ -1,4 +1,4 @@
-// Reports an outbound drag's position to the Waypoint windows under it, for platforms whose own drag events for them are held back until the drag ends
+// Reports an outbound drag's position to the application's own windows under it, for platforms whose own drag events for them are held back until the drag ends
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
