@@ -195,7 +195,7 @@ function PreviewBody({
 				<>
 					<div className={styles.summary}>
 						<div className={styles.heroStage}>
-							<FileIcon group="folder" className={styles.bigIcon} />
+							<FileIcon group="folder" size={64} className={styles.bigIcon} />
 						</div>
 						<p className={styles.summaryTitle} data-selectable="">
 							{baseName(subject.location.display)}

@@ -51,7 +51,7 @@ describe('resolveIconTheme', () => {
 	it('draws Portage as Portage and everything else, System included, as Waypoint', () => {
 		expect(resolveIconTheme('portage')).toBe('portage');
 		expect(resolveIconTheme('waypoint')).toBe('waypoint');
-		expect(resolveIconTheme('system')).toBe('waypoint');
+		expect(resolveIconTheme('system')).toBe('system');
 	});
 });
 
@@ -77,7 +77,7 @@ describe('iconLook', () => {
 });
 
 describe('the attributes the theme engine writes', () => {
-	it('carry the resolved theme and the colour onto the root, and System resolves to Waypoint', () => {
+	it('carry the resolved theme and the colour onto the root, and System is its own set', () => {
 		const settings = (iconTheme: 'waypoint' | 'portage' | 'system') => ({
 			...DEFAULT_SETTINGS,
 			appearance: {
@@ -91,8 +91,8 @@ describe('the attributes the theme engine writes', () => {
 		applyAppearance(root, resolveAppearance(settings('portage'), NO_OS_APPEARANCE, options));
 		expect(readIconLook()).toEqual({ theme: 'portage', colour: 'kde', tone: 'dark' });
 		applyAppearance(root, resolveAppearance(settings('system'), NO_OS_APPEARANCE, options));
-		expect(root.dataset.iconTheme).toBe('waypoint');
-		expect(readIconLook().theme).toBe('waypoint');
+		expect(root.dataset.iconTheme).toBe('system');
+		expect(readIconLook().theme).toBe('system');
 	});
 });
 

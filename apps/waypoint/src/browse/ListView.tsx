@@ -551,10 +551,11 @@ function ListingBody({
 														loader={thumbnails}
 														thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
 														group={entry.group}
+														name={entry.name}
 														className={styles.thumbnail}
 													/>
 												) : (
-													<FileIcon group={entry.group} special={entry.special} />
+													<FileIcon group={entry.group} special={entry.special} name={entry.name} />
 												)}
 												{commands && renaming === entry.id ? (
 													<InlineRename

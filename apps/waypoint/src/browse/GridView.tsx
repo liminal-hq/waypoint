@@ -459,6 +459,8 @@ function GridBody({
 															loader={thumbnails}
 															thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
 															group={entry.group}
+															name={entry.name}
+															iconSize={size}
 															special={entry.special}
 															className={styles.thumbnail}
 															iconClassName={styles.glyph}

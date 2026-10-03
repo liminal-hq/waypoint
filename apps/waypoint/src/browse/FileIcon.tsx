@@ -10,11 +10,16 @@ import type { FolderColour, FolderTone } from '../icons/portage/portagePalette';
 import { PortageIcon } from '../icons/PortageIcon';
 import { WAYPOINT_FILE_GLYPHS, WAYPOINT_FOLDER_GLYPHS } from '../icons/waypointFileIcons';
 import styles from './FileIcon.module.css';
+import { SystemIcon } from './SystemIcon';
 
 interface FileIconProps {
 	group: IconGroup;
 	/** Which standard folder of the user's this is, for a folder that is one: it gets its own mark. */
 	special?: SpecialFolder | null;
+	/** The entry's name, for the System set: its extension picks the type's icon. The other sets go by the group. */
+	name?: string;
+	/** The size the icon is drawn at in CSS pixels (default 16), so the System set asks for a picture no bigger than it needs. */
+	size?: number;
 	/** An extra class, for a view that draws the glyph larger than the list does. */
 	className?: string;
 	/** Draw in this set whatever the window is set to: the Settings previews show each option. */
@@ -27,10 +32,18 @@ interface FileIconProps {
 
 /**
  * The icon for an entry's group. Decorative: the row's name carries the meaning. The set follows the
- * window's icon theme live (Portage in the chosen folder colour and the window's tone, or the Waypoint
- * glyphs); `className` sizes either.
+ * window's icon theme live (Portage in the chosen folder colour and the window's tone, the Waypoint
+ * glyphs, or the icons the system draws for the entry's type, with the Waypoint glyph while they load
+ * and wherever the system has none); `className` sizes any of them.
  */
-export function FileIcon({ group, special, className, ...override }: FileIconProps) {
+export function FileIcon({
+	group,
+	special,
+	name,
+	size = 16,
+	className,
+	...override
+}: FileIconProps) {
 	const look = useIconLook();
 	const theme = override.theme ?? look.theme;
 	const colour = override.colour ?? look.colour;
@@ -47,7 +60,7 @@ export function FileIcon({ group, special, className, ...override }: FileIconPro
 		);
 	}
 	const marked = group === 'folder' && special ? special : undefined;
-	return (
+	const glyph = (
 		<svg
 			className={className ? `${styles.icon} ${className}` : styles.icon}
 			data-group={group}
@@ -59,4 +72,18 @@ export function FileIcon({ group, special, className, ...override }: FileIconPro
 			{marked ? WAYPOINT_FOLDER_GLYPHS[marked] : WAYPOINT_FILE_GLYPHS[group]}
 		</svg>
 	);
+	if (theme === 'system') {
+		return (
+			<SystemIcon
+				group={group}
+				special={special}
+				name={name}
+				size={size}
+				tone={tone}
+				className={className}
+				fallback={glyph}
+			/>
+		);
+	}
+	return glyph;
 }

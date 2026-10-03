@@ -7,12 +7,15 @@ import { useSyncExternalStore } from 'react';
 import type { IconTheme } from '@liminal-hq/waypoint-protocol/generated/IconTheme';
 import { FOLDER_COLOURS, type FolderColour, type FolderTone } from './portage/portagePalette';
 
-/** The sets the views can draw. `system` is a setting value only: it draws as `waypoint` until the System set exists. */
-export type ResolvedIconTheme = 'waypoint' | 'portage';
+/**
+ * The sets the views can draw. `system` draws the operating system's own icons where it can supply them
+ * and the Waypoint glyph for any icon it cannot (and for all of them where it supplies none).
+ */
+export type ResolvedIconTheme = 'waypoint' | 'portage' | 'system';
 
 /** The set a setting value draws as. */
 export function resolveIconTheme(choice: IconTheme): ResolvedIconTheme {
-	return choice === 'portage' ? 'portage' : 'waypoint';
+	return choice === 'portage' || choice === 'system' ? choice : 'waypoint';
 }
 
 /** Everything an entry's icon needs to pick its art. */
@@ -30,7 +33,7 @@ export function iconLook(
 	osDark: boolean,
 ): IconLook {
 	return {
-		theme: theme === 'portage' ? 'portage' : 'waypoint',
+		theme: theme === 'portage' || theme === 'system' ? theme : 'waypoint',
 		colour: (FOLDER_COLOURS as readonly string[]).includes(colour ?? '')
 			? (colour as FolderColour)
 			: 'liminal',
