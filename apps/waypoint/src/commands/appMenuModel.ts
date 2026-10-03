@@ -144,7 +144,7 @@ export function historyItems(
 }
 
 /**
- * The menu: File (Settings is its last section), Edit, View and Window, each only when it has something to offer. `views` is the
+ * The menu: File (Settings is a section of its own, above the close commands), Edit, View and Window, each only when it has something to offer. `views` is the
  * registry evaluated for the window (`evaluateCommands`).
  */
 export function appMenuItems(
@@ -163,8 +163,8 @@ export function appMenuItems(
 		rows('openWith'),
 		rows('rename', 'batchRename', 'duplicate'),
 		rows('moveToTrash', 'deletePermanently'),
-		rows('closeTab', 'reopenClosedTab', 'closeWindow'),
 		rows('settings'),
+		rows('closeTab', 'reopenClosedTab', 'closeWindow'),
 	);
 	const edit = menuSections(
 		[

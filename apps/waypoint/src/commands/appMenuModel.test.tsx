@@ -72,10 +72,10 @@ describe('the menus', () => {
 			'duplicate',
 			'moveToTrash',
 			'deletePermanently',
+			'settings',
 			'closeTab',
 			'reopenClosedTab',
 			'closeWindow',
-			'settings',
 		]);
 	});
 
