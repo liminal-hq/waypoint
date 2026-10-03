@@ -416,3 +416,109 @@ fn a_cancel_stops_a_running_thumbnailer_and_records_nothing() {
         Lookup::Miss
     );
 }
+
+/// A platform over the real system's thumbnailers and `PATH`, with a private cache, so a type the installed tools handle is tried for real.
+fn system_platform(tmp: &tempfile::TempDir) -> Platform {
+    let cache = tmp.path().join("cache");
+    let mut env = Env::from_vars(|name| match name {
+        "XDG_CACHE_HOME" => Some(cache.to_string_lossy().into_owned()),
+        "XDG_DATA_HOME" => Some(tmp.path().join("no-data").to_string_lossy().into_owned()),
+        other => std::env::var(other).ok(),
+    });
+    env.cache_root = cache.join("thumbnails");
+    let config = Config {
+        app_name: "test".into(),
+        app_version: "9".into(),
+        ..Config::default()
+    };
+    let limits = Arc::new(Limits::new(config.max_file_bytes, Duration::from_secs(30)));
+    Platform::new(env, &config, Arc::new(MemCache::new(1 << 20)), limits)
+}
+
+fn on_path(program: &str) -> bool {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    thumbnailer::program_exists(program, &std::env::split_paths(&path).collect::<Vec<_>>())
+}
+
+/// Runs the real installed thumbnailer for `path` and asserts a thumbnail results.
+fn assert_system_thumbnail(path: &Path) {
+    let tmp = tempfile::tempdir().unwrap();
+    let processor = system_platform(&tmp).processor();
+    let path = path.to_string_lossy().into_owned();
+    let request = ThumbRequest {
+        key: path.clone(),
+        path,
+        size: ThumbSize::Normal,
+        mtime_ms: 1_700_000_000_000,
+    };
+    let outcome = processor.process(&request, &AtomicBool::new(false));
+    assert!(
+        matches!(outcome, Outcome::Ready { .. }),
+        "expected a thumbnail, got {outcome:?}"
+    );
+}
+
+#[test]
+fn a_video_gets_a_thumbnail_from_the_installed_thumbnailer() {
+    if !on_path("ffmpeg") || !on_path("ffmpegthumbnailer") {
+        eprintln!("skipped: ffmpeg and ffmpegthumbnailer are not both installed");
+        return;
+    }
+    if !Path::new("/usr/share/thumbnailers/ffmpegthumbnailer.thumbnailer").exists() {
+        eprintln!("skipped: no ffmpegthumbnailer.thumbnailer is installed");
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let video = tmp.path().join("clip.mp4");
+    let made = std::process::Command::new("ffmpeg")
+        .args([
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=size=160x120:rate=5",
+        ])
+        .args(["-t", "1", "-pix_fmt", "yuv420p", "-y"])
+        .arg(&video)
+        .status();
+    if !made.is_ok_and(|status| status.success()) {
+        eprintln!("skipped: ffmpeg could not make a sample video (no encoder?)");
+        return;
+    }
+    assert_system_thumbnail(&video);
+}
+
+#[test]
+fn a_pdf_gets_a_thumbnail_from_the_installed_thumbnailer() {
+    if !on_path("evince-thumbnailer")
+        || !Path::new("/usr/share/thumbnailers/evince.thumbnailer").exists()
+    {
+        eprintln!("skipped: evince-thumbnailer is not installed");
+        return;
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let pdf = tmp.path().join("page.pdf");
+    // The smallest valid one-page PDF, with a cross-reference table evince can read.
+    let objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>",
+    ];
+    let mut body = String::from("%PDF-1.4\n");
+    let mut offsets = Vec::new();
+    for (n, object) in objects.iter().enumerate() {
+        offsets.push(body.len());
+        body.push_str(&format!("{} 0 obj\n{object}\nendobj\n", n + 1));
+    }
+    let xref = body.len();
+    body.push_str("xref\n0 4\n0000000000 65535 f \n");
+    for offset in offsets {
+        body.push_str(&format!("{offset:010} 00000 n \n"));
+    }
+    body.push_str(&format!(
+        "trailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n"
+    ));
+    fs::write(&pdf, body).unwrap();
+    assert_system_thumbnail(&pdf);
+}
