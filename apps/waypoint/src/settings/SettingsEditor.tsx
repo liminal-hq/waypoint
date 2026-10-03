@@ -73,6 +73,7 @@ export type RowKey =
 	| 'language'
 	| 'direction'
 	| 'notifications'
+	| 'notificationActions'
 	| 'launcherProgress'
 	| 'preventSleep'
 	| 'fileManagerService'

@@ -84,6 +84,9 @@ export const enMessages = {
 	'settings.integrations.notifications.label': 'Notify when a job finishes',
 	'settings.integrations.notifications.description':
 		'Shows a notification when a job finishes or fails while no Waypoint window is in front or after it ran for more than 10 seconds, and whenever a job needs your answer. Clicking it brings Waypoint forward.',
+	'settings.integrations.notificationActions.label': 'Show buttons on notifications',
+	'settings.integrations.notificationActions.description':
+		'Adds buttons to a job’s notification: Show in folder when it finishes, Show details when it fails, Undo after a move or a trash, and Replace, Skip and Keep both when a file already exists. Some desktops show the buttons only when the notification is expanded, and some show only the click, which brings Waypoint forward.',
 	'settings.integrations.progress.label': 'Show progress on the app icon',
 	'settings.integrations.progress.description':
 		'Shows how far the running jobs have got on Waypoint’s dock or taskbar icon.',

@@ -13,6 +13,7 @@ const works = { available: true, reason: null };
 export function everythingWorks(): IntegrationAvailability {
 	return {
 		notifications: works,
+		notificationActions: works,
 		launcherProgress: works,
 		preventSleep: works,
 		fileManagerService: works,

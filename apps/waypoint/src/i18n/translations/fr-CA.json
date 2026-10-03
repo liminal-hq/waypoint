@@ -304,6 +304,16 @@
     "description": "Area: settings.",
     "source": "921f8ffa"
   },
+  "settings.integrations.notificationActions.label": {
+    "message": "Afficher des boutons sur les notifications",
+    "description": "Area: settings.",
+    "source": "a30790ca"
+  },
+  "settings.integrations.notificationActions.description": {
+    "message": "Ajoute des boutons à la notification d’une tâche : Afficher dans le dossier à la fin, Afficher les détails en cas d’échec, Annuler après un déplacement ou une mise à la corbeille, et Remplacer, Ignorer et Garder les deux quand un fichier existe déjà. Certains bureaux n’affichent les boutons que lorsque la notification est développée, et d’autres n’offrent que le clic, qui ramène Waypoint au premier plan.",
+    "description": "Area: settings.",
+    "source": "fef01152"
+  },
   "settings.integrations.progress.label": {
     "message": "Afficher la progression sur l’icône de l’application",
     "description": "Area: settings.",
