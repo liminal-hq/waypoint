@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import { openListingModel, toVfsError, type ListingModel } from '../browse/listingModel';
 import type { VfsClient } from '../services/vfsClient';
 
@@ -13,6 +14,8 @@ export const MAX_CHILDREN = 2000;
 export interface FolderChild {
 	name: string;
 	location: Location;
+	/** Which standard folder of the user's this is, when it is one. */
+	special?: SpecialFolder;
 }
 
 export type ChildrenState =
@@ -157,6 +160,7 @@ export class FolderTreeModel {
 				Promise.all(
 					entries.map(async (entry): Promise<FolderChild> => ({
 						name: entry.name,
+						special: entry.special,
 						location: await this.client.entryLocation(model.handle, entry.id),
 					})),
 				),

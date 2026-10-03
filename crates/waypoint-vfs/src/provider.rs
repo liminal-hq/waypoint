@@ -10,6 +10,7 @@ use std::sync::Arc;
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::VfsError;
 
+use crate::special::SpecialFolder;
 use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
 use crate::{CancelToken, EntryKind, IconGroup, VolumeSpace};
 
@@ -35,6 +36,8 @@ pub struct ScannedEntry {
     /// listing resolves these later in a bounded background pass (`Listing::resolve_pending_links`).
     pub link_pending: bool,
     pub group: IconGroup,
+    /// Which standard folder of the user's this is, for a folder that is one.
+    pub special: Option<SpecialFolder>,
     pub size: Option<u64>,
     pub modified_ms: Option<i64>,
     pub hidden: bool,

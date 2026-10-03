@@ -554,7 +554,7 @@ function ListingBody({
 														className={styles.thumbnail}
 													/>
 												) : (
-													<FileIcon group={entry.group} />
+													<FileIcon group={entry.group} special={entry.special} />
 												)}
 												{commands && renaming === entry.id ? (
 													<InlineRename

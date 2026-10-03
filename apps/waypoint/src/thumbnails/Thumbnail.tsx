@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
+import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import { FileIcon } from '../browse/FileIcon';
 import styles from './Thumbnail.module.css';
@@ -15,6 +16,8 @@ interface ThumbnailProps {
 	/** The loader's key for this entry; `null` for one with no thumbnail to ask for (a folder). */
 	thumbKey: string | null;
 	group: IconGroup;
+	/** The standard folder a folder is, so the icon carries its mark. */
+	special?: SpecialFolder | null;
 	/** Sizes the frame; the icon and the picture fill it. */
 	className?: string;
 	/** The class the icon alone is drawn with. */
@@ -28,7 +31,14 @@ const noUnsubscribe = () => undefined;
  * picture is decorative (`alt` is empty): the entry's name is its accessible name. A picture that
  * cannot be loaded is dropped and the icon stays, so nothing is ever hidden for lack of one.
  */
-export function Thumbnail({ loader, thumbKey, group, className, iconClassName }: ThumbnailProps) {
+export function Thumbnail({
+	loader,
+	thumbKey,
+	group,
+	special,
+	className,
+	iconClassName,
+}: ThumbnailProps) {
 	const subscribe = useCallback(
 		(listener: () => void) =>
 			loader && thumbKey !== null ? loader.subscribe(thumbKey, listener) : noUnsubscribe,
@@ -47,7 +57,7 @@ export function Thumbnail({ loader, thumbKey, group, className, iconClassName }:
 			className={className ? `${styles.frame} ${className}` : styles.frame}
 			data-thumbnail={state ?? undefined}
 		>
-			<FileIcon group={group} className={iconClassName} />
+			<FileIcon group={group} special={special} className={iconClassName} />
 			{url !== null && state !== 'broken' && (
 				<img
 					className={styles.picture}

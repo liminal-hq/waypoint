@@ -6,7 +6,15 @@
 2. **Theme source:** _Liminal_ (brand tokens) or _OS_ (portal accent-color plus the GTK/Qt palette hints). This follows the Emoji Nook approach, which detects Adwaita or Breeze.
 3. **Accent:** the OS accent, the Liminal ember, or a custom swatch.
 4. **Density:** Comfortable or Compact.
-5. **Icon theme:** Follow the OS (freedesktop lookup), or Waypoint's own set. The Waypoint set is also the fallback.
+5. **Icon theme:** Waypoint's own set (the default), Portage (a coloured set) or the OS theme (freedesktop lookup, Windows shell icons). The Waypoint set is also the fallback. See _File and folder icons_ below.
+
+## File and folder icons
+
+Icon themes apply to file and folder icons only; the toolbar, menu and chrome icons are always Waypoint's own. Rust gives every entry an `IconGroup` (31 of them, see D138) and, for the user's standard folders, a `special` marker, and a set maps those to artwork, so a new set needs no new classification.
+
+- **Waypoint:** the outline set, 16 by 16 glyphs drawn in `currentColor` (`apps/waypoint/src/icons/waypointFileIcons.tsx`). Each standard folder is the plain folder shape with a small inner mark. It is the default, the same on every system, and the fallback for any set that has no icon for a group.
+- **Portage** and **System:** later phases (System is #218).
+- Not yet drawn by any set: folder badges (version control, remote, encrypted, cloud, shared, Trash) and open or empty folder states.
 
 **[eng]** Where the OS preferences come from: each window's `ThemeRoot` listens to the `system-appearance` plugin's `appearance-changed` event, then reads `get_appearance` (so a change made while starting is not lost), and lays the answer over the webview's media queries through `theme/pluginAppearance.ts`. A preference the plugin has no source for (its `sources` entry is empty), a failed call and a missing plugin all leave the media-query value in place. The settings still win: an explicit colour scheme, contrast, motion or transparency choice replaces the OS value, the accent applies only when the accent setting follows the system (through the contrast picker, so the text on it keeps 4.5:1), and `--wp-text-scale` is the larger of the Settings text size and the OS text scale, which is limited to 1–3×.
 

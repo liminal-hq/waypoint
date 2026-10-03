@@ -105,10 +105,33 @@ fn lists_entries_with_kind_size_group_and_hidden() {
     assert_eq!(docs.size, None);
     let notes = &entries[1];
     assert_eq!((notes.name.as_str(), notes.size), ("notes.md", Some(12)));
-    assert_eq!(notes.group, IconGroup::Document);
+    assert_eq!(notes.group, IconGroup::Markdown);
     assert!(notes.modified_ms.unwrap() > 1_500_000_000_000);
     assert_eq!(entries[2].group, IconGroup::Image);
     assert!(!entries.iter().any(|e| e.hidden));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_execute_bit_and_broken_links_pick_their_groups() {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+    let dir = TempDir::new().unwrap();
+    touch(dir.path(), "tool", 4);
+    touch(dir.path(), "plain", 4);
+    touch(dir.path(), "notes.txt", 4);
+    for name in ["tool", "notes.txt"] {
+        let path = dir.path().join(name);
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    symlink(dir.path().join("missing.png"), dir.path().join("broken")).unwrap();
+    let listing = open(&dir);
+    let entries = all(&listing);
+    let group = |name: &str| entries.iter().find(|e| e.name == name).unwrap().group;
+    assert_eq!(group("tool"), IconGroup::Executable);
+    assert_eq!(group("plain"), IconGroup::Other);
+    assert_eq!(group("notes.txt"), IconGroup::Text);
+    assert_eq!(group("broken"), IconGroup::Symlink);
+    assert!(entries.iter().all(|e| e.special.is_none()));
 }
 
 #[test]
@@ -400,7 +423,7 @@ fn names_that_are_not_utf8_sort_deterministically_and_resolve_to_their_real_path
     assert_eq!(entries.len(), 3);
     // 0xE9 sorts after ASCII letters, so the name that is not UTF-8 comes last, every time.
     assert_eq!(entries[2].name, "caf\u{fffd}.txt");
-    assert_eq!(entries[2].group, IconGroup::Document);
+    assert_eq!(entries[2].group, IconGroup::Text);
     let path = listing.path_of(entries[2].id).unwrap();
     let VfsPath::File(file) = path else {
         panic!("a local listing has local paths");

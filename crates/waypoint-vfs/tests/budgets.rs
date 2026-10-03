@@ -82,6 +82,7 @@ fn synthetic(count: usize) -> Vec<ScannedEntry> {
                 },
                 link_target: None,
                 link_pending: false,
+                special: None,
                 group: if folder {
                     IconGroup::Folder
                 } else {
@@ -247,6 +248,7 @@ fn sorting_paging_and_patching_a_500_000_entry_listing_stay_inside_the_budgets()
             kind: EntryKind::File,
             link_target: None,
             link_pending: false,
+            special: None,
             group: IconGroup::Document,
             size: Some(1),
             modified_ms: Some(0),

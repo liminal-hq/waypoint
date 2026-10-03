@@ -17,6 +17,7 @@ use crate::model::{
 };
 use crate::order::{compare, natural_key, Sortable};
 use crate::provider::{Change, ScannedEntry, TrashedMeta};
+use crate::special::SpecialFolder;
 
 /// Above this many changes in one batch the view is rebuilt and the patch is a `Reset`: editing a
 /// huge view in place costs more than sorting it again.
@@ -35,6 +36,7 @@ pub(crate) struct Record {
     link_target: Option<EntryKind>,
     link_pending: bool,
     group: IconGroup,
+    special: Option<SpecialFolder>,
     size: Option<u64>,
     modified_ms: Option<i64>,
     hidden: bool,
@@ -63,6 +65,7 @@ impl From<ScannedEntry> for Record {
             kind: entry.kind,
             link_target: entry.link_target,
             link_pending: entry.link_pending,
+            special: entry.special,
             group: entry.group,
             size: entry.size,
             modified_ms: entry.modified_ms,
@@ -88,7 +91,7 @@ impl Record {
             key: &self.key,
             kind: self.kind,
             link_target: self.link_target,
-            group: self.group as u8,
+            group: self.group.kind_class() as u8,
             size: self.size,
             modified_ms: self.modified_ms,
             deleted_ms: self.trashed.as_ref().map(|t| t.deleted_ms),
@@ -126,7 +129,8 @@ impl Record {
                 let take = raw.len().min(8);
                 ext[..take].copy_from_slice(&raw[..take]);
                 ext.make_ascii_lowercase();
-                (u128::from(self.group as u8) << 64) | u128::from(u64::from_be_bytes(ext))
+                (u128::from(self.group.kind_class() as u8) << 64)
+                    | u128::from(u64::from_be_bytes(ext))
             }
         };
         if sort.descending {
@@ -146,6 +150,7 @@ impl Record {
             kind: self.kind,
             link_target: self.link_target,
             group: self.group,
+            special: self.special,
             size: self.size,
             modified_ms: self.modified_ms,
             hidden: self.hidden,
@@ -161,6 +166,7 @@ impl Record {
             link_target: self.link_target,
             link_pending: self.link_pending,
             group: self.group,
+            special: self.special,
             size: self.size,
             modified_ms: self.modified_ms,
             hidden: self.hidden,
@@ -685,6 +691,7 @@ mod tests {
             kind: EntryKind::File,
             link_target: None,
             link_pending: false,
+            special: None,
             group: IconGroup::Other,
             size: Some(size),
             modified_ms: Some(0),
@@ -990,6 +997,7 @@ mod tests {
         let pending = ScannedEntry {
             link_target: None,
             link_pending: true,
+            special: None,
             ..resolved
         };
         assert!(index.diff(vec![pending]).is_empty());

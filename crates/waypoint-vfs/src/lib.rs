@@ -27,6 +27,7 @@ mod provider;
 mod serve;
 mod size;
 mod space;
+mod special;
 #[cfg(unix)]
 #[path = "sys_unix.rs"]
 mod sys;
@@ -43,7 +44,7 @@ pub use details::*;
 pub use dirscan::*;
 pub use dirscan_cache::{DirScanCache, CACHE_FILE, CACHE_MAX_ROOTS, CACHE_MAX_ROWS, CACHE_VERSION};
 pub use error::{from_io, from_io_pair, InjectedError};
-pub use icon::group_for;
+pub use icon::{group_for, group_for_mime, group_for_scan};
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
 #[cfg(any(test, feature = "testing"))]
@@ -61,6 +62,7 @@ pub use serve::{
 };
 pub use size::{lower_thread_priority, FolderSizeRun, REPORT_EVERY as FOLDER_SIZE_REPORT_EVERY};
 pub use space::free_space;
+pub use special::{SpecialDirs, SpecialFolder};
 pub use text::{read_text_head, TEXT_HEAD_MAX};
 #[cfg(any(test, feature = "testing"))]
 pub use trash::MemoryTrashSource;

@@ -140,7 +140,7 @@ export function FavouriteList({
 								setDropOn(null);
 							}}
 						>
-							<FileIcon group="folder" />
+							<FileIcon group="folder" special={favourite.special} />
 							<span className={styles.label}>{favourite.label}</span>
 						</button>
 					</li>

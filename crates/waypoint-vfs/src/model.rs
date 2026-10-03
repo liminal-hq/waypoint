@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+use crate::special::SpecialFolder;
 use waypoint_protocol::{EntryId, Location, VfsError};
 
 /// What an entry is on disk.
@@ -18,8 +20,11 @@ pub enum EntryKind {
     Other,
 }
 
-/// Which bundled icon an entry uses. Decided in Rust from the extension, so the frontend only maps
-/// a group to a glyph (milestone 5 replaces these with theme lookup and thumbnails).
+/// Which bundled icon an entry uses. Decided in Rust from the name (and, where the listing has it
+/// for free, the execute bit), so the frontend only maps a group to a glyph.
+///
+/// The first eight are the coarse kinds that sorting, grouping by kind and the kind filter use (see
+/// `kind_class`); the rest refine them so an icon set can draw a PDF differently from a text file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
@@ -32,6 +37,86 @@ pub enum IconGroup {
     Code,
     Document,
     Other,
+    Pdf,
+    /// A desktop launcher, an AppImage or a Windows program: something you run to use an app.
+    App,
+    Text,
+    Markdown,
+    Spreadsheet,
+    Presentation,
+    Font,
+    DiskImage,
+    Database,
+    Config,
+    ShellScript,
+    /// A file with the execute bit that no other group claims, or a binary such as a library.
+    Executable,
+    /// A key or a certificate.
+    Certificate,
+    Ebook,
+    Torrent,
+    Calendar,
+    Contact,
+    Log,
+    Model3d,
+    Subtitles,
+    Playlist,
+    /// A software package or installer (`.deb`, `.rpm`, `.msi`, `.flatpak`).
+    Package,
+    /// A symbolic link that points at nothing, or at something that is neither a file nor a folder.
+    Symlink,
+}
+
+impl IconGroup {
+    /// Every group, in declaration order.
+    pub const ALL: [IconGroup; 31] = [
+        IconGroup::Folder,
+        IconGroup::Image,
+        IconGroup::Audio,
+        IconGroup::Video,
+        IconGroup::Archive,
+        IconGroup::Code,
+        IconGroup::Document,
+        IconGroup::Other,
+        IconGroup::Pdf,
+        IconGroup::App,
+        IconGroup::Text,
+        IconGroup::Markdown,
+        IconGroup::Spreadsheet,
+        IconGroup::Presentation,
+        IconGroup::Font,
+        IconGroup::DiskImage,
+        IconGroup::Database,
+        IconGroup::Config,
+        IconGroup::ShellScript,
+        IconGroup::Executable,
+        IconGroup::Certificate,
+        IconGroup::Ebook,
+        IconGroup::Torrent,
+        IconGroup::Calendar,
+        IconGroup::Contact,
+        IconGroup::Log,
+        IconGroup::Model3d,
+        IconGroup::Subtitles,
+        IconGroup::Playlist,
+        IconGroup::Package,
+        IconGroup::Symlink,
+    ];
+
+    /// The coarse kind this group belongs to, one of the first eight: what sorting by kind, grouping
+    /// by kind and the kind filter see, so refining the icons never reshuffles a listing.
+    pub fn kind_class(self) -> IconGroup {
+        use IconGroup::*;
+        match self {
+            Document | Pdf | Text | Markdown | Spreadsheet | Presentation | Ebook | Calendar
+            | Contact | Log | Subtitles => Document,
+            Code | Config | ShellScript => Code,
+            Archive | DiskImage | Package => Archive,
+            Audio | Playlist => Audio,
+            Folder | Image | Video => self,
+            _ => Other,
+        }
+    }
 }
 
 /// One row of a listing.
@@ -47,6 +132,11 @@ pub struct Entry {
     /// directories-first sorting is correct).
     pub link_target: Option<EntryKind>,
     pub group: IconGroup,
+    /// For a folder that is one of the user's own standard folders (Home, Documents, Downloads, …),
+    /// which one, so an icon set can mark it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub special: Option<SpecialFolder>,
     /// Size in bytes; `None` for directories and where the size is unknown.
     #[ts(type = "number | null")]
     pub size: Option<u64>,

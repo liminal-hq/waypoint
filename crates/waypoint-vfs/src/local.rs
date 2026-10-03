@@ -13,10 +13,11 @@ use waypoint_path::{CaseRule, FilePath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 
 use crate::error::{cause, from_io, from_io_pair, Cause};
-use crate::icon::group_for;
+use crate::icon::group_for_scan;
 use crate::model::EntryKind;
 use crate::names::validate_new_path;
 use crate::provider::{Capabilities, Provider, ScannedEntry, Watch, WatchSink};
+use crate::special::SpecialDirs;
 use crate::sys;
 use crate::watch::{self, WatchOptions};
 use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
@@ -100,6 +101,19 @@ fn follow(path: &Path) -> Option<Metadata> {
     fs::metadata(path).ok()
 }
 
+/// Whether the execute bit is set for anyone, from metadata already in hand. Windows has no such
+/// bit, so nothing there is an executable by this test.
+#[cfg(unix)]
+fn is_executable(meta: &Metadata) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    meta.is_file() && meta.permissions().mode() & 0o111 != 0
+}
+
+#[cfg(windows)]
+fn is_executable(_meta: &Metadata) -> bool {
+    false
+}
+
 /// Builds an entry from what a directory read gave for free, resolving a symlink only when asked.
 fn build(
     name: &OsStr,
@@ -129,12 +143,22 @@ fn build(
         EntryKind::Symlink => link_target == Some(EntryKind::File),
         _ => false,
     };
+    let is_folder = kind == EntryKind::Directory || link_target == Some(EntryKind::Directory);
     ScannedEntry {
         name: name.to_owned(),
         kind,
         link_target,
         link_pending,
-        group: group_for(name.as_encoded_bytes(), kind, link_target),
+        special: is_folder
+            .then(|| SpecialDirs::current().lookup(full_path))
+            .flatten(),
+        group: group_for_scan(
+            name.as_encoded_bytes(),
+            kind,
+            link_target,
+            link_pending,
+            shown.as_ref().is_some_and(is_executable),
+        ),
         size: shown.as_ref().filter(|_| shows_size).map(Metadata::len),
         modified_ms: shown.as_ref().and_then(|m| m.modified().ok()).map(to_ms),
         hidden,

@@ -5,7 +5,7 @@
 
 import type { Place } from '@liminal-hq/waypoint-protocol/generated/Place';
 import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKind';
-import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
+import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInfo';
 import { FileIcon } from '../browse/FileIcon';
 import { t, tn, type MessageId } from '../i18n/messages';
@@ -29,14 +29,14 @@ export const LABELS: Record<PlaceKind, MessageId> = {
 	trash: 'sidebar.place.trash',
 };
 
-// The bundled set has no glyph per place, so each borrows the closest icon group.
-const GROUPS: Record<Exclude<PlaceKind, 'overview' | 'home' | 'trash'>, IconGroup> = {
-	desktop: 'folder',
-	documents: 'document',
-	downloads: 'folder',
-	pictures: 'image',
-	music: 'audio',
-	videos: 'video',
+// Each user folder is drawn as the standard folder it is (a folder with its own mark).
+const SPECIAL: Record<Exclude<PlaceKind, 'overview' | 'home' | 'trash'>, SpecialFolder> = {
+	desktop: 'desktop',
+	documents: 'documents',
+	downloads: 'downloads',
+	pictures: 'pictures',
+	music: 'music',
+	videos: 'videos',
 };
 
 interface PlaceListProps {
@@ -83,7 +83,7 @@ export function PlaceList({ places, currentUri, actions, trash = null }: PlaceLi
 							) : place.kind === 'trash' ? (
 								<TrashIcon className={styles.itemIcon} />
 							) : (
-								<FileIcon group={GROUPS[place.kind]} />
+								<FileIcon group="folder" special={SPECIAL[place.kind]} />
 							)}
 							<span className={styles.label}>{label}</span>
 							{count > 0 && (

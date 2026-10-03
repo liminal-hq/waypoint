@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import type { ChildrenState, FolderChild } from './folderTreeModel';
 
 export interface TreeRow {
@@ -12,6 +13,8 @@ export interface TreeRow {
 	key: string;
 	name: string;
 	location: Location;
+	/** Which standard folder of the user's this is, when it is one. */
+	special?: SpecialFolder;
 	/** 1 for the root. */
 	level: number;
 	expanded: boolean;
@@ -61,6 +64,7 @@ export function flattenTree(
 			key: uri,
 			name: node.name,
 			location: node.location,
+			special: node.special,
 			level,
 			expanded: open,
 			expandable: !(known && known.total === 0),

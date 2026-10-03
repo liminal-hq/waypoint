@@ -1167,6 +1167,98 @@
     "message": "File",
     "description": "Area: browse."
   },
+  "browse.group.pdf": {
+    "message": "PDF document",
+    "description": "Area: browse."
+  },
+  "browse.group.app": {
+    "message": "Application",
+    "description": "Area: browse."
+  },
+  "browse.group.text": {
+    "message": "Text file",
+    "description": "Area: browse."
+  },
+  "browse.group.markdown": {
+    "message": "Markdown document",
+    "description": "Area: browse."
+  },
+  "browse.group.spreadsheet": {
+    "message": "Spreadsheet",
+    "description": "Area: browse."
+  },
+  "browse.group.presentation": {
+    "message": "Presentation",
+    "description": "Area: browse."
+  },
+  "browse.group.font": {
+    "message": "Font",
+    "description": "Area: browse."
+  },
+  "browse.group.diskImage": {
+    "message": "Disk image",
+    "description": "Area: browse."
+  },
+  "browse.group.database": {
+    "message": "Database",
+    "description": "Area: browse."
+  },
+  "browse.group.config": {
+    "message": "Configuration file",
+    "description": "Area: browse."
+  },
+  "browse.group.shellScript": {
+    "message": "Shell script",
+    "description": "Area: browse."
+  },
+  "browse.group.executable": {
+    "message": "Executable",
+    "description": "Area: browse."
+  },
+  "browse.group.certificate": {
+    "message": "Certificate or key",
+    "description": "Area: browse."
+  },
+  "browse.group.ebook": {
+    "message": "E-book",
+    "description": "Area: browse."
+  },
+  "browse.group.torrent": {
+    "message": "Torrent",
+    "description": "Area: browse."
+  },
+  "browse.group.calendar": {
+    "message": "Calendar",
+    "description": "Area: browse."
+  },
+  "browse.group.contact": {
+    "message": "Contact",
+    "description": "Area: browse."
+  },
+  "browse.group.log": {
+    "message": "Log file",
+    "description": "Area: browse."
+  },
+  "browse.group.model3d": {
+    "message": "3D model",
+    "description": "Area: browse."
+  },
+  "browse.group.subtitles": {
+    "message": "Subtitles",
+    "description": "Area: browse."
+  },
+  "browse.group.playlist": {
+    "message": "Playlist",
+    "description": "Area: browse."
+  },
+  "browse.group.package": {
+    "message": "Package",
+    "description": "Area: browse."
+  },
+  "browse.group.symlink": {
+    "message": "Symbolic link",
+    "description": "Area: browse."
+  },
   "browse.header.kind.folder": {
     "message": "Folders",
     "description": "Area: browse."
@@ -1197,6 +1289,98 @@
   },
   "browse.header.kind.other": {
     "message": "Other files",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.pdf": {
+    "message": "PDF documents",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.app": {
+    "message": "Applications",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.text": {
+    "message": "Text files",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.markdown": {
+    "message": "Markdown documents",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.spreadsheet": {
+    "message": "Spreadsheets",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.presentation": {
+    "message": "Presentations",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.font": {
+    "message": "Fonts",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.diskImage": {
+    "message": "Disk images",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.database": {
+    "message": "Databases",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.config": {
+    "message": "Configuration files",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.shellScript": {
+    "message": "Shell scripts",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.executable": {
+    "message": "Executables",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.certificate": {
+    "message": "Certificates and keys",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.ebook": {
+    "message": "E-books",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.torrent": {
+    "message": "Torrents",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.calendar": {
+    "message": "Calendars",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.contact": {
+    "message": "Contacts",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.log": {
+    "message": "Log files",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.model3d": {
+    "message": "3D models",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.subtitles": {
+    "message": "Subtitles",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.playlist": {
+    "message": "Playlists",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.package": {
+    "message": "Packages",
+    "description": "Area: browse."
+  },
+  "browse.header.kind.symlink": {
+    "message": "Symbolic links",
     "description": "Area: browse."
   },
   "browse.header.modified.today": {
@@ -6609,6 +6793,94 @@
   },
   "inspector.kind.document": {
     "message": "Document",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.pdf": {
+    "message": "PDF document",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.app": {
+    "message": "Application",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.text": {
+    "message": "Text file",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.markdown": {
+    "message": "Markdown document",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.spreadsheet": {
+    "message": "Spreadsheet",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.presentation": {
+    "message": "Presentation",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.font": {
+    "message": "Font",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.diskImage": {
+    "message": "Disk image",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.database": {
+    "message": "Database",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.config": {
+    "message": "Configuration file",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.shellScript": {
+    "message": "Shell script",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.executable": {
+    "message": "Executable",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.certificate": {
+    "message": "Key or certificate",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.ebook": {
+    "message": "E-book",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.torrent": {
+    "message": "Torrent file",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.calendar": {
+    "message": "Calendar",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.contact": {
+    "message": "Contact",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.log": {
+    "message": "Log file",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.model3d": {
+    "message": "3D model",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.subtitles": {
+    "message": "Subtitles",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.playlist": {
+    "message": "Playlist",
+    "description": "Area: inspector."
+  },
+  "inspector.kind.package": {
+    "message": "Package",
     "description": "Area: inspector."
   },
   "properties.open": {
