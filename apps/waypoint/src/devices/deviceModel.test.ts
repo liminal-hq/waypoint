@@ -13,12 +13,15 @@ describe('usageOf', () => {
 		expect(usage?.percent).toBe(75);
 		expect(usage?.text).toMatch(/125.*free of.*500/);
 		expect(usage?.almostFull).toBe(false);
+		expect(usage?.warning).toBeNull();
 	});
 
 	it('says "Almost full" in words from 90 percent', () => {
 		const usage = usageOf(fakeVolume('a', { total: 1000, free: 50 }));
 		expect(usage?.almostFull).toBe(true);
 		expect(usage?.text).toContain('Almost full');
+		expect(usage?.warning).toBe('Almost full');
+		expect(usage?.summary).not.toContain('Almost full');
 	});
 
 	it('has nothing to show without a size or a measurement', () => {
