@@ -483,6 +483,35 @@ enum Held<H> {
     /// The last ask failed: asked again only after the wish has gone away and come back, so a
     /// service that cannot do it is not hit on every event.
     Failed,
+    /// The backend took the request and then dropped it (it will not inhibit sleep), so there is
+    /// nothing to release and nothing worth asking for again this run.
+    Refused,
+}
+
+/// Why prevent sleep is unavailable once the backend has refused the inhibitor: the Services panel
+/// and the switch show it.
+pub const INHIBIT_REFUSED_REASON: &str =
+    "The desktop's portal backend does not allow a sleep inhibitor here.";
+
+/// Whether a failed release means the portal's request object does not exist, which is how a
+/// backend that refused the inhibitor looks: the portal hands back a request path at once and the
+/// backend drops it afterwards, so `Close` finds nothing at that path.
+pub fn request_is_gone(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("unknownmethod")
+        || lower.contains("unknownobject")
+        || lower.contains("does not exist at path")
+}
+
+/// `availability` with prevent sleep switched off, and why, when the inhibitor was refused.
+pub fn with_refused_inhibit(
+    mut availability: IntegrationAvailability,
+    refused: bool,
+) -> IntegrationAvailability {
+    if refused && availability.prevent_sleep.available {
+        availability.prevent_sleep = Availability::no(INHIBIT_REFUSED_REASON);
+    }
+    availability
 }
 
 /// The sleep inhibitor's lifecycle: taken when the first job starts, given back when the last
@@ -524,6 +553,7 @@ impl<H: Copy> Inhibitor<H> {
                 self.held = Held::Free;
                 InhibitAction::None
             }
+            // Refused stays refused: no ask, and so no release, for the rest of the run.
             _ => InhibitAction::None,
         }
     }
@@ -554,6 +584,19 @@ impl<H: Copy> Inhibitor<H> {
         }
     }
 
+    /// The backend refused the inhibitor that was just taken (its request is gone). Returns whether
+    /// this is news, so the caller logs the reason once; nothing is held and none is asked for again.
+    pub fn refused(&mut self) -> bool {
+        let first = !matches!(self.held, Held::Refused);
+        self.held = Held::Refused;
+        first
+    }
+
+    /// The backend has refused an inhibitor this run.
+    pub fn is_refused(&self) -> bool {
+        matches!(self.held, Held::Refused)
+    }
+
     /// The app is exiting: whatever is held is given back, and nothing is asked for again.
     pub fn release_all(&mut self) -> InhibitAction<H> {
         self.wanted = false;
@@ -567,6 +610,65 @@ impl<H: Copy> Inhibitor<H> {
     #[cfg(test)]
     pub fn is_held(&self) -> bool {
         matches!(self.held, Held::Taken(_))
+    }
+}
+
+/// What the inhibitor talks to: the portal or logind in the app, a fake in tests.
+pub trait InhibitBackend {
+    /// What a taken inhibitor is released by.
+    type Handle: Copy;
+
+    async fn acquire(&self, route: Route) -> Result<Self::Handle, String>;
+    async fn release(&self, handle: Self::Handle) -> Result<(), String>;
+}
+
+/// Gives an inhibitor back. A failure that says the portal's request is gone means the backend
+/// refused the inhibitor (it only says so once the request is dropped), so that is logged once as
+/// the reason prevent sleep is unavailable, and never again asked for; any other failure is a
+/// warning, because it may be real.
+async fn release_inhibitor<B: InhibitBackend>(
+    backend: &B,
+    inhibitor: &mut Inhibitor<B::Handle>,
+    handle: B::Handle,
+) {
+    match backend.release(handle).await {
+        Ok(()) => {}
+        Err(e) if request_is_gone(&e) => {
+            if inhibitor.refused() {
+                log::warn!("prevent sleep is unavailable: {INHIBIT_REFUSED_REASON} ({e})");
+            }
+        }
+        Err(e) => log::warn!("could not release the sleep inhibitor: {e}"),
+    }
+}
+
+/// Follows the wish to keep the machine awake with the inhibitor's state machine.
+pub async fn drive_inhibitor<B: InhibitBackend>(
+    backend: &B,
+    inhibitor: &mut Inhibitor<B::Handle>,
+    wanted: bool,
+    route: Option<Route>,
+) {
+    match inhibitor.want(wanted) {
+        InhibitAction::None => {}
+        InhibitAction::Release(handle) => release_inhibitor(backend, inhibitor, handle).await,
+        InhibitAction::Acquire => {
+            let Some(route) = route else {
+                inhibitor.failed();
+                return;
+            };
+            match backend.acquire(route).await {
+                Ok(handle) => {
+                    if let InhibitAction::Release(handle) = inhibitor.acquired(handle) {
+                        release_inhibitor(backend, inhibitor, handle).await;
+                    }
+                }
+                Err(e) => {
+                    log::warn!("could not keep the system awake: {e}");
+                    inhibitor.failed();
+                }
+            }
+        }
     }
 }
 
@@ -1298,6 +1400,106 @@ mod tests {
         assert_eq!(inhibitor.want(false), InhibitAction::None);
         inhibitor.failed();
         assert_eq!(inhibitor.want(true), InhibitAction::Acquire);
+    }
+
+    /// A backend that hands out a request path and then, like a portal backend that refuses, has
+    /// nothing at it: `Close` answers `UnknownMethod`. Counts what it is asked.
+    #[derive(Default)]
+    struct Refusing {
+        acquires: std::cell::Cell<u32>,
+        releases: std::cell::Cell<u32>,
+    }
+
+    impl InhibitBackend for Refusing {
+        type Handle = u32;
+
+        async fn acquire(&self, _: Route) -> Result<u32, String> {
+            self.acquires.set(self.acquires.get() + 1);
+            Ok(1)
+        }
+
+        async fn release(&self, _: u32) -> Result<(), String> {
+            self.releases.set(self.releases.get() + 1);
+            Err(
+                "Close: org.freedesktop.DBus.Error.UnknownMethod: Object does not exist at path \
+                 /org/freedesktop/portal/desktop/request/1_2/t0"
+                    .to_owned(),
+            )
+        }
+    }
+
+    #[test]
+    fn a_refused_inhibit_is_noted_once_and_never_asked_for_or_released_again() {
+        let backend = Refusing::default();
+        let mut inhibitor = Inhibitor::<u32>::new();
+        let route = Some(Route::Portal);
+        tauri::async_runtime::block_on(async {
+            // First job: taken, then released at the end, which finds nothing to close.
+            drive_inhibitor(&backend, &mut inhibitor, true, route).await;
+            assert!(inhibitor.is_held());
+            drive_inhibitor(&backend, &mut inhibitor, false, route).await;
+            assert!(inhibitor.is_refused());
+            assert_eq!((backend.acquires.get(), backend.releases.get()), (1, 1));
+            // Later jobs neither ask nor release.
+            for _ in 0..3 {
+                drive_inhibitor(&backend, &mut inhibitor, true, route).await;
+                drive_inhibitor(&backend, &mut inhibitor, false, route).await;
+            }
+        });
+        assert_eq!((backend.acquires.get(), backend.releases.get()), (1, 1));
+        assert!(!inhibitor.is_held());
+        assert!(!inhibitor.refused(), "only the first refusal is news");
+    }
+
+    #[test]
+    fn a_release_that_fails_for_another_reason_is_not_taken_for_a_refusal() {
+        struct Broken;
+        impl InhibitBackend for Broken {
+            type Handle = u32;
+            async fn acquire(&self, _: Route) -> Result<u32, String> {
+                Ok(2)
+            }
+            async fn release(&self, _: u32) -> Result<(), String> {
+                Err("the bus went away".to_owned())
+            }
+        }
+        let mut inhibitor = Inhibitor::<u32>::new();
+        tauri::async_runtime::block_on(async {
+            drive_inhibitor(&Broken, &mut inhibitor, true, Some(Route::Portal)).await;
+            drive_inhibitor(&Broken, &mut inhibitor, false, Some(Route::Portal)).await;
+        });
+        assert!(!inhibitor.is_refused());
+        assert_eq!(
+            inhibitor.want(true),
+            InhibitAction::Acquire,
+            "it can be asked for again"
+        );
+    }
+
+    #[test]
+    fn a_refusal_makes_prevent_sleep_unavailable_with_the_reason() {
+        let fine = availability(Platform::Linux, &portal(true, true), &desktop(&[]));
+        assert!(
+            with_refused_inhibit(fine.clone(), false)
+                .prevent_sleep
+                .available
+        );
+        let refused = with_refused_inhibit(fine, true);
+        assert!(!refused.prevent_sleep.available);
+        assert_eq!(
+            refused.prevent_sleep.reason.as_deref(),
+            Some(INHIBIT_REFUSED_REASON)
+        );
+        assert!(refused.notifications.available);
+    }
+
+    #[test]
+    fn only_a_missing_request_looks_like_a_refusal() {
+        assert!(request_is_gone(
+            "Close: org.freedesktop.DBus.Error.UnknownMethod: Object does not exist at path /x"
+        ));
+        assert!(!request_is_gone("Close timed out"));
+        assert!(!request_is_gone("the bus went away"));
     }
 
     #[test]
