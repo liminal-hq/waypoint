@@ -3,6 +3,7 @@
 	position: fixed;
 	z-index: 999;
 	top: calc(var(--wp-drag-y, 0px) + 64px);
+	/* physical: the card follows the pointer in screen coordinates */
 	left: calc(var(--wp-drag-x, 0px) + 14px);
 	width: var(--wp-tear-card-width);
 	height: var(--wp-tear-card-height);

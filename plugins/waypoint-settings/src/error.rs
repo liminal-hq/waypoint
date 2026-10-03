@@ -42,6 +42,9 @@ impl serde::Serialize for Error {
             map.serialize_entry("min", min)?;
             map.serialize_entry("max", max)?;
         }
+        if let Error::Invalid(SettingsError::Invalid { field, .. }) = self {
+            map.serialize_entry("field", field)?;
+        }
         map.end()
     }
 }

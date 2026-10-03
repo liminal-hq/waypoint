@@ -1,0 +1,53 @@
+/*
+ * The frame is the size the caller gives it; the icon and the picture are laid over each other in
+ * it. The icon is hidden once the picture has loaded so a picture with transparency does not show it.
+ * The one cell is the frame's own size (`minmax(0, 1fr)`, not `auto`): with an `auto` track a tall
+ * picture sets its own height from its intrinsic size, and so spills out of the frame and over the
+ * name below it.
+ */
+.frame {
+	display: grid;
+	flex: none;
+	grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+	place-items: center;
+	overflow: hidden;
+	width: 16px;
+	height: 16px;
+}
+
+.frame > * {
+	grid-area: 1 / 1;
+}
+
+.frame > svg {
+	width: 100%;
+	height: 100%;
+}
+
+.picture {
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	max-height: 100%;
+	border-radius: 4px;
+	object-fit: contain;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 140ms ease-out;
+}
+
+.frame[data-thumbnail='loaded'] > svg {
+	visibility: hidden;
+}
+
+.frame[data-thumbnail='loaded'] .picture {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.picture {
+		transition: none;
+	}
+}

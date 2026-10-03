@@ -1,0 +1,160 @@
+/*
+ * The stage fills the dialog's body at a steady height so a step never makes the window jump.
+ * Only theme tokens are used, so every theme and high contrast follow; positions are logical so
+ * right-to-left layouts mirror.
+ */
+.stage {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: center;
+	box-sizing: border-box;
+	block-size: min(60vh, 520px);
+	min-block-size: 220px;
+	overflow: auto;
+	outline: none;
+}
+
+.stage:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+/*
+ * The one cell is the picture box's own size (`minmax(0, 1fr)`, not `auto`): with an `auto` track the
+ * full image takes its height from its own proportions, so a portrait picture ran at the box's full
+ * width, spilled past it, and its thumbnail underneath showed as a miniature in front.
+ */
+.picture {
+	position: relative;
+	display: grid;
+	flex: 1;
+	grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+	min-block-size: 0;
+	place-items: center;
+}
+
+.picture > * {
+	grid-area: 1 / 1;
+}
+
+.image,
+.underlay {
+	min-inline-size: 0;
+	min-block-size: 0;
+	max-inline-size: 100%;
+	max-block-size: 100%;
+	object-fit: contain;
+}
+
+.underlay {
+	inline-size: 100%;
+	block-size: 100%;
+}
+
+.image {
+	position: relative;
+	z-index: 1;
+	background: transparent;
+}
+
+.video {
+	inline-size: 100%;
+	block-size: 100%;
+	min-block-size: 0;
+	background: var(--wp-bg-chrome);
+}
+
+.audio,
+.facts {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 16px;
+	text-align: center;
+}
+
+.audioControls {
+	inline-size: min(100%, 420px);
+}
+
+.large {
+	inline-size: 160px;
+	block-size: 160px;
+	color: var(--wp-text-secondary);
+}
+
+.name {
+	margin: 0;
+	max-inline-size: 100%;
+	overflow-wrap: anywhere;
+	font-size: 15px;
+	font-weight: 600;
+}
+
+.list {
+	display: grid;
+	grid-template-columns: auto auto;
+	gap: 4px 12px;
+	margin: 0;
+	color: var(--wp-text-secondary);
+}
+
+.list dt {
+	color: var(--wp-text-muted);
+	text-align: end;
+}
+
+.list dd {
+	margin: 0;
+	text-align: start;
+}
+
+.text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-block-size: 0;
+}
+
+.code {
+	flex: 1;
+	margin: 0;
+	padding: 12px;
+	overflow: auto;
+	color: var(--wp-text-primary);
+	background: var(--wp-bg-chrome);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font-family: ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	white-space: pre;
+	tab-size: 4;
+}
+
+.notice,
+.status {
+	margin: 8px 0 0;
+	color: var(--wp-text-muted);
+	text-align: center;
+}
+
+.status {
+	margin: 0;
+	padding: 16px;
+}
+
+.visuallyHidden {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}

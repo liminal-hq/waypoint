@@ -5,13 +5,22 @@
 
 import {
 	DEFAULT_SETTINGS,
+	MENU_OPACITY_MIN,
+	OPACITY_MAX,
+	OPACITY_MIN,
+	PREVIEW_MAX_MB_MAX,
+	PREVIEW_MAX_MB_MIN,
 	SPRING_LOAD_MAX_MS,
 	SPRING_LOAD_MIN_MS,
+	PSEUDO_LANGUAGES,
+	SUPPORTED_LANGUAGES,
+	TEXT_SIZES,
 	type Settings,
 	type SettingsClient,
 	type SettingsCommandError,
 	type SettingsSnapshot,
 } from './settingsClient';
+import { isAccelerator } from './accelerator';
 
 export interface FakeSettings extends SettingsClient {
 	/** Every `setUi` the page sent, in order. */
@@ -39,6 +48,45 @@ export function rangeError(field: string, min: number, max: number): SettingsCom
 		min,
 		max,
 	};
+}
+
+/** The refusal Rust gives for a value that is not one of the allowed ones. */
+export function invalidError(field: string, reason: string): SettingsCommandError {
+	return { kind: 'invalid', message: `${field} is not valid: ${reason}`, field };
+}
+
+/** Rust's checks for the milestone 5 sections, so a page tested against the fake meets the same refusals. */
+function refusal(settings: Settings): SettingsCommandError | null {
+	const ranges: [string, number, number, number][] = [
+		['transparency.opacity', settings.transparency.opacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.rowsOpacity', settings.transparency.rowsOpacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.sidebarOpacity', settings.transparency.sidebarOpacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.contentOpacity', settings.transparency.contentOpacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.menuOpacity', settings.transparency.menuOpacity, MENU_OPACITY_MIN, OPACITY_MAX],
+		['previews.maxFileMb', settings.previews.maxFileMb, PREVIEW_MAX_MB_MIN, PREVIEW_MAX_MB_MAX],
+	];
+	for (const [field, value, min, max] of ranges) {
+		if (value < min || value > max) return rangeError(field, min, max);
+	}
+	if (!(TEXT_SIZES as readonly number[]).includes(settings.accessibility.textSize)) {
+		return invalidError('accessibility.textSize', 'use 100, 115 or 130');
+	}
+	const accent = settings.appearance.accent;
+	if (accent.kind === 'custom' && !/^#[0-9a-fA-F]{6}$/.test(accent.hex)) {
+		return invalidError('appearance.accent', 'write it as #rrggbb');
+	}
+	const language = settings.locale.language;
+	const offered: readonly string[] = import.meta.env.DEV
+		? [...SUPPORTED_LANGUAGES, ...PSEUDO_LANGUAGES]
+		: SUPPORTED_LANGUAGES;
+	if (language !== 'system' && !offered.includes(language)) {
+		return invalidError('locale.language', 'not a language Waypoint has');
+	}
+	const shortcut = settings.integrations.globalShortcut;
+	if (shortcut !== null && !isAccelerator(shortcut)) {
+		return invalidError('integrations.globalShortcut', 'write it like Ctrl+Alt+W');
+	}
+	return null;
 }
 
 export function createFakeSettingsClient(initial: Settings = DEFAULT_SETTINGS): FakeSettings {
@@ -88,6 +136,8 @@ export function createFakeSettingsClient(initial: Settings = DEFAULT_SETTINGS): 
 			if (ms < SPRING_LOAD_MIN_MS || ms > SPRING_LOAD_MAX_MS) {
 				throw rangeError('dnd.springLoadMs', SPRING_LOAD_MIN_MS, SPRING_LOAD_MAX_MS);
 			}
+			const refused = refusal(settings);
+			if (refused) throw refused;
 			if (JSON.stringify(settings) === JSON.stringify(state.settings)) return state;
 			state = { revision: state.revision + 1, settings };
 			announce(state);

@@ -5,14 +5,20 @@
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { OpenWithClient } from '../openWith/openWithClient';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
 import type { OsClipboardClient } from '../services/osClipboardClient';
+import type { DirScanClient } from '../services/dirScanClient';
+import type { DetailsClient } from '../services/detailsClient';
+import type { PropertiesWindowClient } from '../services/propertiesWindowClient';
 import type { PlacesClient } from '../services/placesClient';
 import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
+import type { DevicesClient } from '../devices/devicesClient';
+import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
 import type { TrashClient } from '../trash/trashClient';
 import type { VfsClient } from '../services/vfsClient';
 
@@ -38,6 +44,18 @@ export interface MainServices {
 	nativeDnd?: NativeDndClient;
 	/** The Trash's state and jobs; without it the Trash place shows no count and offers no actions. */
 	trash?: TrashClient;
+	/** The drives and volumes behind the sidebar's Devices section; without it the section is not shown. */
+	devices?: DevicesClient;
+	/** Open With: the default and other applications for a file; without it Open With is not offered. */
+	openWith?: OpenWithClient;
+	/** Thumbnails for the views; without it every view keeps its icons. */
+	thumbnails?: ThumbnailsClient;
+	/** Entry details, text heads and preview addresses, for Quick Look; without it Space does nothing. */
+	details?: DetailsClient;
+	/** Properties windows; without it Alt+Enter, the item menu and the Inspector offer none. */
+	propertiesWindow?: PropertiesWindowClient;
+	/** The directory-size scan behind Overview's biggest folders in Home; without it Overview offers no measurement. */
+	dirScan?: DirScanClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -53,6 +71,12 @@ export interface MainServicesDeps {
 	createOsClipboardClient?(): OsClipboardClient;
 	createNativeDndClient?(): NativeDndClient;
 	createTrashClient?(): TrashClient;
+	createDevicesClient?(): DevicesClient;
+	createOpenWithClient?(): OpenWithClient;
+	createThumbnailsClient?(): ThumbnailsClient;
+	createDetailsClient?(): DetailsClient;
+	createPropertiesWindowClient?(): PropertiesWindowClient;
+	createDirScanClient?(): DirScanClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -80,6 +104,12 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		osClipboard: deps.createOsClipboardClient?.(),
 		nativeDnd: deps.createNativeDndClient?.(),
 		trash: deps.createTrashClient?.(),
+		devices: deps.createDevicesClient?.(),
+		openWith: deps.createOpenWithClient?.(),
+		thumbnails: deps.createThumbnailsClient?.(),
+		details: deps.createDetailsClient?.(),
+		propertiesWindow: deps.createPropertiesWindowClient?.(),
+		dirScan: deps.createDirScanClient?.(),
 		home,
 	};
 }

@@ -65,6 +65,13 @@ import { useTabShortcuts } from '../tabs/useTabShortcuts';
 import { useWindowShortcuts } from '../tabs/windowActions';
 import { CloseGuardHost } from '../tabs/CloseGuardHost';
 import { FileDragProvider } from '../dnd/FileDragContext';
+import { OpenWithHost } from '../openWith/OpenWithHost';
+import { QuickLookHost } from '../quicklook/QuickLookHost';
+import { InspectorProvider } from '../inspector/InspectorContext';
+import { usePropertiesWindowClient } from '../inspector/PropertiesWindowContext';
+import { usePropertiesWindowHost } from '../inspector/usePropertiesWindowHost';
+import { InspectorDock } from '../inspector/InspectorPanel';
+import { createInspectorStore } from '../inspector/inspectorStore';
 import { ShelfProvider } from '../shelf/ShelfContext';
 import { ShelfDock, ShelfToggle } from '../shelf/ShelfToggle';
 import { useFileCommandsHost } from '../ops/useFileCommandsHost';
@@ -81,6 +88,7 @@ import { useBatchRenameShortcut } from '../ops/batchRename/useBatchRenameShortcu
 import {
 	CommandBridgeProvider,
 	createCommandBridge,
+	useCommandBridge,
 	useProvidedCommandBridge,
 } from '../commands/commandBridge';
 import { useWorkspaceCommands } from '../commands/useWorkspaceCommands';
@@ -197,6 +205,8 @@ function WorkspaceBody({
 	const client = useVfsClient();
 	const api = useTabsApi();
 	const snapshot = useTabsSnapshot();
+	// The Inspector's memory is the window's; the right-click menus open it, so the workspace holds it.
+	const [inspectorStore] = useState(createInspectorStore);
 	const [manager] = useState(
 		() =>
 			new ListingManager(client, {
@@ -343,6 +353,9 @@ function WorkspaceBody({
 		sidebar: sidebarStore,
 		trash: trashActions,
 	});
+	// Alt+Enter, the item menu and the palette open a Properties window for the active pane's subject.
+	const openProperties = usePropertiesWindowHost(useCommandBridge(), activeSession);
+	const propertiesWindowAvailable = usePropertiesWindowClient() !== null;
 	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
 	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
 	const currentBatchSelection = useCallback(
@@ -379,6 +392,8 @@ function WorkspaceBody({
 
 	const runCommand = (command: EntryCommand | BackgroundCommand, entry?: Entry) => {
 		const from = menu?.session ?? null;
+		if (command === 'properties') return inspectorStore.getState().showProperties();
+		if (command === 'propertiesWindow') return openProperties(from, entry);
 		if (!commands) return;
 		switch (command) {
 			case 'newFolder':
@@ -424,113 +439,125 @@ function WorkspaceBody({
 		<TrashActionsProvider value={trashActions}>
 			<FileCommandsProvider value={commands}>
 				<ClipboardProvider value={clipboard}>
-					<ShelfProvider
-						activeSession={activeSession}
-						{...(shelfWindow ? { windowClient: shelfWindow } : {})}
-					>
-						<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
-							<div className={styles.workspace}>
-								<TabStrip />
-								<NavigationBar />
-								<ActionBar />
-								<div className={styles.middle}>
-									{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-									<div className={styles.content}>
-										<div
-											className={styles.files}
-											role="tabpanel"
-											id={TAB_PANEL_ID}
-											aria-label={tab ? undefined : t('tabs.panel.label')}
-											aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-										>
-											{panes.length > 0 && (
-												<PaneArea
-													panes={panes}
-													pair={panes.length > 1 ? pair : undefined}
-													active={tab?.id ?? null}
-													stateFor={stateFor}
-													mode={mode}
-													gridSize={gridSize}
-													onFailure={onFailure}
-													onMenu={setMenu}
-												/>
-											)}
+					<InspectorProvider store={inspectorStore}>
+						<ShelfProvider
+							activeSession={activeSession}
+							{...(shelfWindow ? { windowClient: shelfWindow } : {})}
+						>
+							<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
+								<div className={styles.workspace}>
+									<TabStrip />
+									<NavigationBar />
+									<ActionBar />
+									<div className={styles.middle}>
+										{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
+										<div className={styles.content}>
+											<div
+												className={styles.files}
+												role="tabpanel"
+												id={TAB_PANEL_ID}
+												aria-label={tab ? undefined : t('tabs.panel.label')}
+												aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+											>
+												{panes.length > 0 && (
+													<PaneArea
+														panes={panes}
+														pair={panes.length > 1 ? pair : undefined}
+														active={tab?.id ?? null}
+														stateFor={stateFor}
+														mode={mode}
+														gridSize={gridSize}
+														onFailure={onFailure}
+														onMenu={setMenu}
+													/>
+												)}
+											</div>
+											<ShelfDock />
 										</div>
-										<ShelfDock />
+										<InspectorDock session={session} location={tab?.location} />
 									</div>
-								</div>
-								<StatusBar session={session} location={tab?.location} notice={notice?.text ?? null}>
-									<ViewSwitcher />
-									<ShelfToggle />
-								</StatusBar>
-								<NoticeToast />
-								{commandDialog}
-								<BatchRenameHost api={batchRenameApi} announce={notify} />
-								<DestinationHost />
-								{trashDialogs}
-								{menu?.kind === 'background' && (
-									<BackgroundContextMenu
-										session={menu.session}
-										showHidden={showHidden}
-										position={menu.position}
-										keyboard={menu.keyboard}
-										onToggleHidden={() => viewStore.getState().toggleHidden()}
-										onEmptyTrash={
-											trashActions
-												? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
-												: undefined
-										}
-										onClose={() => setMenu(null)}
-										commands={
-											commands
-												? {
-														states: commands.states(menu.session),
-														undoLabel: commands.history().undo?.label ?? null,
-														redoLabel: commands.history().redo?.label ?? null,
-													}
-												: undefined
-										}
-										onCommand={runCommand}
-									/>
-								)}
-								{menu?.kind === 'entry' &&
-									menu.session?.model.layout === 'trash' &&
-									trashActions && (
-										<TrashEntryMenu
+									<StatusBar
+										session={session}
+										location={tab?.location}
+										notice={notice?.text ?? null}
+									>
+										<ViewSwitcher />
+										<ShelfToggle />
+									</StatusBar>
+									<NoticeToast />
+									{commandDialog}
+									<BatchRenameHost api={batchRenameApi} announce={notify} />
+									<DestinationHost />
+									<OpenWithHost />
+									<QuickLookHost />
+									{trashDialogs}
+									{menu?.kind === 'background' && (
+										<BackgroundContextMenu
+											session={menu.session}
+											showHidden={showHidden}
 											position={menu.position}
 											keyboard={menu.keyboard}
-											onRestore={() => menu.session && trashActions.restore(menu.session)}
-											onDelete={() => menu.session && trashActions.deletePermanently(menu.session)}
+											onToggleHidden={() => viewStore.getState().toggleHidden()}
+											onEmptyTrash={
+												trashActions
+													? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
+													: undefined
+											}
 											onClose={() => setMenu(null)}
+											commands={
+												commands
+													? {
+															states: commands.states(menu.session),
+															undoLabel: commands.history().undo?.label ?? null,
+															redoLabel: commands.history().redo?.label ?? null,
+														}
+													: undefined
+											}
+											onCommand={runCommand}
 										/>
 									)}
-								{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
-									<EntryContextMenu
-										entry={menu.entry}
-										handle={menu.handle}
-										position={menu.position}
-										keyboard={menu.keyboard}
-										onClose={() => setMenu(null)}
-										onOpen={menu.openers.open}
-										onOpenInNewTab={menu.openers.openInNewTab}
-										onCopyPath={menu.openers.copyPath}
-										session={menu.session}
-										onAddToFavourites={menu.openers.addToFavourites}
-										commands={commands?.states(menu.session)}
-										batchRename={
-											menu.session
-												? selectedCount(
-														menu.session.store.getState().selection,
-														menu.session.model.count,
-													) > 1
-												: false
-										}
-										onCommand={runCommand}
-									/>
-								)}
-							</div>
-						</FileDragProvider>
-					</ShelfProvider>
+									{menu?.kind === 'entry' &&
+										menu.session?.model.layout === 'trash' &&
+										trashActions && (
+											<TrashEntryMenu
+												position={menu.position}
+												keyboard={menu.keyboard}
+												onRestore={() => menu.session && trashActions.restore(menu.session)}
+												onDelete={() =>
+													menu.session && trashActions.deletePermanently(menu.session)
+												}
+												onClose={() => setMenu(null)}
+											/>
+										)}
+									{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
+										<EntryContextMenu
+											entry={menu.entry}
+											handle={menu.handle}
+											position={menu.position}
+											keyboard={menu.keyboard}
+											onClose={() => setMenu(null)}
+											onOpen={menu.openers.open}
+											onOpenInNewTab={menu.openers.openInNewTab}
+											onCopyPath={menu.openers.copyPath}
+											session={menu.session}
+											onAddToFavourites={menu.openers.addToFavourites}
+											commands={commands?.states(menu.session)}
+											batchRename={
+												menu.session
+													? selectedCount(
+															menu.session.store.getState().selection,
+															menu.session.model.count,
+														) > 1
+													: false
+											}
+											propertiesWindow={propertiesWindowAvailable}
+											onCommand={runCommand}
+										/>
+									)}
+								</div>
+							</FileDragProvider>
+						</ShelfProvider>
+					</InspectorProvider>
 				</ClipboardProvider>
 			</FileCommandsProvider>
 		</TrashActionsProvider>

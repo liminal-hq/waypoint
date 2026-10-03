@@ -39,6 +39,46 @@ impl PluginStatus {
     }
 }
 
+/// Whether one switch on the Integrations page can work on this system, and the sentence for why
+/// not, which the page shows beside the switch and the Services panel shows as the service's reason.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct Availability {
+    pub available: bool,
+    /// Why not; `None` when it works.
+    pub reason: Option<String>,
+}
+
+impl Availability {
+    pub fn yes() -> Self {
+        Self {
+            available: true,
+            reason: None,
+        }
+    }
+
+    pub fn no(reason: impl Into<String>) -> Self {
+        Self {
+            available: false,
+            reason: Some(reason.into()),
+        }
+    }
+}
+
+/// What each integration can do here (D118: each is off until enabled, and only offered when it
+/// can work), worked out in Rust from the shared plugins' own statuses (A65, A66).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct IntegrationAvailability {
+    pub notifications: Availability,
+    pub launcher_progress: Availability,
+    pub prevent_sleep: Availability,
+    /// Owning `org.freedesktop.FileManager1`, which only Linux has.
+    pub file_manager_service: Availability,
+    pub global_shortcut: Availability,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,5 +98,12 @@ mod tests {
             json,
             r#"{"available":true,"reason":null,"features":["trash"]}"#
         );
+    }
+
+    #[test]
+    fn availability_serialises_with_stable_field_names() {
+        let json = serde_json::to_string(&Availability::no("no portal")).unwrap();
+        assert_eq!(json, r#"{"available":false,"reason":"no portal"}"#);
+        assert!(Availability::yes().available);
     }
 }

@@ -242,6 +242,87 @@ pub(crate) fn copy_fast(
     Fast::Unhandled
 }
 
+/// The name of user `uid`, or `None` when the system has none.
+pub(crate) fn user_name(uid: u32) -> Option<String> {
+    let mut buffer = vec![0u8; 4096];
+    loop {
+        let mut entry = std::mem::MaybeUninit::<libc::passwd>::zeroed();
+        let mut found: *mut libc::passwd = std::ptr::null_mut();
+        // SAFETY: `entry`, `buffer` and `found` are valid for the call; on success `found` points
+        // at `entry`, whose strings live in `buffer`, and both outlive the copy below.
+        let status = unsafe {
+            libc::getpwuid_r(
+                uid,
+                entry.as_mut_ptr(),
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut found,
+            )
+        };
+        if status == libc::ERANGE && buffer.len() < 1 << 20 {
+            buffer.resize(buffer.len() * 2, 0);
+            continue;
+        }
+        if status != 0 || found.is_null() {
+            return None;
+        }
+        // SAFETY: the lookup succeeded, so `pw_name` is a NUL-terminated string in `buffer`.
+        let name = unsafe { std::ffi::CStr::from_ptr((*found).pw_name) };
+        return Some(name.to_string_lossy().into_owned());
+    }
+}
+
+/// The name of group `gid`, or `None` when the system has none.
+pub(crate) fn group_name(gid: u32) -> Option<String> {
+    let mut buffer = vec![0u8; 4096];
+    loop {
+        let mut entry = std::mem::MaybeUninit::<libc::group>::zeroed();
+        let mut found: *mut libc::group = std::ptr::null_mut();
+        // SAFETY: as in `user_name`.
+        let status = unsafe {
+            libc::getgrgid_r(
+                gid,
+                entry.as_mut_ptr(),
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut found,
+            )
+        };
+        if status == libc::ERANGE && buffer.len() < 1 << 20 {
+            buffer.resize(buffer.len() * 2, 0);
+            continue;
+        }
+        if status != 0 || found.is_null() {
+            return None;
+        }
+        // SAFETY: the lookup succeeded, so `gr_name` is a NUL-terminated string in `buffer`.
+        let name = unsafe { std::ffi::CStr::from_ptr((*found).gr_name) };
+        return Some(name.to_string_lossy().into_owned());
+    }
+}
+
+/// Lowers the calling thread's CPU priority (nice 19) and, on Linux, puts its disk I/O in the idle
+/// class, so a long walk yields to anything the person is doing. Failures are ignored: the walk
+/// is only slower to yield.
+pub(crate) fn lower_thread_priority() {
+    // On Linux `setpriority(PRIO_PROCESS, 0, …)` applies to the calling thread, not the process.
+    // SAFETY: plain system calls with no pointers.
+    unsafe {
+        libc::setpriority(libc::PRIO_PROCESS, 0, 19);
+        #[cfg(target_os = "linux")]
+        {
+            const IOPRIO_WHO_PROCESS: libc::c_long = 1;
+            const IOPRIO_CLASS_IDLE: libc::c_long = 3;
+            libc::syscall(
+                libc::SYS_ioprio_set,
+                IOPRIO_WHO_PROCESS,
+                0 as libc::c_long,
+                IOPRIO_CLASS_IDLE << 13,
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unnecessary_cast)]
 mod tests {

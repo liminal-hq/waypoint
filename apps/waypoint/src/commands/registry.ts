@@ -51,6 +51,9 @@ import {
 	WindowIcon,
 	CloseOthersIcon,
 } from '../icons/MenuIcons';
+import { OpenWithIcon } from '../openWith/OpenWithIcons';
+import { OverviewIcon } from '../overview/OverviewIcons';
+import { InspectorIcon, PropertiesIcon } from '../inspector/InspectorIcons';
 import { AddToShelfIcon, ShelfIcon } from '../shelf/ShelfIcons';
 import type { CommandActions, CommandFacts } from './commandEnv';
 import type { FileCommandId } from '../ops/fileCommands';
@@ -72,6 +75,7 @@ export const GROUP_ORDER: readonly CommandGroup[] = [
 export type CommandId =
 	| Exclude<FileCommandId, 'pasteInto'>
 	| 'batchRename'
+	| 'openWith'
 	// The Trash
 	| 'restoreFromTrash'
 	| 'deleteFromTrash'
@@ -113,7 +117,11 @@ export type CommandId =
 	| 'addToShelf'
 	| 'focusShelf'
 	| 'undockShelf'
-	| 'dockShelf';
+	| 'dockShelf'
+	// The Inspector
+	| 'toggleInspector'
+	| 'showProperties'
+	| 'propertiesInWindow';
 
 /** The commands that open a place of the sidebar. */
 export type GoCommandId =
@@ -124,7 +132,8 @@ export type GoCommandId =
 	| 'goPictures'
 	| 'goMusic'
 	| 'goVideos'
-	| 'goTrash';
+	| 'goTrash'
+	| 'openOverview';
 
 /** Whether a command is offered now, and if it is offered but cannot run, why. */
 export type Availability =
@@ -313,6 +322,20 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'file',
 		when: fileCommand('rename', () => 'cmd.reason.nothingFocused'),
 		run: (a) => a.files?.rename(),
+	},
+	{
+		id: 'openWith',
+		label: 'cmd.openWith',
+		icon: OpenWithIcon,
+		group: 'file',
+		// Where the plugin can do it, for files on this computer; it opens on the selection.
+		when: (f) =>
+			!f.listing || f.trash || !f.local || !f.openWith
+				? HIDDEN
+				: f.selected > 0
+					? SHOWN
+					: blocked('cmd.reason.nothingSelected'),
+		run: (a) => a.openWith(),
 	},
 	{
 		id: 'batchRename',
@@ -612,6 +635,8 @@ export const COMMANDS: readonly CommandDef[] = [
 	goToPlace('music', 'goMusic', 'cmd.goTo.music', FolderOpenIcon),
 	goToPlace('videos', 'goVideos', 'cmd.goTo.videos', FolderOpenIcon),
 	goToPlace('trash', 'goTrash', 'cmd.goTo.trash', TrashIcon),
+	// Overview is a place that opens as the tab's content, so the palette says "Open".
+	goToPlace('overview', 'openOverview', 'cmd.openOverview', OverviewIcon),
 
 	// Tabs
 	{
@@ -720,6 +745,43 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'view',
 		when: (f) => (f.shelfUndocked ? SHOWN : HIDDEN),
 		run: (a) => a.dockShelf(),
+	},
+
+	// The Inspector
+	{
+		id: 'toggleInspector',
+		label: 'cmd.inspector',
+		shortcut: 'F11',
+		icon: InspectorIcon,
+		group: 'view',
+		when: () => SHOWN,
+		checked: (f) => f.inspectorOpen,
+		run: (a) => a.toggleInspector(),
+	},
+	{
+		id: 'showProperties',
+		label: 'cmd.properties',
+		icon: PropertiesIcon,
+		group: 'view',
+		// The Trash's items have no details to read, so the tab is not offered there.
+		when: (f) => (!f.listing || f.trash ? HIDDEN : SHOWN),
+		run: (a) => a.showProperties(),
+	},
+	{
+		id: 'propertiesInWindow',
+		label: 'cmd.propertiesInWindow',
+		shortcut: 'Alt+Enter',
+		icon: PropertiesIcon,
+		group: 'view',
+		// A window is about one thing: one item, or the folder when nothing is selected. Not in the
+		// Trash, whose items have no details to read, and not where the service does not exist.
+		when: (f) =>
+			!f.listing || f.trash || !f.propertiesWindow
+				? HIDDEN
+				: f.selected > 1
+					? blocked('cmd.reason.selectOne')
+					: SHOWN,
+		run: (a) => a.openPropertiesWindow(),
 	},
 ];
 

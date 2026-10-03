@@ -93,8 +93,13 @@ describe('the capabilities for the settings', () => {
 		expect(settingsWindow.permissions).toContain('waypoint-settings:default');
 		expect(settingsWindow.permissions).toContain('waypoint-ops:allow-get-settings');
 		expect(settingsWindow.permissions).toContain('waypoint-ops:allow-set-settings');
-		// Nothing of the operations plugin beyond its two settings commands.
-		expect(settingsWindow.permissions.filter((p) => p.startsWith('waypoint-ops:'))).toHaveLength(2);
+		// Nothing of the operations plugin beyond its two settings commands and a read of its status,
+		// which the Services panel reports.
+		expect(settingsWindow.permissions.filter((p) => p.startsWith('waypoint-ops:')).sort()).toEqual([
+			'waypoint-ops:allow-get-settings',
+			'waypoint-ops:allow-get-status',
+			'waypoint-ops:allow-set-settings',
+		]);
 		expect(appliesTo(ops, 'settings')).toBe(false);
 	});
 

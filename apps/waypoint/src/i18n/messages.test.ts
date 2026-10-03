@@ -16,13 +16,17 @@ const screens = import.meta.glob<string>(
 		'../commands/*.tsx',
 		'../dnd/*.tsx',
 		'../nav/*.tsx',
+		'../openWith/*.tsx',
+		'../quicklook/*.tsx',
 		'../ops/*.tsx',
 		'../settings/*.tsx',
 		'../tabs/*.tsx',
 		'../status/*.tsx',
 		'../shelf/*.tsx',
+		'../inspector/*.tsx',
 		'../sidebar/*.tsx',
 		'../trash/*.tsx',
+		'../overview/*.tsx',
 	],
 	{
 		query: '?raw',
@@ -105,6 +109,15 @@ describe('the conflict resolver messages', () => {
 			'3 items already exist in their original folders',
 		);
 		expect(pluralText('ops.conflict.more', 30, {}, 'en-CA')).toBe('and 30 more');
+	});
+
+	it('have plural forms for the lines a preview counts', () => {
+		expect(pluralText('ops.conflict.preview.added', 1, {}, 'en-CA')).toBe('1 line added');
+		expect(pluralText('ops.conflict.preview.removed', 2400, {}, 'en-CA')).toBe(
+			'2,400 lines removed',
+		);
+		expect(pluralText('ops.conflict.diff.more', 1, {}, 'en-CA')).toBe('1 more line');
+		expect(pluralText('ops.conflict.diff.gap', 12, {}, 'en-CA')).toBe('12 unchanged lines');
 	});
 
 	it('name every choice the engine knows', () => {
@@ -269,6 +282,29 @@ describe('the palette and history messages', () => {
 		]) {
 			const sidebar = enMessages[`sidebar.place.${place}` as keyof typeof enMessages];
 			expect(enMessages[`cmd.goTo.${place}` as keyof typeof enMessages]).toBe(`Go to ${sidebar}`);
+		}
+	});
+});
+
+describe('the Overview messages', () => {
+	it('have a one and an other form for what is counted', () => {
+		expect(tn('overview.stat.capacity.note', 1, 'en-CA')).toBe(
+			'Counts 1 local volume. Network shares and disk images are left out.',
+		);
+		expect(tn('overview.stat.capacity.note', 3, 'en-CA')).toContain('Counts 3 local volumes.');
+		expect(tn('overview.trash.count', 1200, 'en-CA')).toBe('1,200 items');
+	});
+
+	it('say Open for the palette and keep the sidebar’s word for the place', () => {
+		expect(t('cmd.openOverview')).toBe('Open Overview');
+		expect(t('sidebar.place.overview')).toBe('Overview');
+		expect(t('overview.title')).toBe(t('sidebar.place.overview'));
+	});
+
+	it('use Canadian spelling', () => {
+		for (const [id, text] of Object.entries(enMessages)) {
+			if (id.startsWith('overview.'))
+				expect(text, id).not.toMatch(/\b(color|favorite|center|gray)\b/i);
 		}
 	});
 });

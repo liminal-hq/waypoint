@@ -3,21 +3,29 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { activeMessages, formatLocale, pluralLocale } from './active';
+
 /**
- * English, the only catalogue that ships for now. Screens and the chrome's labels read their copy
- * from here through `t()`, never from a literal in JSX, so a translated catalogue with the same
- * keys can replace this one without touching a component. Keys are `area.thing`, and a value is
- * plain text: pluralisation and interpolation arrive with the localisation library chosen for
- * the catalogue's next stage.
+ * English (`en-CA`), the source catalogue and the fallback for any message another locale lacks.
+ * Screens and the chrome's labels read their copy through `t()`, never from a literal in JSX; the
+ * other locales are catalogues with the same keys that `loadCatalogue` brings in on demand (A68).
+ * Keys are `area.thing`, and a value is plain text with `{name}` tokens; plurals are a `.one` and
+ * an `.other` message here (another language may add `.zero`, `.two`, `.few` and `.many`), chosen by
+ * `tn` with `Intl.PluralRules`.
+ *
+ * A comment `// translator: ...` directly above a key is context for whoever translates it; the
+ * exporter (`bun run i18n:export`) copies it into the key's note. Use one where a short word is
+ * ambiguous (a verb or a noun? which of two senses?). Continue it on following `//` lines.
  */
 export const enMessages = {
+	// translator: The name of the main window (the one with the file browser), not “primary” or “principal”.
 	'window.main.title': 'Main',
+	// translator: A window title: the product name “Waypoint” (not translated), an em dash, then the window’s name.
 	'window.main.titleWithApp': 'Waypoint — Main',
 	'window.main.description': 'The tabbed file browser — coming soon.',
 	'window.main.startFailed': 'Waypoint could not start the file browser.',
 	'window.settings.title': 'Waypoint — Settings',
 	'window.properties.title': 'Waypoint — Properties',
-	'window.properties.description': 'File properties — coming soon.',
 	'window.ops.title': 'Waypoint — Operations',
 	'window.shelf.title': 'Waypoint — Shelf',
 	'window.shelf.dropHint': 'Drop to add to the Shelf',
@@ -29,6 +37,12 @@ export const enMessages = {
 	'settings.section.general': 'General',
 	'settings.section.operations': 'Operations',
 	'settings.section.dnd': 'Drag & drop',
+	'settings.section.appearance': 'Appearance',
+	'settings.section.accessibility': 'Accessibility',
+	'settings.section.integrations': 'Integrations',
+	'settings.section.previews': 'Previews & thumbnails',
+	'settings.section.transparency': 'Transparency',
+	'settings.section.language': 'Language & region',
 	'settings.loading': 'Loading settings…',
 	'settings.group.startup': 'Start-up',
 	'settings.group.browsing': 'Browsing',
@@ -39,6 +53,146 @@ export const enMessages = {
 	'settings.group.trash': 'Trash',
 	'settings.group.dropping': 'Dropping',
 	'settings.group.shelf': 'Shelf',
+	'services.title': 'Services',
+	'services.intro':
+		'What works on this system, and why not when something does not. Waypoint hides options that cannot work here.',
+	'services.loading': 'Checking services…',
+	'services.features': 'Works: {features}',
+	'services.state.available': 'Available',
+	'services.state.partial': 'Partly available',
+	'services.state.unavailable': 'Unavailable',
+	'services.name.file-system': 'File system',
+	'services.name.trash': 'Trash',
+	'services.name.native-dnd': 'Drag and drop with other apps',
+	'services.name.waypoint-ops': 'File operations',
+	'services.name.waypoint-session': 'Windows and tabs',
+	'services.name.waypoint-settings': 'Settings',
+	'services.name.os-prefs': 'System preferences (clock)',
+	'services.name.system-appearance': 'System appearance',
+	'services.name.window-manager': 'Window manager',
+	'services.name.window-tearoff': 'Tab tear-off',
+	'services.name.thumbnails': 'Thumbnails',
+	'services.name.volumes': 'Drives and volumes',
+	'services.name.window-effects': 'Window effects',
+	'services.name.mime-apps': 'File types and Open With',
+	'services.name.xdg-portal': 'Desktop portal',
+	'services.name.desktop-integration': 'Desktop services',
+	'settings.group.notifications': 'Notifications and progress',
+	'settings.group.fileManager': 'File manager',
+	'settings.group.shortcut': 'Global shortcut',
+	'settings.integrations.unreadable': 'Waypoint could not check what this system can do.',
+	'settings.integrations.notifications.label': 'Notify when a job finishes',
+	'settings.integrations.notifications.description':
+		'Shows a notification when a job finishes or fails while no Waypoint window is in front or after it ran for more than 10 seconds, and whenever a job needs your answer. Clicking it brings Waypoint forward.',
+	'settings.integrations.progress.label': 'Show progress on the app icon',
+	'settings.integrations.progress.description':
+		'Shows how far the running jobs have got on Waypoint’s dock or taskbar icon.',
+	'settings.integrations.sleep.label': 'Keep the computer awake during jobs',
+	'settings.integrations.sleep.description':
+		'Stops the computer from going to sleep while a job is running, and lets it sleep again afterwards.',
+	'settings.integrations.fileManager.make.label': 'Make Waypoint the default file manager',
+	'settings.integrations.fileManager.make.description':
+		'Folders that other applications open will open in Waypoint.',
+	'settings.integrations.fileManager.make.action': 'Make default',
+	'settings.integrations.fileManager.settings.label': 'Choose Waypoint in your system settings',
+	'settings.integrations.fileManager.settings.description':
+		'Windows lets only you change the default. Open Default apps, then choose Waypoint for folders.',
+	'settings.integrations.fileManager.settings.action': 'Open Default apps',
+	'settings.integrations.fileManager.state.default': 'Waypoint is the default file manager.',
+	'settings.integrations.fileManager.state.other': 'The default file manager is {name}.',
+	'settings.integrations.fileManager.failed': 'Could not make Waypoint the default: {reason}',
+	'settings.integrations.fileManager.service.label': 'Open folders other applications ask for',
+	'settings.integrations.fileManager.service.description':
+		'While this is on, “Show in folder” and similar requests from other applications open in Waypoint, each folder in a new tab.',
+	'settings.integrations.shortcut.enabled.label': 'Bring Waypoint forward with a shortcut',
+	'settings.integrations.shortcut.enabled.description':
+		'Works from any application: raises the window you used last, or opens a new one.',
+	'settings.integrations.shortcut.key.label': 'Shortcut',
+	'settings.integrations.shortcut.key.description':
+		'One or more of Ctrl, Alt, Shift and Super, then one key, such as Ctrl+Alt+W.',
+	'settings.group.colours': 'Colours',
+	'settings.group.layout': 'Layout',
+	'settings.group.icons': 'Icons',
+	'settings.group.vision': 'Vision',
+	'settings.group.motion': 'Motion and transparency',
+	'settings.group.touch': 'Touch',
+	'settings.group.thumbnails': 'Thumbnails',
+	'settings.group.language': 'Language and formats',
+	'settings.group.direction': 'Layout direction',
+	'settings.group.overview': 'Overview',
+	'settings.appearance.mode.label': 'Colour mode',
+	'settings.appearance.mode.description': 'Light, dark, or whatever the system uses.',
+	'settings.appearance.mode.system': 'System',
+	// translator: The light colour mode, as opposed to dark; not “light” as in lightweight.
+	'settings.appearance.mode.light': 'Light',
+	'settings.appearance.mode.dark': 'Dark',
+	'settings.appearance.source.label': 'Theme source',
+	'settings.appearance.source.description':
+		"Waypoint's own colours, or the system's colour scheme and accent.",
+	// translator: Waypoint’s own colour scheme, named after the app. “Waypoint” is the product name and is not translated.
+	'settings.appearance.source.liminal': 'Waypoint',
+	'settings.appearance.source.os': 'System',
+	'settings.appearance.accent.label': 'Accent colour',
+	'settings.appearance.accent.description':
+		'The text on it always keeps enough contrast; a colour that is too light or too dark is adjusted.',
+	'settings.appearance.accent.ember': 'Waypoint orange',
+	'settings.appearance.accent.os': 'System',
+	'settings.appearance.accent.custom': 'Choose a colour',
+	'settings.appearance.accentColour.label': 'Custom accent',
+	'settings.appearance.accentColour.description': 'Pick the colour to use.',
+	'settings.appearance.density.label': 'Density',
+	'settings.appearance.density.description': 'How much room lists and the window take.',
+	'settings.appearance.density.compact': 'Compact',
+	'settings.appearance.density.comfortable': 'Comfortable',
+	'settings.appearance.density.spacious': 'Spacious',
+	'settings.appearance.iconStyle.label': 'Icon style',
+	'settings.appearance.iconStyle.description': "The weight of Waypoint's own icons.",
+	// translator: The thinnest weight of Waypoint’s own icons, lighter than Regular; not the light colour mode.
+	'settings.appearance.iconStyle.light': 'Light',
+	'settings.appearance.iconStyle.regular': 'Regular',
+	'settings.appearance.iconStyle.bold': 'Bold',
+	'settings.appearance.iconStyle.filled': 'Filled',
+	'settings.language.language.label': 'Language',
+	'settings.language.language.description':
+		'The language of menus, dialogs and messages, and how dates, numbers and sizes are written. Anything not translated yet appears in English.',
+	'settings.language.language.system': 'System default',
+	'settings.language.language.en-CA': 'English (Canada)',
+	'settings.language.language.fr-CA': 'Français (Canada)',
+	'settings.language.language.en-XA': 'English with accents (en-XA, for developers)',
+	'settings.language.language.ar-XB': 'Mirrored, right to left (ar-XB, for developers)',
+	'settings.language.direction.label': 'Direction',
+	'settings.language.direction.description':
+		'Which way the window lays out. Automatic follows the language; the others are for checking a layout.',
+	'settings.language.direction.auto': 'Automatic',
+	'settings.language.direction.ltr': 'Left to right',
+	'settings.language.direction.rtl': 'Right to left',
+	'settings.access.follow': 'Follow the system',
+	'settings.access.on': 'On',
+	'settings.access.off': 'Off',
+	'settings.access.highContrast.label': 'High contrast',
+	'settings.access.highContrast.description':
+		'Black on white or white on black, with strong borders and an accent that is easy to see.',
+	'settings.access.textSize.label': 'Text size',
+	'settings.access.textSize.description':
+		'Scales the text and the rows. The system text size counts too, whichever is larger.',
+	'settings.access.textSize.100': '100%',
+	'settings.access.textSize.115': '115%',
+	'settings.access.textSize.130': '130%',
+	'settings.access.strongFocus.label': 'Stronger focus ring',
+	'settings.access.strongFocus.description':
+		'A thicker outline around whatever has keyboard focus.',
+	'settings.access.reducedMotion.label': 'Reduce motion',
+	'settings.access.reducedMotion.description':
+		'No sliding, springing or fading; changes happen at once.',
+	'settings.access.reducedTransparency.label': 'Reduce transparency',
+	'settings.access.reducedTransparency.description':
+		'Draws every surface solid, whatever the Transparency page says.',
+	'settings.access.touchMode.label': 'Touch mode',
+	'settings.access.touchMode.description':
+		'Larger targets, at least 44 px. Automatic turns it on after you touch the window, or when there is no mouse.',
+	'settings.access.touchMode.off': 'Off',
+	'settings.access.touchMode.auto': 'Automatic',
+	'settings.access.touchMode.on': 'On',
 	'settings.ops.unreadable':
 		'The operations settings could not be read, so they cannot be changed right now: {reason}',
 	'settings.error.range': 'Choose a value between {min} and {max}.',
@@ -111,12 +265,105 @@ export const enMessages = {
 	'settings.dnd.shelf.label': 'Keep the Shelf between sessions',
 	'settings.dnd.shelf.description':
 		'The Shelf keeps its items when Waypoint quits and starts again.',
+	'settings.previews.unavailable': 'Thumbnails are unavailable on this system: {reason}',
+	'settings.previews.unavailable.noReason': 'the thumbnail service could not start.',
+	'settings.previews.show.label': 'Show thumbnails',
+	'settings.previews.show.description':
+		'Draws a picture of an image, video or document in the grid, in tall list rows and on the Shelf, in place of its file type icon. A file with no thumbnail keeps its icon. Only files on this computer get one.',
+	'settings.previews.max.label': 'Largest file to make a thumbnail of',
+	'settings.previews.max.description':
+		'A larger file keeps its icon, so a huge image does not slow a folder down. Thumbnails already made are shared with other file managers and shown whatever the size.',
+	'settings.previews.max.unit': 'MB',
+	'settings.previews.measureHome.label': 'Measure Home when Overview opens',
+	'settings.previews.measureHome.description':
+		'Overview measures your home folder to list its biggest folders and to fill in "Your files" on the volume that holds it. A measurement less than an hour old is reused. Turn this off to measure only when you choose Measure now.',
+	'settings.transparency.unavailable': 'Transparency is unavailable on this system: {reason}',
+	'settings.transparency.unknown':
+		'Waypoint could not tell whether this system can show the desktop through a window, so windows stay solid.',
+	'settings.transparency.preview.caption':
+		'A sample window over a bright, busy wallpaper, drawn with the settings below.',
+	'settings.transparency.preview.sidebar': 'Sidebar',
+	'settings.transparency.preview.title': 'Documents',
+	'settings.transparency.preview.file': 'Report.pdf',
+	'settings.transparency.preview.menu.open': 'Open',
+	'settings.transparency.preview.menu.rename': 'Rename',
+	'settings.transparency.preview.menu.trash': 'Move to Trash',
+	'settings.transparency.preview.label': 'Preview of a translucent window',
+	'settings.transparency.experimental': 'Experimental',
+	'settings.transparency.enable.label': 'Transparent window',
+	'settings.transparency.enable.description':
+		'Lets the desktop show through the window. It is off until you turn it on, and it is always off under high contrast or reduced transparency.',
+	'settings.transparency.enable.experimental':
+		'On Linux this is experimental: how it looks depends on the compositor and on WebKitGTK, and it is the first thing to turn off if a window looks wrong.',
+	'settings.transparency.off.highContrast':
+		'Transparency is off while high contrast is on (Accessibility).',
+	'settings.transparency.off.reducedTransparency':
+		'Transparency is off while reduced transparency is on (Accessibility).',
+	'settings.transparency.off.unavailable':
+		'Transparency is on in the settings, but this window cannot be see-through.',
+	'settings.transparency.off.unfocused': 'This window is solid while it is not in front.',
+	'settings.transparency.opacity.label': 'Title bar and menu bar opacity',
+	'settings.transparency.opacity.description':
+		'How solid the title bar and the menu bar are. Lower is more see-through.',
+	'settings.transparency.opacity.rows.label': 'Tabs and toolbar opacity',
+	'settings.transparency.opacity.rows.description':
+		'How solid the tabs, the toolbar and the status bar are.',
+	'settings.transparency.opacity.sidebar.label': 'Sidebar opacity',
+	'settings.transparency.opacity.sidebar.description':
+		'How solid the sidebar, the Inspector and the Shelf are.',
+	'settings.transparency.opacity.content.label': 'File area opacity',
+	'settings.transparency.opacity.content.description': 'How solid the list and the grid are.',
+	'settings.transparency.opacity.raised':
+		'To keep text readable on this theme, this part stays at least {percent}% opaque.',
+	'settings.transparency.opacity.unit': '%',
+	'settings.transparency.blur.label': 'Blur behind the window',
+	'settings.transparency.blur.description':
+		'Blurs what is behind the window where it shows through. Low is a soft material, High a stronger one (Windows); on Linux both blur the same.',
+	'settings.transparency.blur.off': 'Off',
+	'settings.transparency.blur.low': 'Low',
+	'settings.transparency.blur.high': 'High',
+	'settings.transparency.blur.unavailable': 'Blur is not available here: {reason}',
+	'settings.transparency.blur.unavailable.noReason':
+		'this system offers no way to blur behind a window.',
+	'settings.group.transparencyWindow': 'Window',
+	'settings.group.transparencyPreview': 'Preview',
+	'settings.group.transparencyOpacity': 'Opacity',
+	'settings.group.transparencyRegions': 'Parts of the window',
+	'settings.group.transparencyReset': 'Defaults',
+	'settings.transparency.reset.label': 'Reset to defaults',
+	'settings.transparency.reset.description':
+		'Puts every setting on this page back to its default, except the Transparent window switch.',
+	'settings.transparency.reset.action': 'Reset',
+	'settings.group.transparencyMenus': 'Menus',
+	'settings.group.transparencyFocus': 'When the window is not in front',
+	'settings.transparency.regions.titleBar.label': 'Title bar, tabs and toolbar',
+	'settings.transparency.regions.titleBar.description':
+		'The title bar, tabs, toolbar and status bar. Off keeps them on a solid background.',
+	'settings.transparency.regions.sidebar.label': 'Sidebar and side panels',
+	'settings.transparency.regions.sidebar.description':
+		'The sidebar, the Inspector and the Shelf. Off keeps them on a solid background.',
+	'settings.transparency.regions.content.label': 'File area',
+	'settings.transparency.regions.content.description':
+		'The list and the grid. Off keeps files on a solid background.',
+	'settings.transparency.menus.label': 'Translucent menus',
+	'settings.transparency.menus.description':
+		'Context menus and the application menu show what is behind them, blurred.',
+	'settings.transparency.menuOpacity.label': 'Menu opacity',
+	'settings.transparency.menuOpacity.description':
+		'Menus stay close to solid so their text is easy to read.',
+	'settings.transparency.solidUnfocused.label': 'Solid when not in front',
+	'settings.transparency.solidUnfocused.description':
+		'A window you are not using draws solid and gives up its blur, which also saves the compositor some work.',
 	'settings.open.failed': 'Could not open the Settings window.',
 
 	'browse.list.label': 'Files',
+	// translator: A column heading in the file list: the name of each file or folder.
 	'browse.column.name': 'Name',
+	// translator: A column heading: how large each file is, in bytes, KB or MB. Not a count of items.
 	'browse.column.size': 'Size',
+	// translator: A column heading: the date and time each file was last changed. Past participle; it has to fit a narrow column.
 	'browse.column.modified': 'Modified',
+	// translator: A column heading: what sort of thing each entry is, such as Folder, Image or Document. Not the file extension; that is “Type”.
 	'browse.column.kind': 'Kind',
 	'browse.column.original': 'Original location',
 	'browse.column.deleted': 'Date deleted',
@@ -307,10 +554,12 @@ export const enMessages = {
 	'dnd.picker.cancel': 'Cancel',
 	'dnd.badge.copy': 'Copy',
 	'dnd.badge.move': 'Move',
+	// translator: A badge on a dragged item: dropping it makes a shortcut (a link) rather than a copy. A verb, not a noun.
 	'dnd.badge.link': 'Link',
 	'dnd.badge.ask': 'Choose',
 	'dnd.badge.trash': 'Trash',
 	'dnd.badge.blocked': 'Not allowed',
+	// translator: A badge on dragged files: dropping them on an app opens them in it. A verb.
 	'dnd.badge.open': 'Open',
 	'dnd.badge.shelf': 'Shelf',
 	'dnd.open.failed': 'Could not open the folders in tabs',
@@ -468,17 +717,26 @@ export const enMessages = {
 	'status.items.one': '{count} item',
 	'status.items.other': '{count} items',
 	'status.free': '{size} free',
+	'status.measuringHome': 'Measuring Home',
+	'status.measuringHome.progress': 'Measuring Home: {done} of {total}',
+	'status.measuringHome.open': 'Show Overview',
+	'status.measuringHome.cancel': 'Cancel measuring Home',
 	'status.openFailed': 'Could not open {name}.',
 	'status.copyPathFailed': 'Could not copy the path of {name}.',
 
 	'menu.entry.label': 'Item actions',
+	// translator: A menu command: open the selected file or folder. A verb.
 	'menu.open': 'Open',
 	'menu.openInNewTab': 'Open in New Tab',
 	'menu.openInNewWindow': 'Open in New Window',
+	'menu.openWith': 'Open With',
 	'menu.copyPath': 'Copy Path',
 	'menu.addToShelf': 'Add to Shelf',
+	'menu.properties': 'Properties',
+	'menu.propertiesInWindow': 'Properties in a Window',
 	'menu.duplicate': 'Duplicate',
 	'menu.cut': 'Cut',
+	// translator: A menu command that copies the selection to the clipboard. A verb, not “a copy”.
 	'menu.copy': 'Copy',
 	'menu.paste': 'Paste',
 	'menu.pasteInto': 'Paste Into Folder',
@@ -511,6 +769,8 @@ export const enMessages = {
 	'sidebar.view.label': 'Sidebar view',
 	'sidebar.view.places': 'Places',
 	'sidebar.view.folders': 'Folders',
+	'sidebar.place.overview': 'Overview',
+	// translator: The person’s own folder (their home folder), not a start page or the main screen.
 	'sidebar.place.home': 'Home',
 	'sidebar.place.desktop': 'Desktop',
 	'sidebar.place.documents': 'Documents',
@@ -518,6 +778,7 @@ export const enMessages = {
 	'sidebar.place.pictures': 'Pictures',
 	'sidebar.place.music': 'Music',
 	'sidebar.place.videos': 'Videos',
+	// translator: The place deleted files go until they are emptied (the Recycle Bin on Windows). A noun, and the same word as the Trash everywhere else.
 	'sidebar.place.trash': 'Trash',
 	'sidebar.trash.count.one': '{count} item in the Trash',
 	'sidebar.trash.count.other': '{count} items in the Trash',
@@ -542,6 +803,47 @@ export const enMessages = {
 	'sidebar.menu.trash': 'Trash actions',
 	'sidebar.menu.favourite': 'Favourite actions',
 	'sidebar.menu.folder': 'Folder actions',
+	'sidebar.section.devices': 'Devices',
+	'devices.list': 'Devices',
+	'devices.empty': 'No drives to show.',
+	'devices.space': '{free} free of {total}',
+	'devices.spaceUnknown': 'Free space unavailable',
+	'devices.almostFull': 'Almost full',
+	'devices.usage': '{percent}% used',
+	'devices.state.locked': 'Locked',
+	'devices.state.unmounted': 'Not mounted',
+	'devices.state.unmountedSized': 'Not mounted, {total}',
+	'devices.busy': 'Working…',
+	'devices.verb.mount': 'mount',
+	'devices.verb.unmount': 'unmount',
+	'devices.verb.eject': 'eject',
+	'devices.verb.unlock': 'unlock',
+	'devices.action.mount': 'Mount {name}',
+	'devices.action.unmount': 'Unmount {name}',
+	'devices.action.eject': 'Eject {name}',
+	'devices.action.unlock': 'Unlock {name}',
+	'devices.announce.mounted': 'Mounted {name}',
+	'devices.announce.unmounted': 'Unmounted {name}',
+	'devices.announce.ejected': 'Ejected {name}. It is safe to remove.',
+	'devices.announce.unlocked': 'Unlocked {name}',
+	'devices.announce.added': '{name} connected',
+	'devices.announce.removed': '{name} removed',
+	'devices.error.busyBy': 'Could not {action} {name} because {by} is using it.',
+	'devices.error.busy': 'Could not {action} {name} because something is still using it.',
+	'devices.error.notAuthorised': 'Could not {action} {name}: permission was not granted.',
+	'devices.error.unsupported': 'Could not {action} {name}: this system does not support it.',
+	'devices.error.notFound': 'Could not {action} {name}: it is no longer there.',
+	'devices.error.io': 'Could not {action} {name}: {message}',
+	'devices.error.unknown': 'Could not {action} {name}.',
+	'devices.open.failed': 'Could not open {name}.',
+	'devices.unlock.title': 'Unlock {name}',
+	'devices.unlock.description':
+		'Enter the passphrase of this encrypted volume. Waypoint does not save it.',
+	'devices.unlock.field': 'Passphrase',
+	'devices.unlock.confirm': 'Unlock',
+	'devices.unlock.cancel': 'Cancel',
+	'devices.unlock.working': 'Unlocking…',
+	'devices.unlock.wrong': 'That passphrase did not unlock the volume. Try again.',
 	'menu.rename': 'Rename',
 	'menu.renameSelected': 'Rename Selected…',
 	'menu.restore': 'Restore',
@@ -555,6 +857,7 @@ export const enMessages = {
 	'menu.moveDown': 'Move Down',
 
 	'menu.background.label': 'Folder actions',
+	// translator: A menu heading; the sort keys (Name, Size, Modified, Kind) are listed under it, so it must read naturally before each.
 	'menu.sortBy': 'Sort by',
 	'menu.sort.name': 'Name',
 	'menu.sort.size': 'Size',
@@ -562,18 +865,23 @@ export const enMessages = {
 	'menu.sort.kind': 'Kind',
 	'menu.sort.descending': 'Descending',
 	'menu.sort.foldersFirst': 'Folders first',
+	// translator: A menu heading; the grouping keys (Kind, Modified, Size, Name, Type) are listed under it, so it must read naturally before each.
 	'menu.groupBy': 'Group by',
 	'menu.group.none': 'No grouping',
+	// translator: Group the list by what sort of thing each entry is (Folder, Image, Document). Use the same word as the Kind column.
 	'menu.group.kind': 'Kind',
 	'menu.group.modified': 'Modified',
 	'menu.group.size': 'Size',
 	'menu.group.name': 'Name',
+	// translator: Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different.
 	'menu.group.type': 'Type',
 	'cmd.group.none': 'No grouping',
+	// translator: A command palette entry. Keep the wording of “Group by” in the menu, followed by the same word as the Kind column.
 	'cmd.group.kind': 'Group by Kind',
 	'cmd.group.modified': 'Group by Modified',
 	'cmd.group.size': 'Group by Size',
 	'cmd.group.name': 'Group by Name',
+	// translator: A command palette entry. Keep the wording of “Group by” in the menu, followed by the word for the file extension, not Kind.
 	'cmd.group.type': 'Group by Type',
 	'menu.showHidden': 'Show hidden files',
 
@@ -896,7 +1204,9 @@ export const enMessages = {
 		'A file has the name of an existing folder, so it can only be skipped or kept beside it.',
 	'ops.conflict.mismatch.folderOverFile':
 		'A folder has the name of an existing file, so it can only be skipped or kept beside it.',
+	// translator: Overwrite the file that is already there with the incoming one. A button; a verb.
 	'ops.conflict.choice.replace': 'Replace',
+	// translator: Leave the existing file alone and do not copy this one. A button; a verb.
 	'ops.conflict.choice.skip': 'Skip',
 	'ops.conflict.choice.keepBoth': 'Keep both',
 	'ops.conflict.choice.mergeFolders': 'Merge folders',
@@ -941,6 +1251,36 @@ export const enMessages = {
 	'ops.conflict.summary.keepBoth': 'Keep both {count}',
 	'ops.conflict.summary.mergeFolders': 'Merge {count}',
 	'ops.conflict.summary.replaceIfNewer': 'Replace if newer {count}',
+	'ops.conflict.sizeHint.larger': 'Larger than the existing one',
+	'ops.conflict.sizeHint.smaller': 'Smaller than the existing one',
+	'ops.conflict.sizeHint.same': 'Same size as the existing one',
+	'ops.conflict.preview.loading': 'Comparing the files…',
+	'ops.conflict.preview.compare': 'Compare the files',
+	'ops.conflict.preview.compareNamed': 'Compare the files named {name}',
+	'ops.conflict.preview.show': 'Show differences',
+	'ops.conflict.preview.hide': 'Hide differences',
+	'ops.conflict.preview.showNamed': 'Show differences in {name}',
+	'ops.conflict.preview.hideNamed': 'Hide differences in {name}',
+	'ops.conflict.preview.identical': 'Identical contents. Skip is probably what you want.',
+	'ops.conflict.preview.same': 'The text is the same, so there is nothing to show.',
+	'ops.conflict.preview.binary':
+		'The contents differ. These are not text files, so no lines are shown.',
+	'ops.conflict.preview.tooLarge': 'Too large to compare here.',
+	'ops.conflict.preview.added.one': '{count} line added',
+	'ops.conflict.preview.added.other': '{count} lines added',
+	'ops.conflict.preview.removed.one': '{count} line removed',
+	'ops.conflict.preview.removed.other': '{count} lines removed',
+	'ops.conflict.preview.lossy': 'Some bytes are not valid text and are shown as �.',
+	'ops.conflict.preview.approximate':
+		'The comparison stopped early, so the changes listed may be more than are needed.',
+	'ops.conflict.diff.label': 'Differences in {name}',
+	'ops.conflict.diff.added': 'Added, line {line}: ',
+	'ops.conflict.diff.removed': 'Removed, line {line}: ',
+	'ops.conflict.diff.context': 'Unchanged, line {line}: ',
+	'ops.conflict.diff.gap.one': '{count} unchanged line',
+	'ops.conflict.diff.gap.other': '{count} unchanged lines',
+	'ops.conflict.diff.more.one': '{count} more line',
+	'ops.conflict.diff.more.other': '{count} more lines',
 	'ops.problem.title': 'An item could not be processed',
 	'ops.problem.title.parent': 'The original folder is gone',
 	'ops.problem.item': 'Item: {item}',
@@ -1031,6 +1371,105 @@ export const enMessages = {
 	'chrome.windowMenu': 'Window menu',
 	'chrome.windowControls': 'Window controls',
 
+	'overview.title': 'Overview',
+	'overview.loading': 'Reading the volumes…',
+	'overview.stats.label': 'Totals',
+	'overview.stat.capacity': 'Capacity',
+	'overview.stat.capacity.note.one':
+		'Counts {count} local volume. Network shares and disk images are left out.',
+	'overview.stat.capacity.note.other':
+		'Counts {count} local volumes. Network shares and disk images are left out.',
+	'overview.stat.capacity.none': 'No local volume reported its size.',
+	'overview.stat.free': 'Free',
+	'overview.stat.free.note': 'On the same volumes',
+	'overview.stat.home': 'Home',
+	'overview.stat.home.notMeasured': 'Not measured yet',
+	'overview.stat.home.measuring': 'Measuring…',
+	'overview.stat.home.note': '{percent}% of the space used on {volume}',
+	'overview.stat.home.noteUnknown': 'Its share of the space in use is not known yet',
+	'overview.stat.volumes': 'Volumes',
+	'overview.stat.volumes.noSystems': 'No file systems reported',
+	'overview.unavailable.title': 'The list of volumes is not available',
+	'overview.unavailable.fallback': 'This system does not let Waypoint list its volumes.',
+	'overview.unavailable.showing': 'Showing the volume that holds your home folder instead.',
+	'overview.volumes.label': 'Volumes',
+	'overview.volumes.empty': 'No volumes to show.',
+	'overview.volume.unknownFileSystem': 'File system not reported',
+	'overview.volume.homeVolume': 'Home volume',
+	'overview.volume.badge.system': 'System',
+	'overview.volume.badge.removable': 'Removable',
+	'overview.volume.badge.network': 'Network',
+	'overview.volume.badge.optical': 'Optical',
+	// translator: The total capacity of a drive, not the size of a file.
+	'overview.volume.size': 'Size',
+	'overview.volume.free': 'Free',
+	'overview.volume.unavailable': 'Size unavailable',
+	'overview.volume.notMounted': 'Not mounted',
+	'overview.volume.locked': 'Locked. Unlock it to see its space.',
+	'overview.volume.unmeasured': 'Not measured. Reaching a network share can be slow.',
+	'overview.volume.measuring': 'Measuring…',
+	'overview.volume.measureFailed': 'Could not measure {name}.',
+	'overview.volume.almostFull': 'Almost full',
+	'overview.volume.open': 'Open {name}',
+	'overview.action.measure': 'Measure',
+	'overview.action.measureVolume': 'Measure {name}',
+	'overview.action.mount': 'Mount',
+	'overview.action.mountVolume': 'Mount {name}',
+	'overview.action.unlock': 'Unlock',
+	'overview.action.unlockVolume': 'Unlock {name}',
+	'overview.bar.label': '{name}: {used} used and {free} free of {total} ({percent}% used)',
+	'overview.bar.labelAlmostFull':
+		'{name}: {used} used and {free} free of {total} ({percent}% used). Almost full.',
+	'overview.bar.labelHome':
+		'{name}: {files} of your files and {other} of everything else, {free} free of {total} ({percent}% used)',
+	'overview.bar.legend': 'Space on {name}',
+	'overview.bar.legend.used': 'Used',
+	'overview.bar.legend.free': 'Free',
+	'overview.bar.legend.files': 'Your files',
+	'overview.bar.legend.other': 'Everything else',
+	'overview.bar.legend.filesPending': 'Your files: not measured yet',
+	'overview.bar.value': '{size} ({percent}%)',
+	'overview.announce.measured': 'Measured {name}',
+	'overview.home.title': 'Biggest folders in Home',
+	'overview.home.rows.label': 'Biggest folders in Home, largest first',
+	'overview.home.measureNow': 'Measure now',
+	'overview.home.measureNow.label': 'Measure Home now',
+	'overview.home.cancel': 'Cancel',
+	'overview.home.cancel.label': 'Cancel measuring Home',
+	'overview.home.asOf': 'as of {time}',
+	'overview.home.notMeasured':
+		'Home has not been measured yet. Choose Measure now to see where its space went.',
+	'overview.home.progress': 'Measuring Home: {done} of {total} folders done',
+	'overview.home.progress.unknown': 'Measuring Home…',
+	'overview.home.cancelled': 'Measuring stopped. These are the folders measured so far.',
+	'overview.home.failed': 'Home could not be measured: {reason}',
+	'overview.home.empty': 'No folders were found in Home.',
+	'overview.home.remainder': 'Other files and folders, including hidden',
+	'overview.home.row.label': '{name}, {size}, {percent}% of Home',
+	'overview.home.row.open': 'Open {name}',
+	'overview.home.row.share': '{percent}%',
+	'overview.home.row.shareSmall': 'under 1%',
+	'overview.home.row.underOne': 'under 1',
+	'overview.home.placeholders.one':
+		'{count} cloud-only file was counted as empty and not downloaded.',
+	'overview.home.placeholders.other':
+		'{count} cloud-only files were counted as empty and not downloaded.',
+	'overview.home.announce.start': 'Measuring Home',
+	'overview.home.announce.progress': 'Measuring Home: {percent}% done',
+	'overview.home.announce.done': 'Measured Home: {size}',
+	'overview.home.announce.cancelled': 'Stopped measuring Home',
+	'overview.trash.title': 'Trash',
+	'overview.trash.reading': 'Reading the Trash…',
+	'overview.trash.items': 'Items',
+	'overview.trash.empty': 'Empty',
+	'overview.trash.count.one': '{count} item',
+	'overview.trash.count.other': '{count} items',
+	'overview.trash.sizeUnknown': 'Not measured',
+	'overview.trash.open': 'Open Trash',
+	'overview.trash.emptyAction': 'Empty Trash',
+	'overview.trash.unavailable': 'The Trash cannot be browsed here.',
+	'overview.trash.unverified':
+		'Counts the Trash on other drives too, which has not been verified on every kind of drive yet.',
 	'trash.bar.label': 'Trash actions',
 	'trash.restore': 'Restore',
 	'trash.delete': 'Delete Permanently',
@@ -1067,6 +1506,7 @@ export const enMessages = {
 	'trash.reason.cannotReplace': '{location} cannot be replaced by an item of another kind',
 	'trash.reason.generic': 'something went wrong',
 
+	// translator: The product name. Do not translate it.
 	'app.name': 'Waypoint',
 	'appMenu.label': 'Application menu',
 	'appMenu.file': 'File',
@@ -1084,19 +1524,71 @@ export const enMessages = {
 	'cmd.newFolder': 'New Folder',
 	'cmd.newFile': 'New File',
 	'cmd.batchRename': 'Batch Rename…',
+	'cmd.openWith': 'Open With…',
 	'cmd.selectAll': 'Select All',
 	'cmd.invertSelection': 'Invert Selection',
 	'cmd.sidebar': 'Sidebar',
+	// translator: A command palette entry for the Shelf, Waypoint’s temporary holding area for files. A feature name, a noun.
 	'cmd.shelf': 'Shelf',
 	'cmd.addToShelf': 'Add to Shelf',
 	'cmd.focusShelf': 'Focus Shelf',
 	'cmd.undockShelf': 'Undock Shelf',
 	'cmd.dockShelf': 'Dock Shelf',
+	'cmd.inspector': 'Inspector',
+	'cmd.properties': 'Properties',
+	'cmd.propertiesInWindow': 'Properties in a Window',
 	'cmd.actionBar': 'Action Bar',
 	'cmd.splitView': 'Split View',
 	'cmd.alwaysOnTop': 'Always on Top',
 	'cmd.settings': 'Settings…',
 	'cmd.closeWindow': 'Close Window',
+	'openWith.default': '{name} (default)',
+	'openWith.other': 'Other Application…',
+	'openWith.loading': 'Finding applications…',
+	'openWith.dialog.title': 'Open With',
+	'openWith.dialog.description.one': 'Choose an application to open this item.',
+	'openWith.dialog.description.other': 'Choose an application to open these {count} items.',
+	'openWith.filter.label': 'Find an application',
+	'openWith.apps.label': 'Applications',
+	'openWith.section.recommended': 'Recommended',
+	'openWith.section.others': 'Other applications',
+	'openWith.empty': 'No application matches.',
+	'openWith.cancel': 'Cancel',
+	'openWith.mixed': 'Open With needs items of one type.',
+	'openWith.noHandler': 'No application is set to open this type of file.',
+	'openWith.failed': 'Could not open the item.',
+	'openWith.failed.app': 'Could not open the item with {app}.',
+	'openWith.failed.list': 'Could not find the applications for this item.',
+	'quickLook.position': '{position} of {total}',
+	'quickLook.positionAnnouncement': '{name}, {position} of {total}',
+	// translator: A button in the preview: open this file in the program that handles it. A verb.
+	'quickLook.open': 'Open',
+	'quickLook.openWith': 'Open With…',
+	'quickLook.close': 'Close',
+	'quickLook.previous': 'Previous item',
+	'quickLook.next': 'Next item',
+	'quickLook.loading': 'Loading the preview…',
+	'quickLook.truncated': 'Showing the start of the file only.',
+	'quickLook.lossy': 'This file may not be UTF-8, so some characters are replaced.',
+	'quickLook.empty': 'This file is empty.',
+	'quickLook.failed': 'This item cannot be previewed.',
+	'quickLook.failed.text': 'The text could not be read.',
+	'quickLook.failed.media': 'This media cannot be played here.',
+	'quickLook.noPreview': 'No preview is available for this type of item.',
+	'quickLook.fact.kind': 'Kind',
+	'quickLook.fact.size': 'Size',
+	'quickLook.fact.modified': 'Modified',
+	'quickLook.kind.folder': 'Folder',
+	'quickLook.kind.image': 'Image',
+	'quickLook.kind.text': 'Text',
+	'quickLook.kind.audio': 'Audio',
+	'quickLook.kind.video': 'Video',
+	'quickLook.kind.pdf': 'PDF document',
+	'quickLook.kind.font': 'Font',
+	'quickLook.kind.archive': 'Archive',
+	'quickLook.kind.document': 'Document',
+	'quickLook.kind.file': 'File',
+	'quickLook.kind.link': 'Link',
 	'cmd.reason.nothingSelected': 'Select something first',
 	'cmd.reason.nothingFocused': 'Select an item to rename',
 	'cmd.reason.clipboardEmpty': 'The clipboard is empty',
@@ -1104,6 +1596,7 @@ export const enMessages = {
 	'cmd.reason.nothingToRedo': 'There is nothing to redo',
 	'cmd.reason.otherPaneReadOnly': 'The other pane cannot be changed',
 	'cmd.reason.noTab': 'No tab is open',
+	'cmd.reason.selectOne': 'Select one item, or none for the folder',
 	'cmd.reason.noListing': 'No folder is open',
 	'cmd.reason.noQueue': 'Operations are not available in this window',
 
@@ -1123,6 +1616,7 @@ export const enMessages = {
 
 	'cmd.commandPalette': 'Command Palette…',
 	'cmd.linkTo': 'Link To…',
+	'cmd.openOverview': 'Open Overview',
 	'cmd.goTo.home': 'Go to Home',
 	'cmd.goTo.desktop': 'Go to Desktop',
 	'cmd.goTo.documents': 'Go to Documents',
@@ -1233,6 +1727,127 @@ export const enMessages = {
 	'shelf.removed.one': 'Removed {count} item from the Shelf',
 	'shelf.removed.other': 'Removed {count} items from the Shelf',
 	'shelf.cleared': 'Cleared the Shelf',
+
+	'inspector.label': 'Inspector',
+	'inspector.tabs.label': 'Inspector tabs',
+	'inspector.tab.preview': 'Preview',
+	'inspector.tab.properties': 'Properties',
+	'inspector.close': 'Hide the Inspector',
+	'inspector.divider.label': 'Resize the Inspector',
+	'inspector.divider.value': '{width} pixels wide',
+	'inspector.preview.empty': 'Nothing to preview',
+	'inspector.preview.imageAlt': 'Preview of {name}',
+	'inspector.preview.audioLabel': 'Audio player for {name}',
+	'inspector.preview.videoLabel': 'Video player for {name}',
+	'inspector.preview.textLabel': 'Start of {name}',
+	'inspector.preview.truncated': 'Showing the first {size} of the file',
+	'inspector.preview.lossy': 'Some characters could not be read and are shown as replacements',
+	'inspector.properties.empty': 'Nothing to show',
+	'inspector.many.note': 'The size counts the selected files; folders are not included.',
+	'inspector.field.name': 'Name',
+	'inspector.field.kind': 'Kind',
+	'inspector.field.size': 'Size',
+	'inspector.field.totalSize': 'Total size',
+	'inspector.field.selected': 'Selected',
+	'inspector.field.contains': 'Contains',
+	'inspector.field.onDisk': 'On disk',
+	'inspector.field.location': 'Location',
+	'inspector.field.modified': 'Modified',
+	'inspector.field.created': 'Created',
+	'inspector.field.accessed': 'Accessed',
+	'inspector.field.owner': 'Owner',
+	'inspector.field.group': 'Group',
+	'inspector.field.permissions': 'Permissions',
+	'inspector.field.linkTarget': 'Link target',
+	'inspector.field.contentType': 'Content type',
+	'inspector.field.freeSpace': 'Free space',
+	'inspector.field.defaultApp': 'Opens with',
+	'inspector.defaultApp.none': 'No application',
+	'inspector.freeOf': '{free} free of {total}',
+	'inspector.unavailable': 'Unavailable',
+	'inspector.link.broken': 'Broken link',
+	'inspector.details.failed': 'Some details could not be read.',
+	'inspector.rename': 'Rename…',
+	'inspector.size.calculating': 'Calculating…',
+	'inspector.size.calculatingSoFar': 'Calculating… {size} so far',
+	'inspector.size.bytes': '{bytes} bytes',
+	'inspector.size.contents': '{files}, {folders}',
+	'inspector.size.announce': '{name} is {size}',
+	'inspector.files.one': '{count} file',
+	'inspector.files.other': '{count} files',
+	'inspector.folders.one': '{count} folder',
+	'inspector.folders.other': '{count} folders',
+	'inspector.kind.folder': 'Folder',
+	'inspector.kind.link': 'Link',
+	'inspector.kind.special': 'Special file',
+	'inspector.kind.file': 'File',
+	'inspector.kind.image': 'Image',
+	'inspector.kind.audio': 'Audio',
+	'inspector.kind.video': 'Video',
+	'inspector.kind.archive': 'Archive',
+	'inspector.kind.code': 'Source code',
+	'inspector.kind.document': 'Document',
+
+	'properties.open': 'Open in a window',
+	'properties.limit': 'Four Properties windows are open already. Close one to open another.',
+	'properties.openFailed': 'Could not open the Properties window: {reason}',
+	'properties.window.label': 'Properties of {name}',
+	'properties.window.loading': 'Reading the details…',
+	'properties.window.gone.title': '{name} no longer exists',
+	'properties.window.gone.note':
+		'It was removed, or moved somewhere this window cannot follow. Nothing shown here is current.',
+	'properties.window.failed': 'Waypoint could not read what this window is about.',
+	'properties.more.title': 'More detail',
+	'properties.perm.caption': 'Who may read, write and run it',
+	'properties.perm.who': 'Who',
+	'properties.perm.who.owner': 'Owner',
+	'properties.perm.who.group': 'Group',
+	'properties.perm.who.others': 'Others',
+	'properties.perm.read': 'Read',
+	'properties.perm.write': 'Write',
+	'properties.perm.execute': 'Run',
+	'properties.yes': 'Yes',
+	'properties.no': 'No',
+	'properties.field.mode': 'Mode',
+	'properties.field.special': 'Special bits',
+	'properties.field.owner': 'Owner is',
+	'properties.field.group': 'Group is',
+	'properties.field.exactSize': 'Exact size',
+	'properties.field.allocated': 'Allocated',
+	'properties.field.readOnly': 'Read-only',
+	'properties.field.hidden': 'Hidden',
+	'properties.field.leadsTo': 'Leads to',
+	'properties.special.setuid': 'Setuid',
+	'properties.special.setgid': 'Setgid',
+	'properties.special.sticky': 'Sticky',
+	'properties.times.utc': '{time} UTC',
+
+	'checksum.title': 'Checksum',
+	'checksum.note': 'A checksum reads the whole file, so it is calculated only when you ask.',
+	'checksum.algorithm.label': 'Algorithm',
+	'checksum.algorithm.sha256': 'SHA-256',
+	'checksum.algorithm.blake3': 'BLAKE3',
+	'checksum.calculate': 'Calculate checksum…',
+	'checksum.again': 'Calculate again',
+	'checksum.largeWarning':
+		'{name} is {size}. Its checksum reads all of it, which can take a while and keeps the disk busy.',
+	'checksum.largeConfirm': 'Calculate anyway',
+	'checksum.cancel': 'Cancel',
+	'checksum.running': 'Calculating the {algorithm} checksum…',
+	'checksum.progress.label': 'Checksum progress',
+	'checksum.progress.value': '{read} of {total}',
+	'checksum.result.label': '{algorithm} checksum',
+	'checksum.copy': 'Copy',
+	'checksum.copied': 'Copied',
+	'checksum.cancelled': 'Cancelled. Nothing was calculated.',
+	'checksum.failed': 'The checksum could not be calculated: {reason}',
+	'checksum.announce.done': 'The {algorithm} checksum of {name} is ready',
+	'checksum.reason.directory': 'it is a folder',
+	'checksum.reason.unsupported': 'only files on this computer can be checked',
+	'checksum.reason.missing': 'the file is gone',
+	'checksum.reason.denied': 'permission was denied',
+	'checksum.reason.other': 'the file could not be read',
+
 	'shelf.copied.one': 'Copied {count} item from the Shelf',
 	'shelf.copied.other': 'Copied {count} items from the Shelf',
 	'shelf.copyFailed': 'Could not copy from the Shelf: {reason}',
@@ -1241,19 +1856,19 @@ export const enMessages = {
 
 export type MessageId = keyof typeof enMessages;
 
-/** The message for `id` in the active catalogue. */
+/** The message for `id` in the active catalogue, or English when that catalogue lacks it. */
 export function t(id: MessageId): string {
-	return enMessages[id];
+	return activeMessages()[id] ?? enMessages[id];
 }
 
 /** The message for `id` with each `{name}` token replaced by its value. */
 export function tf(id: MessageId, values: Record<string, string | number>): string {
-	return enMessages[id].replace(/\{(\w+)\}/g, (token, name: string) =>
+	return t(id).replace(/\{(\w+)\}/g, (token, name: string) =>
 		name in values ? String(values[name]) : token,
 	);
 }
 
-/** Message identifiers that have a `.one` and an `.other` form, named by their shared prefix. */
+/** Message identifiers that have plural forms, named by their shared prefix (`tabs.count`). */
 export type PluralId = MessageId extends infer K
 	? K extends `${infer Base}.other`
 		? Base
@@ -1261,11 +1876,15 @@ export type PluralId = MessageId extends infer K
 	: never;
 
 /**
- * The message for `count` of something, choosing the plural form the locale's rules give and
- * replacing `{count}` with the number formatted for that locale.
+ * The message for `count` of something, choosing the plural form the locale's rules give
+ * (`Intl.PluralRules`: `zero`, `one`, `two`, `few`, `many` or `other`). A form neither the catalogue
+ * nor English spells out uses `.other`. `{count}` is replaced with the number formatted for that
+ * locale.
  */
 export function tn(id: PluralId, count: number, locale?: string): string {
-	const form = new Intl.PluralRules(locale).select(count);
-	const key = `${id}.${form === 'one' ? 'one' : 'other'}` as MessageId;
-	return tf(key, { count: new Intl.NumberFormat(locale).format(count) });
+	const form = new Intl.PluralRules(locale ?? pluralLocale()).select(count);
+	const exact = `${id}.${form}`;
+	const own = activeMessages() as Record<string, string | undefined>;
+	const chosen = (exact in enMessages || exact in own ? exact : `${id}.other`) as MessageId;
+	return tf(chosen, { count: new Intl.NumberFormat(locale ?? formatLocale()).format(count) });
 }

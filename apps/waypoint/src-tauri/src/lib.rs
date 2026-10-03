@@ -3,13 +3,19 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod checksum;
+mod effects;
+mod integration_policy;
+mod integrations;
 mod ops;
 mod ops_window;
 mod persistence;
+mod properties_window;
 mod settings;
 mod settings_window;
 mod shelf_window;
 mod storage;
+mod thumbnails;
 mod windows;
 
 use std::sync::Arc;
@@ -104,6 +110,17 @@ fn show_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
     window.show().map_err(|e| e.to_string())
 }
 
+/// A Properties window has closed: its place is free for another, and a checksum it was running stops.
+fn forget_properties_window<R: tauri::Runtime>(window: &tauri::Window<R>) {
+    let app = window.app_handle();
+    if let Some(windows) = app.try_state::<properties_window::PropertiesWindows>() {
+        windows.forget(window.label());
+    }
+    if let Some(runs) = app.try_state::<checksum::Checksums>() {
+        runs.cancel_window(window.label());
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let saver = Arc::new(Saver::new());
@@ -145,7 +162,15 @@ pub fn run() {
         .plugin(tauri_plugin_window_manager::init())
         .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
         .plugin(tauri_plugin_trash::init())
+        .plugin(tauri_plugin_thumbnails::init())
+        .plugin(tauri_plugin_volumes::init())
+        .plugin(tauri_plugin_window_effects::init())
+        .plugin(tauri_plugin_mime_apps::init())
         .plugin(tauri_plugin_native_dnd::init())
+        // Used only from Rust, by `integrations` (A65). The X11 global shortcut of
+        // `desktop-integration` registers through the Tauri plugin, which the app must add.
+        .plugin(tauri_plugin_xdg_portal::init())
+        .plugin(tauri_plugin_desktop_integration::init())
         .plugin(tauri_plugin_waypoint_vfs::init())
         // After the store plugin it saves through; the session reads its choices (start-up, the view
         // of a new window) from it in `setup`.
@@ -155,6 +180,10 @@ pub fn run() {
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
         .manage(HoldNextWindow::default())
+        .manage(effects::Driver::default())
+        .manage(properties_window::PropertiesWindows::default())
+        .manage(checksum::Checksums::default())
+        .manage(thumbnails::ThumbnailBridge::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
             hold_next_window,
@@ -164,20 +193,47 @@ pub fn run() {
             shelf_window::raise_shelf_window,
             shelf_window::toggle_shelf_window,
             shelf_window::hide_shelf_window,
-            shelf_window::shelf_window_visible
+            shelf_window::shelf_window_visible,
+            properties_window::open_properties_window,
+            properties_window::properties_subject,
+            properties_window::properties_set_subject,
+            checksum::file_checksum,
+            checksum::cancel_checksum,
+            thumbnails::thumbnails_request_entries,
+            thumbnails::thumbnails_request_locations,
+            thumbnails::thumbnails_cancel,
+            thumbnails::thumbnails_prioritise,
+            integrations::get_integration_statuses,
+            integrations::get_integration_availability
         ])
         .setup({
             let saver = Arc::clone(&saver);
             move |app| {
                 settings::wire(app.handle());
+                effects::wire(app.handle());
+                thumbnails::wire(app.handle());
+                integrations::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
+            }
+        })
+        // A window's page starts loading once the window exists: it gets the effects the settings ask for.
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                effects::on_page_load(webview);
             }
         })
         .on_window_event({
             let saver = Arc::clone(&saver);
             let flush = Arc::new(CloseFlush::default());
             move |window, event| {
+                effects::on_window_event(window, event);
+                integrations::on_window_event(window, event);
+                if matches!(event, WindowEvent::Destroyed)
+                    && window.label().starts_with(properties_window::LABEL_PREFIX)
+                {
+                    forget_properties_window(window);
+                }
                 let kind = WindowKind::from_label(window.label());
                 // The Shelf window's place and size are kept too; closing it is not a session close.
                 if kind == Some(WindowKind::Shelf) {
@@ -204,6 +260,13 @@ pub fn run() {
             }
         });
 
+    // The X11 path of the global shortcut registers through Tauri's own plugin (`desktop-integration`
+    // calls it); Windows has its own hotkey thread, so only Linux adds it.
+    #[cfg(target_os = "linux")]
+    {
+        builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
+    }
+
     // Lets an agent drive and screenshot the running app during development. Not on Windows, where
     // the bridge does not yet compile against Tauri's `windows` crate (see `Cargo.toml`).
     #[cfg(all(debug_assertions, not(windows)))]
@@ -228,7 +291,10 @@ pub fn run() {
                     saver.finish(app);
                 }
             }
-            RunEvent::Exit => saver.finish(app),
+            RunEvent::Exit => {
+                integrations::on_exit(app);
+                saver.finish(app);
+            }
             _ => {}
         });
 }

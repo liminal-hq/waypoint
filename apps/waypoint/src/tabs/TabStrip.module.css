@@ -67,7 +67,7 @@
 /* Pinned tabs: icon only, grouped on the left, and kept in view while the rest scroll under them. */
 .slot[data-pinned] {
 	position: sticky;
-	left: calc(var(--wp-pin-index) * 38px);
+	inset-inline-start: calc(var(--wp-pin-index) * 38px);
 	z-index: 1;
 	width: 36px;
 	justify-content: center;
@@ -95,7 +95,7 @@
 .pinBadge {
 	position: absolute;
 	top: 3px;
-	right: 3px;
+	inset-inline-end: 3px;
 	color: var(--wp-text-secondary);
 }
 
@@ -104,8 +104,8 @@
 	content: '';
 	position: absolute;
 	top: 0;
-	left: 6px;
-	right: 6px;
+	inset-inline-start: 6px;
+	inset-inline-end: 6px;
 	height: 3px;
 	border-radius: 0 0 2px 2px;
 	background: var(--wp-tab-accent);
@@ -155,7 +155,8 @@
 	gap: 6px;
 	min-width: 0;
 	height: 100%;
-	padding: 0 4px 0 10px;
+	padding-block: 0;
+	padding-inline: 10px 4px;
 	cursor: default;
 }
 
@@ -255,26 +256,26 @@
 	content: '';
 	position: absolute;
 	bottom: 0;
-	left: -1px;
-	right: -3px;
+	inset-inline-start: -1px;
+	inset-inline-end: -3px;
 	height: 2px;
 	background: var(--wp-group-accent);
 	pointer-events: none;
 }
 
 .slot[data-group-first]::after {
-	left: 4px;
-	border-top-left-radius: 1px;
+	inset-inline-start: 4px;
+	border-start-start-radius: 1px;
 }
 
 .slot[data-group-last]::after {
-	right: 4px;
+	inset-inline-end: 4px;
 }
 
 .warning {
 	position: absolute;
 	top: calc(100% + 4px);
-	right: 8px;
+	inset-inline-end: 8px;
 	z-index: 5;
 	max-width: 320px;
 	padding: 6px 10px;

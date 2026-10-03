@@ -148,7 +148,7 @@ describe('commands only the palette reaches', () => {
 		expect(windows.some((row) => row.label === t('cmd.linkTo'))).toBe(false);
 	});
 
-	it('lists one Go to command for each place the sidebar has', () => {
+	it('lists one Go to command for each place the sidebar has, and Open Overview for the page', () => {
 		const labels = rows.filter((row) => row.hint === t('palette.group.go')).map((row) => row.label);
 		expect(labels).toEqual([
 			'Go to Home',
@@ -159,6 +159,7 @@ describe('commands only the palette reaches', () => {
 			'Go to Music',
 			'Go to Videos',
 			'Go to Trash',
+			'Open Overview',
 		]);
 	});
 });

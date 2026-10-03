@@ -4,10 +4,23 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
+import {
+	getStatus as windowEffectsPluginStatus,
+	type PluginStatus as WindowEffectsStatus,
+} from '@liminal-hq/plugin-window-effects';
+import {
+	getStatus as thumbnailsPluginStatus,
+	type PluginStatus,
+} from '@liminal-hq/plugin-thumbnails';
 import { SettingsShell } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsShell';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { useMemo, useState } from 'react';
+import { useLocaleVersion } from '../i18n/active';
 import { t } from '../i18n/messages';
+import type { DefaultFileManagerClient } from '../services/defaultFileManagerClient';
+import type { IntegrationsClient } from '../services/integrationsClient';
+import { createTauriDefaultFileManagerClient } from '../services/tauriDefaultFileManagerClient';
+import { createTauriIntegrationsClient } from '../services/tauriIntegrationsClient';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
 import type { SettingsClient } from '../services/settingsClient';
@@ -30,6 +43,14 @@ interface SettingsScreenProps {
 	ops?: OpsSettingsApi;
 	/** What drag and drop can do here; the native plugin's status unless a test supplies its own. */
 	dndStatus?: () => Promise<DndAvailability>;
+	/** What thumbnails can do here; the thumbnails plugin's status unless a test supplies its own. */
+	thumbnailsStatus?: () => Promise<PluginStatus>;
+	/** What window effects can do here; the window effects plugin's status unless a test supplies its own. */
+	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
+	/** What the OS integrations can do here; the app's own commands unless a test supplies its own. */
+	integrations?: IntegrationsClient;
+	/** The default file manager action; the mime-apps plugin's unless a test supplies its own. */
+	fileManager?: DefaultFileManagerClient;
 }
 
 /** The native drag and drop plugin's status in the shape the page needs. */
@@ -41,7 +62,10 @@ async function nativeDndAvailability(): Promise<DndAvailability> {
 function Pages() {
 	const { ready } = useSettingsEditor();
 	const [active, setActive] = useState<SectionId>('general');
-	const sections = useMemo(() => settingsSections(), []);
+	// A new language re-renders the pages in place, so the page the person is on stays open.
+	const version = useLocaleVersion();
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const sections = useMemo(() => settingsSections(), [version]);
 	if (!ready) {
 		return (
 			<p role="status" className={styles.loading}>
@@ -59,15 +83,31 @@ function Pages() {
 	);
 }
 
-function Editor({ ops, dndStatus }: Pick<SettingsScreenProps, 'ops' | 'dndStatus'>) {
+function Editor({
+	ops,
+	dndStatus,
+	thumbnailsStatus,
+	windowEffectsStatus,
+	integrations,
+	fileManager,
+}: Pick<
+	SettingsScreenProps,
+	'ops' | 'dndStatus' | 'thumbnailsStatus' | 'windowEffectsStatus' | 'integrations' | 'fileManager'
+>) {
 	const handle = useSettingsHandle();
 	const [ownOps] = useState<OpsSettingsApi>(() => ops ?? createTauriOpsClient());
+	const [ownIntegrations] = useState(() => integrations ?? createTauriIntegrationsClient());
+	const [ownFileManager] = useState(() => fileManager ?? createTauriDefaultFileManagerClient());
 	if (!handle) return null;
 	return (
 		<SettingsEditorProvider
 			handle={handle}
 			ops={ownOps}
 			dndStatus={dndStatus ?? nativeDndAvailability}
+			thumbnailsStatus={thumbnailsStatus ?? thumbnailsPluginStatus}
+			windowEffectsStatus={windowEffectsStatus ?? windowEffectsPluginStatus}
+			integrations={ownIntegrations}
+			fileManager={ownFileManager}
 		>
 			<Pages />
 		</SettingsEditorProvider>
@@ -79,14 +119,31 @@ function Editor({ ops, dndStatus }: Pick<SettingsScreenProps, 'ops' | 'dndStatus
  * and a row shows what Rust says is in force, with a refusal under it. Both documents are edited
  * through their owners, the settings plugin and the operations plugin.
  */
-export function SettingsScreen({ client, ops, dndStatus }: SettingsScreenProps) {
+export function SettingsScreen({
+	client,
+	ops,
+	dndStatus,
+	thumbnailsStatus,
+	windowEffectsStatus,
+	integrations,
+	fileManager,
+}: SettingsScreenProps) {
 	const [own] = useState(() => client ?? createTauriSettingsClient());
+	// The title bar and the pages render their messages themselves, so a new language needs a render.
+	useLocaleVersion();
 	return (
 		<WindowFrame className={styles.screen}>
 			<AppTitleBar title={t('window.settings.title')} />
 			<main className={styles.content}>
 				<SettingsProvider client={own}>
-					<Editor ops={ops} dndStatus={dndStatus} />
+					<Editor
+						ops={ops}
+						dndStatus={dndStatus}
+						thumbnailsStatus={thumbnailsStatus}
+						windowEffectsStatus={windowEffectsStatus}
+						integrations={integrations}
+						fileManager={fileManager}
+					/>
 				</SettingsProvider>
 			</main>
 			<NoticeToast />

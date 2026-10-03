@@ -13,7 +13,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     }
     /**
      * Reports whether the file system plugin works here, and which features: `listing`, `watch`,
-     * `places`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
+     * `places`, `entry-details`, `folder-size`, `text-head`, `preview-protocol`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
      * kept up to date by polling.
      */
     function getStatus() {
@@ -85,11 +85,80 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
         return cmd('open_entry', { handle, id });
     }
     /**
+     * Everything the Inspector shows about one entry of an open listing: kind, exact and allocated
+     * size, times, owner and group, permissions, symlink target, hidden flag and content type. A field
+     * the provider cannot report is named in `unavailable`; a field the entry does not have is `null`.
+     */
+    function entryDetails(handle, id) {
+        return cmd('entry_details', { handle, id });
+    }
+    /**
+     * Starts totalling a folder of an open listing and resolves with the run as soon as it has
+     * started. `onEvent` gets `progress` about every 100 ms and then exactly one `done`, `cancelled`
+     * or `failed`. The walk is low priority, stays on one volume, never follows a symlink and never
+     * downloads a cloud placeholder. Rejects (`notADirectory`) for an entry that is not a folder.
+     */
+    async function folderSize(handle, id, onEvent) {
+        const channel = new core.Channel();
+        channel.onmessage = onEvent;
+        const job = await cmd('folder_size', { handle, id, onEvent: channel });
+        return { job, cancel: () => cancelFolderSize(job) };
+    }
+    /** Stops a folder-size run of this window. A run that has ended is not an error. */
+    function cancelFolderSize(job) {
+        return cmd('cancel_folder_size', { job });
+    }
+    /**
+     * Starts scanning the top-level folders of `location` for their sizes and resolves with the run as
+     * soon as it has started. `onEvent` gets `progress` about every 100 ms, a `partial` result after
+     * each top-level folder (every row so far, with its share of what has been scanned, and a
+     * remainder row for loose files and hidden items), and then exactly one `done`, `cancelled` or
+     * `failed`. The scan is low priority on a thread of its own, stays on one volume, never follows a
+     * symlink and never downloads a cloud placeholder. A finished scan is cached for
+     * `getCachedDirScan`.
+     */
+    async function scanDirSizes(location, onEvent, options) {
+        const channel = new core.Channel();
+        channel.onmessage = onEvent;
+        const job = await cmd('scan_dir_sizes', { location, options, onEvent: channel });
+        return { job, cancel: () => cancelDirScan(job) };
+    }
+    /** Stops a directory-size scan of this window. A scan that has ended is not an error. */
+    function cancelDirScan(job) {
+        return cmd('cancel_dir_scan', { job });
+    }
+    /**
+     * The last finished scan of `location`, with `measuredAtMs` for "as of <time>", or `null` when
+     * there is none.
+     */
+    function getCachedDirScan(location) {
+        return cmd('get_cached_dir_scan', { location });
+    }
+    /**
+     * The first bytes of a file of an open listing as text: at most `max` bytes (default and ceiling
+     * 256 KiB), decoded as UTF-8 with invalid sequences replaced. Rejects with `notText` for a binary
+     * file and `isADirectory` for a folder.
+     */
+    function readTextHead(handle, id, max) {
+        return cmd('read_text_head', { handle, id, max: max ?? null });
+    }
+    /** The custom scheme that serves entries to this window. */
+    const PREVIEW_SCHEME = 'wpfile';
+    /**
+     * The URL that serves an entry's bytes through the `wpfile` protocol, for an `<img>`, `<audio>`,
+     * `<video>` or `fetch`, with `Range` support. It is a token over this window's own listings, never
+     * a path: another window's URL, a closed listing and an entry that has gone all answer 404.
+     */
+    function previewUrl(handle, id) {
+        return core.convertFileSrc(`${handle}-${id}`, PREVIEW_SCHEME);
+    }
+    /**
      * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
      * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+     * `withBytes` also adds up the sizes into `totalBytes`; ask only while Overview is visible.
      */
-    function getTrashInfo() {
-        return cmd('get_trash_info');
+    function getTrashInfo(withBytes = false) {
+        return cmd('get_trash_info', { withBytes });
     }
     /** Home, the user folders that exist, and the favourites. */
     function listPlaces() {
@@ -120,11 +189,17 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
         return webviewWindow.getCurrentWebviewWindow().listen(LISTING_EVENT, (event) => handler(event.payload));
     }
 
+    exports.PREVIEW_SCHEME = PREVIEW_SCHEME;
     exports.addFavourite = addFavourite;
+    exports.cancelDirScan = cancelDirScan;
+    exports.cancelFolderSize = cancelFolderSize;
     exports.checkFolder = checkFolder;
     exports.closeListing = closeListing;
     exports.describeLocation = describeLocation;
+    exports.entryDetails = entryDetails;
     exports.entryLocation = entryLocation;
+    exports.folderSize = folderSize;
+    exports.getCachedDirScan = getCachedDirScan;
     exports.getFreeSpace = getFreeSpace;
     exports.getHome = getHome;
     exports.getRange = getRange;
@@ -136,8 +211,11 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     exports.openEntry = openEntry;
     exports.openListing = openListing;
     exports.parseLocation = parseLocation;
+    exports.previewUrl = previewUrl;
+    exports.readTextHead = readTextHead;
     exports.removeFavourite = removeFavourite;
     exports.renameFavourite = renameFavourite;
+    exports.scanDirSizes = scanDirSizes;
     exports.setFilter = setFilter;
     exports.setSort = setSort;
     exports.summariseSelection = summariseSelection;

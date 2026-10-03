@@ -32,6 +32,8 @@ export interface CommandFacts {
 	local: boolean;
 	/** The platform can make links without a privilege the person may not hold (not Windows). */
 	linkSupported: boolean;
+	/** The mime-apps plugin can list applications or has a chooser of its own, so Open With… can work here. */
+	openWith: boolean;
 	/** The places the sidebar offers, which "Go to" commands open. */
 	places: readonly PlaceKind[];
 	/** The pane can be written to and has a selection: Batch Rename can open. */
@@ -63,6 +65,10 @@ export interface CommandFacts {
 	shelfCount: number;
 	/** The Shelf is in its own window rather than docked in the main windows. */
 	shelfUndocked: boolean;
+	/** The Inspector panel is open. */
+	inspectorOpen: boolean;
+	/** Properties windows can be opened from here (the service exists). */
+	propertiesWindow: boolean;
 }
 
 /** The window's actions. Each one is what a shortcut, a menu or the Action bar already does; none is a second implementation. */
@@ -70,6 +76,8 @@ export interface CommandActions {
 	/** The file commands act on the active pane; `null` in a window with no queue. */
 	files: FileCommands | null;
 	batchRename(): void;
+	/** Open With… for the active pane's selection. */
+	openWith(): void;
 	/** The Trash view's Restore and Delete Permanently, on the selection (the latter asks first). */
 	restoreFromTrash(): void;
 	deleteFromTrash(): void;
@@ -106,6 +114,11 @@ export interface CommandActions {
 	/** Moves the Shelf into its own window, and back into the main windows' docks. */
 	undockShelf(): void;
 	dockShelf(): void;
+	/** The Inspector: show or hide it, and open it on the Properties tab. */
+	toggleInspector(): void;
+	showProperties(): void;
+	/** Opens a Properties window for the active pane's one selected entry, or its folder. */
+	openPropertiesWindow(): void;
 }
 
 export interface CommandEnv {
@@ -130,6 +143,7 @@ export function emptyFacts(): CommandFacts {
 		trash: false,
 		local: false,
 		linkSupported: true,
+		openWith: false,
 		places: [],
 		batchRename: false,
 		sort: null,
@@ -150,6 +164,8 @@ export function emptyFacts(): CommandFacts {
 		shelfOpen: false,
 		shelfCount: 0,
 		shelfUndocked: false,
+		inspectorOpen: false,
+		propertiesWindow: false,
 	};
 }
 
@@ -160,6 +176,7 @@ export function idleActions(): CommandActions {
 	return {
 		files: null,
 		batchRename: nothing,
+		openWith: nothing,
 		restoreFromTrash: nothing,
 		deleteFromTrash: nothing,
 		selectAll: nothing,
@@ -189,5 +206,8 @@ export function idleActions(): CommandActions {
 		addToShelf: nothing,
 		undockShelf: nothing,
 		dockShelf: nothing,
+		toggleInspector: nothing,
+		showProperties: nothing,
+		openPropertiesWindow: nothing,
 	};
 }

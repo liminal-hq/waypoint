@@ -112,6 +112,19 @@ describe('keyboard', () => {
 		Number(/-item-(\d+)$/.exec(list().getAttribute('aria-activedescendant') ?? '')?.[1]) + 1;
 	const selected = () => options().filter((o) => o.getAttribute('aria-selected') === 'true');
 
+	it('moves Left to the next item in a right-to-left layout', async () => {
+		const box = await focused();
+		document.documentElement.style.direction = 'rtl';
+		try {
+			fireEvent.keyDown(box, { key: 'ArrowLeft' });
+			await waitFor(() => expect(at()).toBe(2));
+			fireEvent.keyDown(box, { key: 'ArrowRight' });
+			await waitFor(() => expect(at()).toBe(1));
+		} finally {
+			document.documentElement.style.removeProperty('direction');
+		}
+	});
+
 	it('moves one item sideways and one row vertically, selecting as it goes', async () => {
 		const box = await focused();
 		fireEvent.keyDown(box, { key: 'ArrowRight' });

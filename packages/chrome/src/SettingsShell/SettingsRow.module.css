@@ -204,3 +204,29 @@ a.linkRow:hover {
 .linkRow .chevron:dir(rtl) {
 	transform: scaleX(-1);
 }
+
+.sliderWrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.slider {
+	box-sizing: border-box;
+	inline-size: 180px;
+	min-block-size: var(--wp-control-height);
+	margin: 0;
+	accent-color: var(--wp-accent);
+}
+
+.slider:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+.sliderValue {
+	min-inline-size: 3.5ch;
+	color: var(--wp-text-secondary);
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}

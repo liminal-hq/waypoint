@@ -11,7 +11,7 @@ import type { TrashClient } from './trashClient';
 /** A `TrashClient` over the `waypoint-vfs` and `waypoint-ops` plugins. Create one per window. */
 export function createTauriTrashClient(): TrashClient {
 	return {
-		getInfo: () => getTrashInfo(),
+		getInfo: (withBytes) => getTrashInfo(withBytes),
 		submit: (request) => ops.submit(request),
 		onEvent(listener): Unsubscribe {
 			let stopped = false;

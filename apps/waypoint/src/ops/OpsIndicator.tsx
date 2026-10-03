@@ -43,6 +43,7 @@ export function OpsIndicator() {
 				data-ops-ring=""
 				data-urgency={ring.urgency}
 				aria-label={ring.label}
+				title={ring.label}
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				aria-controls={open ? popoverId : undefined}

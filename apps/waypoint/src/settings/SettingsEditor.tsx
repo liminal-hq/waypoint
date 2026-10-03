@@ -14,7 +14,12 @@ import {
 	type ReactNode,
 } from 'react';
 import { useStore } from 'zustand';
+import type { PluginStatus as WindowEffectsStatus } from '@liminal-hq/plugin-window-effects';
+import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
+import type { IntegrationAvailability } from '@liminal-hq/waypoint-protocol/generated/IntegrationAvailability';
 import { t, tf } from '../i18n/messages';
+import type { DefaultFileManagerClient } from '../services/defaultFileManagerClient';
+import type { IntegrationsClient } from '../services/integrationsClient';
 import type { OpsSettings } from '../services/opsClient';
 import { isSettingsError, type Settings } from '../services/settingsClient';
 import type { SettingsHandle } from './settingsStore';
@@ -36,7 +41,43 @@ export type RowKey =
 	| 'trashDays'
 	| 'dropRule'
 	| 'springLoad'
-	| 'shelfPersist';
+	| 'shelfPersist'
+	| 'mode'
+	| 'themeSource'
+	| 'accent'
+	| 'accentColour'
+	| 'density'
+	| 'iconStyle'
+	| 'highContrast'
+	| 'textSize'
+	| 'strongFocus'
+	| 'reducedMotion'
+	| 'reducedTransparency'
+	| 'touchMode'
+	| 'thumbnails'
+	| 'thumbnailMax'
+	| 'measureHomeOnOpen'
+	| 'transparency'
+	| 'opacity'
+	| 'rowsOpacity'
+	| 'sidebarOpacity'
+	| 'contentOpacity'
+	| 'resetTransparency'
+	| 'blur'
+	| 'regionTitleBar'
+	| 'regionSidebar'
+	| 'regionContent'
+	| 'menus'
+	| 'menuOpacity'
+	| 'solidUnfocused'
+	| 'language'
+	| 'direction'
+	| 'notifications'
+	| 'launcherProgress'
+	| 'preventSleep'
+	| 'fileManagerService'
+	| 'shortcutEnabled'
+	| 'shortcut';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {
@@ -58,6 +99,16 @@ export interface SettingsEditor {
 	/** Why the operations settings cannot be changed, when they could not be read. */
 	opsUnreadable: string | null;
 	dnd: DndAvailability | null;
+	/** What the thumbnails plugin can do here; `null` until read, and when it could not be. */
+	thumbnails: PluginStatus | null;
+	/** What the window effects plugin can do here; `null` until read, and when it could not be. */
+	windowEffects: WindowEffectsStatus | null;
+	/** What each integration can do here; `null` until read, and for good when it could not be. */
+	availability: IntegrationAvailability | null;
+	/** Why `availability` could not be read, when it could not. */
+	availabilityUnreadable: string | null;
+	/** Making Waypoint the default file manager; `null` when the page was given no client for it. */
+	fileManager: DefaultFileManagerClient | null;
 	errors: Partial<Record<RowKey, string>>;
 	/** Asks Rust for the settings `change` makes of the ones in force. The row shows the answer, never the request. */
 	changeSettings(key: RowKey, change: (settings: Settings) => Settings): void;
@@ -91,6 +142,14 @@ interface SettingsEditorProviderProps {
 	ops: OpsSettingsApi;
 	/** Reads what drag and drop can do on this system; a failure leaves the page without the note. */
 	dndStatus?: () => Promise<DndAvailability>;
+	/** Reads what thumbnails can do on this system, for the Previews & thumbnails page; a failure leaves the page without the note. */
+	thumbnailsStatus?: () => Promise<PluginStatus>;
+	/** Reads what window effects can do on this system, for the Transparency page; a failure leaves the page saying it could not tell. */
+	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
+	/** What the OS integrations can do here, for the Integrations page; a failure leaves its switches off, saying so. */
+	integrations?: IntegrationsClient;
+	/** The default file manager action and who is default now, for the Integrations page. */
+	fileManager?: DefaultFileManagerClient;
 	children: ReactNode;
 }
 
@@ -103,6 +162,10 @@ export function SettingsEditorProvider({
 	handle,
 	ops: opsApi,
 	dndStatus,
+	thumbnailsStatus,
+	windowEffectsStatus,
+	integrations,
+	fileManager,
 	children,
 }: SettingsEditorProviderProps) {
 	const { settings, ready: settingsReady } = useStore(handle.store, (state) => state);
@@ -110,6 +173,10 @@ export function SettingsEditorProvider({
 	const [opsReady, setOpsReady] = useState(false);
 	const [opsUnreadable, setOpsUnreadable] = useState<string | null>(null);
 	const [dnd, setDnd] = useState<DndAvailability | null>(null);
+	const [thumbnails, setThumbnails] = useState<PluginStatus | null>(null);
+	const [windowEffects, setWindowEffects] = useState<WindowEffectsStatus | null>(null);
+	const [availability, setAvailability] = useState<IntegrationAvailability | null>(null);
+	const [availabilityUnreadable, setAvailabilityUnreadable] = useState<string | null>(null);
 	const [errors, setErrors] = useState<Partial<Record<RowKey, string>>>({});
 	const opsNow = useRef<OpsSettings | null>(null);
 	const queue = useRef<Promise<void>>(Promise.resolve());
@@ -148,6 +215,51 @@ export function SettingsEditorProvider({
 			active = false;
 		};
 	}, [dndStatus]);
+
+	useEffect(() => {
+		if (!thumbnailsStatus) return;
+		let active = true;
+		thumbnailsStatus().then(
+			(value) => {
+				if (active) setThumbnails(value);
+			},
+			(error: unknown) => console.warn('could not read the thumbnails status', error),
+		);
+		return () => {
+			active = false;
+		};
+	}, [thumbnailsStatus]);
+
+	useEffect(() => {
+		if (!windowEffectsStatus) return;
+		let active = true;
+		windowEffectsStatus().then(
+			(value) => {
+				if (active) setWindowEffects(value);
+			},
+			(error: unknown) => console.warn('could not read the window effects status', error),
+		);
+		return () => {
+			active = false;
+		};
+	}, [windowEffectsStatus]);
+
+	useEffect(() => {
+		if (!integrations) return;
+		let active = true;
+		integrations.availability().then(
+			(value) => {
+				if (active) setAvailability(value);
+			},
+			(error: unknown) => {
+				console.warn('could not read what the integrations can do', error);
+				if (active) setAvailabilityUnreadable(t('settings.integrations.unreadable'));
+			},
+		);
+		return () => {
+			active = false;
+		};
+	}, [integrations]);
 
 	const run = useCallback((key: RowKey, work: () => Promise<void>) => {
 		setErrors((current) => {
@@ -191,11 +303,31 @@ export function SettingsEditorProvider({
 			ops,
 			opsUnreadable,
 			dnd,
+			thumbnails,
+			windowEffects,
+			availability,
+			availabilityUnreadable,
+			fileManager: fileManager ?? null,
 			errors,
 			changeSettings,
 			changeOps,
 		}),
-		[settingsReady, opsReady, settings, ops, opsUnreadable, dnd, errors, changeSettings, changeOps],
+		[
+			settingsReady,
+			opsReady,
+			settings,
+			ops,
+			opsUnreadable,
+			dnd,
+			thumbnails,
+			windowEffects,
+			availability,
+			availabilityUnreadable,
+			fileManager,
+			errors,
+			changeSettings,
+			changeOps,
+		],
 	);
 	return <SettingsEditorContext.Provider value={value}>{children}</SettingsEditorContext.Provider>;
 }

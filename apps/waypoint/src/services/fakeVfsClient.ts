@@ -485,6 +485,10 @@ export class FakeVfsClient implements VfsClient {
 	}
 
 	async describeLocation(location: Location): Promise<LocationInfo> {
+		if (location.uri.startsWith('overview:')) {
+			const root = { label: 'Overview', location: { display: 'Overview', uri: 'overview:/' } };
+			return { parent: null, segments: [root] };
+		}
 		if (location.uri.startsWith('trash:')) {
 			const root = { label: 'Trash', location: { display: 'Trash', uri: 'trash:/' } };
 			return { parent: null, segments: [root] };

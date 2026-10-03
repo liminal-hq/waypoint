@@ -19,8 +19,18 @@ import type { OpsClient } from '../services/opsClient';
 import type { SettingsClient } from '../services/settingsClient';
 import { SettingsProvider } from '../settings/SettingsContext';
 import { TabsProvider } from '../tabs/TabsContext';
+import { DevicesClientProvider } from '../devices/DevicesClientContext';
+import type { DevicesClient } from '../devices/devicesClient';
 import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
+import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
+import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
+import { DetailsClientProvider } from '../inspector/DetailsClientContext';
+import type { DetailsClient } from '../services/detailsClient';
+import { PropertiesWindowProvider } from '../inspector/PropertiesWindowContext';
+import type { PropertiesWindowClient } from '../services/propertiesWindowClient';
+import type { DirScanClient } from '../services/dirScanClient';
+import { HomeScanProvider } from '../overview/HomeScanContext';
 
 export const HOME = fileLocation('/home/test');
 export const DOCS = fileLocation('/home/test/docs');
@@ -51,6 +61,8 @@ export async function renderWorkspace(
 		sidebar?: boolean;
 		tearoff?: TearoffClient;
 		trash?: TrashClient;
+		/** The volumes service behind the sidebar's Devices section. */
+		devices?: DevicesClient;
 		/** The operations queue: the window follows it and answers the jobs it started (`main-1`). */
 		ops?: OpsClient;
 		/** The settings the window follows (the defaults when omitted). */
@@ -59,6 +71,14 @@ export async function renderWorkspace(
 		nativeDnd?: NativeDndClient;
 		/** The Shelf window's raise and hide, while the Shelf is undocked. */
 		shelfWindow?: ShelfWindowClient;
+		/** The thumbnails service (the views keep their icons when omitted). */
+		thumbnails?: ThumbnailsClient;
+		/** Entry details, folder sizes and previews for the Inspector. */
+		details?: DetailsClient;
+		/** The Properties windows service (Alt+Enter and the item menu offer none when omitted). */
+		propertiesWindow?: PropertiesWindowClient;
+		/** The directory-size scan behind Overview's biggest folders in Home (Overview offers no measurement when omitted). */
+		dirScan?: DirScanClient;
 	} = {},
 ) {
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
@@ -71,23 +91,44 @@ export async function renderWorkspace(
 			/>
 		</TabsProvider>
 	);
-	const workspace = options.settings ? (
-		<SettingsProvider client={options.settings}>{tabbed}</SettingsProvider>
+	const thumbed = options.thumbnails ? (
+		<ThumbnailsProvider client={options.thumbnails}>{tabbed}</ThumbnailsProvider>
 	) : (
 		tabbed
+	);
+	const detailed = options.details ? (
+		<DetailsClientProvider client={options.details}>{thumbed}</DetailsClientProvider>
+	) : (
+		thumbed
+	);
+	const windowed = options.propertiesWindow ? (
+		<PropertiesWindowProvider client={options.propertiesWindow}>
+			{detailed}
+		</PropertiesWindowProvider>
+	) : (
+		detailed
+	);
+	const workspace = options.settings ? (
+		<SettingsProvider client={options.settings}>{windowed}</SettingsProvider>
+	) : (
+		windowed
 	);
 	const view = render(
 		<VfsClientProvider client={client}>
 			<PlacesClientProvider client={places}>
 				<TrashClientProvider client={options.trash}>
-					{options.ops ? (
-						<OpsProvider client={options.ops} windowLabel="main-1">
-							{workspace}
-							<OpsResolverHost />
-						</OpsProvider>
-					) : (
-						workspace
-					)}
+					<DevicesClientProvider client={options.devices}>
+						<HomeScanProvider client={options.dirScan}>
+							{options.ops ? (
+								<OpsProvider client={options.ops} windowLabel="main-1">
+									{workspace}
+									<OpsResolverHost />
+								</OpsProvider>
+							) : (
+								workspace
+							)}
+						</HomeScanProvider>
+					</DevicesClientProvider>
 				</TrashClientProvider>
 			</PlacesClientProvider>
 		</VfsClientProvider>,

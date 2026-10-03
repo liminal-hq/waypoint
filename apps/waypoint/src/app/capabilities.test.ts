@@ -106,4 +106,48 @@ describe('window capabilities', () => {
 			).toEqual([]);
 		}
 	});
+
+	it('lets the Properties windows read which application opens a file and the clock setting, and nothing that opens one or changes a default', () => {
+		const capability = byId('properties');
+		expect(capability.permissions).toEqual([
+			'mime-apps:allow-get-status',
+			'mime-apps:allow-handlers',
+			'os-prefs:allow-get-time-format',
+		]);
+		expect(covers(capability, 'properties-3')).toBe(true);
+		for (const label of ['main-1', 'settings', 'ops', 'tear-ghost', 'mystery']) {
+			expect(covers(capability, label), label).toBe(false);
+		}
+	});
+
+	it('lets only the Settings window change the default application, and nothing that opens or chooses a file', () => {
+		const withDefaults = capabilities.filter((capability) =>
+			capability.permissions.some(
+				(p) => p === 'mime-apps:allow-set-default' || p === 'mime-apps:default',
+			),
+		);
+		// The main windows hold the plugin's default set; the Settings window the few it needs.
+		expect(withDefaults.map((c) => c.identifier).sort()).toEqual(['main', 'settings']);
+		expect(byId('settings').permissions.filter((p) => p.startsWith('mime-apps:'))).toEqual([
+			'mime-apps:allow-get-status',
+			'mime-apps:allow-handlers',
+			'mime-apps:allow-set-default',
+			'mime-apps:allow-open-default-apps-settings',
+		]);
+	});
+
+	it('lets the Settings window read the status of every plugin the Services panel reports, and nothing more of the ones it is given only for that', () => {
+		const settings = byId('settings');
+		// The Services panel runs in the Settings window and asks each plugin for its status; a plugin
+		// the window may not call is reported "not allowed by ACL" instead of what it can do.
+		for (const plugin of ['os-prefs', 'trash', 'volumes', 'window-tearoff', 'waypoint-ops']) {
+			expect(settings.permissions, plugin).toContain(`${plugin}:allow-get-status`);
+		}
+		for (const plugin of ['os-prefs', 'trash', 'volumes', 'window-tearoff']) {
+			expect(
+				settings.permissions.filter((permission) => permission.startsWith(`${plugin}:`)),
+				plugin,
+			).toEqual([`${plugin}:allow-get-status`]);
+		}
+	});
 });

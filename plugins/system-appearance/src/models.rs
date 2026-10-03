@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::appearance::models::AppearanceFeatureStatus;
+
 /// A button that can appear in a window titlebar.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
@@ -108,6 +110,12 @@ pub struct TitlebarPreferences {
 }
 
 /// Whether the plugin could read the platform's preferences, and how.
+///
+/// `available`, `reason` and `features` describe the titlebar preferences only: `available` is
+/// true when a titlebar source answered, `reason` says why none did, and `features` names the
+/// sources that worked (`portal`, `kwin-config`, ...). The appearance preferences are reported
+/// separately: `appearanceAvailable` is true when any appearance feature works, and `appearance`
+/// reports every appearance feature with its reason when it does not.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
@@ -115,6 +123,18 @@ pub struct PluginStatus {
     pub available: bool,
     pub reason: Option<String>,
     pub features: Vec<String>,
+    pub appearance_available: bool,
+    pub appearance: Vec<AppearanceFeatureStatus>,
+}
+
+impl PluginStatus {
+    /// Adds the availability of the appearance features to a titlebar status, leaving the
+    /// titlebar part (`available`, `reason` and `features`) as it was.
+    pub fn with_appearance(mut self, appearance: Vec<AppearanceFeatureStatus>) -> Self {
+        self.appearance_available = appearance.iter().any(|status| status.available);
+        self.appearance = appearance;
+        self
+    }
 }
 
 impl TitlebarActions {
@@ -174,6 +194,8 @@ impl Snapshot {
                 available: true,
                 reason: None,
                 features: vec![feature.to_string()],
+                appearance_available: false,
+                appearance: Vec::new(),
             },
         }
     }
@@ -186,7 +208,62 @@ impl Snapshot {
                 available: false,
                 reason: Some(reason.into()),
                 features: Vec::new(),
+                appearance_available: false,
+                appearance: Vec::new(),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::appearance::models::{AppearanceFeature, AppearanceSource, UnavailableReason};
+
+    fn feature(feature: AppearanceFeature, available: bool) -> AppearanceFeatureStatus {
+        AppearanceFeatureStatus {
+            feature,
+            available,
+            source: available.then_some(AppearanceSource::Portal),
+            reason: (!available).then_some(UnavailableReason::NoSource),
+            detail: None,
+        }
+    }
+
+    #[test]
+    fn appearance_features_join_the_status_without_touching_the_titlebar_part() {
+        let titlebar = Snapshot::from_source(
+            TitlebarPreferences::fallback(DesktopEnvironment::Gnome),
+            "portal",
+        )
+        .status;
+        let status = titlebar.clone().with_appearance(vec![
+            feature(AppearanceFeature::ColourScheme, true),
+            feature(AppearanceFeature::Accent, false),
+        ]);
+        assert!(status.available);
+        assert_eq!(status.reason, titlebar.reason);
+        assert_eq!(status.features, vec!["portal"]);
+        assert!(status.appearance_available);
+        assert_eq!(status.appearance.len(), 2);
+    }
+
+    #[test]
+    fn working_appearance_does_not_make_the_titlebar_available() {
+        let titlebar = Snapshot::unavailable(DesktopEnvironment::Unknown, "no portal").status;
+        let status = titlebar.with_appearance(vec![feature(AppearanceFeature::TextScale, true)]);
+        assert!(!status.available);
+        assert!(status.features.is_empty());
+        assert_eq!(status.reason.as_deref(), Some("no portal"));
+        assert!(status.appearance_available);
+    }
+
+    #[test]
+    fn nothing_available_stays_unavailable() {
+        let titlebar = Snapshot::unavailable(DesktopEnvironment::Unknown, "no portal").status;
+        let status = titlebar.with_appearance(vec![feature(AppearanceFeature::TextScale, false)]);
+        assert!(!status.available);
+        assert!(!status.appearance_available);
+        assert!(status.features.is_empty());
     }
 }

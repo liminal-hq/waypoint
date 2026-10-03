@@ -1,0 +1,62 @@
+[package]
+name = "tauri-plugin-volumes"
+version = "0.1.0"
+description = "Tauri plugin for volumes: list drives and mounts with their free space, and mount, unmount, eject and unlock them, on UDisks2 (Linux) and the Win32 drive APIs (Windows)"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-volumes"
+keywords = ["tauri", "plugin", "volumes", "udisks2", "drives"]
+categories = ["api-bindings", "filesystem"]
+
+[package.metadata.platforms.support]
+windows = { level = "partial", notes = "Lists drive letters and mapped drives with a timeout on every query, watches for changes through a message-only window, and ejects through the shell's Eject verb; type-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the plugin's ignored `live_volumes` test. Mount, unmount and unlock are reported unavailable" }
+linux = { level = "full", notes = "Talks to UDisks2 over the system bus (polkit asks through the desktop's agent) and reads /proc/self/mountinfo for the mounts UDisks2 does not manage; without the system bus it lists from mountinfo alone and reports the actions unavailable" }
+macos = { level = "none", notes = "Reports every feature unavailable" }
+android = { level = "none", notes = "Desktop only" }
+ios = { level = "none", notes = "Desktop only" }
+
+[lib]
+name = "tauri_plugin_volumes"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
+log = { workspace = true }
+ts-rs = "12"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The same version and features `ashpd` (through `os-prefs`) resolves, so the D-Bus stack is built once.
+zbus = { version = "4", default-features = false, features = ["tokio"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# Matches the version Tauri resolves, so the types line up.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+  "Win32_NetworkManagement_WNet",
+  "Win32_System_Com",
+  "Win32_System_Diagnostics_Debug",
+  "Win32_System_LibraryLoader",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tauri = { workspace = true, features = ["test"] }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }

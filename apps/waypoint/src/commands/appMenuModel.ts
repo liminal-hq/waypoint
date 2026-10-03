@@ -17,6 +17,7 @@ import {
 } from '../icons/MenuIcons';
 import type { CommandFacts } from './commandEnv';
 import { commandDef, viewOf, type CommandId, type CommandView } from './registry';
+import { formatLocale } from '../i18n/active';
 
 /** The submenu rows' ids, which the menu's `onSelect` maps back to what to do. */
 export const MENU_IDS = {
@@ -72,7 +73,7 @@ export function historyTime(atMs: number, now: number = Date.now(), locale?: str
 	const at = new Date(atMs);
 	const sameDay = at.toDateString() === new Date(now).toDateString();
 	return new Intl.DateTimeFormat(
-		locale,
+		locale ?? formatLocale(),
 		sameDay
 			? { hour: 'numeric', minute: '2-digit' }
 			: { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' },
@@ -143,7 +144,7 @@ export function historyItems(
 }
 
 /**
- * The menu: File (Settings is its last section), Edit, View and Window, each only when it has something to offer. `views` is the
+ * The menu: File (Settings is a section of its own, above the close commands), Edit, View and Window, each only when it has something to offer. `views` is the
  * registry evaluated for the window (`evaluateCommands`).
  */
 export function appMenuItems(
@@ -159,10 +160,11 @@ export function appMenuItems(
 	const file = menuSections(
 		rows('newWindow', 'newTab'),
 		rows('newFolder', 'newFile'),
+		rows('openWith'),
 		rows('rename', 'batchRename', 'duplicate'),
 		rows('moveToTrash', 'deletePermanently'),
-		rows('closeTab', 'reopenClosedTab', 'closeWindow'),
 		rows('settings'),
+		rows('closeTab', 'reopenClosedTab', 'closeWindow'),
 	);
 	const edit = menuSections(
 		[
@@ -180,7 +182,15 @@ export function appMenuItems(
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
-		rows('showHidden', 'sidebar', 'toggleShelf', 'undockShelf', 'dockShelf', 'actionBar'),
+		rows(
+			'showHidden',
+			'sidebar',
+			'toggleShelf',
+			'undockShelf',
+			'dockShelf',
+			'toggleInspector',
+			'actionBar',
+		),
 		rows('splitView'),
 		rows('commandPalette'),
 	);

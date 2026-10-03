@@ -1,0 +1,53 @@
+.intro {
+	margin: 0 0 8px;
+	color: var(--wp-text-secondary);
+}
+
+.list {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.service {
+	padding: 8px 10px;
+	border: 1px solid var(--wp-border-subtle);
+	border-inline-start-width: 4px;
+	border-radius: 6px;
+	background: var(--wp-bg-raised);
+}
+
+.service[data-state='available'] {
+	border-inline-start-color: var(--wp-success);
+}
+
+.service[data-state='partial'] {
+	border-inline-start-color: var(--wp-warning);
+}
+
+.service[data-state='unavailable'] {
+	border-inline-start-color: var(--wp-danger);
+}
+
+.head {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.name {
+	font-weight: 600;
+	color: var(--wp-text-primary);
+}
+
+.state {
+	color: var(--wp-text-secondary);
+}
+
+.detail {
+	margin: 4px 0 0;
+	color: var(--wp-text-secondary);
+	overflow-wrap: anywhere;
+}

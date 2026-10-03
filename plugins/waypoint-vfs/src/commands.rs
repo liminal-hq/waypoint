@@ -6,18 +6,21 @@
 use std::sync::{Arc, RwLock};
 
 use serde::Deserialize;
+use tauri::ipc::Channel;
 use tauri::{Emitter, Manager, Runtime, State, Window};
 use tauri_plugin_opener::OpenerExt;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
-    Entry, EntryKind, Filter, FolderCheck, Listing, ListingEvent, ListingHandle, ListingLayout,
+    DirScanCache, DirScanEvent, DirScanOptions, DirScanResult, Entry, EntryDetails, EntryKind,
+    Filter, FolderCheck, FolderSizeEvent, Listing, ListingEvent, ListingHandle, ListingLayout,
     ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
-    SelectionSpec, SelectionSummary, SortSpec, TrashInfo, TrashProvider, TrashSource, VolumeSpace,
+    SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo, TrashProvider, TrashSource,
+    VolumeSpace,
 };
 
 use crate::error::Error;
-use crate::registry::Registry;
+use crate::registry::{Registry, SizeJobs};
 
 /// The one event name every listing event is emitted under, to the window that owns the listing.
 pub const LISTING_EVENT: &str = "waypoint-vfs://listing";
@@ -25,6 +28,7 @@ pub const LISTING_EVENT: &str = "waypoint-vfs://listing";
 /// The plugin's managed state: the open listings and the providers that serve them.
 pub struct Vfs {
     pub(crate) registry: Arc<Registry>,
+    pub(crate) size_jobs: Arc<SizeJobs>,
     local: Arc<LocalProvider>,
     /// The `trash:` provider, once the app has given the plugin a Trash to read (A4: this plugin
     /// calls no other, so the composition root adapts the Trash plugin to `TrashSource`).
@@ -50,10 +54,135 @@ impl Vfs {
     }
 }
 
+impl Vfs {
+    /// The location of each of `ids` in `window`'s listing `handle`, in the order given, with `None`
+    /// for one the listing no longer holds. Each id is one lookup, so asking for the pictures of a
+    /// screen of a 100 000-entry folder costs the screen, not the folder (`resolve_selection` walks
+    /// the whole view to put what it finds in view order, which is not wanted here).
+    pub fn locate_entries(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        ids: &[waypoint_protocol::EntryId],
+    ) -> Result<Vec<Option<Location>>, VfsError> {
+        let listing = self.registry.get(window, handle)?;
+        Ok(ids
+            .iter()
+            .map(|id| listing.path_of(*id).ok().map(|path| path.to_location()))
+            .collect())
+    }
+
+    /// Starts totalling the folder `window`'s listing `handle` holds as entry `id`, on a thread of
+    /// its own at low priority, and returns the run's id at once. `sink` receives the events and
+    /// returns `false` when nobody is listening any more (the page went away), which cancels the
+    /// run; the run also stops when the listing closes, when `cancel_folder_size` asks, and when
+    /// the window is destroyed. Exactly one of `done`, `cancelled` and `failed` ends the stream.
+    ///
+    /// An entry that is not a folder (or a link to one) is `NotADirectory` and starts nothing.
+    pub fn start_folder_size(
+        &self,
+        window: &str,
+        handle: ListingHandle,
+        id: EntryId,
+        sink: impl Fn(FolderSizeEvent) -> bool + Send + 'static,
+    ) -> Result<u64, VfsError> {
+        let listing = self.registry.get(window, handle)?;
+        let path = listing.path_of(id)?;
+        let provider = listing.provider().clone();
+        let entry = provider.stat(&path)?;
+        let is_folder = entry.kind == EntryKind::Directory
+            || (entry.kind == EntryKind::Symlink
+                && entry.link_target == Some(EntryKind::Directory));
+        if !is_folder {
+            return Err(VfsError::NotADirectory {
+                location: path.to_location(),
+            });
+        }
+        let (job, cancel) = self.size_jobs.start(window);
+        let cancel_for_walk = cancel.clone();
+        let (jobs, registry, label) = (
+            self.size_jobs.clone(),
+            self.registry.clone(),
+            window.to_owned(),
+        );
+        let spawned = std::thread::Builder::new()
+            .name("waypoint-folder-size".to_owned())
+            .spawn(move || {
+                waypoint_vfs::lower_thread_priority();
+                let mut report = |totals: &waypoint_vfs::FolderSizeTotals| {
+                    if registry.get(&label, handle).is_err()
+                        || !sink(FolderSizeEvent::Progress { totals: *totals })
+                    {
+                        cancel.cancel();
+                    }
+                };
+                let event = match provider.folder_size(&path, &cancel_for_walk, &mut report) {
+                    Ok(run) if run.cancelled => FolderSizeEvent::Cancelled { totals: run.totals },
+                    Ok(run) => FolderSizeEvent::Done { totals: run.totals },
+                    Err(error) => FolderSizeEvent::Failed { error },
+                };
+                sink(event);
+                jobs.finish(job);
+            });
+        if let Err(error) = spawned {
+            self.size_jobs.finish(job);
+            return Err(VfsError::Io {
+                message: format!("could not start the folder size: {error}"),
+                location: None,
+            });
+        }
+        Ok(job)
+    }
+}
+
+impl Vfs {
+    /// Starts a directory-size scan of `root`, on a thread of its own at low priority (never on
+    /// the operations pool, A70), and returns the run's id at once. `sink` receives the events and
+    /// returns `false` when nobody is listening any more, which cancels the run; the run also
+    /// stops when `cancel_dir_scan` asks and when the window is destroyed. A scan that finishes is
+    /// remembered in `cache`. Exactly one of `done`, `cancelled` and `failed` ends the stream.
+    pub fn start_dir_scan(
+        &self,
+        window: &str,
+        root: Location,
+        options: DirScanOptions,
+        cache: Option<DirScanCache>,
+        sink: impl Fn(DirScanEvent) -> bool + Send + 'static,
+    ) -> Result<u64, VfsError> {
+        let (job, cancel) = self.size_jobs.start(window);
+        let (jobs, token) = (self.size_jobs.clone(), cancel.clone());
+        let spawned = std::thread::Builder::new()
+            .name("waypoint-dir-scan".to_owned())
+            .spawn(move || {
+                waypoint_vfs::lower_thread_priority();
+                waypoint_vfs::scan_dir_sizes(&root, options, &token, &mut |event| {
+                    if let (DirScanEvent::Done { result }, Some(cache)) = (&event, &cache) {
+                        if let Err(error) = cache.store(result) {
+                            log::warn!("{error:?}");
+                        }
+                    }
+                    if !sink(event) {
+                        cancel.cancel();
+                    }
+                });
+                jobs.finish(job);
+            });
+        if let Err(error) = spawned {
+            self.size_jobs.finish(job);
+            return Err(VfsError::Io {
+                message: format!("could not start the directory-size scan: {error}"),
+                location: None,
+            });
+        }
+        Ok(job)
+    }
+}
+
 impl Default for Vfs {
     fn default() -> Self {
         Self {
             registry: Arc::new(Registry::default()),
+            size_jobs: Arc::new(SizeJobs::default()),
             local: Arc::new(LocalProvider::new()),
             trash: RwLock::new(None),
         }
@@ -117,6 +246,11 @@ pub async fn get_status(state: State<'_, Vfs>) -> Result<PluginStatus, Error> {
         "listing".to_owned(),
         "watch".to_owned(),
         "places".to_owned(),
+        "entry-details".to_owned(),
+        "folder-size".to_owned(),
+        "dir-size-scan".to_owned(),
+        "text-head".to_owned(),
+        "preview-protocol".to_owned(),
     ];
     if state.registry.any_polling() {
         features.push("polling-fallback".to_owned());
@@ -375,19 +509,155 @@ pub async fn open_entry<R: Runtime>(
     .map_err(Error::from)
 }
 
+/// Everything the Inspector shows about one entry of an open listing. Fields only a local provider
+/// reads (times, owner, permissions, allocated size) are named in `unavailable` for a remote one.
+#[tauri::command]
+pub async fn entry_details<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    id: EntryId,
+) -> Result<EntryDetails, Error> {
+    let listing = listing_of(&window, &state, handle)?;
+    let path = listing.path_of(id)?;
+    let provider = listing.provider().clone();
+    blocking(move || provider.details(&path))
+        .await?
+        .map_err(Error::from)
+}
+
+/// Starts totalling a folder of an open listing and returns the run's id. The totals arrive on
+/// `on_event`: `progress` about every 100 ms, then one `done`, `cancelled` or `failed`. The walk
+/// is low priority, stays on one volume, never follows a symlink and, on Windows, never downloads a
+/// cloud placeholder. `cancel_folder_size` stops it; so does closing the listing or the window.
+#[tauri::command]
+pub async fn folder_size<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    id: EntryId,
+    on_event: Channel<FolderSizeEvent>,
+) -> Result<u64, Error> {
+    // `stat` runs on the calling task, which is quick; the walk has a thread of its own.
+    state
+        .start_folder_size(window.label(), handle, id, move |event| {
+            on_event.send(event).is_ok()
+        })
+        .map_err(Error::from)
+}
+
+/// Stops one of this window's folder-size runs. A run that has ended, or one that is not this
+/// window's, is not an error.
+#[tauri::command]
+pub async fn cancel_folder_size<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    job: u64,
+) -> Result<(), Error> {
+    state.size_jobs.cancel(window.label(), job);
+    Ok(())
+}
+
+/// Starts scanning the top-level folders of `location` for their sizes and returns the run's id.
+/// The events arrive on `on_event`: `progress` about every 100 ms, a `partial` result after each
+/// top-level folder, then one `done`, `cancelled` or `failed`. The scan is low priority on a
+/// thread of its own, stays on one volume, never follows a symlink and, on Windows, never
+/// downloads a cloud placeholder. A finished scan is cached; `cancel_dir_scan` stops one, and so
+/// does destroying the window.
+#[tauri::command]
+pub async fn scan_dir_sizes<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    location: Location,
+    options: Option<DirScanOptions>,
+    on_event: Channel<DirScanEvent>,
+) -> Result<u64, Error> {
+    let cache = window
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| DirScanCache::in_dir(&dir));
+    state
+        .start_dir_scan(
+            window.label(),
+            location,
+            options.unwrap_or_default(),
+            cache,
+            move |event| on_event.send(event).is_ok(),
+        )
+        .map_err(Error::from)
+}
+
+/// Stops one of this window's directory-size scans. A scan that has ended, or one that is not this
+/// window's, is not an error.
+#[tauri::command]
+pub async fn cancel_dir_scan<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    job: u64,
+) -> Result<(), Error> {
+    state.size_jobs.cancel(window.label(), job);
+    Ok(())
+}
+
+/// The last finished directory-size result for `location`, with the time it was measured, or
+/// `null` when there is none (or the cache is from another version of the app).
+#[tauri::command]
+pub async fn get_cached_dir_scan<R: Runtime>(
+    window: Window<R>,
+    location: Location,
+) -> Result<Option<DirScanResult>, Error> {
+    let Ok(dir) = window.path().app_data_dir() else {
+        return Ok(None);
+    };
+    blocking(move || DirScanCache::in_dir(&dir).load(&location)).await
+}
+
+/// The first bytes of a file of an open listing as text, at most `max` of them (and never more
+/// than 256 KiB). A binary file is refused with `notText`, a folder with `isADirectory`.
+#[tauri::command]
+pub async fn read_text_head<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    id: EntryId,
+    max: Option<u32>,
+) -> Result<TextHead, Error> {
+    let listing = listing_of(&window, &state, handle)?;
+    let path = listing.path_of(id)?;
+    let provider = listing.provider().clone();
+    let max = max.map_or(waypoint_vfs::TEXT_HEAD_MAX, |max| max as usize);
+    blocking(move || waypoint_vfs::read_text_head(provider.as_ref(), &path, max))
+        .await?
+        .map_err(Error::from)
+}
+
 /// Whether the Trash can be browsed, why not, and how many items it holds, for the sidebar's Trash
 /// place. Reading it lists the Trash, so ask when the sidebar needs the number, not on a timer
-/// shorter than a few seconds.
+/// shorter than a few seconds. `with_bytes` also adds up the sizes (`total_bytes`); Overview asks
+/// for that while it is visible and the sidebar never does.
 #[tauri::command]
-pub async fn get_trash_info(state: State<'_, Vfs>) -> Result<TrashInfo, Error> {
+pub async fn get_trash_info(
+    state: State<'_, Vfs>,
+    with_bytes: Option<bool>,
+) -> Result<TrashInfo, Error> {
     let Some(provider) = state.trash_provider() else {
         return Ok(TrashInfo {
             available: false,
             reason: Some("the Trash cannot be read here".to_owned()),
             count: 0,
+            total_bytes: None,
         });
     };
-    blocking(move || TrashInfo::of(provider.source().as_ref())).await
+    let with_bytes = with_bytes.unwrap_or(false);
+    blocking(move || {
+        if with_bytes {
+            TrashInfo::with_bytes(provider.source().as_ref())
+        } else {
+            TrashInfo::of(provider.source().as_ref())
+        }
+    })
+    .await
 }
 
 /// The folder a window opens at first.

@@ -5,6 +5,7 @@
 | Input                | Target                           | Result                                                            |
 | -------------------- | -------------------------------- | ----------------------------------------------------------------- |
 | Click                | Item                             | Select (single-click-to-open is an optional setting)              |
+| Click                | Empty space in a folder          | Clear the selection (Shift and Ctrl clicks leave it alone)        |
 | Double-click         | Item                             | Open or enter                                                     |
 | Middle-click         | Folder, sidebar item, breadcrumb | Open in a new background tab                                      |
 | Ctrl+middle-click    | Same                             | Open in a new window                                              |
@@ -40,8 +41,8 @@
 | F4                        | Terminal drawer                                                                                          |
 | F5 / Shift+F5             | Copy / move to the other pane (Copy To… / Move To… when there is no pair or the other pane is read-only) |
 | F6                        | Switch the active pane                                                                                   |
-| F9                        | Sidebar · F11 inspector                                                                                  |
-| Space                     | Quick Look                                                                                               |
+| F9                        | Sidebar · F11 inspector (shows and hides it; reopens on the tab last used; the same in a text field)     |
+| Space                     | Quick Look (Space or Esc closes; Left/Right, or Up/Down in the grid, step through the items)             |
 | Ctrl+C / Ctrl+X / Ctrl+V  | Copy / cut / paste files (the shared and system clipboard)                                               |
 | Ctrl+Z / Ctrl+Shift+Z     | Undo / redo                                                                                              |
 | Ctrl+H                    | Hidden files                                                                                             |
@@ -49,7 +50,7 @@
 | Ctrl+D                    | Bookmark                                                                                                 |
 | Ctrl+B                    | Toggle the Shelf                                                                                         |
 | Delete / Shift+Delete     | Trash / delete permanently                                                                               |
-| Alt+Enter                 | Properties                                                                                               |
+| Alt+Enter                 | Properties window (selected item or folder; four at most)                                                |
 
 Ctrl+Tab opens a switcher: while Ctrl is held, each Tab press moves the highlight down the most-recently-used list (the active tab first), Shift+Tab moves it up, and releasing Ctrl activates the highlighted tab once, so the tabs passed on the way do not enter the MRU list. Escape cancels. Menu key or Shift+F10 on a focused tab, or on the + button, opens its menu; pressing and holding the + button opens its menu too. Delete or Ctrl+W close a pinned tab; a middle-click does not.
 
@@ -153,7 +154,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 
 Sections separated by rules, with an icon, a label, a right-aligned shortcut and a submenu chevron. Items can be checkboxes, and danger items (such as Delete) come last and in red. It's positioned to stay within the viewport and fully navigable by keyboard. Plugin actions go in a labelled section.
 
-Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7, File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Group by ▸ · Show hidden files; Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window | Cut (Ctrl+X) · Copy (Ctrl+C) · Paste (Ctrl+V; Paste Into Folder on a folder) · Add to Favourites (folders) · Copy Path | Rename (F2) · Rename Selected… (Ctrl+F2, several selected) · Duplicate (Ctrl+Shift+D) | Copy To… · Move To… · Copy to Other Pane (F5) · Move to Other Pane (Shift+F5; the last two only in a pair) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style. Cut, Paste, Move To… and the other-pane move are hidden in a read-only location while Copy, Copy To… and Copy to Other Pane stay; Paste and Paste Into Folder are disabled while the clipboard is empty, and the other-pane items while the other pane's folder cannot be written to (F5 then opens the dialog). Paste is in the empty-space menu directly after New. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
+Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in New Window · Open With ▸ | Cut · Copy · Copy Path · Add to Shelf | Rename · Duplicate · Compress ▸ | Tags ▸ | _Plugin section_ | Properties | Move to Trash. Entries arrive with the feature behind them. Empty-space menu (as built): New ▸ (Folder F7) · Properties in a Window (Alt+Enter; File Shift+F7) | Undo _what it would undo_ (Ctrl+Z), Redo (Ctrl+Shift+Z) | Sort by · Group by ▸ · Show hidden files | Properties (the Inspector's Properties tab, for the folder); Paste joins after New. As built, the item menu is Open · Open in New Tab · Open in New Window · Open With ▸ (the default application, the recommended ones with their icons, Other Application…; only where the system can offer it and the selection is of one type) | Cut (Ctrl+X) · Copy (Ctrl+C) · Paste (Ctrl+V; Paste Into Folder on a folder) · Add to Favourites (folders) · Add to Shelf · Copy Path | Rename (F2) · Rename Selected… (Ctrl+F2, several selected) · Duplicate (Ctrl+Shift+D) | Copy To… · Move To… · Copy to Other Pane (F5) · Move to Other Pane (Shift+F5; the last two only in a pair) | Move to Trash (Delete) · Delete Permanently (Shift+Delete, always confirmed), the last two in the danger style | Properties (the Inspector's Properties tab; always offered, last, where the window can open one). Cut, Paste, Move To… and the other-pane move are hidden in a read-only location while Copy, Copy To… and Copy to Other Pane stay; Paste and Paste Into Folder are disabled while the clipboard is empty, and the other-pane items while the other pane's folder cannot be written to (F5 then opens the dialog). Paste is in the empty-space menu directly after New. Write items are hidden, not disabled, in a read-only location (the Trash, an archive). In the Trash: Restore · Delete Permanently · Empty Trash.
 
 ## 7. Tab groups and pairs
 
@@ -178,8 +179,8 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | F3                       | Anywhere                       | Split with a new tab (focused); on a toggled split closes the pane it made (Undo toast), on a joined pair separates                        |
 | F6, Shift+F6             | Split                          | Move focus to the next, or previous, pane                                                                                                  |
 | Arrow keys, Enter        | Pane divider (focused)         | Move it 2% (10% with Shift) along its axis; Enter resets to equal sizes                                                                    |
-| Alt+Enter                | Selection or current folder    | Floating Properties window                                                                                                                 |
-| Right-click → Properties | Item or empty space            | Inspector on the Properties tab                                                                                                            |
+| Alt+Enter                | Selection or current folder    | Properties window (one per subject, four at most; Esc closes). Also the item menu, the palette and the Inspector's button                  |
+| Right-click → Properties | Item or empty space            | Inspector on the Properties tab (the panel opens if it was closed; it shows the item, or the current folder from empty space)              |
 
 ## 8. + button, start page, terminal tab
 
@@ -201,20 +202,31 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 
 ## 9. Navigation, selection and errors
 
-| Input                     | Target                                | Result                               |
-| ------------------------- | ------------------------------------- | ------------------------------------ |
-| Right-click or long-press | Back, Forward                         | History list                         |
-| Ctrl+Shift+G              | Anywhere                              | Go to…                               |
-| Ctrl+S                    | File view                             | Select by pattern                    |
-| Ctrl+I                    | File view                             | Invert selection                     |
-| Ctrl+D                    | Anywhere                              | Add the current folder to Favourites |
-| Right-click               | List header                           | Columns                              |
-| Right-click               | Sidebar Places, Favourites, servers   | Rename, move, remove                 |
-| Drag                      | Sidebar Places, Favourites rows       | Reorder                              |
-| Drop folder               | Places or Favourites heading          | Add it                               |
-| Right-click               | Tree node                             | Expand, new folder, add to Places    |
-| Menu                      | File → Copy To… / Move To…            | Destination dialog                   |
-| Menu                      | File → Open With → Other Application… | App chooser                          |
+| Input                     | Target                                 | Result                                                                         |
+| ------------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| Right-click or long-press | Back, Forward                          | History list                                                                   |
+| Ctrl+Shift+G              | Anywhere                               | Go to…                                                                         |
+| Ctrl+S                    | File view                              | Select by pattern                                                              |
+| Ctrl+I                    | File view                              | Invert selection                                                               |
+| Ctrl+D                    | Anywhere                               | Add the current folder to Favourites                                           |
+| Right-click               | List header                            | Columns                                                                        |
+| Right-click               | Sidebar Places, Favourites, servers    | Rename, move, remove                                                           |
+| Drag                      | Sidebar Places, Favourites rows        | Reorder                                                                        |
+| Drop folder               | Places or Favourites heading           | Add it                                                                         |
+| Right-click               | Tree node                              | Expand, new folder, add to Places                                              |
+| Menu                      | File → Copy To… / Move To…             | Destination dialog                                                             |
+| Menu                      | File → Open With → Other Application…  | App chooser                                                                    |
+| Menu or palette           | File → Open With…, Open With…          | App chooser listing every application, or the system's own for one file        |
+| Click or Enter            | Sidebar Places → Overview              | Opens Overview in this tab (middle-click: a new tab beside it)                 |
+| Palette                   | Open Overview                          | Opens Overview in the active tab                                               |
+| Click or Enter            | Overview → a volume's name             | Opens that volume in this tab                                                  |
+| Click or Enter            | Overview → Measure                     | Measures that network volume, which is not measured by default                 |
+| Click or Enter            | Overview → Unlock                      | Passphrase dialog, as in the sidebar's Devices                                 |
+| Click or Enter            | Overview → Measure now                 | Measures Home (the button reads Cancel while it runs; Cancel stops it at once) |
+| Enter                     | Overview → a folder in Biggest folders | Opens that folder in this tab                                                  |
+| Click                     | Status bar → Measuring Home            | Shows Overview in the active tab; its × cancels the scan                       |
+| Click or Enter            | Overview → Open Trash                  | Opens the Trash in this tab                                                    |
+| Click or Enter            | Overview → Empty Trash                 | The Trash's own confirmation, then empties it                                  |
 
 ## 10. Operations and tools
 
@@ -230,7 +242,7 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 
 ### 10.1 Answering a waiting job
 
-The conflict and error dialogs open by themselves in the window that started the job; Resolve… on the job's row (the ring's popover or the Operations window) opens them from any window.
+The conflict and error dialogs open by themselves in the window that started the job; Resolve… on the job's row (the ring's popover or the Operations window) opens them from any window. For two files the conflict dialog also shows a thumbnail of each, which is newer or larger, an "Identical contents" notice that says Skip is probably wanted (nothing is chosen for you) and, for text, a compact diff; none of it changes the keys, and a comparison that cannot be made shows nothing.
 
 | Input                                                 | Target          | Result                                                                  |
 | ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------- |
@@ -239,6 +251,7 @@ The conflict and error dialogs open by themselves in the window that started the
 | Continue                                              | Conflict dialog | Sends the answers; off until every clash is answered                    |
 | Cancel the operation                                  | Conflict dialog | Stops the job, after a question once anything was answered              |
 | Esc                                                   | Conflict dialog | Closes it and leaves the job waiting                                    |
+| Compare the files, Show differences                   | A file clash    | Loads the two files' comparison, then opens its line diff               |
 | Decide later                                          | Either dialog   | Closes it and leaves the job waiting                                    |
 | Esc                                                   | Error dialog    | Closes it and leaves the job waiting                                    |
 | Retry, Skip, Skip all like this, Cancel the operation | Error dialog    | Tells the job what to do with the item that failed                      |

@@ -67,6 +67,7 @@ describe('the Trash empty-space menu', () => {
 			'group:name',
 			'group:type',
 			'showHidden',
+			'properties',
 		]);
 	});
 });

@@ -29,6 +29,9 @@ use crate::error::from_io;
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum PlaceKind {
+    /// Overview (`overview:/`), the built-in view of the volumes and the Trash. It is not a folder:
+    /// no listing is opened for it, and the sidebar lists it first, above Home.
+    Overview,
     Home,
     Desktop,
     Documents,
@@ -39,6 +42,30 @@ pub enum PlaceKind {
     /// The Trash (`trash:/`), always last and always present: whether it can be browsed here is the
     /// Trash's own status, which the sidebar explains rather than hides.
     Trash,
+}
+
+/// The URI scheme of Overview, a built-in view that is not backed by a provider.
+pub const OVERVIEW_SCHEME: &str = "overview";
+
+/// The location of Overview. It names a view, not a listing, so the front end shows the page itself
+/// and never asks a provider to open it.
+pub fn overview_location() -> Location {
+    Location {
+        display: "Overview".to_owned(),
+        uri: format!("{OVERVIEW_SCHEME}:/"),
+    }
+}
+
+/// Whether `text` is written in Overview's scheme (`overview:`, `overview:/`, `overview:///`), whatever case.
+pub fn is_overview_uri(text: &str) -> bool {
+    let text = text.trim();
+    let Some(rest) = text.get(OVERVIEW_SCHEME.len()..) else {
+        return false;
+    };
+    text[..OVERVIEW_SCHEME.len()].eq_ignore_ascii_case(OVERVIEW_SCHEME)
+        && rest
+            .strip_prefix(':')
+            .is_some_and(|after| after.is_empty() || after.chars().all(|c| c == '/'))
 }
 
 /// A fixed place in the sidebar.
@@ -197,12 +224,12 @@ fn user_folder(env: &PlacesEnv, _xdg: &HashMap<String, PathBuf>, index: usize) -
         PlaceKind::Pictures => dirs::picture_dir(),
         PlaceKind::Music => dirs::audio_dir(),
         PlaceKind::Videos => dirs::video_dir(),
-        PlaceKind::Home | PlaceKind::Trash => None,
+        PlaceKind::Overview | PlaceKind::Home | PlaceKind::Trash => None,
     };
     known.unwrap_or_else(|| env.home.join(KINDS[index].3))
 }
 
-/// Home, whichever of the user folders exist, and the Trash.
+/// Overview, Home, whichever of the user folders exist, and the Trash.
 pub fn standard_places(env: &PlacesEnv) -> Vec<Place> {
     let xdg = if cfg!(windows) {
         HashMap::new()
@@ -211,7 +238,11 @@ pub fn standard_places(env: &PlacesEnv) -> Vec<Place> {
             .map(|text| parse_user_dirs(&text, &env.home))
             .unwrap_or_default()
     };
-    let mut places = Vec::new();
+    let mut places = vec![Place {
+        kind: PlaceKind::Overview,
+        label: "Overview".to_owned(),
+        location: overview_location(),
+    }];
     if let Ok(location) = to_location(&env.home) {
         places.push(Place {
             kind: PlaceKind::Home,
@@ -542,14 +573,42 @@ mod tests {
         assert_eq!(
             kinds,
             [
+                PlaceKind::Overview,
                 PlaceKind::Home,
                 PlaceKind::Desktop,
                 PlaceKind::Downloads,
                 PlaceKind::Trash
             ]
         );
-        assert!(places[1].location.uri.ends_with("/home/Bureau"));
-        assert_eq!(places[1].label, "Desktop");
+        assert!(places[2].location.uri.ends_with("/home/Bureau"));
+        assert_eq!(places[2].label, "Desktop");
+    }
+
+    #[test]
+    fn overview_is_the_first_place_and_a_view_rather_than_a_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let places = standard_places(&env(tmp.path()));
+        assert_eq!(places[0].kind, PlaceKind::Overview);
+        assert_eq!(places[0].location, overview_location());
+        assert_eq!(places[0].location.uri, "overview:/");
+        // Overview is not a path of any provider, so nothing can open a listing for it.
+        assert!(VfsPath::from_location(&places[0].location).is_err());
+    }
+
+    #[test]
+    fn overview_uris_are_recognised_in_any_case_and_nothing_else_is() {
+        for text in ["overview:", "overview:/", "overview:///", " Overview:/ "] {
+            assert!(is_overview_uri(text), "{text}");
+        }
+        for text in [
+            "overview:/x",
+            "overviews:/",
+            "overview",
+            "file:///overview:",
+            "",
+        ] {
+            assert!(!is_overview_uri(text), "{text}");
+        }
     }
 
     #[test]

@@ -77,6 +77,28 @@ jobs:
         id: ops_sandbox
         run: bash scripts/check-ops-sandbox.sh
 
+      # Every native plugin the app registers is in the Services panel (A66).
+      - name: Check the Services panel covers every plugin
+        id: services
+        run: bash scripts/check-services.sh
+
+      # The logical-CSS check below is a Bun script over the workspace.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+
+      # Layout uses logical properties so it mirrors under right-to-left languages (A68).
+      - name: Check stylesheets use logical properties
+        id: logical_css
+        run: bash scripts/check-logical-css.sh
+
+      # The translation check reads the app's modules and runs Prettier; Bun is set up above.
+      # The translation files and catalogues agree with English (A68).
+      - name: Check translations are in step with English
+        id: i18n
+        run: bash scripts/check-i18n.sh
+
       - name: Job summary
         if: always()
         run: |
@@ -87,6 +109,9 @@ jobs:
             echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
             echo "- Case collisions: \`${{ steps.case.outcome }}\` (\`bash scripts/check-case-collisions.sh\`)"
             echo "- Operations sandbox: \`${{ steps.ops_sandbox.outcome }}\` (\`bash scripts/check-ops-sandbox.sh\`)"
+            echo "- Services panel: \`${{ steps.services.outcome }}\` (\`bash scripts/check-services.sh\`)"
+            echo "- Logical CSS: \`${{ steps.logical_css.outcome }}\` (\`bash scripts/check-logical-css.sh\`)"
+            echo "- Translations: \`${{ steps.i18n.outcome }}\` (\`bash scripts/check-i18n.sh\`)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   frontend-tests:
@@ -290,8 +315,8 @@ jobs:
         id: tests
         run: >-
           cargo nextest run --no-fail-fast
-          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings
-          -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))"
+          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-thumbnails -p tauri-plugin-volumes -p tauri-plugin-window-effects -p tauri-plugin-mime-apps -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings
+          -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-thumbnails) | package(tauri-plugin-volumes) | package(tauri-plugin-window-effects) | package(tauri-plugin-mime-apps) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))"
 
       - name: Job summary
         if: always()
@@ -301,5 +326,5 @@ jobs:
             echo "## Windows tests (${{ matrix.arch }})"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-thumbnails -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-thumbnails) | package(tauri-plugin-volumes) | package(tauri-plugin-window-effects) | package(tauri-plugin-mime-apps) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
           } >> "${GITHUB_STEP_SUMMARY}"

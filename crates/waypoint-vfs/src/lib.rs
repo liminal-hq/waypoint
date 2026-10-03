@@ -5,20 +5,27 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod cancel;
+mod details;
+mod dirscan;
+mod dirscan_cache;
 mod error;
 mod group;
 mod icon;
 mod index;
+mod inspect;
 mod listing;
 mod local;
 #[cfg(any(test, feature = "testing"))]
 mod memory;
+mod mime;
 mod model;
 mod names;
 mod navigation;
 mod order;
 mod places;
 mod provider;
+mod serve;
+mod size;
 mod space;
 #[cfg(unix)]
 #[path = "sys_unix.rs"]
@@ -26,24 +33,35 @@ mod sys;
 #[cfg(windows)]
 #[path = "sys_windows.rs"]
 mod sys;
+mod text;
 mod trash;
 mod watch;
 mod write;
 
 pub use cancel::CancelToken;
+pub use details::*;
+pub use dirscan::*;
+pub use dirscan_cache::{DirScanCache, CACHE_FILE, CACHE_MAX_ROOTS, CACHE_MAX_ROWS, CACHE_VERSION};
 pub use error::{from_io, from_io_pair, InjectedError};
 pub use icon::group_for;
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
 #[cfg(any(test, feature = "testing"))]
 pub use memory::{MemOp, MemoryProvider};
+pub use mime::{guess as guess_mime, SNIFF_LEN};
 pub use model::*;
 pub use names::{child_path, validate_name};
 pub use navigation::{describe_location, parse_location};
 pub use order::natural_key;
 pub use places::*;
 pub use provider::*;
+pub use serve::{
+    error_response, parse_range, serve_file, status_response, ByteRange, ServedFile, MAX_CHUNK,
+    MAX_WHOLE,
+};
+pub use size::{lower_thread_priority, FolderSizeRun, REPORT_EVERY as FOLDER_SIZE_REPORT_EVERY};
 pub use space::free_space;
+pub use text::{read_text_head, TEXT_HEAD_MAX};
 #[cfg(any(test, feature = "testing"))]
 pub use trash::MemoryTrashSource;
 pub use trash::{

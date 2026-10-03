@@ -1,0 +1,12 @@
+[default]
+description = "Default permissions for the mime-apps plugin: report its status, read the type of a file, list the applications that open it, open files with an application, and change the default"
+permissions = [
+  "allow-get-status",
+  "allow-type-info",
+  "allow-handlers",
+  "allow-open-with",
+  "allow-open-default",
+  "allow-choose",
+  "allow-set-default",
+  "allow-open-default-apps-settings",
+]

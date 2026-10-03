@@ -1,0 +1,136 @@
+.preview {
+	margin: 0;
+}
+
+/* The sample wallpaper: bands of light, dark and colour, so the window's opacity is easy to judge. */
+.wallpaper {
+	position: relative;
+	box-sizing: border-box;
+	padding: 16px 24px 28px 24px;
+	overflow: hidden;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 10px;
+	background: var(--wp-preview-wallpaper);
+}
+
+.window {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	block-size: 190px;
+	overflow: hidden;
+	color: var(--wp-text-primary);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 10px;
+	box-shadow: var(--wp-preview-window-shadow);
+	font-size: 12px;
+}
+
+.titleBar {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 5px;
+	box-sizing: border-box;
+	block-size: 26px;
+	padding: 0 10px;
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.dot {
+	inline-size: 8px;
+	block-size: 8px;
+	border-radius: 50%;
+	background: var(--wp-text-muted);
+}
+
+.titleText {
+	margin-inline-start: 8px;
+	font-weight: 600;
+}
+
+.body {
+	display: flex;
+	flex: 1;
+	min-block-size: 0;
+}
+
+.sidebar {
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	gap: 6px;
+	box-sizing: border-box;
+	inline-size: 30%;
+	padding: 8px 10px;
+	border-inline-end: 1px solid var(--wp-border-subtle);
+}
+
+.heading {
+	color: var(--wp-text-secondary);
+	font-weight: 600;
+}
+
+.item {
+	block-size: 8px;
+	border-radius: 4px;
+	background: var(--wp-text-muted);
+	opacity: 0.55;
+}
+
+.item:nth-of-type(2) {
+	inline-size: 70%;
+}
+
+.item:nth-of-type(3) {
+	inline-size: 85%;
+}
+
+.main {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-inline-size: 0;
+}
+
+.toolbar {
+	flex: none;
+	block-size: 22px;
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.content {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px 10px;
+}
+
+.row {
+	color: var(--wp-text-primary);
+}
+
+.menu {
+	position: absolute;
+	inset-inline-end: 14px;
+	inset-block-end: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	box-sizing: border-box;
+	margin: 0;
+	padding: 6px 12px;
+	list-style: none;
+	color: var(--wp-text-primary);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	box-shadow: var(--wp-shadow-menu);
+}
+
+.caption {
+	margin-block-start: 6px;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}

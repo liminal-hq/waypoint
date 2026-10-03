@@ -24,6 +24,7 @@ export interface WindowState {
 }
 
 export const PLACES = [
+	'overview',
 	'home',
 	'desktop',
 	'documents',

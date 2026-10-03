@@ -102,6 +102,8 @@ export interface FileDragPress {
 	session: ListingSession;
 	position: number;
 	entry: Entry;
+	/** The pressed entry's thumbnail, when it has loaded: the front card of the stack shows it. */
+	thumbnail?: string | null;
 	/** The pane the row is in. */
 	tab: number | null;
 	modifiers: DropModifiers;
@@ -118,6 +120,8 @@ export interface LocationsDragPress {
 	/** The one name, when exactly one item is dragged. */
 	name: string | null;
 	groups: IconGroup[];
+	/** The thumbnails that have loaded, aligned with `groups` (`null` for an item with none). */
+	thumbnails?: Array<string | null>;
 	/** The folder every item sits in, or `null` when they come from several. */
 	folder: Location | null;
 	modifiers: DropModifiers;
@@ -1078,6 +1082,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				count,
 				name: count === 1 ? input.entry.name : null,
 				groups: stackGroups(input.entry.group, count),
+				thumbnails: input.thumbnail ? [input.thumbnail] : [],
 				folder: model.location,
 				readOnly: model.readOnly,
 				rightButton: input.button === 2,
@@ -1094,6 +1099,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				count: input.locations.length,
 				name: input.locations.length === 1 ? input.name : null,
 				groups: input.groups,
+				thumbnails: input.thumbnails ?? [],
 				folder: input.folder,
 				readOnly: false,
 				rightButton: input.button === 2,
@@ -1118,6 +1124,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 						count: returning.source.count,
 						name: returning.source.name,
 						groups: returning.source.groups,
+						thumbnails: returning.source.thumbnails ?? [],
 						folder: returning.source.folder,
 						readOnly: returning.source.readOnly,
 					}

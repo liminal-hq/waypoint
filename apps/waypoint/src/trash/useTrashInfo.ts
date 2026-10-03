@@ -14,9 +14,14 @@ export const TRASH_INFO_INTERVAL_MS = 10_000;
  * The Trash's state, or `null` until the first read (and without a client). The count is read
  * again when the window gains focus, whenever a job finishes (a restore, a delete, an empty, or a
  * move to the Trash), and every ten seconds while the window is visible, which is how another
- * program's change shows. A read that fails leaves the last answer in place.
+ * program's change shows. A read that fails leaves the last answer in place. `withBytes` also asks
+ * for the total size, which only Overview does, while it is on screen.
  */
-export function useTrashInfo(client: TrashClient | null): TrashInfo | null {
+export function useTrashInfo(
+	client: TrashClient | null,
+	options: { withBytes?: boolean } = {},
+): TrashInfo | null {
+	const withBytes = options.withBytes ?? false;
 	const [info, setInfo] = useState<TrashInfo | null>(null);
 	useEffect(() => {
 		if (!client) return;
@@ -25,7 +30,7 @@ export function useTrashInfo(client: TrashClient | null): TrashInfo | null {
 		let latest = 0;
 		const read = () => {
 			const mine = ++latest;
-			client.getInfo().then(
+			client.getInfo(withBytes).then(
 				(next) => {
 					if (live && mine === latest) setInfo((have) => (same(have, next) ? have : next));
 				},
@@ -47,10 +52,16 @@ export function useTrashInfo(client: TrashClient | null): TrashInfo | null {
 			window.clearInterval(timer);
 			stop();
 		};
-	}, [client]);
+	}, [client, withBytes]);
 	return client ? info : null;
 }
 
 function same(a: TrashInfo | null, b: TrashInfo): boolean {
-	return a !== null && a.available === b.available && a.reason === b.reason && a.count === b.count;
+	return (
+		a !== null &&
+		a.available === b.available &&
+		a.reason === b.reason &&
+		a.count === b.count &&
+		a.totalBytes === b.totalBytes
+	);
 }

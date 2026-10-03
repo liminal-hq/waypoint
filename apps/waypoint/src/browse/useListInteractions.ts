@@ -6,6 +6,7 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { modifiersOf } from '../dnd/dropAction';
 import { useFileDragApi } from '../dnd/FileDragContext';
 import { useSettings } from '../settings/SettingsContext';
@@ -13,6 +14,7 @@ import { GroupLayout, groupId } from './groupLayout';
 import { navigate } from './groupNav';
 import { isSelected } from './selection';
 import type { ListingSession } from './useListingSession';
+import { quickLookStore } from '../quicklook/quickLookStore';
 import { findByPrefix, TypeAheadBuffer } from './typeAhead';
 
 export type OpenHandler = (entry: Entry, handle: ListingHandle) => void;
@@ -63,6 +65,8 @@ export interface InteractionOptions {
 	scrollToHeader?: (group: number) => void;
 	onOpen: OpenHandler | undefined;
 	onMenu: ((request: MenuRequest) => void) | undefined;
+	/** The address of an entry's thumbnail when it has loaded, for the drag's stack. */
+	thumbnailOf?: ((entry: Entry) => string | null) | undefined;
 }
 
 export interface Interactions {
@@ -74,6 +78,8 @@ export interface Interactions {
 	onItemDoubleClick: (entry: Entry | undefined) => void;
 	onItemContextMenu: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
 	onBackgroundContextMenu: (event: MouseEvent) => void;
+	/** A plain click on the listing's empty space (not on a row or a group header): clears the selection. */
+	onBackgroundClick: (event: MouseEvent) => void;
 	/** A click on a group's header: puts the keyboard there and folds the group shut or opens it. */
 	onHeaderClick: (group: number) => void;
 }
@@ -84,7 +90,7 @@ export interface Interactions {
  * scroll a position into sight.
  */
 export function useListInteractions(options: InteractionOptions): Interactions {
-	const { session, itemId, shown, move, scrollTo, onOpen, onMenu } = options;
+	const { session, itemId, shown, move, scrollTo, onOpen, onMenu, thumbnailOf } = options;
 	const layout = options.layout ?? UNGROUPED;
 	const pageRows = options.pageRows ?? (() => 1);
 	const scrollToHeader = options.scrollToHeader ?? (() => {});
@@ -103,7 +109,10 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		const entry = at === null || event.ctrlKey ? undefined : model.entryAt(at);
 		const item = at === null ? null : document.getElementById(itemId(at));
 		const rect = (item ?? event.currentTarget).getBoundingClientRect();
-		const position = { x: rect.left + 24, y: rect.bottom };
+		const position = {
+			x: isRtl(event.currentTarget) ? rect.right - 24 : rect.left + 24,
+			y: rect.bottom,
+		};
 		if (entry) onMenu?.({ kind: 'entry', entry, handle: model.handle, position, keyboard: true });
 		else onMenu?.({ kind: 'background', position, keyboard: true });
 	};
@@ -115,6 +124,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		const state = store.getState();
 		const modifier = event.ctrlKey || event.metaKey;
 		const from = state.focus;
+		// Left and Right mean back and forward along the line, so they swap in a right-to-left layout.
+		const key = inlineKey(event.key, isRtl(event.currentTarget));
 		// Rows past the scroll cap are never drawn, so the keyboard cannot reach them; Ctrl+A is a
 		// whole-listing action and still takes every entry, as the capped banner says.
 		const last = shown - 1;
@@ -126,9 +137,9 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 			const fold: boolean | null =
 				event.altKey || modifier
 					? null
-					: event.key === 'ArrowLeft'
+					: key === 'ArrowLeft'
 						? true
-						: event.key === 'ArrowRight'
+						: key === 'ArrowRight'
 							? false
 							: event.key === 'Enter' || event.key === ' '
 								? open
@@ -149,7 +160,7 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 					: from === null
 						? null
 						: { position: from };
-			const stop = event.altKey ? null : navigate(layout, event.key, cursor, pageRows());
+			const stop = event.altKey ? null : navigate(layout, key, cursor, pageRows());
 			if (stop !== null) {
 				event.preventDefault();
 				typeAheadEpoch.current++;
@@ -164,7 +175,7 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 				return;
 			}
 		}
-		const target = event.altKey || layout.grouped ? null : move(event.key, from, last);
+		const target = event.altKey || layout.grouped ? null : move(key, from, last);
 		if (target !== null) {
 			event.preventDefault();
 			typeAheadEpoch.current++;
@@ -177,6 +188,8 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 
 		switch (event.key) {
 			case 'Enter': {
+				// Alt+Enter is Properties in a window, which belongs to the window, not to the view.
+				if (event.altKey) return;
 				const entry = from === null ? undefined : model.entryAt(from);
 				if (entry && onOpen) {
 					event.preventDefault();
@@ -197,10 +210,14 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 					state.toggleFocused();
 					return;
 				}
-				// Mid-prefix, a space is part of the name being typed; otherwise it does nothing, and
-				// must not scroll the view.
+				// Mid-prefix, a space is part of the name being typed; otherwise it opens Quick Look on
+				// the focused entry (when the window has one), and must not scroll the view.
 				if (!typeAhead.current.active) {
 					event.preventDefault();
+					// The Trash's items are not on disk to preview, and a held key opens it once.
+					if (from !== null && !event.repeat && model.layout !== 'trash') {
+						quickLookStore.getState().open({ session, move, onOpen });
+					}
 					return;
 				}
 				break;
@@ -254,6 +271,7 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 			session,
 			position,
 			entry,
+			thumbnail: thumbnailOf?.(entry) ?? null,
 			tab: paneOf(row),
 			modifiers: modifiersOf(event),
 		});
@@ -312,6 +330,16 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		});
 	};
 
+	// A click that lands on a row or a header was handled there; one anywhere else in the scroller is
+	// on empty space and clears the selection, as in other file managers. Shift and Ctrl clicks are
+	// kept off it so a slip while extending a selection does not throw it away.
+	const onBackgroundClick = (event: MouseEvent) => {
+		if (event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return;
+		const target = event.target as Element | null;
+		if (target?.closest('[role="option"], [role="group"], button, input, a')) return;
+		store.getState().deselectAll();
+	};
+
 	const onHeaderClick = (group: number) => {
 		const run = layout.groups[group];
 		if (!run) return;
@@ -330,5 +358,6 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onBackgroundClick,
 	};
 }

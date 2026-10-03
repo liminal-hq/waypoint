@@ -1,0 +1,3 @@
+[default]
+description = "Default permissions for the window-effects plugin: report its status, apply and clear a window's background effect, and set its shadow inset"
+permissions = ["allow-get-status", "allow-apply", "allow-clear", "allow-set-shadow-inset"]

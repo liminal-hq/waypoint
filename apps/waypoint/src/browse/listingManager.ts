@@ -7,6 +7,7 @@ import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { OpenOptions, VfsClient } from '../services/vfsClient';
+import { isOverviewLocation } from '../overview/overviewLocation';
 import { openListingModel, toVfsError, type ListingModel } from './listingModel';
 import { applyHints } from './tabHints';
 import { createListingSession, type ListingSession, type SessionState } from './useListingSession';
@@ -106,6 +107,12 @@ export class ListingManager {
 		}
 		for (const tab of tabs) {
 			const slot = this.slots.get(tab.id);
+			// Overview is a page, not a folder: a tab on it holds no listing, and one that moved
+			// onto it lets go of the folder it had.
+			if (isOverviewLocation(tab.location)) {
+				if (slot) this.release(tab.id);
+				continue;
+			}
 			if (visible.has(tab.id)) {
 				this.stopEvicting(slot);
 				if (slot) slot.background = false;

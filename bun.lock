@@ -13,10 +13,14 @@
       "name": "@liminal-hq/waypoint",
       "version": "0.0.0",
       "dependencies": {
+        "@liminal-hq/plugin-mime-apps": "workspace:*",
         "@liminal-hq/plugin-native-dnd": "workspace:*",
         "@liminal-hq/plugin-os-prefs": "workspace:*",
         "@liminal-hq/plugin-system-appearance": "workspace:*",
+        "@liminal-hq/plugin-thumbnails": "workspace:*",
         "@liminal-hq/plugin-trash": "workspace:*",
+        "@liminal-hq/plugin-volumes": "workspace:*",
+        "@liminal-hq/plugin-window-effects": "workspace:*",
         "@liminal-hq/plugin-window-manager": "workspace:*",
         "@liminal-hq/plugin-window-tearoff": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
@@ -78,6 +82,19 @@
       "name": "@liminal-hq/waypoint-protocol",
       "version": "0.0.0",
     },
+    "plugins/mime-apps": {
+      "name": "@liminal-hq/plugin-mime-apps",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
     "plugins/native-dnd": {
       "name": "@liminal-hq/plugin-native-dnd",
       "version": "0.1.0",
@@ -117,8 +134,34 @@
         "typescript": "^5.9.3",
       },
     },
+    "plugins/thumbnails": {
+      "name": "@liminal-hq/plugin-thumbnails",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
     "plugins/trash": {
       "name": "@liminal-hq/plugin-trash",
+      "version": "0.1.0",
+      "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/volumes": {
+      "name": "@liminal-hq/plugin-volumes",
       "version": "0.1.0",
       "dependencies": {
         "@tauri-apps/api": "^2.10.0",
@@ -177,6 +220,19 @@
       "version": "0.0.0",
       "dependencies": {
         "@liminal-hq/waypoint-protocol": "workspace:*",
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/window-effects": {
+      "name": "@liminal-hq/plugin-window-effects",
+      "version": "0.1.0",
+      "dependencies": {
         "@tauri-apps/api": "^2.10.0",
       },
       "devDependencies": {
@@ -318,13 +374,21 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
+    "@liminal-hq/plugin-mime-apps": ["@liminal-hq/plugin-mime-apps@workspace:plugins/mime-apps"],
+
     "@liminal-hq/plugin-native-dnd": ["@liminal-hq/plugin-native-dnd@workspace:plugins/native-dnd"],
 
     "@liminal-hq/plugin-os-prefs": ["@liminal-hq/plugin-os-prefs@workspace:plugins/os-prefs"],
 
     "@liminal-hq/plugin-system-appearance": ["@liminal-hq/plugin-system-appearance@workspace:plugins/system-appearance"],
 
+    "@liminal-hq/plugin-thumbnails": ["@liminal-hq/plugin-thumbnails@workspace:plugins/thumbnails"],
+
     "@liminal-hq/plugin-trash": ["@liminal-hq/plugin-trash@workspace:plugins/trash"],
+
+    "@liminal-hq/plugin-volumes": ["@liminal-hq/plugin-volumes@workspace:plugins/volumes"],
+
+    "@liminal-hq/plugin-window-effects": ["@liminal-hq/plugin-window-effects@workspace:plugins/window-effects"],
 
     "@liminal-hq/plugin-window-manager": ["@liminal-hq/plugin-window-manager@workspace:plugins/window-manager"],
 

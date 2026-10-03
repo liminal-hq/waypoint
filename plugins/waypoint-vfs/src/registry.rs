@@ -4,11 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use waypoint_protocol::VfsError;
-use waypoint_vfs::{Listing, ListingHandle, WatchState};
+use waypoint_vfs::{CancelToken, Listing, ListingHandle, WatchState};
 
 /// The table of open listings. A handle belongs to the window (by label) that opened it, so one
 /// window can never read, change or close another's listing, and all of a window's listings go
@@ -96,6 +96,60 @@ impl Registry {
     }
 }
 
+/// The folder-size runs in flight, by the window that started each, so a window can cancel its own
+/// and every one of a window's stops when it is destroyed.
+#[derive(Default)]
+pub struct SizeJobs {
+    next: AtomicU64,
+    jobs: Mutex<HashMap<u64, (String, CancelToken)>>,
+}
+
+impl SizeJobs {
+    /// Registers a run for `window` and returns its id and the token that stops it. Ids start at 1.
+    pub fn start(&self, window: &str) -> (u64, CancelToken) {
+        let id = self.next.fetch_add(1, Ordering::Relaxed) + 1;
+        let token = CancelToken::new();
+        self.lock().insert(id, (window.to_owned(), token.clone()));
+        (id, token)
+    }
+
+    /// Forgets a run that ended.
+    pub fn finish(&self, id: u64) {
+        self.lock().remove(&id);
+    }
+
+    /// Cancels `window`'s run `id`. Another window's run, or one that ended, is left alone; returns
+    /// whether a run was cancelled.
+    pub fn cancel(&self, window: &str, id: u64) -> bool {
+        match self.lock().get(&id) {
+            Some((owner, token)) if owner == window => {
+                token.cancel();
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Cancels every run `window` started; returns how many.
+    pub fn cancel_window(&self, window: &str) -> usize {
+        let jobs = self.lock();
+        let mine: Vec<_> = jobs.values().filter(|(owner, _)| owner == window).collect();
+        for (_, token) in &mine {
+            token.cancel();
+        }
+        mine.len()
+    }
+
+    #[cfg(all(test, unix))]
+    pub fn len(&self) -> usize {
+        self.lock().len()
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<u64, (String, CancelToken)>> {
+        self.jobs.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
@@ -173,5 +227,22 @@ mod tests {
         assert!(!tokens[2].is_cancelled());
         assert!(registry.get("two", kept).is_ok());
         assert_eq!(registry.close_window("one"), 0);
+    }
+
+    #[test]
+    fn a_window_cancels_only_its_own_size_runs() {
+        let jobs = SizeJobs::default();
+        let (a, token_a) = jobs.start("one");
+        let (b, token_b) = jobs.start("two");
+        assert_eq!((a, b), (1, 2));
+        assert!(!jobs.cancel("two", a));
+        assert!(!token_a.is_cancelled());
+        assert!(jobs.cancel("one", a));
+        assert!(token_a.is_cancelled() && !token_b.is_cancelled());
+        assert_eq!(jobs.cancel_window("two"), 1);
+        assert!(token_b.is_cancelled());
+        jobs.finish(a);
+        assert!(!jobs.cancel("one", a));
+        assert_eq!(jobs.len(), 1);
     }
 }

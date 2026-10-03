@@ -20,7 +20,7 @@ use crate::provider::{Capabilities, Provider, ScannedEntry, Watch, WatchSink};
 use crate::sys;
 use crate::watch::{self, WatchOptions};
 use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
-use crate::{CancelToken, VolumeSpace};
+use crate::{CancelToken, DetailField, EntryDetails, FolderSizeTotals, VolumeSpace};
 
 /// How often a scan reports how far it has got. The listing throttles what it forwards.
 const PROGRESS_EVERY: u32 = 1024;
@@ -42,7 +42,7 @@ impl LocalProvider {
     }
 }
 
-fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
+pub(crate) fn file_path(path: &VfsPath) -> Result<&FilePath, VfsError> {
     match path {
         VfsPath::File(path) => Ok(path),
         other => Err(VfsError::Unsupported {
@@ -83,12 +83,12 @@ fn is_partial(name: &OsStr) -> bool {
 /// Whether the platform calls an entry hidden: a leading dot on Linux, the hidden attribute on
 /// Windows (where a leading dot means nothing).
 #[cfg(unix)]
-fn is_hidden(name: &OsStr, _meta: Option<&Metadata>) -> bool {
+pub(crate) fn is_hidden(name: &OsStr, _meta: Option<&Metadata>) -> bool {
     name.as_encoded_bytes().first() == Some(&b'.')
 }
 
 #[cfg(windows)]
-fn is_hidden(name: &OsStr, meta: Option<&Metadata>) -> bool {
+pub(crate) fn is_hidden(name: &OsStr, meta: Option<&Metadata>) -> bool {
     use std::os::windows::fs::MetadataExt;
     const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
     is_partial(name) || meta.is_some_and(|m| m.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0)
@@ -140,6 +140,122 @@ fn build(
         hidden,
         trashed: None,
     }
+}
+
+/// Whether the entry is a cloud placeholder whose data is not on this machine (a OneDrive file
+/// that is online-only): reading it would download it, so size and preview code leave it alone.
+#[cfg(windows)]
+pub(crate) fn is_placeholder(meta: &Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_OFFLINE: u32 = 0x1000;
+    const FILE_ATTRIBUTE_RECALL_ON_OPEN: u32 = 0x4_0000;
+    const FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS: u32 = 0x40_0000;
+    meta.file_attributes()
+        & (FILE_ATTRIBUTE_OFFLINE
+            | FILE_ATTRIBUTE_RECALL_ON_OPEN
+            | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+        != 0
+}
+
+#[cfg(not(windows))]
+pub(crate) fn is_placeholder(_meta: &Metadata) -> bool {
+    false
+}
+
+/// Reads the first bytes of a regular file for a content sniff; `None` when it cannot be read.
+fn sniff(path: &Path) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut head = Vec::with_capacity(crate::SNIFF_LEN);
+    File::open(path)
+        .ok()?
+        .take(crate::SNIFF_LEN as u64)
+        .read_to_end(&mut head)
+        .ok()?;
+    Some(head)
+}
+
+fn local_details(path: &VfsPath) -> Result<EntryDetails, VfsError> {
+    let file = file_path(path)?;
+    let location = path.to_location();
+    let link_meta = fs::symlink_metadata(file.as_path()).map_err(|e| from_io(&e, &location))?;
+    let kind = kind_of(&link_meta.file_type());
+    let name = file.file_name().unwrap_or_default();
+    // A link reports its target's size, mode and times, as a listing shows them; a broken one only
+    // has its own.
+    let (meta, resolves_to, symlink_target) = if kind == EntryKind::Symlink {
+        let target = fs::read_link(file.as_path())
+            .ok()
+            .map(|t| t.to_string_lossy().into_owned());
+        let followed = follow(file.as_path());
+        let resolves_to = followed.as_ref().map(|m| kind_of(&m.file_type()));
+        (followed.unwrap_or(link_meta), resolves_to, target)
+    } else {
+        (link_meta, None, None)
+    };
+    let shown_kind = resolves_to.unwrap_or(kind);
+    let is_file = shown_kind == EntryKind::File;
+    let placeholder = is_placeholder(&meta);
+    let display_name = name.to_string_lossy().into_owned();
+    let head = if is_file && !placeholder {
+        sniff(file.as_path())
+    } else {
+        None
+    };
+    let mime_type = if shown_kind == EntryKind::Directory {
+        Some("inode/directory".to_owned())
+    } else if is_file {
+        crate::guess_mime(&display_name, head.as_deref())
+    } else {
+        None
+    };
+    let mut unavailable = Vec::new();
+    let created_ms = meta.created().ok().map(to_ms);
+    if created_ms.is_none() {
+        unavailable.push(DetailField::Created);
+    }
+    let mut details = EntryDetails {
+        name: display_name,
+        kind,
+        resolves_to,
+        symlink_target,
+        size: is_file.then_some(meta.len()),
+        allocated_size: None,
+        created_ms,
+        modified_ms: meta.modified().ok().map(to_ms),
+        accessed_ms: meta.accessed().ok().map(to_ms),
+        owner: None,
+        group: None,
+        mode: None,
+        read_only: meta.permissions().readonly(),
+        hidden: is_hidden(&name, Some(&meta)),
+        mime_type,
+        unavailable,
+    };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if is_file {
+            details.allocated_size = Some(meta.blocks().saturating_mul(512));
+        }
+        details.owner = Some(sys::user_name(meta.uid()).unwrap_or_else(|| meta.uid().to_string()));
+        details.group = Some(sys::group_name(meta.gid()).unwrap_or_else(|| meta.gid().to_string()));
+        details.mode = Some(meta.mode() & 0o7777);
+    }
+    #[cfg(windows)]
+    {
+        if is_file && !placeholder {
+            details.allocated_size = sys::allocated_size(file.as_path());
+        }
+        if details.allocated_size.is_none() && is_file {
+            details.unavailable.push(DetailField::AllocatedSize);
+        }
+        details.unavailable.extend([
+            DetailField::Owner,
+            DetailField::Group,
+            DetailField::Permissions,
+        ]);
+    }
+    Ok(details)
 }
 
 impl Provider for LocalProvider {
@@ -306,6 +422,32 @@ impl Provider for LocalProvider {
             return Err(VfsError::IsADirectory { location });
         }
         Ok(Box::new(file))
+    }
+
+    fn open_read_at(&self, path: &VfsPath, start: u64) -> Result<ReadStream, VfsError> {
+        use std::io::{Seek, SeekFrom};
+        let location = path.to_location();
+        let mut file =
+            File::open(file_path(path)?.as_path()).map_err(|e| from_io(&e, &location))?;
+        if file.metadata().is_ok_and(|m| m.is_dir()) {
+            return Err(VfsError::IsADirectory { location });
+        }
+        file.seek(SeekFrom::Start(start))
+            .map_err(|e| from_io(&e, &location))?;
+        Ok(Box::new(file))
+    }
+
+    fn details(&self, path: &VfsPath) -> Result<EntryDetails, VfsError> {
+        local_details(path)
+    }
+
+    fn folder_size(
+        &self,
+        path: &VfsPath,
+        cancel: &CancelToken,
+        report: &mut dyn FnMut(&FolderSizeTotals),
+    ) -> Result<crate::FolderSizeRun, VfsError> {
+        crate::size::local_folder_size(path, cancel, report)
     }
 
     fn create_write(

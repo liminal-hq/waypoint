@@ -67,6 +67,7 @@ describe('structure', () => {
 			.getAllByRole('button')
 			.map((button) => button.textContent);
 		expect(names.slice(1)).toEqual([
+			'Overview',
 			'Home',
 			'Desktop',
 			'Documents',
@@ -208,6 +209,9 @@ describe('navigating', () => {
 		press(document.activeElement!, 'End');
 		expect(within(placesGroup()).getByRole('button', { name: 'Trash' })).toHaveFocus();
 		press(document.activeElement!, 'Home');
+		// Overview is the first place, above Home.
+		expect(within(placesGroup()).getByRole('button', { name: 'Overview' })).toHaveFocus();
+		press(document.activeElement!, 'ArrowDown');
 		expect(home).toHaveFocus();
 	});
 });
@@ -479,6 +483,22 @@ describe('the Folders tree', () => {
 		expect(test).toHaveAttribute('aria-current', 'page');
 		expect(test).toHaveAttribute('aria-expanded', 'false');
 		expect(home).not.toHaveAttribute('aria-current');
+	});
+
+	it('expands with Left in a right-to-left layout', async () => {
+		await setup();
+		showFolders();
+		await screen.findByRole('treeitem', { name: 'test' });
+		document.documentElement.style.direction = 'rtl';
+		try {
+			const test = item('test');
+			test.focus();
+			press(test, 'ArrowLeft');
+			expect(await within(tree()).findByRole('treeitem', { name: 'docs' })).toBeInTheDocument();
+			expect(item('test')).toHaveAttribute('aria-expanded', 'true');
+		} finally {
+			document.documentElement.style.removeProperty('direction');
+		}
 	});
 
 	it('loads a folder’s children only when it is expanded, and closes them when it collapses', async () => {

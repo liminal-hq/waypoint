@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
 
+use crate::accelerator::validate_accelerator;
+
 /// The shortest spring-load delay: below this a drag passing over a folder would open it.
 pub const SPRING_LOAD_MIN_MS: u32 = 200;
 
@@ -131,14 +133,315 @@ impl Default for UiSettings {
     }
 }
 
-/// Everything the Settings window edits that is not an operations setting.
+/// The shortest and longest window opacity, in percent (below this text cannot be read).
+pub const OPACITY_MIN: u8 = 40;
+pub const OPACITY_MAX: u8 = 100;
+
+/// The shortest menu and popup opacity, in percent.
+pub const MENU_OPACITY_MIN: u8 = 60;
+
+/// The text sizes the Accessibility page offers, in percent of the normal size.
+pub const TEXT_SIZES: [u16; 3] = [100, 115, 130];
+
+/// The largest file a thumbnail or preview is made of, in megabytes.
+pub const PREVIEW_MAX_MB_MIN: u32 = 1;
+pub const PREVIEW_MAX_MB_MAX: u32 = 2048;
+
+/// The languages the app has a message catalogue for, as BCP 47 tags. `system` follows the OS.
+pub const SUPPORTED_LANGUAGES: [&str; 2] = ["en-CA", "fr-CA"];
+
+/// Developer-only pseudo-locales (accented and lengthened English, and a right-to-left mock) that
+/// prove the catalogue loader, text expansion and mirrored layout. Debug builds accept them; a
+/// release build treats one in a settings file as unknown, so it never reaches a person.
+pub const PSEUDO_LANGUAGES: [&str; 2] = ["en-XA", "ar-XB"];
+
+/// Whether this build has a catalogue for `language` (not `system`).
+pub fn language_available(language: &str) -> bool {
+    SUPPORTED_LANGUAGES.contains(&language)
+        || (cfg!(debug_assertions) && PSEUDO_LANGUAGES.contains(&language))
+}
+
+/// Light, dark, or whatever the OS says (SPEC 9).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ColourMode {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+/// Where the colours come from: the brand tokens, or the OS's accent and colour scheme.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ThemeSource {
+    #[default]
+    Liminal,
+    Os,
+}
+
+/// The accent colour: the brand colour, the OS's, or one the person picked (`#rrggbb`).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum AccentChoice {
+    #[default]
+    Ember,
+    Os,
+    Custom {
+        hex: String,
+    },
+}
+
+/// How much room the lists and the chrome take.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum Density {
+    Compact,
+    #[default]
+    Comfortable,
+    Spacious,
+}
+
+/// The weight of the app's own icons (D123): variants of one set of paths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum IconStyle {
+    Light,
+    #[default]
+    Regular,
+    Bold,
+    Filled,
+}
+
+/// The Appearance page.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct AppearanceSettings {
+    pub mode: ColourMode,
+    pub theme_source: ThemeSource,
+    pub accent: AccentChoice,
+    pub density: Density,
+    pub icon_style: IconStyle,
+}
+
+/// How strongly the background shows through behind the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum BlurLevel {
+    Off,
+    #[default]
+    Low,
+    High,
+}
+
+/// Which parts of the window are translucent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct TransparencyRegions {
+    pub sidebar: bool,
+    pub content: bool,
+    pub title_bar: bool,
+}
+
+impl Default for TransparencyRegions {
+    fn default() -> Self {
+        Self {
+            sidebar: true,
+            content: false,
+            title_bar: true,
+        }
+    }
+}
+
+/// The Transparency page. Off by default (D117).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct TransparencySettings {
+    pub enabled: bool,
+    /// The title bar's and menu bar's opacity in percent, 40 to 100.
+    pub opacity: u8,
+    /// The tabs', toolbar's and status bar's opacity in percent, 40 to 100.
+    pub rows_opacity: u8,
+    /// The sidebar's (and the Inspector's) opacity in percent, 40 to 100.
+    pub sidebar_opacity: u8,
+    /// The file area's opacity in percent, 40 to 100.
+    pub content_opacity: u8,
+    pub blur: BlurLevel,
+    pub regions: TransparencyRegions,
+    /// Whether menus and popups are translucent too.
+    pub menus: bool,
+    /// The menus' opacity in percent, 60 to 100.
+    pub menu_opacity: u8,
+    /// Whether a window that is not in front draws solid.
+    pub solid_when_unfocused: bool,
+}
+
+impl Default for TransparencySettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            opacity: 82,
+            rows_opacity: 90,
+            sidebar_opacity: 94,
+            content_opacity: 98,
+            blur: BlurLevel::Low,
+            regions: TransparencyRegions::default(),
+            menus: false,
+            menu_opacity: 96,
+            solid_when_unfocused: true,
+        }
+    }
+}
+
+/// A preference that follows the OS unless it is forced on or off.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum OsPreference {
+    #[default]
+    Follow,
+    On,
+    Off,
+}
+
+/// Touch mode: larger hit targets, on when the last pointer was touch or no fine pointer exists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum TouchMode {
+    Off,
+    #[default]
+    Auto,
+    On,
+}
+
+/// The Accessibility page (SPEC 11).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct AccessibilitySettings {
+    pub high_contrast: OsPreference,
+    /// The text size in percent of the normal size: 100, 115 or 130.
+    pub text_size: u16,
+    pub touch_mode: TouchMode,
+    pub reduced_motion: OsPreference,
+    pub reduced_transparency: OsPreference,
+    /// A thicker, higher-contrast focus ring.
+    pub strong_focus_ring: bool,
+}
+
+impl Default for AccessibilitySettings {
+    fn default() -> Self {
+        Self {
+            high_contrast: OsPreference::Follow,
+            text_size: 100,
+            touch_mode: TouchMode::Auto,
+            reduced_motion: OsPreference::Follow,
+            reduced_transparency: OsPreference::Follow,
+            strong_focus_ring: false,
+        }
+    }
+}
+
+/// Which way text and layout run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum Direction {
+    /// Follow the language.
+    #[default]
+    Auto,
+    Ltr,
+    Rtl,
+}
+
+/// The Language & region page.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct LocaleSettings {
+    /// `system`, or one of `SUPPORTED_LANGUAGES` (or `PSEUDO_LANGUAGES` in a debug build).
+    pub language: String,
+    pub direction: Direction,
+}
+
+impl Default for LocaleSettings {
+    fn default() -> Self {
+        Self {
+            language: "system".to_owned(),
+            direction: Direction::Auto,
+        }
+    }
+}
+
+/// The Previews & thumbnails page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct PreviewSettings {
+    pub thumbnails: bool,
+    /// Files larger than this, in megabytes, get an icon, not a thumbnail.
+    pub max_file_mb: u32,
+    pub folder_peeks: bool,
+    pub hover_to_peek: bool,
+    /// Whether Overview measures Home when it opens (it can always be started by hand).
+    pub measure_home_on_open: bool,
+}
+
+impl Default for PreviewSettings {
+    fn default() -> Self {
+        Self {
+            thumbnails: true,
+            max_file_mb: 50,
+            folder_peeks: true,
+            hover_to_peek: false,
+            measure_home_on_open: true,
+        }
+    }
+}
+
+/// The Integrations page. Every integration is off until it is enabled (D118).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct IntegrationSettings {
+    pub notifications: bool,
+    pub launcher_progress: bool,
+    pub prevent_sleep: bool,
+    /// Take `org.freedesktop.FileManager1` while Waypoint runs, so other applications' "Show in
+    /// folder" opens Waypoint. Linux only; making Waypoint the default for folders is a one-off
+    /// action on the page, not a setting.
+    pub default_file_manager: bool,
+    /// Whether the global shortcut is registered.
+    pub global_shortcut_enabled: bool,
+    /// The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none means the
+    /// default (`DEFAULT_ACCELERATOR`).
+    pub global_shortcut: Option<String>,
+}
+
+/// Everything the Settings window edits that is not an operations setting.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct Settings {
     pub general: GeneralSettings,
     pub dnd: DndSettings,
     pub ui: UiSettings,
+    pub appearance: AppearanceSettings,
+    pub transparency: TransparencySettings,
+    pub accessibility: AccessibilitySettings,
+    pub locale: LocaleSettings,
+    pub previews: PreviewSettings,
+    pub integrations: IntegrationSettings,
 }
 
 /// Why a settings value was refused. Nothing changed.
@@ -151,17 +454,97 @@ pub enum SettingsError {
         min: u32,
         max: u32,
     },
+    /// A value that is not one of the allowed ones, or is not written the way it must be.
+    #[error("{field} is not valid: {reason}")]
+    Invalid {
+        field: &'static str,
+        reason: &'static str,
+    },
+}
+
+fn out_of_range(field: &'static str, value: u32, min: u32, max: u32) -> Result<(), SettingsError> {
+    if (min..=max).contains(&value) {
+        Ok(())
+    } else {
+        Err(SettingsError::OutOfRange { field, min, max })
+    }
+}
+
+/// Whether `text` is `#` and six hexadecimal digits.
+fn is_hex_colour(text: &str) -> bool {
+    text.len() == 7 && text.starts_with('#') && text[1..].bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 impl Settings {
     /// Checks every value against its range.
     pub fn validate(&self) -> Result<(), SettingsError> {
-        if !(SPRING_LOAD_MIN_MS..=SPRING_LOAD_MAX_MS).contains(&self.dnd.spring_load_ms) {
-            return Err(SettingsError::OutOfRange {
-                field: "dnd.springLoadMs",
-                min: SPRING_LOAD_MIN_MS,
-                max: SPRING_LOAD_MAX_MS,
+        out_of_range(
+            "dnd.springLoadMs",
+            self.dnd.spring_load_ms,
+            SPRING_LOAD_MIN_MS,
+            SPRING_LOAD_MAX_MS,
+        )?;
+        out_of_range(
+            "transparency.opacity",
+            self.transparency.opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "transparency.rowsOpacity",
+            self.transparency.rows_opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "transparency.sidebarOpacity",
+            self.transparency.sidebar_opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "transparency.contentOpacity",
+            self.transparency.content_opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "transparency.menuOpacity",
+            self.transparency.menu_opacity.into(),
+            MENU_OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "previews.maxFileMb",
+            self.previews.max_file_mb,
+            PREVIEW_MAX_MB_MIN,
+            PREVIEW_MAX_MB_MAX,
+        )?;
+        if !TEXT_SIZES.contains(&self.accessibility.text_size) {
+            return Err(SettingsError::Invalid {
+                field: "accessibility.textSize",
+                reason: "use 100, 115 or 130",
             });
+        }
+        if let AccentChoice::Custom { hex } = &self.appearance.accent {
+            if !is_hex_colour(hex) {
+                return Err(SettingsError::Invalid {
+                    field: "appearance.accent",
+                    reason: "write it as #rrggbb",
+                });
+            }
+        }
+        if self.locale.language != "system" && !language_available(&self.locale.language) {
+            return Err(SettingsError::Invalid {
+                field: "locale.language",
+                reason: "not a language Waypoint has",
+            });
+        }
+        if let Some(shortcut) = &self.integrations.global_shortcut {
+            validate_accelerator(shortcut).map_err(|reason| SettingsError::Invalid {
+                field: "integrations.globalShortcut",
+                reason,
+            })?;
         }
         Ok(())
     }
@@ -173,13 +556,50 @@ impl Settings {
             .dnd
             .spring_load_ms
             .clamp(SPRING_LOAD_MIN_MS, SPRING_LOAD_MAX_MS);
+        self.transparency.opacity = self.transparency.opacity.clamp(OPACITY_MIN, OPACITY_MAX);
+        for opacity in [
+            &mut self.transparency.rows_opacity,
+            &mut self.transparency.sidebar_opacity,
+            &mut self.transparency.content_opacity,
+        ] {
+            *opacity = (*opacity).clamp(OPACITY_MIN, OPACITY_MAX);
+        }
+        self.transparency.menu_opacity = self
+            .transparency
+            .menu_opacity
+            .clamp(MENU_OPACITY_MIN, OPACITY_MAX);
+        self.previews.max_file_mb = self
+            .previews
+            .max_file_mb
+            .clamp(PREVIEW_MAX_MB_MIN, PREVIEW_MAX_MB_MAX);
+        if !TEXT_SIZES.contains(&self.accessibility.text_size) {
+            let size = self.accessibility.text_size;
+            self.accessibility.text_size = TEXT_SIZES
+                .into_iter()
+                .min_by_key(|candidate| candidate.abs_diff(size))
+                .unwrap_or(100);
+        }
+        if matches!(&self.appearance.accent, AccentChoice::Custom { hex } if !is_hex_colour(hex)) {
+            self.appearance.accent = AccentChoice::Ember;
+        }
+        if self.locale.language != "system" && !language_available(&self.locale.language) {
+            self.locale.language = "system".to_owned();
+        }
+        if self
+            .integrations
+            .global_shortcut
+            .as_deref()
+            .is_some_and(|text| validate_accelerator(text).is_err())
+        {
+            self.integrations.global_shortcut = None;
+        }
         self
     }
 }
 
 /// The settings with the revision that produced them, so a window can tell a newer state from an
 /// older one that arrives late.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct SettingsSnapshot {
@@ -235,7 +655,7 @@ mod tests {
     fn clamping_brings_a_stored_value_into_range() {
         let mut s = Settings::default();
         s.dnd.spring_load_ms = 90_000;
-        assert_eq!(s.clamped().dnd.spring_load_ms, SPRING_LOAD_MAX_MS);
+        assert_eq!(s.clone().clamped().dnd.spring_load_ms, SPRING_LOAD_MAX_MS);
         s.dnd.spring_load_ms = 0;
         assert_eq!(s.clamped().dnd.spring_load_ms, SPRING_LOAD_MIN_MS);
     }
@@ -290,5 +710,193 @@ mod tests {
     #[test]
     fn an_unknown_choice_is_refused_rather_than_guessed() {
         assert!(serde_json::from_str::<Settings>(r#"{"general":{"startup":"nowhere"}}"#).is_err());
+    }
+
+    #[test]
+    fn the_milestone_five_defaults_are_the_documented_ones() {
+        let s = Settings::default();
+        assert_eq!(s.appearance.mode, ColourMode::System);
+        assert_eq!(s.appearance.accent, AccentChoice::Ember);
+        assert_eq!(s.appearance.density, Density::Comfortable);
+        assert!(!s.transparency.enabled);
+        assert_eq!(s.transparency.opacity, 82);
+        assert!(s.transparency.solid_when_unfocused);
+        assert_eq!(s.accessibility.text_size, 100);
+        assert_eq!(s.accessibility.touch_mode, TouchMode::Auto);
+        assert_eq!(s.accessibility.high_contrast, OsPreference::Follow);
+        assert_eq!(s.locale.language, "system");
+        assert_eq!(s.previews.max_file_mb, 50);
+        assert!(s.previews.measure_home_on_open);
+        // Every integration is off until it is enabled (D118).
+        assert!(!s.integrations.notifications);
+        assert!(!s.integrations.launcher_progress);
+        assert!(!s.integrations.prevent_sleep);
+        assert!(!s.integrations.default_file_manager);
+        assert!(!s.integrations.global_shortcut_enabled);
+        assert_eq!(s.integrations.global_shortcut, None);
+        assert_eq!(s.validate(), Ok(()));
+    }
+
+    #[test]
+    fn the_new_ranges_are_bounded_at_both_ends() {
+        let edit = |change: &dyn Fn(&mut Settings)| {
+            let mut s = Settings::default();
+            change(&mut s);
+            s.validate()
+        };
+        assert!(edit(&|s| s.transparency.opacity = 39).is_err());
+        assert!(edit(&|s| s.transparency.opacity = 40).is_ok());
+        assert!(edit(&|s| s.transparency.opacity = 101).is_err());
+        let setters: [fn(&mut Settings, u8); 3] = [
+            |s, v| s.transparency.rows_opacity = v,
+            |s, v| s.transparency.sidebar_opacity = v,
+            |s, v| s.transparency.content_opacity = v,
+        ];
+        for set in setters {
+            assert!(edit(&|s| set(s, 39)).is_err());
+            assert!(edit(&|s| set(s, 40)).is_ok());
+            assert!(edit(&|s| set(s, 100)).is_ok());
+            assert!(edit(&|s| set(s, 101)).is_err());
+        }
+        assert_eq!(
+            edit(&|s| s.transparency.sidebar_opacity = 10)
+                .unwrap_err()
+                .to_string(),
+            "transparency.sidebarOpacity must be between 40 and 100"
+        );
+        assert!(edit(&|s| s.transparency.menu_opacity = 59).is_err());
+        assert!(edit(&|s| s.transparency.menu_opacity = 60).is_ok());
+        assert!(edit(&|s| s.previews.max_file_mb = 0).is_err());
+        assert!(edit(&|s| s.previews.max_file_mb = 2048).is_ok());
+        assert!(edit(&|s| s.previews.max_file_mb = 2049).is_err());
+        assert_eq!(
+            edit(&|s| s.transparency.opacity = 10)
+                .unwrap_err()
+                .to_string(),
+            "transparency.opacity must be between 40 and 100"
+        );
+    }
+
+    #[test]
+    fn text_size_accent_language_and_shortcut_must_be_valid() {
+        let edit = |change: &dyn Fn(&mut Settings)| {
+            let mut s = Settings::default();
+            change(&mut s);
+            s.validate()
+        };
+        for size in TEXT_SIZES {
+            assert!(edit(&|s| s.accessibility.text_size = size).is_ok());
+        }
+        assert!(edit(&|s| s.accessibility.text_size = 110).is_err());
+        assert!(edit(&|s| s.appearance.accent = AccentChoice::Custom {
+            hex: "#f97316".into()
+        })
+        .is_ok());
+        for bad in ["f97316", "#f9731", "#f97316a", "#gggggg", ""] {
+            assert!(
+                edit(&|s| s.appearance.accent = AccentChoice::Custom { hex: bad.into() }).is_err(),
+                "{bad}"
+            );
+        }
+        assert!(edit(&|s| s.locale.language = "fr-CA".into()).is_ok());
+        assert!(edit(&|s| s.locale.language = "de-DE".into()).is_err());
+        // The pseudo-locales are for developer builds, which is what the tests are.
+        assert_eq!(
+            edit(&|s| s.locale.language = "ar-XB".into()).is_ok(),
+            cfg!(debug_assertions)
+        );
+        assert!(edit(&|s| s.integrations.global_shortcut = Some("Ctrl+Alt+W".into())).is_ok());
+        assert!(edit(&|s| s.integrations.global_shortcut = Some("  ".into())).is_err());
+        assert!(edit(&|s| s.integrations.global_shortcut = Some("x".repeat(65))).is_err());
+        // A bare key would take that key from every application.
+        assert!(edit(&|s| s.integrations.global_shortcut = Some("W".into())).is_err());
+    }
+
+    #[test]
+    fn clamping_repairs_a_hand_edited_document() {
+        let mut s = Settings::default();
+        s.transparency.opacity = 3;
+        s.transparency.menu_opacity = 250;
+        s.transparency.rows_opacity = 0;
+        s.transparency.sidebar_opacity = 12;
+        s.transparency.content_opacity = 255;
+        s.previews.max_file_mb = 0;
+        s.accessibility.text_size = 120;
+        s.appearance.accent = AccentChoice::Custom {
+            hex: "orange".into(),
+        };
+        s.locale.language = "xx".into();
+        s.integrations.global_shortcut = Some(String::new());
+        let fixed = s.clamped();
+        assert_eq!(fixed.transparency.opacity, OPACITY_MIN);
+        assert_eq!(fixed.transparency.menu_opacity, OPACITY_MAX);
+        assert_eq!(fixed.transparency.rows_opacity, OPACITY_MIN);
+        assert_eq!(fixed.transparency.sidebar_opacity, OPACITY_MIN);
+        assert_eq!(fixed.transparency.content_opacity, OPACITY_MAX);
+        assert_eq!(fixed.previews.max_file_mb, PREVIEW_MAX_MB_MIN);
+        assert_eq!(fixed.accessibility.text_size, 115);
+        assert_eq!(fixed.appearance.accent, AccentChoice::Ember);
+        assert_eq!(fixed.locale.language, "system");
+        assert_eq!(fixed.integrations.global_shortcut, None);
+        assert_eq!(fixed.validate(), Ok(()));
+    }
+
+    #[test]
+    fn a_document_from_before_milestone_five_still_loads_with_the_new_sections_at_their_defaults() {
+        let old: Settings = serde_json::from_str(
+            r#"{"general":{"defaultView":"grid"},"dnd":{"springLoadMs":900}}"#,
+        )
+        .unwrap();
+        assert_eq!(old.dnd.spring_load_ms, 900);
+        assert_eq!(old.appearance, AppearanceSettings::default());
+        assert_eq!(old.transparency, TransparencySettings::default());
+        assert_eq!(old.accessibility, AccessibilitySettings::default());
+        assert_eq!(old.locale, LocaleSettings::default());
+        assert_eq!(old.previews, PreviewSettings::default());
+        assert_eq!(old.integrations, IntegrationSettings::default());
+    }
+
+    #[test]
+    fn a_transparency_document_without_the_region_opacities_gets_todays_look() {
+        let old: Settings =
+            serde_json::from_str(r#"{"transparency":{"enabled":true,"opacity":70,"menus":true}}"#)
+                .unwrap();
+        assert!(old.transparency.enabled);
+        assert_eq!(old.transparency.opacity, 70);
+        assert_eq!(old.transparency.rows_opacity, 90);
+        assert_eq!(old.transparency.sidebar_opacity, 94);
+        assert_eq!(old.transparency.content_opacity, 98);
+        assert_eq!(old.validate(), Ok(()));
+    }
+
+    #[test]
+    fn the_new_wire_forms_are_camel_case_and_the_accent_is_tagged() {
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        assert_eq!(json["appearance"]["themeSource"], "liminal");
+        assert_eq!(json["appearance"]["accent"]["kind"], "ember");
+        assert_eq!(json["transparency"]["solidWhenUnfocused"], true);
+        assert_eq!(json["transparency"]["opacity"], 82);
+        assert_eq!(json["transparency"]["rowsOpacity"], 90);
+        assert_eq!(json["transparency"]["sidebarOpacity"], 94);
+        assert_eq!(json["transparency"]["contentOpacity"], 98);
+        assert_eq!(json["accessibility"]["highContrast"], "follow");
+        assert_eq!(json["previews"]["measureHomeOnOpen"], true);
+        assert_eq!(
+            json["integrations"]["globalShortcut"],
+            serde_json::Value::Null
+        );
+        assert_eq!(json["integrations"]["defaultFileManager"], false);
+        assert_eq!(json["integrations"]["globalShortcutEnabled"], false);
+        let custom: Settings = serde_json::from_str(
+            r##"{"appearance":{"accent":{"kind":"custom","hex":"#112233"}}}"##,
+        )
+        .unwrap();
+        assert_eq!(
+            custom.appearance.accent,
+            AccentChoice::Custom {
+                hex: "#112233".into()
+            }
+        );
+        assert!(serde_json::from_str::<Settings>(r#"{"appearance":{"density":"huge"}}"#).is_err());
     }
 }

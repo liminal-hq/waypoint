@@ -19,7 +19,10 @@ import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
-import { FileIcon } from './FileIcon';
+import { Thumbnail } from '../thumbnails/Thumbnail';
+import { devicePixelRatio, useEntryThumbnailLoader } from '../thumbnails/ThumbnailsContext';
+import { entryThumbKey, thumbSizeFor, wantsThumbnail } from '../thumbnails/thumbnailModel';
+import { useViewportThumbnails } from '../thumbnails/useViewportThumbnails';
 import { InlineRename } from './InlineRename';
 import { cellFor, columnsFor, GROUP_HEADER_HEIGHT, gridMove } from './gridLayout';
 import { groupCount, groupLabel, groupTitle } from './groupHeader';
@@ -37,6 +40,7 @@ import {
 	type OpenInNewHandler,
 } from './useListInteractions';
 import type { ListingSession, SessionState } from './useListingSession';
+import { formatLocale } from '../i18n/active';
 
 /** Rows drawn beyond the viewport on each side. */
 const OVERSCAN = 4;
@@ -136,6 +140,34 @@ function GridBody({
 	const virtualRows = virtualizer.getVirtualItems();
 	const firstRow = virtualRows[0]?.index ?? 0;
 	const lastRow = virtualRows[virtualRows.length - 1]?.index ?? 0;
+	// What is in view, without the rows drawn beyond the edge: thumbnails are asked for from this. A
+	// header row has no entries, so the span is the first to the last entry among the rows seen.
+	const inView = virtualizer.range;
+	let viewFirst = count;
+	let viewLast = -1;
+	for (
+		let index = inView?.startIndex ?? firstRow;
+		index <= (inView?.endIndex ?? lastRow);
+		index++
+	) {
+		const row = layout.rowAt(index);
+		if (row.kind !== 'entries') continue;
+		viewFirst = Math.min(viewFirst, row.first);
+		viewLast = Math.max(viewLast, row.first + row.count - 1);
+	}
+	if (viewLast < 0) viewFirst = 0;
+	const thumbnails = useEntryThumbnailLoader(model.handle, thumbSizeFor(size, devicePixelRatio()));
+	useViewportThumbnails({
+		loader: thumbnails,
+		first: viewFirst,
+		last: viewLast,
+		count: shownItems,
+		version,
+		itemAt: (position) => {
+			const entry = model.entryAt(position);
+			return entry && wantsThumbnail(entry) ? { key: entryThumbKey(entry), id: entry.id } : null;
+		},
+	});
 
 	// The container's width decides the column count, so it is measured, not assumed.
 	useLayoutEffect(() => {
@@ -261,6 +293,7 @@ function GridBody({
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onBackgroundClick,
 		onHeaderClick,
 	} = useListInteractions({
 		session,
@@ -272,6 +305,7 @@ function GridBody({
 		scrollToHeader,
 		onOpen,
 		onMenu,
+		thumbnailOf: (entry) => thumbnails?.urlOf(entryThumbKey(entry)) ?? null,
 		move: (key, from, last) => gridMove(key, from, last, columns, pageRows()),
 	});
 
@@ -303,14 +337,16 @@ function GridBody({
 		<div className={styles.view}>
 			{scanning && (
 				<div className={styles.notice} role="status" data-notice="scanning">
-					{tf('browse.scanning', { count: new Intl.NumberFormat().format(model.scanned) })}
+					{tf('browse.scanning', {
+						count: new Intl.NumberFormat(formatLocale()).format(model.scanned),
+					})}
 				</div>
 			)}
 			{hiddenItems > 0 && (
 				<div className={styles.notice} role="status" data-notice="capped">
 					{tf('browse.capped', {
-						shown: new Intl.NumberFormat().format(shownItems),
-						total: new Intl.NumberFormat().format(count),
+						shown: new Intl.NumberFormat(formatLocale()).format(shownItems),
+						total: new Intl.NumberFormat(formatLocale()).format(count),
 					})}
 				</div>
 			)}
@@ -328,6 +364,7 @@ function GridBody({
 					{...{ [SCROLL_ATTRIBUTE]: '' }}
 					onScroll={recordAnchor}
 					onContextMenu={onBackgroundContextMenu}
+					onClick={onBackgroundClick}
 				>
 					<div
 						ref={listbox}
@@ -418,7 +455,13 @@ function GridBody({
 											>
 												{entry ? (
 													<>
-														<FileIcon group={entry.group} className={styles.glyph} />
+														<Thumbnail
+															loader={thumbnails}
+															thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
+															group={entry.group}
+															className={styles.thumbnail}
+															iconClassName={styles.glyph}
+														/>
 														{commands && renaming === entry.id ? (
 															<InlineRename
 																entry={entry}

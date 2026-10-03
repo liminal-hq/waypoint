@@ -1,0 +1,120 @@
+/* The checksum section of the Properties window. Tokens and logical properties only. */
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-block-start: 12px;
+	border-block-start: 1px solid var(--wp-border-subtle);
+}
+
+.heading {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.note,
+.detail {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+}
+
+.status {
+	margin: 0;
+	font-size: 12px;
+}
+
+.controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.label {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+}
+
+.select,
+.button {
+	padding: 3px 8px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 4px;
+	background: var(--wp-bg-raised);
+	color: inherit;
+	font: inherit;
+	font-size: 12px;
+}
+
+.button {
+	cursor: pointer;
+}
+
+.button:hover {
+	background: var(--wp-bg-hover);
+}
+
+.select:focus-visible,
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.select:disabled {
+	opacity: 0.6;
+}
+
+.warning {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px;
+	border: 1px solid var(--wp-warning);
+	border-radius: 4px;
+}
+
+.warningText {
+	margin: 0;
+	font-size: 12px;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.progress,
+.result {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.bar {
+	inline-size: 100%;
+	block-size: 8px;
+	accent-color: var(--wp-accent);
+}
+
+.digest {
+	display: block;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background: var(--wp-control-bg);
+	font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+	font-size: 11px;
+	overflow-wrap: anywhere;
+}
+
+.srOnly {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

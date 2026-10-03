@@ -1,6 +1,6 @@
 # @liminal-hq/plugin-system-appearance
 
-Reads the operating system's window-titlebar preferences — which buttons appear on which side of the title, and what double-, middle- and right-clicking the titlebar does — and pushes changes to every window, so custom titlebars can follow the user's desktop.
+Reads the operating system's window-titlebar preferences — which buttons appear on which side of the title, and what double-, middle- and right-clicking the titlebar does — and its appearance preferences — colour scheme, accent colour, contrast, reduced motion and transparency, text scale and icon theme — and pushes changes to every window, so custom titlebars and themes can follow the user's desktop.
 
 ## Installation
 
@@ -37,8 +37,10 @@ fn main() {
 
 ```typescript
 import {
+	getAppearance,
 	getStatus,
 	getTitlebarPreferences,
+	onAppearanceChanged,
 	onTitlebarPreferencesChanged,
 } from '@liminal-hq/plugin-system-appearance';
 
@@ -48,11 +50,36 @@ const preferences = await getTitlebarPreferences();
 const unlisten = await onTitlebarPreferencesChanged((next) => {
 	console.log(next.buttonLayout, next.actions);
 });
+
+const stop = await onAppearanceChanged((next) => {
+	console.log(next.colourScheme, next.accent, next.sources);
+});
+const appearance = await getAppearance();
 ```
 
 `getTitlebarPreferences()` never rejects because a source is unavailable: it returns the default preferences with `source: 'default'` instead. The plugin remembers the last preferences it read and emits `system-appearance://titlebar-preferences-changed` only when the value actually changes.
 
 Both the read and the event carry a `revision`, a counter that starts at 1 and increases exactly when the preferences change. A change event and a read can arrive in either order, so keep the highest revision you have seen and ignore anything older. To avoid missing a change made while starting up, subscribe first and read second.
+
+## Appearance preferences
+
+`getAppearance()` resolves to the colour scheme (`light`, `dark` or `noPreference`), the accent colour as lower-case `#rrggbb` (or `null`), the contrast (`normal` or `more`), whether reduced motion and reduced transparency are asked for, the text scale as a multiplier (1 is the default size), the icon-theme name (or `null`) and a `sources` object that says which source supplied each one. `onAppearanceChanged` delivers the same object, with a higher `revision`, whenever a value or a source changes. The revision works as it does for the titlebar preferences: start at 1, increase on change, keep the highest seen, and subscribe before reading.
+
+A preference that nothing could answer holds a neutral value (`noPreference`, `null`, `normal`, `false` or a text scale of 1) and its entry in `sources` is `null`. Do not take the neutral value for the user's choice: `getStatus().appearanceAvailable` says whether any of them works (`getStatus().available` keeps describing the titlebar preferences only), and `getStatus().appearance` lists every feature (`colourScheme`, `accent`, `contrast`, `reducedMotion`, `reducedTransparency`, `textScale`, `iconTheme`) with `available`, the `source` it comes from, and, when it does not work, a typed `reason` (`platformUnsupported`, `noSource`, `portalUnavailable`, `toolMissing`, `sourceMissing` or `readFailed`) and a `detail` string. Hide options whose feature is unavailable.
+
+Where several sources exist they are tried from the most to the least authoritative, the first answer wins, and the winner is recorded in `sources`.
+
+| Platform | Source, in order                                                                                                                                                                                                                                                                                                                                                     | Watched by                                                                                                |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Linux    | xdg-desktop-portal Settings (`portal`): `org.freedesktop.appearance` `color-scheme`, `accent-color`, `contrast` and `reduced-motion`, then the keys the portal passes through from `org.gnome.desktop.interface` (`enable-animations`, `text-scaling-factor`, `icon-theme`, `color-scheme`, `accent-color`) and `org.gnome.desktop.a11y.interface` (`high-contrast`) | The portal `SettingChanged` signal                                                                        |
+| Linux    | GNOME family and unrecognised desktops: the same GNOME keys through `gsettings`, asked only for what the portal did not answer                                                                                                                                                                                                                                       | The portal signal only                                                                                    |
+| Linux    | KDE: `kdeglobals` (`kdeglobals`): `[Colors:Window] BackgroundNormal` for the scheme, `[General] AccentColor`, `[KDE] AnimationDurationFactor` (0 is reduced motion), `[Icons] Theme`, and in the separate `kcmfonts` file `[General] forceFontDPI` over 96 for the text scale (unanswered when it is not set)                                                        | A file watcher on the config directory (`kdeglobals` and `kcmfonts`), as for `kwinrc`                     |
+| Linux    | Cinnamon: `org.x.apps.portal` or `org.gnome.desktop.interface` `color-scheme`, and `org.cinnamon.desktop.interface` (`enable-animations`, `text-scaling-factor`, `icon-theme`) and `org.cinnamon.desktop.a11y.interface` (`high-contrast`) through `gsettings`                                                                                                       | `gsettings monitor` on each schema, and the portal signal                                                 |
+| Linux    | MATE, Xfce: the portal only                                                                                                                                                                                                                                                                                                                                          | The portal signal                                                                                         |
+| Windows  | `UISettings` (`uiSettings`): `Accent`, `AnimationsEnabled`, `AdvancedEffectsEnabled` (off is reduced transparency) and `TextScaleFactor`; `AccessibilitySettings.HighContrast` (`accessibilitySettings`); registry `AppsUseLightTheme` (`registry`)                                                                                                                  | `UISettings` and `AccessibilitySettings` change events, and a ten-second poll for what no event announces |
+| macOS    | Every feature reports `platformUnsupported`                                                                                                                                                                                                                                                                                                                          | Nothing                                                                                                   |
+
+No source offers reduced transparency on Linux, high contrast or reduced transparency on KDE, or an accent colour on Cinnamon; those report `noSource`. Windows has no icon theme. Reading is best-effort: KDE, Cinnamon, MATE, Xfce and Windows are written to the documented keys and APIs and covered by tests on sample data, but have not been run on those systems.
 
 ## Sources
 
@@ -131,17 +158,71 @@ interface TitlebarPreferences {
 	source: LayoutSource;
 }
 
-// `features` names the sources that worked: 'portal', 'kwin-config', 'gsettings', 'xfconf' or 'platform'.
+// `available`, `reason` and `features` describe the titlebar preferences: `available` is true when
+// a titlebar source answered, `reason` says why none did, and `features` names the sources that
+// worked ('portal', 'kwin-config', 'gsettings', 'xfconf' or 'platform'). `appearanceAvailable` is
+// true when any appearance feature works, and `appearance` reports each one.
 interface PluginStatus {
 	available: boolean;
 	reason: string | null;
 	features: string[];
+	appearanceAvailable: boolean;
+	appearance: AppearanceFeatureStatus[];
+}
+
+type ColourScheme = 'light' | 'dark' | 'noPreference';
+type Contrast = 'normal' | 'more';
+type AppearanceSource =
+	'portal' | 'gsettings' | 'kdeGlobals' | 'uiSettings' | 'accessibilitySettings' | 'registry';
+
+// The same keys as `AppearanceValues.sources` below.
+type AppearanceSources = Record<keyof Omit<AppearanceValues, 'sources'>, AppearanceSource | null>;
+
+// What `getAppearance` resolves to and the change event carries: the values below plus a revision.
+interface AppearancePreferences extends AppearanceValues {
+	revision: number;
+}
+
+interface AppearanceValues {
+	colourScheme: ColourScheme;
+	accent: string | null; // `#rrggbb`
+	contrast: Contrast;
+	reducedMotion: boolean;
+	reducedTransparency: boolean;
+	textScale: number; // 1 is the default size
+	iconTheme: string | null;
+	sources: AppearanceSources;
+}
+
+type AppearanceFeature =
+	| 'colourScheme'
+	| 'accent'
+	| 'contrast'
+	| 'reducedMotion'
+	| 'reducedTransparency'
+	| 'textScale'
+	| 'iconTheme';
+
+type UnavailableReason =
+	| 'platformUnsupported'
+	| 'noSource'
+	| 'portalUnavailable'
+	| 'toolMissing'
+	| 'sourceMissing'
+	| 'readFailed';
+
+interface AppearanceFeatureStatus {
+	feature: AppearanceFeature;
+	available: boolean;
+	source: AppearanceSource | null;
+	reason: UnavailableReason | null;
+	detail: string | null;
 }
 ```
 
 ## Permissions
 
-The `default` permission set allows both commands. Registering the plugin is not enough: Tauri denies every command until a capability grants it, so each window that uses the plugin needs the permission in a capability file, for example `src-tauri/capabilities/default.json`:
+The `default` permission set allows all three commands. Registering the plugin is not enough: Tauri denies every command until a capability grants it, so each window that uses the plugin needs the permission in a capability file, for example `src-tauri/capabilities/default.json`:
 
 ```json
 {
@@ -151,16 +232,17 @@ The `default` permission set allows both commands. Registering the plugin is not
 }
 ```
 
-`core:default` includes the event permissions that `onTitlebarPreferencesChanged` needs to listen for the change event. Without these, every JavaScript call rejects with a "not allowed" error. Grant them only to the windows that need them; a wildcard scope also covers windows you add later.
+`core:default` includes the event permissions that `onTitlebarPreferencesChanged` and `onAppearanceChanged` need to listen for the change event. Without these, every JavaScript call rejects with a "not allowed" error. Grant them only to the windows that need them; a wildcard scope also covers windows you add later.
 
 | Permission                       | Command                    |
 | -------------------------------- | -------------------------- |
 | `allow-get-status`               | `get_status`               |
 | `allow-get-titlebar-preferences` | `get_titlebar_preferences` |
+| `allow-get-appearance`           | `get_appearance`           |
 
 ## Development
 
-The parsing of every desktop's preference format lives in `src/parse.rs` as pure functions with table-driven tests. The per-platform readers and watchers are thin modules in `src/linux/`, `src/windows.rs` and `src/macos.rs`. To regenerate the TypeScript bindings, run `cargo test` in the plugin directory; to smoke-test the live portal on Linux, run `cargo test live_portal_read -- --ignored --nocapture`.
+The parsing of every desktop's titlebar format lives in `src/parse.rs`, and that of the appearance values (portal variants, accent colours, `kdeglobals`, `gsettings` text, Windows values) in `src/appearance/parse.rs`, as pure functions with table-driven tests; `src/appearance/resolve.rs` holds the precedence between sources. The per-platform readers and watchers are thin modules in `src/linux/`, `src/windows.rs`, `src/macos.rs` and `src/appearance/`. To regenerate the TypeScript bindings, run `cargo test` in the plugin directory; to smoke-test the live portal on Linux, run `cargo test live_portal_read -- --ignored --nocapture`, and to print what this machine's appearance resolves to (read-only), run `cargo test live_appearance_read -- --ignored --nocapture` on Linux or Windows.
 
 ## Licence
 

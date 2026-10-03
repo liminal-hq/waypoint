@@ -62,6 +62,7 @@ describe('createTauriOpsClient', () => {
 		await client.dismissFinished();
 		await client.reorder(1, 0);
 		await client.resolve(1, []);
+		await client.conflictPreview?.(1, location);
 		await client.resolveError(1, 'skip');
 		await client.undo();
 		await client.redo();
@@ -88,6 +89,7 @@ describe('createTauriOpsClient', () => {
 			'dismiss_finished',
 			'reorder',
 			'resolve',
+			'conflict_preview',
 			'resolve_error',
 			'undo',
 			'redo',

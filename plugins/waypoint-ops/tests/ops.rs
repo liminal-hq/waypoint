@@ -1619,3 +1619,57 @@ fn the_trash_sweep_setting_is_validated_saved_and_defaults_off() {
     ops.set_settings(off).unwrap();
     assert_eq!(ops.settings().trash_expiry_days, None);
 }
+
+fn preview_clash(
+    env: &Env,
+    job: waypoint_ops::JobId,
+    item: waypoint_protocol::Location,
+) -> Result<waypoint_ops::ConflictPreview, tauri_plugin_waypoint_ops::Error> {
+    tauri::async_runtime::block_on(commands::conflict_preview(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        job,
+        item,
+    ))
+}
+
+#[test]
+fn a_waiting_job_answers_the_preview_of_its_clash_and_nothing_else() {
+    let env = env();
+    env.write("a.txt", b"one\ntwo\n");
+    env.dir("dst");
+    env.write("dst/a.txt", b"one\n2\n");
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    let state = env.wait_state(id, "waiting", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Conflicts { conflicts },
+    } = state
+    else {
+        panic!("{state:?}");
+    };
+
+    let preview = preview_clash(&env, id, conflicts[0].source.clone()).unwrap();
+    let waypoint_ops::PreviewKind::Text { diff } = preview.kind else {
+        panic!("{:?}", preview.kind);
+    };
+    assert_eq!((diff.added, diff.removed), (1, 1));
+    assert_eq!(preview.existing.location, conflicts[0].existing);
+
+    // A source that is not a clash of this job, and a job that is unknown, are refused.
+    assert!(preview_clash(&env, id, env.loc("dst")).is_err());
+    assert!(preview_clash(&env, waypoint_ops::JobId(9999), conflicts[0].source.clone()).is_err());
+    // The job is still waiting: a preview asks nothing of the queue.
+    assert!(matches!(env.state(id), JobState::Waiting { .. }));
+
+    // Once the job has been answered it no longer waits on conflicts.
+    tauri::async_runtime::block_on(commands::resolve(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        id,
+        vec![],
+        Some(ConflictPolicy::Skip),
+    ))
+    .unwrap();
+    env.wait_done(id);
+    assert!(preview_clash(&env, id, conflicts[0].source.clone()).is_err());
+}

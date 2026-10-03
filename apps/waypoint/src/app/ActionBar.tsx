@@ -17,6 +17,7 @@ import {
 } from 'react';
 import { useCommandBridge, useCommands } from '../commands/commandBridge';
 import type { CommandId } from '../commands/registry';
+import { inlineKey, isRtl } from '../i18n/direction';
 import { t } from '../i18n/messages';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { ActionBarIcon, MoreIcon, TextIcon } from '../icons/MenuIcons';
@@ -79,7 +80,7 @@ export function ActionBar() {
 		// Not laid out (hidden, or no layout engine): nothing to decide, show everything.
 		if (widths.every((width) => width === 0)) return;
 		const style = getComputedStyle(bar);
-		const available = bar.clientWidth - px(style.paddingLeft) - px(style.paddingRight);
+		const available = bar.clientWidth - px(style.paddingLeft) - px(style.paddingRight); // physical: the sum of both sides, so the direction does not matter
 		const more = moreRef.current?.offsetWidth || MORE_WIDTH_GUESS;
 		const count = fitCount(widths, available, px(style.columnGap), more);
 		setShown((previous) => (Math.min(previous, items.length) === count ? previous : count));
@@ -108,7 +109,7 @@ export function ActionBar() {
 		const active = buttonRefs.current.findIndex((button) => button === document.activeElement);
 		const current = active === items.length ? visible : active;
 		if (current < 0 || menu) return;
-		switch (event.key) {
+		switch (inlineKey(event.key, isRtl(event.currentTarget))) {
 			case 'ArrowRight':
 				event.preventDefault();
 				if (current < stops - 1) focusStop(current + 1);

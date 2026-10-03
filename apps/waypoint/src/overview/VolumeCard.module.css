@@ -1,0 +1,135 @@
+/* A volume's card. */
+.card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-inline-size: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	background: var(--wp-bg-raised);
+}
+
+.header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-inline-size: 0;
+}
+
+.icon {
+	flex: none;
+	color: var(--wp-text-secondary);
+}
+
+.name {
+	flex: 1;
+	min-inline-size: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: 14px;
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.open {
+	max-inline-size: 100%;
+	padding: 2px 4px;
+	margin-inline-start: -4px;
+	overflow: hidden;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--wp-text-primary);
+	font: inherit;
+	text-align: start;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: default;
+}
+
+.open:hover:not(:disabled) {
+	background: var(--wp-bg-hover);
+}
+
+.open:focus-visible,
+.action:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.open:disabled,
+.action:disabled {
+	opacity: 0.6;
+}
+
+.badge {
+	flex: none;
+	padding: 1px 8px;
+	border: 1px solid var(--wp-text-secondary);
+	border-radius: 999px;
+	color: var(--wp-text-secondary);
+	font-size: 11px;
+}
+
+.system {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.numbers {
+	display: flex;
+	gap: 24px;
+	margin: 0;
+}
+
+.numbers div {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.numbers dt {
+	color: var(--wp-text-secondary);
+	font-size: 11px;
+}
+
+.numbers dd {
+	margin: 0;
+	color: var(--wp-text-primary);
+	font-size: 15px;
+	font-variant-numeric: tabular-nums;
+}
+
+.state {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 13px;
+}
+
+.actions {
+	display: flex;
+	gap: 8px;
+}
+
+.actions:empty {
+	display: none;
+}
+
+.action {
+	min-block-size: var(--wp-control-height);
+	padding: 0 12px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	background: var(--wp-control-bg);
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 12px;
+	cursor: default;
+}
+
+.action:hover:not(:disabled) {
+	background: var(--wp-control-bg-hover);
+}

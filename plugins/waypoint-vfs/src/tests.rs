@@ -458,6 +458,45 @@ fn a_selection_resolves_to_locations_in_view_order_for_the_owning_window_only() 
 }
 
 #[test]
+fn entries_are_located_one_by_one_in_the_order_asked_for_the_owning_window_only() {
+    let dir = folder_with(&["a.txt", "b.txt", "c.txt"]);
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let id = |name: &str| entries.iter().find(|e| e.name == name).unwrap().id;
+    let vfs = app.state::<Vfs>();
+
+    // The order asked for is kept (not the view's), and a repeated id is answered twice.
+    let ids = [
+        id("c.txt"),
+        id("a.txt"),
+        id("c.txt"),
+        waypoint_protocol::EntryId(9999),
+    ];
+    let located = vfs.locate_entries("main", snapshot.handle, &ids).unwrap();
+    let tail = |l: &Option<Location>| {
+        l.as_ref()
+            .map(|l| l.display.rsplit('/').next().unwrap().to_owned())
+    };
+    let names: Vec<_> = located.iter().map(tail).collect();
+    assert_eq!(
+        names,
+        [
+            Some("c.txt".to_owned()),
+            Some("a.txt".to_owned()),
+            Some("c.txt".to_owned()),
+            None
+        ]
+    );
+    assert!(located[0].as_ref().unwrap().uri.starts_with("file://"));
+
+    // Another window cannot locate this window's entries.
+    assert_eq!(
+        vfs.locate_entries("other", snapshot.handle, &ids),
+        Err(VfsError::StaleHandle)
+    );
+}
+
+#[test]
 fn entry_commands_are_scoped_to_the_owning_window() {
     let dir = folder_with(&["a.txt"]);
     let app = app();
@@ -556,9 +595,10 @@ fn the_trash_cannot_be_opened_until_the_app_gives_the_plugin_one() {
     let error = open(&app, "main", trash_location()).unwrap_err();
     assert!(matches!(error, Error::Vfs(VfsError::Unsupported { .. })));
     let info =
-        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
     assert!(!info.available);
     assert_eq!(info.count, 0);
+    assert_eq!(info.total_bytes, None);
     assert!(info.reason.is_some());
 }
 
@@ -579,6 +619,16 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
     assert_eq!(names(&entries), ["apple.txt", "zebra.txt"]);
     assert_eq!(entries[0].original_path.as_deref(), Some("/home/a"));
     assert_eq!(entries[0].deleted_ms, Some(1_700_000_000_000));
+
+    // The sizes are added up only when asked for.
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
+    assert_eq!((info.count, info.total_bytes), (2, None));
+    let info =
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), Some(true)))
+            .unwrap();
+    assert_eq!(info.count, 2);
+    assert_eq!(info.total_bytes, Some(10));
 
     // An entry resolves to its `trash:` location, losslessly.
     let at = tauri::async_runtime::block_on(commands::entry_location(
@@ -602,7 +652,7 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
 
     // What the sidebar reads.
     let info =
-        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
     assert_eq!((info.available, info.count), (true, 2));
     let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
     assert!(status.features.contains(&"trash-view".to_owned()));
@@ -615,7 +665,7 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
         Error::Vfs(VfsError::Unsupported { what }) if what.contains("portal")
     ));
     let info =
-        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>())).unwrap();
+        tauri::async_runtime::block_on(commands::get_trash_info(app.state::<Vfs>(), None)).unwrap();
     assert!(!info.available);
     let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
     assert!(!status.features.contains(&"trash-view".to_owned()));
@@ -633,4 +683,337 @@ fn the_trash_is_described_and_parsed_like_any_location() {
     ))
     .unwrap();
     assert_eq!(parsed.uri, "trash:/");
+}
+
+#[test]
+fn status_reports_the_details_capabilities() {
+    let app = app();
+    let status = tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
+    for feature in [
+        "entry-details",
+        "folder-size",
+        "text-head",
+        "preview-protocol",
+    ] {
+        assert!(status.features.iter().any(|f| f == feature), "{feature}");
+    }
+}
+
+#[test]
+fn details_and_text_heads_are_scoped_to_the_owning_window() {
+    let dir = folder_with(&["a.txt"]);
+    fs::write(dir.path().join("blob.bin"), b"a\0b").unwrap();
+    let app = app();
+    let (snapshot, entries) = ready_listing(&app, &dir);
+    let text = entries.iter().find(|e| e.name == "a.txt").unwrap().id;
+    let blob = entries.iter().find(|e| e.name == "blob.bin").unwrap().id;
+    let details = |label: &str, id| {
+        tauri::async_runtime::block_on(commands::entry_details(
+            window(&app, label),
+            app.state::<Vfs>(),
+            snapshot.handle,
+            id,
+        ))
+    };
+    let head = |label: &str, id, max| {
+        tauri::async_runtime::block_on(commands::read_text_head(
+            window(&app, label),
+            app.state::<Vfs>(),
+            snapshot.handle,
+            id,
+            max,
+        ))
+    };
+    assert_eq!(details("main", text).unwrap().size, Some(1));
+    assert!(matches!(
+        details("other", text),
+        Err(Error::Vfs(VfsError::StaleHandle))
+    ));
+    assert!(matches!(
+        details("main", waypoint_protocol::EntryId(999)),
+        Err(Error::Vfs(VfsError::NotFound { .. }))
+    ));
+    assert_eq!(head("main", text, None).unwrap().text, "x");
+    assert!(matches!(
+        head("other", text, None),
+        Err(Error::Vfs(VfsError::StaleHandle))
+    ));
+    assert!(matches!(
+        head("main", blob, None),
+        Err(Error::Vfs(VfsError::NotText { .. }))
+    ));
+    // A limit the caller gives is honoured.
+    fs::write(dir.path().join("a.txt"), "abcdef").unwrap();
+    assert_eq!(head("main", text, Some(3)).unwrap().text, "abc");
+}
+
+mod folder_size {
+    use std::sync::mpsc::{channel, Receiver};
+
+    use waypoint_vfs::FolderSizeEvent;
+
+    use super::*;
+
+    fn start(
+        app: &tauri::App<MockRuntime>,
+        label: &str,
+        handle: ListingHandle,
+        id: waypoint_protocol::EntryId,
+    ) -> (Result<u64, VfsError>, Receiver<FolderSizeEvent>) {
+        let (sender, receiver) = channel();
+        let started = app
+            .state::<Vfs>()
+            .start_folder_size(label, handle, id, move |event| sender.send(event).is_ok());
+        (started, receiver)
+    }
+
+    fn last(receiver: &Receiver<FolderSizeEvent>) -> FolderSizeEvent {
+        loop {
+            let event = receiver
+                .recv_timeout(Duration::from_secs(10))
+                .expect("the run ended");
+            if !matches!(event, FolderSizeEvent::Progress { .. }) {
+                return event;
+            }
+        }
+    }
+
+    fn tree() -> tempfile::TempDir {
+        let dir = folder_with(&[]);
+        fs::create_dir_all(dir.path().join("sub/inner")).unwrap();
+        fs::write(dir.path().join("sub/a"), vec![0u8; 100]).unwrap();
+        fs::write(dir.path().join("sub/inner/b"), vec![0u8; 23]).unwrap();
+        fs::write(dir.path().join("file"), b"x").unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_folder_of_a_listing_is_totalled_and_the_run_ends_with_done() {
+        let dir = tree();
+        let app = app();
+        let (snapshot, entries) = ready_listing(&app, &dir);
+        let sub = entries.iter().find(|e| e.name == "sub").unwrap().id;
+        let (job, events) = start(&app, "main", snapshot.handle, sub);
+        assert_eq!(job.unwrap(), 1);
+        let FolderSizeEvent::Done { totals } = last(&events) else {
+            panic!("expected done");
+        };
+        assert_eq!((totals.bytes, totals.files, totals.folders), (123, 2, 1));
+        // The run is forgotten once it ends.
+        for _ in 0..100 {
+            if app.state::<Vfs>().size_jobs.len() == 0 {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("the finished run was not forgotten");
+    }
+
+    #[test]
+    fn a_file_and_another_windows_handle_start_nothing() {
+        let dir = tree();
+        let app = app();
+        let (snapshot, entries) = ready_listing(&app, &dir);
+        let file = entries.iter().find(|e| e.name == "file").unwrap().id;
+        let (started, _) = start(&app, "main", snapshot.handle, file);
+        assert!(matches!(started, Err(VfsError::NotADirectory { .. })));
+        let sub = entries.iter().find(|e| e.name == "sub").unwrap().id;
+        let (started, _) = start(&app, "other", snapshot.handle, sub);
+        assert_eq!(started, Err(VfsError::StaleHandle));
+        assert_eq!(app.state::<Vfs>().size_jobs.len(), 0);
+    }
+
+    #[test]
+    fn a_page_that_goes_away_still_ends_the_run_with_one_terminal_event() {
+        let dir = folder_with(&[]);
+        for d in 0..20 {
+            let sub = dir.path().join(format!("d{d}"));
+            fs::create_dir(&sub).unwrap();
+            for f in 0..200 {
+                fs::write(sub.join(format!("f{f}")), b"x").unwrap();
+            }
+        }
+        let app = app();
+        let (snapshot, entries) = ready_listing(&app, &dir);
+        let first = entries[0].id;
+        // A sink that refuses the first event stands for a page that went away: the run cancels.
+        let (sender, receiver) = channel();
+        let calls = std::sync::atomic::AtomicUsize::new(0);
+        app.state::<Vfs>()
+            .start_folder_size("main", snapshot.handle, first, move |event| {
+                let keep = calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) > 0;
+                let _ = sender.send(event);
+                keep
+            })
+            .unwrap();
+        // Either the walk was too quick to report (done) or it was cancelled by the refusal; both
+        // end the stream with exactly one terminal event.
+        assert!(matches!(
+            last(&receiver),
+            FolderSizeEvent::Done { .. } | FolderSizeEvent::Cancelled { .. }
+        ));
+    }
+
+    #[test]
+    fn a_window_cancels_only_its_own_run_and_closing_the_window_cancels_all() {
+        let app = app();
+        let vfs = app.state::<Vfs>();
+        let (id, token) = vfs.size_jobs.start("main");
+        assert!(!vfs.size_jobs.cancel("other", id));
+        assert!(!token.is_cancelled());
+        tauri::async_runtime::block_on(commands::cancel_folder_size(
+            window(&app, "main"),
+            app.state::<Vfs>(),
+            id,
+        ))
+        .unwrap();
+        assert!(token.is_cancelled());
+        let (_, second) = vfs.size_jobs.start("other");
+        on_window_event(app.handle(), "other", &WindowEvent::Destroyed);
+        assert!(second.is_cancelled());
+    }
+}
+
+mod dir_scan {
+    use std::sync::mpsc::{channel, Receiver};
+
+    use waypoint_vfs::{DirScanCache, DirScanEvent, DirScanOptions};
+
+    use super::*;
+
+    fn start(
+        app: &tauri::App<MockRuntime>,
+        label: &str,
+        root: &Path,
+        cache: Option<DirScanCache>,
+    ) -> (Result<u64, VfsError>, Receiver<DirScanEvent>) {
+        let (sender, receiver) = channel();
+        let started = app.state::<Vfs>().start_dir_scan(
+            label,
+            location(root),
+            DirScanOptions::default(),
+            cache,
+            move |event| sender.send(event).is_ok(),
+        );
+        (started, receiver)
+    }
+
+    fn terminal(receiver: &Receiver<DirScanEvent>) -> DirScanEvent {
+        loop {
+            let event = receiver
+                .recv_timeout(Duration::from_secs(10))
+                .expect("the scan ended");
+            if !matches!(
+                event,
+                DirScanEvent::Progress { .. } | DirScanEvent::Partial { .. }
+            ) {
+                return event;
+            }
+        }
+    }
+
+    fn tree() -> tempfile::TempDir {
+        let dir = folder_with(&["loose"]);
+        fs::create_dir_all(dir.path().join("A/inner")).unwrap();
+        fs::write(dir.path().join("A/inner/x"), vec![0u8; 40]).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_status_reports_the_scan() {
+        let app = app();
+        let status =
+            tauri::async_runtime::block_on(commands::get_status(app.state::<Vfs>())).unwrap();
+        assert!(status.features.iter().any(|f| f == "dir-size-scan"));
+    }
+
+    #[test]
+    fn a_scan_ends_with_done_is_cached_and_is_forgotten() {
+        let dir = tree();
+        let data = tempfile::tempdir().unwrap();
+        let app = app();
+        let cache = DirScanCache::in_dir(data.path());
+        let (job, events) = start(&app, "main", dir.path(), Some(cache.clone()));
+        assert_eq!(job.unwrap(), 1);
+        let DirScanEvent::Done { result } = terminal(&events) else {
+            panic!("expected done");
+        };
+        assert_eq!(result.rows[0].name, "A");
+        assert_eq!(result.rows[0].bytes, 40);
+        assert_eq!(cache.load(&location(dir.path())), Some(result));
+        for _ in 0..100 {
+            if app.state::<Vfs>().size_jobs.len() == 0 {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("the finished scan was not forgotten");
+    }
+
+    #[test]
+    fn a_missing_root_fails_and_a_cancelled_scan_is_not_cached() {
+        let data = tempfile::tempdir().unwrap();
+        let cache = DirScanCache::in_dir(data.path());
+        let app = app();
+        let (_, events) = start(
+            &app,
+            "main",
+            Path::new("/definitely/not/here"),
+            Some(cache.clone()),
+        );
+        assert!(matches!(terminal(&events), DirScanEvent::Failed { .. }));
+
+        let dir = tree();
+        let (job, events) = {
+            let (sender, receiver) = channel();
+            let calls = std::sync::atomic::AtomicUsize::new(0);
+            let job = app
+                .state::<Vfs>()
+                .start_dir_scan(
+                    "main",
+                    location(dir.path()),
+                    DirScanOptions::default(),
+                    Some(cache.clone()),
+                    move |event| {
+                        // Refuse the first event: a page that went away cancels the scan.
+                        let keep = calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) > 0;
+                        let _ = sender.send(event);
+                        keep
+                    },
+                )
+                .unwrap();
+            (job, receiver)
+        };
+        assert!(job > 0);
+        // A scan this small may finish before the refusal lands; either way one terminal event.
+        let end = terminal(&events);
+        assert!(matches!(
+            end,
+            DirScanEvent::Done { .. } | DirScanEvent::Cancelled { .. }
+        ));
+        if matches!(end, DirScanEvent::Cancelled { .. }) {
+            assert_eq!(cache.load(&location(dir.path())), None);
+        }
+    }
+
+    #[test]
+    fn a_window_cancels_only_its_own_scan() {
+        let app = app();
+        let vfs = app.state::<Vfs>();
+        let (id, token) = vfs.size_jobs.start("main");
+        tauri::async_runtime::block_on(commands::cancel_dir_scan(
+            window(&app, "other"),
+            app.state::<Vfs>(),
+            id,
+        ))
+        .unwrap();
+        assert!(!token.is_cancelled());
+        tauri::async_runtime::block_on(commands::cancel_dir_scan(
+            window(&app, "main"),
+            app.state::<Vfs>(),
+            id,
+        ))
+        .unwrap();
+        assert!(token.is_cancelled());
+    }
 }

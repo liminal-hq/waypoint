@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { prefersReducedMotion } from '../theme/motion';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 /** How long drag motion lasts (D82); it is instant under Reduce motion. */
@@ -136,13 +137,6 @@ export interface DragSession<Source, Target> {
 /** 140 ms, or 0 when the system asks for reduced motion. */
 export function motionMs(): number {
 	return prefersReducedMotion() ? 0 : DRAG_MOTION_MS;
-}
-
-function prefersReducedMotion(): boolean {
-	return (
-		typeof globalThis.matchMedia === 'function' &&
-		globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches
-	);
 }
 
 const IDLE: DragState<never, never> = { phase: 'idle', pill: null, target: null, source: null };

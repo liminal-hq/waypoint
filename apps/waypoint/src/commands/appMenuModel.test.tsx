@@ -72,11 +72,17 @@ describe('the menus', () => {
 			'duplicate',
 			'moveToTrash',
 			'deletePermanently',
+			'settings',
 			'closeTab',
 			'reopenClosedTab',
 			'closeWindow',
-			'settings',
 		]);
+	});
+
+	it('File: Open With… follows New File, only where the plugin can do it', () => {
+		const file = submenu(build(factsFor({ selected: 1 }, { openWith: true })), MENU_IDS.file);
+		expect(idsOf(file.items).slice(2, 6)).toEqual(['newFolder', 'newFile', 'openWith', 'rename']);
+		expect(idsOf(submenu(build(writable), MENU_IDS.file).items)).not.toContain('openWith');
 	});
 
 	it('Edit: Undo and Redo with the history, then the clipboard, copy and move, and the selection', () => {
@@ -107,6 +113,7 @@ describe('the menus', () => {
 			'sidebar',
 			'toggleShelf',
 			'undockShelf',
+			'toggleInspector',
 			'actionBar',
 			'splitView',
 			'commandPalette',

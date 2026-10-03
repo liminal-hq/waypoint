@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+pub mod appearance;
 mod commands;
 mod error;
 pub mod models;
@@ -34,6 +35,7 @@ use tauri::{
     Manager, RunEvent, Runtime,
 };
 
+pub use appearance::service::APPEARANCE_CHANGED_EVENT;
 pub use error::Error;
 pub use service::CHANGED_EVENT;
 
@@ -42,15 +44,20 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         .invoke_handler(tauri::generate_handler![
             commands::get_status,
             commands::get_titlebar_preferences,
+            commands::get_appearance,
         ])
         .setup(|app, _api| {
             app.manage(service::Service::default());
             app.state::<service::Service>().start(app);
+            app.manage(appearance::service::AppearanceService::default());
+            app.state::<appearance::service::AppearanceService>()
+                .start(app);
             Ok(())
         })
         .on_event(|app, event| {
             if let RunEvent::Exit = event {
                 app.state::<service::Service>().stop();
+                app.state::<appearance::service::AppearanceService>().stop();
             }
         })
         .build()

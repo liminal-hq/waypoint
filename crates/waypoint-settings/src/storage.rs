@@ -30,7 +30,7 @@ pub const SETTINGS_KEY: &str = "settings";
 pub const PREVIOUS_KEY: &str = "settingsPrevious";
 
 /// The settings as a file value: a version so a later build can migrate, and the body.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct SettingsDocument {
@@ -68,7 +68,7 @@ pub struct MemoryStorage {
 
 impl MemoryStorage {
     pub fn saved(&self) -> Option<SettingsDocument> {
-        *self.saved.lock().unwrap_or_else(|e| e.into_inner())
+        self.saved.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 
@@ -78,7 +78,7 @@ impl SettingsStorage for MemoryStorage {
     }
 
     fn save(&self, document: &SettingsDocument) -> Result<(), StorageError> {
-        *self.saved.lock().unwrap_or_else(|e| e.into_inner()) = Some(*document);
+        *self.saved.lock().unwrap_or_else(|e| e.into_inner()) = Some(document.clone());
         Ok(())
     }
 }

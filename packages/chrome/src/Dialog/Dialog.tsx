@@ -58,7 +58,13 @@ function isTopmost(dialog: HTMLDialogElement): boolean {
 	return candidates[candidates.length - 1] === dialog;
 }
 
+/**
+ * Whether the host asks for reduced motion: its `data-motion` attribute on the root (the host's
+ * setting and the OS preference combined) or, before the host sets one, the media query.
+ */
 function prefersReducedMotion(): boolean {
+	const attribute = globalThis.document?.documentElement.dataset.motion;
+	if (attribute) return attribute === 'reduce';
 	try {
 		return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 	} catch {

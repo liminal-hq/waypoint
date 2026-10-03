@@ -9,6 +9,7 @@ use waypoint_path::{FilePath, PathError, TrashPath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 
 use crate::model::{Breadcrumb, LocationInfo};
+use crate::places::{is_overview_uri, overview_location};
 
 fn invalid(input: &str) -> VfsError {
     VfsError::InvalidLocation {
@@ -36,6 +37,10 @@ pub fn parse_location(input: &str, base: &Location, home: &Path) -> Result<Locat
     let text = input.trim();
     if text.is_empty() || text.contains('\0') {
         return Err(invalid(input));
+    }
+    // Overview, like `trash:/`, has no `//`.
+    if is_overview_uri(text) {
+        return Ok(overview_location());
     }
     // `trash:/` has no `//`, so it is not a scheme `scheme_of` sees.
     if TrashPath::is_trash_uri(text) {
@@ -79,6 +84,16 @@ pub fn parse_location(input: &str, base: &Location, home: &Path) -> Result<Locat
 /// The parent and the breadcrumb segments of a location, from its root to itself. The root segment
 /// is labelled as the platform writes it (`/`, `C:\`, `\\server\share\`).
 pub fn describe_location(location: &Location) -> Result<LocationInfo, VfsError> {
+    // Overview is one level: a view with no parent, whose only segment is itself.
+    if is_overview_uri(&location.uri) {
+        return Ok(LocationInfo {
+            parent: None,
+            segments: vec![Breadcrumb {
+                label: "Overview".to_owned(),
+                location: overview_location(),
+            }],
+        });
+    }
     if TrashPath::is_trash_uri(&location.uri) {
         return describe_trash(location);
     }
@@ -214,6 +229,18 @@ mod tests {
         assert_eq!(item.parent.unwrap().uri, "trash:/");
         assert_eq!(item.segments[1].label, "a|b");
         assert!(describe_location(&Location::new("x", "trash:/a/b")).is_err());
+    }
+
+    #[test]
+    fn overview_parses_and_is_described_as_a_single_view() {
+        for text in ["overview:/", "overview:", " OVERVIEW:/ "] {
+            let location = parse_location(text, &at("/srv"), Path::new("/h")).unwrap();
+            assert_eq!(location, Location::new("Overview", "overview:/"), "{text}");
+        }
+        let info = describe_location(&Location::new("Overview", "overview:/")).unwrap();
+        assert_eq!(info.parent, None);
+        assert_eq!(info.segments.len(), 1);
+        assert_eq!(info.segments[0].label, "Overview");
     }
 
     #[test]

@@ -1,0 +1,125 @@
+/* "Biggest folders in Home". The bars are decoration: each row also writes its size and its share, and the remainder's bar is hatched, so colour is never the only signal. */
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+.title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.status {
+	flex: 1 1 auto;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.status[data-outcome='failed'] {
+	color: var(--wp-danger);
+}
+
+.action {
+	padding: 3px 10px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	background: var(--wp-bg-raised);
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 12px;
+	cursor: default;
+}
+
+.action:hover {
+	background: var(--wp-bg-hover);
+}
+
+.rows {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.row {
+	box-sizing: border-box;
+	display: grid;
+	grid-template-columns: minmax(8em, 14em) minmax(60px, 1fr) 6em 5.5em;
+	align-items: center;
+	gap: 12px;
+	inline-size: 100%;
+	padding: 5px 8px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--wp-text-primary);
+	font: inherit;
+	font-size: 13px;
+	text-align: start;
+}
+
+button.row {
+	cursor: default;
+}
+
+button.row:hover {
+	background: var(--wp-bg-hover);
+}
+
+.name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bar {
+	display: block;
+	block-size: 10px;
+	overflow: hidden;
+	border: 1px solid var(--wp-text-secondary);
+	border-radius: 5px;
+}
+
+.fill {
+	display: block;
+	block-size: 100%;
+	background: var(--wp-text-secondary);
+}
+
+/* The remainder is hatched, folders are solid. */
+.fill[data-kind='other'] {
+	background: repeating-linear-gradient(
+		135deg,
+		var(--wp-text-primary),
+		var(--wp-text-primary) 2px,
+		var(--wp-bg-raised) 2px,
+		var(--wp-bg-raised) 4px
+	);
+}
+
+.size,
+.share {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+	white-space: nowrap;
+}
+
+.quiet {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}

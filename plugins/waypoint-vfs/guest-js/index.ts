@@ -3,9 +3,16 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, convertFileSrc, invoke } from '@tauri-apps/api/core';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import type { DirScanEvent } from '@liminal-hq/waypoint-protocol/generated/DirScanEvent';
+import type { DirScanOptions } from '@liminal-hq/waypoint-protocol/generated/DirScanOptions';
+import type { DirScanResult } from '@liminal-hq/waypoint-protocol/generated/DirScanResult';
+import type { EntryDetails } from '@liminal-hq/waypoint-protocol/generated/EntryDetails';
+import type { FolderSizeEvent } from '@liminal-hq/waypoint-protocol/generated/FolderSizeEvent';
+import type { FolderSizeTotals } from '@liminal-hq/waypoint-protocol/generated/FolderSizeTotals';
+import type { TextHead } from '@liminal-hq/waypoint-protocol/generated/TextHead';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
 import type { Filter } from '@liminal-hq/waypoint-protocol/generated/Filter';
@@ -42,7 +49,7 @@ export interface OpenOptions {
 
 /**
  * Reports whether the file system plugin works here, and which features: `listing`, `watch`,
- * `places`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
+ * `places`, `entry-details`, `folder-size`, `text-head`, `preview-protocol`, `trash-view` when the Trash can be browsed, and `polling-fallback` while a listing is
  * kept up to date by polling.
  */
 export function getStatus(): Promise<PluginStatus> {
@@ -134,11 +141,113 @@ export function openEntry(handle: ListingHandle, id: EntryId): Promise<void> {
 }
 
 /**
+ * Everything the Inspector shows about one entry of an open listing: kind, exact and allocated
+ * size, times, owner and group, permissions, symlink target, hidden flag and content type. A field
+ * the provider cannot report is named in `unavailable`; a field the entry does not have is `null`.
+ */
+export function entryDetails(handle: ListingHandle, id: EntryId): Promise<EntryDetails> {
+	return cmd<EntryDetails>('entry_details', { handle, id });
+}
+
+/** A running folder-size total. */
+export interface FolderSizeRun {
+	/** The run's id, which `cancelFolderSize` takes. */
+	job: number;
+	/** Stops the run; it ends with a `cancelled` event carrying the partial total. */
+	cancel(): Promise<void>;
+}
+
+/**
+ * Starts totalling a folder of an open listing and resolves with the run as soon as it has
+ * started. `onEvent` gets `progress` about every 100 ms and then exactly one `done`, `cancelled`
+ * or `failed`. The walk is low priority, stays on one volume, never follows a symlink and never
+ * downloads a cloud placeholder. Rejects (`notADirectory`) for an entry that is not a folder.
+ */
+export async function folderSize(
+	handle: ListingHandle,
+	id: EntryId,
+	onEvent: (event: FolderSizeEvent) => void,
+): Promise<FolderSizeRun> {
+	const channel = new Channel<FolderSizeEvent>();
+	channel.onmessage = onEvent;
+	const job = await cmd<number>('folder_size', { handle, id, onEvent: channel });
+	return { job, cancel: () => cancelFolderSize(job) };
+}
+
+/** Stops a folder-size run of this window. A run that has ended is not an error. */
+export function cancelFolderSize(job: number): Promise<void> {
+	return cmd<void>('cancel_folder_size', { job });
+}
+
+/** A running directory-size scan. */
+export interface DirScanRun {
+	/** The run's id, which `cancelDirScan` takes. */
+	job: number;
+	/** Stops the scan; it ends with a `cancelled` event carrying the folders finished so far. */
+	cancel(): Promise<void>;
+}
+
+/**
+ * Starts scanning the top-level folders of `location` for their sizes and resolves with the run as
+ * soon as it has started. `onEvent` gets `progress` about every 100 ms, a `partial` result after
+ * each top-level folder (every row so far, with its share of what has been scanned, and a
+ * remainder row for loose files and hidden items), and then exactly one `done`, `cancelled` or
+ * `failed`. The scan is low priority on a thread of its own, stays on one volume, never follows a
+ * symlink and never downloads a cloud placeholder. A finished scan is cached for
+ * `getCachedDirScan`.
+ */
+export async function scanDirSizes(
+	location: Location,
+	onEvent: (event: DirScanEvent) => void,
+	options?: DirScanOptions,
+): Promise<DirScanRun> {
+	const channel = new Channel<DirScanEvent>();
+	channel.onmessage = onEvent;
+	const job = await cmd<number>('scan_dir_sizes', { location, options, onEvent: channel });
+	return { job, cancel: () => cancelDirScan(job) };
+}
+
+/** Stops a directory-size scan of this window. A scan that has ended is not an error. */
+export function cancelDirScan(job: number): Promise<void> {
+	return cmd<void>('cancel_dir_scan', { job });
+}
+
+/**
+ * The last finished scan of `location`, with `measuredAtMs` for "as of <time>", or `null` when
+ * there is none.
+ */
+export function getCachedDirScan(location: Location): Promise<DirScanResult | null> {
+	return cmd<DirScanResult | null>('get_cached_dir_scan', { location });
+}
+
+/**
+ * The first bytes of a file of an open listing as text: at most `max` bytes (default and ceiling
+ * 256 KiB), decoded as UTF-8 with invalid sequences replaced. Rejects with `notText` for a binary
+ * file and `isADirectory` for a folder.
+ */
+export function readTextHead(handle: ListingHandle, id: EntryId, max?: number): Promise<TextHead> {
+	return cmd<TextHead>('read_text_head', { handle, id, max: max ?? null });
+}
+
+/** The custom scheme that serves entries to this window. */
+export const PREVIEW_SCHEME = 'wpfile';
+
+/**
+ * The URL that serves an entry's bytes through the `wpfile` protocol, for an `<img>`, `<audio>`,
+ * `<video>` or `fetch`, with `Range` support. It is a token over this window's own listings, never
+ * a path: another window's URL, a closed listing and an entry that has gone all answer 404.
+ */
+export function previewUrl(handle: ListingHandle, id: EntryId): string {
+	return convertFileSrc(`${handle}-${id}`, PREVIEW_SCHEME);
+}
+
+/**
  * Whether the Trash can be browsed here, why not, and how many items it holds. Reading it lists the
  * Trash, so ask when the number is wanted (the sidebar does, on a slow timer and on focus).
+ * `withBytes` also adds up the sizes into `totalBytes`; ask only while Overview is visible.
  */
-export function getTrashInfo(): Promise<TrashInfo> {
-	return cmd<TrashInfo>('get_trash_info');
+export function getTrashInfo(withBytes = false): Promise<TrashInfo> {
+	return cmd<TrashInfo>('get_trash_info', { withBytes });
 }
 
 /** Home, the user folders that exist, and the favourites. */
@@ -178,7 +287,14 @@ export function onListingEvent(handler: (_event: ListingEvent) => void): Promise
 }
 
 export type {
+	DirScanEvent,
+	DirScanOptions,
+	DirScanResult,
 	Entry,
+	EntryDetails,
+	FolderSizeEvent,
+	FolderSizeTotals,
+	TextHead,
 	EntryId,
 	Filter,
 	FolderCheck,

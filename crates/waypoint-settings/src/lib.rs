@@ -8,12 +8,17 @@
 // dependency: the plugin in `plugins/waypoint-settings` is the adapter, and the app supplies the
 // key-value file the document is saved in.
 
+mod accelerator;
 mod model;
 mod storage;
 
+pub use accelerator::{
+    validate_accelerator, ACCELERATOR_HINT, ACCELERATOR_MAX_LEN, DEFAULT_ACCELERATOR,
+};
 pub use model::{
-    ClickMode, DefaultView, DndSettings, DropActionRule, GeneralSettings, Settings, SettingsError,
-    SettingsSnapshot, StartupMode, UiSettings, SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
+    BlurLevel, ClickMode, ColourMode, DefaultView, DndSettings, DropActionRule, GeneralSettings,
+    OsPreference, Settings, SettingsError, SettingsSnapshot, StartupMode, UiSettings,
+    SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
 };
 pub use storage::{
     KeyValue, MemoryStorage, Persistence, SettingsDocument, SettingsStorage, StorageError,

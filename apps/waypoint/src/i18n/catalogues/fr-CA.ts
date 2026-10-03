@@ -1,0 +1,3642 @@
+// The Canadian French (fr-CA) catalogue, written from translations/fr-CA.json by `bun run i18n:import`
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import type { Catalogue } from '../active';
+
+/**
+ * Generated: edit `translations/fr-CA.json` (or use Weblate) and run `bun run i18n:import`. A
+ * message missing here shows in English. Each `// source:` comment records the hash of the English
+ * text the translation was made from, so `bun run i18n:status` can tell when English has moved on.
+ */
+const messages: Catalogue = {
+	// source: eb814be3
+	'window.main.title': 'Principale',
+	// source: 45d10e1b
+	'window.main.titleWithApp': 'Waypoint — Principale',
+	// source: a72f1d0b
+	'window.main.description': 'L’explorateur de fichiers à onglets — bientôt disponible.',
+	// source: 12b1b753
+	'window.main.startFailed': 'Waypoint n’a pas pu démarrer l’explorateur de fichiers.',
+	// source: 57034aef
+	'window.settings.title': 'Waypoint — Paramètres',
+	// source: 1142060a
+	'window.properties.title': 'Waypoint — Propriétés',
+	// source: 674d10ba
+	'window.ops.title': 'Waypoint — Opérations',
+	// source: 9f4dc1e5
+	'window.shelf.title': 'Waypoint — Étagère',
+	// source: 2051a13a
+	'window.shelf.dropHint': 'Déposer pour ajouter à l’Étagère',
+	// source: c2403a41
+	'window.shelf.startFailed': 'Waypoint n’a pas pu démarrer la fenêtre de l’Étagère.',
+	// source: 812b5090
+	'window.tearGhost.title': 'Waypoint — Aperçu de l’onglet',
+	// source: e26d51d3
+	'settings.nav.label': 'Sections des paramètres',
+	// source: ca184496
+	'settings.unavailable': 'Indisponible',
+	// source: c910d474
+	'settings.section.general': 'Général',
+	// source: 358cc201
+	'settings.section.operations': 'Opérations',
+	// source: f08de9db
+	'settings.section.dnd': 'Glisser-déposer',
+	// source: 3907fa7f
+	'settings.section.appearance': 'Apparence',
+	// source: d3368cbf
+	'settings.section.accessibility': 'Accessibilité',
+	// source: 090512d9
+	'settings.section.integrations': 'Intégrations',
+	// source: a45737c5
+	'settings.section.previews': 'Aperçus et miniatures',
+	// source: 8b773803
+	'settings.section.transparency': 'Transparence',
+	// source: 003e8754
+	'settings.section.language': 'Langue et région',
+	// source: e71a1345
+	'settings.loading': 'Chargement des paramètres…',
+	// source: b58e662e
+	'settings.group.startup': 'Démarrage',
+	// source: bd6eb3cf
+	'settings.group.browsing': 'Navigation',
+	// source: 11bca4ac
+	'settings.group.titleBar': 'Barre de titre',
+	// source: 21ed2f9e
+	'settings.group.deleting': 'Suppression',
+	// source: 82bc68a6
+	'settings.group.copying': 'Copie',
+	// source: 3b2fe03e
+	'settings.group.queue': 'File d’attente',
+	// source: c560122a
+	'settings.group.trash': 'Corbeille',
+	// source: 036dbf5b
+	'settings.group.dropping': 'Dépôt',
+	// source: 338c8ac8
+	'settings.group.shelf': 'Étagère',
+	// source: 604dce44
+	'services.title': 'Services',
+	// source: 18c11893
+	'services.intro':
+		'Ce qui fonctionne sur ce système et, le cas échéant, pourquoi quelque chose ne fonctionne pas. Waypoint masque les options qui ne peuvent pas fonctionner ici.',
+	// source: a3b67f8c
+	'services.loading': 'Vérification des services…',
+	// source: 213333b5
+	'services.features': 'Fonctionne : {features}',
+	// source: e6744473
+	'services.state.available': 'Disponible',
+	// source: 274cb11a
+	'services.state.partial': 'Partiellement disponible',
+	// source: ca184496
+	'services.state.unavailable': 'Indisponible',
+	// source: 72ede065
+	'services.name.file-system': 'Système de fichiers',
+	// source: c560122a
+	'services.name.trash': 'Corbeille',
+	// source: 8cf37a4e
+	'services.name.native-dnd': 'Glisser-déposer avec d’autres applications',
+	// source: ed235159
+	'services.name.waypoint-ops': 'Opérations sur les fichiers',
+	// source: 104d1d96
+	'services.name.waypoint-session': 'Fenêtres et onglets',
+	// source: 74a883a0
+	'services.name.waypoint-settings': 'Paramètres',
+	// source: 30d10dfb
+	'services.name.os-prefs': 'Préférences du système (horloge)',
+	// source: 529d62bd
+	'services.name.system-appearance': 'Apparence du système',
+	// source: 3537cc36
+	'services.name.window-manager': 'Gestionnaire de fenêtres',
+	// source: 4b6a9dd9
+	'services.name.window-tearoff': 'Détachement d’onglets',
+	// source: f82d6466
+	'services.name.thumbnails': 'Miniatures',
+	// source: b15a7fb6
+	'services.name.volumes': 'Lecteurs et volumes',
+	// source: 77fe0e58
+	'services.name.window-effects': 'Effets de fenêtre',
+	// source: 97918f06
+	'services.name.mime-apps': 'Types de fichiers et Ouvrir avec',
+	// source: d068fa03
+	'services.name.xdg-portal': 'Portail de bureau',
+	// source: 3b23f28f
+	'services.name.desktop-integration': 'Services de bureau',
+	// source: 24a834c0
+	'settings.group.notifications': 'Notifications et progression',
+	// source: 8106f6bc
+	'settings.group.fileManager': 'Gestionnaire de fichiers',
+	// source: ca7eb278
+	'settings.group.shortcut': 'Raccourci global',
+	// source: ab21112e
+	'settings.integrations.unreadable': 'Waypoint n’a pas pu vérifier ce que ce système peut faire.',
+	// source: 1a4884ec
+	'settings.integrations.notifications.label': 'Avertir à la fin d’une tâche',
+	// source: 921f8ffa
+	'settings.integrations.notifications.description':
+		'Affiche une notification quand une tâche se termine ou échoue alors qu’aucune fenêtre de Waypoint n’est au premier plan ou après plus de 10 secondes d’exécution, et chaque fois qu’une tâche attend votre réponse. Un clic sur la notification ramène Waypoint au premier plan.',
+	// source: df1c2178
+	'settings.integrations.progress.label': 'Afficher la progression sur l’icône de l’application',
+	// source: 50dc170e
+	'settings.integrations.progress.description':
+		'Montre où en sont les tâches en cours sur l’icône de Waypoint dans le dock ou la barre des tâches.',
+	// source: 4d189222
+	'settings.integrations.sleep.label': 'Garder l’ordinateur éveillé pendant les tâches',
+	// source: 4f2047e2
+	'settings.integrations.sleep.description':
+		'Empêche l’ordinateur de se mettre en veille pendant l’exécution d’une tâche, puis lui permet de se mettre en veille de nouveau ensuite.',
+	// source: d1c463e0
+	'settings.integrations.fileManager.make.label':
+		'Faire de Waypoint le gestionnaire de fichiers par défaut',
+	// source: 1fb6dad3
+	'settings.integrations.fileManager.make.description':
+		'Les dossiers que d’autres applications ouvrent s’ouvriront dans Waypoint.',
+	// source: f43b9425
+	'settings.integrations.fileManager.make.action': 'Définir par défaut',
+	// source: 192f28ef
+	'settings.integrations.fileManager.settings.label':
+		'Choisir Waypoint dans les paramètres du système',
+	// source: e1b6c716
+	'settings.integrations.fileManager.settings.description':
+		'Windows ne permet qu’à vous de changer l’application par défaut. Ouvrez Applications par défaut, puis choisissez Waypoint pour les dossiers.',
+	// source: ea7784e7
+	'settings.integrations.fileManager.settings.action': 'Ouvrir Applications par défaut',
+	// source: 98111ad9
+	'settings.integrations.fileManager.state.default':
+		'Waypoint est le gestionnaire de fichiers par défaut.',
+	// source: 1b969bf3
+	'settings.integrations.fileManager.state.other':
+		'Le gestionnaire de fichiers par défaut est {name}.',
+	// source: 6a0f8f01
+	'settings.integrations.fileManager.failed':
+		'Impossible de définir Waypoint par défaut : {reason}',
+	// source: b073e448
+	'settings.integrations.fileManager.service.label':
+		'Ouvrir les dossiers que demandent d’autres applications',
+	// source: 92f53136
+	'settings.integrations.fileManager.service.description':
+		'Tant que cette option est activée, « Afficher dans le dossier » et les demandes semblables d’autres applications s’ouvrent dans Waypoint, chaque dossier dans un nouvel onglet.',
+	// source: 45f061ff
+	'settings.integrations.shortcut.enabled.label':
+		'Ramener Waypoint au premier plan avec un raccourci',
+	// source: 669f91e1
+	'settings.integrations.shortcut.enabled.description':
+		'Fonctionne depuis n’importe quelle application : affiche la dernière fenêtre utilisée ou en ouvre une nouvelle.',
+	// source: 5753ea37
+	'settings.integrations.shortcut.key.label': 'Raccourci',
+	// source: bdd944e8
+	'settings.integrations.shortcut.key.description':
+		'Une ou plusieurs des touches Ctrl, Alt, Maj et Super, puis une touche, comme Ctrl+Alt+W.',
+	// source: 88f20221
+	'settings.group.colours': 'Couleurs',
+	// source: a5119091
+	'settings.group.layout': 'Disposition',
+	// source: eae96e02
+	'settings.group.icons': 'Icônes',
+	// source: c587c260
+	'settings.group.vision': 'Vision',
+	// source: 0e5ffb72
+	'settings.group.motion': 'Mouvement et transparence',
+	// source: 69f68950
+	'settings.group.touch': 'Tactile',
+	// source: f82d6466
+	'settings.group.thumbnails': 'Miniatures',
+	// source: 15c08445
+	'settings.group.language': 'Langue et formats',
+	// source: 734e6606
+	'settings.group.direction': 'Sens de la disposition',
+	// source: d4b1ea57
+	'settings.group.overview': 'Vue d’ensemble',
+	// source: 1f2f41fc
+	'settings.appearance.mode.label': 'Mode de couleur',
+	// source: f732cd04
+	'settings.appearance.mode.description': 'Clair, sombre ou celui du système.',
+	// source: 6725e7bb
+	'settings.appearance.mode.system': 'Système',
+	// source: dbcd5e7b
+	'settings.appearance.mode.light': 'Clair',
+	// source: 60acc53f
+	'settings.appearance.mode.dark': 'Sombre',
+	// source: 1cea0a16
+	'settings.appearance.source.label': 'Source du thème',
+	// source: 3701f9c8
+	'settings.appearance.source.description':
+		'Les couleurs propres à Waypoint, ou le jeu de couleurs et l’accent du système.',
+	// source: d7cfab3c
+	'settings.appearance.source.liminal': 'Waypoint',
+	// source: 6725e7bb
+	'settings.appearance.source.os': 'Système',
+	// source: 12376f4c
+	'settings.appearance.accent.label': 'Couleur d’accent',
+	// source: c89d9208
+	'settings.appearance.accent.description':
+		'Le texte qui s’y superpose garde toujours un contraste suffisant; une couleur trop claire ou trop foncée est ajustée.',
+	// source: f3266ebe
+	'settings.appearance.accent.ember': 'Orange Waypoint',
+	// source: 6725e7bb
+	'settings.appearance.accent.os': 'Système',
+	// source: 6799c465
+	'settings.appearance.accent.custom': 'Choisir une couleur',
+	// source: e1535e71
+	'settings.appearance.accentColour.label': 'Accent personnalisé',
+	// source: 3f7017b3
+	'settings.appearance.accentColour.description': 'Choisissez la couleur à utiliser.',
+	// source: 77a283d6
+	'settings.appearance.density.label': 'Densité',
+	// source: 693b7292
+	'settings.appearance.density.description': 'L’espace qu’occupent les listes et la fenêtre.',
+	// source: 99452646
+	'settings.appearance.density.compact': 'Compacte',
+	// source: 459a23a5
+	'settings.appearance.density.comfortable': 'Confortable',
+	// source: 57edf234
+	'settings.appearance.density.spacious': 'Aérée',
+	// source: b1dcc728
+	'settings.appearance.iconStyle.label': 'Style des icônes',
+	// source: cc365db9
+	'settings.appearance.iconStyle.description': 'L’épaisseur des icônes propres à Waypoint.',
+	// source: dbcd5e7b
+	'settings.appearance.iconStyle.light': 'Fin',
+	// source: b455784a
+	'settings.appearance.iconStyle.regular': 'Normal',
+	// source: 94fee62e
+	'settings.appearance.iconStyle.bold': 'Gras',
+	// source: 3a1bc53f
+	'settings.appearance.iconStyle.filled': 'Plein',
+	// source: a4fe6526
+	'settings.language.language.label': 'Langue',
+	// source: 9c4ce556
+	'settings.language.language.description':
+		'La langue des menus, des boîtes de dialogue et des messages, ainsi que la façon d’écrire les dates, les nombres et les tailles. Ce qui n’est pas encore traduit s’affiche en anglais.',
+	// source: b0459211
+	'settings.language.language.system': 'Valeur par défaut du système',
+	// source: 55e947c6
+	'settings.language.language.en-CA': 'English (Canada)',
+	// source: 1abf744f
+	'settings.language.language.fr-CA': 'Français (Canada)',
+	// source: bede147e
+	'settings.language.language.en-XA': 'English avec accents (en-XA, pour les développeurs)',
+	// source: 579385ac
+	'settings.language.language.ar-XB': 'Inversé, de droite à gauche (ar-XB, pour les développeurs)',
+	// source: 9c8a9579
+	'settings.language.direction.label': 'Sens',
+	// source: 6449cca2
+	'settings.language.direction.description':
+		'Le sens de la disposition de la fenêtre. Automatique suit la langue; les autres servent à vérifier une disposition.',
+	// source: d461a493
+	'settings.language.direction.auto': 'Automatique',
+	// source: d6c33263
+	'settings.language.direction.ltr': 'De gauche à droite',
+	// source: 909fb836
+	'settings.language.direction.rtl': 'De droite à gauche',
+	// source: d153cd62
+	'settings.access.follow': 'Suivre le système',
+	// source: 13001175
+	'settings.access.on': 'Activé',
+	// source: ca7981b4
+	'settings.access.off': 'Désactivé',
+	// source: 415a8336
+	'settings.access.highContrast.label': 'Contraste élevé',
+	// source: f0d0e780
+	'settings.access.highContrast.description':
+		'Noir sur blanc ou blanc sur noir, avec des bordures marquées et un accent bien visible.',
+	// source: d68761cc
+	'settings.access.textSize.label': 'Taille du texte',
+	// source: ded569d7
+	'settings.access.textSize.description':
+		'Agrandit le texte et les lignes. La taille de texte du système compte aussi; la plus grande l’emporte.',
+	// source: 32e48995
+	'settings.access.textSize.100': '100 %',
+	// source: 1b7769a7
+	'settings.access.textSize.115': '115 %',
+	// source: c6ac0a1f
+	'settings.access.textSize.130': '130 %',
+	// source: 3c64d7a7
+	'settings.access.strongFocus.label': 'Anneau de focus renforcé',
+	// source: 1e74a55a
+	'settings.access.strongFocus.description':
+		'Un contour plus épais autour de l’élément qui a le focus du clavier.',
+	// source: 297ef4c7
+	'settings.access.reducedMotion.label': 'Réduire les animations',
+	// source: 6d3c26ba
+	'settings.access.reducedMotion.description':
+		'Aucun glissement, rebond ni fondu; les changements se font immédiatement.',
+	// source: 326911d2
+	'settings.access.reducedTransparency.label': 'Réduire la transparence',
+	// source: d3e053f6
+	'settings.access.reducedTransparency.description':
+		'Dessine toutes les surfaces de façon opaque, quel que soit le réglage de la page Transparence.',
+	// source: 849294f5
+	'settings.access.touchMode.label': 'Mode tactile',
+	// source: e9a5327f
+	'settings.access.touchMode.description':
+		'Cibles plus grandes, d’au moins 44 px. Automatique l’active après un toucher sur la fenêtre, ou en l’absence de souris.',
+	// source: ca7981b4
+	'settings.access.touchMode.off': 'Désactivé',
+	// source: d461a493
+	'settings.access.touchMode.auto': 'Automatique',
+	// source: 13001175
+	'settings.access.touchMode.on': 'Activé',
+	// source: 244b3725
+	'settings.ops.unreadable':
+		'Les paramètres des opérations n’ont pas pu être lus; ils ne peuvent donc pas être modifiés pour le moment : {reason}',
+	// source: 78cf79e7
+	'settings.error.range': 'Choisissez une valeur entre {min} et {max}.',
+	// source: c4af0661
+	'settings.error.saveFailed': 'Le changement n’a pas pu être enregistré : {reason}',
+	// source: c340dc01
+	'settings.error.generic': 'une erreur s’est produite',
+	// source: cfa24c48
+	'settings.general.startup.label': 'Au démarrage de Waypoint',
+	// source: 8b9f3270
+	'settings.general.startup.description':
+		'Rouvrir les fenêtres et les onglets de la dernière fois, ou ouvrir une seule fenêtre dans le dossier personnel. Prend effet au prochain démarrage de Waypoint.',
+	// source: 35e4dc9b
+	'settings.general.startup.restore': 'Restaurer la session',
+	// source: 029e8085
+	'settings.general.startup.home': 'Ouvrir le dossier personnel',
+	// source: 99f51518
+	'settings.general.defaultView.label': 'Vue par défaut',
+	// source: 2c066d7e
+	'settings.general.defaultView.description':
+		'La façon dont une nouvelle fenêtre affiche un dossier. Les fenêtres déjà ouvertes gardent leur vue.',
+	// source: 6f202f54
+	'settings.general.defaultView.list': 'Liste',
+	// source: 0d7d12ac
+	'settings.general.defaultView.grid': 'Grille',
+	// source: 61477f03
+	'settings.general.clickMode.label': 'Ouvrir les éléments avec',
+	// source: 49f14de1
+	'settings.general.clickMode.description':
+		'Ouvrir les fichiers et les dossiers par un clic simple ou un double-clic.',
+	// source: 8ffb032f
+	'settings.general.clickMode.single': 'Clic simple',
+	// source: 691f614c
+	'settings.general.clickMode.double': 'Double-clic',
+	// source: 5848f846
+	'settings.general.showHidden.label': 'Afficher les fichiers masqués par défaut',
+	// source: 9955f9ba
+	'settings.general.appNameInTitle.label':
+		'Afficher le nom de l’application dans la barre de titre',
+	// source: 4f21c593
+	'settings.general.appNameInTitle.description':
+		'Fait commencer l’intitulé de la barre de titre par « Waypoint ». Désactivé, l’intitulé est simplement « Principale ».',
+	// source: 2d9de7e6
+	'menuBar.label': 'Barre de menus',
+	// source: d47d7cb0
+	'menuBar.more': 'Plus',
+	// source: 982e1ab2
+	'settings.general.menuBar.label': 'Afficher une barre de menus sous la barre de titre',
+	// source: 1c421a68
+	'settings.general.menuBar.description':
+		'Place les menus de l’application (Fichier, Édition, Affichage et Fenêtre) dans une barre à part. Le bouton du nom de l’application reste alors une simple étiquette.',
+	// source: da4880c1
+	'settings.general.showHidden.description':
+		'Une nouvelle fenêtre affiche les fichiers masqués. Les fenêtres déjà ouvertes gardent leur choix.',
+	// source: ac54cdbd
+	'settings.general.confirmTrash.label': 'Confirmer avant de déplacer vers la Corbeille',
+	// source: fcf37ced
+	'settings.general.confirmTrash.description':
+		'Le déplacement vers la Corbeille peut être annulé; aucune confirmation n’est donc demandée, sauf si vous activez cette option. Supprimer définitivement demande toujours confirmation.',
+	// source: 0bbdce6b
+	'settings.operations.verify.label': 'Vérifier les copies après l’écriture',
+	// source: 188770ed
+	'settings.operations.verify.description':
+		'Relit chaque fichier copié et le compare à l’original. Plus lent, mais utile pour les lecteurs amovibles.',
+	// source: 8ceb4ed9
+	'settings.operations.algorithm.label': 'Algorithme de somme de contrôle',
+	// source: 4a8aeb54
+	'settings.operations.algorithm.description': 'La somme de contrôle que la vérification compare.',
+	// source: ce0985d9
+	'settings.operations.algorithm.needsVerify':
+		'Activez « Vérifier les copies après l’écriture » pour en choisir un.',
+	// source: 80b5ebed
+	'settings.operations.algorithm.blake3': 'BLAKE3 (plus rapide)',
+	// source: bbd07c4f
+	'settings.operations.algorithm.sha256': 'SHA-256',
+	// source: 9e869d4d
+	'settings.operations.concurrency.label': 'Opérations exécutées en même temps',
+	// source: 9fd5e89a
+	'settings.operations.concurrency.description':
+		'Le nombre de copies, de déplacements et de suppressions exécutés ensemble; les autres attendent dans la file d’attente. Un changement s’applique à la prochaine opération.',
+	// source: 7f82de8b
+	'settings.operations.undoDepth.label': 'Profondeur de l’historique d’annulation',
+	// source: 39eb28a9
+	'settings.operations.undoDepth.description':
+		'Le nombre d’opérations que la fonction Annuler peut remonter.',
+	// source: a13cbe9e
+	'settings.operations.trashExpiry.label': 'Vider les anciens éléments de la Corbeille',
+	// source: 70a834dc
+	'settings.operations.trashExpiry.description':
+		'Supprime définitivement les éléments qui sont dans la Corbeille depuis plus longtemps que le nombre de jours ci-dessous. S’exécute au démarrage de Waypoint et est désactivé par défaut.',
+	// source: d26a7b9f
+	'settings.operations.trashDays.label': 'Supprimer les éléments de la Corbeille datant de plus de',
+	// source: 9c5cd9ae
+	'settings.operations.trashDays.description':
+		'Compté à partir du jour où un élément a été déplacé vers la Corbeille.',
+	// source: 82848f07
+	'settings.operations.trashDays.needsExpiry':
+		'Activez « Vider les anciens éléments de la Corbeille » pour le régler.',
+	// source: ab51004e
+	'settings.operations.trashDays.unit': 'jours',
+	// source: 24ac24ba
+	'settings.dnd.unavailable':
+		'Le glissement de fichiers vers d’autres applications est indisponible : {reason}',
+	// source: 33b7ab32
+	'settings.dnd.unavailable.noReason': 'ce système ne le prend pas en charge.',
+	// source: 0507f329
+	'settings.dnd.rule.label': 'Action de dépôt par défaut',
+	// source: e8bb978d
+	'settings.dnd.rule.description':
+		'Ce que fait le dépôt de fichiers quand aucune touche de modification n’est enfoncée. Ctrl copie, Maj déplace et Alt ouvre le sélecteur d’action, quel que soit ce réglage.',
+	// source: ec757486
+	'settings.dnd.rule.byVolume': 'Déplacer sur le même volume, copier sinon',
+	// source: d6f17113
+	'settings.dnd.rule.alwaysCopy': 'Toujours copier',
+	// source: 3c427715
+	'settings.dnd.rule.alwaysAsk': 'Toujours demander',
+	// source: 4bd471cc
+	'settings.dnd.spring.label': 'Délai d’ouverture au survol',
+	// source: 98fe55ca
+	'settings.dnd.spring.description':
+		'La durée pendant laquelle un glissement survole un dossier, un onglet ou un élément de la barre latérale avant qu’il s’ouvre, de 200 à 2 000 millisecondes.',
+	// source: f785c3ce
+	'settings.dnd.spring.unit': 'ms',
+	// source: 27c040c0
+	'settings.dnd.shelf.label': 'Conserver l’Étagère d’une session à l’autre',
+	// source: eb0c713a
+	'settings.dnd.shelf.description':
+		'L’Étagère garde ses éléments quand Waypoint se ferme puis redémarre.',
+	// source: a9ff2643
+	'settings.previews.unavailable': 'Les miniatures sont indisponibles sur ce système : {reason}',
+	// source: 1025ebfc
+	'settings.previews.unavailable.noReason': 'le service de miniatures n’a pas pu démarrer.',
+	// source: 809997f6
+	'settings.previews.show.label': 'Afficher les miniatures',
+	// source: c994f3c3
+	'settings.previews.show.description':
+		'Dessine un aperçu d’une image, d’une vidéo ou d’un document dans la grille, dans les lignes hautes de la liste et sur l’Étagère, à la place de l’icône du type de fichier. Un fichier sans miniature garde son icône. Seuls les fichiers de cet ordinateur en reçoivent une.',
+	// source: 4d681db9
+	'settings.previews.max.label': 'Taille maximale d’un fichier pour créer une miniature',
+	// source: b63c2654
+	'settings.previews.max.description':
+		'Un fichier plus gros garde son icône, afin qu’une image énorme ne ralentisse pas un dossier. Les miniatures déjà créées sont partagées avec d’autres gestionnaires de fichiers et s’affichent quelle que soit la taille.',
+	// source: 1d09f6fa
+	'settings.previews.max.unit': 'Mo',
+	// source: f76a11c3
+	'settings.previews.measureHome.label':
+		'Mesurer le dossier personnel à l’ouverture de la Vue d’ensemble',
+	// source: 66b6863b
+	'settings.previews.measureHome.description':
+		'La Vue d’ensemble mesure votre dossier personnel pour lister ses plus gros dossiers et remplir « Vos fichiers » sur le volume qui le contient. Une mesure datant de moins d’une heure est réutilisée. Désactivez cette option pour ne mesurer que lorsque vous choisissez Mesurer maintenant.',
+	// source: a96cf207
+	'settings.transparency.unavailable': 'La transparence est indisponible sur ce système : {reason}',
+	// source: 4a780a60
+	'settings.transparency.unknown':
+		'Waypoint n’a pas pu déterminer si ce système peut afficher le bureau à travers une fenêtre; les fenêtres restent donc opaques.',
+	// source: 8a4066e7
+	'settings.transparency.preview.caption':
+		'Un exemple de fenêtre sur un fond d’écran clair et chargé, dessiné avec les réglages ci-dessous.',
+	// source: f7efa7bc
+	'settings.transparency.preview.sidebar': 'Barre latérale',
+	// source: b4e929d8
+	'settings.transparency.preview.title': 'Documents',
+	// source: b3f857f6
+	'settings.transparency.preview.file': 'Rapport.pdf',
+	// source: ed077f3d
+	'settings.transparency.preview.menu.open': 'Ouvrir',
+	// source: 3064d79a
+	'settings.transparency.preview.menu.rename': 'Renommer',
+	// source: 9adcdf33
+	'settings.transparency.preview.menu.trash': 'Déplacer vers la Corbeille',
+	// source: 959f6d94
+	'settings.transparency.preview.label': 'Aperçu d’une fenêtre translucide',
+	// source: 3dc9f569
+	'settings.transparency.experimental': 'Expérimental',
+	// source: d5ca3b5f
+	'settings.transparency.enable.label': 'Fenêtre transparente',
+	// source: 61c9738e
+	'settings.transparency.enable.description':
+		'Laisse transparaître le bureau à travers la fenêtre. Désactivée tant que vous ne l’activez pas, et toujours désactivée en contraste élevé ou en transparence réduite.',
+	// source: f79e4c86
+	'settings.transparency.enable.experimental':
+		'Sous Linux, cette fonction est expérimentale : son aspect dépend du compositeur et de WebKitGTK, et c’est la première chose à désactiver si une fenêtre paraît anormale.',
+	// source: 556b40d7
+	'settings.transparency.off.highContrast':
+		'La transparence est désactivée tant que le contraste élevé est activé (Accessibilité).',
+	// source: 8604baf4
+	'settings.transparency.off.reducedTransparency':
+		'La transparence est désactivée tant que la transparence réduite est activée (Accessibilité).',
+	// source: 08379103
+	'settings.transparency.off.unavailable':
+		'La transparence est activée dans les paramètres, mais cette fenêtre ne peut pas être translucide.',
+	// source: 3c0eaa9c
+	'settings.transparency.off.unfocused':
+		'Cette fenêtre est opaque tant qu’elle n’est pas au premier plan.',
+	// source: ed104c1d
+	'settings.transparency.opacity.label': 'Opacité de la barre de titre et de la barre de menus',
+	// source: 1b3ebe3d
+	'settings.transparency.opacity.description':
+		'Le degré d’opacité de la barre de titre et de la barre de menus. Plus la valeur est basse, plus elles sont translucides.',
+	// source: 8b92748b
+	'settings.transparency.opacity.rows.label': 'Opacité des onglets et de la barre d’outils',
+	// source: 84dba55f
+	'settings.transparency.opacity.rows.description':
+		'Le degré d’opacité des onglets, de la barre d’outils et de la barre d’état.',
+	// source: b39491c7
+	'settings.transparency.opacity.sidebar.label': 'Opacité de la barre latérale',
+	// source: 1520a404
+	'settings.transparency.opacity.sidebar.description':
+		'Le degré d’opacité de la barre latérale, de l’Inspecteur et de l’Étagère.',
+	// source: 42dc406b
+	'settings.transparency.opacity.content.label': 'Opacité de la zone des fichiers',
+	// source: 6704b6e2
+	'settings.transparency.opacity.content.description':
+		'Le degré d’opacité de la liste et de la grille.',
+	// source: b43a26ec
+	'settings.transparency.opacity.raised':
+		'Pour que le texte reste lisible avec ce thème, cette partie reste opaque à au moins {percent} %.',
+	// source: bbf3f11c
+	'settings.transparency.opacity.unit': '%',
+	// source: ff47e695
+	'settings.transparency.blur.label': 'Flou derrière la fenêtre',
+	// source: 88352b22
+	'settings.transparency.blur.description':
+		'Rend flou ce qui se trouve derrière la fenêtre là où il transparaît. Faible donne une matière douce, Élevé une matière plus marquée (Windows); sous Linux, les deux produisent le même flou.',
+	// source: ca7981b4
+	'settings.transparency.blur.off': 'Désactivé',
+	// source: f793de20
+	'settings.transparency.blur.low': 'Faible',
+	// source: c4ebc6d4
+	'settings.transparency.blur.high': 'Élevé',
+	// source: 9b90ac35
+	'settings.transparency.blur.unavailable': 'Le flou n’est pas disponible ici : {reason}',
+	// source: 77abe354
+	'settings.transparency.blur.unavailable.noReason':
+		'ce système n’offre aucun moyen de rendre flou ce qui se trouve derrière une fenêtre.',
+	// source: 19734a1b
+	'settings.group.transparencyWindow': 'Fenêtre',
+	// source: 324b134f
+	'settings.group.transparencyPreview': 'Aperçu',
+	// source: 6062652e
+	'settings.group.transparencyOpacity': 'Opacité',
+	// source: b608b7e1
+	'settings.group.transparencyRegions': 'Parties de la fenêtre',
+	// source: 610b7468
+	'settings.group.transparencyReset': 'Valeurs par défaut',
+	// source: e240e635
+	'settings.transparency.reset.label': 'Rétablir les valeurs par défaut',
+	// source: 31a594a4
+	'settings.transparency.reset.description':
+		'Remet chaque paramètre de cette page à sa valeur par défaut, sauf l’interrupteur de la fenêtre transparente.',
+	// source: daee7606
+	'settings.transparency.reset.action': 'Rétablir',
+	// source: 93534e3e
+	'settings.group.transparencyMenus': 'Menus',
+	// source: 67afa7da
+	'settings.group.transparencyFocus': 'Quand la fenêtre n’est pas au premier plan',
+	// source: 2a85ee09
+	'settings.transparency.regions.titleBar.label': 'Barre de titre, onglets et barre d’outils',
+	// source: 483a7e58
+	'settings.transparency.regions.titleBar.description':
+		'La barre de titre, les onglets, la barre d’outils et la barre d’état. Désactivé, ils restent sur un arrière-plan opaque.',
+	// source: a81e244d
+	'settings.transparency.regions.sidebar.label': 'Barre latérale et volets latéraux',
+	// source: 886cea35
+	'settings.transparency.regions.sidebar.description':
+		'La barre latérale, l’Inspecteur et l’Étagère. Désactivé, ils restent sur un arrière-plan opaque.',
+	// source: f96275a1
+	'settings.transparency.regions.content.label': 'Zone des fichiers',
+	// source: ca521b02
+	'settings.transparency.regions.content.description':
+		'La liste et la grille. Désactivé, les fichiers restent sur un arrière-plan opaque.',
+	// source: 34b1c65b
+	'settings.transparency.menus.label': 'Menus translucides',
+	// source: f3a31096
+	'settings.transparency.menus.description':
+		'Les menus contextuels et le menu de l’application laissent voir ce qui se trouve derrière eux, en flou.',
+	// source: 4c0a89f5
+	'settings.transparency.menuOpacity.label': 'Opacité des menus',
+	// source: 2afa8f67
+	'settings.transparency.menuOpacity.description':
+		'Les menus restent presque opaques pour que leur texte soit facile à lire.',
+	// source: 7e7e9009
+	'settings.transparency.solidUnfocused.label': 'Opaque hors du premier plan',
+	// source: 15bb64cd
+	'settings.transparency.solidUnfocused.description':
+		'Une fenêtre que vous n’utilisez pas est dessinée opaque et renonce à son flou, ce qui épargne aussi du travail au compositeur.',
+	// source: 61a7a80b
+	'settings.open.failed': 'Impossible d’ouvrir la fenêtre des paramètres.',
+	// source: abc7e989
+	'browse.list.label': 'Fichiers',
+	// source: dcd1d522
+	'browse.column.name': 'Nom',
+	// source: 1af85190
+	'browse.column.size': 'Taille',
+	// source: e8ce5dca
+	'browse.column.modified': 'Modifié',
+	// source: f5387f9b
+	'browse.column.kind': 'Genre',
+	// source: d178c667
+	'browse.column.original': 'Emplacement d’origine',
+	// source: ce706088
+	'browse.column.deleted': 'Date de suppression',
+	// source: 71e7250c
+	'browse.columns.label': 'Trier la liste',
+	// source: 816773c6
+	'browse.sort.ascending': 'tri croissant',
+	// source: b8dcd319
+	'browse.sort.descending': 'tri décroissant',
+	// source: bda05058
+	'browse.value.none': '—',
+	// source: dc380888
+	'browse.row.loading': 'Chargement',
+	// source: 74ccd433
+	'browse.group.folder': 'Dossier',
+	// source: 1aa4cb0b
+	'browse.group.image': 'Image',
+	// source: bc1b8890
+	'browse.group.audio': 'Audio',
+	// source: d534be82
+	'browse.group.video': 'Vidéo',
+	// source: 66f4804e
+	'browse.group.archive': 'Archive',
+	// source: 340f4630
+	'browse.group.code': 'Code',
+	// source: d6bd8c0a
+	'browse.group.document': 'Document',
+	// source: 50009ce1
+	'browse.group.other': 'Fichier',
+	// source: c4d6bb20
+	'browse.header.kind.folder': 'Dossiers',
+	// source: be7e2f20
+	'browse.header.kind.image': 'Images',
+	// source: bc1b8890
+	'browse.header.kind.audio': 'Audio',
+	// source: c9a96394
+	'browse.header.kind.video': 'Vidéos',
+	// source: e404aa80
+	'browse.header.kind.archive': 'Archives',
+	// source: 340f4630
+	'browse.header.kind.code': 'Code',
+	// source: b4e929d8
+	'browse.header.kind.document': 'Documents',
+	// source: f456eff6
+	'browse.header.kind.other': 'Autres fichiers',
+	// source: 2b065c7c
+	'browse.header.modified.today': 'Aujourd’hui',
+	// source: 56618125
+	'browse.header.modified.yesterday': 'Hier',
+	// source: ec2f4ce7
+	'browse.header.modified.earlierThisWeek': 'Plus tôt cette semaine',
+	// source: 0603deca
+	'browse.header.modified.last7Days': '7 derniers jours',
+	// source: f8f03fb4
+	'browse.header.modified.last30Days': '30 derniers jours',
+	// source: 98597183
+	'browse.header.modified.thisYear': 'Cette année',
+	// source: ad224bb8
+	'browse.header.modified.unknown': 'Date inconnue',
+	// source: 918a999d
+	'browse.header.year': '{year}',
+	// source: 5b8aa0bf
+	'browse.header.size.unspecified': 'Non précisée',
+	// source: c6c094bc
+	'browse.header.size.empty': 'Vide',
+	// source: 59c0aa41
+	'browse.header.size.tiny': 'Minuscule (moins de 10 ko)',
+	// source: 4667edf9
+	'browse.header.size.small': 'Petite (10 à 100 ko)',
+	// source: 86f1e6fc
+	'browse.header.size.medium': 'Moyenne (100 ko à 1 Mo)',
+	// source: 249df97f
+	'browse.header.size.large': 'Grande (1 à 16 Mo)',
+	// source: 554df513
+	'browse.header.size.huge': 'Énorme (16 à 128 Mo)',
+	// source: 933b853c
+	'browse.header.size.gigantic': 'Gigantesque (plus de 128 Mo)',
+	// source: f688e3a3
+	'browse.header.name.symbols': 'Chiffres et symboles',
+	// source: 3e6dce25
+	'browse.header.type.none': 'Aucune extension',
+	// source: a97dedba
+	'browse.header.type.extension': 'Fichiers {extension}',
+	// source: 208a19d5
+	'browse.header.count.one': '{count} élément',
+	// source: f65216b3
+	'browse.header.count.many': '{count} d’éléments',
+	// source: f65216b3
+	'browse.header.count.other': '{count} éléments',
+	// source: 85a43b58
+	'browse.header.label.expanded': '{group}, {count}, développé',
+	// source: 6351e8ab
+	'browse.header.label.collapsed': '{group}, {count}, réduit',
+	// source: c3ab98eb
+	'browse.opening': 'Ouverture du dossier…',
+	// source: d8a7d216
+	'browse.scanning': 'Analyse en cours… {count} éléments trouvés jusqu’ici',
+	// source: bd88d713
+	'browse.empty': 'Ce dossier est vide.',
+	// source: 37181158
+	'browse.capped': 'Éléments affichés : {shown} sur {total}',
+	// source: 05d0e5f0
+	'browse.error.notFound.title': 'Dossier introuvable',
+	// source: 0cf771f0
+	'browse.error.notFound.detail': '{location} n’existe pas, ou a été déplacé ou supprimé.',
+	// source: 59b77dbd
+	'browse.error.permissionDenied.title': 'Permission refusée',
+	// source: ee20e2b1
+	'browse.error.permissionDenied.detail': 'Vous n’avez pas la permission d’ouvrir {location}.',
+	// source: 78a92a5f
+	'browse.error.notADirectory.title': 'Pas un dossier',
+	// source: 565902db
+	'browse.error.notADirectory.detail': '{location} est un fichier, pas un dossier.',
+	// source: fb86171c
+	'browse.error.other.title': 'Ce dossier n’a pas pu être affiché',
+	// source: dc6a434c
+	'browse.error.other.detail': 'Une erreur s’est produite pendant la lecture du dossier.',
+	// source: 6b411541
+	'browse.selection.none': 'Aucun élément sélectionné',
+	// source: f2015f5f
+	'browse.selection.one': '{count} élément sélectionné',
+	// source: b0bea8ba
+	'browse.selection.many': '{count} d’éléments sélectionnés',
+	// source: b0bea8ba
+	'browse.selection.other': '{count} éléments sélectionnés',
+	// source: 3db65f8c
+	'nav.toolbar.label': 'Navigation',
+	// source: d010ff39
+	'nav.panels.label': 'Volets',
+	// source: fe7178ff
+	'nav.panels.more': 'Autres volets',
+	// source: 76900f1b
+	'nav.back': 'Précédent',
+	// source: f1c65e14
+	'nav.forward': 'Suivant',
+	// source: 55490a4b
+	'nav.up': 'Dossier parent',
+	// source: 9e916de0
+	'nav.history.back': 'Dossiers précédents',
+	// source: cc318406
+	'nav.history.forward': 'Dossiers suivants',
+	// source: 15b61974
+	'nav.path.crumbs': 'Emplacement',
+	// source: d2aa1cf2
+	'nav.path.edit': 'Modifier l’emplacement',
+	// source: 5fec473a
+	'nav.path.input': 'Saisissez un emplacement et appuyez sur Entrée',
+	// source: e9a8f6ae
+	'nav.path.invalid': '« {input} » n’est pas un emplacement que Waypoint peut ouvrir.',
+	// source: ecaf97c4
+	'nav.path.unsupported': 'Waypoint ne peut pas encore ouvrir les emplacements {what}.',
+	// source: 602fffbd
+	'nav.path.failed': 'Cet emplacement n’a pas pu être vérifié.',
+	// source: 8e5ea509
+	'tabs.strip.label': 'Onglets',
+	// source: abc7e989
+	'tabs.panel.label': 'Fichiers',
+	// source: 1e08fda9
+	'tabs.new': 'Nouvel onglet',
+	// source: 6301612e
+	'tabs.close': 'Fermer {title}',
+	// source: 7a08c90e
+	'tabs.scrollLeft': 'Faire défiler les onglets vers la gauche',
+	// source: 449e09ff
+	'tabs.scrollRight': 'Faire défiler les onglets vers la droite',
+	// source: 4925fe5d
+	'tabs.moved': '{title} déplacé à la position {position} sur {count}',
+	// source: 219e92dc
+	'tabs.count.one': '{count} onglet',
+	// source: ba82764a
+	'tabs.count.many': '{count} d’onglets',
+	// source: ba82764a
+	'tabs.count.other': '{count} onglets',
+	// source: 6067c720
+	'tabs.menu.label': 'Actions de l’onglet',
+	// source: 2adf5c1e
+	'tabs.menu.moveToNewWindow': 'Déplacer vers une nouvelle fenêtre',
+	// source: 4fcdd857
+	'tabs.menu.moveToWindow': 'Déplacer vers la fenêtre',
+	// source: 8a0143d6
+	'tabs.menu.windowEntry': '{title} — {tabs}',
+	// source: 19734a1b
+	'tabs.menu.untitledWindow': 'Fenêtre',
+	// source: 39fe884b
+	'tabs.announce.movedNewWindow': 'Déplacé vers une nouvelle fenêtre',
+	// source: 0a2ba9bc
+	'tabs.announce.openedWindow': 'Nouvelle fenêtre ouverte',
+	// source: d0d0b67e
+	'tabs.announce.movedToWindow': 'Déplacé : {name} vers {window}',
+	// source: cc9a0dd1
+	'tabs.announce.movedHere': 'Déplacé : {name} vers cette fenêtre',
+	// source: dba3505d
+	'tabs.announce.movedManyHere.one': '{count} onglet déplacé vers cette fenêtre',
+	// source: 7ccfd079
+	'tabs.announce.movedManyHere.many': '{count} d’onglets déplacés vers cette fenêtre',
+	// source: 7ccfd079
+	'tabs.announce.movedManyHere.other': '{count} onglets déplacés vers cette fenêtre',
+	// source: 0cd781a6
+	'window.notice.many':
+		'De nombreuses fenêtres sont ouvertes. Chacune utilise de la mémoire; fermez celles dont vous n’avez plus besoin.',
+	// source: b515269f
+	'window.notice.limit':
+		'Waypoint ne peut pas ouvrir plus de {limit} fenêtres. Fermez-en une d’abord.',
+	// source: 5ea58049
+	'window.notice.openFailed': 'Impossible d’ouvrir une nouvelle fenêtre.',
+	// source: d1c8727d
+	'window.notice.moveFailed': 'Impossible de le déplacer vers une autre fenêtre.',
+	// source: 81386538
+	'drag.pill.move': 'Relâcher pour déplacer {title} à la position {position} sur {count}',
+	// source: 0b0a92af
+	'drag.pill.moveGroup': 'Relâcher pour déplacer le groupe {name}',
+	// source: 7ae94032
+	'drag.pill.split': 'Relâcher pour diviser avec {name}',
+	// source: 0b88a6ba
+	'drag.pill.newGroup': 'Relâcher pour créer un nouveau groupe',
+	// source: e6a314e7
+	'drag.pill.addToGroup': 'Relâcher pour ajouter à {name}',
+	// source: 457d2e89
+	'drag.pill.leaveGroup': 'Relâcher pour quitter {name}',
+	// source: 9483535e
+	'drag.pill.splitPane': 'Diviser {edge} avec la vue actuelle',
+	// source: 33b2b6e2
+	'drag.pill.separate': 'Relâcher pour séparer la vue divisée',
+	// source: 5462e746
+	'drag.pill.newWindow': 'Relâcher pour ouvrir dans une nouvelle fenêtre',
+	// source: e4fdd15b
+	'drag.pill.mergeInto': 'Relâcher pour fusionner dans {name}',
+	// source: 2155dc56
+	'drag.pill.esc': 'Échap pour annuler',
+	// source: 360f8403
+	'drag.edge.left': 'à gauche',
+	// source: 27042f4e
+	'drag.edge.right': 'à droite',
+	// source: 28720365
+	'drag.edge.top': 'en haut',
+	// source: be9b7607
+	'drag.edge.bottom': 'en bas',
+	// source: cd600a74
+	'drag.zone.left': 'Diviser à gauche',
+	// source: aa9997bb
+	'drag.zone.right': 'Diviser à droite',
+	// source: 906ea61e
+	'drag.zone.top': 'Diviser en haut',
+	// source: 7d9dc1fd
+	'drag.zone.bottom': 'Diviser en bas',
+	// source: a667335e
+	'drag.announce.pill': 'Glissement : {text}',
+	// source: bf2577ab
+	'drag.announce.cancelled': 'Glissement annulé',
+	// source: 19382c09
+	'drag.announce.timedOut': 'Le glissement a pris fin parce qu’il durait trop longtemps',
+	// source: 3c156ebd
+	'drag.announce.movedNewWindow': 'Déplacé vers une nouvelle fenêtre : {name}',
+	// source: b7a1b38d
+	'drag.announce.merged': 'Fusionné : {name} dans {window}',
+	// source: 95522fcd
+	'drag.announce.landing':
+		'Un onglet est glissé ici : relâchez pour l’ajouter à la position {position}',
+	// source: a44b05c2
+	'drag.announce.landingMany':
+		'{count} onglets sont glissés ici : relâchez pour les ajouter à partir de la position {position}',
+	// source: 208a19d5
+	'dnd.items.one': '{count} élément',
+	// source: f65216b3
+	'dnd.items.many': '{count} d’éléments',
+	// source: f65216b3
+	'dnd.items.other': '{count} éléments',
+	// source: 87446429
+	'dnd.drag.one': 'Glissement de {name}',
+	// source: 0cb4c07e
+	'dnd.drag.items.one': 'Glissement de {count} élément',
+	// source: b332ad92
+	'dnd.drag.items.many': 'Glissement de {count} d’éléments',
+	// source: b332ad92
+	'dnd.drag.items.other': 'Glissement de {count} éléments',
+	// source: 867a84e5
+	'dnd.pill.copy': 'Copier {what} vers {target}',
+	// source: 81ea6d06
+	'dnd.pill.move': 'Déplacer {what} vers {target}',
+	// source: b23b3ae7
+	'dnd.pill.moveOrCopy': 'Déplacer ou copier {what} vers {target}',
+	// source: baa189b1
+	'dnd.pill.link': 'Créer un lien vers {what} dans {target}',
+	// source: 3eb48039
+	'dnd.pill.ask': 'Choisir quoi faire de {what} dans {target}',
+	// source: 369c036a
+	'dnd.pill.trash': 'Déplacer {what} vers la Corbeille',
+	// source: dc190f24
+	'dnd.pill.shelf': 'Ajouter {what} à l’Étagère',
+	// source: 306ef19c
+	'dnd.pill.openTab': 'Ouvrir dans un nouvel onglet',
+	// source: fd166d05
+	'dnd.pill.openTabs': 'Ouvrir dans de nouveaux onglets',
+	// source: ab0222cc
+	'dnd.pill.openSplit': 'Ouvrir dans une paire divisée',
+	// source: e28fda3c
+	'dnd.pill.openInGroup': 'Ouvrir dans un nouvel onglet de {target}',
+	// source: 7bb8ab98
+	'dnd.pill.blocked': 'Non autorisé : {reason}',
+	// source: 62134b0f
+	'dnd.blocked.sameFolder': 'déjà dans {target}',
+	// source: dc0fd8ca
+	'dnd.blocked.intoItself': 'un dossier ne peut pas être placé dans lui-même',
+	// source: 115c2e78
+	'dnd.blocked.source': '{target} est en cours de glissement',
+	// source: a0d8865f
+	'dnd.blocked.readOnly': '{target} ne peut pas être modifié',
+	// source: f31ba2fd
+	'dnd.blocked.trashView': 'utilisez la Corbeille dans la barre latérale',
+	// source: ea5089e8
+	'dnd.blocked.trashSource': 'ces éléments ne peuvent pas être mis à la Corbeille d’ici',
+	// source: 44b56bd9
+	'dnd.blocked.shelfSource': 'les éléments de l’Étagère vont dans des dossiers',
+	// source: b3390913
+	'dnd.blocked.onShelf': 'ces éléments sont déjà sur l’Étagère',
+	// source: cd2d06ba
+	'dnd.blocked.unavailable': 'la Corbeille n’est pas disponible',
+	// source: a4ba81b6
+	'dnd.blocked.refused': '{reason}',
+	// source: 6f5a6034
+	'dnd.verb.copy': 'copier',
+	// source: 683a62ce
+	'dnd.verb.move': 'déplacer',
+	// source: a87c991e
+	'dnd.verb.moveOrCopy': 'déplacer ou copier',
+	// source: b1b1bdb4
+	'dnd.verb.link': 'créer un lien',
+	// source: 9e4a70ed
+	'dnd.verb.ask': 'demander quoi faire',
+	// source: 5b88b228
+	'dnd.verb.trash': 'déplacer vers la Corbeille',
+	// source: 92eb0fca
+	'dnd.verb.open': 'ouvrir dans un nouvel onglet',
+	// source: 80b92eb2
+	'dnd.verb.shelf': 'ajouter à l’Étagère',
+	// source: fc52c665
+	'dnd.announce.over': 'Au-dessus de {target} : action prévue, {action}',
+	// source: 35d3078f
+	'dnd.announce.blocked': 'Au-dessus de {target} : non autorisé, {reason}',
+	// source: 76fa68e4
+	'dnd.announce.sprungFolder': '{target} ouvert',
+	// source: 4f7a4a81
+	'dnd.announce.sprungTab': 'Affichage de {target}',
+	// source: 1effc243
+	'dnd.announce.sprungBack': 'Retour à l’endroit où le glissement a commencé',
+	// source: 3eb48039
+	'dnd.announce.picker': 'Choisir quoi faire de {what} dans {target}',
+	// source: 83b635b3
+	'dnd.announce.pickerCancelled': 'Dépôt annulé',
+	// source: 88fb1a9c
+	'dnd.announce.nothing': 'Rien n’a été déposé',
+	// source: a50887d8
+	'dnd.announce.left': 'Les fichiers ont quitté la fenêtre',
+	// source: 4c6cb0de
+	'dnd.out.started': 'Glissement de {what} hors de la fenêtre',
+	// source: 36630b60
+	'dnd.out.copied': '{what} déposé dans une autre application',
+	// source: 4365d77b
+	'dnd.out.moved': '{what} déplacé vers une autre application',
+	// source: 77053198
+	'dnd.out.linked': 'Lien vers {what} créé dans une autre application',
+	// source: 4193e97c
+	'dnd.out.failed': 'Le glissement hors de la fenêtre a échoué : {reason}',
+	// source: 95977e26
+	'dnd.out.refused':
+		'Impossible de faire glisser {what} hors de la fenêtre; le glissement reste ici',
+	// source: c9cc358e
+	'dnd.out.unsupported': '{what} ne peut pas être glissé hors de la fenêtre',
+	// source: 9cb5f3d4
+	'dnd.picker.label': 'Action de dépôt',
+	// source: 48f1b5e6
+	'dnd.picker.copy': 'Copier ici',
+	// source: 3768b486
+	'dnd.picker.move': 'Déplacer ici',
+	// source: 1541ac7d
+	'dnd.picker.link': 'Créer un lien ici',
+	// source: 19766ed6
+	'dnd.picker.cancel': 'Annuler',
+	// source: e21f935f
+	'dnd.badge.copy': 'Copier',
+	// source: 6ecc3df6
+	'dnd.badge.move': 'Déplacer',
+	// source: a6a32dbc
+	'dnd.badge.link': 'Lier',
+	// source: c7f93783
+	'dnd.badge.ask': 'Choisir',
+	// source: c560122a
+	'dnd.badge.trash': 'Corbeille',
+	// source: f0406a0e
+	'dnd.badge.blocked': 'Non autorisé',
+	// source: ed077f3d
+	'dnd.badge.open': 'Ouvrir',
+	// source: 338c8ac8
+	'dnd.badge.shelf': 'Étagère',
+	// source: 83bff4ce
+	'dnd.open.failed': 'Impossible d’ouvrir les dossiers dans des onglets',
+	// source: 58c4b3df
+	'dnd.open.nothing': 'Aucun dossier à ouvrir',
+	// source: 4327f6b9
+	'dnd.open.tabs.one': '{count} onglet ouvert',
+	// source: b31fac96
+	'dnd.open.tabs.many': '{count} d’onglets ouverts',
+	// source: b31fac96
+	'dnd.open.tabs.other': '{count} onglets ouverts',
+	// source: f20c8794
+	'tabs.pinned': 'Épinglés',
+	// source: 530ff53d
+	'tabs.pinnedBadge': 'Onglet épinglé',
+	// source: b9aa909d
+	'tabs.colourDescription': 'Couleur : {colour}',
+	// source: e3dab8aa
+	'tabs.announce.pinned': 'Onglet {title} épinglé',
+	// source: e8cd496c
+	'tabs.announce.unpinned': 'Onglet {title} désépinglé',
+	// source: 4e21c0df
+	'tabs.announce.colour': 'Couleur de l’onglet {title} définie à {colour}',
+	// source: 9a9ee7b9
+	'tabs.announce.colourCleared': 'Couleur de l’onglet {title} retirée',
+	// source: be791da3
+	'tabs.announce.reopened': 'Onglet {title} rouvert',
+	// source: eb1144d7
+	'tabs.announce.noneClosed': 'Aucun onglet fermé à rouvrir',
+	// source: 745242ce
+	'tabs.announce.duplicated': 'Onglet {title} dupliqué',
+	// source: c32266cf
+	'tabs.announce.closedOthers': 'Les autres onglets ont été fermés',
+	// source: ba9ac8ca
+	'tabs.announce.closedRight': 'Les onglets à droite ont été fermés',
+	// source: 49309b58
+	'tabs.announce.nothingToClose': 'Aucun onglet à fermer',
+	// source: 48845bff
+	'notice.dismiss': 'Fermer',
+	// source: a8283ade
+	'notice.undo': 'Annuler',
+	// source: 6201111b
+	'pair.and': 'et',
+	// source: df026268
+	'pair.pill.label': 'Division : {first} et {second}',
+	// source: ff22a46f
+	'pair.divider.label': 'Redimensionner les panneaux',
+	// source: b90311b2
+	'pair.divider.value': '{first} % et {second} %',
+	// source: 074a42d5
+	'pair.pane.label': 'Panneau {position} sur {count} : {title}',
+	// source: bde93980
+	'pair.pane.close': 'Fermer le panneau {title}',
+	// source: 92340695
+	'pair.pane.active': 'Actif',
+	// source: c9a3e2d6
+	'pair.pane.grip': 'Glisser vers la bande d’onglets pour séparer',
+	// source: b2f019fc
+	'pair.layout.sideBySide': 'Côte à côte',
+	// source: c2fed746
+	'pair.layout.stacked': 'Empilés',
+	// source: 92732568
+	'pair.menu.label': 'Actions de la division',
+	// source: 726c1269
+	'pair.menu.separate': 'Séparer',
+	// source: 56717b64
+	'pair.menu.separateTabs': 'Séparer les onglets',
+	// source: 285f601c
+	'pair.menu.swap': 'Permuter les panneaux',
+	// source: a831b4ca
+	'pair.menu.duplicate': 'Dupliquer la division',
+	// source: a5119091
+	'pair.menu.layout': 'Disposition',
+	// source: 2299ec0f
+	'pair.menu.resetSizes': 'Rétablir les tailles',
+	// source: 2adf5c1e
+	'pair.menu.moveToNewWindow': 'Déplacer vers une nouvelle fenêtre',
+	// source: 4fcdd857
+	'pair.menu.moveToWindow': 'Déplacer vers la fenêtre',
+	// source: b7e74da3
+	'pair.menu.closeBoth': 'Fermer les deux',
+	// source: 6de7f847
+	'pair.menu.splitWith': 'Diviser avec',
+	// source: c7fbdb62
+	'pair.menu.splitWithNone': 'Aucun autre onglet',
+	// source: a28568c5
+	'pair.announce.split': '{title} divisé en deux panneaux',
+	// source: 2c3b92f5
+	'pair.announce.joined': 'Division de {first} et {second}',
+	// source: 6b21d86d
+	'pair.announce.separated': 'Séparés : {titles}',
+	// source: 88a3b6e3
+	'pair.announce.duplicateFailed': 'La division n’a pas pu être dupliquée',
+	// source: 9b45e1ba
+	'pair.announce.closedPane': 'Panneau {title} de la division fermé',
+	// source: 8456f39e
+	'pair.announce.closedPaneKept': '{closed} fermé; {kept} est maintenant un onglet seul',
+	// source: 929c39be
+	'pair.announce.closedBoth': 'Les deux onglets de la division ont été fermés',
+	// source: c033fcb3
+	'pair.announce.restored': 'Panneau {title} de la division restauré',
+	// source: 4d94a715
+	'pair.announce.undoFailed': 'Le panneau fermé n’a pas pu être restauré',
+	// source: 23ced845
+	'pair.announce.movedWindow': 'Déplacés vers une nouvelle fenêtre : {titles}',
+	// source: 95e9e52b
+	'pair.announce.movedToWindow': 'Déplacés : {titles} vers {window}',
+	// source: 75e181c3
+	'pair.announce.swapped': 'Panneaux permutés',
+	// source: 2bcc0ff9
+	'pair.announce.layout': 'Les panneaux sont maintenant {layout}',
+	// source: f4bf7bd7
+	'pair.announce.sizesReset': 'Tailles des panneaux rétablies',
+	// source: 074a42d5
+	'pair.announce.focused': 'Panneau {position} sur {count} : {title}',
+	// source: f167afa9
+	'pair.announce.pinned': 'Épinglés : {titles}',
+	// source: 390223eb
+	'pair.announce.unpinned': 'Désépinglés : {titles}',
+	// source: 96650736
+	'pair.announce.colour': 'Couleur de {titles} définie à {colour}',
+	// source: 915b59e1
+	'pair.announce.colourCleared': 'Couleur de {titles} retirée',
+	// source: 6599b7e1
+	'pair.announce.duplicated': 'Dupliqués : {titles}',
+	// source: 223957f7
+	'tabs.menu.pin': 'Épingler l’onglet',
+	// source: 6d391af9
+	'tabs.menu.unpin': 'Désépingler l’onglet',
+	// source: 3a9dfa58
+	'tabs.menu.colour': 'Couleur',
+	// source: 70f8abaa
+	'tabs.menu.pinGroup': 'Épingler le groupe « {name} »',
+	// source: 471407f8
+	'tabs.menu.unpinGroup': 'Désépingler le groupe « {name} »',
+	// source: 12fc76e6
+	'tabs.menu.addToGroup': 'Ajouter à un groupe',
+	// source: 3726836b
+	'tabs.menu.newGroup': 'Nouveau groupe',
+	// source: 227d0352
+	'tabs.menu.removeFromGroup': 'Retirer du groupe',
+	// source: 57d3ddba
+	'tabs.menu.duplicate': 'Dupliquer l’onglet',
+	// source: f271892d
+	'tabs.menu.close': 'Fermer l’onglet',
+	// source: 29c8d716
+	'tabs.menu.closeOthers': 'Fermer les autres onglets',
+	// source: dc0c3647
+	'tabs.menu.closeRight': 'Fermer les onglets à droite',
+	// source: c5a521a2
+	'tabs.menu.reopen': 'Rouvrir l’onglet fermé',
+	// source: ec242bf5
+	'tabs.menu.recentlyClosed': 'Fermés récemment',
+	// source: 16b1bb7e
+	'tabs.plusMenu.label': 'Actions de nouvel onglet',
+	// source: b2f8fd63
+	'tabs.plusMenu.newTab': 'Nouvel onglet',
+	// source: 372d01ad
+	'tabs.plusMenu.newTabHome': 'Nouvel onglet dans le dossier personnel',
+	// source: 7469c2f6
+	'tabs.plusMenu.newWindow': 'Nouvelle fenêtre',
+	// source: dc937b59
+	'tabs.colour.none': 'Aucune',
+	// source: ba19e9c3
+	'tabs.colour.red': 'Rouge',
+	// source: 78e7771b
+	'tabs.colour.orange': 'Orange',
+	// source: 19dd83f1
+	'tabs.colour.yellow': 'Jaune',
+	// source: d486dfbd
+	'tabs.colour.green': 'Vert',
+	// source: fa15a5c1
+	'tabs.colour.teal': 'Sarcelle',
+	// source: ec7d56a0
+	'tabs.colour.blue': 'Bleu',
+	// source: 7d465fb9
+	'tabs.colour.purple': 'Violet',
+	// source: bd38ed77
+	'tabs.colour.pink': 'Rose',
+	// source: d4ac5809
+	'tabs.colour.grey': 'Gris',
+	// source: a9b44602
+	'tabs.switcher.label': 'Changer d’onglet',
+	// source: 149d9d29
+	'tabs.switcher.candidate': '{title}, onglet {position} sur {count}',
+	// source: 2845ce1e
+	'tabs.switcher.cancelled': 'Changement d’onglet annulé',
+	// source: 219e92dc
+	'groups.tabCount.one': '{count} onglet',
+	// source: ba82764a
+	'groups.tabCount.many': '{count} d’onglets',
+	// source: ba82764a
+	'groups.tabCount.other': '{count} onglets',
+	// source: 11ef7e52
+	'groups.chip.label': '{name}, groupe d’onglets, {tabs}',
+	// source: e286f4cf
+	'groups.chip.activeInside': 'contient l’onglet actif',
+	// source: 50555fe1
+	'groups.chip.overLimit': 'plus de {limit} onglets',
+	// source: f5664395
+	'groups.tab.member': 'Groupe : {name}',
+	// source: 762ebb70
+	'groups.rename.label': 'Nom du groupe',
+	// source: 1d5551da
+	'groups.limit.warning':
+		'{name} compte {count} onglets. Envisagez de le diviser en vue divisée ou en deuxième groupe.',
+	// source: 9619649d
+	'workspaces.save.label': 'Nom de l’espace de travail',
+	// source: 8b70df34
+	'workspaces.announce.saved': 'Espace de travail {name} enregistré',
+	// source: 071381bb
+	'workspaces.announce.nameTaken':
+		'Un espace de travail nommé {name} existe déjà. Saisissez un autre nom.',
+	// source: b8dfa51e
+	'workspaces.announce.saveFailed': 'Impossible d’enregistrer l’espace de travail {name}.',
+	// source: 72be053e
+	'workspaces.announce.switched': 'Les favoris affichent maintenant l’espace de travail {name}',
+	// source: b3661546
+	'workspaces.announce.cleared': 'Les favoris affichent vos signets',
+	// source: 695f06af
+	'workspaces.announce.renamed': 'Espace de travail renommé en {name}',
+	// source: 599abc91
+	'workspaces.announce.deleted': 'Espace de travail {name} supprimé',
+	// source: 80c0e06f
+	'groups.announce.created': 'Groupe {name} créé',
+	// source: e4d3d254
+	'groups.announce.renamed': 'Groupe renommé en {name}',
+	// source: ec0781ea
+	'groups.announce.added': '{title} ajouté à {name}, qui compte maintenant {tabs}',
+	// source: 6639fc60
+	'groups.announce.removed': '{title} retiré de {name}',
+	// source: 8d2bf8de
+	'groups.announce.colour': 'Couleur du groupe {name} définie à {colour}',
+	// source: aa1abace
+	'groups.announce.colourCleared': 'Couleur du groupe {name} retirée',
+	// source: 6b93bbbf
+	'groups.announce.collapsed': 'Groupe {name} réduit, {tabs}',
+	// source: ea71383f
+	'groups.announce.expanded': 'Groupe {name} développé, {tabs}',
+	// source: da2c7170
+	'groups.announce.expandedForTab': 'Groupe {name} développé pour afficher {title}',
+	// source: c5fcb987
+	'groups.announce.collapsedOthers': 'Les autres groupes ont été réduits',
+	// source: f4af2cb9
+	'groups.announce.newTab': 'Nouvel onglet ouvert dans {name}',
+	// source: 7596a603
+	'groups.announce.pinned': 'Groupe {name} épinglé',
+	// source: 1cad2ce4
+	'groups.announce.unpinned': 'Groupe {name} désépinglé',
+	// source: dc89acb4
+	'groups.announce.sorted': 'Groupe {name} trié {by}',
+	// source: 6ffcf433
+	'groups.announce.duplicated': 'Groupe {name} dupliqué',
+	// source: e4e9e3c0
+	'groups.announce.movedWindow': 'Groupe {name} déplacé vers une nouvelle fenêtre',
+	// source: 37135678
+	'groups.announce.movedToWindow': 'Groupe {name} déplacé vers {window}',
+	// source: 63e39984
+	'groups.announce.ungrouped': 'Groupe {name} dissocié',
+	// source: 3ab8e7c7
+	'groups.announce.closed': 'Groupe {name} fermé',
+	// source: 310a215e
+	'groups.announce.moved': 'Groupe {name} déplacé à la position {position} sur {count}',
+	// source: aa987cf1
+	'groups.menu.label': 'Actions du groupe',
+	// source: 42096aee
+	'groups.menu.rename': 'Renommer le groupe',
+	// source: 02a971e0
+	'groups.menu.colour': 'Changer la couleur',
+	// source: 35044c06
+	'groups.menu.collapse': 'Réduire le groupe',
+	// source: ed520c2c
+	'groups.menu.expand': 'Développer le groupe',
+	// source: c980778b
+	'groups.menu.collapseOthers': 'Réduire tous les autres groupes',
+	// source: 82c4b493
+	'groups.menu.newTab': 'Nouvel onglet dans le groupe',
+	// source: 03e50a7b
+	'groups.menu.pin': 'Épingler le groupe',
+	// source: 243d0152
+	'groups.menu.unpin': 'Désépingler le groupe',
+	// source: 0903e9b8
+	'groups.menu.sort': 'Trier les onglets du groupe',
+	// source: b393c1bc
+	'groups.menu.sortName': 'Par nom',
+	// source: 26a6b7d8
+	'groups.menu.sortLocation': 'Par emplacement',
+	// source: 959c6015
+	'groups.menu.sortLocal': 'Locaux d’abord',
+	// source: 85d2f64a
+	'groups.menu.duplicate': 'Dupliquer le groupe',
+	// source: ee71a012
+	'groups.menu.saveWorkspace': 'Enregistrer le groupe comme espace de travail',
+	// source: b227a3c4
+	'groups.menu.moveWindow': 'Déplacer le groupe vers une nouvelle fenêtre',
+	// source: 040b93e8
+	'groups.menu.moveToWindow': 'Déplacer le groupe vers la fenêtre',
+	// source: b57ef478
+	'groups.menu.ungroup': 'Dissocier',
+	// source: f0ef78be
+	'groups.menu.close': 'Fermer le groupe',
+	// source: 0bc4c2af
+	'status.bar.label': 'Barre d’état',
+	// source: 208a19d5
+	'status.items.one': '{count} élément',
+	// source: f65216b3
+	'status.items.many': '{count} d’éléments',
+	// source: f65216b3
+	'status.items.other': '{count} éléments',
+	// source: 9be87dc6
+	'status.free': '{size} libres',
+	// source: 67cab30d
+	'status.measuringHome': 'Mesure du dossier personnel',
+	// source: ed61df32
+	'status.measuringHome.progress': 'Mesure du dossier personnel : {done} sur {total}',
+	// source: 02c1d481
+	'status.measuringHome.open': 'Afficher la Vue d’ensemble',
+	// source: e9069c03
+	'status.measuringHome.cancel': 'Annuler la mesure du dossier personnel',
+	// source: 124ec382
+	'status.openFailed': 'Impossible d’ouvrir {name}.',
+	// source: 2fe7ff7b
+	'status.copyPathFailed': 'Impossible de copier le chemin de {name}.',
+	// source: a145120d
+	'menu.entry.label': 'Actions de l’élément',
+	// source: ed077f3d
+	'menu.open': 'Ouvrir',
+	// source: 35e74c3a
+	'menu.openInNewTab': 'Ouvrir dans un nouvel onglet',
+	// source: e8e0ccba
+	'menu.openInNewWindow': 'Ouvrir dans une nouvelle fenêtre',
+	// source: e7d0eeb7
+	'menu.openWith': 'Ouvrir avec',
+	// source: 0e026918
+	'menu.copyPath': 'Copier le chemin',
+	// source: e7d38be5
+	'menu.addToShelf': 'Ajouter à l’Étagère',
+	// source: ae43692b
+	'menu.properties': 'Propriétés',
+	// source: e03cc727
+	'menu.propertiesInWindow': 'Propriétés dans une fenêtre',
+	// source: 02cdaabf
+	'menu.duplicate': 'Dupliquer',
+	// source: 1f45f025
+	'menu.cut': 'Couper',
+	// source: e21f935f
+	'menu.copy': 'Copier',
+	// source: f3380f7b
+	'menu.paste': 'Coller',
+	// source: 700118c1
+	'menu.pasteInto': 'Coller dans le dossier',
+	// source: 30c11a8e
+	'menu.copyTo': 'Copier vers…',
+	// source: 3ace7f18
+	'menu.moveTo': 'Déplacer vers…',
+	// source: 1f97b2e6
+	'menu.copyToOtherPane': 'Copier vers l’autre panneau',
+	// source: 8ccd8e1f
+	'menu.moveToOtherPane': 'Déplacer vers l’autre panneau',
+	// source: 9adcdf33
+	'menu.moveToTrash': 'Mettre à la Corbeille',
+	// source: 48c015ad
+	'menu.deletePermanently': 'Supprimer définitivement',
+	// source: 18fdd549
+	'menu.new': 'Nouveau',
+	// source: 74ccd433
+	'menu.new.folder': 'Dossier',
+	// source: 50009ce1
+	'menu.new.file': 'Fichier',
+	// source: a8283ade
+	'menu.undo': 'Annuler',
+	// source: 74273989
+	'menu.redo': 'Rétablir',
+	// source: 2320aa1d
+	'menu.undoNamed': 'Annuler {label}',
+	// source: 3c9837fa
+	'menu.redoNamed': 'Rétablir {label}',
+	// source: dcc839a4
+	'view.switcher.label': 'Affichage',
+	// source: 6f202f54
+	'view.list': 'Liste',
+	// source: 0d7d12ac
+	'view.grid': 'Grille',
+	// source: 1882eb15
+	'view.withShortcut': '{name} ({keys})',
+	// source: a86cafc7
+	'view.gridSize': 'Taille des icônes',
+	// source: 3a15fd16
+	'view.gridSize.value': '{size} pixels',
+	// source: f7efa7bc
+	'sidebar.label': 'Barre latérale',
+	// source: eb5cfb73
+	'sidebar.section.places': 'Emplacements',
+	// source: d97d51d3
+	'sidebar.section.favourites': 'Favoris',
+	// source: 306fea87
+	'sidebar.section.favouritesIn': 'Favoris · {name}',
+	// source: 1377264b
+	'sidebar.section.workspaces': 'Espaces de travail',
+	// source: 785a1195
+	'sidebar.view.label': 'Affichage de la barre latérale',
+	// source: eb5cfb73
+	'sidebar.view.places': 'Emplacements',
+	// source: c4d6bb20
+	'sidebar.view.folders': 'Dossiers',
+	// source: d4b1ea57
+	'sidebar.place.overview': 'Vue d’ensemble',
+	// source: 3a786953
+	'sidebar.place.home': 'Dossier personnel',
+	// source: 9bd88f24
+	'sidebar.place.desktop': 'Bureau',
+	// source: b4e929d8
+	'sidebar.place.documents': 'Documents',
+	// source: d5fdc1af
+	'sidebar.place.downloads': 'Téléchargements',
+	// source: 1e624500
+	'sidebar.place.pictures': 'Images',
+	// source: 6eb00b4b
+	'sidebar.place.music': 'Musique',
+	// source: c9a96394
+	'sidebar.place.videos': 'Vidéos',
+	// source: c560122a
+	'sidebar.place.trash': 'Corbeille',
+	// source: e6a750b0
+	'sidebar.trash.count.one': '{count} élément dans la Corbeille',
+	// source: edb29ff0
+	'sidebar.trash.count.many': '{count} d’éléments dans la Corbeille',
+	// source: edb29ff0
+	'sidebar.trash.count.other': '{count} éléments dans la Corbeille',
+	// source: 5ec9185c
+	'sidebar.trash.unavailable': 'La Corbeille ne peut pas être parcourue ici',
+	// source: c0a188b3
+	'sidebar.favourites.empty':
+		'Aucun favori pour le moment. Ajoutez un dossier avec Ajouter aux favoris.',
+	// source: c4d6bb20
+	'sidebar.folders.tree': 'Dossiers',
+	// source: 67e6116d
+	'sidebar.folders.more': 'Dossiers affichés : {shown} sur {total}',
+	// source: 5fd72d38
+	'sidebar.rename.label': 'Nom du favori',
+	// source: 3b81d9d8
+	'sidebar.moved': '{name} déplacé à la position {position} sur {count}',
+	// source: f4787f42
+	'sidebar.favourites.failed': 'Impossible de modifier les favoris.',
+	// source: 6f9a01d0
+	'sidebar.workspaces.empty':
+		'Aucun espace de travail pour le moment. Choisissez Enregistrer le groupe comme espace de travail sur un groupe d’onglets.',
+	// source: dc937b59
+	'sidebar.workspaces.none': 'Aucun',
+	// source: 1377264b
+	'sidebar.workspaces.list': 'Espaces de travail',
+	// source: 9619649d
+	'sidebar.workspaces.rename.label': 'Nom de l’espace de travail',
+	// source: fc947772
+	'sidebar.workspaces.failed': 'Impossible de modifier l’espace de travail.',
+	// source: ce1f6133
+	'sidebar.workspaces.noFolders': 'L’espace de travail {name} ne contient aucun dossier',
+	// source: d6ed653c
+	'sidebar.workspaces.openedAll.one': '{count} dossier ouvert depuis {name}',
+	// source: dafe3383
+	'sidebar.workspaces.openedAll.many': '{count} de dossiers ouverts depuis {name}',
+	// source: dafe3383
+	'sidebar.workspaces.openedAll.other': '{count} dossiers ouverts depuis {name}',
+	// source: 8d16527c
+	'sidebar.workspaces.openedSome': '{opened} dossiers sur {total} ouverts depuis {name}',
+	// source: 66f56cc7
+	'sidebar.menu.workspace': 'Actions de l’espace de travail',
+	// source: 5a94468b
+	'sidebar.menu.place': 'Actions de l’emplacement',
+	// source: c7b9a857
+	'sidebar.menu.trash': 'Actions de la Corbeille',
+	// source: 1f25b95c
+	'sidebar.menu.favourite': 'Actions du favori',
+	// source: b7ea5346
+	'sidebar.menu.folder': 'Actions du dossier',
+	// source: 4ba5121d
+	'sidebar.section.devices': 'Appareils',
+	// source: 4ba5121d
+	'devices.list': 'Appareils',
+	// source: bf12e453
+	'devices.empty': 'Aucun lecteur à afficher.',
+	// source: a46cd4eb
+	'devices.space': '{free} libres sur {total}',
+	// source: c83caed5
+	'devices.spaceUnknown': 'Espace libre indisponible',
+	// source: 6ba9906e
+	'devices.almostFull': 'Presque plein',
+	// source: 75239499
+	'devices.usage': '{percent} % utilisés',
+	// source: a424e33d
+	'devices.state.locked': 'Verrouillé',
+	// source: 669cf449
+	'devices.state.unmounted': 'Non monté',
+	// source: eb5d5142
+	'devices.state.unmountedSized': 'Non monté, {total}',
+	// source: 5474eef8
+	'devices.busy': 'En cours…',
+	// source: d4536f25
+	'devices.verb.mount': 'monter',
+	// source: 6a7e1877
+	'devices.verb.unmount': 'démonter',
+	// source: bb9fec73
+	'devices.verb.eject': 'éjecter',
+	// source: 787600eb
+	'devices.verb.unlock': 'déverrouiller',
+	// source: 05637203
+	'devices.action.mount': 'Monter {name}',
+	// source: 659039bb
+	'devices.action.unmount': 'Démonter {name}',
+	// source: 61db18b7
+	'devices.action.eject': 'Éjecter {name}',
+	// source: cf2aac84
+	'devices.action.unlock': 'Déverrouiller {name}',
+	// source: 0ed2bbb7
+	'devices.announce.mounted': '{name} monté',
+	// source: d7ed1249
+	'devices.announce.unmounted': '{name} démonté',
+	// source: 7134efc0
+	'devices.announce.ejected': '{name} éjecté. Vous pouvez le retirer sans risque.',
+	// source: eec86972
+	'devices.announce.unlocked': '{name} déverrouillé',
+	// source: 2dca9f54
+	'devices.announce.added': '{name} connecté',
+	// source: bd422d50
+	'devices.announce.removed': '{name} retiré',
+	// source: 537e10ed
+	'devices.error.busyBy':
+		'Impossible d’effectuer l’action « {action} » sur {name}, car {by} l’utilise.',
+	// source: 1646bc42
+	'devices.error.busy':
+		'Impossible d’effectuer l’action « {action} » sur {name}, car quelque chose l’utilise encore.',
+	// source: 1641ca39
+	'devices.error.notAuthorised':
+		'Impossible d’effectuer l’action « {action} » sur {name} : l’autorisation n’a pas été accordée.',
+	// source: 67a2875c
+	'devices.error.unsupported':
+		'Impossible d’effectuer l’action « {action} » sur {name} : ce système ne la prend pas en charge.',
+	// source: 5f1f06be
+	'devices.error.notFound':
+		'Impossible d’effectuer l’action « {action} » sur {name} : il n’est plus là.',
+	// source: 63ef3c83
+	'devices.error.io': 'Impossible d’effectuer l’action « {action} » sur {name} : {message}',
+	// source: 4caf4e4a
+	'devices.error.unknown': 'Impossible d’effectuer l’action « {action} » sur {name}.',
+	// source: 124ec382
+	'devices.open.failed': 'Impossible d’ouvrir {name}.',
+	// source: cf2aac84
+	'devices.unlock.title': 'Déverrouiller {name}',
+	// source: a20780f2
+	'devices.unlock.description':
+		'Saisissez la phrase secrète de ce volume chiffré. Waypoint ne l’enregistre pas.',
+	// source: e7611f05
+	'devices.unlock.field': 'Phrase secrète',
+	// source: 4ac709aa
+	'devices.unlock.confirm': 'Déverrouiller',
+	// source: 19766ed6
+	'devices.unlock.cancel': 'Annuler',
+	// source: a4114da0
+	'devices.unlock.working': 'Déverrouillage…',
+	// source: a638d5d1
+	'devices.unlock.wrong': 'Cette phrase secrète n’a pas déverrouillé le volume. Réessayez.',
+	// source: 3064d79a
+	'menu.rename': 'Renommer',
+	// source: 298167e2
+	'menu.renameSelected': 'Renommer la sélection…',
+	// source: a76e13b9
+	'menu.restore': 'Restaurer',
+	// source: b85cf088
+	'menu.emptyTrash': 'Vider la Corbeille',
+	// source: ce706088
+	'menu.sort.deleted': 'Date de suppression',
+	// source: 865d27ef
+	'menu.removeFromFavourites': 'Retirer des favoris',
+	// source: cbba1e60
+	'menu.addToFavourites': 'Ajouter aux favoris',
+	// source: 31cacc71
+	'menu.openAllInTabs': 'Tout ouvrir dans des onglets',
+	// source: 9efc82d7
+	'menu.deleteWorkspace': 'Supprimer l’espace de travail',
+	// source: 1359626e
+	'menu.moveUp': 'Monter',
+	// source: b58330ac
+	'menu.moveDown': 'Descendre',
+	// source: b7ea5346
+	'menu.background.label': 'Actions du dossier',
+	// source: c9129025
+	'menu.sortBy': 'Trier par',
+	// source: dcd1d522
+	'menu.sort.name': 'Nom',
+	// source: 1af85190
+	'menu.sort.size': 'Taille',
+	// source: e8ce5dca
+	'menu.sort.modified': 'Modifié',
+	// source: f5387f9b
+	'menu.sort.kind': 'Genre',
+	// source: 79479a6c
+	'menu.sort.descending': 'Décroissant',
+	// source: 6f94fb69
+	'menu.sort.foldersFirst': 'Dossiers en premier',
+	// source: 956a51f6
+	'menu.groupBy': 'Regrouper par',
+	// source: a638b9f6
+	'menu.group.none': 'Aucun regroupement',
+	// source: f5387f9b
+	'menu.group.kind': 'Genre',
+	// source: e8ce5dca
+	'menu.group.modified': 'Modifié',
+	// source: 1af85190
+	'menu.group.size': 'Taille',
+	// source: dcd1d522
+	'menu.group.name': 'Nom',
+	// source: baaddf70
+	'menu.group.type': 'Type',
+	// source: a638b9f6
+	'cmd.group.none': 'Aucun regroupement',
+	// source: c8677275
+	'cmd.group.kind': 'Regrouper par genre',
+	// source: de0ae2b3
+	'cmd.group.modified': 'Regrouper par date de modification',
+	// source: 93bdc053
+	'cmd.group.size': 'Regrouper par taille',
+	// source: 7d7fa750
+	'cmd.group.name': 'Regrouper par nom',
+	// source: ae9db192
+	'cmd.group.type': 'Regrouper par type',
+	// source: b5ede7fb
+	'menu.showHidden': 'Afficher les fichiers masqués',
+	// source: addfc2c5
+	'files.default.folder': 'dossier sans titre',
+	// source: 19be8b57
+	'files.default.file': 'fichier sans titre',
+	// source: 8fcfae1d
+	'files.readOnly': 'Cet emplacement ne peut pas être modifié.',
+	// source: 3007b678
+	'files.nothingSelected': 'Rien n’est sélectionné.',
+	// source: 9da785e5
+	'files.nothingFocused': 'Rien à renommer. Placez-vous d’abord sur un élément.',
+	// source: 0892193c
+	'files.noQueue': 'Les opérations ne sont pas disponibles dans cette fenêtre.',
+	// source: 7be1a00f
+	'files.failed': 'Impossible de terminer : {reason}',
+	// source: 9f3ece29
+	'files.undo.nothing': 'Il n’y a rien à annuler.',
+	// source: 00247184
+	'files.redo.nothing': 'Il n’y a rien à rétablir.',
+	// source: 19766ed6
+	'files.cancel': 'Annuler',
+	// source: 8e4f688c
+	'files.trash.confirm.title': 'Mettre à la Corbeille?',
+	// source: b827ade6
+	'files.trash.confirm.named': 'Mettre {name} à la Corbeille? Vous pouvez annuler cette action.',
+	// source: 02c3089d
+	'files.trash.confirm.one':
+		'Mettre {count} élément à la Corbeille? Vous pouvez annuler cette action.',
+	// source: 5f673729
+	'files.trash.confirm.many':
+		'Mettre {count} d’éléments à la Corbeille? Vous pouvez annuler cette action.',
+	// source: 5f673729
+	'files.trash.confirm.other':
+		'Mettre {count} éléments à la Corbeille? Vous pouvez annuler cette action.',
+	// source: 9adcdf33
+	'files.trash.confirm.action': 'Mettre à la Corbeille',
+	// source: c46b644a
+	'files.trash.unavailable.title': 'La Corbeille n’est pas disponible ici',
+	// source: 90cc61df
+	'files.trash.unavailable.message':
+		'Ces éléments ne peuvent pas être mis à la Corbeille ({reason}). Vous pouvez les supprimer définitivement à la place, mais cette action est irréversible.',
+	// source: c1b15a37
+	'files.delete.title': 'Supprimer définitivement?',
+	// source: 60f3dc08
+	'files.delete.intro.one':
+		'Ceci supprime définitivement l’élément ci-dessous. Cette action est irréversible.',
+	// source: 76019696
+	'files.delete.intro.many':
+		'Ceci supprime définitivement {count} d’éléments. Cette action est irréversible.',
+	// source: 76019696
+	'files.delete.intro.other':
+		'Ceci supprime définitivement {count} éléments. Cette action est irréversible.',
+	// source: 1a261270
+	'files.delete.more': 'et {count} de plus',
+	// source: f10a6251
+	'files.delete.size': 'Taille totale : {size}',
+	// source: 0fcb5ed7
+	'files.delete.list.label': 'Éléments à supprimer',
+	// source: 48c015ad
+	'files.delete.action': 'Supprimer définitivement',
+	// source: c6dd4fe8
+	'files.copied.one': '{count} élément copié',
+	// source: 6a1597b6
+	'files.copied.many': '{count} d’éléments copiés',
+	// source: 6a1597b6
+	'files.copied.other': '{count} éléments copiés',
+	// source: 3b24cd98
+	'files.cut.one': '{count} élément coupé',
+	// source: 908a446f
+	'files.cut.many': '{count} d’éléments coupés',
+	// source: 908a446f
+	'files.cut.other': '{count} éléments coupés',
+	// source: b4010d33
+	'files.paste.nothing': 'Il n’y a rien à coller.',
+	// source: c8c993de
+	'destination.title.copy.one': 'Copier {count} élément vers…',
+	// source: 8a42ae1a
+	'destination.title.copy.many': 'Copier {count} d’éléments vers…',
+	// source: 8a42ae1a
+	'destination.title.copy.other': 'Copier {count} éléments vers…',
+	// source: ed17e799
+	'destination.title.move.one': 'Déplacer {count} élément vers…',
+	// source: 71662d0e
+	'destination.title.move.many': 'Déplacer {count} d’éléments vers…',
+	// source: 71662d0e
+	'destination.title.move.other': 'Déplacer {count} éléments vers…',
+	// source: f4803569
+	'destination.title.link.one': 'Créer un lien vers {count} élément dans…',
+	// source: e3f29c0b
+	'destination.title.link.many': 'Créer un lien vers {count} d’éléments dans…',
+	// source: e3f29c0b
+	'destination.title.link.other': 'Créer un lien vers {count} éléments dans…',
+	// source: 5c71b8cd
+	'destination.title.choose': 'Choisir un dossier',
+	// source: e21f935f
+	'destination.copy': 'Copier',
+	// source: 6ecc3df6
+	'destination.move': 'Déplacer',
+	// source: a6a32dbc
+	'destination.link': 'Lier',
+	// source: c7f93783
+	'destination.choose': 'Choisir',
+	// source: 19766ed6
+	'destination.cancel': 'Annuler',
+	// source: 74ccd433
+	'destination.path.label': 'Dossier',
+	// source: fefc0d1f
+	'destination.path.description': 'Saisissez un chemin ou choisissez-en un ci-dessous.',
+	// source: 01e38309
+	'destination.choices.label': 'Emplacements au choix',
+	// source: eb5cfb73
+	'destination.section.places': 'Emplacements',
+	// source: d97d51d3
+	'destination.section.favourites': 'Favoris',
+	// source: 33c2eb40
+	'destination.section.tabs': 'Onglets ouverts',
+	// source: 690dbe9d
+	'destination.section.recent': 'Récents',
+	// source: 633810e9
+	'destination.newFolder': 'Nouveau dossier…',
+	// source: d9335930
+	'destination.newFolder.working': 'Création du dossier…',
+	// source: 0f382e60
+	'destination.newFolder.made': '« {name} » créé et choisi.',
+	// source: 2d028378
+	'destination.newFolder.failed': 'Impossible de créer le dossier : {reason}',
+	// source: ec963ffc
+	'destination.check.working': 'Vérification…',
+	// source: 8075cfc3
+	'destination.check.ok': 'Prêt : il est possible d’écrire dans {name}.',
+	// source: 8d8ab28c
+	'destination.check.sameFolder': 'Les éléments sont déjà dans ce dossier.',
+	// source: 599a094f
+	'destination.check.empty': 'Saisissez un dossier ou choisissez-en un dans les listes.',
+	// source: 152e3ad6
+	'destination.check.invalid': '« {input} » n’est pas un emplacement.',
+	// source: cf966130
+	'destination.check.unsupported':
+		'Les emplacements de type {what} ne peuvent pas encore être utilisés.',
+	// source: a5366598
+	'destination.check.notFound': '« {name} » n’existe pas.',
+	// source: 6caa19cd
+	'destination.check.notFolder': '« {name} » n’est pas un dossier.',
+	// source: 0763d44c
+	'destination.check.readOnly': 'Il n’est pas possible d’écrire dans « {name} ».',
+	// source: ec5aeec6
+	'destination.check.denied': 'Vous n’avez pas la permission d’utiliser « {name} ».',
+	// source: cd722701
+	'destination.check.failed': 'Impossible de vérifier ce dossier.',
+	// source: e84e258e
+	'rename.field.label': 'Renommer {name}',
+	// source: 197267ef
+	'rename.hint': 'Entrée renomme, Échap annule.',
+	// source: 7de38812
+	'rename.done': '{from} renommé en {to}',
+	// source: 03ca7ff7
+	'rename.error.empty': 'Un nom ne peut pas être vide.',
+	// source: c99153fb
+	'rename.error.dots': 'Un nom ne peut pas être « . » ni « .. ».',
+	// source: 7c1ea7e9
+	'rename.error.nul': 'Un nom ne peut pas contenir de caractère nul.',
+	// source: 573065af
+	'rename.error.slash': 'Un nom ne peut pas contenir « / ».',
+	// source: bc81a2f0
+	'rename.error.backslash': 'Un nom ne peut pas contenir « \\ » sous Windows.',
+	// source: f6d7980c
+	'rename.error.tooLong': 'Un nom peut compter au plus {limit} caractères.',
+	// source: 2f21d2b6
+	'rename.error.forbidden': 'Un nom ne peut pas contenir {character} sous Windows.',
+	// source: 1694c5f3
+	'rename.error.trailing':
+		'Un nom ne peut pas se terminer par un point ou une espace sous Windows.',
+	// source: 6030ff7a
+	'rename.error.reserved': 'Ce nom est réservé par Windows.',
+	// source: 67d5480c
+	'rename.error.exists': 'Un fichier nommé « {name} » existe déjà.',
+	// source: d21ccd1e
+	'rename.error.invalid': 'Ce nom n’est pas permis : {reason}',
+	// source: f2086795
+	'rename.error.failed': 'Impossible de renommer : {reason}',
+	// source: 5af3a875
+	'rename.extension.title': 'Changer l’extension?',
+	// source: 3f67f7fd
+	'rename.extension.change':
+		'Changer l’extension de {from} à {to}? Le fichier pourrait ne plus s’ouvrir dans le programme qui gère les fichiers {from}.',
+	// source: b086aaea
+	'rename.extension.remove':
+		'Retirer l’extension {from}? Le fichier pourrait ne plus s’ouvrir dans le programme qui gère les fichiers {from}.',
+	// source: b173cc72
+	'rename.extension.keep': 'Garder {from}',
+	// source: 6bc87c87
+	'rename.extension.use': 'Utiliser {to}',
+	// source: 20d94d47
+	'rename.extension.drop': 'Retirer {from}',
+	// source: 3bea3abf
+	'tabs.closeGuard.title': 'Fermer cet onglet?',
+	// source: 2b7cce46
+	'tabs.closeGuard.message':
+		'Une opération écrit encore dans ce dossier. Fermer l’onglet ne l’arrête pas, mais ce panneau n’en affichera plus la progression.',
+	// source: f271892d
+	'tabs.closeGuard.action': 'Fermer l’onglet',
+	// source: 71596e43
+	'tabs.closeGuard.keep': 'Garder ouvert',
+	// source: ee34df51
+	'dev.live.label': 'Commandes de mise à jour en direct (développement seulement)',
+	// source: c8e4c718
+	'dev.live.add': 'Ajouter 5 fichiers',
+	// source: ede175da
+	'dev.live.addTop': 'Ajouter 5 en haut',
+	// source: 879ac2bd
+	'dev.live.remove': 'Retirer 5 fichiers',
+	// source: c8bb1277
+	'dev.live.touch': 'Toucher 5 fichiers',
+	// source: 0ffb30c4
+	'dev.live.auto': 'Changer en continu',
+	// source: b553d47d
+	'batchRename.title': 'Renommage en lot',
+	// source: 959d93f2
+	'batchRename.selection.one':
+		'Renommer {count} élément avec une pile de règles, appliquées dans l’ordre.',
+	// source: a7967a41
+	'batchRename.selection.many':
+		'Renommer {count} d’éléments avec une pile de règles, appliquées dans l’ordre.',
+	// source: a7967a41
+	'batchRename.selection.other':
+		'Renommer {count} éléments avec une pile de règles, appliquées dans l’ordre.',
+	// source: 4228aeb0
+	'batchRename.rules.label': 'Règles',
+	// source: f3e95c52
+	'batchRename.rule.heading': 'Règle {number}',
+	// source: 5678e7b5
+	'batchRename.rule.type': 'Type de règle',
+	// source: 5367cdbd
+	'batchRename.rule.moveUp': 'Monter la règle {number}',
+	// source: cfcf0f58
+	'batchRename.rule.moveDown': 'Descendre la règle {number}',
+	// source: 0ffbcc1c
+	'batchRename.rule.remove': 'Retirer la règle {number}',
+	// source: a27cff51
+	'batchRename.rule.add': 'Ajouter une règle',
+	// source: dbb1d5c9
+	'batchRename.rule.addType': 'Type de règle à ajouter',
+	// source: becf2363
+	'batchRename.rule.error': 'Règle {number} : {reason}',
+	// source: 9898ad03
+	'batchRename.kind.findReplace': 'Rechercher et remplacer',
+	// source: bd82cf16
+	'batchRename.kind.counter': 'Numérotation',
+	// source: f97fe580
+	'batchRename.kind.case': 'Changer la casse',
+	// source: acd43562
+	'batchRename.kind.dateToken': 'Insérer la date',
+	// source: 62a09dd6
+	'batchRename.kind.insert': 'Insérer du texte',
+	// source: 5f462179
+	'batchRename.kind.remove': 'Retirer des caractères',
+	// source: be4fe0b6
+	'batchRename.kind.trimWhitespace': 'Supprimer les espaces',
+	// source: be5ca387
+	'batchRename.kind.changeExtension': 'Changer l’extension',
+	// source: aab0d28e
+	'batchRename.scope.label': 'Appliquer à',
+	// source: aef3c304
+	'batchRename.scope.name': 'Nom complet',
+	// source: 0cd4b938
+	'batchRename.scope.stem': 'Nom sans l’extension',
+	// source: 395aeb95
+	'batchRename.scope.extension': 'Extension',
+	// source: 822b2ae4
+	'batchRename.find': 'Rechercher',
+	// source: 8382d317
+	'batchRename.replace': 'Remplacer par',
+	// source: 9f896c35
+	'batchRename.regex': 'Expression régulière',
+	// source: bfc2893d
+	'batchRename.regex.hint': 'Utilisez $1 ou ${1} dans le remplacement pour désigner un groupe.',
+	// source: 61988011
+	'batchRename.caseSensitive': 'Respecter la casse',
+	// source: 09e8b2ff
+	'batchRename.all': 'Remplacer chaque occurrence',
+	// source: 334c284f
+	'batchRename.counter.start': 'Commencer à',
+	// source: 8e6a6cca
+	'batchRename.counter.step': 'Pas',
+	// source: 9cd500d3
+	'batchRename.counter.width': 'Chiffres',
+	// source: 6d031af1
+	'batchRename.position.label': 'Position',
+	// source: fd8a7586
+	'batchRename.position.prefix': 'Avant le nom',
+	// source: 842707a7
+	'batchRename.position.suffix': 'Après le nom',
+	// source: 234e50b7
+	'batchRename.position.replaceStem': 'À la place du nom',
+	// source: be237eda
+	'batchRename.separator': 'Séparateur',
+	// source: aecc3f30
+	'batchRename.case.mode': 'Changer en',
+	// source: cc4c2e40
+	'batchRename.case.upper': 'MAJUSCULES',
+	// source: 99f71806
+	'batchRename.case.lower': 'minuscules',
+	// source: c897dd86
+	'batchRename.case.title': 'Majuscule À Chaque Mot',
+	// source: 2f29e300
+	'batchRename.case.sentence': 'Majuscule initiale',
+	// source: 61df12fa
+	'batchRename.date.source': 'Date de',
+	// source: e8ce5dca
+	'batchRename.date.modified': 'Modification',
+	// source: d70b9e24
+	'batchRename.date.created': 'Création',
+	// source: 2b065c7c
+	'batchRename.date.today': 'Aujourd’hui',
+	// source: 2f343666
+	'batchRename.date.format': 'Format',
+	// source: f03eeac1
+	'batchRename.date.hint': 'Année %Y, mois %m, jour %d, heure %H, minute %M, seconde %S.',
+	// source: 71988c4d
+	'batchRename.insert.text': 'Texte',
+	// source: 9fc231cd
+	'batchRename.insert.at': 'Insérer à',
+	// source: 3eadbac6
+	'batchRename.insert.start': 'Début du nom',
+	// source: a46b95a3
+	'batchRename.insert.end': 'Fin du nom',
+	// source: 15f8e715
+	'batchRename.insert.index': 'Avant le caractère',
+	// source: 85355a8a
+	'batchRename.insert.position': 'Position du caractère',
+	// source: 739354b6
+	'batchRename.remove.from': 'À partir du caractère',
+	// source: c28c758e
+	'batchRename.remove.to': 'Jusqu’au caractère',
+	// source: ab23e032
+	'batchRename.remove.hint': 'Numérotation à partir de 1; les deux extrémités sont retirées.',
+	// source: 5d0bbdef
+	'batchRename.trim.note': 'Supprime les espaces aux deux extrémités du nom.',
+	// source: 0a564061
+	'batchRename.extension.to': 'Nouvelle extension',
+	// source: f8e5bfb3
+	'batchRename.extension.hint': 'Laissez vide pour la retirer. Les dossiers sont ignorés.',
+	// source: c631a00a
+	'batchRename.preview.label': 'Nouveaux noms',
+	// source: 9bb72500
+	'batchRename.preview.before': 'Avant',
+	// source: 7b68fe55
+	'batchRename.preview.after': 'Après',
+	// source: d8da2c49
+	'batchRename.preview.note': 'Remarque',
+	// source: d3b7ec6b
+	'batchRename.preview.checking': 'Vérification des nouveaux noms…',
+	// source: 78996325
+	'batchRename.preview.failed': 'Les nouveaux noms n’ont pas pu être calculés : {reason}',
+	// source: 37181158
+	'batchRename.preview.capped': 'Éléments affichés : {shown} sur {total}',
+	// source: 41f9d57c
+	'batchRename.row.unchanged': 'Aucun changement',
+	// source: d2320975
+	'batchRename.row.extension': 'L’extension change',
+	// source: a1c5ae7b
+	'batchRename.problem.label': 'Problème',
+	// source: ca6b8580
+	'batchRename.problem.duplicate': 'Même nom que « {other} »',
+	// source: 457adf2e
+	'batchRename.problem.exists': 'Un fichier ou un dossier portant ce nom est déjà là',
+	// source: a4ba81b6
+	'batchRename.problem.invalid': '{reason}',
+	// source: bb4bfc63
+	'batchRename.problem.nested':
+		'Dans « {other} », qui est aussi renommé; sélectionnez l’un ou l’autre',
+	// source: 9a1fb385
+	'batchRename.summary.problems.one': '{count} problème',
+	// source: de83f43e
+	'batchRename.summary.problems.many': '{count} de problèmes',
+	// source: de83f43e
+	'batchRename.summary.problems.other': '{count} problèmes',
+	// source: c490e5d7
+	'batchRename.summary.changes.one': '{count} élément sera renommé',
+	// source: 9c6f1485
+	'batchRename.summary.changes.many': '{count} d’éléments seront renommés',
+	// source: 9c6f1485
+	'batchRename.summary.changes.other': '{count} éléments seront renommés',
+	// source: 4cc810af
+	'batchRename.summary.none': 'Aucun nom ne change',
+	// source: ab916c8b
+	'batchRename.extensionNote':
+		'Une règle change une extension de fichier. Les extensions sont ignorées, sauf si une règle les vise.',
+	// source: 31e392d1
+	'batchRename.apply': 'Appliquer',
+	// source: 19766ed6
+	'batchRename.cancel': 'Annuler',
+	// source: 40aef98d
+	'batchRename.applying': 'Renommage…',
+	// source: 7382b532
+	'batchRename.applied.one': 'Renommage de {count} élément',
+	// source: 3d43595d
+	'batchRename.applied.many': 'Renommage de {count} d’éléments',
+	// source: 3d43595d
+	'batchRename.applied.other': 'Renommage de {count} éléments',
+	// source: 0cbc60f6
+	'batchRename.applyFailed': 'Le renommage n’a pas pu démarrer : {reason}',
+	// source: a76e13b9
+	'chrome.restore': 'Restaurer',
+	// source: 1c9fcada
+	'chrome.maximise': 'Agrandir',
+	// source: 20f082e9
+	'chrome.minimise': 'Réduire',
+	// source: 9a8e3f39
+	'ops.ring.idle': 'Opérations, aucune en cours',
+	// source: f8cd67e9
+	'ops.ring.active.one': 'Opérations, {count} en cours',
+	// source: f8cd67e9
+	'ops.ring.active.many': 'Opérations, {count} en cours',
+	// source: f8cd67e9
+	'ops.ring.active.other': 'Opérations, {count} en cours',
+	// source: f332cf80
+	'ops.ring.done': 'Opérations, toutes terminées',
+	// source: 8a5bee86
+	'ops.ring.percent': '{percent} % terminé',
+	// source: 7d49e284
+	'ops.ring.waiting': 'en attente de vous',
+	// source: c5fa723b
+	'ops.ring.failed': 'une tâche a échoué',
+	// source: d36be649
+	'ops.ring.queued': 'en file d’attente',
+	// source: 358cc201
+	'ops.popover.label': 'Opérations',
+	// source: 358cc201
+	'ops.panel.label': 'Opérations',
+	// source: 2f17a0f8
+	'ops.list.label': 'Tâches',
+	// source: b1ef1bfe
+	'ops.list.empty': 'Rien n’est en cours.',
+	// source: 00d0cb7f
+	'ops.list.hint': 'Alt+Haut et Alt+Bas déplacent une tâche en file d’attente',
+	// source: 2a16b4f8
+	'ops.clearFinished': 'Effacer les terminées',
+	// source: 7bdde36a
+	'ops.popOut': 'Détacher',
+	// source: 7fb4a204
+	'ops.popOut.failed': 'Impossible d’ouvrir la fenêtre des opérations.',
+	// source: 911bed8c
+	'ops.reordered': '{title} déplacée à la position {position}',
+	// source: c66feb5e
+	'ops.moveUp': 'Monter',
+	// source: 40bb50da
+	'ops.moveDown': 'Descendre',
+	// source: 0bcc686f
+	'ops.route': '{from} → {to}',
+	// source: 208a19d5
+	'ops.sources.one': '{count} élément',
+	// source: f65216b3
+	'ops.sources.many': '{count} d’éléments',
+	// source: f65216b3
+	'ops.sources.other': '{count} éléments',
+	// source: 4fa892b2
+	'ops.title.copy.one': 'Copie de {count} élément',
+	// source: 2feba608
+	'ops.title.copy.many': 'Copie de {count} d’éléments',
+	// source: 2feba608
+	'ops.title.copy.other': 'Copie de {count} éléments',
+	// source: a26e7f39
+	'ops.title.copy.named': 'Copie de {name}',
+	// source: 05bcad27
+	'ops.title.move.one': 'Déplacement de {count} élément',
+	// source: 481254e8
+	'ops.title.move.many': 'Déplacement de {count} d’éléments',
+	// source: 481254e8
+	'ops.title.move.other': 'Déplacement de {count} éléments',
+	// source: c9ff6388
+	'ops.title.move.named': 'Déplacement de {name}',
+	// source: bd5ccbfc
+	'ops.title.link.one': 'Création d’un lien vers {count} élément',
+	// source: a778f6b7
+	'ops.title.link.many': 'Création d’un lien vers {count} d’éléments',
+	// source: a778f6b7
+	'ops.title.link.other': 'Création d’un lien vers {count} éléments',
+	// source: 8b3ac233
+	'ops.title.link.named': 'Création d’un lien vers {name}',
+	// source: a2fc5d05
+	'ops.title.trash.one': 'Mise à la Corbeille de {count} élément',
+	// source: 9907c6b4
+	'ops.title.trash.many': 'Mise à la Corbeille de {count} d’éléments',
+	// source: 9907c6b4
+	'ops.title.trash.other': 'Mise à la Corbeille de {count} éléments',
+	// source: 919f683b
+	'ops.title.trash.named': 'Mise à la Corbeille de {name}',
+	// source: 285c2a07
+	'ops.title.delete.one': 'Suppression de {count} élément',
+	// source: 61f697f0
+	'ops.title.delete.many': 'Suppression de {count} d’éléments',
+	// source: 61f697f0
+	'ops.title.delete.other': 'Suppression de {count} éléments',
+	// source: b8e18867
+	'ops.title.delete.named': 'Suppression de {name}',
+	// source: 5d6962fe
+	'ops.title.duplicate.one': 'Duplication de {count} élément',
+	// source: 1cbf0c96
+	'ops.title.duplicate.many': 'Duplication de {count} d’éléments',
+	// source: 1cbf0c96
+	'ops.title.duplicate.other': 'Duplication de {count} éléments',
+	// source: 1157d9e3
+	'ops.title.duplicate.named': 'Duplication de {name}',
+	// source: 154f1572
+	'ops.title.restore.one': 'Restauration de {count} élément',
+	// source: 7ef6e728
+	'ops.title.restore.many': 'Restauration de {count} d’éléments',
+	// source: 7ef6e728
+	'ops.title.restore.other': 'Restauration de {count} éléments',
+	// source: fd311a31
+	'ops.title.restore.named': 'Restauration de {name}',
+	// source: c6dd4fe8
+	'ops.done.copy.one': '{count} élément copié',
+	// source: 6a1597b6
+	'ops.done.copy.many': '{count} d’éléments copiés',
+	// source: 6a1597b6
+	'ops.done.copy.other': '{count} éléments copiés',
+	// source: d1f79e6c
+	'ops.done.copy.named': '{name} copié',
+	// source: 01fa61e9
+	'ops.done.move.one': '{count} élément déplacé',
+	// source: 9c8c184c
+	'ops.done.move.many': '{count} d’éléments déplacés',
+	// source: 9c8c184c
+	'ops.done.move.other': '{count} éléments déplacés',
+	// source: 89d749e5
+	'ops.done.move.named': '{name} déplacé',
+	// source: 0d2fcb47
+	'ops.done.link.one': 'Lien créé vers {count} élément',
+	// source: baf9a919
+	'ops.done.link.many': 'Lien créé vers {count} d’éléments',
+	// source: baf9a919
+	'ops.done.link.other': 'Lien créé vers {count} éléments',
+	// source: 7832c175
+	'ops.done.link.named': 'Lien créé vers {name}',
+	// source: 9ab9f18f
+	'ops.done.trash.one': '{count} élément mis à la Corbeille',
+	// source: 83562d46
+	'ops.done.trash.many': '{count} d’éléments mis à la Corbeille',
+	// source: 83562d46
+	'ops.done.trash.other': '{count} éléments mis à la Corbeille',
+	// source: 9ce945b8
+	'ops.done.trash.named': '{name} mis à la Corbeille',
+	// source: e6380f89
+	'ops.done.duplicate.one': '{count} élément dupliqué',
+	// source: 174d44a7
+	'ops.done.duplicate.many': '{count} d’éléments dupliqués',
+	// source: 174d44a7
+	'ops.done.duplicate.other': '{count} éléments dupliqués',
+	// source: 5a314b29
+	'ops.done.duplicate.named': '{name} dupliqué',
+	// source: 144c58d0
+	'ops.done.restore.one': '{count} élément restauré',
+	// source: 59cb1792
+	'ops.done.restore.many': '{count} d’éléments restaurés',
+	// source: 59cb1792
+	'ops.done.restore.other': '{count} éléments restaurés',
+	// source: b7ceb1cf
+	'ops.done.restore.named': '{name} restauré',
+	// source: b3f812b1
+	'ops.done.delete.one': '{count} élément supprimé',
+	// source: 3566861d
+	'ops.done.delete.many': '{count} d’éléments supprimés',
+	// source: 3566861d
+	'ops.done.delete.other': '{count} éléments supprimés',
+	// source: abaa7e46
+	'ops.done.delete.named': '{name} supprimé',
+	// source: d793e100
+	'ops.done.generic': 'Terminé : {title}',
+	// source: 5d1fa38b
+	'ops.state.planning': 'Préparation…',
+	// source: 28cc95cd
+	'ops.state.queued': 'En attente',
+	// source: f4ccae29
+	'ops.state.running': 'En cours',
+	// source: e159b061
+	'ops.state.paused': 'En pause',
+	// source: 91b104db
+	'ops.state.cancelling': 'Annulation…',
+	// source: d353a99e
+	'ops.state.cancelled': 'Annulé',
+	// source: 11a6767d
+	'ops.state.done': 'Terminé',
+	// source: 7ba32522
+	'ops.state.failed': 'Échec : {reason}',
+	// source: 202a0714
+	'ops.state.waiting.conflicts.one': 'En attente de vous : {count} nom est déjà pris',
+	// source: 558b9905
+	'ops.state.waiting.conflicts.many': 'En attente de vous : {count} de noms sont déjà pris',
+	// source: 558b9905
+	'ops.state.waiting.conflicts.other': 'En attente de vous : {count} noms sont déjà pris',
+	// source: 6d1d428a
+	'ops.state.waiting.error': 'En attente de vous : {reason}',
+	// source: e163fd7e
+	'ops.progress.items': '{done} sur {total} éléments',
+	// source: e7a467ec
+	'ops.progress.bytes': '{done} sur {total}',
+	// source: 5feb4089
+	'ops.progress.speed': '{speed}/s',
+	// source: 230d1740
+	'ops.progress.eta': '{time} restantes',
+	// source: 8e6df4a0
+	'ops.duration.seconds': '{n} s',
+	// source: 913185ba
+	'ops.duration.minutes': '{n} min',
+	// source: 99422830
+	'ops.duration.hours': '{h} h {m} min',
+	// source: 084189ee
+	'ops.skipped.one': '{count} ignoré',
+	// source: 084189ee
+	'ops.skipped.many': '{count} ignorés',
+	// source: 084189ee
+	'ops.skipped.other': '{count} ignorés',
+	// source: 858e4ba7
+	'ops.action.pause': 'Mettre en pause',
+	// source: d640c742
+	'ops.action.resume': 'Reprendre',
+	// source: 19766ed6
+	'ops.action.cancel': 'Annuler',
+	// source: 942087cc
+	'ops.action.retry': 'Réessayer',
+	// source: 48845bff
+	'ops.action.dismiss': 'Fermer',
+	// source: a55fea56
+	'ops.action.resolve': 'Résoudre…',
+	// source: da478765
+	'ops.action.showInFolder': 'Afficher dans le dossier',
+	// source: edc480cc
+	'ops.action.for': '{action} : {title}',
+	// source: ed0b7469
+	'ops.resolve.unavailable': 'Il n’est pas encore possible de répondre d’ici.',
+	// source: 0bdf197b
+	'ops.resolve.notWaiting': 'Cette tâche n’attend plus de réponse.',
+	// source: 43d68f56
+	'ops.resolve.failed': 'Impossible d’envoyer la réponse : {reason}',
+	// source: fd9849d8
+	'ops.conflict.title.one': '{count} élément existe déjà dans {destination}',
+	// source: 4a80d858
+	'ops.conflict.title.many': '{count} d’éléments existent déjà dans {destination}',
+	// source: 4a80d858
+	'ops.conflict.title.other': '{count} éléments existent déjà dans {destination}',
+	// source: 7a4860f3
+	'ops.conflict.title.restore.one': '{count} élément existe déjà dans son dossier d’origine',
+	// source: 29392dc9
+	'ops.conflict.title.restore.many': '{count} d’éléments existent déjà dans leur dossier d’origine',
+	// source: 29392dc9
+	'ops.conflict.title.restore.other': '{count} éléments existent déjà dans leur dossier d’origine',
+	// source: 2dbdcae8
+	'ops.conflict.destination.unknown': 'la destination',
+	// source: afcb88ec
+	'ops.conflict.description':
+		'Choisissez ce qui arrive à chacun. Rien n’est écrasé avant que vous continuiez.',
+	// source: cb18fb43
+	'ops.conflict.description.restore':
+		'Choisissez ce qui arrive à chacun. Rien n’est modifié avant que vous continuiez.',
+	// source: 630870b0
+	'ops.conflict.table.label': 'Éléments qui existent déjà',
+	// source: dcd1d522
+	'ops.conflict.col.name': 'Nom',
+	// source: b3245801
+	'ops.conflict.col.existing': 'Déjà présent',
+	// source: e301820a
+	'ops.conflict.col.incoming': 'Entrant',
+	// source: e0781672
+	'ops.conflict.col.incoming.restore': 'Dans la Corbeille',
+	// source: f47f1edc
+	'ops.conflict.col.choice': 'Action',
+	// source: 50009ce1
+	'ops.conflict.kind.file': 'Fichier',
+	// source: 74ccd433
+	'ops.conflict.kind.folder': 'Dossier',
+	// source: 87339554
+	'ops.conflict.sizeUnknown': 'Taille inconnue',
+	// source: bc11be8c
+	'ops.conflict.modifiedUnknown': 'Date inconnue',
+	// source: 7e8229c4
+	'ops.conflict.hint.newer': 'Plus récent que l’existant',
+	// source: 856968da
+	'ops.conflict.hint.older': 'Plus ancien que l’existant',
+	// source: c8929748
+	'ops.conflict.hint.same': 'Même date que l’existant',
+	// source: f81c7cc8
+	'ops.conflict.batch': 'Pas encore là : un autre élément de cette tâche porte le même nom',
+	// source: 232c550c
+	'ops.conflict.mismatch.fileOverFolder':
+		'Un fichier porte le nom d’un dossier existant; il ne peut donc qu’être ignoré ou conservé à côté.',
+	// source: 2451b298
+	'ops.conflict.mismatch.folderOverFile':
+		'Un dossier porte le nom d’un fichier existant; il ne peut donc qu’être ignoré ou conservé à côté.',
+	// source: 95e15439
+	'ops.conflict.choice.replace': 'Remplacer',
+	// source: 28d03596
+	'ops.conflict.choice.skip': 'Ignorer',
+	// source: 93672212
+	'ops.conflict.choice.keepBoth': 'Garder les deux',
+	// source: 62c63bb6
+	'ops.conflict.choice.mergeFolders': 'Fusionner les dossiers',
+	// source: de6bf8d1
+	'ops.conflict.choice.replaceIfNewer': 'Remplacer si plus récent',
+	// source: 7ca41615
+	'ops.conflict.choice.placeholder': 'Choisir…',
+	// source: 110365bd
+	'ops.conflict.choice.bulk': 'Comme « Appliquer à tous les restants » : {choice}',
+	// source: 9febbfc2
+	'ops.conflict.choice.for': 'Choix pour {name}',
+	// source: 0336abb0
+	'ops.conflict.note.replace.file': 'Remplace le fichier existant.',
+	// source: 23de2473
+	'ops.conflict.note.replace.folder':
+		'Remplace tout le dossier : tout ce qui s’y trouve et n’est pas dans le dossier entrant est perdu.',
+	// source: cd3dccaa
+	'ops.conflict.note.skip': 'Laissé de côté; l’existant reste tel quel.',
+	// source: aaa68418
+	'ops.conflict.note.keepBoth': 'Conservé à côté de l’existant sous forme de copie numérotée.',
+	// source: bd8e6726
+	'ops.conflict.note.keepBoth.restore': 'Restauré sous un nom libre.',
+	// source: 16725a48
+	'ops.conflict.note.mergeFolders':
+		'Intégré au dossier existant. Les conflits à l’intérieur sont réglés par le choix appliqué à tous, et vous sont demandés quand celui-ci ne peut pas les régler.',
+	// source: ab616b03
+	'ops.conflict.note.replaceIfNewer':
+		'Remplace le fichier existant seulement si l’entrant est nettement plus récent.',
+	// source: 1de98c92
+	'ops.conflict.bulk.label': 'Appliquer à tous les restants',
+	// source: 7ca41615
+	'ops.conflict.bulk.placeholder': 'Choisir…',
+	// source: c9df2d68
+	'ops.conflict.bulk.covers':
+		'Couvre {covered} des {open} sans réponse. Les autres ne peuvent pas l’utiliser et ont besoin de leur propre choix.',
+	// source: 909d640c
+	'ops.conflict.bulk.coversAll': 'Couvre les {open} sans réponse.',
+	// source: 67ff21fa
+	'ops.conflict.later.label': 'Appliquer à tous les conflits semblables à celui-ci',
+	// source: 9d4572e9
+	'ops.conflict.later.hint':
+		'Règle aussi ceux qui surviendront plus tard dans cette tâche, par exemple dans des dossiers fusionnés.',
+	// source: 81c8b6dd
+	'ops.conflict.progress': '{answered} sur {total} traités',
+	// source: 1a261270
+	'ops.conflict.more.one': 'et {count} de plus',
+	// source: 1a261270
+	'ops.conflict.more.many': 'et {count} de plus',
+	// source: 1a261270
+	'ops.conflict.more.other': 'et {count} de plus',
+	// source: 2c3d9112
+	'ops.conflict.more.hint':
+		'« Appliquer à tous les restants » couvre ceux qui ne sont pas affichés; vous pouvez aussi tous les afficher pour répondre un à un.',
+	// source: 2150d8df
+	'ops.conflict.showAll': 'Tout afficher',
+	// source: 31fbef16
+	'ops.conflict.continue': 'Continuer',
+	// source: 5dcca55b
+	'ops.conflict.cancel': 'Annuler l’opération',
+	// source: 892c45a2
+	'ops.conflict.later': 'Décider plus tard',
+	// source: 2c0a76c0
+	'ops.conflict.cancelConfirm.title': 'Annuler l’opération?',
+	// source: f312435d
+	'ops.conflict.cancelConfirm.message': 'La tâche s’arrête et vos réponses sont abandonnées.',
+	// source: 5dcca55b
+	'ops.conflict.cancelConfirm.confirm': 'Annuler l’opération',
+	// source: 5e45d70f
+	'ops.conflict.cancelConfirm.keep': 'Continuer de décider',
+	// source: d00e200a
+	'ops.conflict.announce': 'On continue : {summary}',
+	// source: 7bb54d82
+	'ops.conflict.summary.replace': 'Remplacer {count}',
+	// source: a59a63b1
+	'ops.conflict.summary.skip': 'Ignorer {count}',
+	// source: 4cb85911
+	'ops.conflict.summary.keepBoth': 'Garder les deux pour {count}',
+	// source: 2a2e00a5
+	'ops.conflict.summary.mergeFolders': 'Fusionner {count}',
+	// source: 290993b2
+	'ops.conflict.summary.replaceIfNewer': 'Remplacer si plus récent pour {count}',
+	// source: 67771a23
+	'ops.conflict.sizeHint.larger': 'Plus gros que l’existant',
+	// source: c037bc63
+	'ops.conflict.sizeHint.smaller': 'Plus petit que l’existant',
+	// source: 279ba4f5
+	'ops.conflict.sizeHint.same': 'Même taille que l’existant',
+	// source: 641ca950
+	'ops.conflict.preview.loading': 'Comparaison des fichiers…',
+	// source: 53417fc3
+	'ops.conflict.preview.compare': 'Comparer les fichiers',
+	// source: 5c5f45e0
+	'ops.conflict.preview.compareNamed': 'Comparer les fichiers nommés {name}',
+	// source: 9d5acd90
+	'ops.conflict.preview.show': 'Afficher les différences',
+	// source: 780f7ac4
+	'ops.conflict.preview.hide': 'Masquer les différences',
+	// source: a0248f80
+	'ops.conflict.preview.showNamed': 'Afficher les différences dans {name}',
+	// source: dd6bd6b7
+	'ops.conflict.preview.hideNamed': 'Masquer les différences dans {name}',
+	// source: d82927a9
+	'ops.conflict.preview.identical':
+		'Contenu identique. Ignorer est probablement ce que vous voulez.',
+	// source: 0917de46
+	'ops.conflict.preview.same': 'Le texte est le même; il n’y a donc rien à afficher.',
+	// source: 470c6f60
+	'ops.conflict.preview.binary':
+		'Le contenu diffère. Ce ne sont pas des fichiers texte; aucune ligne n’est donc affichée.',
+	// source: 619eb366
+	'ops.conflict.preview.tooLarge': 'Trop volumineux pour être comparé ici.',
+	// source: 8f642091
+	'ops.conflict.preview.added.one': '{count} ligne ajoutée',
+	// source: c6c96bfa
+	'ops.conflict.preview.added.many': '{count} de lignes ajoutées',
+	// source: c6c96bfa
+	'ops.conflict.preview.added.other': '{count} lignes ajoutées',
+	// source: 8ca2f2cd
+	'ops.conflict.preview.removed.one': '{count} ligne retirée',
+	// source: 0948a8ea
+	'ops.conflict.preview.removed.many': '{count} de lignes retirées',
+	// source: 0948a8ea
+	'ops.conflict.preview.removed.other': '{count} lignes retirées',
+	// source: c2287541
+	'ops.conflict.preview.lossy':
+		'Certains octets ne sont pas du texte valide et sont affichés sous la forme �.',
+	// source: 5b1a2cbe
+	'ops.conflict.preview.approximate':
+		'La comparaison s’est arrêtée plus tôt; les changements listés peuvent donc être plus nombreux que nécessaire.',
+	// source: e9a25d2d
+	'ops.conflict.diff.label': 'Différences dans {name}',
+	// source: 58f01269
+	'ops.conflict.diff.added': 'Ajoutée, ligne {line} : ',
+	// source: 88516b3c
+	'ops.conflict.diff.removed': 'Retirée, ligne {line} : ',
+	// source: 91fdfd9b
+	'ops.conflict.diff.context': 'Inchangée, ligne {line} : ',
+	// source: e8ac4089
+	'ops.conflict.diff.gap.one': '{count} ligne inchangée',
+	// source: 7febc71d
+	'ops.conflict.diff.gap.many': '{count} de lignes inchangées',
+	// source: 7febc71d
+	'ops.conflict.diff.gap.other': '{count} lignes inchangées',
+	// source: 9967f0f4
+	'ops.conflict.diff.more.one': '{count} autre ligne',
+	// source: fc34f62c
+	'ops.conflict.diff.more.many': '{count} d’autres lignes',
+	// source: fc34f62c
+	'ops.conflict.diff.more.other': '{count} autres lignes',
+	// source: a26fabfd
+	'ops.problem.title': 'Un élément n’a pas pu être traité',
+	// source: f53d00fd
+	'ops.problem.title.parent': 'Le dossier d’origine n’existe plus',
+	// source: 8b165d04
+	'ops.problem.item': 'Élément : {item}',
+	// source: 74b185f5
+	'ops.problem.job': 'Tâche : {title}',
+	// source: b25ec662
+	'ops.problem.message.notFound':
+		'{location} est introuvable. Il a peut-être été déplacé ou supprimé.',
+	// source: 10b7edcf
+	'ops.problem.message.permissionDenied':
+		'Permission refusée pour {location}. Vérifiez ses permissions, et celles du dossier qui le contient ou de destination.',
+	// source: b801ce54
+	'ops.problem.message.notEnoughSpace':
+		'Il n’y a pas assez d’espace libre : {needed} requis, {free} libres.',
+	// source: 9fce9ab2
+	'ops.problem.message.notEnoughSpace.unknown':
+		'Il n’y a pas assez d’espace libre à la destination.',
+	// source: 6d33b655
+	'ops.problem.message.invalidName': '« {name} » ne peut pas servir de nom ici : {reason}',
+	// source: 4e5abb7d
+	'ops.problem.message.nameInUse': '{location} est déjà pris.',
+	// source: 8d8ab28c
+	'ops.problem.message.sameFolder': 'Les éléments sont déjà dans ce dossier.',
+	// source: be2202ec
+	'ops.problem.message.intoItself': 'Un dossier ne peut pas être placé dans lui-même.',
+	// source: de822e69
+	'ops.problem.message.protected': '{location} est protégé et n’est jamais modifié.',
+	// source: 2a6e7fba
+	'ops.problem.message.trashUnavailable': 'La Corbeille n’est pas disponible : {reason}',
+	// source: 5ff173b9
+	'ops.problem.message.originMissingParent':
+		'{folder} n’existe plus. Le recréer et y restaurer l’élément?',
+	// source: abb4a62b
+	'ops.problem.message.cancelled': 'L’opération a été annulée.',
+	// source: 4672a8e6
+	'ops.problem.message.unsupported': 'Cela n’est pas encore pris en charge : {what}',
+	// source: 85d55d59
+	'ops.problem.message.changedSince':
+		'{location} a changé après la planification de la tâche; il a donc été laissé tel quel.',
+	// source: 20d43857
+	'ops.problem.message.verifyFailed':
+		'{location} a été copié, mais sa relecture ne correspondait pas; la copie a donc été supprimée.',
+	// source: 1c60bac9
+	'ops.problem.message.cannotReplace':
+		'{location} ne peut pas être remplacé par une entrée d’un autre genre. Garder les deux ou l’ignorer fonctionnera.',
+	// source: bfaae3ae
+	'ops.problem.message.undoStale': 'Cette action ne peut pas être annulée : {reason}',
+	// source: a4ba81b6
+	'ops.problem.message.undoUnavailable': '{reason}',
+	// source: 89438320
+	'ops.problem.message.io': 'Le système a signalé un problème : {message}',
+	// source: 45989de4
+	'ops.problem.details': 'Détails',
+	// source: f924415e
+	'ops.problem.details.expected': 'Somme de contrôle attendue : {digest}',
+	// source: 62b68cd0
+	'ops.problem.details.actual': 'Somme de contrôle obtenue : {digest}',
+	// source: 942087cc
+	'ops.problem.retry': 'Réessayer',
+	// source: 28d03596
+	'ops.problem.skip': 'Ignorer',
+	// source: 73b8abe4
+	'ops.problem.skipAll': 'Ignorer tous les cas semblables',
+	// source: 5dcca55b
+	'ops.problem.cancel': 'Annuler l’opération',
+	// source: 3e6f5d41
+	'ops.problem.createParents': 'Recréer les dossiers',
+	// source: 2b110b9c
+	'ops.problem.chooseLocation': 'Choisir un autre emplacement…',
+	// source: 892c45a2
+	'ops.problem.later': 'Décider plus tard',
+	// source: 0cdccb51
+	'ops.problem.skipAll.hint':
+		'« Ignorer tous les cas semblables » ignore cet élément et tous les suivants qui échouent de la même façon.',
+	// source: a935357d
+	'ops.error.notFound': '{name} est introuvable',
+	// source: 9ae563c2
+	'ops.error.permissionDenied': 'Permission refusée pour {name}',
+	// source: 2c0e35ae
+	'ops.error.notEnoughSpace': 'Espace insuffisant à la destination',
+	// source: ec4659f7
+	'ops.error.invalidName': '« {name} » n’est pas un nom valide',
+	// source: 296a81f9
+	'ops.error.nameInUse': '{name} est déjà pris',
+	// source: 23eb5ed7
+	'ops.error.sameFolder': 'Les éléments sont déjà dans ce dossier',
+	// source: a41c854e
+	'ops.error.intoItself': 'Un dossier ne peut pas être placé dans lui-même',
+	// source: a23d1e87
+	'ops.error.protected': '{name} est protégé',
+	// source: 9b5c8968
+	'ops.error.trashUnavailable': 'La Corbeille est indisponible',
+	// source: d353a99e
+	'ops.error.cancelled': 'Annulé',
+	// source: 8f611909
+	'ops.error.unsupported': 'Pas encore pris en charge',
+	// source: 718e8069
+	'ops.error.changedSince': '{name} a changé depuis la planification',
+	// source: f6f6e288
+	'ops.error.verifyFailed': 'La vérification de {name} a échoué',
+	// source: 4897a77f
+	'ops.error.cannotReplace': '{name} ne peut pas être remplacé par une entrée d’un autre genre',
+	// source: 45da8fd3
+	'ops.error.undoStale.missing': '{name} n’est plus à son emplacement',
+	// source: e71102d4
+	'ops.error.undoStale.changed': '{name} a été modifié depuis',
+	// source: f06f0516
+	'ops.error.undoStale.nameTaken': 'autre chose porte maintenant le nom qu’avait {name}',
+	// source: bc6645d9
+	'ops.error.undoStale.trashEmptied': '{name} n’est plus dans la Corbeille',
+	// source: fce43c71
+	'ops.error.undoStale.unverified': '{name} n’a pas pu être vérifié; il a donc été laissé tel quel',
+	// source: 1e11588a
+	'ops.error.undoUnavailable': 'Il n’y a rien à annuler',
+	// source: ab827e3f
+	'ops.error.io': 'Une erreur s’est produite',
+	// source: 7943f3b4
+	'ops.announce.started': 'Démarré : {title}',
+	// source: d793e100
+	'ops.announce.finished': 'Terminé : {title}',
+	// source: 6907eb19
+	'ops.announce.failed': 'Échec : {title}. {reason}',
+	// source: 9b511a8c
+	'ops.announce.waiting': '{title} attend votre réponse',
+	// source: 37d03e99
+	'ops.announce.cancelled': 'Annulé : {title}',
+	// source: 2f8caff2
+	'ops.announce.milestone': '{title} : {percent} % terminé, {done} sur {total} éléments',
+	// source: 5b43da80
+	'ops.announce.remaining.one': '{count} opération toujours en cours',
+	// source: f8ea8d50
+	'ops.announce.remaining.many': '{count} d’opérations toujours en cours',
+	// source: f8ea8d50
+	'ops.announce.remaining.other': '{count} opérations toujours en cours',
+	// source: 377ffab6
+	'ops.undo.failed': 'Impossible d’annuler : {reason}',
+	// source: a418093a
+	'ops.undo.entryGone': 'Ce changement a déjà été annulé ou ne figure plus dans l’historique',
+	// source: bf249234
+	'ops.redo.failed': 'Impossible de rétablir : {reason}',
+	// source: 7371662e
+	'ops.title.createFolder.named': 'Création du dossier {name}',
+	// source: 897ac7a5
+	'ops.title.createFile.named': 'Création du fichier {name}',
+	// source: 81d4334a
+	'ops.title.rename.named': 'Renommage de {name}',
+	// source: 8a60b229
+	'ops.done.createFolder.named': 'Dossier {name} créé',
+	// source: 2c180bc0
+	'ops.done.createFile.named': 'Fichier {name} créé',
+	// source: d78a8f57
+	'ops.done.rename.named': '{name} renommé',
+	// source: 0b8a79ff
+	'ops.recovery.one': 'Une opération a été interrompue : {label}',
+	// source: 126885d4
+	'ops.recovery.many': '{count} d’opérations ont été interrompues, dont : {label}',
+	// source: 126885d4
+	'ops.recovery.other': '{count} opérations ont été interrompues, dont : {label}',
+	// source: 3b7f0324
+	'ops.recovery.unnamed': 'Une opération a été interrompue.',
+	// source: 6ecc3df6
+	'chrome.move': 'Déplacer',
+	// source: 25b01bd5
+	'chrome.alwaysOnTop': 'Toujours au premier plan',
+	// source: b7a7dc8e
+	'chrome.systemWindowMenu': 'Plus d’options…',
+	// source: 7d9eb7ac
+	'chrome.close': 'Fermer',
+	// source: 7878b343
+	'chrome.windowMenu': 'Menu de la fenêtre',
+	// source: 9cea69fd
+	'chrome.windowControls': 'Commandes de la fenêtre',
+	// source: d4b1ea57
+	'overview.title': 'Vue d’ensemble',
+	// source: 1d067d8d
+	'overview.loading': 'Lecture des volumes…',
+	// source: 6bd6df68
+	'overview.stats.label': 'Totaux',
+	// source: ae65d096
+	'overview.stat.capacity': 'Capacité',
+	// source: ed2c8dc5
+	'overview.stat.capacity.note.one':
+		'Compte {count} volume local. Les partages réseau et les images disque sont exclus.',
+	// source: 8a5481b1
+	'overview.stat.capacity.note.many':
+		'Compte {count} de volumes locaux. Les partages réseau et les images disque sont exclus.',
+	// source: 8a5481b1
+	'overview.stat.capacity.note.other':
+		'Compte {count} volumes locaux. Les partages réseau et les images disque sont exclus.',
+	// source: 8922e83d
+	'overview.stat.capacity.none': 'Aucun volume local n’a indiqué sa taille.',
+	// source: f411a1fb
+	'overview.stat.free': 'Libre',
+	// source: 22222acb
+	'overview.stat.free.note': 'Sur les mêmes volumes',
+	// source: 3a786953
+	'overview.stat.home': 'Dossier personnel',
+	// source: baf7f6c7
+	'overview.stat.home.notMeasured': 'Pas encore mesuré',
+	// source: a1f421df
+	'overview.stat.home.measuring': 'Mesure en cours…',
+	// source: 1539c30c
+	'overview.stat.home.note': '{percent} % de l’espace utilisé sur {volume}',
+	// source: 40ae9e7f
+	'overview.stat.home.noteUnknown': 'Sa part de l’espace utilisé n’est pas encore connue',
+	// source: 53a480e3
+	'overview.stat.volumes': 'Volumes',
+	// source: 0b583ba0
+	'overview.stat.volumes.noSystems': 'Aucun système de fichiers signalé',
+	// source: 45a94cc5
+	'overview.unavailable.title': 'La liste des volumes n’est pas disponible',
+	// source: 9f554951
+	'overview.unavailable.fallback': 'Ce système ne permet pas à Waypoint de lister ses volumes.',
+	// source: fbf4879e
+	'overview.unavailable.showing':
+		'Affichage du volume qui contient votre dossier personnel à la place.',
+	// source: 53a480e3
+	'overview.volumes.label': 'Volumes',
+	// source: 11bc3b7d
+	'overview.volumes.empty': 'Aucun volume à afficher.',
+	// source: 78fad13c
+	'overview.volume.unknownFileSystem': 'Système de fichiers non signalé',
+	// source: fdb58ac8
+	'overview.volume.homeVolume': 'Volume du dossier personnel',
+	// source: 6725e7bb
+	'overview.volume.badge.system': 'Système',
+	// source: 8d81d2ff
+	'overview.volume.badge.removable': 'Amovible',
+	// source: 1744b964
+	'overview.volume.badge.network': 'Réseau',
+	// source: 8d321d84
+	'overview.volume.badge.optical': 'Optique',
+	// source: 1af85190
+	'overview.volume.size': 'Capacité',
+	// source: f411a1fb
+	'overview.volume.free': 'Libre',
+	// source: d7d557fa
+	'overview.volume.unavailable': 'Taille indisponible',
+	// source: 669cf449
+	'overview.volume.notMounted': 'Non monté',
+	// source: a47ec4c8
+	'overview.volume.locked': 'Verrouillé. Déverrouillez-le pour voir son espace.',
+	// source: 64dff6c3
+	'overview.volume.unmeasured': 'Non mesuré. L’accès à un partage réseau peut être lent.',
+	// source: a1f421df
+	'overview.volume.measuring': 'Mesure en cours…',
+	// source: 7ce78838
+	'overview.volume.measureFailed': 'Impossible de mesurer {name}.',
+	// source: 6ba9906e
+	'overview.volume.almostFull': 'Presque plein',
+	// source: f687d181
+	'overview.volume.open': 'Ouvrir {name}',
+	// source: ebf940f2
+	'overview.action.measure': 'Mesurer',
+	// source: 278868ce
+	'overview.action.measureVolume': 'Mesurer {name}',
+	// source: d5605821
+	'overview.action.mount': 'Monter',
+	// source: 05637203
+	'overview.action.mountVolume': 'Monter {name}',
+	// source: 4ac709aa
+	'overview.action.unlock': 'Déverrouiller',
+	// source: cf2aac84
+	'overview.action.unlockVolume': 'Déverrouiller {name}',
+	// source: 6f4f4130
+	'overview.bar.label':
+		'{name} : {used} utilisés et {free} libres sur {total} ({percent} % utilisés)',
+	// source: 9e11800e
+	'overview.bar.labelAlmostFull':
+		'{name} : {used} utilisés et {free} libres sur {total} ({percent} % utilisés). Presque plein.',
+	// source: 3b113533
+	'overview.bar.labelHome':
+		'{name} : {files} de vos fichiers et {other} de tout le reste, {free} libres sur {total} ({percent} % utilisés)',
+	// source: 1871d453
+	'overview.bar.legend': 'Espace sur {name}',
+	// source: ae7d8dfa
+	'overview.bar.legend.used': 'Utilisé',
+	// source: f411a1fb
+	'overview.bar.legend.free': 'Libre',
+	// source: a2b8baaa
+	'overview.bar.legend.files': 'Vos fichiers',
+	// source: cd6c5f59
+	'overview.bar.legend.other': 'Tout le reste',
+	// source: 0d914b2d
+	'overview.bar.legend.filesPending': 'Vos fichiers : pas encore mesurés',
+	// source: 8b9b7f33
+	'overview.bar.value': '{size} ({percent} %)',
+	// source: 2fda222e
+	'overview.announce.measured': '{name} mesuré',
+	// source: daa8c086
+	'overview.home.title': 'Plus gros dossiers du dossier personnel',
+	// source: cb7b4f75
+	'overview.home.rows.label': 'Plus gros dossiers du dossier personnel, du plus gros au plus petit',
+	// source: 056de2f7
+	'overview.home.measureNow': 'Mesurer maintenant',
+	// source: 90b4991c
+	'overview.home.measureNow.label': 'Mesurer le dossier personnel maintenant',
+	// source: 19766ed6
+	'overview.home.cancel': 'Annuler',
+	// source: e9069c03
+	'overview.home.cancel.label': 'Annuler la mesure du dossier personnel',
+	// source: 7941c8b5
+	'overview.home.asOf': 'en date de {time}',
+	// source: aa92f04e
+	'overview.home.notMeasured':
+		'Le dossier personnel n’a pas encore été mesuré. Choisissez Mesurer maintenant pour voir où est passé son espace.',
+	// source: bdc5653f
+	'overview.home.progress': 'Mesure du dossier personnel : {done} dossiers sur {total} terminés',
+	// source: b59bf762
+	'overview.home.progress.unknown': 'Mesure du dossier personnel…',
+	// source: 552da7b7
+	'overview.home.cancelled': 'La mesure s’est arrêtée. Voici les dossiers mesurés jusqu’ici.',
+	// source: 1e2ddb5e
+	'overview.home.failed': 'Le dossier personnel n’a pas pu être mesuré : {reason}',
+	// source: 7cfef0ea
+	'overview.home.empty': 'Aucun dossier trouvé dans le dossier personnel.',
+	// source: f2b1d58a
+	'overview.home.remainder': 'Autres fichiers et dossiers, y compris les masqués',
+	// source: c115bff2
+	'overview.home.row.label': '{name}, {size}, {percent} % du dossier personnel',
+	// source: f687d181
+	'overview.home.row.open': 'Ouvrir {name}',
+	// source: 02a35530
+	'overview.home.row.share': '{percent} %',
+	// source: 355a9c6d
+	'overview.home.row.shareSmall': 'moins de 1 %',
+	// source: 93655533
+	'overview.home.row.underOne': 'moins de 1',
+	// source: cb2eddad
+	'overview.home.placeholders.one':
+		'{count} fichier uniquement infonuagique a été compté comme vide et n’a pas été téléchargé.',
+	// source: a63a8e4f
+	'overview.home.placeholders.many':
+		'{count} de fichiers uniquement infonuagiques ont été comptés comme vides et n’ont pas été téléchargés.',
+	// source: a63a8e4f
+	'overview.home.placeholders.other':
+		'{count} fichiers uniquement infonuagiques ont été comptés comme vides et n’ont pas été téléchargés.',
+	// source: 67cab30d
+	'overview.home.announce.start': 'Mesure du dossier personnel',
+	// source: e0699c72
+	'overview.home.announce.progress': 'Mesure du dossier personnel : {percent} % terminé',
+	// source: 2b3dfcfe
+	'overview.home.announce.done': 'Dossier personnel mesuré : {size}',
+	// source: 03732d52
+	'overview.home.announce.cancelled': 'Mesure du dossier personnel arrêtée',
+	// source: c560122a
+	'overview.trash.title': 'Corbeille',
+	// source: f6b684f2
+	'overview.trash.reading': 'Lecture de la Corbeille…',
+	// source: fb8e7a1a
+	'overview.trash.items': 'Éléments',
+	// source: c6c094bc
+	'overview.trash.empty': 'Vide',
+	// source: 208a19d5
+	'overview.trash.count.one': '{count} élément',
+	// source: f65216b3
+	'overview.trash.count.many': '{count} d’éléments',
+	// source: f65216b3
+	'overview.trash.count.other': '{count} éléments',
+	// source: 040f7884
+	'overview.trash.sizeUnknown': 'Non mesurée',
+	// source: ababfa97
+	'overview.trash.open': 'Ouvrir la Corbeille',
+	// source: b85cf088
+	'overview.trash.emptyAction': 'Vider la Corbeille',
+	// source: 5329df0a
+	'overview.trash.unavailable': 'La Corbeille ne peut pas être parcourue ici.',
+	// source: 81dff898
+	'overview.trash.unverified':
+		'Compte aussi la Corbeille des autres lecteurs, ce qui n’a pas encore été vérifié sur tous les types de lecteurs.',
+	// source: c7b9a857
+	'trash.bar.label': 'Actions de la Corbeille',
+	// source: a76e13b9
+	'trash.restore': 'Restaurer',
+	// source: 48c015ad
+	'trash.delete': 'Supprimer définitivement',
+	// source: b85cf088
+	'trash.empty': 'Vider la Corbeille',
+	// source: a57414fb
+	'trash.view.empty': 'La Corbeille est vide.',
+	// source: cdb42ed4
+	'trash.hint.open':
+		'Les éléments de la Corbeille ne peuvent pas être ouverts. Restaurez un élément pour l’ouvrir.',
+	// source: 5ec9185c
+	'trash.unavailable.title': 'La Corbeille ne peut pas être parcourue ici',
+	// source: f58a00f2
+	'trash.unavailable.fallback':
+		'Ce système ne permet pas à Waypoint de lister le contenu de la Corbeille.',
+	// source: c1b15a37
+	'trash.confirm.delete.title': 'Supprimer définitivement?',
+	// source: f9217738
+	'trash.confirm.delete.message.one':
+		'{count} élément sera supprimé définitivement. Cette action est irréversible.',
+	// source: c331d390
+	'trash.confirm.delete.message.many':
+		'{count} d’éléments seront supprimés définitivement. Cette action est irréversible.',
+	// source: c331d390
+	'trash.confirm.delete.message.other':
+		'{count} éléments seront supprimés définitivement. Cette action est irréversible.',
+	// source: 2fe3933a
+	'trash.confirm.empty.title': 'Vider la Corbeille?',
+	// source: 0c5a0027
+	'trash.confirm.empty.message.one':
+		'{count} élément de la Corbeille sera supprimé définitivement. Cette action est irréversible.',
+	// source: 3e545b69
+	'trash.confirm.empty.message.many':
+		'{count} d’éléments de la Corbeille seront supprimés définitivement. Cette action est irréversible.',
+	// source: 3e545b69
+	'trash.confirm.empty.message.other':
+		'{count} éléments de la Corbeille seront supprimés définitivement. Cette action est irréversible.',
+	// source: 19766ed6
+	'trash.confirm.cancel': 'Annuler',
+	// source: 144c58d0
+	'trash.done.restored.one': '{count} élément restauré',
+	// source: 59cb1792
+	'trash.done.restored.many': '{count} d’éléments restaurés',
+	// source: 59cb1792
+	'trash.done.restored.other': '{count} éléments restaurés',
+	// source: ef8a4450
+	'trash.done.deleted.one': '{count} élément supprimé définitivement',
+	// source: a885bb0a
+	'trash.done.deleted.many': '{count} d’éléments supprimés définitivement',
+	// source: a885bb0a
+	'trash.done.deleted.other': '{count} éléments supprimés définitivement',
+	// source: d7fcf7d6
+	'trash.done.emptied': 'Corbeille vidée',
+	// source: 62510927
+	'trash.done.skipped.one': '{count} élément est resté dans la Corbeille',
+	// source: 4114d868
+	'trash.done.skipped.many': '{count} d’éléments sont restés dans la Corbeille',
+	// source: 4114d868
+	'trash.done.skipped.other': '{count} éléments sont restés dans la Corbeille',
+	// source: a9358b94
+	'trash.failed.restore': 'Impossible de restaurer : {reason}',
+	// source: 6de9b511
+	'trash.failed.delete': 'Impossible de supprimer définitivement : {reason}',
+	// source: de13a334
+	'trash.failed.empty': 'Impossible de vider la Corbeille : {reason}',
+	// source: 43a9179a
+	'trash.failed.submit': 'Impossible de démarrer la tâche : {reason}',
+	// source: 52d90550
+	'trash.reason.notFound': '{location} est introuvable',
+	// source: ae51c3c2
+	'trash.reason.permissionDenied': 'permission refusée pour {location}',
+	// source: ef7f4951
+	'trash.reason.nameInUse': '{location} existe déjà',
+	// source: b345f80e
+	'trash.reason.cannotReplace':
+		'{location} ne peut pas être remplacé par un élément d’un autre genre',
+	// source: c340dc01
+	'trash.reason.generic': 'une erreur s’est produite',
+	// source: d7cfab3c
+	'app.name': 'Waypoint',
+	// source: d7919455
+	'appMenu.label': 'Menu de l’application',
+	// source: 50009ce1
+	'appMenu.file': 'Fichier',
+	// source: 464c4ffd
+	'appMenu.edit': 'Édition',
+	// source: dcc839a4
+	'appMenu.view': 'Affichage',
+	// source: 19734a1b
+	'appMenu.window': 'Fenêtre',
+	// source: f40ef806
+	'appMenu.history': 'Historique des annulations',
+	// source: 35d54994
+	'appMenu.history.empty': 'Rien dans l’historique pour le moment',
+	// source: d2516a84
+	'appMenu.history.entry': '{label} — {time}',
+	// source: 9f179170
+	'appMenu.history.undone': '{label} — {time} (annulé)',
+	// source: 5766fbaf
+	'appMenu.history.later': 'Seul le changement le plus récent peut être annulé, puis le suivant',
+	// source: 7469c2f6
+	'cmd.newWindow': 'Nouvelle fenêtre',
+	// source: b2f8fd63
+	'cmd.newTab': 'Nouvel onglet',
+	// source: c75ba807
+	'cmd.newFolder': 'Nouveau dossier',
+	// source: d23b5dc6
+	'cmd.newFile': 'Nouveau fichier',
+	// source: fa400322
+	'cmd.batchRename': 'Renommage en lot…',
+	// source: a73477d7
+	'cmd.openWith': 'Ouvrir avec…',
+	// source: d1ec69e6
+	'cmd.selectAll': 'Tout sélectionner',
+	// source: 995fe6fd
+	'cmd.invertSelection': 'Inverser la sélection',
+	// source: f7efa7bc
+	'cmd.sidebar': 'Barre latérale',
+	// source: 338c8ac8
+	'cmd.shelf': 'Étagère',
+	// source: e7d38be5
+	'cmd.addToShelf': 'Ajouter à l’Étagère',
+	// source: 46a03326
+	'cmd.focusShelf': 'Placer le focus sur l’Étagère',
+	// source: 363f85ec
+	'cmd.undockShelf': 'Détacher l’Étagère',
+	// source: 29f74b5c
+	'cmd.dockShelf': 'Ancrer l’Étagère',
+	// source: da188e3b
+	'cmd.inspector': 'Inspecteur',
+	// source: ae43692b
+	'cmd.properties': 'Propriétés',
+	// source: e03cc727
+	'cmd.propertiesInWindow': 'Propriétés dans une fenêtre',
+	// source: f543a9f9
+	'cmd.actionBar': 'Barre d’actions',
+	// source: 0084cf9d
+	'cmd.splitView': 'Vue divisée',
+	// source: 25b01bd5
+	'cmd.alwaysOnTop': 'Toujours au premier plan',
+	// source: 7a04083b
+	'cmd.settings': 'Paramètres…',
+	// source: 32fd144c
+	'cmd.closeWindow': 'Fermer la fenêtre',
+	// source: 8bc148d3
+	'openWith.default': '{name} (par défaut)',
+	// source: 81fc1029
+	'openWith.other': 'Autre application…',
+	// source: 0746b782
+	'openWith.loading': 'Recherche des applications…',
+	// source: e7d0eeb7
+	'openWith.dialog.title': 'Ouvrir avec',
+	// source: 95ac58cb
+	'openWith.dialog.description.one': 'Choisissez une application pour ouvrir cet élément.',
+	// source: 7db2e1af
+	'openWith.dialog.description.many':
+		'Choisissez une application pour ouvrir ces {count} d’éléments.',
+	// source: 7db2e1af
+	'openWith.dialog.description.other':
+		'Choisissez une application pour ouvrir ces {count} éléments.',
+	// source: a3218fa6
+	'openWith.filter.label': 'Rechercher une application',
+	// source: 98e33b0f
+	'openWith.apps.label': 'Applications',
+	// source: d70604e8
+	'openWith.section.recommended': 'Recommandées',
+	// source: b2be04d2
+	'openWith.section.others': 'Autres applications',
+	// source: 675959ec
+	'openWith.empty': 'Aucune application ne correspond.',
+	// source: 19766ed6
+	'openWith.cancel': 'Annuler',
+	// source: b00c803b
+	'openWith.mixed': 'Ouvrir avec exige des éléments d’un seul type.',
+	// source: 848dd474
+	'openWith.noHandler': 'Aucune application n’est définie pour ouvrir ce type de fichier.',
+	// source: fe9689e5
+	'openWith.failed': 'Impossible d’ouvrir l’élément.',
+	// source: 4ba29408
+	'openWith.failed.app': 'Impossible d’ouvrir l’élément avec {app}.',
+	// source: c99bc47e
+	'openWith.failed.list': 'Impossible de trouver les applications pour cet élément.',
+	// source: ed1d4b77
+	'quickLook.position': '{position} sur {total}',
+	// source: 9ea844f4
+	'quickLook.positionAnnouncement': '{name}, {position} sur {total}',
+	// source: ed077f3d
+	'quickLook.open': 'Ouvrir',
+	// source: a73477d7
+	'quickLook.openWith': 'Ouvrir avec…',
+	// source: 7d9eb7ac
+	'quickLook.close': 'Fermer',
+	// source: 81b35f1b
+	'quickLook.previous': 'Élément précédent',
+	// source: 1e47d4f7
+	'quickLook.next': 'Élément suivant',
+	// source: b737abb4
+	'quickLook.loading': 'Chargement de l’aperçu…',
+	// source: 2d632934
+	'quickLook.truncated': 'Seul le début du fichier est affiché.',
+	// source: a2210b79
+	'quickLook.lossy':
+		'Ce fichier n’est peut-être pas en UTF-8; certains caractères sont donc remplacés.',
+	// source: 8512ea45
+	'quickLook.empty': 'Ce fichier est vide.',
+	// source: 12097792
+	'quickLook.failed': 'Cet élément ne peut pas être prévisualisé.',
+	// source: 1c15f791
+	'quickLook.failed.text': 'Le texte n’a pas pu être lu.',
+	// source: 74543dd4
+	'quickLook.failed.media': 'Ce média ne peut pas être lu ici.',
+	// source: 167d9d02
+	'quickLook.noPreview': 'Aucun aperçu n’est disponible pour ce type d’élément.',
+	// source: f5387f9b
+	'quickLook.fact.kind': 'Genre',
+	// source: 1af85190
+	'quickLook.fact.size': 'Taille',
+	// source: e8ce5dca
+	'quickLook.fact.modified': 'Modifié',
+	// source: 74ccd433
+	'quickLook.kind.folder': 'Dossier',
+	// source: 1aa4cb0b
+	'quickLook.kind.image': 'Image',
+	// source: 71988c4d
+	'quickLook.kind.text': 'Texte',
+	// source: bc1b8890
+	'quickLook.kind.audio': 'Audio',
+	// source: d534be82
+	'quickLook.kind.video': 'Vidéo',
+	// source: 64d53e28
+	'quickLook.kind.pdf': 'Document PDF',
+	// source: 64d0b3ad
+	'quickLook.kind.font': 'Police',
+	// source: 66f4804e
+	'quickLook.kind.archive': 'Archive',
+	// source: d6bd8c0a
+	'quickLook.kind.document': 'Document',
+	// source: 50009ce1
+	'quickLook.kind.file': 'Fichier',
+	// source: a6a32dbc
+	'quickLook.kind.link': 'Lien',
+	// source: a869446a
+	'cmd.reason.nothingSelected': 'Sélectionnez d’abord quelque chose',
+	// source: 213a52b1
+	'cmd.reason.nothingFocused': 'Sélectionnez un élément à renommer',
+	// source: 678a49e2
+	'cmd.reason.clipboardEmpty': 'Le presse-papiers est vide',
+	// source: 1e11588a
+	'cmd.reason.nothingToUndo': 'Il n’y a rien à annuler',
+	// source: 55c3f0d5
+	'cmd.reason.nothingToRedo': 'Il n’y a rien à rétablir',
+	// source: 188e76e3
+	'cmd.reason.otherPaneReadOnly': 'L’autre panneau ne peut pas être modifié',
+	// source: b6473640
+	'cmd.reason.noTab': 'Aucun onglet n’est ouvert',
+	// source: 027d2ebf
+	'cmd.reason.selectOne': 'Sélectionnez un élément, ou aucun pour le dossier',
+	// source: 23f939b1
+	'cmd.reason.noListing': 'Aucun dossier n’est ouvert',
+	// source: 555bcdf0
+	'cmd.reason.noQueue': 'Les opérations ne sont pas disponibles dans cette fenêtre',
+	// source: ff8059dc
+	'actionBar.label': 'Actions',
+	// source: 18fdd549
+	'actionBar.new': 'Nouveau',
+	// source: bec69036
+	'actionBar.sort': 'Trier',
+	// source: dcc839a4
+	'actionBar.view': 'Affichage',
+	// source: e2d0a549
+	'actionBar.delete': 'Supprimer',
+	// source: d47d7cb0
+	'actionBar.more': 'Plus',
+	// source: 1a484fd3
+	'actionBar.viewTo': 'Affichage : passer à {name}',
+	// source: 54beef94
+	'actionBar.menu.label': 'Options de la barre d’actions',
+	// source: 3415bd8a
+	'actionBar.hideLabels': 'Masquer les libellés',
+	// source: eb064adf
+	'actionBar.showLabels': 'Afficher les libellés',
+	// source: 27705918
+	'actionBar.hide': 'Masquer la barre d’actions',
+	// source: 1882eb15
+	'actionBar.withShortcut': '{name} ({keys})',
+	// source: f2ac100d
+	'actionBar.disabledBecause': '{name} — {reason}',
+	// source: 8b26cf0d
+	'cmd.commandPalette': 'Palette de commandes…',
+	// source: c7b6b040
+	'cmd.linkTo': 'Créer un lien vers…',
+	// source: eb3455cd
+	'cmd.openOverview': 'Ouvrir la Vue d’ensemble',
+	// source: 746c8138
+	'cmd.goTo.home': 'Aller au dossier personnel',
+	// source: 0c7ce29a
+	'cmd.goTo.desktop': 'Aller au Bureau',
+	// source: dae02813
+	'cmd.goTo.documents': 'Aller aux Documents',
+	// source: 5c72aebf
+	'cmd.goTo.downloads': 'Aller aux Téléchargements',
+	// source: f8191576
+	'cmd.goTo.pictures': 'Aller aux Images',
+	// source: a33a9c07
+	'cmd.goTo.music': 'Aller à la Musique',
+	// source: fa66f0ee
+	'cmd.goTo.videos': 'Aller aux Vidéos',
+	// source: 60742381
+	'cmd.goTo.trash': 'Aller à la Corbeille',
+	// source: 9819b01b
+	'appMenu.history.more': 'Plus dans la palette de commandes…',
+	// source: 56d80c4b
+	'palette.title': 'Palette de commandes',
+	// source: f37cf202
+	'palette.placeholder': 'Saisissez une commande',
+	// source: b269dc4e
+	'palette.list.label': 'Commandes',
+	// source: 50009ce1
+	'palette.group.file': 'Fichier',
+	// source: 464c4ffd
+	'palette.group.edit': 'Édition',
+	// source: dcc839a4
+	'palette.group.view': 'Affichage',
+	// source: 6cc8519b
+	'palette.group.go': 'Aller',
+	// source: 8e5ea509
+	'palette.group.tabs': 'Onglets',
+	// source: 19734a1b
+	'palette.group.window': 'Fenêtre',
+	// source: 0d04bfeb
+	'palette.group.app': 'Application',
+	// source: 0e769600
+	'palette.group.history': 'Historique',
+	// source: 690dbe9d
+	'palette.group.recent': 'Récentes',
+	// source: 5ecc5b1e
+	'palette.shortcut': 'raccourci {keys}',
+	// source: 72c605d3
+	'palette.unavailable': 'indisponible : {reason}',
+	// source: b8d31e85
+	'palette.checked': 'activé',
+	// source: b4dc66dd
+	'palette.unchecked': 'désactivé',
+	// source: 9b06f511
+	'palette.count.one': '{count} commande',
+	// source: f66ed489
+	'palette.count.many': '{count} de commandes',
+	// source: f66ed489
+	'palette.count.other': '{count} commandes',
+	// source: a800a1bc
+	'palette.count.none': 'Aucune commande ne correspond',
+	// source: 6ac99d99
+	'palette.cannotRun': '{name} est indisponible : {reason}',
+	// source: 514eef02
+	'history.row.undo': 'Annuler : {label}',
+	// source: 83b94a92
+	'history.row.undoMany': 'Annuler {count} changements jusqu’à : {label}',
+	// source: 9912395c
+	'history.row.redo': 'Rétablir : {label}',
+	// source: 9df7fa66
+	'history.row.redoMany': 'Rétablir {count} changements jusqu’à : {label}',
+	// source: 251cc794
+	'history.row.partly': 'partiellement annulé',
+	// source: a70e7249
+	'history.row.name': '{row}, {time}',
+	// source: 3e79fc04
+	'history.confirm.undo.title': 'Annuler {count} changements?',
+	// source: 86292082
+	'history.confirm.redo.title': 'Rétablir {count} changements?',
+	// source: 44de4ec7
+	'history.confirm.undo.message': 'Ces changements seront annulés, du plus récent au plus ancien :',
+	// source: e6786b8f
+	'history.confirm.redo.message':
+		'Ces changements seront rétablis, du plus ancien au plus récent :',
+	// source: b2ab622f
+	'history.confirm.partly.title': 'Terminer une annulation interrompue en cours de route?',
+	// source: d98f167f
+	'history.confirm.partly.message':
+		'Une annulation antérieure de ce changement s’est arrêtée en cours de route. Annuler de nouveau termine ce qui restait :',
+	// source: a8283ade
+	'history.confirm.undo.confirm': 'Annuler',
+	// source: 74273989
+	'history.confirm.redo.confirm': 'Rétablir',
+	// source: 28b7d71d
+	'history.done.undoOne': 'Annulation de {label}',
+	// source: 499af41a
+	'history.done.undoMany': '{count} changements annulés, jusqu’à : {label}',
+	// source: c8973293
+	'history.done.redoOne': 'Rétablissement de {label}',
+	// source: 07d39863
+	'history.done.redoMany': '{count} changements rétablis, jusqu’à : {label}',
+	// source: b26aea77
+	'history.stopped.undo': '{done} changements sur {total} annulés. Arrêt à {label} : {reason}',
+	// source: 2804cef8
+	'history.stopped.redo': '{done} changements sur {total} rétablis. Arrêt à {label} : {reason}',
+	// source: f4b06446
+	'history.stopped.first.undo': 'Rien n’a été annulé. {label} n’a pas pu être annulé : {reason}',
+	// source: c8078a15
+	'history.stopped.first.redo': 'Rien n’a été rétabli. {label} n’a pas pu être rétabli : {reason}',
+	// source: 9d7de7fc
+	'history.busy':
+		'Une annulation ou un rétablissement est encore en cours. Attendez qu’il se termine.',
+	// source: 77659b33
+	'history.changed':
+		'L’historique a changé pendant que vous décidiez; rien n’a donc été annulé ni rétabli.',
+	// source: 3224144d
+	'history.step.unknown': 'il ne s’est pas terminé à temps',
+	// source: 4329d8cf
+	'history.step.cancelled': 'il a été annulé',
+	// source: f6f1fef9
+	'history.confirm.partly.note':
+		'L’un d’eux s’est arrêté en cours de route lors d’une annulation précédente; l’annuler de nouveau le termine.',
+	// source: 338c8ac8
+	'shelf.title': 'Étagère',
+	// source: 338c8ac8
+	'shelf.label': 'Étagère',
+	// source: 338c8ac8
+	'shelf.toggle': 'Étagère',
+	// source: 658c840b
+	'shelf.list.label': 'Éléments de l’Étagère',
+	// source: 9afb0456
+	'shelf.empty.title': 'L’Étagère est vide',
+	// source: 200f044c
+	'shelf.empty.body':
+		'Faites glisser des fichiers ici, ou choisissez Ajouter à l’Étagère dans le menu d’un fichier, pour les garder à portée de main pendant que vous naviguez. L’Étagère contient des références, jamais des copies, et toutes les fenêtres la partagent.',
+	// source: 3ca9f686
+	'shelf.group.label': '{name} ({count})',
+	// source: e1d2fc0e
+	'shelf.remove': 'Retirer de l’Étagère',
+	// source: 0bf35617
+	'shelf.removeNamed': 'Retirer {name} de l’Étagère',
+	// source: 4ab5030d
+	'shelf.remove.title': 'Retirer de l’Étagère (le fichier n’est pas supprimé)',
+	// source: 44e5e4bd
+	'shelf.clear': 'Vider l’Étagère',
+	// source: ca6d49fa
+	'shelf.clear.confirm.title': 'Vider l’Étagère?',
+	// source: 5f46e7c3
+	'shelf.clear.confirm.message.one':
+		'{count} élément sera retiré de l’Étagère. Le fichier n’est pas supprimé.',
+	// source: 79c548e7
+	'shelf.clear.confirm.message.many':
+		'Les {count} d’éléments seront retirés de l’Étagère. Les fichiers ne sont pas supprimés.',
+	// source: 79c548e7
+	'shelf.clear.confirm.message.other':
+		'Les {count} éléments seront retirés de l’Étagère. Les fichiers ne sont pas supprimés.',
+	// source: 44e5e4bd
+	'shelf.clear.confirm.confirm': 'Vider l’Étagère',
+	// source: 19766ed6
+	'shelf.clear.confirm.cancel': 'Annuler',
+	// source: ef823931
+	'shelf.menu.label': 'Élément de l’Étagère',
+	// source: ed077f3d
+	'shelf.menu.open': 'Ouvrir',
+	// source: 075d3e5e
+	'shelf.menu.reveal': 'Afficher dans le dossier',
+	// source: 0e026918
+	'shelf.menu.copyPath': 'Copier le chemin',
+	// source: e1d2fc0e
+	'shelf.menu.remove': 'Retirer de l’Étagère',
+	// source: 6c689a32
+	'shelf.options.label': 'Options de l’Étagère',
+	// source: 3bd7e8ec
+	'shelf.options.menu': 'Menu de l’Étagère',
+	// source: 5e8f1145
+	'shelf.close': 'Masquer l’Étagère',
+	// source: 93d0b79a
+	'shelf.undock': 'Détacher l’Étagère dans sa propre fenêtre',
+	// source: 29bdba30
+	'shelf.dock': 'Ancrer l’Étagère de nouveau dans la fenêtre',
+	// source: 1261c641
+	'shelf.undocked': 'L’Étagère est dans sa propre fenêtre',
+	// source: 1f79d829
+	'shelf.docked': 'L’Étagère est ancrée',
+	// source: 4854dfdf
+	'shelf.undock.failed': 'Impossible d’ouvrir l’Étagère dans sa propre fenêtre',
+	// source: a3fe5291
+	'shelf.dock.failed': 'Impossible d’ancrer l’Étagère',
+	// source: 8a97c71f
+	'shelf.window.failed': 'Impossible d’afficher ou de masquer la fenêtre de l’Étagère',
+	// source: 758a458c
+	'shelf.toggle.window': 'Afficher ou masquer la fenêtre de l’Étagère',
+	// source: 6be36ca4
+	'shelf.missing': 'Manquant',
+	// source: 599e33fc
+	'shelf.missing.title': 'Cet élément n’est plus à {path}',
+	// source: 4f4d906f
+	'shelf.divider.label': 'Redimensionner l’Étagère',
+	// source: a2e379c3
+	'shelf.divider.value': '{height} pixels de hauteur',
+	// source: c1b21d89
+	'shelf.added.one': '{count} élément ajouté à l’Étagère',
+	// source: 1103a35a
+	'shelf.added.many': '{count} d’éléments ajoutés à l’Étagère',
+	// source: 1103a35a
+	'shelf.added.other': '{count} éléments ajoutés à l’Étagère',
+	// source: ac2275b1
+	'shelf.added.already': 'Déjà sur l’Étagère',
+	// source: da552a63
+	'shelf.full': 'L’Étagère est pleine : elle contient au plus {limit} éléments',
+	// source: 697345e6
+	'shelf.failed': 'Impossible de modifier l’Étagère : {reason}',
+	// source: 4f1f370f
+	'shelf.removed.one': '{count} élément retiré de l’Étagère',
+	// source: 21dd18dd
+	'shelf.removed.many': '{count} d’éléments retirés de l’Étagère',
+	// source: 21dd18dd
+	'shelf.removed.other': '{count} éléments retirés de l’Étagère',
+	// source: b796c541
+	'shelf.cleared': 'Étagère vidée',
+	// source: da188e3b
+	'inspector.label': 'Inspecteur',
+	// source: 455d5e6a
+	'inspector.tabs.label': 'Onglets de l’Inspecteur',
+	// source: 324b134f
+	'inspector.tab.preview': 'Aperçu',
+	// source: ae43692b
+	'inspector.tab.properties': 'Propriétés',
+	// source: 07d19d00
+	'inspector.close': 'Masquer l’Inspecteur',
+	// source: e218fac0
+	'inspector.divider.label': 'Redimensionner l’Inspecteur',
+	// source: a3fa0138
+	'inspector.divider.value': '{width} pixels de largeur',
+	// source: 39a755cc
+	'inspector.preview.empty': 'Rien à prévisualiser',
+	// source: e8371112
+	'inspector.preview.imageAlt': 'Aperçu de {name}',
+	// source: 24ad51f6
+	'inspector.preview.audioLabel': 'Lecteur audio pour {name}',
+	// source: fbac7fa0
+	'inspector.preview.videoLabel': 'Lecteur vidéo pour {name}',
+	// source: d2f24972
+	'inspector.preview.textLabel': 'Début de {name}',
+	// source: 754490ec
+	'inspector.preview.truncated': 'Affichage des premiers {size} du fichier',
+	// source: 632e55bf
+	'inspector.preview.lossy':
+		'Certains caractères n’ont pas pu être lus et sont affichés sous forme de remplacement',
+	// source: bf083e34
+	'inspector.properties.empty': 'Rien à afficher',
+	// source: 8a0336d7
+	'inspector.many.note':
+		'La taille compte les fichiers sélectionnés; les dossiers ne sont pas inclus.',
+	// source: dcd1d522
+	'inspector.field.name': 'Nom',
+	// source: f5387f9b
+	'inspector.field.kind': 'Genre',
+	// source: 1af85190
+	'inspector.field.size': 'Taille',
+	// source: 51cdf6b2
+	'inspector.field.totalSize': 'Taille totale',
+	// source: 57fd7a0c
+	'inspector.field.selected': 'Sélection',
+	// source: 2eaecb3d
+	'inspector.field.contains': 'Contenu',
+	// source: 00ca4dac
+	'inspector.field.onDisk': 'Sur le disque',
+	// source: 15b61974
+	'inspector.field.location': 'Emplacement',
+	// source: e8ce5dca
+	'inspector.field.modified': 'Modifié',
+	// source: d70b9e24
+	'inspector.field.created': 'Créé',
+	// source: 0c366b4f
+	'inspector.field.accessed': 'Consulté',
+	// source: 4b1b8aa3
+	'inspector.field.owner': 'Propriétaire',
+	// source: 34ca0e76
+	'inspector.field.group': 'Groupe',
+	// source: abccc78c
+	'inspector.field.permissions': 'Permissions',
+	// source: efc211fc
+	'inspector.field.linkTarget': 'Cible du lien',
+	// source: 6f51cb04
+	'inspector.field.contentType': 'Type de contenu',
+	// source: 64cd989e
+	'inspector.field.freeSpace': 'Espace libre',
+	// source: cd1d8a1f
+	'inspector.field.defaultApp': 'S’ouvre avec',
+	// source: 1f991c1f
+	'inspector.defaultApp.none': 'Aucune application',
+	// source: a46cd4eb
+	'inspector.freeOf': '{free} libres sur {total}',
+	// source: ca184496
+	'inspector.unavailable': 'Indisponible',
+	// source: a568319c
+	'inspector.link.broken': 'Lien rompu',
+	// source: b5530336
+	'inspector.details.failed': 'Certains détails n’ont pas pu être lus.',
+	// source: 6fa62b3d
+	'inspector.rename': 'Renommer…',
+	// source: 224798dd
+	'inspector.size.calculating': 'Calcul en cours…',
+	// source: 49492103
+	'inspector.size.calculatingSoFar': 'Calcul en cours… {size} jusqu’ici',
+	// source: 31800b69
+	'inspector.size.bytes': '{bytes} octets',
+	// source: 91829f41
+	'inspector.size.contents': '{files}, {folders}',
+	// source: f3124cb9
+	'inspector.size.announce': '{name} fait {size}',
+	// source: 0358ab76
+	'inspector.files.one': '{count} fichier',
+	// source: 63352fdc
+	'inspector.files.many': '{count} de fichiers',
+	// source: 63352fdc
+	'inspector.files.other': '{count} fichiers',
+	// source: d1f9ba4d
+	'inspector.folders.one': '{count} dossier',
+	// source: 27a38f81
+	'inspector.folders.many': '{count} de dossiers',
+	// source: 27a38f81
+	'inspector.folders.other': '{count} dossiers',
+	// source: 74ccd433
+	'inspector.kind.folder': 'Dossier',
+	// source: a6a32dbc
+	'inspector.kind.link': 'Lien',
+	// source: 808cc764
+	'inspector.kind.special': 'Fichier spécial',
+	// source: 50009ce1
+	'inspector.kind.file': 'Fichier',
+	// source: 1aa4cb0b
+	'inspector.kind.image': 'Image',
+	// source: bc1b8890
+	'inspector.kind.audio': 'Audio',
+	// source: d534be82
+	'inspector.kind.video': 'Vidéo',
+	// source: 66f4804e
+	'inspector.kind.archive': 'Archive',
+	// source: bf046c73
+	'inspector.kind.code': 'Code source',
+	// source: d6bd8c0a
+	'inspector.kind.document': 'Document',
+	// source: 1eb42bf2
+	'properties.open': 'Ouvrir dans une fenêtre',
+	// source: eab4391b
+	'properties.limit':
+		'Quatre fenêtres de propriétés sont déjà ouvertes. Fermez-en une pour en ouvrir une autre.',
+	// source: c98c5503
+	'properties.openFailed': 'Impossible d’ouvrir la fenêtre des propriétés : {reason}',
+	// source: 26d870e2
+	'properties.window.label': 'Propriétés de {name}',
+	// source: cb661e83
+	'properties.window.loading': 'Lecture des détails…',
+	// source: fd909799
+	'properties.window.gone.title': '{name} n’existe plus',
+	// source: d03c238d
+	'properties.window.gone.note':
+		'Il a été supprimé ou déplacé à un endroit que cette fenêtre ne peut pas suivre. Rien de ce qui s’affiche ici n’est à jour.',
+	// source: 0c41e946
+	'properties.window.failed': 'Waypoint n’a pas pu lire l’élément que cette fenêtre concerne.',
+	// source: 18e34b4d
+	'properties.more.title': 'Plus de détails',
+	// source: f55988a8
+	'properties.perm.caption': 'Qui peut le lire, y écrire et l’exécuter',
+	// source: c17b94b8
+	'properties.perm.who': 'Qui',
+	// source: 4b1b8aa3
+	'properties.perm.who.owner': 'Propriétaire',
+	// source: 34ca0e76
+	'properties.perm.who.group': 'Groupe',
+	// source: ebdad9ba
+	'properties.perm.who.others': 'Autres',
+	// source: 9b9a8d05
+	'properties.perm.read': 'Lecture',
+	// source: 3f00927a
+	'properties.perm.write': 'Écriture',
+	// source: 00d60e31
+	'properties.perm.execute': 'Exécution',
+	// source: 85a39ab3
+	'properties.yes': 'Oui',
+	// source: 1ea442a1
+	'properties.no': 'Non',
+	// source: 5e23ec6a
+	'properties.field.mode': 'Mode',
+	// source: c13d8621
+	'properties.field.special': 'Bits spéciaux',
+	// source: 59ee8c4b
+	'properties.field.owner': 'Le propriétaire est',
+	// source: 8d333b02
+	'properties.field.group': 'Le groupe est',
+	// source: a1a0ce05
+	'properties.field.exactSize': 'Taille exacte',
+	// source: 52d26f44
+	'properties.field.allocated': 'Alloué',
+	// source: 72bb9089
+	'properties.field.readOnly': 'Lecture seule',
+	// source: 7e6fefff
+	'properties.field.hidden': 'Masqué',
+	// source: a2d6cff7
+	'properties.field.leadsTo': 'Mène à',
+	// source: b3955ee7
+	'properties.special.setuid': 'Setuid',
+	// source: 462ee9b4
+	'properties.special.setgid': 'Setgid',
+	// source: 87471768
+	'properties.special.sticky': 'Sticky',
+	// source: 24ee890e
+	'properties.times.utc': '{time} UTC',
+	// source: 11c94bc7
+	'checksum.title': 'Somme de contrôle',
+	// source: 40dfc3df
+	'checksum.note':
+		'Une somme de contrôle lit tout le fichier; elle n’est donc calculée que sur demande.',
+	// source: d704d8af
+	'checksum.algorithm.label': 'Algorithme',
+	// source: bbd07c4f
+	'checksum.algorithm.sha256': 'SHA-256',
+	// source: 6cf8f5ea
+	'checksum.algorithm.blake3': 'BLAKE3',
+	// source: 0b1b237e
+	'checksum.calculate': 'Calculer la somme de contrôle…',
+	// source: 906daf5d
+	'checksum.again': 'Calculer de nouveau',
+	// source: 04810639
+	'checksum.largeWarning':
+		'{name} fait {size}. Sa somme de contrôle le lit au complet, ce qui peut prendre du temps et garde le disque occupé.',
+	// source: 9a1d6c36
+	'checksum.largeConfirm': 'Calculer quand même',
+	// source: 19766ed6
+	'checksum.cancel': 'Annuler',
+	// source: 2635625e
+	'checksum.running': 'Calcul de la somme de contrôle {algorithm}…',
+	// source: 56a66d60
+	'checksum.progress.label': 'Progression de la somme de contrôle',
+	// source: 1020e3a8
+	'checksum.progress.value': '{read} sur {total}',
+	// source: f70e3e9b
+	'checksum.result.label': 'Somme de contrôle {algorithm}',
+	// source: e21f935f
+	'checksum.copy': 'Copier',
+	// source: 8d525e5f
+	'checksum.copied': 'Copié',
+	// source: 1efa15c4
+	'checksum.cancelled': 'Annulé. Rien n’a été calculé.',
+	// source: 73e8d052
+	'checksum.failed': 'La somme de contrôle n’a pas pu être calculée : {reason}',
+	// source: 6760cf36
+	'checksum.announce.done': 'La somme de contrôle {algorithm} de {name} est prête',
+	// source: 5be0ad3c
+	'checksum.reason.directory': 'c’est un dossier',
+	// source: db60819c
+	'checksum.reason.unsupported': 'seuls les fichiers de cet ordinateur peuvent être vérifiés',
+	// source: cf0e3448
+	'checksum.reason.missing': 'le fichier n’existe plus',
+	// source: f3b739bc
+	'checksum.reason.denied': 'la permission a été refusée',
+	// source: 4d5bbb99
+	'checksum.reason.other': 'le fichier n’a pas pu être lu',
+	// source: ae532c51
+	'shelf.copied.one': '{count} élément copié depuis l’Étagère',
+	// source: 43f5bbbc
+	'shelf.copied.many': '{count} d’éléments copiés depuis l’Étagère',
+	// source: 43f5bbbc
+	'shelf.copied.other': '{count} éléments copiés depuis l’Étagère',
+	// source: b8c1fe23
+	'shelf.copyFailed': 'Impossible de copier depuis l’Étagère : {reason}',
+	// source: 8cbe0b65
+	'shelf.reveal.failed': 'Impossible d’ouvrir le dossier de {name}',
+};
+
+export default messages;

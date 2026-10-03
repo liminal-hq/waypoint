@@ -51,3 +51,12 @@ export function useSettings<T>(select: (settings: Settings) => T): T {
 	const selector = useMemo(() => (state: SettingsState) => select(state.settings), [select]);
 	return useStore(handle?.store ?? fallback, selector);
 }
+
+/**
+ * Whether the settings in `useSettings` are Rust's answer rather than the defaults it starts from.
+ * Outside a provider the defaults are all there is, so that counts as ready.
+ */
+export function useSettingsReady(): boolean {
+	const handle = useContext(SettingsContext);
+	return useStore(handle?.store ?? fallback, (state) => handle === null || state.ready);
+}

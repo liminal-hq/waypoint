@@ -7,7 +7,7 @@ import { createContext, useContext } from 'react';
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
-export type SidebarSection = 'places' | 'favourites' | 'workspaces';
+export type SidebarSection = 'places' | 'devices' | 'favourites' | 'workspaces';
 
 /** What the sidebar shows: Places with Favourites, or the Folders tree on its own (SPEC 5.4's Places / Folders switch). */
 export type SidebarView = 'places' | 'folders';
@@ -40,7 +40,7 @@ export function createSidebarStore(initial: Partial<SidebarState> = {}): Sidebar
 	return createStore<SidebarState & SidebarActions>()((set, get) => ({
 		open: true,
 		view: 'places',
-		collapsed: { places: false, favourites: false, workspaces: false },
+		collapsed: { places: false, devices: false, favourites: false, workspaces: false },
 		expanded: new Set<string>(),
 		...initial,
 		toggleOpen: () => set((state) => ({ open: !state.open })),

@@ -5,11 +5,26 @@
 
 import type { SettingsSectionDef } from '@liminal-hq/waypoint-chrome/SettingsShell/types';
 import { t } from '../i18n/messages';
+import { AccessibilityPage } from './AccessibilityPage';
+import { AppearancePage } from './AppearancePage';
 import { DragDropPage } from './DragDropPage';
 import { GeneralPage } from './GeneralPage';
+import { IntegrationsPage } from './IntegrationsPage';
+import { LanguagePage } from './LanguagePage';
 import { OperationsPage } from './OperationsPage';
+import { PreviewsPage } from './PreviewsPage';
+import { TransparencyPage } from './TransparencyPage';
 
-export type SectionId = 'general' | 'operations' | 'dnd';
+export type SectionId =
+	| 'general'
+	| 'appearance'
+	| 'transparency'
+	| 'accessibility'
+	| 'language'
+	| 'previews'
+	| 'operations'
+	| 'dnd'
+	| 'integrations';
 
 /**
  * A page that is not built yet is absent, not a placeholder: the other pages of SPEC 11
@@ -18,7 +33,25 @@ export type SectionId = 'general' | 'operations' | 'dnd';
 export function settingsSections(): SettingsSectionDef[] {
 	return [
 		{ id: 'general', label: t('settings.section.general'), render: () => <GeneralPage /> },
+		{ id: 'appearance', label: t('settings.section.appearance'), render: () => <AppearancePage /> },
+		{
+			id: 'transparency',
+			label: t('settings.section.transparency'),
+			render: () => <TransparencyPage />,
+		},
+		{
+			id: 'accessibility',
+			label: t('settings.section.accessibility'),
+			render: () => <AccessibilityPage />,
+		},
+		{ id: 'language', label: t('settings.section.language'), render: () => <LanguagePage /> },
+		{ id: 'previews', label: t('settings.section.previews'), render: () => <PreviewsPage /> },
 		{ id: 'operations', label: t('settings.section.operations'), render: () => <OperationsPage /> },
 		{ id: 'dnd', label: t('settings.section.dnd'), render: () => <DragDropPage /> },
+		{
+			id: 'integrations',
+			label: t('settings.section.integrations'),
+			render: () => <IntegrationsPage />,
+		},
 	];
 }

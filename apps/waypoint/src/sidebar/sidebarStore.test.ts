@@ -10,7 +10,12 @@ describe('the sidebar store', () => {
 	it('starts open, every section open, nothing expanded', () => {
 		const state = createSidebarStore().getState();
 		expect(state.open).toBe(true);
-		expect(state.collapsed).toEqual({ places: false, favourites: false, workspaces: false });
+		expect(state.collapsed).toEqual({
+			places: false,
+			devices: false,
+			favourites: false,
+			workspaces: false,
+		});
 		expect(state.expanded.size).toBe(0);
 	});
 
@@ -21,6 +26,7 @@ describe('the sidebar store', () => {
 		expect(store.getState().open).toBe(false);
 		expect(store.getState().collapsed).toEqual({
 			places: false,
+			devices: false,
 			favourites: true,
 			workspaces: false,
 		});

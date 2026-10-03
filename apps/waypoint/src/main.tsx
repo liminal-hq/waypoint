@@ -14,8 +14,10 @@ import { ShelfScreen } from './app/ShelfScreen';
 import { TearGhostScreen } from './app/TearGhostScreen';
 import { windowKindFromLabel } from './app/windowKind';
 import { MainSettings } from './settings/MainSettings';
+import { LocaleRoot } from './i18n/LocaleRoot';
 import { initLogger } from './services/logger';
 import { applyPlatform } from './theme/platform';
+import { ThemeRoot } from './theme/ThemeRoot';
 import type { WindowKind } from '@liminal-hq/waypoint-protocol/generated/WindowKind';
 import './theme/tokens.css';
 
@@ -64,6 +66,10 @@ applyPlatform();
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
-		<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
+		<ThemeRoot>
+			<LocaleRoot rebuild={windowKindFromLabel(label) !== 'Settings'}>
+				<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
+			</LocaleRoot>
+		</ThemeRoot>
 	</StrictMode>,
 );

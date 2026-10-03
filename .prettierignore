@@ -13,3 +13,5 @@ plugins/*/permissions/schemas
 bun.lock
 plugins/*/api-iife.js
 plugins/*/guest-js/bindings
+# Written by `bun run i18n:export` with a two-space indent, the layout Weblate writes back
+apps/waypoint/src/i18n/translations

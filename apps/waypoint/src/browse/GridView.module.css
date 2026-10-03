@@ -47,7 +47,7 @@
 .row {
 	position: absolute;
 	top: 0;
-	left: 0;
+	inset-inline-start: 0;
 	display: grid;
 	grid-template-columns: repeat(var(--wp-grid-columns), calc(var(--wp-grid-size) + 24px));
 	justify-content: center;
@@ -94,6 +94,12 @@
 	stroke-width: 1.4px;
 }
 
+/* The icon or, once it has loaded, the picture: both fill a square of the icon size. */
+.cell .thumbnail {
+	width: var(--wp-grid-size);
+	height: var(--wp-grid-size);
+}
+
 /* Strokes keep their weight as the icon grows, so large icons are not drawn with thick lines. */
 .cell .glyph * {
 	vector-effect: non-scaling-stroke;
@@ -136,7 +142,7 @@
 .groupHeader {
 	position: absolute;
 	top: 0;
-	left: 0;
+	inset-inline-start: 0;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -173,7 +179,7 @@
 .groupHeader[data-collapsed] .chevron {
 	border-inline: 0;
 	border-block: 4px solid transparent;
-	border-left: 5px solid currentcolor;
+	border-inline-start: 5px solid currentcolor;
 }
 
 .groupTitle {

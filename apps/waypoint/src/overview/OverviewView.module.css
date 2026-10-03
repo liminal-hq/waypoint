@@ -1,0 +1,99 @@
+/* The Overview page: headline stats, then the volume cards and the Trash's. */
+.page {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	block-size: 100%;
+	overflow: auto;
+	padding: 16px;
+	background: var(--wp-bg-content);
+	color: var(--wp-text-primary);
+}
+
+.page:focus {
+	outline: none;
+}
+
+.title {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 10px;
+	margin: 0;
+}
+
+.stat {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+	padding: 10px 12px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	background: var(--wp-bg-raised);
+}
+
+.stat dt {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.stat dd {
+	margin: 0;
+}
+
+.statValue {
+	font-size: 20px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.statNote {
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 10px;
+}
+
+.quiet {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 13px;
+}
+
+.unavailable {
+	padding: 10px 12px;
+	border: 1px solid var(--wp-warning);
+	border-radius: 8px;
+	font-size: 13px;
+}
+
+.unavailable p {
+	margin: 4px 0 0;
+	color: var(--wp-text-secondary);
+}
+
+.srOnly {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

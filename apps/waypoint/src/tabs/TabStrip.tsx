@@ -20,6 +20,7 @@ import {
 	type PointerEvent,
 } from 'react';
 import { dropAttributes } from '../dnd/dropTargets';
+import { inlineKey, isRtl, overflowSides, wheelScrollDelta } from '../i18n/direction';
 import { t, tf } from '../i18n/messages';
 import {
 	ChevronLeftIcon,
@@ -158,9 +159,12 @@ export function TabStrip() {
 	const measureOverflow = useCallback(() => {
 		const element = scroller.current;
 		if (!element) return;
-		const max = element.scrollWidth - element.clientWidth;
-		const left = element.scrollLeft > 1;
-		const right = element.scrollLeft < max - 1;
+		const { left, right } = overflowSides(
+			element.scrollLeft,
+			element.scrollWidth,
+			element.clientWidth,
+			isRtl(element),
+		);
 		setOverflow((previous) =>
 			previous.left === left && previous.right === right ? previous : { left, right },
 		);
@@ -212,7 +216,7 @@ export function TabStrip() {
 			focusItem(layout.items[Math.max(0, Math.min(last, target))]);
 			return true;
 		};
-		switch (event.key) {
+		switch (inlineKey(event.key, isRtl(event.currentTarget))) {
 			case 'ArrowRight':
 				return go(at + 1);
 			case 'ArrowLeft':
@@ -233,7 +237,10 @@ export function TabStrip() {
 		) {
 			// Keyboard move of the whole group, the counterpart of dragging its chip.
 			event.preventDefault();
-			groupActions.moveBy(item.group, event.key === 'ArrowRight' ? 1 : -1);
+			groupActions.moveBy(
+				item.group,
+				inlineKey(event.key, isRtl(event.currentTarget)) === 'ArrowRight' ? 1 : -1,
+			);
 			return;
 		}
 		if (navigate(event, at)) return;
@@ -278,7 +285,7 @@ export function TabStrip() {
 		switch (event.key) {
 			case 'ArrowRight':
 			case 'ArrowLeft': {
-				const delta = event.key === 'ArrowRight' ? 1 : -1;
+				const delta = inlineKey(event.key, isRtl(event.currentTarget)) === 'ArrowRight' ? 1 : -1;
 				if (event.ctrlKey && event.shiftKey) {
 					// Keyboard reorder, the counterpart of dragging.
 					event.preventDefault();
@@ -395,7 +402,7 @@ export function TabStrip() {
 				onWheel={(event) => {
 					// A vertical wheel scrolls a horizontal strip.
 					if (Math.abs(event.deltaY) > Math.abs(event.deltaX) && scroller.current) {
-						scroller.current.scrollLeft += event.deltaY;
+						scroller.current.scrollLeft += wheelScrollDelta(event.deltaY, isRtl(scroller.current));
 					}
 				}}
 			>
@@ -497,7 +504,7 @@ export function TabStrip() {
 							className={styles.marker}
 							data-kind={drag.view.marker.kind}
 							aria-hidden="true"
-							style={{ left: drag.view.marker.left, width: drag.view.marker.width || undefined }}
+							style={{ left: drag.view.marker.left, width: drag.view.marker.width || undefined }} // physical: pixels measured from the strip's left edge by the drag engine
 						/>
 					) : null}
 					{landing ? (
@@ -506,7 +513,7 @@ export function TabStrip() {
 							data-kind="line"
 							data-landing=""
 							aria-hidden="true"
-							style={{ left: landing.left }}
+							style={{ left: landing.left }} // physical: pixels measured from the strip's left edge by the drag engine
 						/>
 					) : null}
 				</div>
@@ -519,7 +526,7 @@ export function TabStrip() {
 				tabIndex={-1}
 				onClick={() => scrollBy(1)}
 			>
-				<ChevronRightSmallIcon />
+				<ChevronRightSmallIcon directional={false} />
 			</button>
 			<button
 				type="button"

@@ -197,3 +197,32 @@ pub(crate) fn copy_fast(
         }
     }
 }
+
+/// What the file takes on disk (its compressed or sparse size), from `GetCompressedFileSizeW`,
+/// which reads the file's metadata and never its data.
+pub(crate) fn allocated_size(path: &Path) -> Option<u64> {
+    use windows::Win32::Foundation::{GetLastError, NO_ERROR};
+    use windows::Win32::Storage::FileSystem::GetCompressedFileSizeW;
+
+    let wide = wide(path);
+    let mut high = 0u32;
+    // SAFETY: `wide` is NUL-terminated and outlives the call; `high` is writable.
+    let low = unsafe { GetCompressedFileSizeW(PCWSTR(wide.as_ptr()), Some(&mut high)) };
+    // `INVALID_FILE_SIZE` is also a legitimate low half, so the error state decides.
+    // SAFETY: reads the calling thread's last-error value.
+    if low == u32::MAX && unsafe { GetLastError() } != NO_ERROR {
+        return None;
+    }
+    Some((u64::from(high) << 32) | u64::from(low))
+}
+
+/// Puts the calling thread in background mode, which lowers its CPU, disk and memory priority so
+/// a long walk yields to what the person is doing. A failure is ignored: the walk is only slower
+/// to yield.
+pub(crate) fn lower_thread_priority() {
+    use windows::Win32::System::Threading::{
+        GetCurrentThread, SetThreadPriority, THREAD_MODE_BACKGROUND_BEGIN,
+    };
+    // SAFETY: the pseudo-handle of the current thread is always valid.
+    let _ = unsafe { SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN) };
+}

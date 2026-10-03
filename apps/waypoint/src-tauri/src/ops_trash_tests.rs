@@ -301,7 +301,8 @@ fn the_trash_info_counts_and_says_it_is_available() {
         TrashInfo {
             available: true,
             reason: None,
-            count: 0
+            count: 0,
+            total_bytes: None
         }
     );
     fx.write("a", "a");

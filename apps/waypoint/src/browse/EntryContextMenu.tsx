@@ -4,10 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
-import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
+import type { MenuItem, SubmenuMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { t } from '../i18n/messages';
+import { PropertiesIcon } from '../inspector/InspectorIcons';
+import { useOpenWithMenu } from '../openWith/useOpenWithMenu';
 import { useShelfActions } from '../shelf/ShelfContext';
 import { AddToShelfIcon } from '../shelf/ShelfIcons';
 import type { ListingSession } from './useListingSession';
@@ -48,6 +50,8 @@ interface EntryContextMenuProps {
 	batchRename?: boolean | undefined;
 	/** The listing the entry is in, whose selection Add to Shelf puts on the Shelf. */
 	session?: ListingSession | null | undefined;
+	/** Properties windows can be opened here, so "Properties in a Window" is listed. */
+	propertiesWindow?: boolean | undefined;
 }
 
 /** The commands the entry menu can run. */
@@ -64,7 +68,9 @@ export type EntryCommand =
 	| 'copyTo'
 	| 'moveTo'
 	| 'copyToOtherPane'
-	| 'moveToOtherPane';
+	| 'moveToOtherPane'
+	| 'properties'
+	| 'propertiesWindow';
 
 const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
@@ -80,6 +86,8 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'moveTo',
 	'copyToOtherPane',
 	'moveToOtherPane',
+	'properties',
+	'propertiesWindow',
 ];
 
 /**
@@ -290,12 +298,15 @@ function writeItems(
 /**
  * The entry menu's items; Open in New Tab and Add to Favourites are for folders only. `commands`
  * adds the write items the listing allows, and `batchRename` (more than one entry is selected)
- * adds Rename Selected… after Rename.
+ * adds Rename Selected… after Rename. `openWith` is the Open With ▸ submenu, which ends the first
+ * section when the system can offer it.
  */
 export function entryMenuItems(
 	entry: Entry,
 	commands?: Partial<Record<FileCommandId, CommandState>>,
 	batchRename = false,
+	openWith: SubmenuMenuItem | null = null,
+	propertiesWindow = false,
 ): MenuItem[] {
 	return [
 		{
@@ -321,6 +332,7 @@ export function entryMenuItems(
 					} as const,
 				]
 			: []),
+		...(openWith ? [openWith] : []),
 		{ type: 'separator' },
 		...(commands ? clipboardItems(entry, commands) : []),
 		...(isFolder(entry)
@@ -336,6 +348,24 @@ export function entryMenuItems(
 		{ type: 'action', id: 'addToShelf', label: t('menu.addToShelf'), icon: <AddToShelfIcon /> },
 		{ type: 'action', id: 'copyPath', label: t('menu.copyPath'), icon: <LinkIcon /> },
 		...(commands ? writeItems(commands, batchRename) : []),
+		{ type: 'separator' },
+		{
+			type: 'action',
+			id: 'properties',
+			label: t('menu.properties'),
+			icon: <PropertiesIcon />,
+		},
+		...(propertiesWindow
+			? [
+					{
+						type: 'action',
+						id: 'propertiesWindow',
+						label: t('menu.propertiesInWindow'),
+						icon: <PropertiesIcon />,
+						shortcut: 'Alt+Enter',
+					} as const,
+				]
+			: []),
 	];
 }
 
@@ -358,9 +388,11 @@ export function EntryContextMenu({
 	onCommand,
 	batchRename = false,
 	session,
+	propertiesWindow = false,
 }: EntryContextMenuProps) {
 	const shelf = useShelfActions();
-	const items = entryMenuItems(entry, commands, batchRename);
+	const openWith = useOpenWithMenu({ session, entry, handle });
+	const items = entryMenuItems(entry, commands, batchRename, openWith.item, propertiesWindow);
 	return (
 		<ContextMenu
 			items={items}
@@ -370,6 +402,7 @@ export function EntryContextMenu({
 			onClose={onClose}
 			onSelect={(item) => {
 				onClose();
+				if (openWith.select(item.id)) return;
 				if (item.id === 'open') onOpen(entry, handle);
 				else if (item.id === 'openInNewTab') onOpenInNewTab(entry, handle);
 				else if (item.id === 'openInNewWindow') onOpenInNewTab(entry, handle, true);

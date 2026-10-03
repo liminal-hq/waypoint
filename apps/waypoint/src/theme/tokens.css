@@ -5,9 +5,32 @@
  */
 :root {
 	color-scheme: light dark;
-	--wp-bg-window: #f4f1ee;
-	--wp-bg-sidebar: #ebe7e3;
-	--wp-bg-content: #fbf9f7;
+	--wp-solid-window: #f4f1ee;
+	--wp-solid-sidebar: #ebe7e3;
+	--wp-solid-content: #fbf9f7;
+	/* What the regions draw. Solid unless `data-transparency='on'` mixes them with the alphas ThemeRoot sets (below). */
+	--wp-bg-window: var(--wp-solid-window);
+	--wp-bg-sidebar: var(--wp-solid-sidebar);
+	--wp-bg-content: var(--wp-solid-content);
+	/* What a window's root draws under its regions: the window colour, and nothing once the regions are translucent, so a region's alpha is not added to the root's. */
+	--wp-bg-screen: var(--wp-solid-window);
+	--wp-bg-body: var(--wp-solid-content);
+
+	/* The Transparency page's sample wallpaper: light, dark and colour bands, so how much shows through is easy to judge. */
+	--wp-preview-wallpaper: linear-gradient(
+		180deg,
+		#ffe14d 0%,
+		#ffe14d 18%,
+		#2a6fdb 18%,
+		#2a6fdb 40%,
+		#ffffff 40%,
+		#ffffff 58%,
+		#101010 58%,
+		#101010 78%,
+		#ff3b6b 78%,
+		#ff3b6b 100%
+	);
+	--wp-preview-window-shadow: 0 6px 18px rgb(0 0 0 / 35%);
 	--wp-bg-raised: #ffffff;
 	--wp-bg-hover: #e3ded9;
 	--wp-bg-selected: #f6d9c8;
@@ -17,6 +40,8 @@
 	--wp-text-muted: #7d756e;
 	--wp-accent: #c2410c;
 	--wp-accent-fg: #ffffff;
+	/* What the chrome reads for text on the accent: always the same colour as `--wp-accent-fg`, whatever the scheme. */
+	--wp-accent-contrast: var(--wp-accent-fg);
 	--wp-danger: #b91c1c;
 	--wp-success: #15803d;
 	--wp-warning: #a16207;
@@ -57,7 +82,9 @@
 	--wp-merge-landing-outline: color-mix(in srgb, var(--wp-accent) 45%, transparent);
 
 	/* File list geometry. Script reads the row height back to size the virtualised list. */
-	--wp-row-height: 28px;
+	--wp-text-scale: 1;
+	--wp-row-height: calc(28px * var(--wp-text-scale));
+	--wp-hit-target: 28px;
 
 	/* The operations ring, its popover and the job rows. Built from the base tokens, so every theme
 	   (light, dark, high contrast) follows without redefining them. */
@@ -108,9 +135,9 @@
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']) {
 		color-scheme: dark;
-		--wp-bg-window: #1c1917;
-		--wp-bg-sidebar: #211e1b;
-		--wp-bg-content: #171412;
+		--wp-solid-window: #1c1917;
+		--wp-solid-sidebar: #211e1b;
+		--wp-solid-content: #171412;
 		--wp-bg-raised: #292524;
 		--wp-bg-hover: #332e2b;
 		--wp-bg-selected: #4a2a1a;
@@ -149,9 +176,9 @@
 
 :root[data-theme='dark'] {
 	color-scheme: dark;
-	--wp-bg-window: #1c1917;
-	--wp-bg-sidebar: #211e1b;
-	--wp-bg-content: #171412;
+	--wp-solid-window: #1c1917;
+	--wp-solid-sidebar: #211e1b;
+	--wp-solid-content: #171412;
 	--wp-bg-raised: #292524;
 	--wp-bg-hover: #332e2b;
 	--wp-bg-selected: #4a2a1a;
@@ -204,6 +231,55 @@
 	--wp-window-radius: 0px;
 }
 
+/*
+ * Transparency (SPEC 9, D117). ThemeRoot sets `data-transparency='on'` only while the window is
+ * meant to be see-through: switched on, no high contrast or reduced transparency, the platform
+ * able to do it, and in front when "Solid when unfocused" is on. It sets the alphas below (never
+ * below the floor that keeps the text at 4.5:1) as custom properties on the root. Off, none of this
+ * applies and every region is the solid colour above.
+ */
+:root[data-transparency='on'] {
+	--wp-bg-window: color-mix(
+		in srgb,
+		var(--wp-solid-window) calc(var(--wp-alpha-rows) * 100%),
+		transparent
+	);
+	--wp-bg-sidebar: color-mix(
+		in srgb,
+		var(--wp-solid-sidebar) calc(var(--wp-alpha-sidebar) * 100%),
+		transparent
+	);
+	--wp-bg-content: color-mix(
+		in srgb,
+		var(--wp-solid-content) calc(var(--wp-alpha-content) * 100%),
+		transparent
+	);
+	--wp-bg-screen: transparent;
+	--wp-bg-body: transparent;
+	--wp-title-bar-opacity: var(--wp-alpha-title-bar);
+	--wp-bg-settings-nav: color-mix(
+		in srgb,
+		var(--wp-bg-chrome) calc(var(--wp-alpha-sidebar) * 100%),
+		transparent
+	);
+	--wp-bg-shell: transparent;
+	--wp-bg-settings-pane: color-mix(
+		in srgb,
+		var(--wp-bg-raised) calc(var(--wp-alpha-content) * 100%),
+		transparent
+	);
+	--wp-bg-menu: color-mix(
+		in srgb,
+		var(--wp-bg-raised) calc(var(--wp-alpha-menu) * 100%),
+		transparent
+	);
+}
+
+/* A translucent menu blurs what is behind it, so its text sits on a smooth backdrop; an opaque one needs none. */
+:root[data-transparency='on'][data-menus='translucent'] {
+	--wp-menu-backdrop: blur(12px);
+}
+
 html,
 body,
 #root {
@@ -215,11 +291,17 @@ body,
 
 body {
 	font-family: system-ui, sans-serif;
-	font-size: 14px;
+	font-size: calc(14px * var(--wp-text-scale, 1));
 	/* A window is not a web page: labels, file names and chrome are not selectable text. */
 	-webkit-user-select: none;
 	user-select: none;
 	cursor: default;
+}
+
+/* A glyph that points along the line of reading (back, forward, a chevron, undo) mirrors in a
+   right-to-left layout; `directional={false}` keeps one that means a physical side. */
+[dir='rtl'] svg[data-directional] {
+	scale: -1 1;
 }
 
 /* What a person may need to copy or edit stays selectable: editable fields, error messages (role
@@ -240,4 +322,81 @@ select,
 		--wp-ops-motion: 0ms;
 		--wp-file-drag-shake: 0px;
 	}
+}
+
+/*
+ * What the theme engine (`theme/appearance.ts`) decides, as attributes on the root: density,
+ * touch, text scale (`--wp-text-scale`), reduced motion, high contrast and a stronger focus ring.
+ */
+:root[data-density='compact'] {
+	--wp-row-height: calc(24px * var(--wp-text-scale));
+}
+
+:root[data-density='spacious'] {
+	--wp-row-height: calc(34px * var(--wp-text-scale));
+}
+
+/* Touch mode: hit targets of at least 44 px. */
+:root[data-touch='true'] {
+	--wp-row-height: calc(44px * var(--wp-text-scale));
+	--wp-hit-target: 44px;
+}
+
+:root[data-motion='reduce'] {
+	--wp-drag-motion: 0ms;
+	--wp-drag-hold-split: 0ms;
+	--wp-palette-motion: 0ms;
+}
+
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+	animation-duration: 0.01ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.01ms !important;
+	scroll-behavior: auto !important;
+}
+
+:root[data-focus='strong'] {
+	--wp-focus-ring-width: 3px;
+}
+
+/* High contrast: black on white or white on black, strong borders, and an accent that keeps 7:1 or better. */
+:root[data-contrast='high'] {
+	--wp-bg-window: #ffffff;
+	--wp-bg-sidebar: #ffffff;
+	--wp-bg-content: #ffffff;
+	--wp-bg-raised: #ffffff;
+	--wp-bg-hover: #e6e6e6;
+	--wp-bg-selected: #cfe0ff;
+	--wp-border-subtle: #000000;
+	--wp-text-primary: #000000;
+	--wp-text-secondary: #000000;
+	--wp-text-muted: #1a1a1a;
+	--wp-accent: #0000b3;
+	--wp-accent-fg: #ffffff;
+	--wp-danger: #9b0000;
+	--wp-success: #00561f;
+	--wp-warning: #6b3f00;
+	--wp-focus-ring: #000000;
+	--wp-focus-ring-width: 3px;
+}
+
+:root[data-contrast='high'][data-theme='dark'] {
+	--wp-bg-window: #000000;
+	--wp-bg-sidebar: #000000;
+	--wp-bg-content: #000000;
+	--wp-bg-raised: #000000;
+	--wp-bg-hover: #262626;
+	--wp-bg-selected: #003a8c;
+	--wp-border-subtle: #ffffff;
+	--wp-text-primary: #ffffff;
+	--wp-text-secondary: #ffffff;
+	--wp-text-muted: #e6e6e6;
+	--wp-accent: #ffff00;
+	--wp-accent-fg: #000000;
+	--wp-danger: #ff8080;
+	--wp-success: #80ff9f;
+	--wp-warning: #ffd966;
+	--wp-focus-ring: #ffffff;
 }

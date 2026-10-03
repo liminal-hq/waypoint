@@ -7,11 +7,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod checksum;
 pub mod exec;
 mod journal;
 mod model;
 mod names;
 mod plan;
+mod preview;
 mod queue;
 mod rename_clash;
 mod rename_rules;
@@ -21,6 +23,9 @@ pub mod testing;
 mod traits;
 mod verify;
 
+pub use checksum::{
+    checksum_reader, run_checksum, ChecksumEvent, REPORT_EVERY as CHECKSUM_REPORT_EVERY,
+};
 pub use exec::{
     action_for, remove_all, Action, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport,
     ExecSink, Executor, NullSink, Resolutions, RunOptions, SimpleCopy, TransferReport, CHUNK_BYTES,
@@ -34,6 +39,11 @@ pub use names::{
 pub use plan::{
     plan, plan_with_progress, preview_batch, BatchPlan, BatchStep, Plan, PlanCtx, PlanItem,
     PlanProgress, PlanWarning,
+};
+pub use preview::{
+    conflict_preview, ConflictPreview, DiffLine, PreviewKind, PreviewSide, TextDiff,
+    PREVIEW_CONTEXT, PREVIEW_DIFF_BUDGET, PREVIEW_MAX_BYTES, PREVIEW_MAX_LINES,
+    PREVIEW_MAX_LINE_CHARS, PREVIEW_MAX_ROWS,
 };
 pub use queue::{is_legal, OpsStore, ProgressGate, QueueError};
 pub use rename_clash::{

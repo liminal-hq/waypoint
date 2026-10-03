@@ -139,7 +139,8 @@
 
 .iconSpacer {
 	flex: none;
-	width: 22px;
+	/* The icon (or, in a tall row, the picture) and the gap after it. */
+	width: calc(var(--wp-list-icon, 16px) + 6px);
 }
 
 .sortMark {
@@ -192,7 +193,7 @@
 .row {
 	position: absolute;
 	top: 0;
-	left: 0;
+	inset-inline-start: 0;
 	width: 100%;
 	height: var(--wp-row-height);
 	transform: translateY(var(--wp-row-y));
@@ -225,6 +226,17 @@
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
+}
+
+/* A tall row's picture: the row less its padding, with the icon centred in it until the picture loads. */
+.thumbnail {
+	width: var(--wp-list-icon, 16px);
+	height: var(--wp-list-icon, 16px);
+}
+
+.name .thumbnail > svg {
+	width: 16px;
+	height: 16px;
 }
 
 .nameText {
@@ -266,7 +278,7 @@
 .groupHeader {
 	position: absolute;
 	top: 0;
-	left: 0;
+	inset-inline-start: 0;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -304,7 +316,7 @@
 .groupHeader[data-collapsed] .chevron {
 	border-inline: 0;
 	border-block: 4px solid transparent;
-	border-left: 5px solid currentcolor;
+	border-inline-start: 5px solid currentcolor;
 }
 
 .groupTitle {

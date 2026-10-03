@@ -1,0 +1,98 @@
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.label,
+.heading {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.heading {
+}
+
+.input {
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: var(--wp-control-height);
+	padding: 0 8px;
+	color: var(--wp-text-primary);
+	background: transparent;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font: inherit;
+}
+
+.input:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.apps {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-block-size: 320px;
+	overflow-y: auto;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.app {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	inline-size: 100%;
+	padding: 4px 8px;
+	color: var(--wp-text-primary);
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	font: inherit;
+	text-align: start;
+	cursor: default;
+}
+
+.app:hover {
+	background: var(--wp-bg-hover);
+}
+
+.app:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.name {
+	min-inline-size: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.empty {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}

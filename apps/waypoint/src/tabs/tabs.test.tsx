@@ -187,6 +187,20 @@ describe('keyboard', () => {
 		expect(titles()).toEqual(['docs', 'test', 'music']);
 	});
 
+	it('reorders with Ctrl+Shift+Left in a right-to-left layout, where Left is forward', async () => {
+		const h = await renderWorkspace();
+		await openTwo(h);
+		await waitFor(() => expect(tabs()).toHaveLength(3));
+		document.documentElement.style.direction = 'rtl';
+		try {
+			act(() => tabs()[0]!.focus());
+			fireEvent.keyDown(tabs()[0]!, { key: 'ArrowLeft', ctrlKey: true, shiftKey: true });
+			await waitFor(() => expect(titles()).toEqual(['docs', 'test', 'music']));
+		} finally {
+			document.documentElement.style.removeProperty('direction');
+		}
+	});
+
 	it('closes the focused tab with Delete', async () => {
 		const h = await renderWorkspace();
 		await openTwo(h);

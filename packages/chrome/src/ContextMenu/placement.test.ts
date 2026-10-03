@@ -37,4 +37,13 @@ describe('placeSubmenu', () => {
 		const anchor = { left: 600, top: 100, right: 790, bottom: 128 };
 		expect(placeSubmenu(anchor, size, viewport).x).toBe(404);
 	});
+
+	it('opens to the left of the parent row in a right-to-left layout, and flips when there is no room', () => {
+		const anchor = { left: 500, top: 100, right: 700, bottom: 128 };
+		expect(placeSubmenu(anchor, size, viewport, undefined, undefined, true).x).toBe(
+			500 - size.width + 4,
+		);
+		const near = { left: 10, top: 100, right: 200, bottom: 128 };
+		expect(placeSubmenu(near, size, viewport, undefined, undefined, true).x).toBe(196);
+	});
 });

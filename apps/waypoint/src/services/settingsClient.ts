@@ -67,7 +67,65 @@ export const DEFAULT_SETTINGS: Settings = {
 		appNameInTitle: false,
 		menuBar: false,
 	},
+	appearance: {
+		mode: 'system',
+		themeSource: 'liminal',
+		accent: { kind: 'ember' },
+		density: 'comfortable',
+		iconStyle: 'regular',
+	},
+	transparency: {
+		enabled: false,
+		opacity: 82,
+		rowsOpacity: 90,
+		sidebarOpacity: 94,
+		contentOpacity: 98,
+		blur: 'low',
+		regions: { sidebar: true, content: false, titleBar: true },
+		menus: false,
+		menuOpacity: 96,
+		solidWhenUnfocused: true,
+	},
+	accessibility: {
+		highContrast: 'follow',
+		textSize: 100,
+		touchMode: 'auto',
+		reducedMotion: 'follow',
+		reducedTransparency: 'follow',
+		strongFocusRing: false,
+	},
+	locale: {
+		language: 'system',
+		direction: 'auto',
+	},
+	previews: {
+		thumbnails: true,
+		maxFileMb: 50,
+		folderPeeks: true,
+		hoverToPeek: false,
+		measureHomeOnOpen: true,
+	},
+	integrations: {
+		notifications: false,
+		launcherProgress: false,
+		preventSleep: false,
+		defaultFileManager: false,
+		globalShortcutEnabled: false,
+		globalShortcut: null,
+	},
 };
+
+/** The ranges and choices Rust enforces for the milestone 5 sections, for the pages that offer them. */
+export const OPACITY_MIN = 40;
+export const OPACITY_MAX = 100;
+export const MENU_OPACITY_MIN = 60;
+export const TEXT_SIZES = [100, 115, 130] as const;
+export const PREVIEW_MAX_MB_MIN = 1;
+export const PREVIEW_MAX_MB_MAX = 2048;
+/** The languages with a message catalogue, as BCP 47 tags; `system` follows the OS. */
+export const SUPPORTED_LANGUAGES = ['en-CA', 'fr-CA'] as const;
+/** The developer-only pseudo-locales, which a debug build of Rust accepts too. */
+export const PSEUDO_LANGUAGES = ['en-XA', 'ar-XB'] as const;
 
 /** The spring-load delay's range in milliseconds, which Rust enforces and the page offers. */
 export const SPRING_LOAD_MIN_MS = 200;

@@ -1,0 +1,88 @@
+/* The Properties tab: a definition list, a label over its value. Tokens only. */
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+}
+
+.row {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-inline-size: 0;
+}
+
+.label {
+	color: var(--wp-text-muted);
+	font-size: 11px;
+}
+
+.value {
+	margin: 0;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.nameValue {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.detail {
+	display: block;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+}
+
+.unavailable {
+	color: var(--wp-text-muted);
+	font-style: italic;
+}
+
+.value [data-calculating] {
+	color: var(--wp-text-muted);
+}
+
+.value [data-pending] {
+	opacity: 0.7;
+}
+
+.button {
+	flex: none;
+	padding: 2px 8px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.button:hover {
+	background: var(--wp-bg-hover);
+}
+
+.button:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.empty,
+.note {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}
+
+.srOnly {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

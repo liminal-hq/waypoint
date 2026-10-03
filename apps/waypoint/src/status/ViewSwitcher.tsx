@@ -31,6 +31,7 @@ export function ViewSwitcher() {
 					type="range"
 					className={styles.slider}
 					aria-label={t('view.gridSize')}
+					title={`${t('view.gridSize')}: ${tf('view.gridSize.value', { size: gridSize })}`}
 					aria-valuetext={tf('view.gridSize.value', { size: gridSize })}
 					min={GRID_SIZE_MIN}
 					max={GRID_SIZE_MAX}

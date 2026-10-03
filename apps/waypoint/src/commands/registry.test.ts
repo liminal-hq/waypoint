@@ -227,6 +227,27 @@ describe('availability', () => {
 		expect(result.sortDescending.checked).toBe(false);
 	});
 
+	it('lists Open With… where the plugin can do it, for a selection of local files', () => {
+		expect(commandDef('openWith').shortcut).toBeUndefined();
+		const on = { openWith: true };
+		expect(read(states(factsFor({ selected: 1 }, on)).openWith)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 0 }, on)).openWith)).toBe(
+			`disabled: ${t('cmd.reason.nothingSelected')}`,
+		);
+		// The plugin reports nothing that works, the folder is not on this computer, or there is no listing.
+		expect(read(states(factsFor({ selected: 1 })).openWith)).toBe('hidden');
+		expect(read(states(factsFor({ selected: 1 }, { ...on, local: false })).openWith)).toBe(
+			'hidden',
+		);
+		expect(read(states(factsFor({ listing: false }, on)).openWith)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true, selected: 1 }, on)).openWith)).toBe(
+			'hidden',
+		);
+		const actions = { ...idleActions(), openWith: vi.fn() };
+		expect(runCommand('openWith', actions, factsFor({ selected: 1 }, on))).toBe(true);
+		expect(actions.openWith).toHaveBeenCalledTimes(1);
+	});
+
 	it('lists the Shelf: Ctrl+B toggles it, Add to Shelf needs a selection, Focus Shelf is always there', () => {
 		expect(commandDef('toggleShelf').shortcut).toBe('Ctrl+B');
 		expect(commandDef('addToShelf').shortcut).toBeUndefined();
@@ -259,6 +280,59 @@ describe('availability', () => {
 		}
 		expect(runCommand('addToShelf', actions, factsFor({ selected: 0 }))).toBe(false);
 		expect(actions.addToShelf).toHaveBeenCalledTimes(1);
+	});
+
+	it('lists the Inspector: F11 toggles it, and Properties needs a listing that is not the Trash', () => {
+		expect(commandDef('toggleInspector').shortcut).toBe('F11');
+		const closed = states(factsFor({ selected: 1 }));
+		expect(read(closed.toggleInspector)).toBe('enabled');
+		expect(closed.toggleInspector.checked).toBe(false);
+		expect(states(factsFor({}, { inspectorOpen: true })).toggleInspector.checked).toBe(true);
+		expect(read(closed.showProperties)).toBe('enabled');
+		expect(read(states(factsFor({ listing: false })).showProperties)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true })).showProperties)).toBe('hidden');
+	});
+
+	it('runs the Inspector commands through the window’s actions', () => {
+		const actions = { ...idleActions(), toggleInspector: vi.fn(), showProperties: vi.fn() };
+		for (const id of ['toggleInspector', 'showProperties'] as const) {
+			expect(runCommand(id, actions, factsFor({ selected: 1 })), id).toBe(true);
+			expect(actions[id], id).toHaveBeenCalledTimes(1);
+		}
+	});
+
+	it('lists Properties in a Window on Alt+Enter: for one item or none, with the service, outside the Trash', () => {
+		expect(commandDef('propertiesInWindow').shortcut).toBe('Alt+Enter');
+		const on = { propertiesWindow: true };
+		expect(read(states(factsFor({ selected: 0 }, on)).propertiesInWindow)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 1 }, on)).propertiesInWindow)).toBe('enabled');
+		const many = states(factsFor({ selected: 2 }, on)).propertiesInWindow;
+		expect(read(many)).toBe('disabled: Select one item, or none for the folder');
+		expect(read(states(factsFor({ selected: 1 })).propertiesInWindow)).toBe('hidden');
+		expect(read(states(factsFor({ listing: false }, on)).propertiesInWindow)).toBe('hidden');
+		expect(read(states(factsFor({ trash: true, readOnly: true }, on)).propertiesInWindow)).toBe(
+			'hidden',
+		);
+	});
+
+	it('runs Properties in a Window through the window’s action, only where it is offered', () => {
+		const actions = { ...idleActions(), openPropertiesWindow: vi.fn() };
+		expect(
+			runCommand(
+				'propertiesInWindow',
+				actions,
+				factsFor({ selected: 1 }, { propertiesWindow: true }),
+			),
+		).toBe(true);
+		expect(actions.openPropertiesWindow).toHaveBeenCalledTimes(1);
+		expect(
+			runCommand(
+				'propertiesInWindow',
+				actions,
+				factsFor({ selected: 3 }, { propertiesWindow: true }),
+			),
+		).toBe(false);
+		expect(actions.openPropertiesWindow).toHaveBeenCalledTimes(1);
 	});
 
 	it('offers Always on Top only where the window manager can do it', () => {
@@ -299,6 +373,7 @@ describe('availability', () => {
 			'goMusic',
 			'goVideos',
 			'goTrash',
+			'openOverview',
 		] as const;
 		for (const id of ids) expect(read(states()[id]), id).toBe('enabled');
 		const some = states(factsFor({}, { places: ['home', 'downloads'] }));
@@ -392,6 +467,8 @@ describe('running', () => {
 		expect(actions.goToPlace).toHaveBeenCalledWith('downloads');
 		expect(runCommand('goTrash', actions, facts)).toBe(true);
 		expect(actions.goToPlace).toHaveBeenLastCalledWith('trash');
+		expect(runCommand('openOverview', actions, facts)).toBe(true);
+		expect(actions.goToPlace).toHaveBeenLastCalledWith('overview');
 		expect(runCommand('linkTo', actions, facts)).toBe(true);
 		expect(files.linkTo).toHaveBeenCalledTimes(1);
 		expect(runCommand('commandPalette', actions, facts)).toBe(true);
