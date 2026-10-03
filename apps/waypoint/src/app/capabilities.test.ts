@@ -107,11 +107,12 @@ describe('window capabilities', () => {
 		}
 	});
 
-	it('lets the Properties windows read which application opens a file, and nothing that opens one or changes a default', () => {
+	it('lets the Properties windows read which application opens a file and the clock setting, and nothing that opens one or changes a default', () => {
 		const capability = byId('properties');
 		expect(capability.permissions).toEqual([
 			'mime-apps:allow-get-status',
 			'mime-apps:allow-handlers',
+			'os-prefs:allow-get-time-format',
 		]);
 		expect(covers(capability, 'properties-3')).toBe(true);
 		for (const label of ['main-1', 'settings', 'ops', 'tear-ghost', 'mystery']) {
