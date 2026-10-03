@@ -128,7 +128,7 @@ describe('Properties', () => {
 		act(() => clickEntry(session, 2));
 		// No timer has run: the name, the kind and the size come from the listing alone.
 		expect(field('Name')).toHaveTextContent('notes.txt');
-		expect(field('Kind')).toHaveTextContent('Document');
+		expect(field('Kind')).toHaveTextContent('Text file');
 		expect(field('Size')).toHaveTextContent('1 kB');
 		expect(screen.queryByText('Owner', { selector: 'dt' })).toBeNull();
 		await waitFor(() => expect(field('Owner')).toHaveTextContent('scott'));
@@ -446,9 +446,9 @@ describe('Preview', () => {
 		await new Promise((resolve) => setTimeout(resolve, 250));
 		expect(screen.getByText('notes.txt')).toBeInTheDocument();
 		// The kind is in the subtitle under the name and in the Kind row, as the design has it.
-		expect(screen.getByText(/^Document ·/)).toBeInTheDocument();
+		expect(screen.getByText(/^Text file ·/)).toBeInTheDocument();
 		expect(screen.getByText('Kind', { selector: 'dt' }).nextElementSibling).toHaveTextContent(
-			'Document',
+			'Text file',
 		);
 		expect(details.calls.filter((call) => call.startsWith('textHead'))).toEqual([]);
 		expect(screen.queryByRole('img')).toBeNull();

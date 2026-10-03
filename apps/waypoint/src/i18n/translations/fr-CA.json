@@ -1459,6 +1459,121 @@
     "description": "Area: browse.",
     "source": "50009ce1"
   },
+  "browse.group.pdf": {
+    "message": "Document PDF",
+    "description": "Area: browse.",
+    "source": "64d53e28"
+  },
+  "browse.group.app": {
+    "message": "Application",
+    "description": "Area: browse.",
+    "source": "e7ad522e"
+  },
+  "browse.group.text": {
+    "message": "Fichier texte",
+    "description": "Area: browse.",
+    "source": "0eaa5cb3"
+  },
+  "browse.group.markdown": {
+    "message": "Document Markdown",
+    "description": "Area: browse.",
+    "source": "00271ff9"
+  },
+  "browse.group.spreadsheet": {
+    "message": "Chiffrier",
+    "description": "Area: browse.",
+    "source": "f3befcc6"
+  },
+  "browse.group.presentation": {
+    "message": "Présentation",
+    "description": "Area: browse.",
+    "source": "5d5ee157"
+  },
+  "browse.group.font": {
+    "message": "Police de caractères",
+    "description": "Area: browse.",
+    "source": "64d0b3ad"
+  },
+  "browse.group.diskImage": {
+    "message": "Image disque",
+    "description": "Area: browse.",
+    "source": "0f12c3ab"
+  },
+  "browse.group.database": {
+    "message": "Base de données",
+    "description": "Area: browse.",
+    "source": "fa7fe671"
+  },
+  "browse.group.config": {
+    "message": "Fichier de configuration",
+    "description": "Area: browse.",
+    "source": "f1c216dd"
+  },
+  "browse.group.shellScript": {
+    "message": "Script shell",
+    "description": "Area: browse.",
+    "source": "82fbe842"
+  },
+  "browse.group.executable": {
+    "message": "Exécutable",
+    "description": "Area: browse.",
+    "source": "72cd8a64"
+  },
+  "browse.group.certificate": {
+    "message": "Certificat ou clé",
+    "description": "Area: browse.",
+    "source": "cedbee8e"
+  },
+  "browse.group.ebook": {
+    "message": "Livre numérique",
+    "description": "Area: browse.",
+    "source": "752c2f3e"
+  },
+  "browse.group.torrent": {
+    "message": "Torrent",
+    "description": "Area: browse.",
+    "source": "38149017"
+  },
+  "browse.group.calendar": {
+    "message": "Calendrier",
+    "description": "Area: browse.",
+    "source": "d5d0a30b"
+  },
+  "browse.group.contact": {
+    "message": "Contact",
+    "description": "Area: browse.",
+    "source": "2b5c3d26"
+  },
+  "browse.group.log": {
+    "message": "Fichier journal",
+    "description": "Area: browse.",
+    "source": "a5e1b5fb"
+  },
+  "browse.group.model3d": {
+    "message": "Modèle 3D",
+    "description": "Area: browse.",
+    "source": "f7dedb5c"
+  },
+  "browse.group.subtitles": {
+    "message": "Sous-titres",
+    "description": "Area: browse.",
+    "source": "0ee695bd"
+  },
+  "browse.group.playlist": {
+    "message": "Liste de lecture",
+    "description": "Area: browse.",
+    "source": "7af36c50"
+  },
+  "browse.group.package": {
+    "message": "Paquet",
+    "description": "Area: browse.",
+    "source": "59de121d"
+  },
+  "browse.group.symlink": {
+    "message": "Lien symbolique",
+    "description": "Area: browse.",
+    "source": "20cd41fc"
+  },
   "browse.header.kind.folder": {
     "message": "Dossiers",
     "description": "Area: browse.",
@@ -1498,6 +1613,121 @@
     "message": "Autres fichiers",
     "description": "Area: browse.",
     "source": "f456eff6"
+  },
+  "browse.header.kind.pdf": {
+    "message": "Documents PDF",
+    "description": "Area: browse.",
+    "source": "ec1ff70c"
+  },
+  "browse.header.kind.app": {
+    "message": "Applications",
+    "description": "Area: browse.",
+    "source": "98e33b0f"
+  },
+  "browse.header.kind.text": {
+    "message": "Fichiers texte",
+    "description": "Area: browse.",
+    "source": "c5df156e"
+  },
+  "browse.header.kind.markdown": {
+    "message": "Documents Markdown",
+    "description": "Area: browse.",
+    "source": "66343d4a"
+  },
+  "browse.header.kind.spreadsheet": {
+    "message": "Chiffriers",
+    "description": "Area: browse.",
+    "source": "fdae6602"
+  },
+  "browse.header.kind.presentation": {
+    "message": "Présentations",
+    "description": "Area: browse.",
+    "source": "cf31f395"
+  },
+  "browse.header.kind.font": {
+    "message": "Polices de caractères",
+    "description": "Area: browse.",
+    "source": "3680fcad"
+  },
+  "browse.header.kind.diskImage": {
+    "message": "Images disque",
+    "description": "Area: browse.",
+    "source": "56063f31"
+  },
+  "browse.header.kind.database": {
+    "message": "Bases de données",
+    "description": "Area: browse.",
+    "source": "61d2afe2"
+  },
+  "browse.header.kind.config": {
+    "message": "Fichiers de configuration",
+    "description": "Area: browse.",
+    "source": "1b82f5f5"
+  },
+  "browse.header.kind.shellScript": {
+    "message": "Scripts shell",
+    "description": "Area: browse.",
+    "source": "fa56112e"
+  },
+  "browse.header.kind.executable": {
+    "message": "Exécutables",
+    "description": "Area: browse.",
+    "source": "517ee2c8"
+  },
+  "browse.header.kind.certificate": {
+    "message": "Certificats et clés",
+    "description": "Area: browse.",
+    "source": "bdb97523"
+  },
+  "browse.header.kind.ebook": {
+    "message": "Livres numériques",
+    "description": "Area: browse.",
+    "source": "38625b48"
+  },
+  "browse.header.kind.torrent": {
+    "message": "Torrents",
+    "description": "Area: browse.",
+    "source": "a2189b35"
+  },
+  "browse.header.kind.calendar": {
+    "message": "Calendriers",
+    "description": "Area: browse.",
+    "source": "e0b2b00c"
+  },
+  "browse.header.kind.contact": {
+    "message": "Contacts",
+    "description": "Area: browse.",
+    "source": "b450645d"
+  },
+  "browse.header.kind.log": {
+    "message": "Fichiers journaux",
+    "description": "Area: browse.",
+    "source": "40986ada"
+  },
+  "browse.header.kind.model3d": {
+    "message": "Modèles 3D",
+    "description": "Area: browse.",
+    "source": "e7f3a35d"
+  },
+  "browse.header.kind.subtitles": {
+    "message": "Sous-titres",
+    "description": "Area: browse.",
+    "source": "0ee695bd"
+  },
+  "browse.header.kind.playlist": {
+    "message": "Listes de lecture",
+    "description": "Area: browse.",
+    "source": "dcd0a4d2"
+  },
+  "browse.header.kind.package": {
+    "message": "Paquets",
+    "description": "Area: browse.",
+    "source": "40a20853"
+  },
+  "browse.header.kind.symlink": {
+    "message": "Liens symboliques",
+    "description": "Area: browse.",
+    "source": "c93f6883"
   },
   "browse.header.modified.today": {
     "message": "Aujourd’hui",
@@ -8583,6 +8813,116 @@
     "message": "Document",
     "description": "Area: inspector.",
     "source": "d6bd8c0a"
+  },
+  "inspector.kind.pdf": {
+    "message": "Document PDF",
+    "description": "Area: inspector.",
+    "source": "64d53e28"
+  },
+  "inspector.kind.app": {
+    "message": "Application",
+    "description": "Area: inspector.",
+    "source": "e7ad522e"
+  },
+  "inspector.kind.text": {
+    "message": "Fichier texte",
+    "description": "Area: inspector.",
+    "source": "0eaa5cb3"
+  },
+  "inspector.kind.markdown": {
+    "message": "Document Markdown",
+    "description": "Area: inspector.",
+    "source": "00271ff9"
+  },
+  "inspector.kind.spreadsheet": {
+    "message": "Chiffrier",
+    "description": "Area: inspector.",
+    "source": "f3befcc6"
+  },
+  "inspector.kind.presentation": {
+    "message": "Présentation",
+    "description": "Area: inspector.",
+    "source": "5d5ee157"
+  },
+  "inspector.kind.font": {
+    "message": "Police de caractères",
+    "description": "Area: inspector.",
+    "source": "64d0b3ad"
+  },
+  "inspector.kind.diskImage": {
+    "message": "Image disque",
+    "description": "Area: inspector.",
+    "source": "0f12c3ab"
+  },
+  "inspector.kind.database": {
+    "message": "Base de données",
+    "description": "Area: inspector.",
+    "source": "fa7fe671"
+  },
+  "inspector.kind.config": {
+    "message": "Fichier de configuration",
+    "description": "Area: inspector.",
+    "source": "f1c216dd"
+  },
+  "inspector.kind.shellScript": {
+    "message": "Script shell",
+    "description": "Area: inspector.",
+    "source": "82fbe842"
+  },
+  "inspector.kind.executable": {
+    "message": "Exécutable",
+    "description": "Area: inspector.",
+    "source": "72cd8a64"
+  },
+  "inspector.kind.certificate": {
+    "message": "Clé ou certificat",
+    "description": "Area: inspector.",
+    "source": "c0d8d177"
+  },
+  "inspector.kind.ebook": {
+    "message": "Livre numérique",
+    "description": "Area: inspector.",
+    "source": "752c2f3e"
+  },
+  "inspector.kind.torrent": {
+    "message": "Fichier torrent",
+    "description": "Area: inspector.",
+    "source": "4ea3c5f3"
+  },
+  "inspector.kind.calendar": {
+    "message": "Calendrier",
+    "description": "Area: inspector.",
+    "source": "d5d0a30b"
+  },
+  "inspector.kind.contact": {
+    "message": "Contact",
+    "description": "Area: inspector.",
+    "source": "2b5c3d26"
+  },
+  "inspector.kind.log": {
+    "message": "Fichier journal",
+    "description": "Area: inspector.",
+    "source": "a5e1b5fb"
+  },
+  "inspector.kind.model3d": {
+    "message": "Modèle 3D",
+    "description": "Area: inspector.",
+    "source": "f7dedb5c"
+  },
+  "inspector.kind.subtitles": {
+    "message": "Sous-titres",
+    "description": "Area: inspector.",
+    "source": "0ee695bd"
+  },
+  "inspector.kind.playlist": {
+    "message": "Liste de lecture",
+    "description": "Area: inspector.",
+    "source": "7af36c50"
+  },
+  "inspector.kind.package": {
+    "message": "Paquet",
+    "description": "Area: inspector.",
+    "source": "59de121d"
   },
   "properties.open": {
     "message": "Ouvrir dans une fenêtre",

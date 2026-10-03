@@ -667,6 +667,52 @@ const messages: Catalogue = {
 	'browse.group.document': 'Document',
 	// source: 50009ce1
 	'browse.group.other': 'Fichier',
+	// source: 64d53e28
+	'browse.group.pdf': 'Document PDF',
+	// source: e7ad522e
+	'browse.group.app': 'Application',
+	// source: 0eaa5cb3
+	'browse.group.text': 'Fichier texte',
+	// source: 00271ff9
+	'browse.group.markdown': 'Document Markdown',
+	// source: f3befcc6
+	'browse.group.spreadsheet': 'Chiffrier',
+	// source: 5d5ee157
+	'browse.group.presentation': 'Présentation',
+	// source: 64d0b3ad
+	'browse.group.font': 'Police de caractères',
+	// source: 0f12c3ab
+	'browse.group.diskImage': 'Image disque',
+	// source: fa7fe671
+	'browse.group.database': 'Base de données',
+	// source: f1c216dd
+	'browse.group.config': 'Fichier de configuration',
+	// source: 82fbe842
+	'browse.group.shellScript': 'Script shell',
+	// source: 72cd8a64
+	'browse.group.executable': 'Exécutable',
+	// source: cedbee8e
+	'browse.group.certificate': 'Certificat ou clé',
+	// source: 752c2f3e
+	'browse.group.ebook': 'Livre numérique',
+	// source: 38149017
+	'browse.group.torrent': 'Torrent',
+	// source: d5d0a30b
+	'browse.group.calendar': 'Calendrier',
+	// source: 2b5c3d26
+	'browse.group.contact': 'Contact',
+	// source: a5e1b5fb
+	'browse.group.log': 'Fichier journal',
+	// source: f7dedb5c
+	'browse.group.model3d': 'Modèle 3D',
+	// source: 0ee695bd
+	'browse.group.subtitles': 'Sous-titres',
+	// source: 7af36c50
+	'browse.group.playlist': 'Liste de lecture',
+	// source: 59de121d
+	'browse.group.package': 'Paquet',
+	// source: 20cd41fc
+	'browse.group.symlink': 'Lien symbolique',
 	// source: c4d6bb20
 	'browse.header.kind.folder': 'Dossiers',
 	// source: be7e2f20
@@ -683,6 +729,52 @@ const messages: Catalogue = {
 	'browse.header.kind.document': 'Documents',
 	// source: f456eff6
 	'browse.header.kind.other': 'Autres fichiers',
+	// source: ec1ff70c
+	'browse.header.kind.pdf': 'Documents PDF',
+	// source: 98e33b0f
+	'browse.header.kind.app': 'Applications',
+	// source: c5df156e
+	'browse.header.kind.text': 'Fichiers texte',
+	// source: 66343d4a
+	'browse.header.kind.markdown': 'Documents Markdown',
+	// source: fdae6602
+	'browse.header.kind.spreadsheet': 'Chiffriers',
+	// source: cf31f395
+	'browse.header.kind.presentation': 'Présentations',
+	// source: 3680fcad
+	'browse.header.kind.font': 'Polices de caractères',
+	// source: 56063f31
+	'browse.header.kind.diskImage': 'Images disque',
+	// source: 61d2afe2
+	'browse.header.kind.database': 'Bases de données',
+	// source: 1b82f5f5
+	'browse.header.kind.config': 'Fichiers de configuration',
+	// source: fa56112e
+	'browse.header.kind.shellScript': 'Scripts shell',
+	// source: 517ee2c8
+	'browse.header.kind.executable': 'Exécutables',
+	// source: bdb97523
+	'browse.header.kind.certificate': 'Certificats et clés',
+	// source: 38625b48
+	'browse.header.kind.ebook': 'Livres numériques',
+	// source: a2189b35
+	'browse.header.kind.torrent': 'Torrents',
+	// source: e0b2b00c
+	'browse.header.kind.calendar': 'Calendriers',
+	// source: b450645d
+	'browse.header.kind.contact': 'Contacts',
+	// source: 40986ada
+	'browse.header.kind.log': 'Fichiers journaux',
+	// source: e7f3a35d
+	'browse.header.kind.model3d': 'Modèles 3D',
+	// source: 0ee695bd
+	'browse.header.kind.subtitles': 'Sous-titres',
+	// source: dcd0a4d2
+	'browse.header.kind.playlist': 'Listes de lecture',
+	// source: 40a20853
+	'browse.header.kind.package': 'Paquets',
+	// source: c93f6883
+	'browse.header.kind.symlink': 'Liens symboliques',
 	// source: 2b065c7c
 	'browse.header.modified.today': 'Aujourd’hui',
 	// source: 56618125
@@ -3612,6 +3704,50 @@ const messages: Catalogue = {
 	'inspector.kind.code': 'Code source',
 	// source: d6bd8c0a
 	'inspector.kind.document': 'Document',
+	// source: 64d53e28
+	'inspector.kind.pdf': 'Document PDF',
+	// source: e7ad522e
+	'inspector.kind.app': 'Application',
+	// source: 0eaa5cb3
+	'inspector.kind.text': 'Fichier texte',
+	// source: 00271ff9
+	'inspector.kind.markdown': 'Document Markdown',
+	// source: f3befcc6
+	'inspector.kind.spreadsheet': 'Chiffrier',
+	// source: 5d5ee157
+	'inspector.kind.presentation': 'Présentation',
+	// source: 64d0b3ad
+	'inspector.kind.font': 'Police de caractères',
+	// source: 0f12c3ab
+	'inspector.kind.diskImage': 'Image disque',
+	// source: fa7fe671
+	'inspector.kind.database': 'Base de données',
+	// source: f1c216dd
+	'inspector.kind.config': 'Fichier de configuration',
+	// source: 82fbe842
+	'inspector.kind.shellScript': 'Script shell',
+	// source: 72cd8a64
+	'inspector.kind.executable': 'Exécutable',
+	// source: c0d8d177
+	'inspector.kind.certificate': 'Clé ou certificat',
+	// source: 752c2f3e
+	'inspector.kind.ebook': 'Livre numérique',
+	// source: 4ea3c5f3
+	'inspector.kind.torrent': 'Fichier torrent',
+	// source: d5d0a30b
+	'inspector.kind.calendar': 'Calendrier',
+	// source: 2b5c3d26
+	'inspector.kind.contact': 'Contact',
+	// source: a5e1b5fb
+	'inspector.kind.log': 'Fichier journal',
+	// source: f7dedb5c
+	'inspector.kind.model3d': 'Modèle 3D',
+	// source: 0ee695bd
+	'inspector.kind.subtitles': 'Sous-titres',
+	// source: 7af36c50
+	'inspector.kind.playlist': 'Liste de lecture',
+	// source: 59de121d
+	'inspector.kind.package': 'Paquet',
 	// source: 1eb42bf2
 	'properties.open': 'Ouvrir dans une fenêtre',
 	// source: eab4391b
