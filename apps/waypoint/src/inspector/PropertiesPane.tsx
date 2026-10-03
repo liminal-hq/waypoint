@@ -23,6 +23,7 @@ import { useFreeSpace } from '../status/useFreeSpace';
 import { baseName, formatPermissions, isFolderKind, kindMessage } from './inspectorModel';
 import type { InspectorSubject } from './useInspectorSubject';
 import type { DetailsState } from './useEntryDetails';
+import { EntryHero, FolderHero } from './EntryHero';
 import { useEntryExtras } from './useEntryExtras';
 import { useFolderSize, type FolderSizeState } from './useFolderSize';
 import { useSettled } from './useSettled';
@@ -40,12 +41,23 @@ interface PropertiesPaneProps {
 	folder: Location | undefined;
 	/** The pane is showing: nothing heavy runs while it is not. */
 	active: boolean;
+	/** Lead with the picture, name, kind and size (the docked Inspector does; the window has its own header). */
+	hero?: boolean;
 }
 
 /** One labelled fact; `value` is what is read out after the label. */
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({
+	label,
+	children,
+	stacked,
+}: {
+	label: string;
+	children: ReactNode;
+	/** The label over a full-width value, as the Name field is. */
+	stacked?: boolean;
+}) {
 	return (
-		<div className={styles.row}>
+		<div className={styles.row} data-stacked={stacked ? '' : undefined}>
 			<dt className={styles.label}>{label}</dt>
 			<dd className={styles.value} data-selectable="">
 				{children}
@@ -62,13 +74,19 @@ export function PropertiesPane({
 	details,
 	folder,
 	active,
+	hero = false,
 }: PropertiesPaneProps) {
 	switch (subject.kind) {
 		case 'none':
 			return <p className={styles.empty}>{t('inspector.properties.empty')}</p>;
 		case 'folder':
 			return (
-				<FolderProperties location={subject.location} count={subject.count} session={session} />
+				<FolderProperties
+					location={subject.location}
+					count={subject.count}
+					session={session}
+					hero={hero}
+				/>
 			);
 		case 'many':
 			return <ManyProperties session={session} />;
@@ -82,6 +100,7 @@ export function PropertiesPane({
 					state={details}
 					parent={folder}
 					active={active}
+					hero={hero}
 				/>
 			);
 	}
@@ -92,20 +111,27 @@ function FolderProperties({
 	location,
 	count,
 	session,
+	hero,
 }: {
 	location: Location;
 	count: number;
 	session: ListingSession | null;
+	hero: boolean;
 }) {
 	const vfs = useOptionalVfsClient();
 	return (
-		<dl className={styles.list}>
-			<Row label={t('inspector.field.name')}>{baseName(location.display)}</Row>
-			<Row label={t('inspector.field.kind')}>{t('inspector.kind.folder')}</Row>
-			<Row label={t('inspector.field.location')}>{location.display}</Row>
-			<Row label={t('inspector.field.contains')}>{tn('status.items', count)}</Row>
-			{vfs && <FolderSpace client={vfs} location={location} session={session} />}
-		</dl>
+		<>
+			{hero && <FolderHero name={baseName(location.display)} facts={tn('status.items', count)} />}
+			<dl className={styles.list}>
+				<Row label={t('inspector.field.name')} stacked>
+					{baseName(location.display)}
+				</Row>
+				<Row label={t('inspector.field.kind')}>{t('inspector.kind.folder')}</Row>
+				<Row label={t('inspector.field.location')}>{location.display}</Row>
+				<Row label={t('inspector.field.contains')}>{tn('status.items', count)}</Row>
+				{vfs && <FolderSpace client={vfs} location={location} session={session} />}
+			</dl>
+		</>
 	);
 }
 
@@ -199,6 +225,7 @@ function EntryProperties({
 	state,
 	parent,
 	active,
+	hero,
 }: {
 	entry: Entry;
 	handle: ListingHandle;
@@ -207,6 +234,7 @@ function EntryProperties({
 	state: DetailsState;
 	parent: Location | undefined;
 	active: boolean;
+	hero: boolean;
 }) {
 	const hourCycle = useHourCycle();
 	const commands = useFileCommands();
@@ -229,10 +257,18 @@ function EntryProperties({
 
 	return (
 		<>
+			{hero && (
+				<EntryHero
+					handle={handle}
+					entry={entry}
+					size={folder ? null : (details?.size ?? entry.size)}
+					folder={folder}
+				/>
+			)}
 			<dl className={styles.list}>
-				<Row label={t('inspector.field.name')}>
+				<Row label={t('inspector.field.name')} stacked>
 					<span className={styles.nameValue}>
-						<span>{entry.name}</span>
+						<span className={styles.nameText}>{entry.name}</span>
 						{canRename && (
 							<button
 								type="button"

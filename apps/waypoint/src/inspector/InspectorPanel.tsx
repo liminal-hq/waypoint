@@ -151,6 +151,7 @@ export function InspectorPanel({
 									details={details}
 									folder={location}
 									active
+									hero
 								/>
 								{session?.model.layout !== 'trash' && <OpenInWindowButton subject={subject} />}
 							</>

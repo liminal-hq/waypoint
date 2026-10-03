@@ -1,34 +1,69 @@
-/* The Properties tab: a definition list, a label over its value. Tokens only. */
+/* The Properties tab: label and value rows, the label at the start and the value at the end. Tokens only. */
 .list {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 0;
 	margin: 0;
 }
 
 .row {
 	display: flex;
-	flex-direction: column;
-	gap: 1px;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	min-block-size: var(--wp-hit-target, 0px);
+	padding-block: 6px;
 	min-inline-size: 0;
 }
 
+/* The Name field: the label over a bordered, full-width value. */
+.row[data-stacked] {
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: flex-start;
+	gap: 4px;
+	padding-block: 0 10px;
+}
+
 .label {
+	flex: none;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: 12px;
 }
 
 .value {
+	min-inline-size: 0;
 	margin: 0;
 	font-size: 12px;
+	text-align: end;
 	overflow-wrap: anywhere;
+}
+
+.row[data-stacked] .label {
+	font-size: 11px;
+}
+
+.row[data-stacked] .value {
+	text-align: start;
 }
 
 .nameValue {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+	box-sizing: border-box;
+	min-block-size: 28px;
+	padding-block: 3px;
+	padding-inline: 10px 4px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	background: var(--wp-bg-hover);
+	font-size: 12px;
+}
+
+.nameText {
+	min-inline-size: 0;
 }
 
 .detail {
@@ -52,6 +87,7 @@
 
 .button {
 	flex: none;
+	min-block-size: var(--wp-hit-target, 0px);
 	padding: 2px 8px;
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 4px;
@@ -85,4 +121,8 @@
 	overflow: hidden;
 	clip-path: inset(50%);
 	white-space: nowrap;
+}
+
+:root[data-contrast='high'] .nameValue {
+	border-color: var(--wp-text-primary);
 }

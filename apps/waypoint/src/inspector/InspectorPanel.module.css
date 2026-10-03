@@ -43,24 +43,26 @@
 	align-items: center;
 	gap: 4px;
 	padding-block: 4px 0;
-	padding-inline: 8px 4px;
+	padding-inline: 8px 6px;
 	border-block-end: 1px solid var(--wp-border-subtle);
 }
 
 .tabs {
 	display: flex;
 	flex: 1;
-	gap: 2px;
+	gap: 6px;
 }
 
 .tab {
-	padding: 6px 10px;
+	min-block-size: var(--wp-hit-target, 0px);
+	padding-block: 8px;
+	padding-inline: 10px;
 	border: 0;
 	border-block-end: 2px solid transparent;
 	background: transparent;
 	color: var(--wp-text-muted);
 	font: inherit;
-	font-size: 12px;
+	font-size: 13px;
 	cursor: pointer;
 }
 
@@ -84,8 +86,8 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	inline-size: 24px;
-	block-size: 24px;
+	inline-size: max(24px, var(--wp-hit-target, 0px));
+	block-size: max(24px, var(--wp-hit-target, 0px));
 	padding: 0;
 	border: 0;
 	border-radius: 4px;
@@ -103,7 +105,7 @@
 	position: relative;
 	flex: 1;
 	min-block-size: 0;
-	padding: 12px;
+	padding: 16px;
 	overflow: auto;
 }
 
@@ -143,4 +145,12 @@
 	margin: 0;
 	color: var(--wp-text-muted);
 	font-size: 12px;
+}
+
+:root[data-contrast='high'] .inspector {
+	border-inline-start-color: var(--wp-text-primary);
+}
+
+:root[data-contrast='high'] .header {
+	border-block-end-color: var(--wp-text-primary);
 }
