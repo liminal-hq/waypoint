@@ -46,6 +46,7 @@
 		"./ContextMenu": "./src/ContextMenu/ContextMenu.tsx",
 		"./ContextMenu/types": "./src/ContextMenu/types.ts",
 		"./ContextMenu/expectEveryItemHasIcon": "./src/ContextMenu/expectEveryItemHasIcon.ts",
+		"./MenuBar/MenuBar": "./src/MenuBar/MenuBar.tsx",
 		"./TitleBar": "./src/TitleBar/TitleBar.tsx",
 		"./TitleBar/AppMenuButton": "./src/TitleBar/AppMenuButton.tsx",
 		"./TitleBar/subscription": "./src/TitleBar/subscription.ts",

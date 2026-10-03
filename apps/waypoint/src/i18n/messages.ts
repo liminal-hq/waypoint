@@ -63,6 +63,11 @@ export const enMessages = {
 	'settings.general.appNameInTitle.label': 'Show the app name in the title bar',
 	'settings.general.appNameInTitle.description':
 		'Starts the title bar’s label with “Waypoint”. Off, the label is just “Main”.',
+	'menuBar.label': 'Menu bar',
+	'menuBar.more': 'More',
+	'settings.general.menuBar.label': 'Show a menu bar under the title bar',
+	'settings.general.menuBar.description':
+		'Lays the application menu’s menus (File, Edit, View and Window) across a bar of their own. The app name button then stays as a label.',
 	'settings.general.showHidden.description':
 		'A new window lists hidden files. Windows that are already open keep their choice.',
 	'settings.general.confirmTrash.label': 'Confirm before moving to the Trash',

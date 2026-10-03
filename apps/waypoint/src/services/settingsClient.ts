@@ -65,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		actionBar: true,
 		actionBarLabels: true,
 		appNameInTitle: false,
+		menuBar: false,
 	},
 };
 

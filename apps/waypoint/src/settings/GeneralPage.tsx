@@ -81,6 +81,15 @@ export function GeneralPage() {
 						changeSettings('appNameInTitle', (s) => ({ ...s, ui: { ...s.ui, appNameInTitle } }))
 					}
 				/>
+				<ToggleRow
+					label={t('settings.general.menuBar.label')}
+					description={t('settings.general.menuBar.description')}
+					error={errors.menuBar}
+					checked={settings.ui.menuBar}
+					onChange={(menuBar) =>
+						changeSettings('menuBar', (s) => ({ ...s, ui: { ...s.ui, menuBar } }))
+					}
+				/>
 			</SettingsGroup>
 			<SettingsGroup title={t('settings.group.deleting')}>
 				<ToggleRow

@@ -24,6 +24,11 @@ export interface AppMenuButtonProps {
 	 * active with `acceleratorKeys`.
 	 */
 	mnemonics?: Readonly<Record<string, string>>;
+	/**
+	 * Draws the mark and name as plain text that opens nothing, with no accelerators: for when
+	 * something else (a menu bar) carries the menus. Defaults to true.
+	 */
+	interactive?: boolean;
 }
 
 export function AppMenuButton({
@@ -33,6 +38,7 @@ export function AppMenuButton({
 	onSelect,
 	acceleratorKeys = true,
 	mnemonics,
+	interactive = true,
 }: AppMenuButtonProps) {
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	// A press on the button while its menu is up first dismisses the menu (the press is outside it),
@@ -62,7 +68,7 @@ export function AppMenuButton({
 	}, []);
 
 	useEffect(() => {
-		if (!acceleratorKeys) return;
+		if (!acceleratorKeys || !interactive) return;
 		let altAlone = false;
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'F10' && !event.shiftKey) {
@@ -100,7 +106,20 @@ export function AppMenuButton({
 			window.removeEventListener('keydown', onKeyDown, true);
 			window.removeEventListener('keyup', onKeyUp, true);
 		};
-	}, [acceleratorKeys, mnemonics, openMenu]);
+	}, [acceleratorKeys, interactive, mnemonics, openMenu]);
+
+	if (!interactive) {
+		return (
+			<span className={`${styles.button} ${styles.plain}`}>
+				{mark ? (
+					<span className={styles.mark} aria-hidden="true">
+						{mark}
+					</span>
+				) : null}
+				<span>{label}</span>
+			</span>
+		);
+	}
 
 	return (
 		<>

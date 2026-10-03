@@ -133,6 +133,21 @@ describe('the application menu button', () => {
 		expect(button).toHaveFocus();
 	});
 
+	it('is plain text that opens nothing while the menu bar carries the menus', async () => {
+		render(
+			<CommandBridgeProvider
+				value={createCommandBridge({ facts: factsFor({}, {}), actions: idleActions() })}
+			>
+				<AppMenu menuBar />
+			</CommandBridgeProvider>,
+		);
+		expect(screen.queryByRole('button', { name: t('app.name') })).not.toBeInTheDocument();
+		expect(screen.getByText(t('app.name'))).toBeInTheDocument();
+		fireEvent.keyDown(window, { key: 'F10' });
+		fireEvent.keyDown(window, { key: 'f', altKey: true });
+		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+	});
+
 	it('runs a view command with the keyboard', async () => {
 		const { actions } = setup();
 		fireEvent.keyDown(window, { key: 'v', altKey: true });

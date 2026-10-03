@@ -26,6 +26,7 @@ export type RowKey =
 	| 'clickMode'
 	| 'showHidden'
 	| 'appNameInTitle'
+	| 'menuBar'
 	| 'confirmTrash'
 	| 'verify'
 	| 'algorithm'
