@@ -5,4 +5,4 @@ import type { ViewMode } from "./ViewMode";
 /**
  * What a window asks to be remembered: a field that is `None` leaves what is remembered alone.
  */
-export type FolderViewPatch = { mode: ViewMode | null, sort: SortSpec | null, };
+export type FolderViewPatch = { mode: ViewMode | null, sort: SortSpec | null, showHidden: boolean | null, iconSize: number | null, };

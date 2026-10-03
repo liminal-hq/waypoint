@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //
-// A folder that has had its view, sort or grouping changed keeps that choice (SPEC 5.3b). This is
+// A folder that has had its view, sort, grouping, hidden-files choice or icon size changed keeps that choice (SPEC 5.3b). This is
 // the pure store behind it: a map from a folder's location to the choices made there, in the order
 // they were last written (oldest first), so that going over `MAX_FOLDERS` drops the folder
 // written longest ago. Only what was chosen is kept: a folder whose sort was changed and whose
@@ -37,6 +37,10 @@ pub const MAX_FOLDERS: usize = 1000;
 /// The longest location that is remembered, in bytes. A longer one is refused, not cut.
 pub const MAX_KEY_BYTES: usize = 4096;
 
+/// The smallest and largest grid icon size a folder remembers, in pixels (the grid's own range).
+pub const ICON_SIZE_MIN: u32 = 48;
+pub const ICON_SIZE_MAX: u32 = 256;
+
 /// The id the remembered views are exported under.
 pub const FOLDER_VIEWS_FILE_ID: &str = "folder-views";
 
@@ -60,11 +64,28 @@ pub struct FolderView {
     /// The sort and the grouping, which are one value (grouping is the first key of the sort).
     #[serde(default)]
     pub sort: Option<SortSpec>,
+    /// Whether the folder lists hidden files.
+    #[serde(default)]
+    pub show_hidden: Option<bool>,
+    /// The grid's icon size in pixels, between `ICON_SIZE_MIN` and `ICON_SIZE_MAX`.
+    #[serde(default)]
+    #[ts(type = "number | null")]
+    pub icon_size: Option<u32>,
 }
 
 impl FolderView {
     fn is_empty(&self) -> bool {
-        self.mode.is_none() && self.sort.is_none()
+        self.mode.is_none()
+            && self.sort.is_none()
+            && self.show_hidden.is_none()
+            && self.icon_size.is_none()
+    }
+
+    fn valid(&self) -> bool {
+        !self.is_empty()
+            && self
+                .icon_size
+                .is_none_or(|size| (ICON_SIZE_MIN..=ICON_SIZE_MAX).contains(&size))
     }
 }
 
@@ -77,6 +98,11 @@ pub struct FolderViewPatch {
     pub mode: Option<ViewMode>,
     #[serde(default)]
     pub sort: Option<SortSpec>,
+    #[serde(default)]
+    pub show_hidden: Option<bool>,
+    #[serde(default)]
+    #[ts(type = "number | null")]
+    pub icon_size: Option<u32>,
 }
 
 /// One remembered folder, keyed by its location's `uri`.
@@ -122,6 +148,8 @@ pub struct FolderViewsChanged {
 pub enum FolderViewsError {
     #[error("a folder's location must be between 1 and {MAX_KEY_BYTES} bytes, with no control characters")]
     BadKey,
+    #[error("the icon size must be between {ICON_SIZE_MIN} and {ICON_SIZE_MAX}")]
+    BadIconSize,
     #[error("at most {MAX_FOLDERS} folders can be remembered")]
     TooMany,
     #[error("the location `{0}` is listed more than once")]
@@ -168,7 +196,7 @@ impl FolderViews {
     pub fn from_document(document: FolderViewsDocument) -> Self {
         let mut entries: Vec<FolderViewEntry> = Vec::with_capacity(document.folders.len());
         for entry in document.folders {
-            if !valid_key(&entry.key) || entry.view.is_empty() {
+            if !valid_key(&entry.key) || !entry.view.valid() {
                 continue;
             }
             entries.retain(|e| e.key != entry.key);
@@ -233,11 +261,19 @@ impl FolderViews {
         if !valid_key(key) {
             return Err(FolderViewsError::BadKey);
         }
+        if patch
+            .icon_size
+            .is_some_and(|size| !(ICON_SIZE_MIN..=ICON_SIZE_MAX).contains(&size))
+        {
+            return Err(FolderViewsError::BadIconSize);
+        }
         let existing = self.entries.iter().position(|e| e.key == key);
         let before = existing.map(|i| self.entries[i].view);
         let view = FolderView {
             mode: patch.mode.or(before.and_then(|v| v.mode)),
             sort: patch.sort.or(before.and_then(|v| v.sort)),
+            show_hidden: patch.show_hidden.or(before.and_then(|v| v.show_hidden)),
+            icon_size: patch.icon_size.or(before.and_then(|v| v.icon_size)),
         };
         if view.is_empty() || before == Some(view) {
             return Ok(None);
@@ -333,6 +369,9 @@ fn check_folders(folders: &[FolderViewEntry]) -> Result<(), FolderViewsError> {
     for entry in folders {
         if !valid_key(&entry.key) || entry.view.is_empty() {
             return Err(FolderViewsError::BadKey);
+        }
+        if !entry.view.valid() {
+            return Err(FolderViewsError::BadIconSize);
         }
         if !seen.insert(entry.key.as_str()) {
             return Err(FolderViewsError::Duplicate(entry.key.clone()));
@@ -519,6 +558,7 @@ mod tests {
         FolderViewPatch {
             mode: Some(ViewMode::Grid),
             sort: None,
+            ..Default::default()
         }
     }
 
@@ -546,7 +586,7 @@ mod tests {
                 key: "file:///a".into(),
                 view: Some(FolderView {
                     mode: Some(ViewMode::Grid),
-                    sort: None
+                    ..FolderView::default()
                 })
             }]
         );
@@ -564,6 +604,7 @@ mod tests {
                 FolderViewPatch {
                     mode: None,
                     sort: Some(by_size()),
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -632,6 +673,7 @@ mod tests {
                 FolderViewPatch {
                     mode: None,
                     sort: Some(by_size()),
+                    ..Default::default()
                 },
             )
             .unwrap();
@@ -656,6 +698,7 @@ mod tests {
                 view: FolderView {
                     mode: Some(ViewMode::List),
                     sort: None,
+                    ..Default::default()
                 },
             })
             .collect();
@@ -664,6 +707,7 @@ mod tests {
             view: FolderView {
                 mode: Some(ViewMode::List),
                 sort: None,
+                ..Default::default()
             },
         });
         folders.push(FolderViewEntry {
@@ -676,6 +720,7 @@ mod tests {
             view: FolderView {
                 mode: Some(ViewMode::Grid),
                 sort: None,
+                ..Default::default()
             },
         });
         let views = FolderViews::from_document(FolderViewsDocument::new(folders));
@@ -696,6 +741,7 @@ mod tests {
         let list = FolderView {
             mode: Some(ViewMode::List),
             sort: None,
+            ..Default::default()
         };
         let changed = views
             .replace_all(vec![
@@ -704,6 +750,7 @@ mod tests {
                     view: FolderView {
                         mode: Some(ViewMode::Grid),
                         sort: None,
+                        ..Default::default()
                     },
                 },
                 FolderViewEntry {
@@ -751,6 +798,79 @@ mod tests {
     }
 
     #[test]
+    fn hidden_files_and_icon_size_are_remembered_beside_the_view_and_merge_like_it() {
+        let mut views = FolderViews::new();
+        views
+            .remember(
+                "file:///a",
+                FolderViewPatch {
+                    show_hidden: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        views
+            .remember(
+                "file:///a",
+                FolderViewPatch {
+                    icon_size: Some(128),
+                    mode: Some(ViewMode::Grid),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let view = views.get("file:///a").unwrap();
+        assert_eq!(view.show_hidden, Some(true));
+        assert_eq!(view.icon_size, Some(128));
+        assert_eq!(view.mode, Some(ViewMode::Grid));
+        // Turning hidden files back off is a choice too, not a return to nothing.
+        views
+            .remember(
+                "file:///a",
+                FolderViewPatch {
+                    show_hidden: Some(false),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(views.get("file:///a").unwrap().show_hidden, Some(false));
+        assert_eq!(views.revision(), 3);
+    }
+
+    #[test]
+    fn an_icon_size_outside_the_grids_range_is_refused_and_dropped_when_loaded() {
+        let mut views = FolderViews::new();
+        for size in [ICON_SIZE_MIN - 1, ICON_SIZE_MAX + 1] {
+            assert_eq!(
+                views
+                    .remember(
+                        "file:///a",
+                        FolderViewPatch {
+                            icon_size: Some(size),
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap_err(),
+                FolderViewsError::BadIconSize
+            );
+        }
+        assert!(views.is_empty());
+        let loaded = FolderViews::from_document(FolderViewsDocument::new(vec![FolderViewEntry {
+            key: "file:///a".into(),
+            view: FolderView {
+                icon_size: Some(9999),
+                ..Default::default()
+            },
+        }]));
+        assert!(loaded.is_empty());
+        let plan = plan_folder_views(
+            &FolderViews::new(),
+            &json!({"version": 1, "folders": [{"key": "file:///a", "view": {"iconSize": 5}}]}),
+        );
+        assert_eq!(plan.unwrap_err().code(), "invalid");
+    }
+
+    #[test]
     fn the_snapshot_carries_the_revision_and_the_folders_oldest_first() {
         let mut views = FolderViews::new();
         views.remember("file:///a", grid()).unwrap();
@@ -766,10 +886,11 @@ mod tests {
         let view = FolderView {
             mode: Some(ViewMode::Grid),
             sort: None,
+            ..Default::default()
         };
         assert_eq!(
             serde_json::to_value(view).unwrap(),
-            json!({"mode": "grid", "sort": null})
+            json!({"mode": "grid", "sort": null, "showHidden": null, "iconSize": null})
         );
         let read: FolderView = serde_json::from_value(json!({"mode": "list"})).unwrap();
         assert_eq!(read.sort, None);
@@ -882,6 +1003,7 @@ mod tests {
                     view: FolderView {
                         mode: Some(ViewMode::Grid),
                         sort: None,
+                        ..Default::default()
                     },
                 })
                 .collect(),

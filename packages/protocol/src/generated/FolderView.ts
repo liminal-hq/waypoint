@@ -10,4 +10,12 @@ export type FolderView = { mode: ViewMode | null,
 /**
  * The sort and the grouping, which are one value (grouping is the first key of the sort).
  */
-sort: SortSpec | null, };
+sort: SortSpec | null, 
+/**
+ * Whether the folder lists hidden files.
+ */
+showHidden: boolean | null, 
+/**
+ * The grid's icon size in pixels, between `ICON_SIZE_MIN` and `ICON_SIZE_MAX`.
+ */
+iconSize: number | null, };

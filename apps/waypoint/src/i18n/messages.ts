@@ -315,7 +315,7 @@ export const enMessages = {
 	'settings.general.clickMode.double': 'Double click',
 	'settings.general.rememberFolderViews.label': 'Remember each folder’s view',
 	'settings.general.rememberFolderViews.description':
-		'A folder keeps the view, sort and grouping you last chose in it. Off, every folder shows the window’s view; what folders remembered is kept for when this is on again.',
+		'A folder keeps the view, sort, grouping, hidden-files choice and icon size you last chose in it. Waypoint remembers up to 1,000 folders and forgets the one changed longest ago past that. Off, every folder shows the window’s view; what folders remembered is kept for when this is on again.',
 	'settings.general.showHidden.label': 'Show hidden files by default',
 	'settings.general.appNameInTitle.label': 'Show the app name in the title bar',
 	'settings.general.appNameInTitle.description':

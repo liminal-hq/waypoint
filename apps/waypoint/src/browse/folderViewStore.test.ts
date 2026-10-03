@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFakeFolderViewsClient, MAX_FOLDERS } from '../services/fakeFolderViewsClient';
 import { createFolderViewsStore } from './folderViewStore';
 
-const GRID = { mode: 'grid', sort: null } as const;
+const GRID = { mode: 'grid', sort: null, showHidden: null, iconSize: null } as const;
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('the folder views store', () => {
@@ -88,7 +88,12 @@ describe('the folder views store', () => {
 		const first = handle.remember('file:///a', { mode: 'grid' });
 		const second = handle.reset('file:///b');
 		expect(handle.store.getState().writing).toBe(2);
-		expect(client.remembered).toEqual([{ key: 'file:///a', patch: { mode: 'grid', sort: null } }]);
+		expect(client.remembered).toEqual([
+			{
+				key: 'file:///a',
+				patch: { mode: 'grid', sort: null, showHidden: null, iconSize: null },
+			},
+		]);
 		held.release();
 		await Promise.all([first, second]);
 		expect(handle.store.getState().writing).toBe(0);

@@ -912,7 +912,7 @@
     "description": "Area: settings."
   },
   "settings.general.rememberFolderViews.description": {
-    "message": "A folder keeps the view, sort and grouping you last chose in it. Off, every folder shows the window’s view; what folders remembered is kept for when this is on again.",
+    "message": "A folder keeps the view, sort, grouping, hidden-files choice and icon size you last chose in it. Waypoint remembers up to 1,000 folders and forgets the one changed longest ago past that. Off, every folder shows the window’s view; what folders remembered is kept for when this is on again.",
     "description": "Area: settings."
   },
   "settings.general.showHidden.label": {

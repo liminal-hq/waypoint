@@ -534,9 +534,9 @@ const messages: Catalogue = {
 	'settings.general.clickMode.double': 'Double-clic',
 	// source: a7d466a3
 	'settings.general.rememberFolderViews.label': 'Mémoriser la vue de chaque dossier',
-	// source: 345489ad
+	// source: 997a97f9
 	'settings.general.rememberFolderViews.description':
-		'Un dossier garde la vue, le tri et le regroupement que vous y avez choisis en dernier. Désactivé, chaque dossier affiche la vue de la fenêtre; ce que les dossiers avaient mémorisé est conservé pour la prochaine activation.',
+		'Un dossier garde la vue, le tri, le regroupement, le choix des fichiers masqués et la taille des icônes que vous y avez choisis en dernier. Waypoint mémorise jusqu’à 1 000 dossiers et oublie celui modifié le plus anciennement au-delà. Désactivé, chaque dossier affiche la vue de la fenêtre; ce que les dossiers avaient mémorisé est conservé pour la prochaine activation.',
 	// source: 5848f846
 	'settings.general.showHidden.label': 'Afficher les fichiers masqués par défaut',
 	// source: 9955f9ba

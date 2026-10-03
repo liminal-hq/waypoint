@@ -32,6 +32,8 @@ export interface FolderViewsState {
 export interface FolderViewChoice {
 	mode?: ViewMode;
 	sort?: SortSpec;
+	showHidden?: boolean;
+	iconSize?: number;
 }
 
 export interface FolderViewsHandle {
@@ -145,7 +147,14 @@ export function createFolderViewsStore(client: FolderViewsClient): FolderViewsHa
 		store,
 		ready,
 		remember: (key, choice) =>
-			writing(() => client.remember(key, { mode: choice.mode ?? null, sort: choice.sort ?? null })),
+			writing(() =>
+				client.remember(key, {
+					mode: choice.mode ?? null,
+					sort: choice.sort ?? null,
+					showHidden: choice.showHidden ?? null,
+					iconSize: choice.iconSize ?? null,
+				}),
+			),
 		reset: (key) => writing(() => client.reset(key)),
 		dispose() {
 			disposed = true;

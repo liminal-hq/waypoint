@@ -228,7 +228,7 @@ describe('the General page', () => {
 		const { settings } = await open();
 		const row = screen.getByRole('switch', { name: 'Remember each folder’s view' });
 		expect(row).toBeChecked();
-		expect(row).toHaveAccessibleDescription(/keeps the view, sort and grouping/);
+		expect(row).toHaveAccessibleDescription(/up to 1,000 folders/);
 		await userEvent.click(row);
 		await waitFor(() => expect(row).not.toBeChecked());
 		expect(settings.current().settings.general.rememberFolderViews).toBe(false);

@@ -5,10 +5,18 @@
 
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
-import { describe, expect, it } from 'vitest';
-import { createFakeFolderViewsClient } from '../services/fakeFolderViewsClient';
+import { describe, expect, it, vi } from 'vitest';
+import {
+	createFakeFolderViewsClient,
+	NOTHING_CHOSEN,
+	type FolderViewSeed,
+} from '../services/fakeFolderViewsClient';
 import { FakeVfsClient, fileLocation, syntheticEntries } from '../services/fakeVfsClient';
-import { FolderViewController, folderViewKey } from './folderViewController';
+import {
+	FolderViewController,
+	folderViewKey,
+	ICON_SIZE_WRITE_DELAY_MS,
+} from './folderViewController';
 import { createFolderViewsStore, type FolderViewsHandle } from './folderViewStore';
 import { ListingManager } from './listingManager';
 import { createViewStore } from './viewStore';
@@ -38,9 +46,7 @@ function tab(id: number, location = A): TabSnapshot {
 	};
 }
 
-async function setup(
-	remembered: Record<string, { mode: 'list' | 'grid' | null; sort: SortSpec | null }> = {},
-) {
+async function setup(remembered: Record<string, FolderViewSeed> = {}) {
 	const views = createFakeFolderViewsClient(remembered);
 	const handle = createFolderViewsStore(views);
 	await handle.ready;
@@ -106,7 +112,7 @@ describe('a sort changed in a folder', () => {
 		expect(views.view(A.uri)?.sort).toEqual(bySize);
 		expect(views.view(B.uri)).toBeUndefined();
 		expect(viewStore.getState().sort.key).toBe('name');
-		expect(views.remembered).toEqual([{ key: A.uri, patch: { mode: null, sort: bySize } }]);
+		expect(views.remembered).toEqual([{ key: A.uri, patch: { ...NOTHING_CHOSEN, sort: bySize } }]);
 	});
 
 	it('becomes the window’s while remembering is off, as it was before folders remembered', async () => {
@@ -199,7 +205,7 @@ describe('the view mode', () => {
 		expect(views.remembered).toEqual([]);
 		viewStore.getState().setMode('list');
 		await settle();
-		expect(views.remembered).toEqual([{ key: B.uri, patch: { mode: 'list', sort: null } }]);
+		expect(views.remembered).toEqual([{ key: B.uri, patch: { ...NOTHING_CHOSEN, mode: 'list' } }]);
 		stop();
 	});
 
@@ -222,7 +228,93 @@ describe('the view mode', () => {
 	});
 });
 
+describe('hidden files and the icon size', () => {
+	it('follow the folder in the active tab, and the window’s own values show where the folder has none', async () => {
+		const { viewStore, controller, manager, configure } = await setup({
+			[A.uri]: { showHidden: true, iconSize: 160 },
+		});
+		controller.reconcile(manager);
+		expect(viewStore.getState()).toMatchObject({ showHidden: true, gridSize: 160 });
+		configure(B.uri);
+		controller.reconcile(manager);
+		expect(viewStore.getState()).toMatchObject({ showHidden: false, gridSize: 96 });
+	});
+
+	it('remember hidden files at once, and the icon size once the slider settles', async () => {
+		vi.useFakeTimers();
+		try {
+			const { viewStore, controller, views } = await setup();
+			const stop = controller.followMode();
+			viewStore.getState().toggleHidden();
+			expect(views.remembered).toEqual([
+				{ key: A.uri, patch: { ...NOTHING_CHOSEN, showHidden: true } },
+			]);
+			viewStore.getState().setGridSize(120);
+			viewStore.getState().setGridSize(160);
+			viewStore.getState().setGridSize(200);
+			await vi.advanceTimersByTimeAsync(ICON_SIZE_WRITE_DELAY_MS - 1);
+			expect(views.remembered).toHaveLength(1);
+			await vi.advanceTimersByTimeAsync(2);
+			expect(views.remembered).toHaveLength(2);
+			expect(views.remembered[1]).toEqual({
+				key: A.uri,
+				patch: { ...NOTHING_CHOSEN, iconSize: 200 },
+			});
+			stop();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('keep a size chosen just before leaving for the folder it was chosen in', async () => {
+		vi.useFakeTimers();
+		try {
+			const { viewStore, controller, views, configure } = await setup();
+			controller.followMode();
+			viewStore.getState().setGridSize(144);
+			configure(B.uri);
+			expect(views.remembered).toEqual([
+				{ key: A.uri, patch: { ...NOTHING_CHOSEN, iconSize: 144 } },
+			]);
+			await vi.advanceTimersByTimeAsync(ICON_SIZE_WRITE_DELAY_MS * 2);
+			expect(views.remembered).toHaveLength(1);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('are the window’s while remembering is off, and what the controller applies is not written', async () => {
+		const { viewStore, controller, manager, views, configure } = await setup({
+			[A.uri]: { showHidden: true, iconSize: 160 },
+		});
+		const stop = controller.followMode();
+		configure(A.uri, false);
+		viewStore.getState().setGridSize(64);
+		expect(views.remembered).toEqual([]);
+		controller.reconcile(manager);
+		expect(viewStore.getState().gridSize).toBe(64);
+		expect(viewStore.getState().showHidden).toBe(false);
+		configure(A.uri, true);
+		controller.reconcile(manager);
+		expect(viewStore.getState()).toMatchObject({ showHidden: true, gridSize: 160 });
+		expect(views.remembered).toEqual([]);
+		stop();
+	});
+});
+
 describe('resetting a folder', () => {
+	it('makes every choice of the folder the window’s again, hidden files and icon size too', async () => {
+		const { viewStore, controller, manager, views } = await setup({
+			[A.uri]: { mode: 'grid', sort: bySize, showHidden: true, iconSize: 200 },
+		});
+		controller.reconcile(manager);
+		expect(viewStore.getState()).toMatchObject({ mode: 'grid', showHidden: true, gridSize: 200 });
+		await controller.resetActive();
+		controller.reconcile(manager);
+		expect(viewStore.getState()).toMatchObject({ mode: 'list', showHidden: false, gridSize: 96 });
+		expect(views.view(A.uri)).toBeUndefined();
+	});
+
 	it('asks Rust to forget it, once there is something to forget', async () => {
 		const { controller, views } = await setup({ [A.uri]: { mode: 'grid', sort: null } });
 		expect(controller.canReset(A.uri)).toBe(true);

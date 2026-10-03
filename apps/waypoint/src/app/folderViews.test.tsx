@@ -5,7 +5,7 @@
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createFakeFolderViewsClient } from '../services/fakeFolderViewsClient';
+import { createFakeFolderViewsClient, NOTHING_CHOSEN } from '../services/fakeFolderViewsClient';
 import { createFakeSettingsClient } from '../services/fakeSettingsClient';
 import { DEFAULT_SETTINGS } from '../services/settingsClient';
 import { FakeTabsApi } from '../services/fakeTabsApi';
@@ -104,7 +104,7 @@ describe('a folder that remembers its own view', () => {
 		fireEvent.click(gridButton());
 		await waitFor(() =>
 			expect(folderViews.remembered).toEqual([
-				{ key: DOCS.uri, patch: { mode: 'grid', sort: null } },
+				{ key: DOCS.uri, patch: { ...NOTHING_CHOSEN, mode: 'grid' } },
 			]),
 		);
 
@@ -170,6 +170,53 @@ describe('a folder that remembers its own view', () => {
 		expect(
 			await screen.findByRole('menuitem', { name: 'Reset This Folder’s View' }),
 		).toHaveAttribute('aria-disabled', 'true');
+	});
+});
+
+describe('hidden files and the icon size', () => {
+	it('are remembered by the folder they were chosen in, and the next folder keeps the window’s', async () => {
+		const folderViews = createFakeFolderViewsClient();
+		const tabs = new FakeTabsApi();
+		const client = twoFolders();
+		client.setFolder(DOCS, [makeEntry(1, 'x.pdf'), makeEntry(2, '.secret')]);
+		await renderWorkspace(client, tabs, undefined, { folderViews });
+		await go(tabs, DOCS);
+		await option('x');
+		expect(screen.queryByRole('option', { name: /^\.secret/ })).toBeNull();
+		fireEvent.keyDown(window, { key: 'h', ctrlKey: true });
+		await option('\\.secret');
+		await waitFor(() => expect(folderViews.view(DOCS.uri)?.showHidden).toBe(true));
+
+		await go(tabs, HOME);
+		await option('docs');
+		await waitFor(() => expect(screen.queryByRole('option', { name: /^\.secret/ })).toBeNull());
+		expect(folderViews.view(HOME.uri)).toBeUndefined();
+
+		await go(tabs, DOCS);
+		await option('\\.secret');
+	});
+
+	it('come back with the folder, and Reset This Folder’s View puts them all back', async () => {
+		const folderViews = createFakeFolderViewsClient({
+			[HOME.uri]: { mode: 'grid', showHidden: true, iconSize: 200 },
+		});
+		await renderWorkspace(twoFolders(), undefined, undefined, { folderViews });
+		await waitFor(() => expect(gridButton()).toHaveAttribute('aria-pressed', 'true'));
+		await waitFor(() =>
+			expect(screen.getByRole('listbox').style.getPropertyValue('--wp-grid-size')).toBe('200px'),
+		);
+		fireEvent.contextMenu(emptySpace());
+		const hidden = await screen.findByRole('menuitemcheckbox', { name: /^Show hidden files/ });
+		expect(hidden).toHaveAttribute('aria-checked', 'true');
+		fireEvent.keyDown(hidden, { key: 'Escape' });
+		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Reset This Folder’s View' }));
+		await waitFor(() => expect(listButton()).toHaveAttribute('aria-pressed', 'true'));
+		fireEvent.click(gridButton());
+		await waitFor(() =>
+			expect(screen.getByRole('listbox').style.getPropertyValue('--wp-grid-size')).toBe('96px'),
+		);
+		expect(folderViews.view(HOME.uri)?.iconSize).not.toBe(200);
 	});
 });
 

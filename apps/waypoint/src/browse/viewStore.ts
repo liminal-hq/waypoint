@@ -97,9 +97,8 @@ export function followView(
 /**
  * The window's view choices: list or grid, the grid's size, hidden files, and the sort and grouping.
  * They are saved with the window's session (see `followView`) and restored with it. They are what
- * a folder shows when it has no choices of its own: a folder remembers the mode, sort and grouping
- * chosen in it (`FolderViewController`, SPEC 5.3b), and the icon size and hidden files stay the
- * window's.
+ * a folder shows when it has no choices of its own: a folder remembers the mode, sort, grouping,
+ * hidden-files choice and icon size chosen in it (`FolderViewController`, SPEC 5.3b).
  */
 export function createViewStore(initial: Partial<ViewState> = {}): ViewStore {
 	return createStore<ViewState & ViewActions>()((set) => ({

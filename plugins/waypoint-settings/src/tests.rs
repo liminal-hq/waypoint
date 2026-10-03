@@ -752,6 +752,7 @@ fn grid_view() -> FolderViewPatch {
     FolderViewPatch {
         mode: Some(ViewMode::Grid),
         sort: None,
+        ..Default::default()
     }
 }
 
@@ -876,6 +877,7 @@ fn the_folder_views_travel_in_the_settings_export_and_come_back_through_an_impor
             FolderViewPatch {
                 mode: Some(ViewMode::List),
                 sort: None,
+                ..Default::default()
             },
         )
         .unwrap();

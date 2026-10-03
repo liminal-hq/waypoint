@@ -27,7 +27,8 @@ pub use folder_views::{
     plan_folder_views, FolderView, FolderViewChange, FolderViewEntry, FolderViewPatch, FolderViews,
     FolderViewsChanged, FolderViewsDocument, FolderViewsError, FolderViewsPersistence,
     FolderViewsSnapshot, FolderViewsStorage, MemoryFolderViews, FOLDER_VIEWS_FILE_ID,
-    FOLDER_VIEWS_KEY, FOLDER_VIEWS_PREVIOUS_KEY, FOLDER_VIEWS_VERSION, MAX_FOLDERS, MAX_KEY_BYTES,
+    FOLDER_VIEWS_KEY, FOLDER_VIEWS_PREVIOUS_KEY, FOLDER_VIEWS_VERSION, ICON_SIZE_MAX,
+    ICON_SIZE_MIN, MAX_FOLDERS, MAX_KEY_BYTES,
 };
 pub use import::{
     apply_import, change_groups, differing_paths, plan_import, plan_settings, unknown_paths,

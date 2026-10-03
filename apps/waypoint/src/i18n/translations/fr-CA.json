@@ -1160,9 +1160,9 @@
     "source": "a7d466a3"
   },
   "settings.general.rememberFolderViews.description": {
-    "message": "Un dossier garde la vue, le tri et le regroupement que vous y avez choisis en dernier. Désactivé, chaque dossier affiche la vue de la fenêtre; ce que les dossiers avaient mémorisé est conservé pour la prochaine activation.",
+    "message": "Un dossier garde la vue, le tri, le regroupement, le choix des fichiers masqués et la taille des icônes que vous y avez choisis en dernier. Waypoint mémorise jusqu’à 1 000 dossiers et oublie celui modifié le plus anciennement au-delà. Désactivé, chaque dossier affiche la vue de la fenêtre; ce que les dossiers avaient mémorisé est conservé pour la prochaine activation.",
     "description": "Area: settings.",
-    "source": "345489ad"
+    "source": "997a97f9"
   },
   "settings.general.showHidden.label": {
     "message": "Afficher les fichiers masqués par défaut",

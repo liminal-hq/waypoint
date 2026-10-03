@@ -22,7 +22,7 @@ export interface FakeFolderViews extends FolderViewsClient {
 	/** What a folder remembers now. */
 	view(key: string): FolderView | undefined;
 	/** Changes a folder as another window would: stored and announced to every listener. */
-	change(key: string, patch: FolderViewPatch): void;
+	change(key: string, patch: FolderViewChoice): void;
 	/** Sends an event as the plugin would, without changing what is stored (a late, repeated or missed one). */
 	emit(changed: FolderViewsChanged): void;
 	/** Makes `snapshot` slow: it settles when `release` is called. */
@@ -33,11 +33,34 @@ export interface FakeFolderViews extends FolderViewsClient {
 	failNext(): void;
 }
 
+/** What a test says a folder remembers: the fields it leaves out were never chosen. */
+export type FolderViewSeed = Partial<FolderView>;
+
+/** A patch with only the fields a test names; the rest keep what the folder has. */
+export type FolderViewChoice = Partial<FolderViewPatch>;
+
+/** A patch that chooses nothing: what a test spreads its one choice onto. */
+export const NOTHING_CHOSEN: FolderViewPatch = {
+	mode: null,
+	sort: null,
+	showHidden: null,
+	iconSize: null,
+};
+
+const complete = (view: FolderViewSeed): FolderView => ({
+	mode: view.mode ?? null,
+	sort: view.sort ?? null,
+	showHidden: view.showHidden ?? null,
+	iconSize: view.iconSize ?? null,
+});
+
 export function createFakeFolderViewsClient(
-	initial: Record<string, FolderView> = {},
+	initial: Record<string, FolderViewSeed> = {},
 ): FakeFolderViews {
 	// Oldest write first, like the store in Rust.
-	const entries = new Map<string, FolderView>(Object.entries(initial));
+	const entries = new Map<string, FolderView>(
+		Object.entries(initial).map(([key, view]) => [key, complete(view)]),
+	);
 	let revision = 0;
 	const listeners = new Set<(changed: FolderViewsChanged) => void>();
 	const remembered: Array<{ key: string; patch: FolderViewPatch }> = [];
@@ -53,19 +76,17 @@ export function createFakeFolderViewsClient(
 		revision,
 		folders: [...entries].map(([key, view]) => ({ key, view })),
 	});
-	const write = (key: string, patch: FolderViewPatch) => {
+	const write = (key: string, patch: FolderViewChoice) => {
 		const before = entries.get(key);
+		const patched = complete(patch);
 		const view: FolderView = {
-			mode: patch.mode ?? before?.mode ?? null,
-			sort: patch.sort ?? before?.sort ?? null,
+			mode: patched.mode ?? before?.mode ?? null,
+			sort: patched.sort ?? before?.sort ?? null,
+			showHidden: patched.showHidden ?? before?.showHidden ?? null,
+			iconSize: patched.iconSize ?? before?.iconSize ?? null,
 		};
-		if (view.mode === null && view.sort === null) return;
-		if (
-			before &&
-			before.mode === view.mode &&
-			JSON.stringify(before.sort) === JSON.stringify(view.sort)
-		)
-			return;
+		if (Object.values(view).every((value) => value === null)) return;
+		if (before && JSON.stringify(before) === JSON.stringify(view)) return;
 		entries.delete(key);
 		entries.set(key, view);
 		const changes = [{ key, view }] as FolderViewsChanged['changes'];
