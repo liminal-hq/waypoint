@@ -22,12 +22,19 @@
 	min-width: 0;
 }
 
-.detail {
-	overflow: hidden;
+.detail,
+.warning {
 	color: var(--wp-text-muted);
 	font-size: 11px;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	/* Wraps, never cuts: the space and the warning are the whole point of the line, and a long
+	   translation or a narrow sidebar must not hide the end of it (the end is the left in RTL). */
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+.warning {
+	color: var(--wp-danger);
+	font-weight: 600;
 }
 
 .bar {
