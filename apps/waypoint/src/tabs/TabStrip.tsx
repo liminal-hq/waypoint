@@ -395,6 +395,8 @@ export function TabStrip() {
 				className={styles.scroller}
 				// A pane header's drag to the strip finds it here.
 				data-strip=""
+				// The strip's empty space is a drop target like the + button: dropped folders open as new tabs.
+				{...dropAttributes('plus', 'new', t('tabs.new'))}
 				data-landing={landing ? '' : undefined}
 
 				style={{ '--wp-pinned-width': `${layout.pinSlots * PINNED_STRIDE_PX}px` } as CSSProperties}

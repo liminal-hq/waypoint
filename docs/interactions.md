@@ -122,7 +122,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 - Thresholds (`tabs/dragTiming.ts`): 4 px to start, out of the window for the new-window phase (no pixel threshold), 450 ms hold over the middle half of a tab to split, 800 ms rest in a slot to group (a move of more than 6 px restarts either hold), 140 ms of motion (0 under Reduce motion). The file area's split regions are its left and right thirds and the upper and lower halves of the centre column, measured once when the drag starts, with 6 px of slack to stop the borders flickering. The new pane's half is tinted; the active tab may be dragged to them (it splits itself, as F3 does), and they are offered only while neither tab is in a pair.
 - Priority on each move: the new-window phase (only when the pointer has left the window), the file area's split regions, a group chip under the pointer, a tab body under the pointer (split hold), then the slot (reorder, leave, or the rest-to-group hold).
 - Dropping a tab onto another window's strip merges it there. Dropping it onto a group chip joins the group.
-- Dropping files onto a tab springs it open. Dropping onto the "+" opens a new tab at the dropped folder.
+- Dropping files onto a tab springs it open. Dropping onto the "+", or onto the strip's empty space (not a tab, a group chip or a scroll arrow), opens a new tab at the dropped folder, with the same cue and pill.
 
 ### 3.6 Feedback
 
