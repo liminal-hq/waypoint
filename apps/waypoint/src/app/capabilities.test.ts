@@ -135,4 +135,19 @@ describe('window capabilities', () => {
 			'mime-apps:allow-open-default-apps-settings',
 		]);
 	});
+
+	it('lets the Settings window read the status of every plugin the Services panel reports, and nothing more of the ones it is given only for that', () => {
+		const settings = byId('settings');
+		// The Services panel runs in the Settings window and asks each plugin for its status; a plugin
+		// the window may not call is reported "not allowed by ACL" instead of what it can do.
+		for (const plugin of ['os-prefs', 'trash', 'volumes', 'window-tearoff', 'waypoint-ops']) {
+			expect(settings.permissions, plugin).toContain(`${plugin}:allow-get-status`);
+		}
+		for (const plugin of ['os-prefs', 'trash', 'volumes', 'window-tearoff']) {
+			expect(
+				settings.permissions.filter((permission) => permission.startsWith(`${plugin}:`)),
+				plugin,
+			).toEqual([`${plugin}:allow-get-status`]);
+		}
+	});
 });
