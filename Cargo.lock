@@ -4671,6 +4671,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "waypoint-protocol",
+ "waypoint-session",
  "waypoint-settings",
 ]
 
@@ -5709,6 +5710,8 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "ts-rs",
+ "waypoint-session",
+ "waypoint-vfs",
  "zip",
 ]
 

@@ -34,3 +34,4 @@ tauri-plugin = { workspace = true, features = ["build"] }
 [dev-dependencies]
 tempfile = "3"
 tauri = { workspace = true, features = ["test"] }
+waypoint-session = { path = "../../crates/waypoint-session" }

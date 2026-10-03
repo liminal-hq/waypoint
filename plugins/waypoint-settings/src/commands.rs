@@ -6,9 +6,12 @@
 use serde::Deserialize;
 use tauri::{Manager, Runtime, State, WebviewWindow};
 use waypoint_protocol::PluginStatus;
-use waypoint_settings::{ExportReceipt, ImportPreview, Settings, SettingsSnapshot};
+use waypoint_settings::{
+    ExportReceipt, FolderViewPatch, FolderViewsSnapshot, ImportPreview, Settings, SettingsSnapshot,
+};
 
 use crate::error::Error;
+use crate::folder_views::FolderViewsStore;
 use crate::state::SettingsStore;
 use crate::transfer::Transfers;
 
@@ -113,4 +116,38 @@ pub async fn set_ui_settings<R: Runtime>(
             ui.action_bar_labels = shown;
         }
     })
+}
+
+/// Every remembered folder view and the revision they are at.
+#[tauri::command]
+pub async fn get_folder_views<R: Runtime>(
+    _window: WebviewWindow<R>,
+    store: State<'_, FolderViewsStore<R>>,
+) -> Result<FolderViewsSnapshot, Error> {
+    Ok(store.snapshot())
+}
+
+/// Remembers the view, sort or grouping a window chose for the folder at `key` (its location's
+/// `uri`), on top of what that folder already remembers, and announces it to every window. A
+/// location that cannot be one rejects with `{ kind: "invalid", message }`. Returns the revision
+/// in force.
+#[tauri::command]
+pub async fn remember_folder_view<R: Runtime>(
+    _window: WebviewWindow<R>,
+    store: State<'_, FolderViewsStore<R>>,
+    key: String,
+    patch: FolderViewPatch,
+) -> Result<u64, Error> {
+    store.remember(&key, patch)
+}
+
+/// Makes the folder at `key` forget its own view (View ▸ Reset This Folder's View): it shows the
+/// window's again. Returns the revision in force.
+#[tauri::command]
+pub async fn reset_folder_view<R: Runtime>(
+    _window: WebviewWindow<R>,
+    store: State<'_, FolderViewsStore<R>>,
+    key: String,
+) -> Result<u64, Error> {
+    store.forget(&key)
 }

@@ -63,6 +63,11 @@ impl Transfers {
         files.push(file);
     }
 
+    /// Takes the configuration file with `id` out of what is exported and imported.
+    pub fn unregister(&self, id: &str) {
+        locked(&self.files).retain(|existing| existing.id() != id);
+    }
+
     /// The native dialogs. Without one, export and import report that they are unavailable.
     pub fn set_picker(&self, picker: Arc<dyn FilePicker>) {
         *locked(&self.picker) = Some(picker);

@@ -11,6 +11,9 @@ const COMMANDS: &[&str] = &[
     "export_settings",
     "plan_settings_import",
     "apply_settings_import",
+    "get_folder_views",
+    "remember_folder_view",
+    "reset_folder_view",
 ];
 
 fn main() {

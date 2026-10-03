@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use thiserror::Error;
-use waypoint_settings::{ApplyError, BundleError, SettingsError};
+use waypoint_settings::{ApplyError, BundleError, FolderViewsError, SettingsError};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -23,6 +23,9 @@ pub enum Error {
     /// The file could not be read or written.
     #[error("{0}")]
     Io(String),
+    /// A folder's remembered view was refused (a location that cannot be one); nothing changed.
+    #[error(transparent)]
+    FolderViews(#[from] FolderViewsError),
     /// There is no file dialog to ask with.
     #[error("this system has no file dialog Waypoint can use")]
     NoPicker,
@@ -39,6 +42,7 @@ impl Error {
             Error::Storage(_) => "storage",
             Error::Transfer(_) => "transfer",
             Error::Apply(_) => "apply",
+            Error::FolderViews(_) => "invalid",
             Error::Io(_) => "io",
             Error::NoPicker => "unavailable",
             Error::Stale => "stale",

@@ -11,4 +11,9 @@ export type GeneralSettings = {
 /**
  * Whether a new window lists hidden files.
  */
-showHiddenDefault: boolean, startup: StartupMode, defaultView: DefaultView, clickMode: ClickMode, };
+showHiddenDefault: boolean, startup: StartupMode, defaultView: DefaultView, clickMode: ClickMode, 
+/**
+ * Whether a folder remembers its own view, sort and grouping (SPEC 5.3b). Off, every folder
+ * shows the window's view; what was remembered is kept for when it is turned on again.
+ */
+rememberFolderViews: boolean, };
