@@ -175,9 +175,10 @@ describe('Appearance: match the system’s colours', () => {
 					lifted: [lift('text-muted'), lift('bg-selected'), lift('focus-ring')],
 				}),
 			);
+			// The list's last separator follows the machine's locale data (a serial comma or none).
 			expect(
 				screen.getByText(
-					'To keep things readable, Waypoint adjusted the text, the selection and the focus ring from your system’s colours.',
+					/^To keep things readable, Waypoint adjusted the text, the selection,? and the focus ring from your system’s colours\.$/,
 				),
 			).toBeInTheDocument();
 		});
