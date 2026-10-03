@@ -6,6 +6,7 @@
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { OpenWithClient } from '../openWith/openWithClient';
+import type { AppInfoClient } from '../services/appInfoClient';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
@@ -56,6 +57,8 @@ export interface MainServices {
 	propertiesWindow?: PropertiesWindowClient;
 	/** The directory-size scan behind Overview's biggest folders in Home; without it Overview offers no measurement. */
 	dirScan?: DirScanClient;
+	/** The application's own details, which About shows; without it About cannot give the version. */
+	appInfo?: AppInfoClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -77,6 +80,7 @@ export interface MainServicesDeps {
 	createDetailsClient?(): DetailsClient;
 	createPropertiesWindowClient?(): PropertiesWindowClient;
 	createDirScanClient?(): DirScanClient;
+	createAppInfoClient?(): AppInfoClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -110,6 +114,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		details: deps.createDetailsClient?.(),
 		propertiesWindow: deps.createPropertiesWindowClient?.(),
 		dirScan: deps.createDirScanClient?.(),
+		appInfo: deps.createAppInfoClient?.(),
 		home,
 	};
 }

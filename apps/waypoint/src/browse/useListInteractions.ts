@@ -238,6 +238,9 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 			return;
 		}
 
+		// `?` opens the shortcut list unless it is part of a name being typed.
+		if (event.key === '?' && !typeAhead.current.active) return;
+
 		if (event.key.length === 1 && !modifier && !event.altKey) {
 			event.preventDefault();
 			const prefix = typeAhead.current.push(event.key);

@@ -14,6 +14,7 @@ import { useSettings } from '../settings/SettingsContext';
 import { MainOps } from '../ops/MainOps';
 import { collectServiceStatuses } from '../services/serviceStatuses';
 import { tabsApi } from '../services/tabsApi';
+import { createTauriAppInfoClient } from '../services/tauriAppInfoClient';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriNativeDndClient } from '../services/tauriNativeDndClient';
 import { createTauriOsClipboardClient } from '../services/tauriOsClipboardClient';
@@ -39,6 +40,7 @@ import { createTauriThumbnailsClient } from '../thumbnails/tauriThumbnailsClient
 import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
 import { CommandPaletteHost } from '../commands/CommandPaletteHost';
+import { HelpHost } from '../help/HelpHost';
 import { AppMenu } from './AppMenu';
 import { AppMenuBar } from './AppMenuBar';
 import { AppTitleBar } from './AppTitleBar';
@@ -89,6 +91,7 @@ function start(): Promise<MainServices> {
 		createDetailsClient: createTauriDetailsClient,
 		createPropertiesWindowClient: createTauriPropertiesWindowClient,
 		createDirScanClient: createTauriDirScanClient,
+		createAppInfoClient: createTauriAppInfoClient,
 	});
 }
 
@@ -171,6 +174,7 @@ export function MainScreen() {
 																		/>
 																	</MainOps>
 																	<CommandPaletteHost />
+																	<HelpHost appInfo={startup.services.appInfo} />
 																</main>
 															</TabsProvider>
 														</HomeScanProvider>
