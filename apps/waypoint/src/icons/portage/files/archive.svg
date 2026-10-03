@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<defs>
+<filter id="pt-archive-sh" x="-50%" y="-200%" width="200%" height="500%">
+<feGaussianBlur stdDeviation="1.2"/>
+</filter>
+<linearGradient id="pt-archive-0" x1="0" y1="26" x2="0" y2="53" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#d19b59"/>
+<stop offset=".5" stop-color="#d19b59"/>
+<stop offset=".5" stop-color="#dbb17e"/>
+<stop offset="1" stop-color="#dbb17e"/>
+</linearGradient>
+</defs>
+<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#pt-archive-sh)"/>
+<rect x="10" y="26" width="44" height="27" rx="2.5" fill="url(#pt-archive-0)"/>
+<rect x="7" y="17" width="50" height="11" rx="2.5" fill="#e5b576"/>
+<rect x="28" y="17.75" width="8" height="34.5" rx="0" fill="#6e461e" fill-opacity=".28"/>
+<path d="M28 30h4M32 33h4M28 36h4M32 39h4M28 42h4M32 45h4" fill="none" stroke-linejoin="round" stroke-linecap="butt" stroke="#d8dde3" stroke-width="2.2"/>
+<rect x="29.5" y="21" width="5" height="6" rx="1.2" fill="#c7cdd4"/>
+<rect x="14" y="33" width="10" height="7" rx="1.2" fill="#fff8ea"/>
+<rect x="10" y="19.5" width="17" height="2" rx="1" fill="#fff" fill-opacity=".55"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<defs>
+<filter id="pt-app-sh" x="-50%" y="-200%" width="200%" height="500%">
+<feGaussianBlur stdDeviation="1.2"/>
+</filter>
+<linearGradient id="pt-app-0" x1="0" y1="10" x2="0" y2="54" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#ee7d3c"/>
+<stop offset=".5" stop-color="#ee7d3c"/>
+<stop offset=".5" stop-color="#f29a67"/>
+<stop offset="1" stop-color="#f29a67"/>
+</linearGradient>
+</defs>
+<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#pt-app-sh)"/>
+<rect x="10" y="10" width="44" height="44" rx="13" fill="url(#pt-app-0)"/>
+<rect x="15" y="14.5" width="22" height="2.6" rx="1.3" fill="#fff" fill-opacity=".42"/>
+<path d="M35.5 14L21 35h10.5l-3 15L43 29H32.5z" fill="#fff8ea"/>
+</svg>
