@@ -10,7 +10,7 @@
 
 ## File and folder icons
 
-Icon themes apply to file and folder icons only; the toolbar, menu and chrome icons are always Waypoint's own. Rust gives every entry an `IconGroup` (31 of them, see D135) and, for the user's standard folders, a `special` marker, and a set maps those to artwork, so a new set needs no new classification.
+Icon themes apply to file and folder icons only; the toolbar, menu and chrome icons are always Waypoint's own. Rust gives every entry an `IconGroup` (31 of them, see D138) and, for the user's standard folders, a `special` marker, and a set maps those to artwork, so a new set needs no new classification.
 
 - **Waypoint:** the outline set, 16 by 16 glyphs drawn in `currentColor` (`apps/waypoint/src/icons/waypointFileIcons.tsx`). Each standard folder is the plain folder shape with a small inner mark. It is the default, the same on every system, and the fallback for any set that has no icon for a group.
 - **Portage** and **System:** later phases (System is #218).
