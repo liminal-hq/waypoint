@@ -183,6 +183,9 @@ function ListingBody({
 		getScrollElement: () => scroller.current,
 		estimateSize: () => rowHeight,
 		overscan: OVERSCAN,
+		// Off: the default flushes a state update synchronously from the scroll and resize callbacks, which React
+		// rejects (and logs) whenever one lands during a render. A batched update is a frame at most later.
+		useFlushSync: false,
 	});
 	const items = virtualizer.getVirtualItems();
 	const first = items[0]?.index ?? 0;

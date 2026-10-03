@@ -136,6 +136,9 @@ function GridBody({
 		estimateSize: (index) =>
 			layout.rowAt(index).kind === 'header' ? GROUP_HEADER_HEIGHT : cell.height,
 		overscan: OVERSCAN,
+		// Off: the default flushes a state update synchronously from the scroll and resize callbacks, which React
+		// rejects (and logs) whenever one lands during a render. A batched update is a frame at most later.
+		useFlushSync: false,
 	});
 	const virtualRows = virtualizer.getVirtualItems();
 	const firstRow = virtualRows[0]?.index ?? 0;
