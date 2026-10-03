@@ -165,6 +165,25 @@ describe('files dragged in', () => {
 		expect(h.transfers[0]?.kind).toBe('copy');
 	});
 
+	it('follows the action the compositor negotiated where the keys are unknown (Wayland)', async () => {
+		const h = await nativeHarness();
+		h.state.sameVolume = false;
+		const client = new FakeNativeDndClient({
+			availability: { modifiers: false, displayServer: 'wayland' },
+		});
+		await connect(client, h);
+		h.over(mark('place', MUSIC.uri, 'Music'));
+		client.enter(FILES, { x: 100, y: 100 }, { action: 'copy' });
+		client.over({ x: 140, y: 100 }, { action: 'move' });
+		await settle();
+		h.clock.advance(150);
+		await settle();
+		expect(h.pill()).toBe('Move 2 items to Music');
+		client.drop(FILES, { x: 140, y: 100 }, { action: 'move' });
+		await settle();
+		expect(h.transfers[0]?.kind).toBe('move');
+	});
+
 	it('listens to nothing inbound where the plugin says it does not work, and says why', async () => {
 		const h = await nativeHarness();
 		const client = unavailableNativeDnd('there is no display');

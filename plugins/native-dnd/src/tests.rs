@@ -123,6 +123,7 @@ fn a_drag_drop_event_reaches_the_window_normalised() {
     .unwrap();
     assert_eq!(payload["window"], "main");
     assert_eq!(payload["modifiers"]["ctrl"], false);
+    assert!(payload["action"].is_null());
     let uri = payload["uris"][0].as_str().unwrap();
     assert!(
         uri.starts_with("file:///") && uri.contains("a%20b.txt"),

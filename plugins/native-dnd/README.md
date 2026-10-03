@@ -102,9 +102,9 @@ Failures reject with `{ kind, message }`; `kind` is `unsupported`, `buttonNotPre
 
 | Event                            | Payload                                                              |
 | -------------------------------- | -------------------------------------------------------------------- |
-| `native-dnd://enter`             | `{ window, paths, uris, position, modifiers }`                       |
-| `native-dnd://over`              | `{ window, position, modifiers }`                                    |
-| `native-dnd://drop`              | `{ window, paths, uris, position, modifiers, selfDrop }`             |
+| `native-dnd://enter`             | `{ window, paths, uris, position, modifiers, action }`               |
+| `native-dnd://over`              | `{ window, position, modifiers, action }`                            |
+| `native-dnd://drop`              | `{ window, paths, uris, position, modifiers, action, selfDrop }`     |
 | `native-dnd://leave`             | `{ window }`                                                         |
 | `native-dnd://drag-ended`        | `{ id, outcome, uris, reason }`, to the window that started the drag |
 | `native-dnd://clipboard-changed` | none, to every window                                                |
@@ -125,6 +125,7 @@ Findings from running the plugin on GNOME's Mutter (headless, Wayland and XWayla
 - **WebKit keeps believing the button is down** after GTK takes the release that ends the drag: the next click gets a `pointerup` with no `pointerdown` and a second drag does not start. The plugin sends a synthetic button release to the webview when the drag ends. Use `drag-ended` to reset the page's own drag state; the page gets no pointer events between the start and the end.
 - **Wayland has no link action**, so `link` is ignored by the compositor. GDK reports Escape and a drop on nothing as the same error, so both end as `cancelled`.
 - **Modifier keys during a drag:** X11 and Windows read them natively. A Wayland compositor takes the keyboard for the drag and tells the app nothing, so the events report all modifiers released and `modifiers` is unavailable in the status.
+- **The negotiated action:** `enter`, `over` and `drop` carry `action` (`copy`, `move`, `link` or `null`). On Linux it is the drag context's suggested action at the last motion (a Wayland compositor chooses it from the keys it holds, Shift for move and Ctrl for copy; GTK on X11 from the modifiers), kept to the actions the source offers, with the selected action as the fallback; a move is never reported for a source that does not offer one, and ask is not reported. It is `null` on Windows (read `modifiers` there) and wherever nothing is negotiated. Wry's drag handler and WebKit answer every file drag with a copy of their own and the plugin does not claim the signal, so with no key held the action is a copy and the compositor's Shift still turns it into a move; the action is read at pointer motion, so a key changed with the pointer still shows at the next motion. The plugin never moves files: the app does, if it chooses.
 - **Names that are not UTF-8:** wry's own `paths` are lossy for them. The plugin reads the raw `text/uri-list` in a second `drag-data-received` handler and builds `uris` from that.
 - **Clipboard on Wayland:** the compositor ignores a selection from a client without a recent input serial, so call `set_files` from the handler of a key press or click. Reading another application's clipboard needs the app to have focus, and runs a nested main loop until the owner answers. The plugin keeps no copy after the app exits.
 

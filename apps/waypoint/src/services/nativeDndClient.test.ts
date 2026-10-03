@@ -94,11 +94,13 @@ describe('FakeNativeDndClient', () => {
 				paths: ['/a/b c'],
 				position: { x: 1, y: 2 },
 				modifiers: { ctrl: false, shift: false, alt: false },
+				action: null,
 			},
 			{
 				window: 'main-1',
 				position: { x: 3, y: 4 },
 				modifiers: { ctrl: false, shift: false, alt: false },
+				action: null,
 			},
 			{
 				window: 'main-1',
@@ -106,6 +108,7 @@ describe('FakeNativeDndClient', () => {
 				paths: ['/a/b c'],
 				position: { x: 3, y: 4 },
 				modifiers: { ctrl: false, shift: false, alt: false },
+				action: null,
 				selfDrop: true,
 			},
 			{ window: 'main-1' },

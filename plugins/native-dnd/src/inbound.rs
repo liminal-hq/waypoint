@@ -6,7 +6,7 @@
 use std::{path::PathBuf, time::Instant};
 
 use crate::{
-    models::{DropEvent, EnterEvent, LeaveEvent, Modifiers, OverEvent, Position},
+    models::{DragAction, DropEvent, EnterEvent, LeaveEvent, Modifiers, OverEvent, Position},
     outbound::Outbound,
     uri,
 };
@@ -50,6 +50,30 @@ pub fn modifiers_from_gdk_mask(mask: u32) -> Modifiers {
     }
 }
 
+/// GDK's `GdkDragAction` bits.
+const GDK_ACTION_COPY: u32 = 1 << 1;
+const GDK_ACTION_MOVE: u32 = 1 << 2;
+const GDK_ACTION_LINK: u32 = 1 << 3;
+
+/// One action out of a GDK action mask, taking Copy before Move before Link when a mask holds several (the safe order: a copy deletes nothing). The ask action and the others are not actions a drop can take.
+fn single_action(mask: u32) -> Option<DragAction> {
+    if mask & GDK_ACTION_COPY != 0 {
+        Some(DragAction::Copy)
+    } else if mask & GDK_ACTION_MOVE != 0 {
+        Some(DragAction::Move)
+    } else if mask & GDK_ACTION_LINK != 0 {
+        Some(DragAction::Link)
+    } else {
+        None
+    }
+}
+
+/// The action a drag has been negotiated to, from GDK's masks: the suggested action (on Wayland the compositor's own choice from the keys it holds; on X11 GTK's from the modifiers) and, failing that, the selected one the destination last answered with, each kept to what the source offers (`offered`; an empty mask means the source's offer is not known, so nothing is removed). `None` when neither is an action a drop can take, so a move is only ever reported for a source that offers one.
+pub fn negotiated_action(suggested: u32, selected: u32, offered: u32) -> Option<DragAction> {
+    let allowed = |mask: u32| if offered == 0 { mask } else { mask & offered };
+    single_action(allowed(suggested)).or_else(|| single_action(allowed(selected)))
+}
+
 /// A drag-drop event as the runtime delivers it, with the platform's types stripped.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RawEvent {
@@ -73,6 +97,8 @@ pub struct Env {
     pub unit: PositionUnit,
     pub scale_factor: f64,
     pub modifiers: Modifiers,
+    /// The negotiated action, where the platform reports one.
+    pub action: Option<DragAction>,
     /// The raw `text/uri-list` of the drag, normalised, where the platform has one (Linux). The runtime's own `paths` are lossy for names that are not valid UTF-8 there.
     pub raw_uris: Option<Vec<String>>,
     /// The platform's own sign that the drag began in this process (GTK: a drag source widget exists).
@@ -126,12 +152,14 @@ pub fn translate(window: &str, raw: RawEvent, env: &Env, outbound: &Outbound) ->
                 uris,
                 position: position(at),
                 modifiers: env.modifiers,
+                action: env.action,
             })
         }
         RawEvent::Over { position: at } => Translated::Over(OverEvent {
             window,
             position: position(at),
             modifiers: env.modifiers,
+            action: env.action,
         }),
         RawEvent::Drop {
             paths,
@@ -145,6 +173,7 @@ pub fn translate(window: &str, raw: RawEvent, env: &Env, outbound: &Outbound) ->
                 uris,
                 position: position(at),
                 modifiers: env.modifiers,
+                action: env.action,
                 self_drop,
             })
         }
@@ -163,6 +192,7 @@ mod tests {
             unit: PositionUnit::Logical,
             scale_factor: 1.0,
             modifiers: Modifiers::default(),
+            action: None,
             raw_uris: None,
             source_is_ours: false,
             now: Instant::now(),
@@ -228,6 +258,84 @@ mod tests {
                 alt: true
             }
         );
+    }
+
+    #[test]
+    fn the_compositors_move_is_reported_only_when_the_source_offers_it() {
+        let copy_move = GDK_ACTION_COPY | GDK_ACTION_MOVE;
+        assert_eq!(
+            negotiated_action(GDK_ACTION_MOVE, GDK_ACTION_COPY, copy_move),
+            Some(DragAction::Move)
+        );
+        assert_eq!(
+            negotiated_action(GDK_ACTION_COPY, GDK_ACTION_COPY, copy_move),
+            Some(DragAction::Copy)
+        );
+        // A copy-only source (an archive manager): the suggested move is not on offer, so the selected copy stands.
+        assert_eq!(
+            negotiated_action(GDK_ACTION_MOVE, GDK_ACTION_COPY, GDK_ACTION_COPY),
+            Some(DragAction::Copy)
+        );
+        assert_eq!(negotiated_action(GDK_ACTION_MOVE, 0, GDK_ACTION_COPY), None);
+        // An unknown offer removes nothing.
+        assert_eq!(
+            negotiated_action(GDK_ACTION_MOVE, 0, 0),
+            Some(DragAction::Move)
+        );
+    }
+
+    #[test]
+    fn a_mask_with_several_actions_takes_the_safest() {
+        let all = GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK;
+        assert_eq!(negotiated_action(all, 0, all), Some(DragAction::Copy));
+        assert_eq!(
+            negotiated_action(GDK_ACTION_MOVE | GDK_ACTION_LINK, 0, all),
+            Some(DragAction::Move)
+        );
+        assert_eq!(
+            negotiated_action(GDK_ACTION_LINK, 0, all),
+            Some(DragAction::Link)
+        );
+        // Ask (1 << 5), private (1 << 4) and default (1 << 0) are not actions a drop takes.
+        assert_eq!(negotiated_action(1 << 5 | 1 << 4 | 1, 0, 0), None);
+        assert_eq!(negotiated_action(0, 0, 0), None);
+    }
+
+    #[test]
+    fn every_event_carries_the_negotiated_action() {
+        let mut env = env();
+        env.action = Some(DragAction::Move);
+        let at = || RawEvent::Over {
+            position: (0.0, 0.0),
+        };
+        let Translated::Over(over) = translate("w", at(), &env, &Outbound::default()) else {
+            panic!("not an over")
+        };
+        assert_eq!(over.action, Some(DragAction::Move));
+        let Translated::Enter(enter) = translate(
+            "w",
+            RawEvent::Enter {
+                paths: vec![],
+                position: (0.0, 0.0),
+            },
+            &env,
+            &Outbound::default(),
+        ) else {
+            panic!("not an enter")
+        };
+        assert_eq!(enter.action, Some(DragAction::Move));
+        let Translated::Drop(drop) = translate(
+            "w",
+            RawEvent::Drop {
+                paths: vec![],
+                position: (0.0, 0.0),
+            },
+            &env,
+            &Outbound::default(),
+        ) else {
+            panic!("not a drop")
+        };
+        assert_eq!(drop.action, Some(DragAction::Move));
     }
 
     #[test]
@@ -314,7 +422,8 @@ mod tests {
             Translated::Over(OverEvent {
                 window: "w".into(),
                 position: Position { x: 20.0, y: 10.0 },
-                modifiers: Modifiers::default()
+                modifiers: Modifiers::default(),
+                action: None
             })
         );
         assert_eq!(

@@ -40,6 +40,8 @@ mod platform {
         pub source_is_ours: bool,
         /// The modifiers at the drag's last motion, where the platform recorded them.
         pub modifiers: Option<crate::models::Modifiers>,
+        /// The action negotiated at the drag's last motion, where the platform reports one.
+        pub action: Option<crate::models::DragAction>,
     }
 }
 
@@ -227,6 +229,7 @@ fn on_drag_drop<R: Runtime>(app: &AppHandle<R>, label: &str, event: &DragDropEve
         unit: platform::POSITION_UNIT,
         scale_factor,
         modifiers: extras.modifiers.unwrap_or_else(platform::modifiers_now),
+        action: extras.action,
         raw_uris: extras.raw_uris,
         source_is_ours: extras.source_is_ours,
         now: Instant::now(),
