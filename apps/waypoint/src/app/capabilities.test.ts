@@ -41,13 +41,16 @@ const covers = (capability: Capability, label: string) =>
 const ROUTED_LABELS = ['main-1', 'settings', 'properties-42', 'ops', 'shelf', 'tear-ghost'];
 
 describe('window capabilities', () => {
-	it('lets the main windows save the Action bar choices (the ui part only), and no other command of the settings plugin beyond reading', () => {
+	it('lets the main windows save the Action bar choices (the ui part only) and each folder’s remembered view, and no other command of the settings plugin beyond reading', () => {
 		const main = byId('main').permissions.filter((permission) =>
 			permission.startsWith('waypoint-settings:'),
 		);
 		expect(main.sort()).toEqual([
+			'waypoint-settings:allow-get-folder-views',
 			'waypoint-settings:allow-get-settings',
 			'waypoint-settings:allow-get-status',
+			'waypoint-settings:allow-remember-folder-view',
+			'waypoint-settings:allow-reset-folder-view',
 			'waypoint-settings:allow-set-ui-settings',
 		]);
 	});

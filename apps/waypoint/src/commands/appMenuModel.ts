@@ -185,6 +185,7 @@ export function appMenuItems(
 	);
 	const view = menuSections(
 		rows('viewList', 'viewGrid'),
+		rows('resetFolderView'),
 		rows(
 			'showHidden',
 			'sidebar',

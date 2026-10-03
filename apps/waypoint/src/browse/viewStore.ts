@@ -96,9 +96,10 @@ export function followView(
 
 /**
  * The window's view choices: list or grid, the grid's size, hidden files, and the sort and grouping.
- * They are saved with the window's session (see `followView`) and restored with it; every folder
- * shows the same view. A folder remembering its own view, sort and grouping (SPEC 5.3b) needs a
- * Rust owner and is deferred with the other per-folder settings.
+ * They are saved with the window's session (see `followView`) and restored with it. They are what
+ * a folder shows when it has no choices of its own: a folder remembers the mode, sort and grouping
+ * chosen in it (`FolderViewController`, SPEC 5.3b), and the icon size and hidden files stay the
+ * window's.
  */
 export function createViewStore(initial: Partial<ViewState> = {}): ViewStore {
 	return createStore<ViewState & ViewActions>()((set) => ({

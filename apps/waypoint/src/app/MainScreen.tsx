@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TimeFormatProvider } from '../browse/TimeFormatContext';
+import { FolderViewsProvider } from '../browse/FolderViewsContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { useSettings } from '../settings/SettingsContext';
@@ -23,6 +24,7 @@ import { createTauriTearoffClient } from '../services/tauriTearoffClient';
 import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
+import { createTauriFolderViewsClient } from '../services/tauriFolderViewsClient';
 import { createTauriDirScanClient } from '../services/tauriDirScanClient';
 import { HomeScanProvider } from '../overview/HomeScanContext';
 import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
@@ -92,6 +94,7 @@ function start(): Promise<MainServices> {
 		createPropertiesWindowClient: createTauriPropertiesWindowClient,
 		createDirScanClient: createTauriDirScanClient,
 		createAppInfoClient: createTauriAppInfoClient,
+		createFolderViewsClient: createTauriFolderViewsClient,
 	});
 }
 
@@ -164,14 +167,16 @@ export function MainScreen() {
 																		client={startup.services.ops}
 																		osClipboard={startup.services.osClipboard}
 																	>
-																		<Workspace
-																			startup={{
-																				view: startup.services.view,
-																				notice: startup.services.notice,
-																			}}
-																			tearoff={startup.services.tearoff}
-																			nativeDnd={startup.services.nativeDnd}
-																		/>
+																		<FolderViewsProvider client={startup.services.folderViews}>
+																			<Workspace
+																				startup={{
+																					view: startup.services.view,
+																					notice: startup.services.notice,
+																				}}
+																				tearoff={startup.services.tearoff}
+																				nativeDnd={startup.services.nativeDnd}
+																			/>
+																		</FolderViewsProvider>
 																	</MainOps>
 																	<CommandPaletteHost />
 																	<HelpHost appInfo={startup.services.appInfo} />

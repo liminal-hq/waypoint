@@ -70,6 +70,12 @@ export interface CommandFacts {
 	inspectorOpen: boolean;
 	/** Properties windows can be opened from here (the service exists). */
 	propertiesWindow: boolean;
+	/**
+	 * What the folder the active tab shows remembers about its view, sort and grouping:
+	 * `unavailable` where remembering is off or the folder cannot remember (the Trash, Overview),
+	 * `default` when it shows the window's, `remembered` when it has its own.
+	 */
+	folderView: 'unavailable' | 'default' | 'remembered';
 }
 
 /** The window's actions. Each one is what a shortcut, a menu or the Action bar already does; none is a second implementation. */
@@ -122,6 +128,8 @@ export interface CommandActions {
 	showProperties(): void;
 	/** Opens a Properties window for the active pane's one selected entry, or its folder. */
 	openPropertiesWindow(): void;
+	/** Makes the active folder forget its own view, sort and grouping, so it shows the window's. */
+	resetFolderView(): void;
 }
 
 export interface CommandEnv {
@@ -169,6 +177,7 @@ export function emptyFacts(): CommandFacts {
 		shelfUndocked: false,
 		inspectorOpen: false,
 		propertiesWindow: false,
+		folderView: 'unavailable',
 	};
 }
 
@@ -213,5 +222,6 @@ export function idleActions(): CommandActions {
 		toggleInspector: nothing,
 		showProperties: nothing,
 		openPropertiesWindow: nothing,
+		resetFolderView: nothing,
 	};
 }

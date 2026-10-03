@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		startup: 'restoreSession',
 		defaultView: 'list',
 		clickMode: 'double',
+		rememberFolderViews: true,
 	},
 	dnd: {
 		defaultActionRule: 'byVolume',

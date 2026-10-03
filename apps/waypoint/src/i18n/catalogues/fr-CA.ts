@@ -447,6 +447,8 @@ const messages: Catalogue = {
 	'settings.backup.changes.other': '{count} modifications',
 	// source: 3edaa6b5
 	'settings.backup.group.ui': 'Barre de titre et barre d’actions',
+	// source: a15aa3b0
+	'settings.backup.group.folders': 'Vues mémorisées des dossiers',
 	// source: 9bee25a4
 	'settings.backup.warning.unknownKeys.one':
 		'{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.',
@@ -530,6 +532,11 @@ const messages: Catalogue = {
 	'settings.general.clickMode.single': 'Clic simple',
 	// source: 691f614c
 	'settings.general.clickMode.double': 'Double-clic',
+	// source: a7d466a3
+	'settings.general.rememberFolderViews.label': 'Mémoriser la vue de chaque dossier',
+	// source: 345489ad
+	'settings.general.rememberFolderViews.description':
+		'Un dossier garde la vue, le tri et le regroupement que vous y avez choisis en dernier. Désactivé, chaque dossier affiche la vue de la fenêtre; ce que les dossiers avaient mémorisé est conservé pour la prochaine activation.',
 	// source: 5848f846
 	'settings.general.showHidden.label': 'Afficher les fichiers masqués par défaut',
 	// source: 9955f9ba
@@ -1893,6 +1900,8 @@ const messages: Catalogue = {
 	'menu.group.name': 'Nom',
 	// source: baaddf70
 	'menu.group.type': 'Type',
+	// source: ee003ee2
+	'cmd.resetFolderView': 'Réinitialiser la vue de ce dossier',
 	// source: a638b9f6
 	'cmd.group.none': 'Aucun regroupement',
 	// source: c8677275
@@ -3381,6 +3390,8 @@ const messages: Catalogue = {
 	'cmd.reason.otherPaneReadOnly': 'L’autre panneau ne peut pas être modifié',
 	// source: b6473640
 	'cmd.reason.noTab': 'Aucun onglet n’est ouvert',
+	// source: 218f3140
+	'cmd.reason.folderViewDefault': 'Ce dossier affiche la vue de la fenêtre',
 	// source: 027d2ebf
 	'cmd.reason.selectOne': 'Sélectionnez un élément, ou aucun pour le dossier',
 	// source: 23f939b1

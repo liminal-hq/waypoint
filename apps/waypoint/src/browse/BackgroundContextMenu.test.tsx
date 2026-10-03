@@ -126,3 +126,41 @@ describe('the empty-space menu group by', () => {
 		expect(again.setSort).not.toHaveBeenCalled();
 	});
 });
+
+describe('the empty-space menu’s Reset This Folder’s View', () => {
+	const sort = { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' };
+
+	function openWith(folderView: 'default' | 'remembered' | undefined, onReset = vi.fn()) {
+		const { session } = sessionWith(sort);
+		render(
+			<BackgroundContextMenu
+				session={session}
+				showHidden={false}
+				position={{ x: 0, y: 0 }}
+				keyboard={false}
+				onToggleHidden={() => {}}
+				onClose={() => {}}
+				folderView={folderView}
+				onResetFolderView={onReset}
+			/>,
+		);
+		return onReset;
+	}
+
+	it('resets the folder when it remembers a view', () => {
+		const onReset = openWith('remembered');
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Reset This Folder’s View' }));
+		expect(onReset).toHaveBeenCalledTimes(1);
+	});
+
+	it('lists the item disabled for a folder that shows the window’s view, and leaves it out where folders do not remember', () => {
+		openWith('default');
+		expect(screen.getByRole('menuitem', { name: 'Reset This Folder’s View' })).toHaveAttribute(
+			'aria-disabled',
+			'true',
+		);
+		cleanup();
+		openWith(undefined);
+		expect(screen.queryByRole('menuitem', { name: 'Reset This Folder’s View' })).toBeNull();
+	});
+});

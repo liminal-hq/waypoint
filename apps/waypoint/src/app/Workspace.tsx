@@ -6,12 +6,17 @@
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useStore } from 'zustand';
 import { EntryContextMenu, type EntryCommand } from '../browse/EntryContextMenu';
 import { TrashEntryMenu } from '../trash/TrashEntryMenu';
 import { useTrashClient } from '../trash/TrashClientContext';
 import { TrashActionsProvider, useTrashJobs } from '../trash/trashJobs';
 import { selectedCount } from '../browse/selection';
+import { FolderViewController, folderViewKey } from '../browse/folderViewController';
+import { IDLE_FOLDER_VIEWS, NO_FOLDERS } from '../browse/folderViewStore';
+import { useFolderViews } from '../browse/FolderViewsContext';
 import { ListingManager } from '../browse/listingManager';
+import { useSettings, useSettingsReady } from '../settings/SettingsContext';
 import { BackgroundContextMenu, type BackgroundCommand } from '../browse/BackgroundContextMenu';
 import type { ListingSession, SessionState } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
@@ -207,17 +212,21 @@ function WorkspaceBody({
 	const snapshot = useTabsSnapshot();
 	// The Inspector's memory is the window's; the right-click menus open it, so the workspace holds it.
 	const [inspectorStore] = useState(createInspectorStore);
+	// What each folder shows: its own remembered view and sort, or the window's (SPEC 5.3b).
+	const [folderViews] = useState(() => new FolderViewController(viewStore));
 	const [manager] = useState(
 		() =>
 			new ListingManager(client, {
-				// A new listing opens with the window's hidden-files choice, sort and grouping, and
-				// a folder listing's change of sort becomes the window's (saved with its view).
+				// A new listing opens with its folder's remembered sort and grouping, or else the
+				// window's, and the hidden-files choice. A folder listing's change of sort is
+				// remembered by the folder, or becomes the window's when remembering is off (saved
+				// with its view).
 				viewMode: () => viewStore.getState().mode,
-				openOptions: () => ({
-					sort: viewStore.getState().sort,
+				openOptions: (_inherited, location) => ({
+					sort: folderViews.sortFor(location),
 					filter: { showHidden: viewStore.getState().showHidden },
 				}),
-				onSort: (sort) => viewStore.getState().setSort(sort),
+				onSort: (sort, location) => folderViews.onSort(sort, location),
 			}),
 	);
 	// Numbered, so the same message arriving again restarts its timer.
@@ -227,6 +236,12 @@ function WorkspaceBody({
 	const noticeCount = useRef(0);
 	const [menu, setMenu] = useState<PaneMenuRequest | null>(null);
 	const navigation = useNavigation();
+	const folderViewsHandle = useFolderViews();
+	const rememberSetting = useSettings((settings) => settings.general.rememberFolderViews);
+	const settingsReady = useSettingsReady();
+	const remembering = rememberSetting && settingsReady && folderViewsHandle !== null;
+	const activeKey = folderViewKey(navigation.tab?.location);
+	folderViews.configure({ handle: folderViewsHandle, enabled: remembering, activeKey });
 	const onFailure = useCallback(
 		(entry: Entry, action: EntryAction) =>
 			setNotice({
@@ -283,6 +298,31 @@ function WorkspaceBody({
 	// The view choices and the active tab's scroll and focus go to the session so a restart brings
 	// them back (the page applies them once, when it starts).
 	useEffect(() => followView(viewStore, api), [viewStore, api]);
+	// The folders' remembered views: opening a folder shows its own, and a choice made in one is
+	// kept. What the folders remember, and whether this window's own writes are all answered, are
+	// what bring the open listings and the view mode back in line.
+	const bridge = useCommandBridge();
+	const folderViewStore = folderViewsHandle?.store ?? IDLE_FOLDER_VIEWS;
+	const remembered = useStore(folderViewStore, (state) =>
+		remembering ? state.folders : NO_FOLDERS,
+	);
+	const written = useStore(folderViewStore, (state) => state.writing === 0);
+	useEffect(() => folderViews.followMode(), [folderViews]);
+	useEffect(() => {
+		folderViews.reconcile(manager);
+	}, [folderViews, manager, remembering, activeKey, remembered, written]);
+	const folderViewState =
+		activeKey === null || !remembering
+			? 'unavailable'
+			: remembered.has(activeKey)
+				? 'remembered'
+				: 'default';
+	useEffect(() => {
+		bridge.patchFacts({ folderView: folderViewState });
+	}, [bridge, folderViewState]);
+	useEffect(() => {
+		bridge.patchActions({ resetFolderView: () => void folderViews.resetActive() });
+	}, [bridge, folderViews]);
 	const activeId = useRef<number | null>(null);
 	activeId.current = snapshot?.active ?? null;
 	useEffect(
@@ -354,7 +394,7 @@ function WorkspaceBody({
 		trash: trashActions,
 	});
 	// Alt+Enter, the item menu and the palette open a Properties window for the active pane's subject.
-	const openProperties = usePropertiesWindowHost(useCommandBridge(), activeSession);
+	const openProperties = usePropertiesWindowHost(bridge, activeSession);
 	const propertiesWindowAvailable = usePropertiesWindowClient() !== null;
 	// Ctrl+F2 batch renames the active pane's selection, where the listing can be written to.
 	const batchRenameApi = useMemo(createTauriBatchRenameApi, []);
@@ -390,6 +430,8 @@ function WorkspaceBody({
 		}
 	}, [menu, liveHandles]);
 
+	// The folder a background menu belongs to (the pane it was opened in, which may not be the active one).
+	const menuFolderKey = folderViewKey(menu?.session?.model.location);
 	const runCommand = (command: EntryCommand | BackgroundCommand, entry?: Entry) => {
 		const from = menu?.session ?? null;
 		if (command === 'properties') return inspectorStore.getState().showProperties();
@@ -513,6 +555,14 @@ function WorkspaceBody({
 														}
 													: undefined
 											}
+											folderView={
+												remembering && menuFolderKey !== null
+													? remembered.has(menuFolderKey)
+														? 'remembered'
+														: 'default'
+													: undefined
+											}
+											onResetFolderView={() => void folderViews.reset(menuFolderKey)}
 											onCommand={runCommand}
 										/>
 									)}

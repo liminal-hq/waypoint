@@ -220,7 +220,25 @@ describe('the General page', () => {
 			clickMode: 'single',
 			startup: 'home',
 			showHiddenDefault: true,
+			rememberFolderViews: true,
 		});
+	});
+
+	it('shows the remember-each-folder switch on, and turns it off and on again', async () => {
+		const { settings } = await open();
+		const row = screen.getByRole('switch', { name: 'Remember each folder’s view' });
+		expect(row).toBeChecked();
+		expect(row).toHaveAccessibleDescription(/keeps the view, sort and grouping/);
+		await userEvent.click(row);
+		await waitFor(() => expect(row).not.toBeChecked());
+		expect(settings.current().settings.general.rememberFolderViews).toBe(false);
+		expect(settings.current().settings).toEqual({
+			...DEFAULT_SETTINGS,
+			general: { ...DEFAULT_SETTINGS.general, rememberFolderViews: false },
+		});
+		await userEvent.click(row);
+		await waitFor(() => expect(row).toBeChecked());
+		expect(settings.current().settings.general.rememberFolderViews).toBe(true);
 	});
 
 	it('shows the menu bar row under Title bar, off by default, and saves it', async () => {
