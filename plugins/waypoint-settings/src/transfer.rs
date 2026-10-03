@@ -161,11 +161,12 @@ impl Transfers {
 /// refused before it is read.
 fn read_bounded(path: &Path) -> Result<Vec<u8>, Error> {
     let io = |e: std::io::Error| Error::Io(format!("could not read the file: {e}"));
-    let file = std::fs::File::open(path).map_err(io)?;
-    let meta = file.metadata().map_err(io)?;
+    // Looked at before it is opened: Windows refuses to open a folder at all.
+    let meta = std::fs::metadata(path).map_err(io)?;
     if !meta.is_file() {
         return Err(BundleError::NotABundle.into());
     }
+    let file = std::fs::File::open(path).map_err(io)?;
     if meta.len() > MAX_TOTAL_BYTES as u64 {
         return Err(BundleError::TooLarge {
             what: "the file".to_owned(),
