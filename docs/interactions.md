@@ -28,7 +28,7 @@
 | Alt+1…9                   | Go to tab                                                                                                |
 | Ctrl+Shift+N              | New window (one tab at Home)                                                                             |
 | F10 / lone Alt            | Open the application menu with its first row focused; again, close it and return focus                   |
-| Alt+F / E / V / W         | Open the application menu's File, Edit, View or Window menu                                              |
+| Alt+F / E / V / W / H     | Open the application menu's File, Edit, View, Window or Help menu                                        |
 | F10 / lone Alt (menu bar) | With the menu bar on: focus its first menu (again or Esc: back); Left / Right, Down / Enter / Space, Esc |
 | F7 / Shift+F7             | New folder / new file                                                                                    |
 | Ctrl+Shift+D              | Duplicate                                                                                                |
@@ -258,10 +258,11 @@ The conflict and error dialogs open by themselves in the window that started the
 
 ## 11. Customisation and basics
 
-| Input       | Target                            | Result                                   |
-| ----------- | --------------------------------- | ---------------------------------------- |
-| F1          | Anywhere                          | Help                                     |
-| Click       | A shortcut in Settings → Keyboard | Record a new one                         |
-| Right-click | Pair joint                        | Compare and Sync…                        |
-| Right-click | Item in the floating window       | Copy, Cut, Paste on the shared clipboard |
-| Menu        | Window Layouts…                   | Save or restore a layout                 |
+| Input       | Target                            | Result                                                        |
+| ----------- | --------------------------------- | ------------------------------------------------------------- |
+| F1          | Anywhere in a main window         | Help (a few keys, then the shortcut list, the tour and About) |
+| ?           | Anywhere but a text field         | Keyboard Shortcuts: every key the window offers               |
+| Click       | A shortcut in Settings → Keyboard | Record a new one                                              |
+| Right-click | Pair joint                        | Compare and Sync…                                             |
+| Right-click | Item in the floating window       | Copy, Cut, Paste on the shared clipboard                      |
+| Menu        | Window Layouts…                   | Save or restore a layout                                      |
