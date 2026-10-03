@@ -12,6 +12,15 @@
 	color: var(--wp-text-primary);
 }
 
+/* The title bar's own mix, so a translucent window shows the same through both rows. */
+.bar[data-transparent] {
+	background: color-mix(
+		in srgb,
+		var(--wp-bg-chrome) calc(var(--wp-title-bar-opacity) * 100%),
+		transparent
+	);
+}
+
 .cell {
 	position: relative;
 	display: flex;

@@ -31,6 +31,8 @@ export interface MenuBarProps {
 	 * `items`. A lone Alt press or F10 moves focus into the bar, and again returns it.
 	 */
 	mnemonics?: Readonly<Record<string, string>>;
+	/** Draw the bar with the title bar's opacity (`--wp-title-bar-opacity`), as the title bar does, so the two read as one. */
+	transparent?: boolean;
 }
 
 const MORE_ID = '\u0000more';
@@ -57,7 +59,14 @@ const px = (value: string) => Number.parseFloat(value) || 0;
  * again or followed by Escape, returns focus to the element it left; with a menu open it closes
  * the menu. Menus that do not fit collapse, last first, into a More menu.
  */
-export function MenuBar({ items, onSelect, label, moreLabel, mnemonics }: MenuBarProps) {
+export function MenuBar({
+	items,
+	onSelect,
+	label,
+	moreLabel,
+	mnemonics,
+	transparent = false,
+}: MenuBarProps) {
 	const menus = useMemo(
 		() => items.flatMap((item) => (item.type === 'submenu' && !item.disabled ? [item] : [])),
 		[items],
@@ -279,6 +288,7 @@ export function MenuBar({ items, onSelect, label, moreLabel, mnemonics }: MenuBa
 			<div
 				ref={barRef}
 				className={styles.bar}
+				data-transparent={transparent || undefined}
 				role="menubar"
 				aria-label={label}
 				aria-orientation="horizontal"

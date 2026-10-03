@@ -18,6 +18,7 @@ export function AppMenuBar() {
 			label={t('menuBar.label')}
 			moreLabel={t('menuBar.more')}
 			mnemonics={APP_MENU_MNEMONICS}
+			transparent
 		/>
 	);
 }
