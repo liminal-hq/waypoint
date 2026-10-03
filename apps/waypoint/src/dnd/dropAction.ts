@@ -32,7 +32,7 @@ export interface DropActionInput {
 	canLink: boolean;
 	/**
 	 * The files come from another application, which did not say what it allows (a drag in carries
-	 * no allowed actions, and on Wayland no modifier keys either), so a copy-only source (an
+	 * no promise of allowed actions, and on Wayland no modifier keys, only the action the compositor negotiated), so a copy-only source (an
 	 * archive manager, a mail attachment, a browser's temporary file) cannot be told from the rest.
 	 * With no modifier they are copied under the by-volume rule, never moved.
 	 */

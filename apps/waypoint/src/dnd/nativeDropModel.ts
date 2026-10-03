@@ -5,7 +5,9 @@
 
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import { normaliseUri } from '../ops/clipboardRules';
+import type { DragAction } from '../services/nativeDndClient';
 import type { Location } from '../services/opsClient';
+import type { DropModifiers } from './dropAction';
 import type { LocationsDragSource } from './fileDragModel';
 
 /** The icons of a stack of files whose kinds are not known (no listing has them): plain pages, up to three. */
@@ -92,4 +94,24 @@ export function externalSource(files: readonly Location[], own = false): Locatio
 		readOnly: false,
 		rightButton: false,
 	};
+}
+
+/**
+ * The keys an event stands for. Where the platform reports the modifier keys (X11, Windows) they are
+ * believed as they are. Where it does not (Wayland, where the compositor takes the keyboard for the
+ * drag) the keys read as released, except that the action the compositor negotiated from the keys it
+ * holds stands in for them: a negotiated move is Shift and a negotiated link is Ctrl+Shift, so the
+ * ordinary rule takes over (a move needs sources that can be moved, and otherwise copies). A
+ * negotiated copy is what no key held also gives, so it adds nothing and the by-volume rule, "Always
+ * ask" and the picker keep their say. The plugin reports a move only when the source offers one.
+ */
+export function keysOfDrag(
+	modifiers: DropModifiers,
+	action: DragAction | null,
+	modifiersKnown: boolean,
+): DropModifiers {
+	if (modifiersKnown) return { ctrl: modifiers.ctrl, shift: modifiers.shift, alt: modifiers.alt };
+	if (action === 'move') return { ctrl: false, shift: true, alt: false };
+	if (action === 'link') return { ctrl: true, shift: true, alt: false };
+	return { ctrl: false, shift: false, alt: false };
 }

@@ -5,6 +5,7 @@
 
 import {
 	NO_NATIVE_DND,
+	type DragAction,
 	type DragEnded,
 	type DragOutcome,
 	type DropEvent,
@@ -118,7 +119,12 @@ export class FakeNativeDndClient implements NativeDndClient {
 	enter(
 		uris: string[],
 		position: Position,
-		options: { paths?: string[]; modifiers?: Partial<Modifiers>; window?: string } = {},
+		options: {
+			paths?: string[];
+			modifiers?: Partial<Modifiers>;
+			action?: DragAction | null;
+			window?: string;
+		} = {},
 	): void {
 		const event: EnterEvent = {
 			window: options.window ?? this.window,
@@ -126,18 +132,24 @@ export class FakeNativeDndClient implements NativeDndClient {
 			paths: options.paths ?? uris.map(pathOf),
 			position,
 			modifiers: this.keys(options.modifiers),
+			action: options.action ?? null,
 		};
 		for (const listener of [...this.enters]) listener(event);
 	}
 
 	over(
 		position: Position,
-		options: { modifiers?: Partial<Modifiers>; window?: string } = {},
+		options: {
+			modifiers?: Partial<Modifiers>;
+			action?: DragAction | null;
+			window?: string;
+		} = {},
 	): void {
 		const event: OverEvent = {
 			window: options.window ?? this.window,
 			position,
 			modifiers: this.keys(options.modifiers),
+			action: options.action ?? null,
 		};
 		for (const listener of [...this.overs]) listener(event);
 	}
@@ -148,6 +160,7 @@ export class FakeNativeDndClient implements NativeDndClient {
 		options: {
 			paths?: string[];
 			modifiers?: Partial<Modifiers>;
+			action?: DragAction | null;
 			selfDrop?: boolean;
 			window?: string;
 		} = {},
@@ -158,6 +171,7 @@ export class FakeNativeDndClient implements NativeDndClient {
 			paths: options.paths ?? uris.map(pathOf),
 			position,
 			modifiers: this.keys(options.modifiers),
+			action: options.action ?? null,
 			selfDrop: options.selfDrop ?? false,
 		};
 		for (const listener of [...this.drops]) listener(event);

@@ -60,6 +60,8 @@ pub struct EnterEvent {
     pub uris: Vec<String>,
     pub position: Position,
     pub modifiers: Modifiers,
+    /// The action the drag has been negotiated to, where the platform reports one (GTK: the drag context's suggested action, kept to what the source offers). On Wayland the compositor chooses it from the keys it holds, which the app cannot read, so Shift reads as `move` here and nowhere else. `null` where nothing is reported (Windows, which reports modifiers instead) or the platform names no action a drop can take.
+    pub action: Option<DragAction>,
 }
 
 /// Sent as files move over a window.
@@ -70,6 +72,8 @@ pub struct OverEvent {
     pub window: String,
     pub position: Position,
     pub modifiers: Modifiers,
+    /// See [`EnterEvent::action`].
+    pub action: Option<DragAction>,
 }
 
 /// Sent when files are dropped on a window.
@@ -82,6 +86,8 @@ pub struct DropEvent {
     pub uris: Vec<String>,
     pub position: Position,
     pub modifiers: Modifiers,
+    /// See [`EnterEvent::action`].
+    pub action: Option<DragAction>,
     /// True if the drop is the end of an outbound drag this process started with `start_drag`; `uris` are then exactly the ones that were offered.
     pub self_drop: bool,
 }

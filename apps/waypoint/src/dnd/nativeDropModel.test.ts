@@ -8,6 +8,7 @@ import {
 	commonFolder,
 	droppedFiles,
 	externalSource,
+	keysOfDrag,
 	leafOfPath,
 	sameUris,
 } from './nativeDropModel';
@@ -95,5 +96,25 @@ describe('externalSource', () => {
 		expect(many.name).toBeNull();
 		expect(many.groups).toHaveLength(3);
 		expect(many.external?.own).toBe(true);
+	});
+});
+
+describe('keysOfDrag', () => {
+	const none = { ctrl: false, shift: false, alt: false };
+	const ctrl = { ctrl: true, shift: false, alt: false };
+
+	it('believes the keys where the platform reports them, whatever the action says', () => {
+		expect(keysOfDrag(ctrl, 'move', true)).toEqual(ctrl);
+		expect(keysOfDrag(none, 'move', true)).toEqual(none);
+	});
+
+	it('reads a negotiated move as Shift and a link as Ctrl+Shift where the keys are unknown', () => {
+		expect(keysOfDrag(ctrl, 'move', false)).toEqual({ ctrl: false, shift: true, alt: false });
+		expect(keysOfDrag(none, 'link', false)).toEqual({ ctrl: true, shift: true, alt: false });
+	});
+
+	it('adds nothing for a copy or no action, so the rule keeps its say', () => {
+		expect(keysOfDrag(ctrl, 'copy', false)).toEqual(none);
+		expect(keysOfDrag(ctrl, null, false)).toEqual(none);
 	});
 });

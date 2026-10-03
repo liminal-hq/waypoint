@@ -9,11 +9,12 @@ import type {
 	NativeDndAvailability,
 	NativeDndClient,
 	Modifiers,
+	DragAction,
 } from '../services/nativeDndClient';
 import { NO_NATIVE_DND } from '../services/nativeDndClient';
-import { NO_MODIFIERS, type DropModifiers } from './dropAction';
+import type { DropModifiers } from './dropAction';
 import type { FileDrag, NativeFeed } from './fileDrag';
-import { droppedFiles } from './nativeDropModel';
+import { droppedFiles, keysOfDrag } from './nativeDropModel';
 
 /**
  * Set on the root element while files from outside this window are held over it, so a window that
@@ -39,8 +40,9 @@ export interface NativeDndHostDeps {
  *   are ignored), `over` moves it, `leave` ends it without a drop, and `drop` releases it, so the
  *   targets, the pill, the spring-loading and the default action are the ones an in-page drag has;
  * - a drop that arrives with no `enter` before it begins the drag at the drop;
- * - the modifier keys come from the events where the platform reports them and read as released
- *   where it does not (Wayland), so the rule alone decides and the picker is the way to choose;
+ * - the modifier keys come from the events where the platform reports them; where it does not
+ *   (Wayland) they read as released and the action the compositor negotiated from the keys it holds
+ *   stands in for them (a move is Shift), so Shift moves there too and the rule decides otherwise;
  * - `drag-ended` tells the drag how an outbound drag that began here ended.
  * Returns what stops listening. Inbound events are listened to only where the plugin says they work.
  */
@@ -55,15 +57,17 @@ export function connectNativeDnd(deps: NativeDndHostDeps): () => void {
 		const label = deps.windowLabel();
 		return label === null || window === label;
 	};
-	const keys = (modifiers: Modifiers): DropModifiers =>
-		availability.modifiers
-			? { ctrl: modifiers.ctrl, shift: modifiers.shift, alt: modifiers.alt }
-			: NO_MODIFIERS;
+	const keys = (modifiers: Modifiers, action: DragAction | null): DropModifiers =>
+		keysOfDrag(modifiers, action, availability.modifiers);
 
 	const begin = (event: EnterEvent | DropEvent) => {
 		const files = droppedFiles(event.uris, event.paths);
 		if (files.length === 0) return null;
-		return drag.beginNative({ files, point: event.position, modifiers: keys(event.modifiers) });
+		return drag.beginNative({
+			files,
+			point: event.position,
+			modifiers: keys(event.modifiers, event.action),
+		});
 	};
 
 	void client.status().then((found) => {
@@ -80,7 +84,7 @@ export function connectNativeDnd(deps: NativeDndHostDeps): () => void {
 				}),
 				client.onOver((event) => {
 					if (!mine(event.window)) return;
-					feed?.move(event.position, keys(event.modifiers));
+					feed?.move(event.position, keys(event.modifiers, event.action));
 				}),
 				client.onLeave((event) => {
 					if (!mine(event.window)) return;
@@ -94,7 +98,7 @@ export function connectNativeDnd(deps: NativeDndHostDeps): () => void {
 					// Some platforms drop without having entered: the drag begins where it is released.
 					const active = feed ?? begin(event);
 					feed = null;
-					void active?.drop(event.position, keys(event.modifiers), event.selfDrop);
+					void active?.drop(event.position, keys(event.modifiers, event.action), event.selfDrop);
 				}),
 			);
 		}

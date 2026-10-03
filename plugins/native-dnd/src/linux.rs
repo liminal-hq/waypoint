@@ -22,8 +22,8 @@ use tauri::{AppHandle, Emitter, Runtime, Webview, WebviewWindow};
 
 use crate::{
     error::{Error, Result},
-    inbound::{modifiers_from_gdk_mask, PositionUnit},
-    models::{ClipboardFiles, DisplayServer, Modifiers, CLIPBOARD_CHANGED_EVENT},
+    inbound::{modifiers_from_gdk_mask, negotiated_action, PositionUnit},
+    models::{ClipboardFiles, DisplayServer, DragAction, Modifiers, CLIPBOARD_CHANGED_EVENT},
     outbound::{classify, Actions, Begun, DragRequest, Failure, Finisher},
     platform::InboundExtras,
     uri,
@@ -137,6 +137,8 @@ struct DragInfo {
     source_is_ours: bool,
     /// The modifiers at the drag's last motion. Events reach the plugin a moment after GTK's signals, so reading the keys then could miss a key released in between.
     modifiers: Option<Modifiers>,
+    /// The action negotiated at the drag's last motion.
+    action: Option<DragAction>,
 }
 
 thread_local! {
@@ -152,6 +154,7 @@ pub fn inbound_extras(label: &str, consume: bool) -> InboundExtras {
             raw_uris: info.raw_uris.clone(),
             source_is_ours: info.source_is_ours,
             modifiers: info.modifiers,
+            action: info.action,
         });
         if consume {
             drags.remove(label);
@@ -207,6 +210,17 @@ pub fn on_webview_ready<R: Runtime>(webview: &Webview<R>) {
                 .map(|atom| atom.name().to_string())
                 .collect();
             note_source(&label, context.drag_get_source_widget().is_some(), &targets);
+            if targets.iter().any(|name| name == URI_LIST) {
+                // Wry's handler and WebKit's answer the drag with a copy of their own, which the compositor still overrides from the keys it holds (Shift for a move): the suggested action is what the compositor chose, kept to what the source offers.
+                let action = negotiated_action(
+                    context.suggested_action().bits(),
+                    context.selected_action().bits(),
+                    context.actions().bits(),
+                );
+                DRAGS.with(|drags| {
+                    drags.borrow_mut().entry(label.clone()).or_default().action = action;
+                });
+            }
             // Not handled here: wry's handler and WebKit's own decide whether the drag is accepted.
             false
         }
@@ -598,6 +612,7 @@ mod tests {
                         ctrl: true,
                         ..Modifiers::default()
                     }),
+                    action: Some(DragAction::Move),
                 },
             );
         });
@@ -605,6 +620,7 @@ mod tests {
         let kept = inbound_extras("a", false);
         assert!(kept.source_is_ours);
         assert_eq!(kept.modifiers.map(|m| m.ctrl), Some(true));
+        assert_eq!(kept.action, Some(DragAction::Move));
         assert_eq!(
             kept.raw_uris.as_deref(),
             Some(&["file:///x".to_string()][..])
