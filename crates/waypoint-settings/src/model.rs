@@ -267,8 +267,14 @@ impl Default for TransparencyRegions {
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct TransparencySettings {
     pub enabled: bool,
-    /// The window's opacity in percent, 40 to 100.
+    /// The title bar's and menu bar's opacity in percent, 40 to 100.
     pub opacity: u8,
+    /// The tabs', toolbar's and status bar's opacity in percent, 40 to 100.
+    pub rows_opacity: u8,
+    /// The sidebar's (and the Inspector's) opacity in percent, 40 to 100.
+    pub sidebar_opacity: u8,
+    /// The file area's opacity in percent, 40 to 100.
+    pub content_opacity: u8,
     pub blur: BlurLevel,
     pub regions: TransparencyRegions,
     /// Whether menus and popups are translucent too.
@@ -284,6 +290,9 @@ impl Default for TransparencySettings {
         Self {
             enabled: false,
             opacity: 82,
+            rows_opacity: 90,
+            sidebar_opacity: 94,
+            content_opacity: 98,
             blur: BlurLevel::Low,
             regions: TransparencyRegions::default(),
             menus: false,
@@ -482,6 +491,24 @@ impl Settings {
             OPACITY_MAX.into(),
         )?;
         out_of_range(
+            "transparency.rowsOpacity",
+            self.transparency.rows_opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "transparency.sidebarOpacity",
+            self.transparency.sidebar_opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
+            "transparency.contentOpacity",
+            self.transparency.content_opacity.into(),
+            OPACITY_MIN.into(),
+            OPACITY_MAX.into(),
+        )?;
+        out_of_range(
             "transparency.menuOpacity",
             self.transparency.menu_opacity.into(),
             MENU_OPACITY_MIN.into(),
@@ -530,6 +557,13 @@ impl Settings {
             .spring_load_ms
             .clamp(SPRING_LOAD_MIN_MS, SPRING_LOAD_MAX_MS);
         self.transparency.opacity = self.transparency.opacity.clamp(OPACITY_MIN, OPACITY_MAX);
+        for opacity in [
+            &mut self.transparency.rows_opacity,
+            &mut self.transparency.sidebar_opacity,
+            &mut self.transparency.content_opacity,
+        ] {
+            *opacity = (*opacity).clamp(OPACITY_MIN, OPACITY_MAX);
+        }
         self.transparency.menu_opacity = self
             .transparency
             .menu_opacity
@@ -713,6 +747,23 @@ mod tests {
         assert!(edit(&|s| s.transparency.opacity = 39).is_err());
         assert!(edit(&|s| s.transparency.opacity = 40).is_ok());
         assert!(edit(&|s| s.transparency.opacity = 101).is_err());
+        let setters: [fn(&mut Settings, u8); 3] = [
+            |s, v| s.transparency.rows_opacity = v,
+            |s, v| s.transparency.sidebar_opacity = v,
+            |s, v| s.transparency.content_opacity = v,
+        ];
+        for set in setters {
+            assert!(edit(&|s| set(s, 39)).is_err());
+            assert!(edit(&|s| set(s, 40)).is_ok());
+            assert!(edit(&|s| set(s, 100)).is_ok());
+            assert!(edit(&|s| set(s, 101)).is_err());
+        }
+        assert_eq!(
+            edit(&|s| s.transparency.sidebar_opacity = 10)
+                .unwrap_err()
+                .to_string(),
+            "transparency.sidebarOpacity must be between 40 and 100"
+        );
         assert!(edit(&|s| s.transparency.menu_opacity = 59).is_err());
         assert!(edit(&|s| s.transparency.menu_opacity = 60).is_ok());
         assert!(edit(&|s| s.previews.max_file_mb = 0).is_err());
@@ -766,6 +817,9 @@ mod tests {
         let mut s = Settings::default();
         s.transparency.opacity = 3;
         s.transparency.menu_opacity = 250;
+        s.transparency.rows_opacity = 0;
+        s.transparency.sidebar_opacity = 12;
+        s.transparency.content_opacity = 255;
         s.previews.max_file_mb = 0;
         s.accessibility.text_size = 120;
         s.appearance.accent = AccentChoice::Custom {
@@ -776,6 +830,9 @@ mod tests {
         let fixed = s.clamped();
         assert_eq!(fixed.transparency.opacity, OPACITY_MIN);
         assert_eq!(fixed.transparency.menu_opacity, OPACITY_MAX);
+        assert_eq!(fixed.transparency.rows_opacity, OPACITY_MIN);
+        assert_eq!(fixed.transparency.sidebar_opacity, OPACITY_MIN);
+        assert_eq!(fixed.transparency.content_opacity, OPACITY_MAX);
         assert_eq!(fixed.previews.max_file_mb, PREVIEW_MAX_MB_MIN);
         assert_eq!(fixed.accessibility.text_size, 115);
         assert_eq!(fixed.appearance.accent, AccentChoice::Ember);
@@ -800,11 +857,28 @@ mod tests {
     }
 
     #[test]
+    fn a_transparency_document_without_the_region_opacities_gets_todays_look() {
+        let old: Settings =
+            serde_json::from_str(r#"{"transparency":{"enabled":true,"opacity":70,"menus":true}}"#)
+                .unwrap();
+        assert!(old.transparency.enabled);
+        assert_eq!(old.transparency.opacity, 70);
+        assert_eq!(old.transparency.rows_opacity, 90);
+        assert_eq!(old.transparency.sidebar_opacity, 94);
+        assert_eq!(old.transparency.content_opacity, 98);
+        assert_eq!(old.validate(), Ok(()));
+    }
+
+    #[test]
     fn the_new_wire_forms_are_camel_case_and_the_accent_is_tagged() {
         let json = serde_json::to_value(Settings::default()).unwrap();
         assert_eq!(json["appearance"]["themeSource"], "liminal");
         assert_eq!(json["appearance"]["accent"]["kind"], "ember");
         assert_eq!(json["transparency"]["solidWhenUnfocused"], true);
+        assert_eq!(json["transparency"]["opacity"], 82);
+        assert_eq!(json["transparency"]["rowsOpacity"], 90);
+        assert_eq!(json["transparency"]["sidebarOpacity"], 94);
+        assert_eq!(json["transparency"]["contentOpacity"], 98);
         assert_eq!(json["accessibility"]["highContrast"], "follow");
         assert_eq!(json["previews"]["measureHomeOnOpen"], true);
         assert_eq!(
