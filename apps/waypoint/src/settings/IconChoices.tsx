@@ -16,6 +16,7 @@ import type { IconStyle } from '@liminal-hq/waypoint-protocol/generated/IconStyl
 import { HomeIcon, StarIcon } from '../icons/AppIcons';
 import { TrashIcon } from '../icons/MenuIcons';
 import { useIconLook, type ResolvedIconTheme } from '../icons/iconTheme';
+import { useSystemOffer } from '../icons/systemIcons';
 import { FOLDER_COLOURS, type FolderColour } from '../icons/portage/portagePalette';
 import { PortageIcon } from '../icons/PortageIcon';
 import styles from './IconChoices.module.css';
@@ -116,6 +117,14 @@ function ChoiceGroup<T extends string>({ value, choices, onChange, layout }: Cho
 	);
 }
 
+/** The names the System previews are drawn for: the extension is what the system's icon goes by. */
+const PREVIEW_NAMES: Partial<Record<IconGroup, string>> = {
+	image: 'picture.png',
+	pdf: 'document.pdf',
+	document: 'letter.odt',
+	archive: 'backup.zip',
+};
+
 /** The five sample icons as one theme draws them (the colour and tone of the window's setting). */
 function PreviewStrip({ theme, colour }: { theme: ResolvedIconTheme; colour: FolderColour }) {
 	const { tone } = useIconLook();
@@ -125,6 +134,8 @@ function PreviewStrip({ theme, colour }: { theme: ResolvedIconTheme; colour: Fol
 				<FileIcon
 					key={group}
 					group={group}
+					name={PREVIEW_NAMES[group]}
+					size={24}
 					theme={theme}
 					colour={colour}
 					tone={tone}
@@ -136,15 +147,21 @@ function PreviewStrip({ theme, colour }: { theme: ResolvedIconTheme; colour: Fol
 }
 
 interface IconThemeRowProps extends Omit<SettingsRowProps, 'children' | 'label' | 'description'> {
-	/** `system` is not offered yet, so the value the page holds is only ever one of these two. */
+	/** The set drawn: `system` only where the page offers it. */
 	value: ResolvedIconTheme;
 	folderColour: FolderColour;
 	onChange: (value: ResolvedIconTheme) => void;
 }
 
-/** The icon theme picker: one card per theme with a preview strip drawn by that theme. */
+/**
+ * The icon theme picker: one card per theme with a preview strip drawn by that theme. The System card
+ * is there only where the system can supply icons, with its strip drawn by the system's own theme.
+ */
 export function IconThemeRow({ value, folderColour, onChange, ...row }: IconThemeRowProps) {
-	const themes: ResolvedIconTheme[] = ['waypoint', 'portage'];
+	const { offered } = useSystemOffer();
+	const themes: ResolvedIconTheme[] = offered
+		? ['waypoint', 'portage', 'system']
+		: ['waypoint', 'portage'];
 	return (
 		<SettingsRow
 			label={t('settings.appearance.iconTheme.label')}

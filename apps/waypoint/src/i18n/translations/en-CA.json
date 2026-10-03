@@ -491,6 +491,22 @@
     "message": "Portage",
     "description": "Area: settings. The name of an icon set (a portage is a carry between waterways), kept as “Portage”."
   },
+  "settings.appearance.iconTheme.system": {
+    "message": "System",
+    "description": "Area: settings. The name of an icon set: the icons the operating system itself shows for files and folders (in its own file manager). Not “system” as in the computer."
+  },
+  "settings.appearance.iconTheme.systemUnavailable": {
+    "message": "The System icon theme is not available on this system: {reason}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words. {reason} is a sentence from the operating system layer, in English, that says what is missing."
+  },
+  "settings.appearance.iconTheme.systemUnavailableNoReason": {
+    "message": "The System icon theme is not available on this system.",
+    "description": "Area: settings."
+  },
+  "settings.appearance.iconStyle.systemNote": {
+    "message": "Icon style applies to the Waypoint icon theme. The System theme draws the icons your system draws.",
+    "description": "Area: settings."
+  },
   "settings.appearance.folderColour.label": {
     "message": "Folder colour",
     "description": "Area: settings."
@@ -501,6 +517,10 @@
   },
   "settings.appearance.folderColour.waypointNote": {
     "message": "Folder colours apply to the Portage icon theme. The Waypoint theme draws folders in the accent colour.",
+    "description": "Area: settings."
+  },
+  "settings.appearance.folderColour.systemNote": {
+    "message": "Folder colours apply to the Portage icon theme. The System theme draws folders as your system does.",
     "description": "Area: settings."
   },
   "settings.appearance.folderColour.liminal": {

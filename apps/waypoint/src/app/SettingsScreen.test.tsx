@@ -5,10 +5,12 @@
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tauriWindowControls } from '@liminal-hq/waypoint-chrome/TitleBar/tauriWindowControls';
 import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider';
+import { configureSystemIcons } from '../icons/systemIcons';
 import { createFakeOpsClient, type FakeOpsClient } from '../services/fakeOpsClient';
+import { createFakeSystemIconsClient } from '../services/fakeSystemIconsClient';
 import { createFakeSettingsClient, type FakeSettings } from '../services/fakeSettingsClient';
 import { DEFAULT_SETTINGS, type Settings } from '../services/settingsClient';
 import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
@@ -578,7 +580,18 @@ describe('the Appearance page', () => {
 	});
 });
 
+/** The system supplies no icons, as on a headless session. */
+function noSystemIcons() {
+	const unavailable = { available: false, reason: 'no icon theme is installed' };
+	return createFakeSystemIconsClient({
+		status: { typeIcons: unavailable, folderIcons: unavailable },
+	});
+}
+
 describe('the Appearance page icon rows', () => {
+	beforeEach(() => configureSystemIcons(noSystemIcons()));
+	afterEach(() => configureSystemIcons(null));
+
 	it('offers the Waypoint and Portage themes, not System, with a preview of each', async () => {
 		await open();
 		await goTo('Appearance');
@@ -682,7 +695,7 @@ describe('the Appearance page icon rows', () => {
 		await waitFor(() => expect(settings.calls.at(-1)?.appearance.folderColour).toBe('liminal'));
 	});
 
-	it('shows a System theme in a document as the Waypoint set, since it draws as one', async () => {
+	it('shows a System theme the system cannot supply as the Waypoint set it draws, and says why System is not offered', async () => {
 		await open({
 			settings: {
 				...DEFAULT_SETTINGS,
@@ -691,7 +704,97 @@ describe('the Appearance page icon rows', () => {
 		});
 		await goTo('Appearance');
 		const themes = within(screen.getByRole('radiogroup', { name: 'Icon theme' }));
-		expect(themes.getByRole('radio', { name: 'Waypoint' })).toBeChecked();
+		await waitFor(() => expect(themes.getByRole('radio', { name: 'Waypoint' })).toBeChecked());
+		expect(themes.queryByRole('radio', { name: 'System' })).toBeNull();
+		expect(
+			screen.getByText(
+				'The System icon theme is not available on this system: no icon theme is installed',
+			),
+		).toBeInTheDocument();
+		// The Waypoint set is what is drawn, so its rows are not greyed.
+		expect(screen.getByRole('radiogroup', { name: 'Icon style' })).not.toHaveAttribute(
+			'aria-disabled',
+		);
+	});
+
+	it('says nothing about System while the plugin has not answered, and a plain note when it gave no reason', async () => {
+		configureSystemIcons(
+			createFakeSystemIconsClient({
+				status: {
+					typeIcons: { available: false, reason: null },
+					folderIcons: { available: false, reason: null },
+				},
+			}),
+		);
+		await open();
+		await goTo('Appearance');
+		expect(
+			await screen.findByText('The System icon theme is not available on this system.'),
+		).toBeInTheDocument();
+	});
+});
+
+describe('the Appearance page icon rows where the system supplies icons', () => {
+	let fake = createFakeSystemIconsClient();
+	beforeEach(() => {
+		fake = createFakeSystemIconsClient();
+		configureSystemIcons(fake);
+	});
+	afterEach(() => configureSystemIcons(null));
+
+	it('offers System as a third theme, with a strip of the system’s own icons for a folder, an image, a PDF, a document and an archive', async () => {
+		await open();
+		await goTo('Appearance');
+		const themes = screen.getByRole('radiogroup', { name: 'Icon theme' });
+		const system = await within(themes).findByRole('radio', { name: 'System' });
+		expect(
+			within(themes)
+				.getAllByRole('radio')
+				.map((radio) => radio.title),
+		).toEqual(['Waypoint', 'Portage', 'System']);
+		expect(screen.queryByText(/The System icon theme is not available/)).toBeNull();
+		await waitFor(() => expect(fake.probed.length).toBeGreaterThan(0));
+		// One picture per type, drawn at the preview size.
+		expect(fake.probed.map((url) => url.split('?')[0]).sort()).toEqual([
+			'fake://ext/odt',
+			'fake://ext/pdf',
+			'fake://ext/png',
+			'fake://ext/zip',
+			'fake://folder/plain',
+		]);
+		expect(fake.probed.every((url) => url.includes('size=24'))).toBe(true);
+		await act(async () => fake.settle(true));
+		expect(system.querySelectorAll('svg[data-system]')).toHaveLength(5);
+	});
+
+	it('saves System, then explains that the icon style and folder colours apply to other sets, and greys the style', async () => {
+		const { settings } = await open();
+		await goTo('Appearance');
+		const themes = within(screen.getByRole('radiogroup', { name: 'Icon theme' }));
+		await userEvent.click(await themes.findByRole('radio', { name: 'System' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.iconTheme).toBe('system'));
+		await waitFor(() => expect(themes.getByRole('radio', { name: 'System' })).toBeChecked());
+		expect(
+			screen.getByText(/The System theme draws folders as your system does/),
+		).toBeInTheDocument();
+		expect(screen.queryByRole('radiogroup', { name: 'Folder colour' })).toBeNull();
+		const style = screen.getByRole('radiogroup', { name: 'Icon style' });
+		expect(style).toHaveAttribute('aria-disabled', 'true');
+		expect(
+			screen.getByText(/The System theme draws the icons your system draws/),
+		).toBeInTheDocument();
+	});
+
+	it('shows the saved System choice as checked', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				appearance: { ...DEFAULT_SETTINGS.appearance, iconTheme: 'system' },
+			},
+		});
+		await goTo('Appearance');
+		const themes = within(screen.getByRole('radiogroup', { name: 'Icon theme' }));
+		await waitFor(() => expect(themes.getByRole('radio', { name: 'System' })).toBeChecked());
 	});
 });
 
