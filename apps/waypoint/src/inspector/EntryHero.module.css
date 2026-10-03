@@ -1,0 +1,53 @@
+/* The Properties tab's hero: a rounded picture block, a centred name, and the kind and size. */
+.hero {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	margin-block-end: 14px;
+	text-align: center;
+}
+
+.stage {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	inline-size: min(100%, 176px);
+	aspect-ratio: 4 / 3;
+	margin-block-end: 10px;
+	border-radius: 10px;
+	background: var(--wp-bg-hover);
+	overflow: hidden;
+}
+
+.stage > .thumbnail {
+	inline-size: 100%;
+	block-size: 100%;
+	color: var(--wp-text-muted);
+}
+
+.stage > .thumbnail > .icon,
+.stage > .folderIcon {
+	inline-size: 64px;
+	block-size: 64px;
+	color: var(--wp-text-muted);
+}
+
+.title {
+	max-inline-size: 100%;
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.subtitle {
+	margin: 0;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}
+
+:root[data-contrast='high'] .stage {
+	border: 1px solid var(--wp-border-subtle);
+}

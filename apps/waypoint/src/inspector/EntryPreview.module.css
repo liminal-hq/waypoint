@@ -16,7 +16,7 @@
 	box-sizing: border-box;
 	min-block-size: 160px;
 	padding: 8px;
-	border-radius: 6px;
+	border-radius: 10px;
 	background: var(--wp-bg-hover);
 	overflow: hidden;
 }
@@ -94,8 +94,10 @@
 .summary {
 	display: flex;
 	flex-direction: column;
+	align-items: center;
 	gap: 2px;
 	min-inline-size: 0;
+	text-align: center;
 }
 
 .name {
