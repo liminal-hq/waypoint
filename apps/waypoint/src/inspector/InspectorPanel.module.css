@@ -42,27 +42,28 @@
 	flex: none;
 	align-items: center;
 	gap: 4px;
-	padding-block: 4px 0;
-	padding-inline: 8px 6px;
+	padding-block: 8px 0;
+	padding-inline: 10px 6px;
 	border-block-end: 1px solid var(--wp-border-subtle);
 }
 
 .tabs {
 	display: flex;
 	flex: 1;
-	gap: 6px;
+	gap: 2px;
 }
 
 .tab {
-	min-block-size: var(--wp-hit-target, 0px);
-	padding-block: 8px;
+	padding-block: 0;
 	padding-inline: 10px;
+	block-size: max(30px, var(--wp-hit-target, 0px));
 	border: 0;
 	border-block-end: 2px solid transparent;
 	background: transparent;
 	color: var(--wp-text-muted);
 	font: inherit;
-	font-size: 13px;
+	font-size: 12.5px;
+	font-weight: 500;
 	cursor: pointer;
 }
 
@@ -105,18 +106,16 @@
 	position: relative;
 	flex: 1;
 	min-block-size: 0;
-	padding: 16px;
+	padding: 16px 16px 20px;
 	overflow: auto;
+}
+
+.panel > :where(* + *) {
+	margin-block-start: 14px;
 }
 
 .panel[hidden] {
 	display: none;
-}
-
-.empty {
-	margin: 0;
-	color: var(--wp-text-muted);
-	font-size: 12px;
 }
 
 .summary {
@@ -124,8 +123,44 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 6px;
-	padding-block: 24px;
 	text-align: center;
+}
+
+.heroStage {
+	display: grid;
+	place-items: center;
+	box-sizing: border-box;
+	inline-size: min(100%, 168px);
+	block-size: 126px;
+	margin-block-end: 10px;
+	border-radius: 10px;
+	background: var(--wp-bg-hover);
+}
+
+.rows {
+	margin: 0;
+}
+
+.fact {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding-block: 6px;
+	border-block-end: 1px solid var(--wp-border-subtle);
+	font-size: 12.5px;
+}
+
+.fact > dt {
+	flex: none;
+	color: var(--wp-text-muted);
+	white-space: nowrap;
+}
+
+.fact > dd {
+	min-inline-size: 0;
+	margin: 0;
+	text-align: end;
+	overflow-wrap: anywhere;
 }
 
 .bigIcon {

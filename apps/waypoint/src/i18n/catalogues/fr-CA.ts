@@ -3401,8 +3401,10 @@ const messages: Catalogue = {
 	'inspector.divider.label': 'Redimensionner l’Inspecteur',
 	// source: a3fa0138
 	'inspector.divider.value': '{width} pixels de largeur',
-	// source: 39a755cc
-	'inspector.preview.empty': 'Rien à prévisualiser',
+	// source: f8c10424
+	'inspector.empty.title': 'Aucune sélection',
+	// source: b2e5bab2
+	'inspector.empty.hint': 'Sélectionnez un fichier pour voir son aperçu et ses propriétés.',
 	// source: e8371112
 	'inspector.preview.imageAlt': 'Aperçu de {name}',
 	// source: 24ad51f6
@@ -3416,8 +3418,6 @@ const messages: Catalogue = {
 	// source: 632e55bf
 	'inspector.preview.lossy':
 		'Certains caractères n’ont pas pu être lus et sont affichés sous forme de remplacement',
-	// source: bf083e34
-	'inspector.properties.empty': 'Rien à afficher',
 	// source: 8a0336d7
 	'inspector.many.note':
 		'La taille compte les fichiers sélectionnés; les dossiers ne sont pas inclus.',

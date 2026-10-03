@@ -445,7 +445,11 @@ describe('Preview', () => {
 		);
 		await new Promise((resolve) => setTimeout(resolve, 250));
 		expect(screen.getByText('notes.txt')).toBeInTheDocument();
-		expect(screen.getByText(/^Document/)).toBeInTheDocument();
+		// The kind is in the subtitle under the name and in the Kind row, as the design has it.
+		expect(screen.getByText(/^Document ·/)).toBeInTheDocument();
+		expect(screen.getByText('Kind', { selector: 'dt' }).nextElementSibling).toHaveTextContent(
+			'Document',
+		);
 		expect(details.calls.filter((call) => call.startsWith('textHead'))).toEqual([]);
 		expect(screen.queryByRole('img')).toBeNull();
 	});

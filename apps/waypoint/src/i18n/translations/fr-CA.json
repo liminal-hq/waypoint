@@ -8074,10 +8074,15 @@
     "description": "Area: inspector. Placeholders, kept exactly as written: {width} is a width in pixels.",
     "source": "a3fa0138"
   },
-  "inspector.preview.empty": {
-    "message": "Rien à prévisualiser",
+  "inspector.empty.title": {
+    "message": "Aucune sélection",
     "description": "Area: inspector.",
-    "source": "39a755cc"
+    "source": "f8c10424"
+  },
+  "inspector.empty.hint": {
+    "message": "Sélectionnez un fichier pour voir son aperçu et ses propriétés.",
+    "description": "Area: inspector.",
+    "source": "b2e5bab2"
   },
   "inspector.preview.imageAlt": {
     "message": "Aperçu de {name}",
@@ -8108,11 +8113,6 @@
     "message": "Certains caractères n’ont pas pu être lus et sont affichés sous forme de remplacement",
     "description": "Area: inspector.",
     "source": "632e55bf"
-  },
-  "inspector.properties.empty": {
-    "message": "Rien à afficher",
-    "description": "Area: inspector.",
-    "source": "bf083e34"
   },
   "inspector.many.note": {
     "message": "La taille compte les fichiers sélectionnés; les dossiers ne sont pas inclus.",
