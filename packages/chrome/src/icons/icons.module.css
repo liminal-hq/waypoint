@@ -1,0 +1,13 @@
+/*
+ * The weight and the fill of the chrome's outline icons come from the host's icon style
+ * (`--wp-icon-stroke` and `--wp-icon-fill`, defaults in `tokens.css`). A closed shape marked
+ * `data-fill` takes the fill; open strokes never carry the mark, so no style fills a chevron or a
+ * check as a wedge.
+ */
+.icon {
+	stroke-width: var(--wp-icon-stroke);
+}
+
+.icon [data-fill] {
+	fill: var(--wp-icon-fill);
+}

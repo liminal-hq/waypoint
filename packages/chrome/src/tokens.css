@@ -31,6 +31,10 @@
 	--wp-focus-ring: #78aeed;
 	--wp-focus-ring-on-accent: #ffffff;
 
+	/* Outline icons: the stroke width in a 16 px box, and the fill a closed shape marked `data-fill` takes (a host's icon style sets both) */
+	--wp-icon-stroke: 1.25px;
+	--wp-icon-fill: none;
+
 	/* Title bar controls */
 	--wp-control-bg: rgb(255 255 255 / 8%);
 	--wp-control-bg-hover: rgb(255 255 255 / 14%);
