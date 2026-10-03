@@ -2,10 +2,12 @@
 import type { AccentChoice } from "./AccentChoice";
 import type { ColourMode } from "./ColourMode";
 import type { Density } from "./Density";
+import type { FolderColour } from "./FolderColour";
 import type { IconStyle } from "./IconStyle";
+import type { IconTheme } from "./IconTheme";
 import type { ThemeSource } from "./ThemeSource";
 
 /**
  * The Appearance page.
  */
-export type AppearanceSettings = { mode: ColourMode, themeSource: ThemeSource, accent: AccentChoice, density: Density, iconStyle: IconStyle, };
+export type AppearanceSettings = { mode: ColourMode, themeSource: ThemeSource, accent: AccentChoice, density: Density, iconStyle: IconStyle, iconTheme: IconTheme, folderColour: FolderColour, };

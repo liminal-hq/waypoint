@@ -48,6 +48,8 @@ export type RowKey =
 	| 'accentColour'
 	| 'density'
 	| 'iconStyle'
+	| 'iconTheme'
+	| 'folderColour'
 	| 'highContrast'
 	| 'textSize'
 	| 'strongFocus'

@@ -218,6 +218,38 @@ pub enum IconStyle {
     Filled,
 }
 
+/// Which set of file and folder icons the views draw.
+///
+/// `System` is accepted so a document that names it loads, but the page does not offer it yet and
+/// the views draw the Waypoint set for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum IconTheme {
+    #[default]
+    Waypoint,
+    Portage,
+    System,
+}
+
+/// The colour of the Portage folder icons. The ids are the ones `portagePalette.ts` draws.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum FolderColour {
+    #[default]
+    Liminal,
+    Gnome,
+    Cinnamon,
+    Kde,
+    Windows11,
+    Red,
+    Pink,
+    Orange,
+    Purple,
+    Rainbow,
+}
+
 /// The Appearance page.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
@@ -228,6 +260,8 @@ pub struct AppearanceSettings {
     pub accent: AccentChoice,
     pub density: Density,
     pub icon_style: IconStyle,
+    pub icon_theme: IconTheme,
+    pub folder_colour: FolderColour,
 }
 
 /// How strongly the background shows through behind the window.
@@ -722,6 +756,59 @@ mod tests {
         let on: Settings = serde_json::from_str(r#"{"ui":{"menuBar":true}}"#).unwrap();
         assert!(on.ui.menu_bar);
         assert_eq!(serde_json::to_value(on).unwrap()["ui"]["menuBar"], true);
+    }
+
+    #[test]
+    fn an_appearance_document_without_the_icon_theme_gets_the_waypoint_set_in_liminal() {
+        let old: Settings =
+            serde_json::from_str(r#"{"appearance":{"mode":"dark","iconStyle":"bold"}}"#).unwrap();
+        assert_eq!(old.appearance.icon_style, IconStyle::Bold);
+        assert_eq!(old.appearance.icon_theme, IconTheme::Waypoint);
+        assert_eq!(old.appearance.folder_colour, FolderColour::Liminal);
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        assert_eq!(json["appearance"]["iconTheme"], "waypoint");
+        assert_eq!(json["appearance"]["folderColour"], "liminal");
+    }
+
+    #[test]
+    fn the_icon_theme_and_folder_colour_round_trip_in_their_wire_form() {
+        let doc = r#"{"appearance":{"iconTheme":"portage","folderColour":"windows11"}}"#;
+        let s: Settings = serde_json::from_str(doc).unwrap();
+        assert_eq!(s.appearance.icon_theme, IconTheme::Portage);
+        assert_eq!(s.appearance.folder_colour, FolderColour::Windows11);
+        assert_eq!(s.validate(), Ok(()));
+        let json = serde_json::to_value(&s).unwrap();
+        assert_eq!(json["appearance"]["iconTheme"], "portage");
+        assert_eq!(json["appearance"]["folderColour"], "windows11");
+        let system: Settings =
+            serde_json::from_str(r#"{"appearance":{"iconTheme":"system"}}"#).unwrap();
+        assert_eq!(system.appearance.icon_theme, IconTheme::System);
+        assert_eq!(system.validate(), Ok(()));
+        for colour in [
+            "liminal",
+            "gnome",
+            "cinnamon",
+            "kde",
+            "windows11",
+            "red",
+            "pink",
+            "orange",
+            "purple",
+            "rainbow",
+        ] {
+            let text = format!(r#"{{"appearance":{{"folderColour":"{colour}"}}}}"#);
+            assert!(serde_json::from_str::<Settings>(&text).is_ok(), "{colour}");
+        }
+    }
+
+    #[test]
+    fn an_unknown_icon_theme_or_folder_colour_is_refused() {
+        assert!(
+            serde_json::from_str::<Settings>(r#"{"appearance":{"iconTheme":"neon"}}"#).is_err()
+        );
+        assert!(
+            serde_json::from_str::<Settings>(r#"{"appearance":{"folderColour":"teal"}}"#).is_err()
+        );
     }
 
     #[test]
