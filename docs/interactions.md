@@ -5,6 +5,7 @@
 | Input                | Target                           | Result                                                            |
 | -------------------- | -------------------------------- | ----------------------------------------------------------------- |
 | Click                | Item                             | Select (single-click-to-open is an optional setting)              |
+| Click                | Empty space in a folder          | Clear the selection (Shift and Ctrl clicks leave it alone)        |
 | Double-click         | Item                             | Open or enter                                                     |
 | Middle-click         | Folder, sidebar item, breadcrumb | Open in a new background tab                                      |
 | Ctrl+middle-click    | Same                             | Open in a new window                                              |

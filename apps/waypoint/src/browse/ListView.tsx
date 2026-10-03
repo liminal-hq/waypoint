@@ -365,6 +365,7 @@ function ListingBody({
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onBackgroundClick,
 		onHeaderClick,
 	} = interactions;
 
@@ -464,6 +465,7 @@ function ListingBody({
 					{...{ [SCROLL_ATTRIBUTE]: '' }}
 					onScroll={recordAnchor}
 					onContextMenu={onBackgroundContextMenu}
+					onClick={onBackgroundClick}
 				>
 					<div
 						ref={listbox}

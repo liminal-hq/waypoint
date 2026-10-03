@@ -539,6 +539,24 @@ describe('selection and keyboard', () => {
 		expect(screen.getByText('No items selected')).toBeInTheDocument();
 	});
 
+	it('clears the selection with a plain click on empty space, but not with Shift or Ctrl held', async () => {
+		const { list } = await ready(3);
+		act(() => list.focus());
+		key(list, 'a', { ctrlKey: true });
+		expect(selectedRows()).toHaveLength(3);
+		const scroller = list.parentElement!;
+		// Shift and Ctrl clicks extend a selection; a slip on empty space must not throw it away.
+		fireEvent.click(scroller, { shiftKey: true });
+		fireEvent.click(scroller, { ctrlKey: true });
+		expect(selectedRows()).toHaveLength(3);
+		// A click on a row is the row's, not the background's.
+		fireEvent.click(rows()[0]!, { shiftKey: true });
+		expect(selectedRows().length).toBeGreaterThan(0);
+		fireEvent.click(scroller);
+		expect(selectedRows()).toHaveLength(0);
+		expect(screen.getByText('No items selected')).toBeInTheDocument();
+	});
+
 	it('announces nothing until the person acts on the selection', async () => {
 		await ready();
 		expect(screen.queryByText(/selected/)).toBeNull();

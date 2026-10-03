@@ -293,6 +293,7 @@ function GridBody({
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onBackgroundClick,
 		onHeaderClick,
 	} = useListInteractions({
 		session,
@@ -363,6 +364,7 @@ function GridBody({
 					{...{ [SCROLL_ATTRIBUTE]: '' }}
 					onScroll={recordAnchor}
 					onContextMenu={onBackgroundContextMenu}
+					onClick={onBackgroundClick}
 				>
 					<div
 						ref={listbox}

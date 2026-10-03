@@ -78,6 +78,8 @@ export interface Interactions {
 	onItemDoubleClick: (entry: Entry | undefined) => void;
 	onItemContextMenu: (event: MouseEvent, position: number, entry: Entry | undefined) => void;
 	onBackgroundContextMenu: (event: MouseEvent) => void;
+	/** A plain click on the listing's empty space (not on a row or a group header): clears the selection. */
+	onBackgroundClick: (event: MouseEvent) => void;
 	/** A click on a group's header: puts the keyboard there and folds the group shut or opens it. */
 	onHeaderClick: (group: number) => void;
 }
@@ -328,6 +330,16 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		});
 	};
 
+	// A click that lands on a row or a header was handled there; one anywhere else in the scroller is
+	// on empty space and clears the selection, as in other file managers. Shift and Ctrl clicks are
+	// kept off it so a slip while extending a selection does not throw it away.
+	const onBackgroundClick = (event: MouseEvent) => {
+		if (event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey) return;
+		const target = event.target as Element | null;
+		if (target?.closest('[role="option"], [role="group"], button, input, a')) return;
+		store.getState().deselectAll();
+	};
+
 	const onHeaderClick = (group: number) => {
 		const run = layout.groups[group];
 		if (!run) return;
@@ -346,5 +358,6 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 		onItemDoubleClick,
 		onItemContextMenu,
 		onBackgroundContextMenu,
+		onBackgroundClick,
 	};
 }
