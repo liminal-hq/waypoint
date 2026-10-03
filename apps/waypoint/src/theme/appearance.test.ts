@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../services/settingsClient';
+import type { Palette, PaletteEntry } from '../services/osPaletteClient';
 import { EMBER } from './accent';
 import {
 	applyAppearance,
@@ -178,5 +179,119 @@ describe('applyAppearance', () => {
 		expect(root.style.getPropertyValue('--wp-accent')).toBe('');
 		expect(root.lang).toBe('en-CA');
 		expect(root.dir).toBe('ltr');
+	});
+});
+
+describe('the OS palette in the look', () => {
+	const entry = (colour: string | null): PaletteEntry => ({
+		colour,
+		source: colour ? 'kdeGlobals' : null,
+		reason: colour ? null : 'sourceMissing',
+		detail: null,
+	});
+	const palette = (window: string, text: string, available = true): Palette => ({
+		revision: 1,
+		status: { available, source: 'kdeGlobals', reason: null, detail: null },
+		windowBackground: entry(window),
+		windowForeground: entry(text),
+		viewBackground: entry(window),
+		viewForeground: entry(text),
+		surfaceBackground: entry(null),
+		selectionBackground: entry(null),
+		selectionForeground: entry(null),
+		border: entry(null),
+		focus: entry(null),
+		warning: entry(null),
+		error: entry(null),
+		success: entry(null),
+	});
+	const dark = palette('#2a2e32', '#fcfcfc');
+	const on = withAppearance({ matchSystemColours: true });
+
+	it('is off by default, whatever the system has', () => {
+		const look = resolveAppearance(DEFAULT_SETTINGS, os({ scheme: 'light' }), {
+			...options,
+			palette: dark,
+		});
+		expect(look.palette).toMatchObject({ state: 'off', tokens: null, available: true });
+	});
+
+	it('does not know whether there is a palette until the plugin has answered', () => {
+		expect(resolveAppearance(on, os({}), options).palette).toMatchObject({
+			state: 'unavailable',
+			available: null,
+		});
+	});
+
+	it('takes the palette’s variant for the theme in System mode, even against the OS scheme', () => {
+		const look = resolveAppearance(on, os({ scheme: 'light' }), { ...options, palette: dark });
+		expect(look.palette.state).toBe('applied');
+		expect(look.theme).toBe('dark');
+		expect(look.palette.tokens?.['--wp-solid-window']).toBe('#2a2e32');
+	});
+
+	it('keeps a forced mode that is not the palette’s variant, with Waypoint’s own colours', () => {
+		const look = resolveAppearance(
+			withAppearance({ matchSystemColours: true, mode: 'light' }),
+			os({}),
+			{
+				...options,
+				palette: dark,
+			},
+		);
+		expect(look.palette).toMatchObject({ state: 'other-variant', tokens: null });
+		expect(look.theme).toBe('light');
+	});
+
+	it('is ignored under high contrast, forced or the system’s', () => {
+		const forced = resolveAppearance(
+			{ ...on, accessibility: { ...on.accessibility, highContrast: 'on' } },
+			os({}),
+			{ ...options, palette: dark },
+		);
+		expect(forced.palette.state).toBe('high-contrast');
+		const system = resolveAppearance(on, os({ highContrast: true }), { ...options, palette: dark });
+		expect(system.palette.state).toBe('high-contrast');
+	});
+
+	it('leaves the accent to its own setting', () => {
+		const look = resolveAppearance(
+			withAppearance({ matchSystemColours: true, accent: { kind: 'os' } }),
+			os({ accent: '#3daee9' }),
+			{ ...options, palette: dark },
+		);
+		expect(look.accent?.fill).toBe('#3daee9');
+	});
+
+	it('writes the tokens onto the root, and takes them off when the palette is not drawn', () => {
+		const root = document.createElement('html');
+		const drawn = resolveAppearance(on, os({}), { ...options, palette: dark });
+		applyAppearance(root, drawn);
+		expect(root.style.getPropertyValue('--wp-solid-window')).toBe('#2a2e32');
+		expect(root.style.getPropertyValue('--wp-text-primary')).toBe('#fcfcfc');
+		expect(root.dataset.palette).toBe('system');
+		applyAppearance(
+			root,
+			resolveAppearance(DEFAULT_SETTINGS, os({}), { ...options, palette: dark }),
+		);
+		expect(root.style.getPropertyValue('--wp-solid-window')).toBe('');
+		expect(root.style.getPropertyValue('--wp-text-primary')).toBe('');
+		expect(root.dataset.palette).toBeUndefined();
+	});
+
+	it('does not touch the accent properties the accent rule owns', () => {
+		const root = document.createElement('html');
+		applyAppearance(
+			root,
+			resolveAppearance(
+				withAppearance({ matchSystemColours: true, accent: { kind: 'os' } }),
+				os({ accent: '#3daee9' }),
+				{
+					...options,
+					palette: dark,
+				},
+			),
+		);
+		expect(root.style.getPropertyValue('--wp-accent')).toBe('#3daee9');
 	});
 });

@@ -6,7 +6,9 @@
 import { getStatus as windowEffectsStatus, hasFeature } from '@liminal-hq/plugin-window-effects';
 import { useEffect, useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, type SettingsClient } from '../services/settingsClient';
+import type { OsPaletteClient, Palette } from '../services/osPaletteClient';
 import { createTauriOsAppearanceClient } from '../services/tauriOsAppearanceClient';
+import { createTauriOsPaletteClient } from '../services/tauriOsPaletteClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
 import {
 	applyAppearance,
@@ -14,6 +16,7 @@ import {
 	webOsAppearance,
 	type OsAppearanceSource,
 } from './appearance';
+import { reportPalette } from './paletteReport';
 import { pluginOsAppearance } from './pluginAppearance';
 import { applyTransparency } from './transparencyDom';
 
@@ -22,6 +25,8 @@ interface ThemeRootProps {
 	client?: SettingsClient;
 	/** Where the OS preferences come from; the `system-appearance` plugin over the webview's media queries unless supplied. */
 	os?: OsAppearanceSource;
+	/** Where the OS colour palette comes from; the `system-appearance` plugin unless supplied. */
+	osPalette?: OsPaletteClient;
 	/** Whether the platform can make windows see-through: the window effects plugin's `opacity` feature unless supplied. */
 	opacityAvailable?: () => Promise<boolean>;
 	children: ReactNode;
@@ -66,11 +71,13 @@ function hasFinePointer(): boolean {
  * until the first answer) and the OS preferences, and writes the result on the root so no media
  * query is the only signal (A58). It renders its children untouched.
  */
-export function ThemeRoot({ client, os, opacityAvailable, children }: ThemeRootProps) {
+export function ThemeRoot({ client, os, osPalette, opacityAvailable, children }: ThemeRootProps) {
 	const [settingsClient] = useState(() => client ?? createTauriSettingsClient());
 	const [source] = useState(
 		() => os ?? pluginOsAppearance(createTauriOsAppearanceClient(), webOsAppearance()),
 	);
+	const [paletteClient] = useState(() => osPalette ?? createTauriOsPaletteClient());
+	const [palette, setPalette] = useState<Palette | null>(null);
 	const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 	const [touchPointer, setTouchPointer] = useState(false);
 	const [osVersion, setOsVersion] = useState(0);
@@ -114,6 +121,25 @@ export function ThemeRoot({ client, os, opacityAvailable, children }: ThemeRootP
 		};
 	}, [settingsClient]);
 
+	// The palette is asked for whether or not the option is on, so the Appearance page knows whether
+	// to offer it. It listens before it reads and keeps only the newest revision.
+	useEffect(() => {
+		let live = true;
+		let revision = 0;
+		const accept = (next: Palette): void => {
+			if (live && next.revision > revision) {
+				revision = next.revision;
+				setPalette(next);
+			}
+		};
+		const stop = paletteClient.onChanged(accept);
+		paletteClient.get().then(accept, () => undefined);
+		return () => {
+			live = false;
+			stop();
+		};
+	}, [paletteClient]);
+
 	useEffect(() => source.subscribe(() => setOsVersion((n) => n + 1)), [source]);
 
 	// The last pointer to touch the window decides touch mode's "Auto".
@@ -131,11 +157,17 @@ export function ThemeRoot({ client, os, opacityAvailable, children }: ThemeRootP
 			hasFinePointer: hasFinePointer(),
 			focused: inFront,
 			opacityAvailable: canBeSeeThrough,
+			palette,
 		});
 		applyAppearance(root, look);
+		reportPalette({
+			available: look.palette.available,
+			state: look.palette.state,
+			lifted: look.palette.state === 'applied' ? look.palette.lifted : [],
+		});
 		// After the attributes, so the floor is worked out from the colours of the scheme now in force.
 		applyTransparency(root, look.transparency === 'on', settings.transparency);
-	}, [settings, source, touchPointer, osVersion, inFront, canBeSeeThrough]);
+	}, [settings, source, touchPointer, osVersion, inFront, canBeSeeThrough, palette]);
 
 	return <>{children}</>;
 }
