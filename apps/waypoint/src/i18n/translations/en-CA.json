@@ -928,15 +928,39 @@
     "description": "Area: settings."
   },
   "settings.transparency.opacity.label": {
-    "message": "Window opacity",
+    "message": "Title bar and menu bar opacity",
     "description": "Area: settings."
   },
   "settings.transparency.opacity.description": {
-    "message": "How solid the title bar is; the rest of the window is a little more solid than that, so the structure stays readable. Lower is more see-through.",
+    "message": "How solid the title bar and the menu bar are. Lower is more see-through.",
+    "description": "Area: settings."
+  },
+  "settings.transparency.opacity.rows.label": {
+    "message": "Tabs and toolbar opacity",
+    "description": "Area: settings."
+  },
+  "settings.transparency.opacity.rows.description": {
+    "message": "How solid the tabs, the toolbar and the status bar are.",
+    "description": "Area: settings."
+  },
+  "settings.transparency.opacity.sidebar.label": {
+    "message": "Sidebar opacity",
+    "description": "Area: settings."
+  },
+  "settings.transparency.opacity.sidebar.description": {
+    "message": "How solid the sidebar, the Inspector and the Shelf are.",
+    "description": "Area: settings."
+  },
+  "settings.transparency.opacity.content.label": {
+    "message": "File area opacity",
+    "description": "Area: settings."
+  },
+  "settings.transparency.opacity.content.description": {
+    "message": "How solid the list and the grid are.",
     "description": "Area: settings."
   },
   "settings.transparency.opacity.raised": {
-    "message": "To keep text readable on this theme, some parts stay at least {percent}% opaque.",
+    "message": "To keep text readable on this theme, this part stays at least {percent}% opaque.",
     "description": "Area: settings. Placeholders, kept exactly as written: {percent} is a percentage, a number without the % sign."
   },
   "settings.transparency.opacity.unit": {
@@ -979,8 +1003,28 @@
     "message": "Preview",
     "description": "Area: settings."
   },
+  "settings.group.transparencyOpacity": {
+    "message": "Opacity",
+    "description": "Area: settings."
+  },
   "settings.group.transparencyRegions": {
     "message": "Parts of the window",
+    "description": "Area: settings."
+  },
+  "settings.group.transparencyReset": {
+    "message": "Defaults",
+    "description": "Area: settings."
+  },
+  "settings.transparency.reset.label": {
+    "message": "Reset to defaults",
+    "description": "Area: settings."
+  },
+  "settings.transparency.reset.description": {
+    "message": "Puts every setting on this page back to its default, except the Transparent window switch.",
+    "description": "Area: settings."
+  },
+  "settings.transparency.reset.action": {
+    "message": "Reset",
     "description": "Area: settings."
   },
   "settings.group.transparencyMenus": {
@@ -996,7 +1040,7 @@
     "description": "Area: settings."
   },
   "settings.transparency.regions.titleBar.description": {
-    "message": "The rows above the files. The title bar uses the window opacity; the tabs, toolbar and status bar are a little more solid.",
+    "message": "The title bar, tabs, toolbar and status bar. Off keeps them on a solid background.",
     "description": "Area: settings."
   },
   "settings.transparency.regions.sidebar.label": {
@@ -1004,7 +1048,7 @@
     "description": "Area: settings."
   },
   "settings.transparency.regions.sidebar.description": {
-    "message": "The sidebar, the Inspector and the Shelf, more solid than the title bar.",
+    "message": "The sidebar, the Inspector and the Shelf. Off keeps them on a solid background.",
     "description": "Area: settings."
   },
   "settings.transparency.regions.content.label": {
@@ -1012,7 +1056,7 @@
     "description": "Area: settings."
   },
   "settings.transparency.regions.content.description": {
-    "message": "The list and the grid, the most solid part of the window. Off keeps files on a solid background.",
+    "message": "The list and the grid. Off keeps files on a solid background.",
     "description": "Area: settings."
   },
   "settings.transparency.menus.label": {

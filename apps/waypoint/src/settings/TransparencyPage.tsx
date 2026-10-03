@@ -1,9 +1,10 @@
-// The Transparency page: the master switch, window and menu opacity, blur, the parts of the window and a live preview
+// The Transparency page: the switch, an opacity for each part of the window, blur, menus, a reset and a live preview
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { featureMessage, hasFeature } from '@liminal-hq/plugin-window-effects';
+import { ButtonRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ButtonRow';
 import { SegmentedRow } from '@liminal-hq/waypoint-chrome/SettingsShell/SegmentedRow';
 import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsGroup';
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
@@ -12,19 +13,65 @@ import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { useMemo, useState } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { MENU_OPACITY_MIN, OPACITY_MAX, OPACITY_MIN } from '../services/settingsClient';
-import { effectiveAlphas } from '../theme/transparency';
+import { effectiveAlphas, type Region } from '../theme/transparency';
 import { useRootData, useSurfaceColours } from './rootLook';
 import { useSettingsEditor } from './SettingsEditor';
 import styles from './TransparencyPage.module.css';
 import { TransparencyPreview } from './TransparencyPreview';
+import { resetTransparency, transparencyAtDefaults } from './transparencyReset';
 
 /** What to say when transparency is switched on and still not drawing, keyed by the reason ThemeRoot wrote on the root. */
 const OFF_REASONS: Record<string, MessageId> = {
 	'high-contrast': 'settings.transparency.off.highContrast',
 	'reduced-transparency': 'settings.transparency.off.reducedTransparency',
 	unavailable: 'settings.transparency.off.unavailable',
-	unfocused: 'settings.transparency.off.unfocused',
 };
+
+/** The setting each region's slider edits, the switch that turns the region translucent, and its words. */
+const OPACITY_ROWS = [
+	{
+		region: 'titleBar',
+		key: 'opacity',
+		row: 'opacity',
+		label: 'settings.transparency.opacity.label',
+		description: 'settings.transparency.opacity.description',
+		// The title bar's switch also governs the tabs and toolbar, but this slider is never dimmed by it.
+		switchedBy: null,
+	},
+	{
+		region: 'rows',
+		key: 'rowsOpacity',
+		row: 'rowsOpacity',
+		label: 'settings.transparency.opacity.rows.label',
+		description: 'settings.transparency.opacity.rows.description',
+		switchedBy: 'titleBar',
+	},
+	{
+		region: 'sidebar',
+		key: 'sidebarOpacity',
+		row: 'sidebarOpacity',
+		label: 'settings.transparency.opacity.sidebar.label',
+		description: 'settings.transparency.opacity.sidebar.description',
+		switchedBy: 'sidebar',
+	},
+	{
+		region: 'content',
+		key: 'contentOpacity',
+		row: 'contentOpacity',
+		label: 'settings.transparency.opacity.content.label',
+		description: 'settings.transparency.opacity.content.description',
+		switchedBy: 'content',
+	},
+] as const satisfies readonly {
+	region: Region;
+	key: 'opacity' | 'rowsOpacity' | 'sidebarOpacity' | 'contentOpacity';
+	row: 'opacity' | 'rowsOpacity' | 'sidebarOpacity' | 'contentOpacity';
+	label: MessageId;
+	description: MessageId;
+	switchedBy: 'titleBar' | 'sidebar' | 'content' | null;
+}[];
+
+type OpacityKey = (typeof OPACITY_ROWS)[number]['key'];
 
 /**
  * Transparency over the `transparency` settings. What the platform can do decides what is shown
@@ -40,21 +87,24 @@ export function TransparencyPage() {
 	const colours = useSurfaceColours();
 	const reason = useRootData('transparencyReason');
 	// The values a slider holds while it is dragged, before they are saved.
-	const [dragOpacity, setDragOpacity] = useState<number | null>(null);
+	const [drag, setDrag] = useState<Partial<Record<OpacityKey, number>>>({});
 	const [dragMenuOpacity, setDragMenuOpacity] = useState<number | null>(null);
 
 	const effective = useMemo(
 		() =>
 			effectiveAlphas(
 				{
-					opacity: dragOpacity ?? transparency.opacity,
+					opacity: drag.opacity ?? transparency.opacity,
+					rowsOpacity: drag.rowsOpacity ?? transparency.rowsOpacity,
+					sidebarOpacity: drag.sidebarOpacity ?? transparency.sidebarOpacity,
+					contentOpacity: drag.contentOpacity ?? transparency.contentOpacity,
 					regions: transparency.regions,
 					menus: transparency.menus,
 					menuOpacity: dragMenuOpacity ?? transparency.menuOpacity,
 				},
 				colours,
 			),
-		[dragOpacity, dragMenuOpacity, transparency, colours],
+		[drag, dragMenuOpacity, transparency, colours],
 	);
 
 	const known = windowEffects !== null;
@@ -88,10 +138,6 @@ export function TransparencyPage() {
 	}
 
 	const off = !transparency.enabled;
-	const raisedAlphas = (Object.keys(effective.alphas) as (keyof typeof effective.alphas)[])
-		.filter((region) => effective.raised[region])
-		.map((region) => effective.alphas[region]);
-	const floorPercent = raisedAlphas.length ? Math.round(Math.min(...raisedAlphas) * 100) : null;
 	const blurReason =
 		featureMessage(windowEffects, 'blur') ?? t('settings.transparency.blur.unavailable.noReason');
 
@@ -134,33 +180,6 @@ export function TransparencyPage() {
 						}))
 					}
 				/>
-				<SliderRow
-					label={t('settings.transparency.opacity.label')}
-					description={
-						<>
-							{t('settings.transparency.opacity.description')}
-							{floorPercent !== null && (
-								<span className={styles.note}>
-									{tf('settings.transparency.opacity.raised', { percent: floorPercent })}
-								</span>
-							)}
-						</>
-					}
-					error={errors.opacity}
-					value={transparency.opacity}
-					min={OPACITY_MIN}
-					max={OPACITY_MAX}
-					unit={t('settings.transparency.opacity.unit')}
-					disabled={off}
-					onInput={setDragOpacity}
-					onChange={(opacity) => {
-						setDragOpacity(null);
-						changeSettings('opacity', (s) => ({
-							...s,
-							transparency: { ...s.transparency, opacity },
-						}));
-					}}
-				/>
 				{blurFeature ? (
 					<SegmentedRow
 						label={t('settings.transparency.blur.label')}
@@ -182,6 +201,40 @@ export function TransparencyPage() {
 						{tf('settings.transparency.blur.unavailable', { reason: blurReason })}
 					</p>
 				)}
+			</SettingsGroup>
+			<SettingsGroup title={t('settings.group.transparencyOpacity')}>
+				{OPACITY_ROWS.map(({ region, key, row, label, description, switchedBy }) => (
+					<SliderRow
+						key={key}
+						label={t(label)}
+						description={
+							<>
+								{t(description)}
+								{effective.raised[region] && (
+									<span className={styles.note}>
+										{tf('settings.transparency.opacity.raised', {
+											percent: Math.round(effective.alphas[region] * 100),
+										})}
+									</span>
+								)}
+							</>
+						}
+						error={errors[row]}
+						value={transparency[key]}
+						min={OPACITY_MIN}
+						max={OPACITY_MAX}
+						unit={t('settings.transparency.opacity.unit')}
+						disabled={off || (switchedBy !== null && !transparency.regions[switchedBy])}
+						onInput={(value) => setDrag((current) => ({ ...current, [key]: value }))}
+						onChange={(value) => {
+							setDrag((current) => ({ ...current, [key]: undefined }));
+							changeSettings(row, (s) => ({
+								...s,
+								transparency: { ...s.transparency, [key]: value },
+							}));
+						}}
+					/>
+				))}
 			</SettingsGroup>
 			<SettingsGroup title={t('settings.group.transparencyRegions')}>
 				{(
@@ -243,7 +296,19 @@ export function TransparencyPage() {
 			<SettingsGroup title={t('settings.group.transparencyFocus')}>
 				<ToggleRow
 					label={t('settings.transparency.solidUnfocused.label')}
-					description={t('settings.transparency.solidUnfocused.description')}
+					description={
+						<>
+							{t('settings.transparency.solidUnfocused.description')}
+							{/* Always laid out, so the note appearing never moves the rows below it. */}
+							<span
+								className={styles.reservedNote}
+								role="status"
+								data-active={transparency.solidWhenUnfocused && reason === 'unfocused'}
+							>
+								{t('settings.transparency.off.unfocused')}
+							</span>
+						</>
+					}
 					error={errors.solidUnfocused}
 					checked={transparency.solidWhenUnfocused}
 					disabled={off}
@@ -253,6 +318,23 @@ export function TransparencyPage() {
 							transparency: { ...s.transparency, solidWhenUnfocused },
 						}))
 					}
+				/>
+			</SettingsGroup>
+			<SettingsGroup title={t('settings.group.transparencyReset')}>
+				<ButtonRow
+					label={t('settings.transparency.reset.label')}
+					description={t('settings.transparency.reset.description')}
+					error={errors.resetTransparency}
+					actionLabel={t('settings.transparency.reset.action')}
+					disabled={transparencyAtDefaults(transparency)}
+					onAction={() => {
+						setDrag({});
+						setDragMenuOpacity(null);
+						changeSettings('resetTransparency', (s) => ({
+							...s,
+							transparency: resetTransparency(s.transparency),
+						}));
+					}}
 				/>
 			</SettingsGroup>
 		</SettingsSection>

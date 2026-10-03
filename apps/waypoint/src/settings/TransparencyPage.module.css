@@ -21,3 +21,14 @@
 	color: var(--wp-text-secondary);
 	line-height: 1.45;
 }
+
+/* Takes its line whether or not it is showing, so the rows below never move. */
+.reservedNote {
+	display: block;
+	margin-block-start: 4px;
+	min-block-size: 1lh;
+}
+
+.reservedNote[data-active='false'] {
+	visibility: hidden;
+}

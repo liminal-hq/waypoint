@@ -652,7 +652,7 @@ describe('the Transparency page', () => {
 		const master = screen.getByRole('switch', { name: /Transparent window/ });
 		expect(master).toHaveAttribute('aria-checked', 'false');
 		expect(screen.getByText('Experimental')).toBeInTheDocument();
-		expect(slider('Window opacity')).toBeDisabled();
+		expect(slider('Title bar and menu bar opacity')).toBeDisabled();
 		expect(screen.getByRole('switch', { name: /Solid when not in front/ })).toBeDisabled();
 	});
 
@@ -690,7 +690,7 @@ describe('the Transparency page', () => {
 		await goTo('Transparency');
 		await userEvent.click(screen.getByRole('switch', { name: /Transparent window/ }));
 		await waitFor(() => expect(settings.current().settings.transparency.enabled).toBe(true));
-		expect(slider('Window opacity')).toBeEnabled();
+		expect(slider('Title bar and menu bar opacity')).toBeEnabled();
 	});
 
 	it('previews the opacity while the slider is dragged and saves only when it is let go', async () => {
@@ -704,12 +704,12 @@ describe('the Transparency page', () => {
 		const titleBar = () =>
 			document.querySelector<HTMLElement>('[data-region="titleBar"]')!.dataset.alpha;
 		const before = titleBar();
-		fireEvent.input(slider('Window opacity'), { target: { value: '45' } });
+		fireEvent.input(slider('Title bar and menu bar opacity'), { target: { value: '45' } });
 		expect(before).toBe('0.82');
 		// No theme colours in a test, so the fallback floor lifts the 45 % to 70 %.
 		expect(titleBar()).toBe('0.7');
 		expect(settings.calls).toHaveLength(0);
-		fireEvent.change(slider('Window opacity'));
+		fireEvent.change(slider('Title bar and menu bar opacity'));
 		await waitFor(() => expect(settings.current().settings.transparency.opacity).toBe(45));
 	});
 
@@ -728,10 +728,131 @@ describe('the Transparency page', () => {
 			min: 40,
 			max: 100,
 		});
-		fireEvent.input(slider('Window opacity'), { target: { value: '50' } });
-		fireEvent.change(slider('Window opacity'));
+		fireEvent.input(slider('Title bar and menu bar opacity'), { target: { value: '50' } });
+		fireEvent.change(slider('Title bar and menu bar opacity'));
 		expect(await screen.findByRole('alert')).toHaveTextContent('between 40 and 100');
-		expect(slider('Window opacity')).toHaveValue('82');
+		expect(slider('Title bar and menu bar opacity')).toHaveValue('82');
+	});
+
+	it('has an independent slider per part, at the defaults that reproduce the old tiers', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		expect(slider('Title bar and menu bar opacity')).toHaveValue('82');
+		expect(slider('Tabs and toolbar opacity')).toHaveValue('90');
+		expect(slider('Sidebar opacity')).toHaveValue('94');
+		expect(slider('File area opacity')).toHaveValue('98');
+	});
+
+	it('moves one part without moving the others, in the preview and when saved', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: {
+					...DEFAULT_SETTINGS.transparency,
+					enabled: true,
+					regions: { sidebar: true, content: true, titleBar: true },
+				},
+			},
+		});
+		await goTo('Transparency');
+		const alpha = (region: string) =>
+			document.querySelector<HTMLElement>(`[data-region="${region}"]`)!.dataset.alpha;
+		fireEvent.input(slider('Sidebar opacity'), { target: { value: '75' } });
+		expect(alpha('sidebar')).toBe('0.75');
+		expect([alpha('titleBar'), alpha('rows'), alpha('content')]).toEqual(['0.82', '0.9', '0.98']);
+		expect(settings.calls).toHaveLength(0);
+		fireEvent.change(slider('Sidebar opacity'));
+		await waitFor(() => expect(settings.current().settings.transparency.sidebarOpacity).toBe(75));
+		const saved = settings.current().settings.transparency;
+		expect([saved.opacity, saved.rowsOpacity, saved.contentOpacity]).toEqual([82, 90, 98]);
+	});
+
+	it('dims a part slider while its region is solid, and refuses nothing it offers', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		// The file area is solid by default.
+		expect(slider('File area opacity')).toBeDisabled();
+		expect(slider('Sidebar opacity')).toBeEnabled();
+		await userEvent.click(screen.getByRole('switch', { name: /File area/ }));
+		await waitFor(() => expect(slider('File area opacity')).toBeEnabled());
+	});
+
+	it('resets every setting on the page but the master switch, through the settings path', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: {
+					...DEFAULT_SETTINGS.transparency,
+					enabled: true,
+					opacity: 50,
+					rowsOpacity: 60,
+					sidebarOpacity: 70,
+					contentOpacity: 80,
+					blur: 'high',
+					regions: { sidebar: false, content: true, titleBar: false },
+					menus: true,
+					menuOpacity: 70,
+					solidWhenUnfocused: false,
+				},
+			},
+		});
+		await goTo('Transparency');
+		const reset = screen.getByRole('button', { name: 'Reset' });
+		expect(reset).toBeEnabled();
+		await userEvent.click(reset);
+		await waitFor(() =>
+			expect(settings.current().settings.transparency).toEqual({
+				...DEFAULT_SETTINGS.transparency,
+				enabled: true,
+			}),
+		);
+		expect(settings.calls).toHaveLength(1);
+		await waitFor(() => expect(reset).toBeDisabled());
+		expect(slider('Tabs and toolbar opacity')).toHaveValue('90');
+	});
+
+	it('has nothing to reset at the defaults, whether the page is on or off', async () => {
+		await open();
+		await goTo('Transparency');
+		expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
+	});
+
+	it('keeps the rows from moving when the unfocused note comes and goes', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		const note = screen.getByText('This window is solid while it is not in front.');
+		// Laid out (not removed) whether or not it is showing, and not under the master switch.
+		expect(note).toHaveAttribute('data-active', 'false');
+		expect(
+			within(
+				screen.getByRole('switch', { name: /Transparent window/ }).closest('div')!,
+			).queryByText(/solid while it is not in front/),
+		).toBeNull();
+		expect(note.closest('[class*="row" i]')).toContainElement(
+			screen.getByRole('switch', { name: /Solid when not in front/ }),
+		);
+		document.documentElement.dataset.transparencyReason = 'unfocused';
+		try {
+			await waitFor(() => expect(note).toHaveAttribute('data-active', 'true'));
+			expect(screen.getByText('This window is solid while it is not in front.')).toBe(note);
+		} finally {
+			delete document.documentElement.dataset.transparencyReason;
+		}
 	});
 
 	it('keeps the menu opacity dimmed until menus are translucent', async () => {

@@ -533,14 +533,29 @@ const messages: Catalogue = {
 	// source: 3c0eaa9c
 	'settings.transparency.off.unfocused':
 		'Cette fenêtre est opaque tant qu’elle n’est pas au premier plan.',
-	// source: 9ce83914
-	'settings.transparency.opacity.label': 'Opacité de la fenêtre',
-	// source: e7b14ebf
+	// source: ed104c1d
+	'settings.transparency.opacity.label': 'Opacité de la barre de titre et de la barre de menus',
+	// source: 1b3ebe3d
 	'settings.transparency.opacity.description':
-		'Le degré d’opacité de la barre de titre; le reste de la fenêtre est un peu plus opaque, afin que la structure demeure lisible. Plus la valeur est basse, plus la fenêtre est translucide.',
-	// source: 503e194a
+		'Le degré d’opacité de la barre de titre et de la barre de menus. Plus la valeur est basse, plus elles sont translucides.',
+	// source: 8b92748b
+	'settings.transparency.opacity.rows.label': 'Opacité des onglets et de la barre d’outils',
+	// source: 84dba55f
+	'settings.transparency.opacity.rows.description':
+		'Le degré d’opacité des onglets, de la barre d’outils et de la barre d’état.',
+	// source: b39491c7
+	'settings.transparency.opacity.sidebar.label': 'Opacité de la barre latérale',
+	// source: 1520a404
+	'settings.transparency.opacity.sidebar.description':
+		'Le degré d’opacité de la barre latérale, de l’Inspecteur et de l’Étagère.',
+	// source: 42dc406b
+	'settings.transparency.opacity.content.label': 'Opacité de la zone des fichiers',
+	// source: 6704b6e2
+	'settings.transparency.opacity.content.description':
+		'Le degré d’opacité de la liste et de la grille.',
+	// source: b43a26ec
 	'settings.transparency.opacity.raised':
-		'Pour que le texte reste lisible avec ce thème, certaines parties restent opaques à au moins {percent} %.',
+		'Pour que le texte reste lisible avec ce thème, cette partie reste opaque à au moins {percent} %.',
 	// source: bbf3f11c
 	'settings.transparency.opacity.unit': '%',
 	// source: ff47e695
@@ -563,27 +578,38 @@ const messages: Catalogue = {
 	'settings.group.transparencyWindow': 'Fenêtre',
 	// source: 324b134f
 	'settings.group.transparencyPreview': 'Aperçu',
+	// source: 6062652e
+	'settings.group.transparencyOpacity': 'Opacité',
 	// source: b608b7e1
 	'settings.group.transparencyRegions': 'Parties de la fenêtre',
+	// source: 610b7468
+	'settings.group.transparencyReset': 'Valeurs par défaut',
+	// source: e240e635
+	'settings.transparency.reset.label': 'Rétablir les valeurs par défaut',
+	// source: 31a594a4
+	'settings.transparency.reset.description':
+		'Remet chaque paramètre de cette page à sa valeur par défaut, sauf l’interrupteur de la fenêtre transparente.',
+	// source: daee7606
+	'settings.transparency.reset.action': 'Rétablir',
 	// source: 93534e3e
 	'settings.group.transparencyMenus': 'Menus',
 	// source: 67afa7da
 	'settings.group.transparencyFocus': 'Quand la fenêtre n’est pas au premier plan',
 	// source: 2a85ee09
 	'settings.transparency.regions.titleBar.label': 'Barre de titre, onglets et barre d’outils',
-	// source: 1022fb0f
+	// source: 483a7e58
 	'settings.transparency.regions.titleBar.description':
-		'Les rangées au-dessus des fichiers. La barre de titre utilise l’opacité de la fenêtre; les onglets, la barre d’outils et la barre d’état sont un peu plus opaques.',
+		'La barre de titre, les onglets, la barre d’outils et la barre d’état. Désactivé, ils restent sur un arrière-plan opaque.',
 	// source: a81e244d
 	'settings.transparency.regions.sidebar.label': 'Barre latérale et volets latéraux',
-	// source: 19e3932a
+	// source: 886cea35
 	'settings.transparency.regions.sidebar.description':
-		'La barre latérale, l’Inspecteur et l’Étagère, plus opaques que la barre de titre.',
+		'La barre latérale, l’Inspecteur et l’Étagère. Désactivé, ils restent sur un arrière-plan opaque.',
 	// source: f96275a1
 	'settings.transparency.regions.content.label': 'Zone des fichiers',
-	// source: 306a15b6
+	// source: ca521b02
 	'settings.transparency.regions.content.description':
-		'La liste et la grille, la partie la plus opaque de la fenêtre. Désactivé, les fichiers restent sur un arrière-plan opaque.',
+		'La liste et la grille. Désactivé, les fichiers restent sur un arrière-plan opaque.',
 	// source: 34b1c65b
 	'settings.transparency.menus.label': 'Menus translucides',
 	// source: f3a31096
