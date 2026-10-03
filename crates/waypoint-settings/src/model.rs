@@ -266,6 +266,9 @@ pub struct AppearanceSettings {
     pub icon_style: IconStyle,
     pub icon_theme: IconTheme,
     pub folder_colour: FolderColour,
+    /// Whether surfaces, text and selection take the operating system's palette instead of
+    /// Waypoint's own colours (D144). Off by default; the accent choice still decides the accent.
+    pub match_system_colours: bool,
 }
 
 /// How strongly the background shows through behind the window.
@@ -760,6 +763,18 @@ mod tests {
         let on: Settings = serde_json::from_str(r#"{"ui":{"menuBar":true}}"#).unwrap();
         assert!(on.ui.menu_bar);
         assert_eq!(serde_json::to_value(on).unwrap()["ui"]["menuBar"], true);
+    }
+
+    #[test]
+    fn matching_the_system_colours_is_off_by_default_and_round_trips() {
+        assert!(!Settings::default().appearance.match_system_colours);
+        let old: Settings = serde_json::from_str(r#"{"appearance":{"mode":"dark"}}"#).unwrap();
+        assert!(!old.appearance.match_system_colours);
+        let on: Settings =
+            serde_json::from_str(r#"{"appearance":{"matchSystemColours":true}}"#).unwrap();
+        assert!(on.appearance.match_system_colours);
+        let json = serde_json::to_value(&on).unwrap();
+        assert_eq!(json["appearance"]["matchSystemColours"], true);
     }
 
     #[test]

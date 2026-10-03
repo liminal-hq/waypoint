@@ -10,4 +10,9 @@ import type { ThemeSource } from "./ThemeSource";
 /**
  * The Appearance page.
  */
-export type AppearanceSettings = { mode: ColourMode, themeSource: ThemeSource, accent: AccentChoice, density: Density, iconStyle: IconStyle, iconTheme: IconTheme, folderColour: FolderColour, };
+export type AppearanceSettings = { mode: ColourMode, themeSource: ThemeSource, accent: AccentChoice, density: Density, iconStyle: IconStyle, iconTheme: IconTheme, folderColour: FolderColour, 
+/**
+ * Whether surfaces, text and selection take the operating system's palette instead of
+ * Waypoint's own colours (D144). Off by default; the accent choice still decides the accent.
+ */
+matchSystemColours: boolean, };
