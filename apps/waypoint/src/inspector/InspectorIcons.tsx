@@ -8,14 +8,14 @@ import { Glyph, type IconProps } from '../icons/AppIcons';
 /** A window with a panel down its right side. */
 export const InspectorIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<path d="M2 3h12v10H2zM10 3v10" />
+		<path data-fill d="M2 3h12v10H2zM10 3v10" />
 	</Glyph>
 );
 
 /** A circled "i", for Properties. */
 export const PropertiesIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<circle cx="8" cy="8" r="6" />
+		<circle data-fill cx="8" cy="8" r="6" />
 		<path d="M8 7.2V11M8 5v.2" />
 	</Glyph>
 );
@@ -23,7 +23,7 @@ export const PropertiesIcon = (props: IconProps) => (
 /** An eye, for the empty state: nothing selected to look at. */
 export const EmptyIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
-		<circle cx="8" cy="8" r="2" />
+		<path data-fill d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
+		<circle data-fill cx="8" cy="8" r="2" />
 	</Glyph>
 );

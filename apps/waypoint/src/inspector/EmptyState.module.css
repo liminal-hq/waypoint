@@ -25,3 +25,8 @@
 .hint {
 	font-size: 12px;
 }
+
+/* Drawn at 36 px on the 16 px grid, so the strokes scale up with it: take less of the style's weight to land near it. */
+.icon {
+	stroke-width: calc(var(--wp-icon-stroke) * 0.55);
+}

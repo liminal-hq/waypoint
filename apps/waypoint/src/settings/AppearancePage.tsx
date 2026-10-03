@@ -13,7 +13,7 @@ import { t } from '../i18n/messages';
 import styles from './AppearancePage.module.css';
 import { resolveIconTheme } from '../icons/iconTheme';
 import { EMBER } from '../theme/accent';
-import { FolderColourRow, IconThemeRow } from './IconChoices';
+import { FolderColourRow, IconStyleRow, IconThemeRow } from './IconChoices';
 import { useSettingsEditor } from './SettingsEditor';
 
 /** The colour the picker starts at when a person chooses "Choose a colour". */
@@ -142,18 +142,10 @@ export function AppearancePage() {
 				) : (
 					<p className={styles.note}>{t('settings.appearance.folderColour.waypointNote')}</p>
 				)}
-				<SelectRow
-					label={t('settings.appearance.iconStyle.label')}
-					description={t('settings.appearance.iconStyle.description')}
+				<IconStyleRow
 					disabled={portage}
 					error={errors.iconStyle}
 					value={appearance.iconStyle}
-					options={[
-						{ value: 'light', label: t('settings.appearance.iconStyle.light') },
-						{ value: 'regular', label: t('settings.appearance.iconStyle.regular') },
-						{ value: 'bold', label: t('settings.appearance.iconStyle.bold') },
-						{ value: 'filled', label: t('settings.appearance.iconStyle.filled') },
-					]}
 					onChange={(iconStyle) =>
 						changeSettings('iconStyle', (s) => ({
 							...s,

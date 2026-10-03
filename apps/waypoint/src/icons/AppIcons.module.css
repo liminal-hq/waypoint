@@ -1,0 +1,17 @@
+/*
+ * The weight and the fill of the outline glyphs follow the window's icon style (`--wp-icon-stroke` and
+ * `--wp-icon-fill`, set in `theme/tokens.css`). A closed shape marked `data-fill` takes the fill; open
+ * strokes (chevrons, arrows, checks, lines) never carry the mark, so no style fills one as a wedge.
+ */
+.glyph {
+	stroke-width: var(--wp-icon-stroke);
+}
+
+.glyph [data-fill] {
+	fill: var(--wp-icon-fill);
+}
+
+/* Dots drawn as round-capped zero-length strokes are a little heavier than the line work. */
+.glyph [data-dots] {
+	stroke-width: calc(var(--wp-icon-stroke) * 1.5);
+}

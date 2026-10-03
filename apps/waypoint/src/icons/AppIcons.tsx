@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useId, type ReactNode, type SVGProps } from 'react';
+import styles from './AppIcons.module.css';
 
 export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
 	/** Overrides whether the glyph mirrors in a right-to-left layout; each directional glyph sets it. */
@@ -18,17 +19,18 @@ export type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
 export function Glyph({
 	children,
 	directional,
+	className,
 	...rest
 }: IconProps & { children: ReactNode; directional?: boolean }) {
 	return (
 		<svg
+			className={className ? `${styles.glyph} ${className}` : styles.glyph}
 			data-directional={directional ? '' : undefined}
 			width={16}
 			height={16}
 			viewBox="0 0 16 16"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth={1.4}
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"
@@ -84,16 +86,16 @@ export const ChevronRightSmallIcon = (props: IconProps) => (
 
 export const FolderTabIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<path d="M1.5 4.5v9h13V6h-7l-1.5-1.5z" />
+		<path data-fill d="M1.5 4.5v9h13V6h-7l-1.5-1.5z" />
 	</Glyph>
 );
 
 export const GridViewIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<rect x="2" y="2" width="5" height="5" rx="0.5" />
-		<rect x="9" y="2" width="5" height="5" rx="0.5" />
-		<rect x="2" y="9" width="5" height="5" rx="0.5" />
-		<rect x="9" y="9" width="5" height="5" rx="0.5" />
+		<rect data-fill x="2" y="2" width="5" height="5" rx="0.5" />
+		<rect data-fill x="9" y="2" width="5" height="5" rx="0.5" />
+		<rect data-fill x="2" y="9" width="5" height="5" rx="0.5" />
+		<rect data-fill x="9" y="9" width="5" height="5" rx="0.5" />
 	</Glyph>
 );
 
@@ -111,14 +113,14 @@ export const HomeIcon = (props: IconProps) => (
 
 export const SidebarIcon = (props: IconProps) => (
 	<Glyph directional {...props}>
-		<rect x="2" y="3" width="12" height="10" rx="1.5" />
+		<rect data-fill x="2" y="3" width="12" height="10" rx="1.5" />
 		<path d="M6 3v10" />
 	</Glyph>
 );
 
 export const StarIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<path d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.2 4.4 13.1l.7-4L2.2 6.3l4-.6z" />
+		<path data-fill d="M8 2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.2 4.4 13.1l.7-4L2.2 6.3l4-.6z" />
 	</Glyph>
 );
 

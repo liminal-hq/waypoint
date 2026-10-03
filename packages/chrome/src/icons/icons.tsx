@@ -4,18 +4,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { ReactNode, SVGProps } from 'react';
+import styles from './icons.module.css';
 
 type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number };
 
-function Icon({ size = 16, children, ...rest }: IconProps & { children: ReactNode }) {
+function Icon({ size = 16, children, className, ...rest }: IconProps & { children: ReactNode }) {
 	return (
 		<svg
+			className={className ? `${styles.icon} ${className}` : styles.icon}
 			width={size}
 			height={size}
 			viewBox="0 0 16 16"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth={1.25}
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"
@@ -38,7 +39,7 @@ export function MinimiseIcon(props: IconProps) {
 export function MaximiseIcon(props: IconProps) {
 	return (
 		<Icon {...props}>
-			<rect x="3.5" y="3.5" width="9" height="9" rx="1" />
+			<rect data-fill x="3.5" y="3.5" width="9" height="9" rx="1" />
 		</Icon>
 	);
 }
@@ -46,7 +47,7 @@ export function MaximiseIcon(props: IconProps) {
 export function RestoreIcon(props: IconProps) {
 	return (
 		<Icon {...props}>
-			<rect x="3.5" y="5.5" width="7" height="7" rx="1" />
+			<rect data-fill x="3.5" y="5.5" width="7" height="7" rx="1" />
 			<path d="M5.5 3.5h6a1 1 0 0 1 1 1v6" />
 		</Icon>
 	);

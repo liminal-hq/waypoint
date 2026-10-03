@@ -91,7 +91,8 @@
 .cell .glyph {
 	width: var(--wp-grid-size);
 	height: var(--wp-grid-size);
-	stroke-width: 1.4px;
+	/* On screen pixels (see below), so a little over the 16 px weight keeps the line reading at this size. */
+	stroke-width: calc(var(--wp-icon-stroke) * 1.1);
 }
 
 /* The icon or, once it has loaded, the picture: both fill a square of the icon size. */

@@ -29,6 +29,6 @@ export const UndockShelfIcon = (props: IconProps) => (
 /** A tile returning to the bottom of its frame, for Dock Shelf. */
 export const DockShelfIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<path d="M2.5 3.5h11v9h-11zM2.5 9.5h11" />
+		<path data-fill d="M2.5 3.5h11v9h-11zM2.5 9.5h11" />
 	</Glyph>
 );

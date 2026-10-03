@@ -3,39 +3,17 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { ReactNode, SVGProps } from 'react';
-
-type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'>;
-
-function Glyph({ children, ...rest }: IconProps & { children: ReactNode }) {
-	return (
-		<svg
-			width={16}
-			height={16}
-			viewBox="0 0 16 16"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth={1.4}
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-			focusable="false"
-			{...rest}
-		>
-			{children}
-		</svg>
-	);
-}
+import { Glyph, type IconProps } from '../icons/AppIcons';
 
 /** Two panes side by side: the joint between a pair's tabs. */
 export const SplitGlyph = (props: IconProps) => (
 	<Glyph {...props}>
-		<rect x="2" y="3" width="12" height="10" rx="1.5" />
+		<rect data-fill x="2" y="3" width="12" height="10" rx="1.5" />
 		<path d="M8 3v10" />
 	</Glyph>
 );
 
-/** Six dots: where a pane header is grabbed (dragging arrives with the tab drag engine). */
+/** Six dots: where a pane header is grabbed (dragging arrives with the tab drag engine). The dots are solid in every style, so they carry no fill mark. */
 export const GripIcon = (props: IconProps) => (
 	<Glyph {...props} stroke="none" fill="currentColor">
 		<circle cx="6" cy="4" r="1.1" />

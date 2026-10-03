@@ -59,6 +59,7 @@
 		"./WindowMenu": "./src/WindowMenu/WindowMenu.tsx",
 		"./WindowMenu/windowMenuModel": "./src/WindowMenu/windowMenuModel.ts",
 		"./icons/icons": "./src/icons/icons.tsx",
+		"./icons/expectFillableIcons": "./src/icons/expectFillableIcons.ts",
 		"./labels": "./src/labels.ts",
 		"./package.json": "./package.json",
 		"./SettingsShell/ButtonRow": "./src/SettingsShell/ButtonRow.tsx",
