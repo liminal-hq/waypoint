@@ -18,6 +18,7 @@ import {
 	NewFolderIcon,
 	PasteIcon,
 	RedoIcon,
+	RestoreIcon,
 	SizeIcon,
 	TagIcon,
 	TextIcon,
@@ -155,6 +156,12 @@ function commandItems({ states, undoLabel, redoLabel }: BackgroundCommands): Men
 export interface BackgroundExtras {
 	trash?: TrashBackground | null;
 	commands?: BackgroundCommands | undefined;
+	/**
+	 * What the folder remembers about its view: `remembered` offers Reset This Folder's View,
+	 * `default` lists it disabled, and absent (remembering is off, or this is not a folder that
+	 * can remember) leaves it out.
+	 */
+	folderView?: 'default' | 'remembered' | undefined;
 }
 
 /**
@@ -165,7 +172,7 @@ export interface BackgroundExtras {
 export function backgroundMenuItems(
 	sort: SortSpec | undefined,
 	showHidden: boolean,
-	{ trash = null, commands }: BackgroundExtras = {},
+	{ trash = null, commands, folderView }: BackgroundExtras = {},
 ): MenuItem[] {
 	const keys = SORT_KEYS.filter(({ key }) =>
 		trash ? TRASH_SORT_KEYS.includes(key) : key !== 'deleted',
@@ -212,6 +219,15 @@ export function backgroundMenuItems(
 			checked: showHidden,
 			shortcut: 'Ctrl+H',
 		});
+		if (folderView) {
+			items.push({
+				type: 'action',
+				id: 'resetFolderView',
+				label: t('cmd.resetFolderView'),
+				icon: <RestoreIcon />,
+				disabled: folderView === 'default',
+			});
+		}
 		items.push(
 			{ type: 'separator' },
 			{ type: 'action', id: 'properties', label: t('menu.properties'), icon: <PropertiesIcon /> },
@@ -240,6 +256,9 @@ interface BackgroundContextMenuProps {
 	onEmptyTrash?: (() => void) | undefined;
 	onClose: () => void;
 	commands?: BackgroundCommands | undefined;
+	/** What the folder remembers about its view, and the reset the menu offers for it. */
+	folderView?: 'default' | 'remembered' | undefined;
+	onResetFolderView?: (() => void) | undefined;
 	onCommand?: ((command: BackgroundCommand) => void) | undefined;
 }
 
@@ -257,12 +276,15 @@ export function BackgroundContextMenu({
 	onEmptyTrash,
 	onClose,
 	commands,
+	folderView,
+	onResetFolderView,
 	onCommand,
 }: BackgroundContextMenuProps) {
 	const inTrash = session?.model.layout === 'trash';
 	const items = backgroundMenuItems(session?.model.sort, showHidden, {
 		trash: inTrash ? { count: session.model.count } : null,
 		commands: inTrash ? undefined : commands,
+		folderView: inTrash ? undefined : folderView,
 	});
 
 	return (
@@ -277,6 +299,7 @@ export function BackgroundContextMenu({
 				const model = session?.model;
 				if (item.id === 'showHidden') return onToggleHidden();
 				if (item.id === 'emptyTrash') return onEmptyTrash?.();
+				if (item.id === 'resetFolderView') return onResetFolderView?.();
 				if (BACKGROUND_COMMANDS.includes(item.id as BackgroundCommand)) {
 					return onCommand?.(item.id as BackgroundCommand);
 				}

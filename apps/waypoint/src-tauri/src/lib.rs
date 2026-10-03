@@ -177,7 +177,10 @@ pub fn run() {
         .plugin(tauri_plugin_waypoint_vfs::init())
         // After the store plugin it saves through; the session reads its choices (start-up, the view
         // of a new window) from it in `setup`.
-        .plugin(tauri_plugin_waypoint_settings::init_with(settings::storage))
+        .plugin(tauri_plugin_waypoint_settings::init_with_folder_views(
+            settings::storage,
+            settings::folder_views_storage,
+        ))
         // After the vfs and trash plugins its adapters reach, and after the store plugin it saves through.
         .plugin(tauri_plugin_waypoint_ops::init_with(ops::deps))
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))

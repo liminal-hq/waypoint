@@ -14,6 +14,8 @@ log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+waypoint-session = { path = "../waypoint-session" }
+waypoint-vfs = { path = "../waypoint-vfs" }
 ts-rs = { workspace = true }
 # Pure Rust: deflate through `flate2` over `zlib-rs` (already in the lock), no C library, so it builds for Windows and arm64 as it is. Reading and writing only; no encryption or other codecs.
 zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }

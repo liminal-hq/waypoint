@@ -7,6 +7,7 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
 import type { OpenWithClient } from '../openWith/openWithClient';
 import type { AppInfoClient } from '../services/appInfoClient';
+import type { FolderViewsClient } from '../services/folderViewsClient';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
@@ -59,6 +60,8 @@ export interface MainServices {
 	dirScan?: DirScanClient;
 	/** The application's own details, which About shows; without it About cannot give the version. */
 	appInfo?: AppInfoClient;
+	/** What each folder remembers about its view, sort and grouping; without it every folder shows the window's. */
+	folderViews?: FolderViewsClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -81,6 +84,7 @@ export interface MainServicesDeps {
 	createPropertiesWindowClient?(): PropertiesWindowClient;
 	createDirScanClient?(): DirScanClient;
 	createAppInfoClient?(): AppInfoClient;
+	createFolderViewsClient?(): FolderViewsClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -115,6 +119,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		propertiesWindow: deps.createPropertiesWindowClient?.(),
 		dirScan: deps.createDirScanClient?.(),
 		appInfo: deps.createAppInfoClient?.(),
+		folderViews: deps.createFolderViewsClient?.(),
 		home,
 	};
 }

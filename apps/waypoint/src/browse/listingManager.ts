@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
@@ -11,7 +12,7 @@ import { isOverviewLocation } from '../overview/overviewLocation';
 import { openListingModel, toVfsError, type ListingModel } from './listingModel';
 import { applyHints } from './tabHints';
 import { createListingSession, type ListingSession, type SessionState } from './useListingSession';
-import type { ViewMode } from './viewStore';
+import { sameSort, type ViewMode } from './viewStore';
 
 /** How long a tab can be in the background before it drops the pages it has cached. */
 export const BACKGROUND_EVICT_DELAY_MS = 15_000;
@@ -28,17 +29,17 @@ interface Held {
 }
 
 export interface ListingManagerOptions {
-	/** What a newly opened listing starts with; `inherited` is the sort of the listing it replaces (used as is when omitted). */
-	openOptions?: (inherited: SortSpec | undefined) => OpenOptions;
+	/** What a newly opened listing of `location` starts with; `inherited` is the sort of the listing it replaces (used as is when omitted). */
+	openOptions?: (inherited: SortSpec | undefined, location: Location) => OpenOptions;
 	evictDelayMs?: number;
 	/** How long a listing nobody holds any more is kept for the tab that left it to come back (`retain`). */
 	retainGraceMs?: number;
 	/**
-	 * Hears the sort a folder listing now has whenever it changes (the person chose another sort or
-	 * grouping), so the window can remember it for the folders it opens next. The Trash is not a folder
-	 * listing: its columns are its own.
+	 * Hears the sort a folder listing of `location` now has whenever it changes (the person chose
+	 * another sort or grouping), so the window can remember it, for the folders it opens next or for
+	 * this folder. The Trash is not a folder listing: its columns are its own.
 	 */
-	onSort?: (sort: SortSpec) => void;
+	onSort?: (sort: SortSpec, location: Location) => void;
 	/** The layout in use, which decides which scroll offset a restored tab's hint belongs to. */
 	viewMode?: () => ViewMode;
 }
@@ -167,6 +168,21 @@ export class ListingManager {
 		return current?.status === 'ready' && current.session === session;
 	}
 
+	/**
+	 * Gives every open folder listing the sort `wanted` says for its location (`undefined` leaves
+	 * it as it is). A listing that already has it is not touched. The sorts change through the
+	 * listing's own `setSort`, which `onSort` hears like any other change.
+	 */
+	applySorts(wanted: (location: Location) => SortSpec | undefined): void {
+		for (const slot of this.slots.values()) {
+			if (slot.state.status !== 'ready') continue;
+			const { model } = slot.state.session;
+			if (model.layout !== 'folder') continue;
+			const sort = wanted(model.location);
+			if (sort && !sameSort(sort, model.sort)) void model.setSort(sort);
+		}
+	}
+
 	/** Applies the hidden-files choice to every open listing; listings opened later take it from `openOptions`. */
 	setShowHidden(showHidden: boolean): void {
 		this.wantedHidden = showHidden;
@@ -238,7 +254,8 @@ export class ListingManager {
 		this.changed();
 
 		const options: OpenOptions | undefined =
-			this.options.openOptions?.(inherited) ?? (inherited ? { sort: inherited } : undefined);
+			this.options.openOptions?.(inherited, tab.location) ??
+			(inherited ? { sort: inherited } : undefined);
 		openListingModel(this.client, tab.location, options).then(
 			(model) => {
 				// The tab moved on (or closed) while the listing was opening: nobody wants it.
@@ -248,7 +265,7 @@ export class ListingManager {
 				}
 				const session = createListingSession(model);
 				slot.state = { status: 'ready', session };
-				this.followSort(model);
+				this.followSort(model, tab.location);
 				if (!this.hinted.has(tab.id)) {
 					this.hinted.add(tab.id);
 					applyHints(session, tab.hints, this.options.viewMode?.() ?? 'list');
@@ -267,20 +284,14 @@ export class ListingManager {
 	}
 
 	/** Reports each change of a folder listing's sort to `onSort`. */
-	private followSort(model: ListingModel): void {
+	private followSort(model: ListingModel, location: Location): void {
 		if (model.layout !== 'folder' || !this.options.onSort) return;
 		let last = model.sort;
 		model.subscribe(() => {
 			const now = model.sort;
-			if (
-				now.key === last.key &&
-				now.descending === last.descending &&
-				now.directoriesFirst === last.directoriesFirst &&
-				now.groupBy === last.groupBy
-			)
-				return;
+			if (sameSort(now, last)) return;
 			last = now;
-			this.options.onSort?.(now);
+			this.options.onSort?.(now, location);
 		});
 	}
 

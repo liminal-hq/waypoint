@@ -5,6 +5,8 @@
 
 import { fireEvent, render } from '@testing-library/react';
 import { Workspace } from '../app/Workspace';
+import { FolderViewsProvider } from '../browse/FolderViewsContext';
+import type { FolderViewsClient } from '../services/folderViewsClient';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
@@ -71,6 +73,8 @@ export async function renderWorkspace(
 		nativeDnd?: NativeDndClient;
 		/** The Shelf window's raise and hide, while the Shelf is undocked. */
 		shelfWindow?: ShelfWindowClient;
+		/** What each folder remembers about its view (every folder shows the window's when omitted). */
+		folderViews?: FolderViewsClient;
 		/** The thumbnails service (the views keep their icons when omitted). */
 		thumbnails?: ThumbnailsClient;
 		/** Entry details, folder sizes and previews for the Inspector. */
@@ -84,11 +88,13 @@ export async function renderWorkspace(
 	if ((await tabs.getSnapshot()).tabs.length === 0) await tabs.openTab(HOME);
 	const tabbed = (
 		<TabsProvider api={tabs} home={HOME}>
-			<Workspace
-				tearoff={options.tearoff}
-				nativeDnd={options.nativeDnd}
-				shelfWindow={options.shelfWindow}
-			/>
+			<FolderViewsProvider client={options.folderViews}>
+				<Workspace
+					tearoff={options.tearoff}
+					nativeDnd={options.nativeDnd}
+					shelfWindow={options.shelfWindow}
+				/>
+			</FolderViewsProvider>
 		</TabsProvider>
 	);
 	const thumbed = options.thumbnails ? (

@@ -71,6 +71,9 @@ pub struct GeneralSettings {
     pub startup: StartupMode,
     pub default_view: DefaultView,
     pub click_mode: ClickMode,
+    /// Whether a folder remembers its own view, sort and grouping (SPEC 5.3b). Off, every folder
+    /// shows the window's view; what was remembered is kept for when it is turned on again.
+    pub remember_folder_views: bool,
 }
 
 impl Default for GeneralSettings {
@@ -80,6 +83,7 @@ impl Default for GeneralSettings {
             startup: StartupMode::RestoreSession,
             default_view: DefaultView::List,
             click_mode: ClickMode::Double,
+            remember_folder_views: true,
         }
     }
 }

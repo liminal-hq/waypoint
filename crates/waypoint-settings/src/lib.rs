@@ -10,6 +10,7 @@
 
 mod accelerator;
 mod bundle;
+mod folder_views;
 mod import;
 mod model;
 mod storage;
@@ -21,6 +22,13 @@ pub use bundle::{
     export as export_bundle, read as read_bundle, valid_id as valid_file_id, Bundle, BundleError,
     BundleKind, ExportFile, ExportMeta, ExportedBundle, BUNDLE_FORMAT, BUNDLE_VERSION,
     MANIFEST_NAME, MAX_ENTRIES, MAX_FILE_BYTES, MAX_TOTAL_BYTES,
+};
+pub use folder_views::{
+    plan_folder_views, FolderView, FolderViewChange, FolderViewEntry, FolderViewPatch, FolderViews,
+    FolderViewsChanged, FolderViewsDocument, FolderViewsError, FolderViewsPersistence,
+    FolderViewsSnapshot, FolderViewsStorage, MemoryFolderViews, FOLDER_VIEWS_FILE_ID,
+    FOLDER_VIEWS_KEY, FOLDER_VIEWS_PREVIOUS_KEY, FOLDER_VIEWS_VERSION, ICON_SIZE_MAX,
+    ICON_SIZE_MIN, MAX_FOLDERS, MAX_KEY_BYTES,
 };
 pub use import::{
     apply_import, change_groups, differing_paths, plan_import, plan_settings, unknown_paths,

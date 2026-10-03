@@ -989,6 +989,11 @@
     "description": "Area: settings.",
     "source": "3edaa6b5"
   },
+  "settings.backup.group.folders": {
+    "message": "Vues mémorisées des dossiers",
+    "description": "Area: settings.",
+    "source": "a15aa3b0"
+  },
   "settings.backup.warning.unknownKeys.one": {
     "message": "{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.",
     "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.many, settings.backup.warning.unknownKeys.other.",
@@ -1148,6 +1153,16 @@
     "message": "Double-clic",
     "description": "Area: settings.",
     "source": "691f614c"
+  },
+  "settings.general.rememberFolderViews.label": {
+    "message": "Mémoriser la vue de chaque dossier",
+    "description": "Area: settings.",
+    "source": "a7d466a3"
+  },
+  "settings.general.rememberFolderViews.description": {
+    "message": "Un dossier garde la vue, le tri, le regroupement, le choix des fichiers masqués et la taille des icônes que vous y avez choisis en dernier. Waypoint mémorise jusqu’à 1 000 dossiers et oublie celui modifié le plus anciennement au-delà. Désactivé, chaque dossier affiche la vue de la fenêtre; ce que les dossiers avaient mémorisé est conservé pour la prochaine activation.",
+    "description": "Area: settings.",
+    "source": "997a97f9"
   },
   "settings.general.showHidden.label": {
     "message": "Afficher les fichiers masqués par défaut",
@@ -4413,6 +4428,11 @@
     "message": "Type",
     "description": "Area: menu. Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different.",
     "source": "baaddf70"
+  },
+  "cmd.resetFolderView": {
+    "message": "Réinitialiser la vue de ce dossier",
+    "description": "Area: cmd.",
+    "source": "ee003ee2"
   },
   "cmd.group.none": {
     "message": "Aucun regroupement",
@@ -7973,6 +7993,11 @@
     "message": "Aucun onglet n’est ouvert",
     "description": "Area: cmd.",
     "source": "b6473640"
+  },
+  "cmd.reason.folderViewDefault": {
+    "message": "Ce dossier affiche la vue de la fenêtre",
+    "description": "Area: cmd.",
+    "source": "218f3140"
   },
   "cmd.reason.selectOne": {
     "message": "Sélectionnez un élément, ou aucun pour le dossier",

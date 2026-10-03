@@ -269,6 +269,7 @@ export const enMessages = {
 	'settings.backup.changes.one': '{count} change',
 	'settings.backup.changes.other': '{count} changes',
 	'settings.backup.group.ui': 'Title bar and Action bar',
+	'settings.backup.group.folders': 'Remembered folder views',
 	'settings.backup.warning.unknownKeys.one':
 		'{count} setting in the file is not in this version of Waypoint, so it will be left out.',
 	'settings.backup.warning.unknownKeys.other':
@@ -312,6 +313,9 @@ export const enMessages = {
 		'Open files and folders with a single click or a double click.',
 	'settings.general.clickMode.single': 'Single click',
 	'settings.general.clickMode.double': 'Double click',
+	'settings.general.rememberFolderViews.label': 'Remember each folder’s view',
+	'settings.general.rememberFolderViews.description':
+		'A folder keeps the view, sort, grouping, hidden-files choice and icon size you last chose in it. Waypoint remembers up to 1,000 folders and forgets the one changed longest ago past that. Off, every folder shows the window’s view; what folders remembered is kept for when this is on again.',
 	'settings.general.showHidden.label': 'Show hidden files by default',
 	'settings.general.appNameInTitle.label': 'Show the app name in the title bar',
 	'settings.general.appNameInTitle.description':
@@ -1020,6 +1024,7 @@ export const enMessages = {
 	'menu.group.name': 'Name',
 	// translator: Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different.
 	'menu.group.type': 'Type',
+	'cmd.resetFolderView': 'Reset This Folder’s View',
 	'cmd.group.none': 'No grouping',
 	// translator: A command palette entry. Keep the wording of “Group by” in the menu, followed by the same word as the Kind column.
 	'cmd.group.kind': 'Group by Kind',
@@ -1741,6 +1746,7 @@ export const enMessages = {
 	'cmd.reason.nothingToRedo': 'There is nothing to redo',
 	'cmd.reason.otherPaneReadOnly': 'The other pane cannot be changed',
 	'cmd.reason.noTab': 'No tab is open',
+	'cmd.reason.folderViewDefault': 'This folder shows the window’s view',
 	'cmd.reason.selectOne': 'Select one item, or none for the folder',
 	'cmd.reason.noListing': 'No folder is open',
 	'cmd.reason.noQueue': 'Operations are not available in this window',

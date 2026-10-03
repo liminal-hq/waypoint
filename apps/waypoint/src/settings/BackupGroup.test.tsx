@@ -135,6 +135,23 @@ describe('Back up and restore', () => {
 		await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
 	});
 
+	it('lists the remembered folder views as a group of their own', async () => {
+		const { transfer } = await open();
+		transfer.nextPlan(
+			preview({
+				files: ['settings', 'folder-views'],
+				changes: [{ file: 'folder-views', group: 'folders', count: 4 }],
+			}),
+		);
+		await userEvent.click(importButton());
+		const dialog = await screen.findByRole('dialog', { name: 'Replace your settings?' });
+		expect(
+			within(dialog)
+				.getAllByRole('listitem')
+				.map((item) => item.textContent),
+		).toEqual(['Remembered folder views4 changes']);
+	});
+
 	it('shows the plan before anything changes, with Cancel as the default', async () => {
 		const { transfer } = await open();
 		transfer.nextPlan(

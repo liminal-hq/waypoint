@@ -60,6 +60,18 @@ export function GeneralPage() {
 					}
 				/>
 				<ToggleRow
+					label={t('settings.general.rememberFolderViews.label')}
+					description={t('settings.general.rememberFolderViews.description')}
+					error={errors.rememberFolderViews}
+					checked={general.rememberFolderViews}
+					onChange={(rememberFolderViews) =>
+						changeSettings('rememberFolderViews', (s) => ({
+							...s,
+							general: { ...s.general, rememberFolderViews },
+						}))
+					}
+				/>
+				<ToggleRow
 					label={t('settings.general.showHidden.label')}
 					description={t('settings.general.showHidden.description')}
 					error={errors.showHidden}

@@ -128,6 +128,19 @@ describe('the menus', () => {
 		]);
 	});
 
+	it('View: Reset This Folder’s View follows the two views, where a folder can remember', () => {
+		const offered = (folderView: 'unavailable' | 'default' | 'remembered') =>
+			idsOf(submenu(build(factsFor({}, { folderView })), MENU_IDS.view).items);
+		expect(offered('unavailable')).not.toContain('resetFolderView');
+		for (const state of ['default', 'remembered'] as const) {
+			const ids = offered(state);
+			expect(ids.indexOf('resetFolderView')).toBe(ids.indexOf('viewGrid') + 1);
+		}
+		const view = submenu(build(factsFor({}, { folderView: 'default' })), MENU_IDS.view);
+		expect(rowOf(view.items, 'resetFolderView').label).toBe('Reset This Folder’s View');
+		expect(rowOf(view.items, 'resetFolderView')).toMatchObject({ disabled: true });
+	});
+
 	it('View: Dock Shelf takes the place of Undock Shelf while the Shelf is its own window', () => {
 		const view = submenu(build(factsFor({}, { shelfUndocked: true })), MENU_IDS.view);
 		const ids = idsOf(view.items);

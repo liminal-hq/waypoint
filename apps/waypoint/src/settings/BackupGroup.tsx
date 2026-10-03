@@ -28,6 +28,7 @@ const GROUP_LABELS: Record<string, MessageId> = {
 	transparency: 'settings.section.transparency',
 	locale: 'settings.section.language',
 	ui: 'settings.backup.group.ui',
+	folders: 'settings.backup.group.folders',
 };
 
 const REASON_MESSAGES: Record<string, MessageId> = {

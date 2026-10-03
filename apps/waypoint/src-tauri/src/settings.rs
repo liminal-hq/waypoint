@@ -17,7 +17,8 @@ use tauri_plugin_waypoint_session::Sessions;
 use tauri_plugin_waypoint_settings::SettingsStore;
 use waypoint_session::{ViewMode, ViewPrefs};
 use waypoint_settings::{
-    DefaultView, KeyValue, MemoryStorage, Persistence, Settings, SettingsStorage, StartupMode,
+    DefaultView, FolderViewsPersistence, FolderViewsStorage, KeyValue, MemoryFolderViews,
+    MemoryStorage, Persistence, Settings, SettingsStorage, StartupMode,
 };
 
 use crate::ops::SETTINGS_FILE;
@@ -56,6 +57,22 @@ pub fn storage(app: &AppHandle<Wry>) -> Arc<dyn SettingsStorage> {
         Err(e) => {
             log::warn!("could not open the settings file, settings will not be saved: {e}");
             Arc::new(MemoryStorage::default())
+        }
+    }
+}
+
+/// The file the remembered folder views are saved in (`folder-views.json`, key `folderViews`).
+pub const FOLDER_VIEWS_FILE: &str = "folder-views.json";
+
+/// The folder views plugin's storage, in a file of their own: a few hundred folders is more than a
+/// settings document should carry, and a damaged one costs only the remembered views. A file that
+/// cannot be opened leaves them in memory for this run, with a warning.
+pub fn folder_views_storage(app: &AppHandle<Wry>) -> Arc<dyn FolderViewsStorage> {
+    match FileKeyValue::open_file(app, FOLDER_VIEWS_FILE) {
+        Ok(kv) => Arc::new(FolderViewsPersistence::new(SettingsFile(kv))),
+        Err(e) => {
+            log::warn!("could not open the folder views file, they will not be saved: {e}");
+            Arc::new(MemoryFolderViews::default())
         }
     }
 }
@@ -130,6 +147,8 @@ mod tests {
             startup: StartupMode::Home,
             // Not a view choice: the browser reads it itself.
             click_mode: ClickMode::Single,
+            // Not a view choice either: the page applies each folder's own view over it.
+            remember_folder_views: false,
         });
         let view = view_for(&settings);
         assert_eq!(view.mode, ViewMode::Grid);
@@ -245,6 +264,63 @@ mod tests {
                 "get_status",
                 "set_settings",
                 "set_ui_settings",
+            ] {
+                assert!(
+                    refused(&window, &format!("plugin:waypoint-settings|{command}")),
+                    "{label} may not call {command}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn only_the_main_windows_read_and_change_what_folders_remember() {
+        use tauri::{WebviewUrl, WebviewWindowBuilder};
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_waypoint_settings::init(Arc::new(
+                MemoryStorage::default(),
+            )))
+            .build(tauri::generate_context!())
+            .expect("the mock app builds with the app's own capabilities");
+        let open = |label: &str| {
+            WebviewWindowBuilder::new(&app, label, WebviewUrl::App("index.html".into()))
+                .build()
+                .expect("the mock window opens")
+        };
+        let remember = serde_json::json!({
+            "key": "file:///home/a",
+            "patch": { "mode": "grid", "sort": null },
+        });
+        let reset = serde_json::json!({ "key": "file:///home/a" });
+
+        for label in ["main-1", "main-7"] {
+            let window = open(label);
+            let read = call(
+                &window,
+                "plugin:waypoint-settings|get_folder_views",
+                serde_json::json!({}),
+            );
+            assert!(read.is_ok(), "{label} may read the folder views: {read:?}");
+            let wrote = call(
+                &window,
+                "plugin:waypoint-settings|remember_folder_view",
+                remember.clone(),
+            );
+            assert!(wrote.is_ok(), "{label} may remember a folder: {wrote:?}");
+            let forgot = call(
+                &window,
+                "plugin:waypoint-settings|reset_folder_view",
+                reset.clone(),
+            );
+            assert!(forgot.is_ok(), "{label} may reset a folder: {forgot:?}");
+        }
+
+        for label in ["settings", "ops", "properties-1", "tear-ghost"] {
+            let window = open(label);
+            for command in [
+                "get_folder_views",
+                "remember_folder_view",
+                "reset_folder_view",
             ] {
                 assert!(
                     refused(&window, &format!("plugin:waypoint-settings|{command}")),

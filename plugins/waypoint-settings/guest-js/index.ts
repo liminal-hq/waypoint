@@ -9,6 +9,12 @@ import type { ClickMode } from '@liminal-hq/waypoint-protocol/generated/ClickMod
 import type { DefaultView } from '@liminal-hq/waypoint-protocol/generated/DefaultView';
 import type { DndSettings } from '@liminal-hq/waypoint-protocol/generated/DndSettings';
 import type { DropActionRule } from '@liminal-hq/waypoint-protocol/generated/DropActionRule';
+import type { FolderView } from '@liminal-hq/waypoint-protocol/generated/FolderView';
+import type { FolderViewChange } from '@liminal-hq/waypoint-protocol/generated/FolderViewChange';
+import type { FolderViewEntry } from '@liminal-hq/waypoint-protocol/generated/FolderViewEntry';
+import type { FolderViewPatch } from '@liminal-hq/waypoint-protocol/generated/FolderViewPatch';
+import type { FolderViewsChanged } from '@liminal-hq/waypoint-protocol/generated/FolderViewsChanged';
+import type { FolderViewsSnapshot } from '@liminal-hq/waypoint-protocol/generated/FolderViewsSnapshot';
 import type { ExportReceipt } from '@liminal-hq/waypoint-protocol/generated/ExportReceipt';
 import type { GeneralSettings } from '@liminal-hq/waypoint-protocol/generated/GeneralSettings';
 import type { ImportPreview } from '@liminal-hq/waypoint-protocol/generated/ImportPreview';
@@ -113,7 +119,46 @@ export function onSettingsChanged(
 	return listen<SettingsSnapshot>(SETTINGS_EVENT, (e) => listener(e.payload));
 }
 
+/** Sent to every window after every change to the remembered folder views; the payload is a `FolderViewsChanged`. */
+export const FOLDER_VIEWS_EVENT = 'waypoint-settings://folder-views';
+
+/** Every remembered folder view and the revision they are at. */
+export function getFolderViews(): Promise<FolderViewsSnapshot> {
+	return cmd<FolderViewsSnapshot>('get_folder_views');
+}
+
+/**
+ * Remembers the view, sort or grouping chosen for the folder at `key` (its location's `uri`), on
+ * top of what it already remembers: a field left `null` is kept as it is. Resolves to the
+ * revision in force. Rejects with a `SettingsCommandError` (`invalid` for a location that cannot
+ * be one, `storage` for a save that failed) and changes nothing.
+ */
+export function rememberFolderView(key: string, patch: FolderViewPatch): Promise<number> {
+	return cmd<number>('remember_folder_view', { key, patch });
+}
+
+/** Makes the folder at `key` forget its own view, so it shows the window's again. Resolves to the revision in force. */
+export function resetFolderView(key: string): Promise<number> {
+	return cmd<number>('reset_folder_view', { key });
+}
+
+/**
+ * Hears every change to the remembered views. Read `getFolderViews` first; an event whose
+ * revision is not the next one means a change was missed, and the snapshot is read again.
+ */
+export function onFolderViewsChanged(
+	listener: (changed: FolderViewsChanged) => void,
+): Promise<UnlistenFn> {
+	return listen<FolderViewsChanged>(FOLDER_VIEWS_EVENT, (e) => listener(e.payload));
+}
+
 export type {
+	FolderView,
+	FolderViewChange,
+	FolderViewEntry,
+	FolderViewPatch,
+	FolderViewsChanged,
+	FolderViewsSnapshot,
 	ClickMode,
 	DefaultView,
 	DndSettings,

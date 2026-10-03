@@ -63,14 +63,45 @@ var __TAURI_PLUGIN_WAYPOINT_SETTINGS__ = (function (exports, core, event) {
     function onSettingsChanged(listener) {
         return event.listen(SETTINGS_EVENT, (e) => listener(e.payload));
     }
+    /** Sent to every window after every change to the remembered folder views; the payload is a `FolderViewsChanged`. */
+    const FOLDER_VIEWS_EVENT = 'waypoint-settings://folder-views';
+    /** Every remembered folder view and the revision they are at. */
+    function getFolderViews() {
+        return cmd('get_folder_views');
+    }
+    /**
+     * Remembers the view, sort or grouping chosen for the folder at `key` (its location's `uri`), on
+     * top of what it already remembers: a field left `null` is kept as it is. Resolves to the
+     * revision in force. Rejects with a `SettingsCommandError` (`invalid` for a location that cannot
+     * be one, `storage` for a save that failed) and changes nothing.
+     */
+    function rememberFolderView(key, patch) {
+        return cmd('remember_folder_view', { key, patch });
+    }
+    /** Makes the folder at `key` forget its own view, so it shows the window's again. Resolves to the revision in force. */
+    function resetFolderView(key) {
+        return cmd('reset_folder_view', { key });
+    }
+    /**
+     * Hears every change to the remembered views. Read `getFolderViews` first; an event whose
+     * revision is not the next one means a change was missed, and the snapshot is read again.
+     */
+    function onFolderViewsChanged(listener) {
+        return event.listen(FOLDER_VIEWS_EVENT, (e) => listener(e.payload));
+    }
 
+    exports.FOLDER_VIEWS_EVENT = FOLDER_VIEWS_EVENT;
     exports.SETTINGS_EVENT = SETTINGS_EVENT;
     exports.applySettingsImport = applySettingsImport;
     exports.exportSettings = exportSettings;
+    exports.getFolderViews = getFolderViews;
     exports.getSettings = getSettings;
     exports.getStatus = getStatus;
+    exports.onFolderViewsChanged = onFolderViewsChanged;
     exports.onSettingsChanged = onSettingsChanged;
     exports.planSettingsImport = planSettingsImport;
+    exports.rememberFolderView = rememberFolderView;
+    exports.resetFolderView = resetFolderView;
     exports.setSettings = setSettings;
     exports.setUiSettings = setUiSettings;
 

@@ -395,6 +395,7 @@ impl ConfigFile for Extra {
 #[test]
 fn export_asks_where_then_writes_one_json_for_the_one_file() {
     let app = app_with(Arc::new(MemoryStorage::default()));
+    transfers(&app).unregister("folder-views");
     set(&app, grid()).unwrap();
     let picker = with_picker(&app);
     let dir = tempfile::tempdir().unwrap();
@@ -434,7 +435,7 @@ fn export_of_several_files_is_a_zip_and_a_name_without_an_extension_gets_one() {
         .unwrap()
         .unwrap();
     assert_eq!(receipt.kind, BundleKind::Zip);
-    assert_eq!(receipt.files, ["settings", "ops"]);
+    assert_eq!(receipt.files, ["settings", "folder-views", "ops"]);
     assert!(receipt.path.ends_with("mine.zip"));
     assert!(std::fs::read(&receipt.path)
         .unwrap()
@@ -479,6 +480,7 @@ fn without_a_dialog_export_and_import_say_so() {
 #[test]
 fn a_round_trip_through_a_file_restores_the_settings_after_a_reset() {
     let app = app_with(Arc::new(MemoryStorage::default()));
+    transfers(&app).unregister("folder-views");
     let mut mine = grid();
     mine.dnd.spring_load_ms = 1100;
     set(&app, mine.clone()).unwrap();
@@ -679,7 +681,7 @@ fn a_failure_part_way_through_several_files_changes_none_of_them() {
 
     let preview = plan(&app, &picker, &file).unwrap().unwrap();
     assert_eq!(preview.plan.kind, BundleKind::Zip);
-    assert_eq!(preview.plan.files, ["settings", "ops"]);
+    assert_eq!(preview.plan.files, ["settings", "folder-views", "ops"]);
     *ops.fail.lock().unwrap() = true;
     let refused = apply(&app, preview.plan_id).unwrap_err();
     assert_eq!(kind_of(&refused), "apply");
@@ -702,4 +704,201 @@ fn a_failure_part_way_through_several_files_changes_none_of_them() {
         *ops.value.lock().unwrap(),
         serde_json::json!({ "concurrency": 6 })
     );
+}
+
+// Remembered folder views
+
+use waypoint_session::ViewMode;
+use waypoint_settings::{
+    FolderViewPatch, FolderViewsChanged, FolderViewsDocument, FolderViewsStorage, MemoryFolderViews,
+};
+
+use crate::{FolderViewsStore, FOLDER_VIEWS_EVENT};
+
+fn app_with_views(views: Arc<dyn FolderViewsStorage>) -> App {
+    let app = mock_builder()
+        .plugin(crate::init_with_folder_views(
+            |_| Arc::new(MemoryStorage::default()),
+            move |_| views,
+        ))
+        .build(mock_context(noop_assets()))
+        .expect("the mock app builds");
+    for label in ["main-1", "main-2", "settings"] {
+        WebviewWindowBuilder::new(&app, label, WebviewUrl::App("index.html".into()))
+            .build()
+            .expect("the mock window opens");
+    }
+    app
+}
+
+fn views(app: &App) -> tauri::State<'_, FolderViewsStore<MockRuntime>> {
+    app.state::<FolderViewsStore<MockRuntime>>()
+}
+
+fn hear_views(app: &App, label: &str) -> Arc<Mutex<Vec<FolderViewsChanged>>> {
+    let heard = Arc::new(Mutex::new(Vec::new()));
+    let sink = heard.clone();
+    app.get_webview_window(label)
+        .unwrap()
+        .listen(FOLDER_VIEWS_EVENT, move |event| {
+            sink.lock()
+                .unwrap()
+                .push(serde_json::from_str(event.payload()).expect("a change"));
+        });
+    heard
+}
+
+fn grid_view() -> FolderViewPatch {
+    FolderViewPatch {
+        mode: Some(ViewMode::Grid),
+        sort: None,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn a_remembered_folder_is_saved_announced_to_every_window_and_read_back() {
+    let storage = Arc::new(MemoryFolderViews::default());
+    let app = app_with_views(storage.clone());
+    let one = hear_views(&app, "main-1");
+    let two = hear_views(&app, "main-2");
+
+    let revision = views(&app).remember("file:///a", grid_view()).unwrap();
+    assert_eq!(revision, 1);
+    for heard in [&one, &two] {
+        let heard = heard.lock().unwrap();
+        assert_eq!(heard.len(), 1);
+        assert_eq!(heard[0].revision, 1);
+        assert_eq!(heard[0].changes[0].key, "file:///a");
+    }
+    assert_eq!(storage.saved().unwrap().folders.len(), 1);
+    let snapshot =
+        tauri::async_runtime::block_on(commands::get_folder_views(window(&app), views(&app)))
+            .unwrap();
+    assert_eq!(snapshot.revision, 1);
+    assert_eq!(snapshot.folders[0].view.mode, Some(ViewMode::Grid));
+}
+
+#[test]
+fn remembering_the_same_thing_again_is_no_revision_event_or_save() {
+    let storage = Arc::new(MemoryFolderViews::default());
+    let app = app_with_views(storage.clone());
+    views(&app).remember("file:///a", grid_view()).unwrap();
+    let heard = hear_views(&app, "main-1");
+    assert_eq!(views(&app).remember("file:///a", grid_view()).unwrap(), 1);
+    assert_eq!(views(&app).forget("file:///elsewhere").unwrap(), 1);
+    assert!(heard.lock().unwrap().is_empty());
+}
+
+#[test]
+fn the_commands_remember_and_reset_a_folder() {
+    let app = app_with_views(Arc::new(MemoryFolderViews::default()));
+    let heard = hear_views(&app, "main-1");
+    tauri::async_runtime::block_on(commands::remember_folder_view(
+        window(&app),
+        views(&app),
+        "file:///a".into(),
+        grid_view(),
+    ))
+    .unwrap();
+    let revision = tauri::async_runtime::block_on(commands::reset_folder_view(
+        window(&app),
+        views(&app),
+        "file:///a".into(),
+    ))
+    .unwrap();
+    assert_eq!(revision, 2);
+    let heard = heard.lock().unwrap();
+    assert_eq!(heard.len(), 2);
+    assert_eq!(heard[1].changes[0].view, None);
+    assert!(views(&app).snapshot().folders.is_empty());
+}
+
+#[test]
+fn a_location_that_cannot_be_one_is_refused_as_invalid_and_changes_nothing() {
+    let app = app_with_views(Arc::new(MemoryFolderViews::default()));
+    let refused = views(&app).remember("", grid_view()).unwrap_err();
+    assert_eq!(kind_of(&refused), "invalid");
+    assert_eq!(views(&app).snapshot().revision, 0);
+}
+
+struct FailingViews;
+
+impl FolderViewsStorage for FailingViews {
+    fn load(&self) -> Result<Option<FolderViewsDocument>, StorageError> {
+        Ok(None)
+    }
+    fn save(&self, _: &FolderViewsDocument) -> Result<(), StorageError> {
+        Err(StorageError::Io("disk full".into()))
+    }
+}
+
+#[test]
+fn a_save_that_fails_changes_nothing_and_says_nothing() {
+    let app = app_with_views(Arc::new(FailingViews));
+    let heard = hear_views(&app, "main-1");
+    let refused = views(&app).remember("file:///a", grid_view()).unwrap_err();
+    assert_eq!(kind_of(&refused), "storage");
+    assert_eq!(views(&app).snapshot().revision, 0);
+    assert!(views(&app).snapshot().folders.is_empty());
+    assert!(heard.lock().unwrap().is_empty());
+}
+
+#[test]
+fn what_was_saved_is_there_when_the_app_starts_again() {
+    let storage = Arc::new(MemoryFolderViews::default());
+    let first = app_with_views(storage.clone());
+    views(&first).remember("file:///a", grid_view()).unwrap();
+    drop(first);
+    let second = app_with_views(storage);
+    let snapshot = views(&second).snapshot();
+    assert_eq!(
+        snapshot.revision, 0,
+        "a revision is per run, like the settings'"
+    );
+    assert_eq!(snapshot.folders[0].key, "file:///a");
+}
+
+#[test]
+fn the_folder_views_travel_in_the_settings_export_and_come_back_through_an_import() {
+    let app = app_with_views(Arc::new(MemoryFolderViews::default()));
+    views(&app).remember("file:///a", grid_view()).unwrap();
+    views(&app).remember("file:///b", grid_view()).unwrap();
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("backup.zip");
+    let receipt = export(&app, &picker, &file).unwrap().unwrap();
+    assert_eq!(receipt.files, ["settings", "folder-views"]);
+
+    views(&app).forget("file:///a").unwrap();
+    views(&app)
+        .remember(
+            "file:///c",
+            FolderViewPatch {
+                mode: Some(ViewMode::List),
+                sort: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    let folders = preview
+        .plan
+        .changes
+        .iter()
+        .find(|c| c.file == "folder-views")
+        .expect("the folders are a group of the plan");
+    assert_eq!((folders.group.as_str(), folders.count), ("folders", 2));
+
+    let heard = hear_views(&app, "main-2");
+    apply(&app, preview.plan_id).unwrap();
+    let keys: Vec<String> = views(&app)
+        .snapshot()
+        .folders
+        .into_iter()
+        .map(|e| e.key)
+        .collect();
+    assert_eq!(keys, ["file:///a", "file:///b"]);
+    let heard = heard.lock().unwrap();
+    assert_eq!(heard.len(), 1, "an import is one change, one event");
 }

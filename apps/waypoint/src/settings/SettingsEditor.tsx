@@ -31,6 +31,7 @@ export type RowKey =
 	| 'defaultView'
 	| 'clickMode'
 	| 'showHidden'
+	| 'rememberFolderViews'
 	| 'appNameInTitle'
 	| 'menuBar'
 	| 'confirmTrash'

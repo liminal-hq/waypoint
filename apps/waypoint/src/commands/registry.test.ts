@@ -212,6 +212,28 @@ describe('availability', () => {
 		expect(states(factsFor({ paired: true })).splitView.checked).toBe(true);
 	});
 
+	it('offers Reset This Folder’s View where a folder can remember, and runs it only once the folder has', () => {
+		expect(read(states(factsFor({}, { folderView: 'unavailable' })).resetFolderView)).toBe(
+			'hidden',
+		);
+		expect(read(states(factsFor({}, { folderView: 'default' })).resetFolderView)).toBe(
+			`disabled: ${t('cmd.reason.folderViewDefault')}`,
+		);
+		expect(read(states(factsFor({}, { folderView: 'remembered' })).resetFolderView)).toBe(
+			'enabled',
+		);
+		const actions = { ...idleActions(), resetFolderView: vi.fn() };
+		expect(runCommand('resetFolderView', actions, factsFor({}, { folderView: 'default' }))).toBe(
+			false,
+		);
+		expect(runCommand('resetFolderView', actions, factsFor({}, { folderView: 'remembered' }))).toBe(
+			true,
+		);
+		expect(actions.resetFolderView).toHaveBeenCalledTimes(1);
+		// A window that has not said anything about its folder offers nothing.
+		expect(read(states(emptyFacts()).resetFolderView)).toBe('hidden');
+	});
+
 	it('reports the settings that are on as checked', () => {
 		const result = states(
 			factsFor({}, { viewMode: 'grid', showHidden: true, sidebarOpen: false, actionBar: true }),

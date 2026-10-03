@@ -787,6 +787,10 @@
     "message": "Title bar and Action bar",
     "description": "Area: settings."
   },
+  "settings.backup.group.folders": {
+    "message": "Remembered folder views",
+    "description": "Area: settings."
+  },
   "settings.backup.warning.unknownKeys.one": {
     "message": "{count} setting in the file is not in this version of Waypoint, so it will be left out.",
     "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.other."
@@ -901,6 +905,14 @@
   },
   "settings.general.clickMode.double": {
     "message": "Double click",
+    "description": "Area: settings."
+  },
+  "settings.general.rememberFolderViews.label": {
+    "message": "Remember each folder’s view",
+    "description": "Area: settings."
+  },
+  "settings.general.rememberFolderViews.description": {
+    "message": "A folder keeps the view, sort, grouping, hidden-files choice and icon size you last chose in it. Waypoint remembers up to 1,000 folders and forgets the one changed longest ago past that. Off, every folder shows the window’s view; what folders remembered is kept for when this is on again.",
     "description": "Area: settings."
   },
   "settings.general.showHidden.label": {
@@ -3470,6 +3482,10 @@
   "menu.group.type": {
     "message": "Type",
     "description": "Area: menu. Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different."
+  },
+  "cmd.resetFolderView": {
+    "message": "Reset This Folder’s View",
+    "description": "Area: cmd."
   },
   "cmd.group.none": {
     "message": "No grouping",
@@ -6129,6 +6145,10 @@
   },
   "cmd.reason.noTab": {
     "message": "No tab is open",
+    "description": "Area: cmd."
+  },
+  "cmd.reason.folderViewDefault": {
+    "message": "This folder shows the window’s view",
     "description": "Area: cmd."
   },
   "cmd.reason.selectOne": {

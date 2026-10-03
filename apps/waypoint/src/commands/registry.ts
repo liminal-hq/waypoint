@@ -107,6 +107,7 @@ export type CommandId =
 	| 'moveTabToNewWindow'
 	| 'viewList'
 	| 'viewGrid'
+	| 'resetFolderView'
 	| 'showHidden'
 	| 'sidebar'
 	| 'actionBar'
@@ -563,6 +564,20 @@ export const COMMANDS: readonly CommandDef[] = [
 		when: () => SHOWN,
 		checked: (f) => f.viewMode === 'grid',
 		run: (a) => a.setViewMode('grid'),
+	},
+	{
+		id: 'resetFolderView',
+		label: 'cmd.resetFolderView',
+		icon: RestoreIcon,
+		group: 'view',
+		// Offered wherever a folder could remember a view; runnable once it has.
+		when: (f) =>
+			f.folderView === 'unavailable'
+				? HIDDEN
+				: f.folderView === 'remembered'
+					? SHOWN
+					: blocked('cmd.reason.folderViewDefault'),
+		run: (a) => a.resetFolderView(),
 	},
 	{
 		id: 'showHidden',

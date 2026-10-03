@@ -118,7 +118,7 @@ describe('ListingManager', () => {
 		const grouped = { ...model.sort, groupBy: 'kind' } as const;
 		await model.setSort(grouped);
 		expect(onSort).toHaveBeenCalledTimes(1);
-		expect(onSort).toHaveBeenLastCalledWith(grouped);
+		expect(onSort).toHaveBeenLastCalledWith(grouped, A);
 		await model.setSort({ ...grouped });
 		expect(onSort).toHaveBeenCalledTimes(1);
 	});
