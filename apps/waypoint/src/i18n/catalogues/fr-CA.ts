@@ -381,6 +381,15 @@ const messages: Catalogue = {
 	// source: 4f21c593
 	'settings.general.appNameInTitle.description':
 		'Fait commencer l’intitulé de la barre de titre par « Waypoint ». Désactivé, l’intitulé est simplement « Principale ».',
+	// source: 2d9de7e6
+	'menuBar.label': 'Barre de menus',
+	// source: d47d7cb0
+	'menuBar.more': 'Plus',
+	// source: 982e1ab2
+	'settings.general.menuBar.label': 'Afficher une barre de menus sous la barre de titre',
+	// source: 1c421a68
+	'settings.general.menuBar.description':
+		'Place les menus de l’application (Fichier, Édition, Affichage et Fenêtre) dans une barre à part. Le bouton du nom de l’application reste alors une simple étiquette.',
 	// source: da4880c1
 	'settings.general.showHidden.description':
 		'Une nouvelle fenêtre affiche les fichiers masqués. Les fenêtres déjà ouvertes gardent leur choix.',
