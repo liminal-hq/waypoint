@@ -185,7 +185,7 @@ export function FolderTree({ location, showHidden, actions }: FolderTreeProps) {
 				>
 					<ChevronRightSmallIcon />
 				</span>
-				<FileIcon group="folder" />
+				<FileIcon group="folder" special={row.special} />
 				<span className={styles.label}>{row.name}</span>
 			</div>
 		);

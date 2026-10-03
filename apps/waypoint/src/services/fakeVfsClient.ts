@@ -59,9 +59,9 @@ const EXTENSION_GROUPS: Record<string, IconGroup> = {
 	zip: 'archive',
 	rs: 'code',
 	ts: 'code',
-	pdf: 'document',
-	md: 'document',
-	txt: 'document',
+	pdf: 'pdf',
+	md: 'markdown',
+	txt: 'text',
 };
 
 /** Builds an entry, deriving the icon group from the extension like the Rust side will. */
@@ -97,6 +97,7 @@ export function syntheticEntries(count: number): Entry[] {
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+// The coarse kinds that sorting and grouping by kind use (`kind_class` in Rust).
 const ICON_GROUPS: IconGroup[] = [
 	'folder',
 	'image',
@@ -107,6 +108,12 @@ const ICON_GROUPS: IconGroup[] = [
 	'document',
 	'other',
 ];
+const DOCUMENT_GROUPS: IconGroup[] = ['document', 'pdf', 'text', 'markdown'];
+
+/** The coarse kind of an icon group, as Rust's `kind_class` gives it (only the groups the fake produces). */
+function kindClass(group: IconGroup): IconGroup {
+	return DOCUMENT_GROUPS.includes(group) ? 'document' : group;
+}
 const SIZE_BANDS = [
 	'unspecified',
 	'empty',
@@ -143,7 +150,7 @@ export function fakeGroupKey(entry: Entry, sort: SortSpec): GroupKey {
 	switch (sort.groupBy) {
 		case 'none':
 		case 'kind':
-			return { kind: 'kind', group: isFolder(entry) ? 'folder' : entry.group };
+			return { kind: 'kind', group: isFolder(entry) ? 'folder' : kindClass(entry.group) };
 		case 'modified': {
 			if (entry.modifiedMs === null) return { kind: 'modified', bucket: 'unknown' };
 			const year = new Date(entry.modifiedMs).getFullYear();
@@ -232,7 +239,8 @@ function compare(sort: SortSpec): (a: Entry, b: Entry) => number {
 				result = (a.modifiedMs ?? 0) - (b.modifiedMs ?? 0);
 				break;
 			case 'kind':
-				result = a.group.localeCompare(b.group) || collator.compare(a.name, b.name);
+				result =
+					kindClass(a.group).localeCompare(kindClass(b.group)) || collator.compare(a.name, b.name);
 				break;
 			case 'deleted':
 				result = (a.deletedMs ?? 0) - (b.deletedMs ?? 0);
