@@ -680,6 +680,7 @@ mod tests {
             kind: EntryKind::File,
             link_target: None,
             link_pending: false,
+            special: None,
             group: IconGroup::Other,
             size: Some(1),
             modified_ms: Some(0),

@@ -23,6 +23,7 @@ use waypoint_path::{FilePath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 
 use crate::error::from_io;
+use crate::special::{SpecialDirs, SpecialFolder};
 
 /// Which fixed place a sidebar row stands for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -85,6 +86,10 @@ pub struct Place {
 pub struct Favourite {
     pub label: String,
     pub location: Location,
+    /// Which of the user's standard folders this is, when it is one, so its icon can say so.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub special: Option<SpecialFolder>,
 }
 
 /// Everything the sidebar's Places and Favourites sections show.
@@ -182,7 +187,7 @@ pub fn parse_user_dirs(text: &str, home: &Path) -> HashMap<String, PathBuf> {
     dirs
 }
 
-const KINDS: [(PlaceKind, &str, &str, &str); 6] = [
+pub(crate) const KINDS: [(PlaceKind, &str, &str, &str); 6] = [
     (PlaceKind::Desktop, "Desktop", "XDG_DESKTOP_DIR", "Desktop"),
     (
         PlaceKind::Documents,
@@ -207,7 +212,11 @@ const KINDS: [(PlaceKind, &str, &str, &str); 6] = [
 ];
 
 #[cfg(not(windows))]
-fn user_folder(env: &PlacesEnv, xdg: &HashMap<String, PathBuf>, index: usize) -> PathBuf {
+pub(crate) fn user_folder(
+    env: &PlacesEnv,
+    xdg: &HashMap<String, PathBuf>,
+    index: usize,
+) -> PathBuf {
     let (_, _, key, fallback) = KINDS[index];
     xdg.get(key)
         .cloned()
@@ -215,7 +224,11 @@ fn user_folder(env: &PlacesEnv, xdg: &HashMap<String, PathBuf>, index: usize) ->
 }
 
 #[cfg(windows)]
-fn user_folder(env: &PlacesEnv, _xdg: &HashMap<String, PathBuf>, index: usize) -> PathBuf {
+pub(crate) fn user_folder(
+    env: &PlacesEnv,
+    _xdg: &HashMap<String, PathBuf>,
+    index: usize,
+) -> PathBuf {
     // Windows Known Folders, which the person may have moved to another drive.
     let known = match KINDS[index].0 {
         PlaceKind::Desktop => dirs::desktop_dir(),
@@ -364,6 +377,7 @@ impl Bookmarks {
                 Line::Bookmark { path, label, .. } => Some(Favourite {
                     label: label.clone().unwrap_or_else(|| default_label(path)),
                     location: path.to_location(),
+                    special: None,
                 }),
                 Line::Other(_) => None,
             })
@@ -471,9 +485,16 @@ fn save(env: &PlacesEnv, bookmarks: &Bookmarks) -> Result<(), VfsError> {
 
 /// Home, the user folders that exist and the favourites.
 pub fn list_places(env: &PlacesEnv) -> Result<Places, VfsError> {
+    let special = SpecialDirs::from_env(env);
+    let mut favourites = read_bookmarks(env)?.favourites();
+    for favourite in &mut favourites {
+        if let Ok(VfsPath::File(path)) = VfsPath::from_location(&favourite.location) {
+            favourite.special = special.lookup(path.as_path());
+        }
+    }
     Ok(Places {
         places: standard_places(env),
-        favourites: read_bookmarks(env)?.favourites(),
+        favourites,
     })
 }
 
@@ -656,6 +677,18 @@ mod tests {
             bookmarks.to_text(),
             "file:///a\nfile:///b\nfile:///c\nweird\n"
         );
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn a_favourite_that_is_a_standard_folder_says_which() {
+        let tmp = tempfile::tempdir().unwrap();
+        let env = env(tmp.path());
+        let downloads = env.home.join("Downloads").display().to_string();
+        add_favourite(&env, &loc(&downloads), None).unwrap();
+        let places = add_favourite(&env, &loc("/srv/data"), None).unwrap();
+        let specials: Vec<_> = places.favourites.iter().map(|f| f.special).collect();
+        assert_eq!(specials, [Some(SpecialFolder::Downloads), None]);
     }
 
     #[test]

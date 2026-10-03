@@ -2,6 +2,7 @@
 import type { EntryId } from "./EntryId";
 import type { EntryKind } from "./EntryKind";
 import type { IconGroup } from "./IconGroup";
+import type { SpecialFolder } from "./SpecialFolder";
 
 /**
  * One row of a listing.
@@ -16,6 +17,11 @@ name: string, kind: EntryKind,
  * directories-first sorting is correct).
  */
 linkTarget: EntryKind | null, group: IconGroup, 
+/**
+ * For a folder that is one of the user's own standard folders (Home, Documents, Downloads, …),
+ * which one, so an icon set can mark it.
+ */
+special?: SpecialFolder, 
 /**
  * Size in bytes; `None` for directories and where the size is unknown.
  */

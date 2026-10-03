@@ -22,7 +22,7 @@ use waypoint_path::{windows, CaseRule, FilePath, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 
 use crate::error::InjectedError;
-use crate::icon::group_for;
+use crate::icon::group_for_scan;
 use crate::model::{EntryKind, VolumeSpace};
 use crate::names::validate_new_path;
 use crate::provider::{Capabilities, Provider, ScannedEntry};
@@ -436,7 +436,14 @@ impl MemoryProvider {
             kind,
             link_target,
             link_pending,
-            group: group_for(name.as_encoded_bytes(), kind, link_target),
+            special: None,
+            group: group_for_scan(
+                name.as_encoded_bytes(),
+                kind,
+                link_target,
+                link_pending,
+                false,
+            ),
             size,
             modified_ms: Some(to_ms(shown.modified)),
             hidden: name.as_encoded_bytes().first() == Some(&b'.'),

@@ -190,6 +190,7 @@ fn entry_of(item: &TrashedItem) -> ScannedEntry {
         kind,
         link_target: None,
         link_pending: false,
+        special: None,
         group: group_for(item.name.as_bytes(), kind, None),
         size: Some(item.size),
         // What a modification time would say is not known; the deletion date is its own column.
@@ -209,6 +210,7 @@ fn root_entry() -> ScannedEntry {
         kind: EntryKind::Directory,
         link_target: None,
         link_pending: false,
+        special: None,
         group: IconGroup::Folder,
         size: None,
         modified_ms: None,
