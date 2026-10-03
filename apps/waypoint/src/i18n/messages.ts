@@ -149,12 +149,41 @@ export const enMessages = {
 	'settings.appearance.density.comfortable': 'Comfortable',
 	'settings.appearance.density.spacious': 'Spacious',
 	'settings.appearance.iconStyle.label': 'Icon style',
-	'settings.appearance.iconStyle.description': "The weight of Waypoint's own icons.",
+	'settings.appearance.iconStyle.description':
+		"The weight of the Waypoint icon theme's icons. It does not apply to Portage.",
 	// translator: The thinnest weight of Waypoint’s own icons, lighter than Regular; not the light colour mode.
 	'settings.appearance.iconStyle.light': 'Light',
 	'settings.appearance.iconStyle.regular': 'Regular',
 	'settings.appearance.iconStyle.bold': 'Bold',
 	'settings.appearance.iconStyle.filled': 'Filled',
+	'settings.appearance.iconTheme.label': 'Icon theme',
+	'settings.appearance.iconTheme.description':
+		'The set of file and folder icons the file views, the sidebar and the Shelf draw. The icons in toolbars and menus do not change.',
+	// translator: The name of an icon set, the one made for Waypoint. “Waypoint” is the product name and stays as is.
+	'settings.appearance.iconTheme.waypoint': 'Waypoint',
+	// translator: The name of an icon set (a portage is a carry between waterways), kept as “Portage”.
+	'settings.appearance.iconTheme.portage': 'Portage',
+	'settings.appearance.folderColour.label': 'Folder colour',
+	'settings.appearance.folderColour.description':
+		'The colour of folders in the Portage icon theme. The shade follows light or dark mode.',
+	'settings.appearance.folderColour.waypointNote':
+		'Folder colours apply to the Portage icon theme. The Waypoint theme draws folders in the accent colour.',
+	// translator: A folder colour named for the brand: Liminal HQ’s own amber.
+	'settings.appearance.folderColour.liminal': 'Liminal',
+	// translator: A folder colour named for the GNOME desktop’s blue; “GNOME” is not translated.
+	'settings.appearance.folderColour.gnome': 'GNOME',
+	// translator: A folder colour named for the Cinnamon desktop’s green; “Cinnamon” is not translated.
+	'settings.appearance.folderColour.cinnamon': 'Cinnamon',
+	// translator: A folder colour named for the KDE Plasma desktop’s blue; “KDE” is not translated.
+	'settings.appearance.folderColour.kde': 'KDE',
+	// translator: A folder colour named for Windows 11’s yellow; “Windows 11” is not translated.
+	'settings.appearance.folderColour.windows11': 'Windows 11',
+	'settings.appearance.folderColour.red': 'Red',
+	'settings.appearance.folderColour.pink': 'Pink',
+	'settings.appearance.folderColour.orange': 'Orange',
+	'settings.appearance.folderColour.purple': 'Purple',
+	// translator: A folder drawn in every colour of the rainbow, as a gradient.
+	'settings.appearance.folderColour.rainbow': 'Rainbow',
 	'settings.language.language.label': 'Language',
 	'settings.language.language.description':
 		'The language of menus, dialogs and messages, and how dates, numbers and sizes are written. Anything not translated yet appears in English.',

@@ -1,0 +1,92 @@
+.cards {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	max-inline-size: 100%;
+}
+
+.swatches {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 6px;
+	max-inline-size: 100%;
+}
+
+.card,
+.swatch {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	box-sizing: border-box;
+	min-inline-size: 0;
+	padding: 8px 10px;
+	color: var(--wp-text-primary);
+	background: var(--wp-field-bg);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 8px;
+	font: inherit;
+	font-size: 12px;
+	cursor: default;
+}
+
+.swatch {
+	padding: 6px 4px;
+}
+
+.card:hover:not(:disabled),
+.swatch:hover:not(:disabled) {
+	background: var(--wp-bg-hover);
+}
+
+.card:focus-visible,
+.swatch:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}
+
+/* The chosen one carries a thicker accent border and a tick beside its name, not colour alone. */
+.on {
+	border-color: var(--wp-accent);
+	box-shadow: inset 0 0 0 1px var(--wp-accent);
+}
+
+.name {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-inline-size: 100%;
+	overflow-wrap: anywhere;
+	text-align: center;
+}
+
+.on .name {
+	font-weight: 600;
+}
+
+.check {
+	flex: none;
+	inline-size: 12px;
+	block-size: 12px;
+	fill: none;
+	stroke: var(--wp-accent);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.strip {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.strip > .sample {
+	inline-size: 24px;
+	block-size: 24px;
+}
+
+.chip {
+	inline-size: 32px;
+	block-size: 32px;
+}

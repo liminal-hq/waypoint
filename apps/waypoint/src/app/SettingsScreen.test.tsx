@@ -578,6 +578,100 @@ describe('the Appearance page', () => {
 	});
 });
 
+describe('the Appearance page icon rows', () => {
+	it('offers the Waypoint and Portage themes, not System, with a preview of each', async () => {
+		await open();
+		await goTo('Appearance');
+		const themes = screen.getByRole('radiogroup', { name: 'Icon theme' });
+		const radios = within(themes).getAllByRole('radio');
+		expect(radios.map((radio) => radio.title)).toEqual(['Waypoint', 'Portage']);
+		expect(within(themes).getByRole('radio', { name: 'Waypoint' })).toBeChecked();
+		expect(within(themes).queryByRole('radio', { name: 'System' })).toBeNull();
+		for (const radio of radios) {
+			expect(radio.querySelectorAll('svg[data-group]')).toHaveLength(5);
+		}
+		const [waypoint, portage] = radios.map((radio) => radio.querySelector('svg[data-group]')!);
+		expect(waypoint!.getAttribute('viewBox')).toBe('0 0 16 16');
+		expect(portage!.getAttribute('viewBox')).toBe('0 0 64 64');
+	});
+
+	it('hides the folder colours under the Waypoint theme, saying why, and greys the icon style only for Portage', async () => {
+		await open();
+		await goTo('Appearance');
+		expect(screen.queryByRole('radiogroup', { name: 'Folder colour' })).toBeNull();
+		expect(screen.getByText(/Folder colours apply to the Portage icon theme/)).toBeInTheDocument();
+		expect(screen.getByLabelText('Icon style')).toBeEnabled();
+		await userEvent.click(screen.getByRole('radio', { name: 'Portage' }));
+		await screen.findByRole('radiogroup', { name: 'Folder colour' });
+		expect(screen.queryByText(/Folder colours apply to the Portage icon theme/)).toBeNull();
+		expect(screen.getByLabelText('Icon style')).toBeDisabled();
+		expect(screen.getByText(/does not apply to Portage/)).toBeInTheDocument();
+	});
+
+	it('saves the theme and the colour through Rust, and shows all ten named swatches', async () => {
+		const { settings } = await open();
+		await goTo('Appearance');
+		await userEvent.click(screen.getByRole('radio', { name: 'Portage' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.iconTheme).toBe('portage'));
+		const colours = screen.getByRole('radiogroup', { name: 'Folder colour' });
+		expect(
+			within(colours)
+				.getAllByRole('radio')
+				.map((radio) => radio.title),
+		).toEqual([
+			'Liminal',
+			'GNOME',
+			'Cinnamon',
+			'KDE',
+			'Windows 11',
+			'Red',
+			'Pink',
+			'Orange',
+			'Purple',
+			'Rainbow',
+		]);
+		expect(within(colours).getByRole('radio', { name: 'Liminal' })).toBeChecked();
+		await userEvent.click(within(colours).getByRole('radio', { name: 'Purple' }));
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.folderColour).toBe('purple'));
+		expect(settings.calls.at(-1)?.appearance.iconTheme).toBe('portage');
+		await waitFor(() =>
+			expect(within(colours).getByRole('radio', { name: 'Purple' })).toBeChecked(),
+		);
+	});
+
+	it('moves between the swatches with the arrow keys, keeping one tab stop', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				appearance: { ...DEFAULT_SETTINGS.appearance, iconTheme: 'portage' },
+			},
+		});
+		await goTo('Appearance');
+		const colours = screen.getByRole('radiogroup', { name: 'Folder colour' });
+		const radios = within(colours).getAllByRole('radio');
+		expect(radios.filter((radio) => radio.tabIndex === 0)).toHaveLength(1);
+		radios[0]!.focus();
+		await userEvent.keyboard('{ArrowRight}');
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.folderColour).toBe('gnome'));
+		await userEvent.keyboard('{End}');
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.folderColour).toBe('rainbow'));
+		await userEvent.keyboard('{ArrowRight}');
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.folderColour).toBe('liminal'));
+	});
+
+	it('shows a System theme in a document as the Waypoint set, since it draws as one', async () => {
+		await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				appearance: { ...DEFAULT_SETTINGS.appearance, iconTheme: 'system' },
+			},
+		});
+		await goTo('Appearance');
+		const themes = within(screen.getByRole('radiogroup', { name: 'Icon theme' }));
+		expect(themes.getByRole('radio', { name: 'Waypoint' })).toBeChecked();
+	});
+});
+
 describe('the Language & region page', () => {
 	it('offers the languages that ship, the pseudo-locales in a developer build, and the direction', async () => {
 		await open();

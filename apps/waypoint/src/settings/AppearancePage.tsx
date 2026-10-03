@@ -1,4 +1,4 @@
-// The Appearance page: colour mode, theme source, accent, density and icon style
+// The Appearance page: colour mode, theme source, accent, density, the icon theme, folder colour and icon style
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -10,7 +10,10 @@ import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/Setting
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import type { AccentChoice } from '@liminal-hq/waypoint-protocol/generated/AccentChoice';
 import { t } from '../i18n/messages';
+import styles from './AppearancePage.module.css';
+import { resolveIconTheme } from '../icons/iconTheme';
 import { EMBER } from '../theme/accent';
+import { FolderColourRow, IconThemeRow } from './IconChoices';
 import { useSettingsEditor } from './SettingsEditor';
 
 /** The colour the picker starts at when a person chooses "Choose a colour". */
@@ -20,6 +23,9 @@ export function AppearancePage() {
 	const { settings, errors, changeSettings } = useSettingsEditor();
 	const { appearance } = settings;
 	const accent = appearance.accent;
+	// `system` is in the schema but not offered yet, and draws as Waypoint, so the page shows it so.
+	const iconTheme = resolveIconTheme(appearance.iconTheme);
+	const portage = iconTheme === 'portage';
 	return (
 		<SettingsSection>
 			<SettingsGroup title={t('settings.group.colours')}>
@@ -111,9 +117,35 @@ export function AppearancePage() {
 				/>
 			</SettingsGroup>
 			<SettingsGroup title={t('settings.group.icons')}>
+				<IconThemeRow
+					error={errors.iconTheme}
+					value={iconTheme}
+					folderColour={appearance.folderColour}
+					onChange={(next) =>
+						changeSettings('iconTheme', (s) => ({
+							...s,
+							appearance: { ...s.appearance, iconTheme: next },
+						}))
+					}
+				/>
+				{portage ? (
+					<FolderColourRow
+						error={errors.folderColour}
+						value={appearance.folderColour}
+						onChange={(folderColour) =>
+							changeSettings('folderColour', (s) => ({
+								...s,
+								appearance: { ...s.appearance, folderColour },
+							}))
+						}
+					/>
+				) : (
+					<p className={styles.note}>{t('settings.appearance.folderColour.waypointNote')}</p>
+				)}
 				<SelectRow
 					label={t('settings.appearance.iconStyle.label')}
 					description={t('settings.appearance.iconStyle.description')}
+					disabled={portage}
 					error={errors.iconStyle}
 					value={appearance.iconStyle}
 					options={[
