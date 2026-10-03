@@ -7,9 +7,21 @@ import type { TransparencyRegions } from "./TransparencyRegions";
  */
 export type TransparencySettings = { enabled: boolean, 
 /**
- * The window's opacity in percent, 40 to 100.
+ * The title bar's and menu bar's opacity in percent, 40 to 100.
  */
-opacity: number, blur: BlurLevel, regions: TransparencyRegions, 
+opacity: number, 
+/**
+ * The tabs', toolbar's and status bar's opacity in percent, 40 to 100.
+ */
+rowsOpacity: number, 
+/**
+ * The sidebar's (and the Inspector's) opacity in percent, 40 to 100.
+ */
+sidebarOpacity: number, 
+/**
+ * The file area's opacity in percent, 40 to 100.
+ */
+contentOpacity: number, blur: BlurLevel, regions: TransparencyRegions, 
 /**
  * Whether menus and popups are translucent too.
  */
