@@ -6,7 +6,7 @@ import type { Reason } from "./Reason";
  */
 export type FeatureStatus = { 
 /**
- * One of `typeInfo`, `handlers`, `openWith`, `openDefault`, `setDefault`, `chooser` or `appIcons`.
+ * One of `typeInfo`, `handlers`, `openWith`, `openDefault`, `setDefault`, `chooser`, `appIcons`, `typeIcons` or `folderIcons`.
  */
 name: string, available: boolean, 
 /**

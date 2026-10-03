@@ -12,8 +12,10 @@ pub mod mimeapps;
 pub mod models;
 pub mod scheme;
 mod service;
+pub mod shellicon;
 pub mod status;
 pub mod target;
+pub mod typeicons;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -79,6 +81,7 @@ fn build<R: Runtime>(
             commands::choose,
             commands::set_default,
             commands::open_default_apps_settings,
+            commands::refresh_type_icons,
         ])
         .register_uri_scheme_protocol(scheme::SCHEME, |ctx, request| {
             match ctx.app_handle().try_state::<MimeApps<R>>() {
@@ -86,6 +89,25 @@ fn build<R: Runtime>(
                     let (backend, icons) = mime_apps.scheme_parts();
                     scheme::respond(
                         backend.as_ref(),
+                        &icons,
+                        request.method(),
+                        request.uri().path(),
+                        request.uri().query(),
+                    )
+                }
+                None => tauri::http::Response::builder()
+                    .status(tauri::http::StatusCode::SERVICE_UNAVAILABLE)
+                    .body(Vec::new())
+                    .expect("a status-only response is valid"),
+            }
+        })
+        .register_uri_scheme_protocol(typeicons::SCHEME, |ctx, request| {
+            match ctx.app_handle().try_state::<MimeApps<R>>() {
+                Some(mime_apps) => {
+                    let (backend, icons) = mime_apps.type_icon_parts();
+                    scheme::respond_type_icon(
+                        || backend.type_icon_theme(),
+                        |request| backend.type_icon(request),
                         &icons,
                         request.method(),
                         request.uri().path(),

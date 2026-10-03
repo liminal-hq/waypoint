@@ -3,4 +3,4 @@
 /**
  * Why a feature is unavailable. A code the front end can branch on; `message` beside it is a sentence for people.
  */
-export type Reason = "flatpak-sandbox" | "no-system-chooser" | "managed-by-system" | "no-display" | "not-implemented" | "unsupported-platform";
+export type Reason = "flatpak-sandbox" | "no-system-chooser" | "managed-by-system" | "no-display" | "no-icon-theme" | "not-implemented" | "unsupported-platform";

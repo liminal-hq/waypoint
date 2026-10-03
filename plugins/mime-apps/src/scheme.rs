@@ -10,6 +10,7 @@ use tauri::http::{header, Method, Response, StatusCode};
 
 use crate::backend::Backend;
 use crate::target::decode;
+use crate::typeicons::{IconRequest, TypeIconCache};
 
 /// The name of the scheme.
 pub const SCHEME: &str = "appicon";
@@ -111,6 +112,44 @@ pub fn respond(
     }
     let size = size_of(query);
     let Some(bytes) = cache.get_or_make(&id, size, || backend.app_icon(&id, size)) else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    let body = if method == Method::HEAD {
+        Vec::new()
+    } else {
+        bytes.as_ref().clone()
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "image/png")
+        .header(header::CONTENT_LENGTH, bytes.len())
+        .header(header::CACHE_CONTROL, "private, max-age=3600")
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .header("X-Content-Type-Options", "nosniff")
+        .body(body)
+        .unwrap_or_else(|_| status(StatusCode::INTERNAL_SERVER_ERROR))
+}
+
+/// Answers one request of the `typeicon://` scheme: `GET` and `HEAD` for `/mime/{type}`, `/ext/{extension}` or `/folder/{kind}`, and nothing else. A path that is not one of those, however it is written, is a 404, and an icon the system does not have is a 404 too, so the page keeps its own.
+pub fn respond_type_icon(
+    theme: impl Fn() -> Option<String>,
+    render: impl Fn(&IconRequest) -> Option<Vec<u8>>,
+    cache: &TypeIconCache,
+    method: &Method,
+    path: &str,
+    query: Option<&str>,
+) -> Response<Vec<u8>> {
+    if method != Method::GET && method != Method::HEAD {
+        return status(StatusCode::METHOD_NOT_ALLOWED);
+    }
+    let Some(mut request) = IconRequest::from_uri(path, query) else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    // The key names the theme in force even when the request did not, so a theme change cannot hit a picture of the old one.
+    if request.theme.is_none() {
+        request.theme = theme();
+    }
+    let Some(bytes) = cache.get_or_make(&request, || render(&request)) else {
         return status(StatusCode::NOT_FOUND);
     };
     let body = if method == Method::HEAD {
@@ -260,5 +299,130 @@ mod tests {
             app_id_of("/org.gnome.eog.desktop").as_deref(),
             Some("org.gnome.eog.desktop")
         );
+    }
+
+    mod type_icons {
+        use std::cell::Cell;
+
+        use super::*;
+
+        /// Draws `png:{kind path}:{pixels}:{theme}` for every request but the ones for `/ext/none`.
+        fn draw(request: &IconRequest) -> Option<Vec<u8>> {
+            if request.kind == crate::typeicons::IconKind::Extension("none".into()) {
+                return None;
+            }
+            Some(
+                format!(
+                    "png:{}:{}:{}",
+                    request.kind.path(),
+                    request.pixels(),
+                    request.theme.clone().unwrap_or_default()
+                )
+                .into_bytes(),
+            )
+        }
+
+        fn get(cache: &TypeIconCache, path: &str, query: Option<&str>) -> Response<Vec<u8>> {
+            respond_type_icon(
+                || Some("Adwaita".into()),
+                draw,
+                cache,
+                &Method::GET,
+                path,
+                query,
+            )
+        }
+
+        #[test]
+        fn a_type_is_served_as_a_png_at_its_pixel_size_in_the_theme_in_force() {
+            let cache = TypeIconCache::default();
+            let response = get(&cache, "/ext/pdf", Some("size=24&scale=2"));
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers()[header::CONTENT_TYPE], "image/png");
+            assert_eq!(response.body(), b"png:/ext/pdf:48:Adwaita");
+            // The theme the request names wins over the one in force.
+            let named = get(&cache, "/folder/home", Some("theme=Breeze"));
+            assert_eq!(named.body(), b"png:/folder/home:32:Breeze");
+        }
+
+        #[test]
+        fn head_has_no_body_and_other_methods_are_refused() {
+            let cache = TypeIconCache::default();
+            let head = respond_type_icon(|| None, draw, &cache, &Method::HEAD, "/ext/pdf", None);
+            assert_eq!(head.status(), StatusCode::OK);
+            assert!(head.body().is_empty());
+            let post = respond_type_icon(|| None, draw, &cache, &Method::POST, "/ext/pdf", None);
+            assert_eq!(post.status(), StatusCode::METHOD_NOT_ALLOWED);
+        }
+
+        #[test]
+        fn nothing_but_a_type_or_a_folder_kind_is_served() {
+            let cache = TypeIconCache::default();
+            for path in [
+                "/",
+                "/ext/..",
+                "/ext/%2Fetc%2Fpasswd",
+                "/mime/..%2F..%2Fetc%2Fpasswd",
+                "/folder/..",
+                "/folder/etc",
+                "/eog.desktop",
+                "/etc/passwd",
+                "/C%3A%5CWindows%5Cnotepad.exe",
+            ] {
+                assert_eq!(
+                    get(&cache, path, None).status(),
+                    StatusCode::NOT_FOUND,
+                    "{path}"
+                );
+            }
+            assert!(cache.is_empty(), "a refused path never reaches the system");
+        }
+
+        #[test]
+        fn an_icon_the_system_does_not_have_is_a_404_asked_for_once() {
+            let cache = TypeIconCache::default();
+            let asked = Cell::new(0);
+            for _ in 0..3 {
+                let response = respond_type_icon(
+                    || None,
+                    |_| {
+                        asked.set(asked.get() + 1);
+                        None
+                    },
+                    &cache,
+                    &Method::GET,
+                    "/ext/none",
+                    None,
+                );
+                assert_eq!(response.status(), StatusCode::NOT_FOUND);
+            }
+            assert_eq!(asked.get(), 1);
+        }
+
+        #[test]
+        fn a_theme_change_is_a_different_picture_and_clearing_remakes_it() {
+            let cache = TypeIconCache::default();
+            let asked = Cell::new(0);
+            let ask = |theme: &'static str| {
+                respond_type_icon(
+                    move || Some(theme.into()),
+                    |_| {
+                        asked.set(asked.get() + 1);
+                        Some(vec![1])
+                    },
+                    &cache,
+                    &Method::GET,
+                    "/ext/pdf",
+                    None,
+                )
+            };
+            ask("Adwaita");
+            ask("Adwaita");
+            ask("Breeze");
+            assert_eq!(asked.get(), 2);
+            cache.clear();
+            ask("Adwaita");
+            assert_eq!(asked.get(), 3);
+        }
     }
 }
