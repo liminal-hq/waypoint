@@ -5,7 +5,12 @@ import type { Availability } from "./Availability";
  * What each integration can do here (D118: each is off until enabled, and only offered when it
  * can work), worked out in Rust from the shared plugins' own statuses (A65, A66).
  */
-export type IntegrationAvailability = { notifications: Availability, launcherProgress: Availability, preventSleep: Availability, 
+export type IntegrationAvailability = { notifications: Availability, 
+/**
+ * Buttons on a notification: whether the route notifications take accepts them. The portal
+ * cannot say whether the desktop draws them, so "available" means they are sent.
+ */
+notificationActions: Availability, launcherProgress: Availability, preventSleep: Availability, 
 /**
  * Owning `org.freedesktop.FileManager1`, which only Linux has.
  */

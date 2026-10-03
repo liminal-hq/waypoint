@@ -3,7 +3,12 @@
 /**
  * The Integrations page. Every integration is off until it is enabled (D118).
  */
-export type IntegrationSettings = { notifications: boolean, launcherProgress: boolean, preventSleep: boolean, 
+export type IntegrationSettings = { notifications: boolean, 
+/**
+ * Whether a job's notification carries action buttons ("Show in folder", "Undo", …) where the
+ * system draws them. It is on by default, so it takes effect as soon as `notifications` is.
+ */
+notificationActions: boolean, launcherProgress: boolean, preventSleep: boolean, 
 /**
  * Take `org.freedesktop.FileManager1` while Waypoint runs, so other applications' "Show in
  * folder" opens Waypoint. Linux only; making Waypoint the default for folders is a one-off

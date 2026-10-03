@@ -12,6 +12,8 @@
 // - What each switch on the Integrations page can do here and why not (`availability`).
 // - When a finished job notifies (D121): only while no Waypoint window has focus, when it ran over
 //   ten seconds, or when a question is waiting; never when it was cancelled (`Tracker`, `notice`).
+// - The buttons a job's notification carries and what a pressed one does (`buttons`, `parse_action`,
+//   `command_for`).
 // - The one progress value over every job in flight (`combined_progress`).
 // - Whether a job is working, so the machine is kept awake (`keeps_awake`), and the inhibitor's
 //   lifecycle as a state machine (`Inhibitor`).
@@ -26,9 +28,9 @@ use tauri_plugin_desktop_integration::models::{
 use tauri_plugin_xdg_portal::models::{
     PortalFeature, PortalStatus, UnavailableReason as PortalReason,
 };
-use waypoint_ops::{JobSnapshot, JobState};
+use waypoint_ops::{ConflictKind, ConflictPolicy, JobKind, JobSnapshot, JobState, WaitReason};
 use waypoint_path::FilePath;
-use waypoint_protocol::{Availability, IntegrationAvailability, PluginStatus};
+use waypoint_protocol::{Availability, IntegrationAvailability, Location, PluginStatus};
 
 /// A job that ran longer than this notifies even while a Waypoint window has focus (D121).
 pub const LONG_JOB_MS: u64 = 10_000;
@@ -93,6 +95,16 @@ pub fn notify_route(portal: &PortalStatus, desktop: &DesktopStatus) -> Option<Ro
     }
 }
 
+/// Whether the route notifications take accepts buttons (`notificationActions`). The portal cannot
+/// say whether the desktop draws them, so this means they are sent, and a desktop that shows only
+/// the click still does the default (D121).
+pub fn actions_work(route: Route, portal: &PortalStatus, desktop: &DesktopStatus) -> bool {
+    match route {
+        Route::Portal => portal_works(portal, PortalFeature::NotificationActions),
+        Route::Desktop => desktop_works(desktop, DesktopFeature::NotificationActions),
+    }
+}
+
 /// The sleep inhibitor goes through the portal where it offers one, else logind or Windows.
 pub fn inhibit_route(portal: &PortalStatus, desktop: &DesktopStatus) -> Option<Route> {
     if portal_works(portal, PortalFeature::Inhibit) {
@@ -117,6 +129,9 @@ fn desktop_reason(reason: Option<DesktopReason>) -> &'static str {
             "Windows needs an application identity before it shows notifications."
         }
         Some(DesktopReason::NoDisplayServer) => "No display server is running.",
+        Some(DesktopReason::ActionsUnsupported) => {
+            "The notification server does not draw buttons, so notifications offer only a click."
+        }
     }
 }
 
@@ -129,6 +144,9 @@ fn portal_reason(reason: Option<PortalReason>) -> &'static str {
         Some(PortalReason::NoResponse) => "The desktop portal did not answer.",
         Some(PortalReason::NotSandboxed) => {
             "The desktop portal answers only sandboxed apps, so Waypoint uses the system's own services."
+        }
+        Some(PortalReason::ActionsUnsupported) => {
+            "The notification portal is too old to take buttons, so notifications offer only a click."
         }
     }
 }
@@ -162,6 +180,7 @@ fn either_availability(
 pub fn portal_summary(status: &PortalStatus) -> PluginStatus {
     let names = [
         (PortalFeature::Notification, "notification"),
+        (PortalFeature::NotificationActions, "notificationActions"),
         (PortalFeature::Inhibit, "inhibit"),
         (PortalFeature::OpenUri, "openUri"),
     ];
@@ -186,6 +205,7 @@ pub fn portal_summary(status: &PortalStatus) -> PluginStatus {
 pub fn desktop_summary(status: &DesktopStatus) -> PluginStatus {
     let names = [
         (DesktopFeature::Notify, "notify"),
+        (DesktopFeature::NotificationActions, "notificationActions"),
         (DesktopFeature::InhibitSleep, "inhibitSleep"),
         (DesktopFeature::LauncherProgress, "launcherProgress"),
         (DesktopFeature::FileManager, "fileManager"),
@@ -218,6 +238,7 @@ pub fn availability(
         let none = || Availability::no("This operating system does not offer it.");
         return IntegrationAvailability {
             notifications: none(),
+            notification_actions: none(),
             launcher_progress: none(),
             prevent_sleep: none(),
             file_manager_service: none(),
@@ -230,6 +251,12 @@ pub fn availability(
             PortalFeature::Notification,
             desktop,
             DesktopFeature::Notify,
+        ),
+        notification_actions: either_availability(
+            portal,
+            PortalFeature::NotificationActions,
+            desktop,
+            DesktopFeature::NotificationActions,
         ),
         launcher_progress: desktop_availability(desktop, DesktopFeature::LauncherProgress),
         prevent_sleep: either_availability(
@@ -291,10 +318,62 @@ pub struct JobFacts {
     pub failed: u64,
     /// The sentence a failed job ended with.
     pub error: Option<String>,
+    /// What the job does, as far as its buttons care.
+    pub kind: Kind,
+    /// Where the job put things, when it has one.
+    pub destination: Option<Location>,
+    /// The window that started the job.
+    pub origin_window: String,
+    /// What a waiting job waits on.
+    pub wait: Wait,
+}
+
+/// A job's kind, reduced to what its buttons depend on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Move,
+    Trash,
+    Other,
+}
+
+/// What a job that has stopped for an answer waits on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Wait {
+    /// Not waiting.
+    None,
+    /// One file over one file: Replace, Skip and Keep both each settle it. `source` is the entry
+    /// being copied or moved, which an answer names.
+    PlainConflict { source: Location },
+    /// Several clashes, a folder over a file, a clash inside the batch, and the like: the dialog
+    /// is the place for it.
+    OtherConflict,
+    /// An item failed.
+    Error,
 }
 
 /// The facts of a job snapshot.
 pub fn facts(job: &JobSnapshot) -> JobFacts {
+    let wait = match &job.state {
+        JobState::Waiting {
+            reason: WaitReason::Conflicts { conflicts },
+        } => match conflicts.as_slice() {
+            [one] if one.kind == ConflictKind::FileOverFile && !one.within_batch => {
+                Wait::PlainConflict {
+                    source: one.source.clone(),
+                }
+            }
+            _ => Wait::OtherConflict,
+        },
+        JobState::Waiting {
+            reason: WaitReason::Error { .. },
+        } => Wait::Error,
+        _ => Wait::None,
+    };
+    let kind = match job.kind {
+        JobKind::Move => Kind::Move,
+        JobKind::Trash => Kind::Trash,
+        _ => Kind::Other,
+    };
     let (phase, error) = match &job.state {
         JobState::Planning => (Phase::Planning, None),
         JobState::Queued => (Phase::Queued, None),
@@ -322,6 +401,10 @@ pub fn facts(job: &JobSnapshot) -> JobFacts {
         skipped: job.counts.skipped,
         failed: job.counts.failed,
         error,
+        kind,
+        destination: job.destination.clone(),
+        origin_window: job.origin_window.clone(),
+        wait,
     }
 }
 
@@ -545,6 +628,9 @@ pub struct Notice {
     pub id: String,
     pub title: String,
     pub body: String,
+    /// Buttons, in order. Empty until the caller attaches `buttons` (only where they are wanted
+    /// and the route accepts them).
+    pub actions: Vec<Button>,
 }
 
 /// The id of a job's notification.
@@ -561,6 +647,7 @@ pub fn notice(transition: &Transition, any_window_focused: bool) -> Option<Notic
             id: notice_id(job.id),
             title: job.title.clone(),
             body: "Waypoint is waiting for your answer.".to_owned(),
+            actions: Vec::new(),
         }),
         Transition::Finished(job) => {
             let long = job.ran_ms.is_some_and(|ms| ms > LONG_JOB_MS);
@@ -581,9 +668,231 @@ pub fn notice(transition: &Transition, any_window_focused: bool) -> Option<Notic
                 id: notice_id(job.id),
                 title: job.title.clone(),
                 body,
+                actions: Vec::new(),
             })
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Notification buttons (D121, D122)
+// ---------------------------------------------------------------------------------------------
+
+/// What a button does. Each is a shortcut for something the app already does; the click on the
+/// notification itself raises a window whatever else is offered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Act {
+    /// Open the destination as a tab in the window that started the job.
+    ShowInFolder,
+    /// Open the Operations window.
+    ShowDetails,
+    /// Open the question's dialog.
+    Show,
+    /// Answer this one conflict.
+    Resolve(ConflictPolicy),
+    /// Undo the job's journal entry.
+    Undo,
+}
+
+impl Act {
+    /// The slug in a button's id.
+    fn slug(self) -> &'static str {
+        match self {
+            Act::ShowInFolder => "folder",
+            Act::ShowDetails => "details",
+            Act::Show => "show",
+            Act::Resolve(ConflictPolicy::Replace) => "replace",
+            Act::Resolve(ConflictPolicy::Skip) => "skip",
+            Act::Resolve(ConflictPolicy::KeepBoth) => "keep-both",
+            // Never offered: a notification answers one item with one of the three above.
+            Act::Resolve(_) => "other",
+            Act::Undo => "undo",
+        }
+    }
+
+    fn from_slug(slug: &str) -> Option<Self> {
+        Some(match slug {
+            "folder" => Act::ShowInFolder,
+            "details" => Act::ShowDetails,
+            "show" => Act::Show,
+            "replace" => Act::Resolve(ConflictPolicy::Replace),
+            "skip" => Act::Resolve(ConflictPolicy::Skip),
+            "keep-both" => Act::Resolve(ConflictPolicy::KeepBoth),
+            "undo" => Act::Undo,
+            _ => return None,
+        })
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Act::ShowInFolder => "Show in folder",
+            Act::ShowDetails => "Show details",
+            Act::Show => "Show",
+            Act::Resolve(ConflictPolicy::Replace) => "Replace",
+            Act::Resolve(ConflictPolicy::Skip) => "Skip",
+            Act::Resolve(ConflictPolicy::KeepBoth) => "Keep both",
+            Act::Resolve(_) => "Resolve",
+            Act::Undo => "Undo",
+        }
+    }
+}
+
+/// One button on a notification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Button {
+    /// Stable, and encodes the job and the action (`button_id`), so the press can be understood
+    /// whenever it arrives.
+    pub id: String,
+    pub label: String,
+}
+
+/// The most buttons a notification carries; the services drop any beyond it.
+pub const MAX_BUTTONS: usize = 3;
+
+const ID_PREFIX: &str = "waypoint.job.";
+
+/// A button's id: `waypoint.job.<job>.<action>`. It never starts with `app.` (which the portal
+/// routes to the application) and is never `default` (which `desktop-integration` reserves).
+pub fn button_id(job: u64, act: Act) -> String {
+    format!("{ID_PREFIX}{job}.{}", act.slug())
+}
+
+/// The job and action a button id encodes. Anything malformed or from elsewhere (the click's
+/// `raise`, another application's ids) is `None`.
+pub fn parse_action(id: &str) -> Option<(u64, Act)> {
+    let rest = id.strip_prefix(ID_PREFIX)?;
+    let (job, slug) = rest.split_once('.')?;
+    // Plain digits only: no sign, no space, nothing `parse` would forgive.
+    if job.is_empty() || !job.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some((job.parse().ok()?, Act::from_slug(slug)?))
+}
+
+/// The buttons for a job's notification, in order. `undo_is_this` says the undo journal's newest
+/// applied entry is the one this job made, so "Undo" would undo exactly it; it is hidden otherwise,
+/// because another operation has since come on top of it.
+///
+/// - Finished: "Show in folder" where the job has a destination, and "Undo" for a move or a trash
+///   while it still can.
+/// - Failed: "Show details".
+/// - Waiting on a plain conflict: "Replace", "Skip" and "Keep both" for this item only (never "apply
+///   to all"); the click on the notification is "Show". Any other wait: "Show".
+pub fn buttons(job: &JobFacts, undo_is_this: bool) -> Vec<Button> {
+    let acts: Vec<Act> = match job.phase {
+        Phase::Done => {
+            let mut acts = Vec::new();
+            if job.destination.is_some() {
+                acts.push(Act::ShowInFolder);
+            }
+            if matches!(job.kind, Kind::Move | Kind::Trash) && undo_is_this {
+                acts.push(Act::Undo);
+            }
+            acts
+        }
+        Phase::Failed => vec![Act::ShowDetails],
+        Phase::Waiting => match job.wait {
+            Wait::PlainConflict { .. } => vec![
+                Act::Resolve(ConflictPolicy::Replace),
+                Act::Resolve(ConflictPolicy::Skip),
+                Act::Resolve(ConflictPolicy::KeepBoth),
+            ],
+            Wait::OtherConflict | Wait::Error => vec![Act::Show],
+            Wait::None => Vec::new(),
+        },
+        _ => Vec::new(),
+    };
+    acts.into_iter()
+        .take(MAX_BUTTONS)
+        .map(|act| Button {
+            id: button_id(job.id, act),
+            label: act.label().to_owned(),
+        })
+        .collect()
+}
+
+/// The buttons a transition's notification carries. `undo_top` is the job whose journal entry the
+/// undo journal would undo now, if any.
+pub fn transition_buttons(transition: &Transition, undo_top: Option<u64>) -> Vec<Button> {
+    match transition {
+        Transition::Finished(job) | Transition::NeedsAttention(job) => {
+            buttons(job, undo_top == Some(job.id))
+        }
+    }
+}
+
+/// What a pressed button asks the app to do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ActionCommand {
+    /// Open `location` as a tab in `window` when that window is open, else in a new window.
+    OpenFolder { window: String, location: Location },
+    /// Open the Operations window.
+    OpenOperations,
+    /// Show the question a job waits on: the window that started it, or the Operations window.
+    ShowQuestion { job: u64, window: String },
+    /// Answer the one conflict a job waits on.
+    Resolve {
+        job: u64,
+        source: Location,
+        policy: ConflictPolicy,
+    },
+    /// Undo the entry the job made.
+    Undo { job: u64, window: String },
+}
+
+/// What a press of the button `id` does, against the queue as it is now. `undo_is_this` is the job
+/// whose entry the undo journal would undo now, if any. `None` is for an id that is not one of
+/// Waypoint's buttons (including the click's `raise`). A button for a job that has gone, or whose
+/// moment has passed (answered elsewhere, no longer on top of the undo journal), opens the
+/// Operations window rather than doing nothing or doing the wrong thing.
+pub fn command_for(
+    id: &str,
+    jobs: &[JobFacts],
+    undo_is_this: Option<u64>,
+) -> Option<ActionCommand> {
+    let (job_id, act) = parse_action(id)?;
+    let Some(job) = jobs.iter().find(|job| job.id == job_id) else {
+        return Some(ActionCommand::OpenOperations);
+    };
+    let command = match act {
+        Act::ShowInFolder => job
+            .destination
+            .clone()
+            .filter(|_| job.phase == Phase::Done)
+            .map(|location| ActionCommand::OpenFolder {
+                window: job.origin_window.clone(),
+                location,
+            }),
+        Act::ShowDetails => Some(ActionCommand::OpenOperations),
+        Act::Show => (job.phase == Phase::Waiting).then(|| ActionCommand::ShowQuestion {
+            job: job.id,
+            window: job.origin_window.clone(),
+        }),
+        Act::Resolve(policy) => match &job.wait {
+            Wait::PlainConflict { source }
+                if job.phase == Phase::Waiting
+                    && matches!(
+                        policy,
+                        ConflictPolicy::Replace | ConflictPolicy::Skip | ConflictPolicy::KeepBoth
+                    ) =>
+            {
+                Some(ActionCommand::Resolve {
+                    job: job.id,
+                    source: source.clone(),
+                    policy,
+                })
+            }
+            _ => None,
+        },
+        Act::Undo => (job.phase == Phase::Done
+            && matches!(job.kind, Kind::Move | Kind::Trash)
+            && undo_is_this == Some(job.id))
+        .then(|| ActionCommand::Undo {
+            job: job.id,
+            window: job.origin_window.clone(),
+        }),
+    };
+    Some(command.unwrap_or(ActionCommand::OpenOperations))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -667,6 +976,10 @@ mod tests {
             skipped: 0,
             failed: 0,
             error: None,
+            kind: Kind::Other,
+            destination: None,
+            origin_window: "main-1".to_owned(),
+            wait: Wait::None,
         }
     }
 
@@ -692,6 +1005,7 @@ mod tests {
             false,
             vec![
                 feature(PortalFeature::Notification, notify),
+                feature(PortalFeature::NotificationActions, notify),
                 feature(PortalFeature::Inhibit, inhibit),
                 feature(PortalFeature::OpenUri, false),
             ],
@@ -701,6 +1015,7 @@ mod tests {
     fn desktop(working: &[DesktopFeature]) -> DesktopStatus {
         let all = [
             DesktopFeature::Notify,
+            DesktopFeature::NotificationActions,
             DesktopFeature::InhibitSleep,
             DesktopFeature::LauncherProgress,
             DesktopFeature::FileManager,
@@ -716,6 +1031,9 @@ mod tests {
                             feature,
                             match feature {
                                 DesktopFeature::Notify => DesktopReason::NoNotificationServer,
+                                DesktopFeature::NotificationActions => {
+                                    DesktopReason::ActionsUnsupported
+                                }
                                 DesktopFeature::InhibitSleep => DesktopReason::NoLogind,
                                 DesktopFeature::GlobalShortcuts => DesktopReason::NoDisplayServer,
                                 _ => DesktopReason::PlatformUnsupported,
@@ -729,8 +1047,9 @@ mod tests {
         )
     }
 
-    const ALL: [DesktopFeature; 5] = [
+    const ALL: [DesktopFeature; 6] = [
         DesktopFeature::Notify,
+        DesktopFeature::NotificationActions,
         DesktopFeature::InhibitSleep,
         DesktopFeature::LauncherProgress,
         DesktopFeature::FileManager,
@@ -807,6 +1126,7 @@ mod tests {
         let none = availability(Platform::Other, &portal(true, true), &desktop(&ALL));
         for a in [
             none.notifications,
+            none.notification_actions,
             none.launcher_progress,
             none.prevent_sleep,
             none.file_manager_service,
@@ -821,10 +1141,14 @@ mod tests {
     fn the_services_panel_lists_what_works_and_the_first_reason_that_does_not() {
         let partial = desktop_summary(&desktop(&[
             DesktopFeature::Notify,
+            DesktopFeature::NotificationActions,
             DesktopFeature::FileManager,
         ]));
         assert!(partial.available);
-        assert_eq!(partial.features, vec!["notify", "fileManager"]);
+        assert_eq!(
+            partial.features,
+            vec!["notify", "notificationActions", "fileManager"]
+        );
         assert_eq!(
             partial.reason.as_deref(),
             Some("systemd-logind is not running.")
@@ -836,7 +1160,10 @@ mod tests {
         assert!(!host.available);
         assert!(host.reason.unwrap().contains("sandboxed"));
         let sandboxed = portal_summary(&portal(true, true));
-        assert_eq!(sandboxed.features, vec!["notification", "inhibit"]);
+        assert_eq!(
+            sandboxed.features,
+            vec!["notification", "notificationActions", "inhibit"]
+        );
         assert!(sandboxed.available);
     }
 
@@ -1247,5 +1574,377 @@ mod tests {
         let requests = open_requests(&call);
         assert_eq!(requests.len(), MAX_OPEN_FOLDERS);
         assert_eq!(requests[0].folder, folder("/d0"));
+    }
+
+    // ---- notification buttons ----
+
+    fn at(path: &str) -> Location {
+        Location::new(path, format!("file://{path}"))
+    }
+
+    fn done(id: u64, kind: Kind, destination: Option<&str>) -> JobFacts {
+        JobFacts {
+            kind,
+            destination: destination.map(at),
+            ..job(id, Phase::Done)
+        }
+    }
+
+    fn waiting(id: u64, wait: Wait) -> JobFacts {
+        JobFacts {
+            wait,
+            ..job(id, Phase::Waiting)
+        }
+    }
+
+    fn snapshot_of(kind: JobKind) -> waypoint_ops::JobSnapshot {
+        waypoint_ops::JobSnapshot {
+            id: waypoint_ops::JobId(1),
+            kind,
+            state: JobState::Running,
+            title: "Job".into(),
+            sources: Default::default(),
+            destination: None,
+            options: Default::default(),
+            origin_window: "main-1".into(),
+            counts: Default::default(),
+            progress: Default::default(),
+            created_ms: 0,
+            started_ms: None,
+            finished_ms: None,
+            undoable: false,
+            verified: None,
+        }
+    }
+
+    fn labels(buttons: &[Button]) -> Vec<&str> {
+        buttons.iter().map(|b| b.label.as_str()).collect()
+    }
+
+    #[test]
+    fn a_finished_copy_offers_show_in_folder_and_never_undo() {
+        let copy = done(4, Kind::Other, Some("/dest"));
+        assert_eq!(labels(&buttons(&copy, true)), ["Show in folder"]);
+        // A job with no destination (create, rename, delete) has nothing to show.
+        assert!(buttons(&done(4, Kind::Other, None), true).is_empty());
+    }
+
+    #[test]
+    fn a_finished_move_offers_show_in_folder_and_undo_while_it_is_the_top_of_the_journal() {
+        let moved = done(5, Kind::Move, Some("/dest"));
+        assert_eq!(labels(&buttons(&moved, true)), ["Show in folder", "Undo"]);
+        // Another operation has come on top: undo would undo that one, so it is hidden.
+        assert_eq!(labels(&buttons(&moved, false)), ["Show in folder"]);
+    }
+
+    #[test]
+    fn a_trashed_job_offers_only_undo_and_only_while_it_can() {
+        let trashed = done(6, Kind::Trash, None);
+        assert_eq!(labels(&buttons(&trashed, true)), ["Undo"]);
+        assert!(buttons(&trashed, false).is_empty());
+    }
+
+    #[test]
+    fn a_failed_job_offers_show_details() {
+        let failed = JobFacts {
+            error: Some("boom".into()),
+            destination: Some(at("/dest")),
+            ..job(7, Phase::Failed)
+        };
+        assert_eq!(labels(&buttons(&failed, true)), ["Show details"]);
+    }
+
+    #[test]
+    fn a_plain_conflict_offers_replace_skip_and_keep_both_and_never_apply_to_all() {
+        let plain = waiting(8, Wait::PlainConflict { source: at("/a/x") });
+        let offered = buttons(&plain, false);
+        assert_eq!(labels(&offered), ["Replace", "Skip", "Keep both"]);
+        assert!(offered.len() <= MAX_BUTTONS);
+        assert!(offered.iter().all(|b| !b.id.contains("all")));
+    }
+
+    #[test]
+    fn another_conflict_or_an_error_offers_show_only() {
+        assert_eq!(
+            labels(&buttons(&waiting(9, Wait::OtherConflict), false)),
+            ["Show"]
+        );
+        assert_eq!(labels(&buttons(&waiting(9, Wait::Error), false)), ["Show"]);
+        assert!(buttons(&waiting(9, Wait::None), false).is_empty());
+    }
+
+    #[test]
+    fn a_job_that_is_neither_finished_nor_waiting_has_no_buttons() {
+        for phase in [Phase::Running, Phase::Queued, Phase::Cancelled] {
+            assert!(buttons(&job(1, phase), true).is_empty());
+        }
+    }
+
+    #[test]
+    fn a_transition_takes_its_buttons_from_the_job() {
+        let moved = Transition::Finished(done(5, Kind::Move, Some("/dest")));
+        assert_eq!(transition_buttons(&moved, Some(5)).len(), 2);
+        assert_eq!(transition_buttons(&moved, Some(4)).len(), 1);
+        assert_eq!(transition_buttons(&moved, None).len(), 1);
+        let asks = Transition::NeedsAttention(waiting(2, Wait::Error));
+        assert_eq!(labels(&transition_buttons(&asks, None)), ["Show"]);
+    }
+
+    #[test]
+    fn button_ids_are_stable_unique_and_clear_of_the_reserved_ones() {
+        let acts = [
+            Act::ShowInFolder,
+            Act::ShowDetails,
+            Act::Show,
+            Act::Resolve(ConflictPolicy::Replace),
+            Act::Resolve(ConflictPolicy::Skip),
+            Act::Resolve(ConflictPolicy::KeepBoth),
+            Act::Undo,
+        ];
+        let ids: Vec<String> = acts.iter().map(|act| button_id(12, *act)).collect();
+        assert_eq!(ids[0], "waypoint.job.12.folder");
+        assert_eq!(ids[5], "waypoint.job.12.keep-both");
+        let unique: std::collections::HashSet<_> = ids.iter().collect();
+        assert_eq!(unique.len(), ids.len());
+        for id in &ids {
+            assert!(id.len() <= 256);
+            assert!(!id.starts_with("app."));
+            assert_ne!(id, "default");
+            assert_ne!(id, RAISE_ACTION);
+        }
+        // The ids round-trip, whatever the job number.
+        for act in acts {
+            for job in [0, 1, 12, u64::MAX] {
+                assert_eq!(parse_action(&button_id(job, act)), Some((job, act)));
+            }
+        }
+    }
+
+    #[test]
+    fn malformed_or_foreign_ids_are_ignored() {
+        for id in [
+            "",
+            "raise",
+            "default",
+            "app.open",
+            "waypoint.job.",
+            "waypoint.job.1",
+            "waypoint.job.1.",
+            "waypoint.job..folder",
+            "waypoint.job.x.folder",
+            "waypoint.job.-1.folder",
+            "waypoint.job.+1.folder",
+            "waypoint.job. 1.folder",
+            "waypoint.job.99999999999999999999.folder",
+            "waypoint.job.1.nothing",
+            "waypoint.job.1.folder.extra",
+            "waypoint.job.1.other",
+            "other.job.1.folder",
+            "Waypoint.job.1.folder",
+        ] {
+            assert_eq!(parse_action(id), None, "{id:?}");
+            assert_eq!(
+                command_for(id, &[done(1, Kind::Move, Some("/d"))], Some(1)),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn each_button_becomes_its_command() {
+        let jobs = [
+            done(1, Kind::Move, Some("/dest")),
+            JobFacts {
+                origin_window: "main-3".into(),
+                ..job(2, Phase::Failed)
+            },
+            waiting(3, Wait::PlainConflict { source: at("/a/x") }),
+            waiting(4, Wait::Error),
+        ];
+        assert_eq!(
+            command_for(&button_id(1, Act::ShowInFolder), &jobs, None),
+            Some(ActionCommand::OpenFolder {
+                window: "main-1".into(),
+                location: at("/dest")
+            })
+        );
+        assert_eq!(
+            command_for(&button_id(2, Act::ShowDetails), &jobs, None),
+            Some(ActionCommand::OpenOperations)
+        );
+        assert_eq!(
+            command_for(&button_id(4, Act::Show), &jobs, None),
+            Some(ActionCommand::ShowQuestion {
+                job: 4,
+                window: "main-1".into()
+            })
+        );
+        for policy in [
+            ConflictPolicy::Replace,
+            ConflictPolicy::Skip,
+            ConflictPolicy::KeepBoth,
+        ] {
+            assert_eq!(
+                command_for(&button_id(3, Act::Resolve(policy)), &jobs, None),
+                Some(ActionCommand::Resolve {
+                    job: 3,
+                    source: at("/a/x"),
+                    policy
+                })
+            );
+        }
+        assert_eq!(
+            command_for(&button_id(1, Act::Undo), &jobs, Some(1)),
+            Some(ActionCommand::Undo {
+                job: 1,
+                window: "main-1".into()
+            })
+        );
+    }
+
+    #[test]
+    fn a_button_for_a_job_that_has_gone_opens_the_operations_window() {
+        let jobs = [done(1, Kind::Move, Some("/dest"))];
+        for act in [
+            Act::ShowInFolder,
+            Act::ShowDetails,
+            Act::Show,
+            Act::Resolve(ConflictPolicy::Replace),
+            Act::Undo,
+        ] {
+            assert_eq!(
+                command_for(&button_id(99, act), &jobs, Some(1)),
+                Some(ActionCommand::OpenOperations)
+            );
+        }
+        assert_eq!(
+            command_for(&button_id(1, Act::Show), &[], None),
+            Some(ActionCommand::OpenOperations)
+        );
+    }
+
+    #[test]
+    fn a_press_whose_moment_has_passed_opens_the_operations_window_instead() {
+        // Undo is no longer the top of the journal, or nothing is.
+        let moved = [done(1, Kind::Move, Some("/dest"))];
+        assert_eq!(
+            command_for(&button_id(1, Act::Undo), &moved, Some(2)),
+            Some(ActionCommand::OpenOperations)
+        );
+        assert_eq!(
+            command_for(&button_id(1, Act::Undo), &moved, None),
+            Some(ActionCommand::OpenOperations)
+        );
+        // A copy is never undone from a notification, whatever the id says.
+        let copy = [done(1, Kind::Other, Some("/dest"))];
+        assert_eq!(
+            command_for(&button_id(1, Act::Undo), &copy, Some(1)),
+            Some(ActionCommand::OpenOperations)
+        );
+        // The conflict was answered elsewhere and the job runs on; or it now waits on several.
+        let running = [job(3, Phase::Running)];
+        let replace = button_id(3, Act::Resolve(ConflictPolicy::Replace));
+        assert_eq!(
+            command_for(&replace, &running, None),
+            Some(ActionCommand::OpenOperations)
+        );
+        let several = [waiting(3, Wait::OtherConflict)];
+        assert_eq!(
+            command_for(&replace, &several, None),
+            Some(ActionCommand::OpenOperations)
+        );
+        // Show for a question that is gone, and Show in folder for a job that did not finish.
+        assert_eq!(
+            command_for(&button_id(3, Act::Show), &running, None),
+            Some(ActionCommand::OpenOperations)
+        );
+        let still_running = [JobFacts {
+            destination: Some(at("/dest")),
+            ..job(3, Phase::Running)
+        }];
+        assert_eq!(
+            command_for(&button_id(3, Act::ShowInFolder), &still_running, None),
+            Some(ActionCommand::OpenOperations)
+        );
+    }
+
+    #[test]
+    fn the_click_on_the_notification_is_not_a_button() {
+        assert_eq!(command_for(RAISE_ACTION, &[], None), None);
+    }
+
+    #[test]
+    fn buttons_are_sent_only_where_the_chosen_route_accepts_them() {
+        let all = desktop(&ALL);
+        // The portal accepts them: the portal route.
+        assert!(actions_work(Route::Portal, &portal(true, true), &all));
+        // A portal that is not there, a server that lists no `actions`: no buttons, only the click.
+        assert!(!actions_work(Route::Portal, &portal(false, false), &all));
+        let no_buttons = desktop(&[DesktopFeature::Notify]);
+        assert!(!actions_work(
+            Route::Desktop,
+            &portal(false, false),
+            &no_buttons
+        ));
+        assert!(actions_work(Route::Desktop, &portal(false, false), &all));
+        // The page's switch follows the same status, with the reason in the Services panel.
+        let bare = availability(Platform::Linux, &portal(false, false), &no_buttons);
+        assert!(bare.notifications.available);
+        assert!(!bare.notification_actions.available);
+        assert_eq!(
+            bare.notification_actions.reason.as_deref(),
+            Some("The notification server does not draw buttons, so notifications offer only a click.")
+        );
+        let fine = availability(Platform::Linux, &portal(false, false), &all);
+        assert!(fine.notification_actions.available);
+        let summary = desktop_summary(&no_buttons);
+        assert!(!summary.features.contains(&"notificationActions".to_owned()));
+    }
+
+    #[test]
+    fn the_facts_of_a_waiting_job_say_what_it_waits_on() {
+        use waypoint_ops::Conflict;
+        let clash = |kind, within_batch| Conflict {
+            source: at("/a/x"),
+            existing: at("/b/x"),
+            name: "x".into(),
+            kind,
+            within_batch,
+            source_size: None,
+            existing_size: None,
+            source_modified_ms: None,
+            existing_modified_ms: None,
+        };
+        let wait_of = |conflicts: Vec<Conflict>| {
+            let snapshot = waypoint_ops::JobSnapshot {
+                state: JobState::Waiting {
+                    reason: WaitReason::Conflicts { conflicts },
+                },
+                ..snapshot_of(JobKind::Copy)
+            };
+            facts(&snapshot).wait
+        };
+        assert_eq!(
+            wait_of(vec![clash(ConflictKind::FileOverFile, false)]),
+            Wait::PlainConflict { source: at("/a/x") }
+        );
+        assert_eq!(
+            wait_of(vec![clash(ConflictKind::FolderOverFolder, false)]),
+            Wait::OtherConflict
+        );
+        assert_eq!(
+            wait_of(vec![clash(ConflictKind::FileOverFile, true)]),
+            Wait::OtherConflict
+        );
+        assert_eq!(
+            wait_of(vec![
+                clash(ConflictKind::FileOverFile, false),
+                clash(ConflictKind::FileOverFile, false)
+            ]),
+            Wait::OtherConflict
+        );
+        assert_eq!(facts(&snapshot_of(JobKind::Move)).kind, Kind::Move,);
+        assert_eq!(facts(&snapshot_of(JobKind::Trash)).kind, Kind::Trash);
+        assert_eq!(facts(&snapshot_of(JobKind::Copy)).kind, Kind::Other);
     }
 }

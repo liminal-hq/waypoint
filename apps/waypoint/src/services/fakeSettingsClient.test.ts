@@ -70,6 +70,7 @@ describe('the milestone 5 sections', () => {
 		expect(settings.locale.language).toBe('system');
 		expect(settings.integrations).toEqual({
 			notifications: false,
+			notificationActions: true,
 			launcherProgress: false,
 			preventSleep: false,
 			defaultFileManager: false,

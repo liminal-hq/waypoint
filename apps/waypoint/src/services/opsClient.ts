@@ -123,4 +123,9 @@ export interface OpsClient {
 	onEvent(listener: (event: OpsEvent) => void): Unsubscribe;
 	onClipboard(listener: (clipboard: Clipboard) => void): Unsubscribe;
 	onRecovered(listener: (report: RecoveryReport) => void): Unsubscribe;
+	/**
+	 * A notification's "Show" asked this window to show the question a job waits on, as the id of
+	 * the job. A window that does not hold the job's question ignores it.
+	 */
+	onShowJob(listener: (job: JobId) => void): Unsubscribe;
 }

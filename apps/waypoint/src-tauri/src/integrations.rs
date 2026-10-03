@@ -31,28 +31,35 @@ use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 
 use tauri::async_runtime::{spawn, Mutex};
-use tauri::{AppHandle, Listener, Manager, Runtime, WindowEvent};
+use tauri::{AppHandle, Emitter, Listener, Manager, Runtime, WindowEvent};
 use tauri_plugin_desktop_integration::models::{
-    FileManagerCall, LauncherProgress, LauncherRequest, NotifyRequest,
-    PluginStatus as DesktopStatus, SleepInhibitRequest, SleepKind,
+    ActionButton as DesktopButton, FileManagerCall, LauncherProgress, LauncherRequest,
+    NotifyRequest, PluginStatus as DesktopStatus, SleepInhibitRequest, SleepKind,
 };
 use tauri_plugin_desktop_integration::DesktopServicesExt;
 use tauri_plugin_waypoint_ops::Ops;
 use tauri_plugin_waypoint_session::Sessions;
 use tauri_plugin_waypoint_settings::SettingsStore;
 use tauri_plugin_xdg_portal::models::{
-    InhibitKind, InhibitRequest, NotificationRequest, PortalStatus,
+    ActionButton as PortalButton, InhibitKind, InhibitRequest, NotificationRequest, PortalStatus,
 };
 use tauri_plugin_xdg_portal::PortalExt;
-use waypoint_protocol::{IntegrationAvailability, PluginStatus, WindowKind};
+use waypoint_ops::{JobId, Resolution};
+use waypoint_protocol::{IntegrationAvailability, Location, PluginStatus, WindowKind};
 use waypoint_session::{Command, SessionEvent, TabHints};
 use waypoint_settings::{Settings, DEFAULT_ACCELERATOR};
 
 use crate::integration_policy::{
-    availability, combined_progress, desktop_summary, facts, inhibit_route, keeps_awake,
-    notify_route, open_requests, portal_summary, InhibitAction, Inhibitor, JobFacts, Notice,
-    OpenRequest, Platform, Route, Shown, Tracker, RAISE_ACTION,
+    actions_work, availability, combined_progress, command_for, desktop_summary, facts,
+    inhibit_route, keeps_awake, notify_route, open_requests, portal_summary, transition_buttons,
+    ActionCommand, InhibitAction, Inhibitor, JobFacts, Notice, OpenRequest, Platform, Route, Shown,
+    Tracker, RAISE_ACTION,
 };
+use crate::ops_window;
+
+/// What the shell tells a window when a notification's "Show" is pressed: the job's id. The
+/// window that holds the job's question brings it back (`OpsResolverHost`).
+pub const SHOW_JOB_EVENT: &str = "waypoint://show-job";
 
 /// How often the progress on the launcher is refreshed while a job is in flight.
 const TICK: Duration = Duration::from_millis(500);
@@ -163,6 +170,28 @@ async fn probe<R: Runtime>(app: &AppHandle<R>) -> Probes {
 
 /// Shows a notification through the plugin the policy chose.
 async fn show_notice<R: Runtime>(app: &AppHandle<R>, route: Route, notice: Notice) {
+    // Buttons are the plugins' `actions`; none is the same as the field being absent.
+    let has = !notice.actions.is_empty();
+    let portal_buttons = has.then(|| {
+        notice
+            .actions
+            .iter()
+            .map(|b| PortalButton {
+                id: b.id.clone(),
+                label: b.label.clone(),
+            })
+            .collect::<Vec<_>>()
+    });
+    let desktop_buttons = has.then(|| {
+        notice
+            .actions
+            .iter()
+            .map(|b| DesktopButton {
+                id: b.id.clone(),
+                label: b.label.clone(),
+            })
+            .collect::<Vec<_>>()
+    });
     let result = match route {
         Route::Portal => app
             .portal()
@@ -172,6 +201,7 @@ async fn show_notice<R: Runtime>(app: &AppHandle<R>, route: Route, notice: Notic
                 body: Some(notice.body),
                 default_action: Some(RAISE_ACTION.to_owned()),
                 urgency: None,
+                actions: portal_buttons,
             })
             .await
             .map_err(|e| e.to_string()),
@@ -185,6 +215,7 @@ async fn show_notice<R: Runtime>(app: &AppHandle<R>, route: Route, notice: Notic
                 urgency: None,
                 app_name: None,
                 desktop_id: None,
+                actions: desktop_buttons,
             })
             .await
             .map_err(|e| e.to_string()),
@@ -408,21 +439,36 @@ async fn reconcile_locked<R: Runtime>(app: &AppHandle<R>, st: &mut State) -> boo
     if any_on && st.probes.is_none() {
         st.probes = Some(probe(app).await);
     }
-    let (notify_via, inhibit_via, works) = match &st.probes {
-        Some(p) => (
-            notify_route(&p.portal, &p.desktop),
-            inhibit_route(&p.portal, &p.desktop),
-            Some(p.availability.clone()),
-        ),
-        None => (None, None, None),
+    let (notify_via, inhibit_via, works, buttons_work) = match &st.probes {
+        Some(p) => {
+            let route = notify_route(&p.portal, &p.desktop);
+            (
+                route,
+                inhibit_route(&p.portal, &p.desktop),
+                Some(p.availability.clone()),
+                route.is_some_and(|route| actions_work(route, &p.portal, &p.desktop)),
+            )
+        }
+        None => (None, None, None, false),
     };
     let can = |pick: fn(&IntegrationAvailability) -> bool| works.as_ref().is_some_and(pick);
 
     if wanted.notifications {
         if let Some(route) = notify_via {
             let focused = any_window_focused(app);
+            // Buttons only where the person wants them and the route accepts them; the click on
+            // the notification does the default either way.
+            let with_buttons = wanted.notification_actions && buttons_work;
+            let undo_top = if with_buttons {
+                undo_top_job(app)
+            } else {
+                None
+            };
             for transition in &transitions {
-                if let Some(notice) = crate::integration_policy::notice(transition, focused) {
+                if let Some(mut notice) = crate::integration_policy::notice(transition, focused) {
+                    if with_buttons {
+                        notice.actions = transition_buttons(transition, undo_top);
+                    }
                     show_notice(app, route, notice).await;
                 }
             }
@@ -668,6 +714,158 @@ fn on_file_manager_call<R: Runtime>(app: &AppHandle<R>, payload: &str) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Notification buttons
+// ---------------------------------------------------------------------------------------------
+
+/// The job whose journal entry the undo journal would undo now: the newest applied entry, when a
+/// job on the queue made it. A move or a trash is only offered "Undo" while it is still this one.
+fn undo_top_job<R: Runtime>(app: &AppHandle<R>) -> Option<u64> {
+    let ops = app.try_state::<Ops<R>>()?;
+    let snapshot = ops.snapshot();
+    let top = snapshot.journal.undo?.id;
+    snapshot
+        .jobs
+        .iter()
+        .find(|job| ops.journal_entry_of(job.id) == Some(top))
+        .map(|job| job.id.0)
+}
+
+/// An open main window by label, if it is one.
+fn open_main<R: Runtime>(app: &AppHandle<R>, label: &str) -> Option<tauri::WebviewWindow<R>> {
+    if !is_main(label) {
+        return None;
+    }
+    app.get_webview_window(label)
+}
+
+/// Opens a folder as a tab in the window that started the job, or in a new window when that one
+/// has gone.
+fn open_location<R: Runtime>(app: &AppHandle<R>, origin: &str, location: Location) {
+    let Some(sessions) = app.try_state::<Sessions<R>>() else {
+        return;
+    };
+    let Some(window) = open_main(app, origin) else {
+        let from = sessions.with_store(|s| s.windows().first().map(|w| w.label.clone()));
+        let Some(from) = from else {
+            log::warn!("no window to open a folder from");
+            return;
+        };
+        let opened = sessions.run(
+            app,
+            &from,
+            Command::OpenWindow {
+                location: Some(location),
+                geometry: None,
+            },
+        );
+        if let Err(e) = opened {
+            log::warn!("could not open a window for a notification button: {e}");
+        }
+        return;
+    };
+    let opened = sessions.run(
+        app,
+        window.label(),
+        Command::Open {
+            location,
+            after: None,
+            activate: true,
+        },
+    );
+    if let Err(e) = opened {
+        log::warn!("could not open a tab for a notification button: {e}");
+    }
+    bring_forward(app, &window);
+}
+
+/// Opens the Operations window; where that fails, raises a window so the press is never silent.
+fn open_operations<R: Runtime>(app: &AppHandle<R>) {
+    if let Err(e) = ops_window::open(app) {
+        log::warn!("could not open the Operations window: {e}");
+        raise_or_open(app);
+    }
+}
+
+/// Brings the question a job waits on in front: the window that started the job when it is open
+/// (its dialog is there), else the Operations window, which lists it with "Resolve…".
+fn show_question<R: Runtime>(app: &AppHandle<R>, job: u64, origin: &str) {
+    let target = match open_main(app, origin) {
+        Some(window) => {
+            bring_forward(app, &window);
+            window.label().to_owned()
+        }
+        None => {
+            open_operations(app);
+            ops_window::OPS_LABEL.to_owned()
+        }
+    };
+    if let Err(e) = app.emit_to(target.as_str(), SHOW_JOB_EVENT, job) {
+        log::warn!("could not ask a window to show job {job}: {e}");
+    }
+}
+
+/// Does what a pressed button asks. Every failure ends in the Operations window, so a press that
+/// cannot do its work still shows the person where the job is.
+fn run_command<R: Runtime>(app: &AppHandle<R>, command: ActionCommand) {
+    match command {
+        ActionCommand::OpenFolder { window, location } => open_location(app, &window, location),
+        ActionCommand::OpenOperations => open_operations(app),
+        ActionCommand::ShowQuestion { job, window } => show_question(app, job, &window),
+        ActionCommand::Resolve {
+            job,
+            source,
+            policy,
+        } => {
+            let Some(ops) = app.try_state::<Ops<R>>() else {
+                return;
+            };
+            let answer = Resolution {
+                source: Some(source),
+                policy,
+            };
+            if let Err(e) = ops.resolve(JobId(job), vec![answer], None) {
+                log::warn!("could not answer job {job} from a notification: {e}");
+                open_operations(app);
+            }
+        }
+        ActionCommand::Undo { job, window } => {
+            let Some(ops) = app.try_state::<Ops<R>>() else {
+                return;
+            };
+            let label = open_main(app, &window)
+                .map(|w| w.label().to_owned())
+                .or_else(|| recent_or_first_window(app).map(|w| w.label().to_owned()))
+                .unwrap_or(window);
+            let entry = ops.journal_entry_of(JobId(job));
+            if let Err(e) = ops.undo(&label, entry) {
+                log::warn!("could not undo job {job} from a notification: {e}");
+                open_operations(app);
+            }
+        }
+    }
+}
+
+/// A click on a notification (the default action) or one of its buttons. The click raises a window;
+/// a button is read against the queue as it is now, so a press that arrives late is still safe.
+fn on_notification_action<R: Runtime>(app: &AppHandle<R>, action: &str) {
+    if action == RAISE_ACTION {
+        raise_or_open(app);
+        return;
+    }
+    let jobs = jobs_now(app);
+    let undo_top = undo_top_job(app);
+    let Some(command) = command_for(action, &jobs, undo_top) else {
+        // Not one of ours: another application's id, or a malformed one.
+        log::debug!("ignored a notification action Waypoint did not send");
+        return;
+    };
+    let handle = app.clone();
+    // Opening a window is not done from the event thread (Windows requires it, and the Operations
+    // window builds one).
+    spawn(async move { run_command(&handle, command) });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Wiring
 // ---------------------------------------------------------------------------------------------
 
@@ -704,7 +902,7 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>) {
         store.on_change(move |_| reconcile_soon(&handle));
     }
 
-    // A click on a notification, through either plugin, raises a window.
+    // A click on a notification or one of its buttons, through either plugin.
     for event in [
         tauri_plugin_xdg_portal::notification::ACTION_EVENT,
         tauri_plugin_desktop_integration::notify::ACTION_EVENT,
@@ -716,9 +914,7 @@ pub fn wire<R: Runtime>(app: &AppHandle<R>) {
                 action: String,
             }
             if let Ok(action) = serde_json::from_str::<Action>(event.payload()) {
-                if action.action == RAISE_ACTION {
-                    raise_or_open(&handle);
-                }
+                on_notification_action(&handle, &action.action);
             }
         });
     }
@@ -824,6 +1020,23 @@ mod live {
                         id: "waypoint-job-live".into(),
                         title: "Copy 3 items".into(),
                         body: "Finished.".into(),
+                        // Whether the desktop draws them is what to look at; the click raises.
+                        actions: vec![
+                            crate::integration_policy::Button {
+                                id: crate::integration_policy::button_id(
+                                    0,
+                                    crate::integration_policy::Act::ShowInFolder,
+                                ),
+                                label: "Show in folder".into(),
+                            },
+                            crate::integration_policy::Button {
+                                id: crate::integration_policy::button_id(
+                                    0,
+                                    crate::integration_policy::Act::Undo,
+                                ),
+                                label: "Undo".into(),
+                            },
+                        ],
                     },
                 )
                 .await;

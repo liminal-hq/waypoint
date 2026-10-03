@@ -72,6 +72,9 @@ impl Availability {
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct IntegrationAvailability {
     pub notifications: Availability,
+    /// Buttons on a notification: whether the route notifications take accepts them. The portal
+    /// cannot say whether the desktop draws them, so "available" means they are sent.
+    pub notification_actions: Availability,
     pub launcher_progress: Availability,
     pub prevent_sleep: Availability,
     /// Owning `org.freedesktop.FileManager1`, which only Linux has.

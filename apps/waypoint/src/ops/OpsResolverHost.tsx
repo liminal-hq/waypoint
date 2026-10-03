@@ -99,6 +99,16 @@ function Host({ handle, windowLabel }: { handle: OpsHandle; windowLabel: string 
 		[],
 	);
 
+	// A notification's "Show" brings the question back even where "Decide later" parked it.
+	useEffect(
+		() =>
+			handle.client.onShowJob((id) => {
+				const job = handleRef.current.store.getState().snapshot?.jobs.find((j) => j.id === id);
+				if (job?.state.state === 'waiting') setForced(id);
+			}),
+		[handle.client],
+	);
+
 	const park = useCallback((job: JobSnapshot) => {
 		const key = waitKey(job);
 		setForced(null);
