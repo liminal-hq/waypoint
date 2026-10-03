@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubLayout } from '../test/browseHarness';
@@ -61,6 +63,26 @@ describe('listing', () => {
 		expect(
 			within(await devices()).getByRole('button', { name: /Tight.*Almost full/ }),
 		).toBeVisible();
+	});
+
+	it('puts the warning in an element of its own and the full text on the tooltip', async () => {
+		await setup(
+			new FakeDevicesClient([fakeVolume('a', { label: 'Tight', total: 1000, free: 20 })]),
+		);
+		const row = within(await devices()).getByRole('button', { name: /Tight.*Almost full/ });
+		const warning = within(row).getByText('Almost full');
+		expect(warning).not.toBe(row);
+		expect(warning.className).toContain('warning');
+		expect(row.getAttribute('title')).toMatch(/Tight\. .* free of .*\. Almost full/);
+	});
+
+	it('lets the caption and the warning wrap instead of cutting them off', () => {
+		// jsdom lays nothing out, so the stylesheet is checked as written.
+		const css = readFileSync(resolve(process.cwd(), 'src/devices/DeviceList.module.css'), 'utf8');
+		const rule = /\.detail,\s*\.warning\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+		expect(rule).toMatch(/white-space:\s*normal/);
+		expect(rule).toMatch(/overflow-wrap:\s*anywhere/);
+		expect(rule).not.toMatch(/nowrap|text-overflow/);
 	});
 
 	it('has no section without a client or when the plugin cannot list', async () => {
