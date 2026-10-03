@@ -1628,6 +1628,64 @@ export const enMessages = {
 
 	'appMenu.history.more': 'More in Command Palette…',
 
+	'appMenu.help': 'Help',
+	'cmd.help': 'Help',
+	'cmd.keyboardShortcuts': 'Keyboard Shortcuts',
+	'cmd.tour': 'Take the Tour',
+	'cmd.about': 'About Waypoint',
+
+	'help.title': 'Help',
+	'help.subtitle': 'A few things worth knowing.',
+	'help.rows.label': 'Useful keys',
+	'help.row.commandPalette': 'Open the command palette',
+	'help.row.newTab': 'Open a new tab',
+	'help.row.splitView': 'Split the view into a pair',
+	'help.row.undo': 'Undo the last file change',
+	'help.row.toggleShelf': 'Show or hide the Shelf',
+	'help.row.keyboardShortcuts': 'See every shortcut',
+	'help.close': 'Close',
+	'help.about': 'About',
+	'help.art.caption': 'Every place is a waypoint',
+
+	'shortcuts.title': 'Keyboard Shortcuts',
+	'shortcuts.subtitle': 'Every command that has a key, as the menus show it.',
+	'shortcuts.done': 'Done',
+	'shortcuts.empty': 'No commands with a shortcut are available here.',
+	'shortcuts.list.label': '{group} shortcuts',
+
+	'tour.title.welcome': 'Welcome to Waypoint',
+	'tour.text.welcome':
+		'Waypoint is a tabbed file manager for Linux and Windows. This short tour covers the ideas that make it different. You can leave at any time and find it again under Help.',
+	'tour.title.tabs': 'Tabs are workspaces',
+	'tour.text.tabs':
+		'Pin, colour and group tabs, and split a tab into a pair with {split} to browse two folders side by side. Drag a tab out of the window to tear it off, or onto another window to merge it. {reopen} brings back a closed tab.',
+	'tour.title.dnd': 'Drag and drop, everywhere',
+	'tour.text.dnd':
+		'Drag files onto folders, tabs and the sidebar, and to and from other applications. Hold Ctrl to copy, Shift to move, or Alt to choose. Park files on the Shelf ({shelf}) while you browse.',
+	'tour.title.commands': 'Commands',
+	'tour.text.commands':
+		'Press {palette} for the command palette, where every command in the menus can be found by name. Press {shortcuts} for the list of shortcuts.',
+	'tour.title.desktop': 'Works with your desktop',
+	'tour.text.desktop':
+		'Waypoint follows your desktop’s theme, accent colour and 12 or 24-hour clock. Deleted files go to the desktop’s Trash, where they can be restored, and files can be copied and pasted, or dragged, between Waypoint and other applications.',
+	'tour.progress': 'Step {step} of {total}',
+	'tour.skip': 'Skip',
+	'tour.back': 'Back',
+	'tour.next': 'Next',
+	'tour.done': 'Get Started',
+
+	'about.title': 'Waypoint',
+	'about.version': 'Version {version}',
+	'about.versionUnavailable': 'The version could not be read',
+	'about.versionLoading': 'Reading the version…',
+	'about.rows.label': 'About Waypoint',
+	'about.licence': 'Licence',
+	'about.licence.value': 'Apache-2.0 OR MIT',
+	'about.builtWith': 'Built with',
+	'about.builtWith.value': 'Tauri, React and Rust',
+	'about.credit': '© 2026 Liminal HQ, Scott Morris',
+	'about.close': 'Close',
+
 	'palette.title': 'Command Palette',
 	'palette.placeholder': 'Type a command',
 	'palette.list.label': 'Commands',

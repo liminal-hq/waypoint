@@ -19,6 +19,7 @@ function setup(state = {}, extra = {}) {
 		...idleActions(),
 		newTab: vi.fn(),
 		newWindow: vi.fn(),
+		openHelp: vi.fn(),
 		setViewMode: vi.fn(),
 		openSettings: vi.fn(),
 		undoEntry: vi.fn(),
@@ -57,7 +58,7 @@ describe('the application menu button', () => {
 		expect(button).toHaveAttribute('aria-expanded', 'false');
 	});
 
-	it('opens a menu of File, Edit, View and Window', async () => {
+	it('opens a menu of File, Edit, View, Window and Help', async () => {
 		const { button } = setup();
 		await userEvent.click(button);
 		const menu = screen.getByRole('menu', { name: t('app.name') });
@@ -70,6 +71,7 @@ describe('the application menu button', () => {
 			expect.stringContaining('Edit'),
 			expect.stringContaining('View'),
 			expect.stringContaining('Window'),
+			expect.stringContaining('Help'),
 		]);
 	});
 
@@ -115,6 +117,14 @@ describe('the application menu button', () => {
 		const list = await screen.findByRole('menuitemcheckbox', { name: /List/ });
 		expect(list).toHaveFocus();
 		expect(screen.getByRole('menu', { name: t('appMenu.view') })).toBeInTheDocument();
+	});
+
+	it('opens the Help menu on Alt+H and runs a command from it', async () => {
+		const { actions } = setup();
+		fireEvent.keyDown(window, { key: 'h', altKey: true });
+		expect(await screen.findByRole('menu', { name: t('appMenu.help') })).toBeInTheDocument();
+		await userEvent.click(await screen.findByRole('menuitem', { name: /Keyboard Shortcuts/ }));
+		expect(actions.openHelp).toHaveBeenCalledWith('shortcuts');
 	});
 
 	it('toggles on a lone Alt and on F10: a second press closes the menu and returns focus', async () => {

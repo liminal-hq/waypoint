@@ -49,15 +49,23 @@ const writable = factsFor({
 });
 
 describe('the menus', () => {
-	it('are File, Edit, View and Window, and there is no Help (nothing for it to open)', () => {
+	it('are File, Edit, View, Window and Help', () => {
 		const items = build(writable);
 		expect(items.map((item) => item.type === 'submenu' && item.label)).toEqual([
 			t('appMenu.file'),
 			t('appMenu.edit'),
 			t('appMenu.view'),
 			t('appMenu.window'),
+			t('appMenu.help'),
 		]);
-		expect(items.some((item) => item.type === 'submenu' && /help/i.test(item.label))).toBe(false);
+	});
+
+	it('Help: Help and the shortcut list, then the tour and About', () => {
+		const help = submenu(build(writable), MENU_IDS.help);
+		expect(idsOf(help.items)).toEqual(['help', 'keyboardShortcuts', 'tour', 'about']);
+		expect(rowOf(help.items, 'help')).toMatchObject({ shortcut: 'F1' });
+		expect(rowOf(help.items, 'keyboardShortcuts')).toMatchObject({ shortcut: '?' });
+		expect(rowOf(help.items, 'about').label).toBe(t('cmd.about'));
 	});
 
 	it('File: windows and tabs, new items, rename, trash and close', () => {
@@ -285,11 +293,11 @@ describe('hiding and disabling', () => {
 });
 
 describe('the mnemonics', () => {
-	it('name each top-level menu, once, with no letter for the Help menu that is not there', () => {
+	it('name each top-level menu once, Help as Alt+H', () => {
 		const ids = build(writable).flatMap((item) => (item.type === 'submenu' ? [item.id] : []));
 		expect(Object.values(APP_MENU_MNEMONICS).sort()).toEqual([...ids].sort());
-		expect(Object.keys(APP_MENU_MNEMONICS)).toEqual(['f', 'e', 'v', 'w']);
-		expect(APP_MENU_MNEMONICS.h).toBeUndefined();
+		expect(Object.keys(APP_MENU_MNEMONICS)).toEqual(['f', 'e', 'v', 'w', 'h']);
+		expect(APP_MENU_MNEMONICS.h).toBe(MENU_IDS.help);
 	});
 });
 
