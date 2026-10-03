@@ -6403,8 +6403,12 @@
     "message": "{width} pixels wide",
     "description": "Area: inspector. Placeholders, kept exactly as written: {width} is a width in pixels."
   },
-  "inspector.preview.empty": {
-    "message": "Nothing to preview",
+  "inspector.empty.title": {
+    "message": "Nothing selected",
+    "description": "Area: inspector."
+  },
+  "inspector.empty.hint": {
+    "message": "Select a file to see its preview and properties.",
     "description": "Area: inspector."
   },
   "inspector.preview.imageAlt": {
@@ -6429,10 +6433,6 @@
   },
   "inspector.preview.lossy": {
     "message": "Some characters could not be read and are shown as replacements",
-    "description": "Area: inspector."
-  },
-  "inspector.properties.empty": {
-    "message": "Nothing to show",
     "description": "Area: inspector."
   },
   "inspector.many.note": {

@@ -2,7 +2,7 @@
 .preview {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 14px;
 	min-inline-size: 0;
 }
 
@@ -14,16 +14,18 @@
 	justify-content: center;
 	gap: 8px;
 	box-sizing: border-box;
-	min-block-size: 160px;
+	align-self: center;
+	inline-size: min(100%, 168px);
+	min-block-size: 126px;
 	padding: 8px;
-	border-radius: 6px;
+	border-radius: 10px;
 	background: var(--wp-bg-hover);
 	overflow: hidden;
 }
 
 .thumbnail {
-	inline-size: 128px;
-	block-size: 128px;
+	inline-size: 64px;
+	block-size: 64px;
 	color: var(--wp-text-muted);
 }
 
@@ -39,6 +41,13 @@
 
 .image[data-loaded] {
 	opacity: 1;
+}
+
+.stage[data-preview='image'],
+.stage[data-preview='video'],
+.stage[data-preview='audio'] {
+	align-self: stretch;
+	inline-size: auto;
 }
 
 .stage[data-preview='image'] {
@@ -94,8 +103,10 @@
 .summary {
 	display: flex;
 	flex-direction: column;
+	align-items: center;
 	gap: 2px;
 	min-inline-size: 0;
+	text-align: center;
 }
 
 .name {
@@ -109,4 +120,30 @@
 	margin: 0;
 	color: var(--wp-text-muted);
 	font-size: 12px;
+}
+
+.rows {
+	margin: 0;
+}
+
+.fact {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding-block: 6px;
+	border-block-end: 1px solid var(--wp-border-subtle);
+	font-size: 12.5px;
+}
+
+.fact > dt {
+	flex: none;
+	color: var(--wp-text-muted);
+	white-space: nowrap;
+}
+
+.fact > dd {
+	min-inline-size: 0;
+	margin: 0;
+	text-align: end;
+	overflow-wrap: anywhere;
 }

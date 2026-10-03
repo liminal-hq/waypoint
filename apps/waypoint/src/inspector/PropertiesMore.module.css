@@ -9,32 +9,40 @@
 
 .heading {
 	margin: 0;
-	font-size: 13px;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
 	font-weight: 600;
 }
 
 .list {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 0;
 	margin: 0;
 }
 
 .row {
 	display: flex;
-	flex-direction: column;
-	gap: 1px;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	min-block-size: var(--wp-hit-target, 0px);
+	padding-block: 6px;
 	min-inline-size: 0;
+	border-block-end: 1px solid var(--wp-border-subtle);
+	font-size: 12.5px;
 }
 
 .label {
+	flex: none;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	white-space: nowrap;
 }
 
 .value {
+	min-inline-size: 0;
 	margin: 0;
-	font-size: 12px;
+	text-align: end;
 	overflow-wrap: anywhere;
 }
 

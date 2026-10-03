@@ -1,0 +1,27 @@
+/* Centred in the panel, as the design has it: a muted icon, a heading and one line of help. */
+.emptyState {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-block-size: 100%;
+	padding: 20px;
+	color: var(--wp-text-muted);
+	text-align: center;
+}
+
+.title,
+.hint {
+	margin: 0;
+}
+
+.title {
+	color: var(--wp-text-secondary);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.hint {
+	font-size: 12px;
+}

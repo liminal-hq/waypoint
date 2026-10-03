@@ -32,6 +32,8 @@ import { PropertiesPane } from './PropertiesPane';
 import { useEntryDetails } from './useEntryDetails';
 import { useInspectorSubject, type InspectorSubject } from './useInspectorSubject';
 import { FileIcon } from '../browse/FileIcon';
+import { EmptyState } from './EmptyState';
+import { ManySummaryBlock } from './ManySummary';
 import styles from './InspectorPanel.module.css';
 
 /** How far an arrow key moves the divider, and how far with Shift. */
@@ -141,7 +143,7 @@ export function InspectorPanel({
 				>
 					{tab === which &&
 						(which === 'preview' ? (
-							<PreviewBody subject={subject} client={client} details={details} />
+							<PreviewBody subject={subject} session={session} client={client} details={details} />
 						) : (
 							<>
 								<PropertiesPane
@@ -151,6 +153,7 @@ export function InspectorPanel({
 									details={details}
 									folder={location}
 									active
+									hero
 								/>
 								{session?.model.layout !== 'trash' && <OpenInWindowButton subject={subject} />}
 							</>
@@ -164,16 +167,18 @@ export function InspectorPanel({
 /** The Preview tab for each kind of subject. */
 function PreviewBody({
 	subject,
+	session,
 	client,
 	details,
 }: {
 	subject: InspectorSubject;
+	session: ListingSession | null;
 	client: ReturnType<typeof useDetailsClient>;
 	details: ReturnType<typeof useEntryDetails>;
 }): ReactNode {
 	switch (subject.kind) {
 		case 'none':
-			return <p className={styles.empty}>{t('inspector.preview.empty')}</p>;
+			return <EmptyState />;
 		case 'entry':
 			return (
 				<EntryPreview
@@ -184,20 +189,32 @@ function PreviewBody({
 				/>
 			);
 		case 'many':
-			return (
-				<div className={styles.summary}>
-					<p className={styles.summaryTitle}>{tn('browse.selection', subject.count)}</p>
-				</div>
-			);
+			return <ManySummaryBlock count={subject.count} session={session} />;
 		case 'folder':
 			return (
-				<div className={styles.summary}>
-					<FileIcon group="folder" className={styles.bigIcon} />
-					<p className={styles.summaryTitle} data-selectable="">
-						{baseName(subject.location.display)}
-					</p>
-					<p className={styles.summaryFacts}>{tn('status.items', subject.count)}</p>
-				</div>
+				<>
+					<div className={styles.summary}>
+						<div className={styles.heroStage}>
+							<FileIcon group="folder" className={styles.bigIcon} />
+						</div>
+						<p className={styles.summaryTitle} data-selectable="">
+							{baseName(subject.location.display)}
+						</p>
+						<p className={styles.summaryFacts}>
+							{t('inspector.kind.folder')} · {tn('status.items', subject.count)}
+						</p>
+					</div>
+					<dl className={styles.rows}>
+						<div className={styles.fact}>
+							<dt>{t('inspector.field.kind')}</dt>
+							<dd>{t('inspector.kind.folder')}</dd>
+						</div>
+						<div className={styles.fact}>
+							<dt>{t('inspector.field.contains')}</dt>
+							<dd>{tn('status.items', subject.count)}</dd>
+						</div>
+					</dl>
+				</>
 			);
 	}
 }
