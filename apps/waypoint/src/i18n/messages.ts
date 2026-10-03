@@ -136,7 +136,7 @@ export const enMessages = {
 	'settings.appearance.accent.description':
 		'The text on it always keeps enough contrast; a colour that is too light or too dark is adjusted.',
 	'settings.appearance.accent.ember': 'Waypoint orange',
-	'settings.appearance.accent.os': "The system's accent",
+	'settings.appearance.accent.os': 'System',
 	'settings.appearance.accent.custom': 'Choose a colour',
 	'settings.appearance.accentColour.label': 'Custom accent',
 	'settings.appearance.accentColour.description': 'Pick the colour to use.',

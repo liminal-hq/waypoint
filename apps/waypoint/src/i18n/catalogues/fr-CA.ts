@@ -233,8 +233,8 @@ const messages: Catalogue = {
 		'Le texte qui s’y superpose garde toujours un contraste suffisant; une couleur trop claire ou trop foncée est ajustée.',
 	// source: f3266ebe
 	'settings.appearance.accent.ember': 'Orange Waypoint',
-	// source: 10b9d567
-	'settings.appearance.accent.os': 'L’accent du système',
+	// source: 6725e7bb
+	'settings.appearance.accent.os': 'Système',
 	// source: 6799c465
 	'settings.appearance.accent.custom': 'Choisir une couleur',
 	// source: e1535e71

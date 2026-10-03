@@ -510,9 +510,9 @@
     "source": "f3266ebe"
   },
   "settings.appearance.accent.os": {
-    "message": "L’accent du système",
+    "message": "Système",
     "description": "Area: settings.",
-    "source": "10b9d567"
+    "source": "6725e7bb"
   },
   "settings.appearance.accent.custom": {
     "message": "Choisir une couleur",

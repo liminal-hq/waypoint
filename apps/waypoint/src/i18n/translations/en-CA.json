@@ -408,7 +408,7 @@
     "description": "Area: settings."
   },
   "settings.appearance.accent.os": {
-    "message": "The system's accent",
+    "message": "System",
     "description": "Area: settings."
   },
   "settings.appearance.accent.custom": {
