@@ -125,17 +125,24 @@ export async function mimeAppsServiceStatus(): Promise<PluginStatus> {
  * The system appearance plugin's status in the shared shape. Its own `available`, `reason` and
  * `features` describe the titlebar preferences only, so the plugin counts as available when the
  * titlebar or any appearance preference works, and lists the titlebar sources and the appearance
- * features that work; the first reason is the titlebar's, then the first appearance feature's that
- * does not work.
+ * features that work, with `palette` (the colour palette, which "Match the system's colours" needs)
+ * among them when it works; the first reason is the titlebar's, then the first appearance feature's
+ * (or the palette's) that does not work.
  */
 export async function systemAppearanceServiceStatus(): Promise<PluginStatus> {
 	const status = await systemAppearanceStatus();
 	const summary = summarise(
-		{ available: status.available || status.appearanceAvailable, reason: status.reason },
-		status.appearance.map(
-			(feature) =>
-				[feature.feature, { available: feature.available, reason: feature.detail }] as const,
-		),
+		{
+			available: status.available || status.appearanceAvailable || status.palette.available,
+			reason: status.reason,
+		},
+		[
+			...status.appearance.map(
+				(feature) =>
+					[feature.feature, { available: feature.available, reason: feature.detail }] as const,
+			),
+			['palette', { available: status.palette.available, reason: status.palette.detail }] as const,
+		],
 	);
 	return { ...summary, features: [...status.features, ...summary.features] };
 }

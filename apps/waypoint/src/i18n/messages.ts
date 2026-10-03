@@ -143,6 +143,24 @@ export const enMessages = {
 	'settings.appearance.accent.custom': 'Choose a colour',
 	'settings.appearance.accentColour.label': 'Custom accent',
 	'settings.appearance.accentColour.description': 'Pick the colour to use.',
+	'settings.appearance.systemColours.label': 'Match the system’s colours',
+	'settings.appearance.systemColours.description':
+		'Draws surfaces, text and the selection in the colours of your desktop’s theme instead of Waypoint’s own. The accent still follows its own setting, text keeps at least 4.5:1 contrast and the focus ring 3:1, and the Waypoint look is one click away.',
+	// translator: A sentence that continues with a list of parts of the window, such as “text and the selection”.
+	'settings.appearance.systemColours.lifted':
+		'To keep things readable, Waypoint adjusted {parts} from your system’s colours.',
+	// translator: Part of a list of what was adjusted, after “adjusted”: the colour of the text.
+	'settings.appearance.systemColours.part.text': 'the text',
+	// translator: Part of a list of what was adjusted, after “adjusted”: the background of selected items.
+	'settings.appearance.systemColours.part.selection': 'the selection',
+	// translator: Part of a list of what was adjusted, after “adjusted”: the warning, error and success colours.
+	'settings.appearance.systemColours.part.status': 'the warning, error and success colours',
+	// translator: Part of a list of what was adjusted, after “adjusted”: the outline that shows keyboard focus.
+	'settings.appearance.systemColours.part.focus': 'the focus ring',
+	'settings.appearance.systemColours.highContrast':
+		'High contrast is on, which already uses the system’s own colours, so this setting has no effect now.',
+	'settings.appearance.systemColours.otherVariant':
+		'The colour mode above is set to a look that your system’s colours are not, so Waypoint’s own colours are drawn. Set it to System to use them.',
 	'settings.appearance.density.label': 'Density',
 	'settings.appearance.density.description': 'How much room lists and the window take.',
 	'settings.appearance.density.compact': 'Compact',

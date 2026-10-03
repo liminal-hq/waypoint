@@ -17,6 +17,7 @@ import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
 import type { PluginStatus as WindowEffectsStatus } from '@liminal-hq/plugin-window-effects';
 import { brokenStatus, workingStatus } from '../thumbnails/fakeThumbnailsClient';
 import type { DndAvailability, OpsSettingsApi } from '../settings/SettingsEditor';
+import { reportPalette, resetPaletteReport } from '../theme/paletteReport';
 import { SettingsScreen } from './SettingsScreen';
 
 vi.mock('@tauri-apps/api/window', () => ({
@@ -34,7 +35,10 @@ vi.mock('@tauri-apps/api/window', () => ({
 	}),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	resetPaletteReport();
+});
 
 /** What the window effects plugin reports on GNOME Wayland: windows can be see-through, nothing can blur behind them. */
 function gnomeEffects(): WindowEffectsStatus {
@@ -126,6 +130,68 @@ const goTo = async (name: string) => {
 	await userEvent.click(within(screen.getByRole('navigation')).getByRole('button', { name }));
 	await screen.findByRole('heading', { level: 2, name });
 };
+
+describe('Appearance: match the system’s colours', () => {
+	const row = () => screen.queryByRole('switch', { name: 'Match the system’s colours' });
+
+	it('is hidden until the theme has found a palette, and where there is none', async () => {
+		await open();
+		await goTo('Appearance');
+		expect(row()).toBeNull();
+		act(() => reportPalette({ available: false, state: 'off', lifted: [] }));
+		expect(row()).toBeNull();
+	});
+
+	it('appears, off, once the system has a palette, and saves through Rust', async () => {
+		const { settings } = await open();
+		await goTo('Appearance');
+		act(() => reportPalette({ available: true, state: 'off', lifted: [] }));
+		expect(row()).not.toBeNull();
+		expect(row()).toHaveAttribute('aria-checked', 'false');
+		await userEvent.click(row()!);
+		await waitFor(() => expect(settings.calls.at(-1)?.appearance.matchSystemColours).toBe(true));
+		await waitFor(() => expect(row()).toHaveAttribute('aria-checked', 'true'));
+	});
+
+	it('disappears again if the palette goes away', async () => {
+		await open();
+		await goTo('Appearance');
+		act(() => reportPalette({ available: true, state: 'off', lifted: [] }));
+		expect(row()).not.toBeNull();
+		act(() => reportPalette({ available: false, state: 'unavailable', lifted: [] }));
+		expect(row()).toBeNull();
+	});
+
+	it('says what it adjusted when the contrast floor moved a colour', async () => {
+		await open();
+		await goTo('Appearance');
+		const lift = (token: string) => ({ token, from: '#111111', to: '#222222', required: 4.5 });
+		act(() =>
+			reportPalette({
+				available: true,
+				state: 'applied',
+				lifted: [lift('text-muted'), lift('bg-selected'), lift('focus-ring')],
+			}),
+		);
+		expect(
+			screen.getByText(
+				'To keep things readable, Waypoint adjusted the text, the selection and the focus ring from your system’s colours.',
+			),
+		).toBeInTheDocument();
+		act(() => reportPalette({ available: true, state: 'applied', lifted: [] }));
+		expect(screen.queryByText(/Waypoint adjusted/)).toBeNull();
+	});
+
+	it('explains why nothing changes under high contrast or a forced look', async () => {
+		await open();
+		await goTo('Appearance');
+		act(() => reportPalette({ available: true, state: 'high-contrast', lifted: [] }));
+		expect(screen.getByText(/High contrast is on/)).toBeInTheDocument();
+		act(() => reportPalette({ available: true, state: 'other-variant', lifted: [] }));
+		expect(screen.queryByText(/High contrast is on/)).toBeNull();
+		expect(screen.getByText(/Set it to System to use them/)).toBeInTheDocument();
+	});
+});
 
 describe('SettingsScreen', () => {
 	it('lists only the pages that exist, with the title bar, and no placeholder pages', async () => {
