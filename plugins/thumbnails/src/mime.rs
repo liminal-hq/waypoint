@@ -52,17 +52,18 @@ impl MimeDb {
         MimeDb { entries }
     }
 
-    /// Reads `mime/globs2` from the first data directory that has one; with none, the small built-in table of the kinds of file the plugin has generators for.
+    /// Reads and merges `mime/globs2` from every data directory that has one, as `shared-mime-info` does: `~/.local/share/mime` only adds the user's own types to the system's, it does not replace them. On the same weight and glob length an earlier directory wins. With no database anywhere, the small built-in table of the kinds of file the plugin has generators for.
     pub fn load(data_dirs: &[PathBuf]) -> MimeDb {
+        let mut entries = Vec::new();
         for dir in data_dirs {
             if let Ok(text) = fs::read_to_string(dir.join("mime/globs2")) {
-                let db = MimeDb::parse(&text);
-                if !db.entries.is_empty() {
-                    return db;
-                }
+                entries.extend(MimeDb::parse(&text).entries);
             }
         }
-        MimeDb::fallback()
+        if entries.is_empty() {
+            return MimeDb::fallback();
+        }
+        MimeDb { entries }
     }
 
     /// The kinds of file the built-in generator decodes, plus PDF, so a system with no MIME database still works.
@@ -106,7 +107,10 @@ impl MimeDb {
                     glob_matches(&entry.glob.to_lowercase(), subject)
                 }
             })
-            .max_by_key(|entry| (entry.weight, entry.glob.len()))
+            .enumerate()
+            // The earlier entry wins a tie, so the first data directory takes precedence.
+            .max_by_key(|(at, entry)| (entry.weight, entry.glob.len(), std::cmp::Reverse(*at)))
+            .map(|(_, entry)| entry)
             .map(|entry| entry.mime.as_str())
     }
 }

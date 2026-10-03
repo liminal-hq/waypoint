@@ -72,7 +72,7 @@ fn a_missing_database_falls_back_to_the_built_in_table() {
 }
 
 #[test]
-fn the_first_data_directory_with_a_database_wins() {
+fn on_a_tie_the_first_data_directory_wins() {
     let tmp = tempfile::tempdir().unwrap();
     let a = tmp.path().join("a");
     let b = tmp.path().join("b");
@@ -82,4 +82,18 @@ fn the_first_data_directory_with_a_database_wins() {
     std::fs::write(b.join("mime/globs2"), "50:text/x-b:*.zzz\n").unwrap();
     let db = MimeDb::load(&[tmp.path().join("none"), a, b]);
     assert_eq!(db.mime_of("f.zzz"), Some("text/x-a"));
+}
+
+#[test]
+fn a_users_database_adds_to_the_system_one_instead_of_hiding_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let user = tmp.path().join("user");
+    let system = tmp.path().join("system");
+    std::fs::create_dir_all(user.join("mime")).unwrap();
+    std::fs::create_dir_all(system.join("mime")).unwrap();
+    std::fs::write(user.join("mime/globs2"), "50:text/x-mine:*.mine\n").unwrap();
+    std::fs::write(system.join("mime/globs2"), "50:video/mp4:*.mp4\n").unwrap();
+    let db = MimeDb::load(&[user, system]);
+    assert_eq!(db.mime_of("a.mine"), Some("text/x-mine"));
+    assert_eq!(db.mime_of("clip.mp4"), Some("video/mp4"));
 }
