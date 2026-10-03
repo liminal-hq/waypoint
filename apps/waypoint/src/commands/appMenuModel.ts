@@ -143,7 +143,7 @@ export function historyItems(
 }
 
 /**
- * The menu: File, Edit, View and Window, each only when it has something to offer. `views` is the
+ * The menu: File (Settings is its last section), Edit, View and Window, each only when it has something to offer. `views` is the
  * registry evaluated for the window (`evaluateCommands`).
  */
 export function appMenuItems(
@@ -162,6 +162,7 @@ export function appMenuItems(
 		rows('rename', 'batchRename', 'duplicate'),
 		rows('moveToTrash', 'deletePermanently'),
 		rows('closeTab', 'reopenClosedTab', 'closeWindow'),
+		rows('settings'),
 	);
 	const edit = menuSections(
 		[
@@ -183,11 +184,7 @@ export function appMenuItems(
 		rows('splitView'),
 		rows('commandPalette'),
 	);
-	const window = menuSections(
-		rows('duplicateTab', 'moveTabToNewWindow'),
-		rows('alwaysOnTop'),
-		rows('settings'),
-	);
+	const window = menuSections(rows('duplicateTab', 'moveTabToNewWindow'), rows('alwaysOnTop'));
 
 	const menus: Array<{ id: string; label: string; icon: ReactNode; items: MenuItem[] }> = [
 		{

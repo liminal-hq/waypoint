@@ -158,9 +158,9 @@ describe('the application menu button', () => {
 		expect(actions.setViewMode).toHaveBeenCalledWith('grid');
 	});
 
-	it('opens Settings from the Window menu', async () => {
+	it('opens Settings from the File menu', async () => {
 		const { actions } = setup();
-		fireEvent.keyDown(window, { key: 'w', altKey: true });
+		fireEvent.keyDown(window, { key: 'f', altKey: true });
 		await userEvent.click(await screen.findByRole('menuitem', { name: /Settings/ }));
 		expect(actions.openSettings).toHaveBeenCalledTimes(1);
 	});

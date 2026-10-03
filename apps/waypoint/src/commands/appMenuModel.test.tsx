@@ -75,6 +75,7 @@ describe('the menus', () => {
 			'closeTab',
 			'reopenClosedTab',
 			'closeWindow',
+			'settings',
 		]);
 	});
 
@@ -120,19 +121,14 @@ describe('the menus', () => {
 		expect(ids.indexOf('dockShelf')).toBe(ids.indexOf('toggleShelf') + 1);
 	});
 
-	it('Window: Duplicate Tab, Move Tab to New Window, then Settings; Always on Top only where supported', () => {
+	it('Window: Duplicate Tab and Move Tab to New Window; Always on Top only where supported', () => {
 		const window = submenu(build(writable), MENU_IDS.window);
-		expect(idsOf(window.items)).toEqual(['duplicateTab', 'moveTabToNewWindow', 'settings']);
+		expect(idsOf(window.items)).toEqual(['duplicateTab', 'moveTabToNewWindow']);
 		const supported = submenu(
 			build(factsFor({}, { alwaysOnTop: { supported: true, on: false } })),
 			MENU_IDS.window,
 		);
-		expect(idsOf(supported.items)).toEqual([
-			'duplicateTab',
-			'moveTabToNewWindow',
-			'alwaysOnTop',
-			'settings',
-		]);
+		expect(idsOf(supported.items)).toEqual(['duplicateTab', 'moveTabToNewWindow', 'alwaysOnTop']);
 		expect(rowOf(supported.items, 'alwaysOnTop')).toMatchObject({
 			type: 'checkbox',
 			checked: false,
