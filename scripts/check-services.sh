@@ -7,7 +7,7 @@
 # `apps/waypoint/src-tauri/src/lib.rs` registers each native plugin with `tauri_plugin_{name}::`;
 # `apps/waypoint/src/services/serviceStatuses.ts` must have a `SERVICE_SOURCES` entry for it, so the
 # panel on Settings → Integrations says whether it works (A66). Plugins that are Tauri's own
-# (`log`, `os`, `opener`, `store`, the MCP bridge, the global shortcut: its work is reported under
+# (`log`, `os`, `opener`, `store`, `dialog`, the MCP bridge, the global shortcut: its work is reported under
 # `desktop-integration`) report nothing and are skipped. A plugin used only from Rust has no guest-js
 # `getStatus`, so its `SERVICE_SOURCES` entry asks an app command instead (`xdg-portal` and
 # `desktop-integration` ask `get_integration_statuses`); `RUST_ONLY` is for one with no panel entry
@@ -19,7 +19,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SO
 LIB="${SERVICES_LIB:-apps/waypoint/src-tauri/src/lib.rs}"
 SOURCES="${SERVICES_SOURCES:-apps/waypoint/src/services/serviceStatuses.ts}"
 
-SKIP=' log os opener store mcp_bridge global_shortcut '
+SKIP=' log os opener store dialog mcp_bridge global_shortcut '
 RUST_ONLY=' '
 # A plugin whose panel name is not its crate name.
 declare -A RENAMED=([waypoint_vfs]=file-system)

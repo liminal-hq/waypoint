@@ -23,7 +23,9 @@ import { createTauriDefaultFileManagerClient } from '../services/tauriDefaultFil
 import { createTauriIntegrationsClient } from '../services/tauriIntegrationsClient';
 import { createTauriOpsClient } from '../services/tauriOpsClient';
 import { createTauriSettingsClient } from '../services/tauriSettingsClient';
+import { createTauriSettingsTransferClient } from '../services/tauriSettingsTransferClient';
 import type { SettingsClient } from '../services/settingsClient';
+import type { SettingsTransferClient } from '../services/settingsTransferClient';
 import { SettingsProvider, useSettingsHandle } from '../settings/SettingsContext';
 import {
 	SettingsEditorProvider,
@@ -51,6 +53,8 @@ interface SettingsScreenProps {
 	integrations?: IntegrationsClient;
 	/** The default file manager action; the mime-apps plugin's unless a test supplies its own. */
 	fileManager?: DefaultFileManagerClient;
+	/** Export and import of the settings; the settings plugin's unless a test supplies its own. */
+	transfer?: SettingsTransferClient;
 }
 
 /** The native drag and drop plugin's status in the shape the page needs. */
@@ -90,14 +94,22 @@ function Editor({
 	windowEffectsStatus,
 	integrations,
 	fileManager,
+	transfer,
 }: Pick<
 	SettingsScreenProps,
-	'ops' | 'dndStatus' | 'thumbnailsStatus' | 'windowEffectsStatus' | 'integrations' | 'fileManager'
+	| 'ops'
+	| 'dndStatus'
+	| 'thumbnailsStatus'
+	| 'windowEffectsStatus'
+	| 'integrations'
+	| 'fileManager'
+	| 'transfer'
 >) {
 	const handle = useSettingsHandle();
 	const [ownOps] = useState<OpsSettingsApi>(() => ops ?? createTauriOpsClient());
 	const [ownIntegrations] = useState(() => integrations ?? createTauriIntegrationsClient());
 	const [ownFileManager] = useState(() => fileManager ?? createTauriDefaultFileManagerClient());
+	const [ownTransfer] = useState(() => transfer ?? createTauriSettingsTransferClient());
 	if (!handle) return null;
 	return (
 		<SettingsEditorProvider
@@ -108,6 +120,7 @@ function Editor({
 			windowEffectsStatus={windowEffectsStatus ?? windowEffectsPluginStatus}
 			integrations={ownIntegrations}
 			fileManager={ownFileManager}
+			transfer={ownTransfer}
 		>
 			<Pages />
 		</SettingsEditorProvider>
@@ -127,6 +140,7 @@ export function SettingsScreen({
 	windowEffectsStatus,
 	integrations,
 	fileManager,
+	transfer,
 }: SettingsScreenProps) {
 	const [own] = useState(() => client ?? createTauriSettingsClient());
 	// The title bar and the pages render their messages themselves, so a new language needs a render.
@@ -143,6 +157,7 @@ export function SettingsScreen({
 						windowEffectsStatus={windowEffectsStatus}
 						integrations={integrations}
 						fileManager={fileManager}
+						transfer={transfer}
 					/>
 				</SettingsProvider>
 			</main>
