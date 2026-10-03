@@ -89,7 +89,7 @@ export function MenuBar({ items, onSelect, label, moreLabel, mnemonics }: MenuBa
 		// Not laid out (no layout engine): nothing to decide, show everything.
 		if (widths.every((width) => width === 0)) return;
 		const style = getComputedStyle(bar);
-		const available = bar.clientWidth - px(style.paddingLeft) - px(style.paddingRight);
+		const available = bar.clientWidth - px(style.paddingInlineStart) - px(style.paddingInlineEnd);
 		const more = moreRef.current?.offsetWidth || MORE_WIDTH_GUESS;
 		const count = fitCount(widths, available, px(style.columnGap), more);
 		setShown((last) => (Math.min(last, menus.length) === count ? last : count));
