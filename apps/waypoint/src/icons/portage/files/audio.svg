@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<defs>
+<filter id="pt-audio-sh" x="-50%" y="-200%" width="200%" height="500%">
+<feGaussianBlur stdDeviation="1.2"/>
+</filter>
+<linearGradient id="pt-audio-0" x1="0" y1="8" x2="0" y2="54" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#9d67e5"/>
+<stop offset=".5" stop-color="#9d67e5"/>
+<stop offset=".5" stop-color="#b388eb"/>
+<stop offset="1" stop-color="#b388eb"/>
+</linearGradient>
+</defs>
+<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#pt-audio-sh)"/>
+<path d="M23 16L51 9v32h-5V16l-18 4.5V46h-5z" fill="url(#pt-audio-0)"/>
+<ellipse cx="18.5" cy="47" rx="7.5" ry="5.8" fill="url(#pt-audio-0)" transform="rotate(-20 18.5 47)"/>
+<ellipse cx="43.5" cy="41.5" rx="7.5" ry="5.8" fill="url(#pt-audio-0)" transform="rotate(-20 43.5 41.5)"/>
+<ellipse cx="16" cy="45" rx="3" ry="1.6" fill="#fff" fill-opacity=".55" transform="rotate(-20 16 45)"/>
+<ellipse cx="41" cy="39.5" rx="3" ry="1.6" fill="#fff" fill-opacity=".55" transform="rotate(-20 41 39.5)"/>
+<path d="M25 18l24-6v2.2l-24 6z" fill="#fff" fill-opacity=".42"/>
+</svg>

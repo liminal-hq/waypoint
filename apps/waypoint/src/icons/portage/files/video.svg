@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<defs>
+<filter id="pt-video-sh" x="-50%" y="-200%" width="200%" height="500%">
+<feGaussianBlur stdDeviation="1.2"/>
+</filter>
+<linearGradient id="pt-video-0" x1="0" y1="25" x2="0" y2="53" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#30353f"/>
+<stop offset=".5" stop-color="#30353f"/>
+<stop offset=".5" stop-color="#5e6169"/>
+<stop offset="1" stop-color="#5e6169"/>
+</linearGradient>
+<linearGradient id="pt-video-2" x1="0" y1="31" x2="0" y2="47" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#ee5c6f"/>
+<stop offset=".5" stop-color="#ee5c6f"/>
+<stop offset=".5" stop-color="#f2808f"/>
+<stop offset="1" stop-color="#f2808f"/>
+</linearGradient>
+</defs>
+<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#pt-video-sh)"/>
+<rect x="9" y="25" width="46" height="28" rx="3.5" fill="url(#pt-video-0)"/>
+<g transform="rotate(-12 10 24)">
+<rect x="9" y="14" width="46" height="10" rx="2.5" fill="#e5e7eb"/>
+<path d="M16 14.6h6l-5 8.8h-6zM28 14.6h6l-5 8.8h-6zM40 14.6h6l-5 8.8h-6z" fill="#23262e"/>
+</g>
+<path d="M27 31.5l13 7.5-13 7.5z" fill="url(#pt-video-2)"/>
+<rect x="12" y="28" width="40" height="2.4" rx="1.2" fill="#fff" fill-opacity=".14"/>
+</svg>

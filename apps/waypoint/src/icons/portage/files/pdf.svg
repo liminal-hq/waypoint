@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<defs>
+<filter id="pt-pdf-sh" x="-50%" y="-200%" width="200%" height="500%">
+<feGaussianBlur stdDeviation="1.2"/>
+</filter>
+<linearGradient id="pt-pdf-0" x1="0" y1="30" x2="0" y2="49" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#e5534b"/>
+<stop offset=".5" stop-color="#e5534b"/>
+<stop offset=".5" stop-color="#eb7973"/>
+<stop offset="1" stop-color="#eb7973"/>
+</linearGradient>
+</defs>
+<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#pt-pdf-sh)"/>
+<path d="M17 6h22l13 13v33a3 3 0 01-3 3H17a3 3 0 01-3-3V9a3 3 0 013-3z" fill="#e3e7ed"/>
+<path d="M14 30.5h38V52a3 3 0 01-3 3H17a3 3 0 01-3-3z" fill="#f5f7fa"/>
+<path d="M39 6v10a3 3 0 003 3h10z" fill="#ca4942"/>
+<rect x="17.5" y="10" width="2.4" height="40" rx="1.2" fill="#fff" fill-opacity=".85"/>
+<rect x="20" y="30" width="26" height="19" rx="4.5" fill="url(#pt-pdf-0)"/>
+<rect x="23" y="32.5" width="9" height="2" rx="1" fill="#fff" fill-opacity=".42"/>
+<path d="M23.4 43.6v-7.4h2.4a2.2 2.2 0 010 4.4h-2.4M30 36.2h2a3.7 3.7 0 010 7.4h-2zM38.3 43.6v-7.4h4.4M38.3 39.6h3.6" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
