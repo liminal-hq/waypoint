@@ -5,6 +5,7 @@
 
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
 import { resolveLocale } from '../i18n/locales';
+import { resolveIconTheme, type ResolvedIconTheme } from '../icons/iconTheme';
 import { resolveAccent } from './accent';
 import { transparencyState, type TransparencyOffReason } from './transparency';
 
@@ -92,6 +93,9 @@ export interface ResolvedAppearance {
 	lang: string;
 	dir: 'ltr' | 'rtl';
 	iconStyle: Settings['appearance']['iconStyle'];
+	/** The icon set the views draw (`system` draws as `waypoint` for now). */
+	iconTheme: ResolvedIconTheme;
+	folderColour: Settings['appearance']['folderColour'];
 	strongFocus: boolean;
 }
 
@@ -167,6 +171,8 @@ export function resolveAppearance(
 		lang: language,
 		dir: locale.direction === 'auto' ? directionFor(language) : locale.direction,
 		iconStyle: appearance.iconStyle,
+		iconTheme: resolveIconTheme(appearance.iconTheme),
+		folderColour: appearance.folderColour,
 		strongFocus: accessibility.strongFocusRing || highContrast,
 	};
 }
@@ -185,6 +191,8 @@ export function applyAppearance(root: HTMLElement, look: ResolvedAppearance): vo
 	set('transparency', look.transparency);
 	set('transparencyReason', look.transparencyReason);
 	set('iconStyle', look.iconStyle);
+	set('iconTheme', look.iconTheme);
+	set('folderColour', look.folderColour);
 	set('focus', look.strongFocus ? 'strong' : 'normal');
 	root.style.setProperty('--wp-text-scale', String(look.textScale));
 	if (look.accent) {
