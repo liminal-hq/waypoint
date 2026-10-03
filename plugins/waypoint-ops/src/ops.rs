@@ -995,9 +995,8 @@ impl<R: Runtime> Ops<R> {
         self.shared.lock().store.jobs_targeting(location)
     }
 
-    /// Changes the settings: saved first, then in force for the next job. A change that cannot be
-    /// saved changes nothing.
-    pub fn set_settings(&self, settings: OpsSettings) -> Result<OpsSettings, Error> {
+    /// Checks `settings` against the ranges a change must be in, touching nothing.
+    pub fn validate_settings(settings: &OpsSettings) -> Result<(), Error> {
         if settings.concurrency == 0 || settings.concurrency > MAX_CONCURRENCY {
             return Err(Error::Invalid(format!(
                 "the number of jobs at once must be between 1 and {MAX_CONCURRENCY}"
@@ -1016,6 +1015,13 @@ impl<R: Runtime> Ops<R> {
                 "the Trash sweep must wait between 1 and {MAX_TRASH_EXPIRY_DAYS} days, or be off"
             )));
         }
+        Ok(())
+    }
+
+    /// Changes the settings: saved first, then in force for the next job. A change that cannot be
+    /// saved changes nothing.
+    pub fn set_settings(&self, settings: OpsSettings) -> Result<OpsSettings, Error> {
+        Self::validate_settings(&settings)?;
         self.shared
             .settings_store
             .save(&settings)

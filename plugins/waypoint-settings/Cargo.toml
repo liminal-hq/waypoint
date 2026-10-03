@@ -22,6 +22,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [dependencies]
 log = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tauri = { workspace = true }
 thiserror = { workspace = true }
 waypoint-protocol = { path = "../../crates/waypoint-protocol" }
@@ -31,5 +32,5 @@ waypoint-settings = { path = "../../crates/waypoint-settings" }
 tauri-plugin = { workspace = true, features = ["build"] }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+tempfile = "3"
 tauri = { workspace = true, features = ["test"] }

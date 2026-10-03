@@ -17,6 +17,11 @@ const files = import.meta.glob<string>('../../src-tauri/capabilities/*.json', {
 	import: 'default',
 	eager: true,
 });
+// The settings plugin's default permission set, which every capability that names `waypoint-settings:default` gets.
+const settingsDefaults = import.meta.glob<string>(
+	'../../../../plugins/waypoint-settings/permissions/default.toml',
+	{ query: '?raw', import: 'default', eager: true },
+);
 const capabilities: Capability[] = Object.values(files).map(
 	(source) => JSON.parse(source) as Capability,
 );
@@ -45,6 +50,32 @@ describe('window capabilities', () => {
 			'waypoint-settings:allow-get-status',
 			'waypoint-settings:allow-set-ui-settings',
 		]);
+	});
+
+	it('lets only the Settings window export and import the settings, and gives no window a dialog or file system permission', () => {
+		const transfer = [
+			'waypoint-settings:allow-export-settings',
+			'waypoint-settings:allow-plan-settings-import',
+			'waypoint-settings:allow-apply-settings-import',
+		];
+		for (const permission of transfer) {
+			const holders = capabilities
+				.filter((capability) => capability.permissions.includes(permission))
+				.map((capability) => capability.identifier);
+			expect(holders, permission).toEqual(['settings']);
+		}
+		// The default set (which the Settings window and others take whole) must not carry them.
+		const defaults = Object.values(settingsDefaults).join('\n');
+		expect(defaults).toContain('allow-get-settings');
+		expect(defaults).not.toMatch(/export|import/);
+		// The file dialogs open from Rust; a page that could ask for one, or for a file, could name a path.
+		for (const capability of capabilities) {
+			expect(
+				capability.permissions.filter((p) => /^(dialog|fs):/.test(p)),
+				capability.identifier,
+			).toEqual([]);
+		}
+		expect(byId('settings').windows).toEqual(['settings']);
 	});
 
 	it('grants nothing to every window through a bare wildcard', () => {

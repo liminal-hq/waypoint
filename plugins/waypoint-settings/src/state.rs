@@ -81,6 +81,19 @@ impl<R: Runtime> SettingsStore<R> {
         self.commit(settings)
     }
 
+    /// Replaces the settings with an imported document: the same validation, save, event and
+    /// hooks as `set`, once, and the document it replaces is kept as the previous copy so one
+    /// step back is possible. Importing what is in force changes nothing.
+    pub fn import(&self, settings: Settings) -> Result<SettingsSnapshot, Error> {
+        settings.validate()?;
+        let _writer = locked(&self.writer);
+        if self.get() == settings {
+            return Ok(self.snapshot());
+        }
+        self.storage.keep_as_previous();
+        self.commit(settings)
+    }
+
     /// Changes only the `ui` settings, read and written under the writer lock: whatever else is
     /// in force (a change another window just made) is kept, so a window that only knows about the
     /// Action bar cannot turn the rest of the document back. Same save, event and hooks as `set`.

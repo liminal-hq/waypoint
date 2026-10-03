@@ -4,12 +4,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use serde::Deserialize;
-use tauri::{Runtime, State, WebviewWindow};
+use tauri::{Manager, Runtime, State, WebviewWindow};
 use waypoint_protocol::PluginStatus;
-use waypoint_settings::{Settings, SettingsSnapshot};
+use waypoint_settings::{ExportReceipt, ImportPreview, Settings, SettingsSnapshot};
 
 use crate::error::Error;
 use crate::state::SettingsStore;
+use crate::transfer::Transfers;
 
 /// Reports that the settings work. They need nothing from the system, so this is always available.
 #[tauri::command]
@@ -35,6 +36,56 @@ pub async fn set_settings<R: Runtime>(
     settings: Settings,
 ) -> Result<SettingsSnapshot, Error> {
     store.set(settings)
+}
+
+/// Asks where to save with the system's save dialog, then writes the settings there: one `.json`
+/// when one configuration file is exported and a `.zip` when there are several. `None` when the
+/// dialog was closed. The page sends only its time zone offset, so the suggested name carries the
+/// person's own date; the path comes from the dialog and goes no further than this command.
+#[tauri::command]
+pub async fn export_settings<R: Runtime>(
+    window: WebviewWindow<R>,
+    transfers: State<'_, Transfers>,
+    utc_offset_minutes: i32,
+) -> Result<Option<ExportReceipt>, Error> {
+    let picker = transfers.picker().ok_or(Error::NoPicker)?;
+    let version = window.app_handle().package_info().version.to_string();
+    let bundle = transfers.export(&version, utc_offset_minutes)?;
+    let label = window.label().to_owned();
+    // The dialog blocks until it is answered; this command runs off the main thread.
+    let Some(path) = picker.save(&label, &bundle.suggested_name, bundle.kind) else {
+        return Ok(None);
+    };
+    transfers.write(&path, &bundle).map(Some)
+}
+
+/// Asks which file to read with the system's open dialog and plans importing it, touching
+/// nothing: what would change, and what to know first. `None` when the dialog was closed. The
+/// file is kept in Rust for `apply_settings_import`.
+#[tauri::command]
+pub async fn plan_settings_import<R: Runtime>(
+    window: WebviewWindow<R>,
+    transfers: State<'_, Transfers>,
+) -> Result<Option<ImportPreview>, Error> {
+    let picker = transfers.picker().ok_or(Error::NoPicker)?;
+    let Some(path) = picker.open(window.label()) else {
+        return Ok(None);
+    };
+    transfers.plan_path(&path).map(Some)
+}
+
+/// Applies the plan just made, all or nothing, through the same path as any other change: one
+/// revision, one event to every window. The file is checked again; nothing the page holds is
+/// applied. Returns what is now in force.
+#[tauri::command]
+pub async fn apply_settings_import<R: Runtime>(
+    _window: WebviewWindow<R>,
+    store: State<'_, SettingsStore<R>>,
+    transfers: State<'_, Transfers>,
+    plan_id: u64,
+) -> Result<SettingsSnapshot, Error> {
+    transfers.apply(plan_id)?;
+    Ok(store.snapshot())
 }
 
 /// The `ui` settings a window changes; a field left out keeps whatever is in force.
