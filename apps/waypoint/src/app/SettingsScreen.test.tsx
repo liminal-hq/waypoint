@@ -166,18 +166,21 @@ describe('Appearance: match the system’s colours', () => {
 		await open();
 		await goTo('Appearance');
 		const lift = (token: string) => ({ token, from: '#111111', to: '#222222', required: 4.5 });
-		act(() =>
-			reportPalette({
-				available: true,
-				state: 'applied',
-				lifted: [lift('text-muted'), lift('bg-selected'), lift('focus-ring')],
-			}),
-		);
-		expect(
-			screen.getByText(
-				'To keep things readable, Waypoint adjusted the text, the selection and the focus ring from your system’s colours.',
-			),
-		).toBeInTheDocument();
+		// The page subscribes as it mounts, so a slow machine can report before it listens: report until it shows.
+		await waitFor(() => {
+			act(() =>
+				reportPalette({
+					available: true,
+					state: 'applied',
+					lifted: [lift('text-muted'), lift('bg-selected'), lift('focus-ring')],
+				}),
+			);
+			expect(
+				screen.getByText(
+					'To keep things readable, Waypoint adjusted the text, the selection and the focus ring from your system’s colours.',
+				),
+			).toBeInTheDocument();
+		});
 		act(() => reportPalette({ available: true, state: 'applied', lifted: [] }));
 		expect(screen.queryByText(/Waypoint adjusted/)).toBeNull();
 	});
@@ -185,8 +188,10 @@ describe('Appearance: match the system’s colours', () => {
 	it('explains why nothing changes under high contrast or a forced look', async () => {
 		await open();
 		await goTo('Appearance');
-		act(() => reportPalette({ available: true, state: 'high-contrast', lifted: [] }));
-		expect(screen.getByText(/High contrast is on/)).toBeInTheDocument();
+		await waitFor(() => {
+			act(() => reportPalette({ available: true, state: 'high-contrast', lifted: [] }));
+			expect(screen.getByText(/High contrast is on/)).toBeInTheDocument();
+		});
 		act(() => reportPalette({ available: true, state: 'other-variant', lifted: [] }));
 		expect(screen.queryByText(/High contrast is on/)).toBeNull();
 		expect(screen.getByText(/Set it to System to use them/)).toBeInTheDocument();
