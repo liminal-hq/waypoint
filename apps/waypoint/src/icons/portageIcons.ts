@@ -7,7 +7,7 @@ import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGrou
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import type { PortageFolderBadge, PortageFolderGlyph } from './portage/portageFolderArt';
 import { portageFolderSvg, type PortageFolderVariant } from './portage/portageFolderSvg';
-import { PORTAGE_FILE_SVGS, type PortageFileName } from './portage/portageFiles';
+import { portageFileSvg, type PortageFileName } from './portage/portageFiles';
 import type { FolderColour, FolderTone } from './portage/portagePalette';
 
 // The folder colour ids (`liminal | gnome | … | rainbow`), defined with their palette.
@@ -82,17 +82,59 @@ export interface PortageIconOptions {
 	tone?: FolderTone;
 	variant?: PortageFolderVariant;
 	badge?: PortageFolderBadge;
+	/** Draw the soft shadow under the icon. Off by default (see `portageFolderSvg`). */
+	shadow?: boolean;
 }
 
-/** The standalone 64 by 64 SVG for an entry. Colour, tone, variant and badge only change folders. */
+const SVG_CACHE = new Map<string, string>();
+const MARKUP_CACHE = new Map<string, string>();
+
+/** What decides the art: a file's group alone, a folder's standard folder, colour, tone, variant and badge. */
+function cacheKey(options: PortageIconOptions): string {
+	const { group, special, colour, tone, variant, badge, shadow } = options;
+	const shade = shadow ? 's' : '';
+	if (group !== 'folder') return `${group}|${shade}`;
+	return [group, special, colour, tone, variant, badge, shade].map((part) => part ?? '').join('|');
+}
+
+/**
+ * The standalone 64 by 64 SVG for an entry. Colour, tone, variant and badge only change folders.
+ * Built once per distinct icon and the same string instance returned after, so a listing of
+ * thousands of rows builds a handful of strings.
+ */
 export function portageIconSvg(options: PortageIconOptions): string {
-	const { group, special, colour, tone, variant, badge } = options;
-	if (group !== 'folder') return PORTAGE_FILE_SVGS[PORTAGE_FILE_ART[group]];
-	return portageFolderSvg({
-		colour,
-		tone,
-		variant,
-		badge,
-		glyph: special ? PORTAGE_STANDARD_FOLDER_GLYPHS[special] : undefined,
-	});
+	const key = cacheKey(options);
+	let svg = SVG_CACHE.get(key);
+	if (svg === undefined) {
+		const { group, special, colour, tone, variant, badge, shadow = false } = options;
+		svg =
+			group !== 'folder'
+				? portageFileSvg(PORTAGE_FILE_ART[group], shadow)
+				: portageFolderSvg({
+						colour,
+						tone,
+						variant,
+						badge,
+						shadow,
+						glyph: special ? PORTAGE_STANDARD_FOLDER_GLYPHS[special] : undefined,
+					});
+		SVG_CACHE.set(key, svg);
+	}
+	return svg;
+}
+
+/** The inside of an `<svg>`: everything between its opening and closing tags. */
+function innerMarkup(svg: string): string {
+	return svg.slice(svg.indexOf('>') + 1, svg.lastIndexOf('</svg>'));
+}
+
+/** The art for an entry as the contents of an `<svg viewBox="0 0 64 64">`, memoised like `portageIconSvg`. */
+export function portageIconMarkup(options: PortageIconOptions): string {
+	const key = cacheKey(options);
+	let markup = MARKUP_CACHE.get(key);
+	if (markup === undefined) {
+		markup = innerMarkup(portageIconSvg(options));
+		MARKUP_CACHE.set(key, markup);
+	}
+	return markup;
 }

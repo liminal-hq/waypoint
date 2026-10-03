@@ -258,8 +258,9 @@ const messages: Catalogue = {
 	'settings.appearance.density.spacious': 'Aérée',
 	// source: b1dcc728
 	'settings.appearance.iconStyle.label': 'Style des icônes',
-	// source: cc365db9
-	'settings.appearance.iconStyle.description': 'L’épaisseur des icônes propres à Waypoint.',
+	// source: fe5eae80
+	'settings.appearance.iconStyle.description':
+		'L’épaisseur des icônes du thème Waypoint. Elle ne s’applique pas à Portage.',
 	// source: dbcd5e7b
 	'settings.appearance.iconStyle.light': 'Fin',
 	// source: b455784a
@@ -268,6 +269,43 @@ const messages: Catalogue = {
 	'settings.appearance.iconStyle.bold': 'Gras',
 	// source: 3a1bc53f
 	'settings.appearance.iconStyle.filled': 'Plein',
+	// source: ca5d3a88
+	'settings.appearance.iconTheme.label': 'Thème d’icônes',
+	// source: b7e37496
+	'settings.appearance.iconTheme.description':
+		'L’ensemble d’icônes de fichiers et de dossiers que dessinent les vues de fichiers, la barre latérale et l’Étagère. Les icônes des barres d’outils et des menus ne changent pas.',
+	// source: d7cfab3c
+	'settings.appearance.iconTheme.waypoint': 'Waypoint',
+	// source: 9485c24f
+	'settings.appearance.iconTheme.portage': 'Portage',
+	// source: 9eab1db2
+	'settings.appearance.folderColour.label': 'Couleur des dossiers',
+	// source: fdeb8a8e
+	'settings.appearance.folderColour.description':
+		'La couleur des dossiers dans le thème d’icônes Portage. La teinte suit le mode clair ou sombre.',
+	// source: 5fb0dd13
+	'settings.appearance.folderColour.waypointNote':
+		'Les couleurs de dossier s’appliquent au thème d’icônes Portage. Le thème Waypoint dessine les dossiers dans la couleur d’accent.',
+	// source: 1c3f97b6
+	'settings.appearance.folderColour.liminal': 'Liminal',
+	// source: 8f6a75fa
+	'settings.appearance.folderColour.gnome': 'GNOME',
+	// source: c42f334f
+	'settings.appearance.folderColour.cinnamon': 'Cinnamon',
+	// source: 89fa0e1f
+	'settings.appearance.folderColour.kde': 'KDE',
+	// source: 254d3817
+	'settings.appearance.folderColour.windows11': 'Windows 11',
+	// source: ba19e9c3
+	'settings.appearance.folderColour.red': 'Rouge',
+	// source: bd38ed77
+	'settings.appearance.folderColour.pink': 'Rose',
+	// source: 78e7771b
+	'settings.appearance.folderColour.orange': 'Orange',
+	// source: 7d465fb9
+	'settings.appearance.folderColour.purple': 'Mauve',
+	// source: b1f7b2ee
+	'settings.appearance.folderColour.rainbow': 'Arc-en-ciel',
 	// source: a4fe6526
 	'settings.language.language.label': 'Langue',
 	// source: 9c4ce556

@@ -64,6 +64,8 @@ describe('the milestone 5 sections', () => {
 			accent: { kind: 'ember' },
 			density: 'comfortable',
 			iconStyle: 'regular',
+			iconTheme: 'waypoint',
+			folderColour: 'liminal',
 		});
 		expect(settings.transparency.enabled).toBe(false);
 		expect(settings.accessibility.textSize).toBe(100);

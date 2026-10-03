@@ -570,9 +570,9 @@
     "source": "b1dcc728"
   },
   "settings.appearance.iconStyle.description": {
-    "message": "L’épaisseur des icônes propres à Waypoint.",
+    "message": "L’épaisseur des icônes du thème Waypoint. Elle ne s’applique pas à Portage.",
     "description": "Area: settings.",
-    "source": "cc365db9"
+    "source": "fe5eae80"
   },
   "settings.appearance.iconStyle.light": {
     "message": "Fin",
@@ -593,6 +593,91 @@
     "message": "Plein",
     "description": "Area: settings.",
     "source": "3a1bc53f"
+  },
+  "settings.appearance.iconTheme.label": {
+    "message": "Thème d’icônes",
+    "description": "Area: settings.",
+    "source": "ca5d3a88"
+  },
+  "settings.appearance.iconTheme.description": {
+    "message": "L’ensemble d’icônes de fichiers et de dossiers que dessinent les vues de fichiers, la barre latérale et l’Étagère. Les icônes des barres d’outils et des menus ne changent pas.",
+    "description": "Area: settings.",
+    "source": "b7e37496"
+  },
+  "settings.appearance.iconTheme.waypoint": {
+    "message": "Waypoint",
+    "description": "Area: settings. The name of an icon set, the one made for Waypoint. “Waypoint” is the product name and stays as is.",
+    "source": "d7cfab3c"
+  },
+  "settings.appearance.iconTheme.portage": {
+    "message": "Portage",
+    "description": "Area: settings. The name of an icon set (a portage is a carry between waterways), kept as “Portage”.",
+    "source": "9485c24f"
+  },
+  "settings.appearance.folderColour.label": {
+    "message": "Couleur des dossiers",
+    "description": "Area: settings.",
+    "source": "9eab1db2"
+  },
+  "settings.appearance.folderColour.description": {
+    "message": "La couleur des dossiers dans le thème d’icônes Portage. La teinte suit le mode clair ou sombre.",
+    "description": "Area: settings.",
+    "source": "fdeb8a8e"
+  },
+  "settings.appearance.folderColour.waypointNote": {
+    "message": "Les couleurs de dossier s’appliquent au thème d’icônes Portage. Le thème Waypoint dessine les dossiers dans la couleur d’accent.",
+    "description": "Area: settings.",
+    "source": "5fb0dd13"
+  },
+  "settings.appearance.folderColour.liminal": {
+    "message": "Liminal",
+    "description": "Area: settings. A folder colour named for the brand: Liminal HQ’s own amber.",
+    "source": "1c3f97b6"
+  },
+  "settings.appearance.folderColour.gnome": {
+    "message": "GNOME",
+    "description": "Area: settings. A folder colour named for the GNOME desktop’s blue; “GNOME” is not translated.",
+    "source": "8f6a75fa"
+  },
+  "settings.appearance.folderColour.cinnamon": {
+    "message": "Cinnamon",
+    "description": "Area: settings. A folder colour named for the Cinnamon desktop’s green; “Cinnamon” is not translated.",
+    "source": "c42f334f"
+  },
+  "settings.appearance.folderColour.kde": {
+    "message": "KDE",
+    "description": "Area: settings. A folder colour named for the KDE Plasma desktop’s blue; “KDE” is not translated.",
+    "source": "89fa0e1f"
+  },
+  "settings.appearance.folderColour.windows11": {
+    "message": "Windows 11",
+    "description": "Area: settings. A folder colour named for Windows 11’s yellow; “Windows 11” is not translated.",
+    "source": "254d3817"
+  },
+  "settings.appearance.folderColour.red": {
+    "message": "Rouge",
+    "description": "Area: settings.",
+    "source": "ba19e9c3"
+  },
+  "settings.appearance.folderColour.pink": {
+    "message": "Rose",
+    "description": "Area: settings.",
+    "source": "bd38ed77"
+  },
+  "settings.appearance.folderColour.orange": {
+    "message": "Orange",
+    "description": "Area: settings.",
+    "source": "78e7771b"
+  },
+  "settings.appearance.folderColour.purple": {
+    "message": "Mauve",
+    "description": "Area: settings.",
+    "source": "7d465fb9"
+  },
+  "settings.appearance.folderColour.rainbow": {
+    "message": "Arc-en-ciel",
+    "description": "Area: settings. A folder drawn in every colour of the rainbow, as a gradient.",
+    "source": "b1f7b2ee"
   },
   "settings.language.language.label": {
     "message": "Langue",

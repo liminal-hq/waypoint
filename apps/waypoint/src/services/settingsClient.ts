@@ -73,6 +73,8 @@ export const DEFAULT_SETTINGS: Settings = {
 		accent: { kind: 'ember' },
 		density: 'comfortable',
 		iconStyle: 'regular',
+		iconTheme: 'waypoint',
+		folderColour: 'liminal',
 	},
 	transparency: {
 		enabled: false,
