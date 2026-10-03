@@ -4,13 +4,21 @@
 	height: 16px;
 	fill: none;
 	stroke: currentcolor;
-	stroke-width: 1.2;
+	stroke-width: var(--wp-icon-stroke);
 	stroke-linecap: round;
 	stroke-linejoin: round;
 	color: var(--wp-text-secondary);
 }
 
+/* Closed shapes marked `data-fill` take the style's fill; open strokes and the marks on a standard folder never do. */
+.icon [data-fill] {
+	fill: var(--wp-icon-fill);
+}
+
 .icon[data-group='folder'] {
 	color: var(--wp-accent);
-	fill: color-mix(in srgb, var(--wp-accent) 25%, transparent);
+}
+
+.icon[data-group='folder'] [data-fill] {
+	fill: var(--wp-folder-fill);
 }

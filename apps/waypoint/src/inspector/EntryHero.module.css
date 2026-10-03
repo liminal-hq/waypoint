@@ -34,6 +34,17 @@
 	color: var(--wp-text-muted);
 }
 
+/* The Waypoint set's strokes keep their weight as the icon grows, as in the grid (Portage is art and keeps its own). */
+:root:not([data-icon-theme='portage']) .stage > .thumbnail > .icon,
+:root:not([data-icon-theme='portage']) .stage > .folderIcon {
+	stroke-width: calc(var(--wp-icon-stroke) * 1.1);
+}
+
+:root:not([data-icon-theme='portage']) .stage > .thumbnail > .icon *,
+:root:not([data-icon-theme='portage']) .stage > .folderIcon * {
+	vector-effect: non-scaling-stroke;
+}
+
 .title {
 	max-inline-size: 100%;
 	margin: 0;

@@ -86,6 +86,15 @@
 	--wp-row-height: calc(28px * var(--wp-text-scale));
 	--wp-hit-target: 28px;
 
+	/* Outline icons (the Waypoint set's file and folder glyphs, the toolbar, menu and chrome glyphs). The Icon style setting
+	   (`data-icon-style`, below) changes the weight, which is the stroke width in a 16 px box, and the fill a closed shape marked `data-fill` takes. */
+	--wp-icon-weight: 1.3px;
+	--wp-icon-weight-min: 0px;
+	--wp-icon-stroke: max(var(--wp-icon-weight), var(--wp-icon-weight-min));
+	--wp-icon-fill: none;
+	/* A folder is always tinted with the accent. */
+	--wp-folder-fill: color-mix(in srgb, var(--wp-accent) 25%, transparent);
+
 	/* The operations ring, its popover and the job rows. Built from the base tokens, so every theme
 	   (light, dark, high contrast) follows without redefining them. */
 	--wp-ops-ring-track: color-mix(in srgb, var(--wp-text-primary) 22%, transparent);
@@ -361,6 +370,36 @@ select,
 	--wp-focus-ring-width: 3px;
 }
 
+/*
+ * Icon style (Settings → Appearance → Icons). Portage is coloured art and ignores it, so it applies only
+ * to the Waypoint set. Light and Bold change the stroke weight, Filled tints closed shapes, and Regular
+ * is the base above. High contrast keeps strokes at least as strong as it needs (`--wp-icon-weight-min`).
+ * An element with `data-icon-style-preview` draws its icons in that style whatever the window is set to:
+ * the Appearance page's samples.
+ */
+[data-icon-style-preview] {
+	--wp-icon-weight: 1.3px;
+	--wp-icon-stroke: max(var(--wp-icon-weight), var(--wp-icon-weight-min));
+	--wp-icon-fill: none;
+	--wp-folder-fill: color-mix(in srgb, var(--wp-accent) 25%, transparent);
+}
+
+:root[data-icon-style='light']:not([data-icon-theme='portage']),
+[data-icon-style-preview='light'] {
+	--wp-icon-weight: 1px;
+}
+
+:root[data-icon-style='bold']:not([data-icon-theme='portage']),
+[data-icon-style-preview='bold'] {
+	--wp-icon-weight: 2px;
+}
+
+:root[data-icon-style='filled']:not([data-icon-theme='portage']),
+[data-icon-style-preview='filled'] {
+	--wp-icon-fill: color-mix(in srgb, currentcolor 30%, transparent);
+	--wp-folder-fill: color-mix(in srgb, var(--wp-accent) 45%, transparent);
+}
+
 /* High contrast: black on white or white on black, strong borders, and an accent that keeps 7:1 or better. */
 :root[data-contrast='high'] {
 	--wp-bg-window: #ffffff;
@@ -380,6 +419,12 @@ select,
 	--wp-warning: #6b3f00;
 	--wp-focus-ring: #000000;
 	--wp-focus-ring-width: 3px;
+	--wp-icon-weight-min: 1.6px;
+}
+
+:root[data-contrast='high'][data-icon-style='filled']:not([data-icon-theme='portage']),
+:root[data-contrast='high'] [data-icon-style-preview='filled'] {
+	--wp-icon-fill: color-mix(in srgb, currentcolor 40%, transparent);
 }
 
 :root[data-contrast='high'][data-theme='dark'] {

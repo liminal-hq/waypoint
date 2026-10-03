@@ -7,7 +7,7 @@ import { Glyph, type IconProps } from '../icons/AppIcons';
 
 export const EjectIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<path d="M8 3l4.5 6h-9zM3.5 12.25h9" />
+		<path data-fill d="M8 3l4.5 6h-9zM3.5 12.25h9" />
 	</Glyph>
 );
 
@@ -25,7 +25,7 @@ export const MountIcon = (props: IconProps) => (
 
 export const LockIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<rect x="3.5" y="7" width="9" height="6.5" rx="1.2" />
+		<rect data-fill x="3.5" y="7" width="9" height="6.5" rx="1.2" />
 		<path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
 	</Glyph>
 );

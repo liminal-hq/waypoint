@@ -8,9 +8,9 @@ import { Glyph, type IconProps } from '../icons/AppIcons';
 /** Four tiles: a page of cards. */
 export const OverviewIcon = (props: IconProps) => (
 	<Glyph {...props}>
-		<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
-		<rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
-		<rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
-		<rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+		<rect data-fill x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+		<rect data-fill x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+		<rect data-fill x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+		<rect data-fill x="9" y="9" width="4.5" height="4.5" rx="1" />
 	</Glyph>
 );

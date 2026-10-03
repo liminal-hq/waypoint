@@ -50,7 +50,7 @@ describe('the Waypoint file icons', () => {
 	it('draws a standard folder as the folder shape plus a mark, and only for folders', () => {
 		const plain = renderToStaticMarkup(<FileIcon group="folder" />);
 		const downloads = renderToStaticMarkup(<FileIcon group="folder" special="downloads" />);
-		expect(downloads).toContain(plain.match(/<path d="([^"]+)"/)![1]);
+		expect(downloads).toContain(plain.match(/<path[^>]* d="([^"]+)"/)![1]);
 		expect(downloads.length).toBeGreaterThan(plain.length);
 		const file = renderToStaticMarkup(<FileIcon group="pdf" special="downloads" />);
 		expect(file).not.toContain('data-special');
