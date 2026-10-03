@@ -31,7 +31,10 @@ import {
 	EditIcon,
 	EyeIcon,
 	FolderOpenIcon,
+	HelpIcon,
+	InfoIcon,
 	InvertSelectionIcon,
+	KeyboardIcon,
 	LinkIcon,
 	MoveToIcon,
 	NewFileIcon,
@@ -46,6 +49,7 @@ import {
 	SizeIcon,
 	TagIcon,
 	TextIcon,
+	TourIcon,
 	TrashIcon,
 	UndoIcon,
 	WindowIcon,
@@ -110,6 +114,11 @@ export type CommandId =
 	| 'closeWindow'
 	| 'settings'
 	| 'commandPalette'
+	// Help
+	| 'help'
+	| 'keyboardShortcuts'
+	| 'tour'
+	| 'about'
 	| 'linkTo'
 	| GoCommandId
 	// The Shelf
@@ -695,6 +704,42 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'app',
 		when: () => SHOWN,
 		run: (a) => a.openPalette(),
+	},
+
+	// Help
+	{
+		id: 'help',
+		label: 'cmd.help',
+		shortcut: 'F1',
+		icon: HelpIcon,
+		group: 'app',
+		when: () => SHOWN,
+		run: (a) => a.openHelp('help'),
+	},
+	{
+		id: 'keyboardShortcuts',
+		label: 'cmd.keyboardShortcuts',
+		shortcut: '?',
+		icon: KeyboardIcon,
+		group: 'app',
+		when: () => SHOWN,
+		run: (a) => a.openHelp('shortcuts'),
+	},
+	{
+		id: 'tour',
+		label: 'cmd.tour',
+		icon: TourIcon,
+		group: 'app',
+		when: () => SHOWN,
+		run: (a) => a.openHelp('tour'),
+	},
+	{
+		id: 'about',
+		label: 'cmd.about',
+		icon: InfoIcon,
+		group: 'app',
+		when: () => SHOWN,
+		run: (a) => a.openHelp('about'),
 	},
 
 	// The Shelf

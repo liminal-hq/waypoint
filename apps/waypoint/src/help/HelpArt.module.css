@@ -1,0 +1,162 @@
+/* The Help picture. The route's coordinates are in a fixed 476 by 96 box that always reads left to right, even in a right-to-left window; only the caption follows the writing direction. */
+.art {
+	position: relative;
+	box-sizing: border-box;
+	inline-size: 476px;
+	max-inline-size: 100%;
+	block-size: 96px;
+	margin-block-end: 12px;
+	overflow: hidden;
+	background: var(--wp-field-bg);
+	border-radius: 12px;
+}
+
+.stage {
+	position: absolute;
+	inset: 0;
+	direction: ltr;
+}
+
+.route {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	inline-size: 476px;
+	block-size: 96px;
+}
+
+.path {
+	stroke: var(--wp-text-muted);
+	stroke-width: 2;
+	stroke-dasharray: 2 8;
+	stroke-linecap: round;
+	opacity: 0.55;
+	animation: route-dash 1.4s linear infinite;
+}
+
+.place {
+	stroke: var(--wp-accent);
+	stroke-width: 2;
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: place-pulse 4.2s ease-out infinite;
+}
+
+.middle {
+	animation-delay: 2.1s;
+}
+
+.traveller {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	margin-block-start: -11px;
+	margin-inline-start: -11px;
+	offset-path: path('M14 58 C 84 8, 150 96, 232 44 S 380 14, 462 52');
+	offset-rotate: 0deg;
+	animation: route-travel 4.2s cubic-bezier(0.45, 0.05, 0.35, 0.95) infinite;
+}
+
+.bob {
+	display: flex;
+	animation: mark-bob 0.7s ease-in-out infinite;
+}
+
+.caption {
+	position: absolute;
+	inset-block-end: 8px;
+	inset-inline-start: 14px;
+	color: var(--wp-text-muted);
+	font-size: 11.5px;
+}
+
+/* A webview without motion paths cannot lay the mark on the route, so the route stands alone. */
+@supports not (offset-path: path('M0 0')) {
+	.traveller {
+		display: none;
+	}
+}
+
+/* Nothing moves when the system asks for less motion: the route is drawn once, the places stay put and the mark rests in the middle. */
+.art[data-reduced-motion] .path,
+.art[data-reduced-motion] .place,
+.art[data-reduced-motion] .traveller,
+.art[data-reduced-motion] .bob {
+	animation: none;
+}
+
+.art[data-reduced-motion] .traveller {
+	offset-distance: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.path,
+	.place,
+	.traveller,
+	.bob {
+		animation: none;
+	}
+
+	.traveller {
+		offset-distance: 50%;
+	}
+}
+
+@media (forced-colors: active) {
+	.art {
+		border: 1px solid CanvasText;
+	}
+
+	.path {
+		stroke: CanvasText;
+		opacity: 1;
+	}
+
+	.place {
+		stroke: Highlight;
+	}
+
+	.caption {
+		color: CanvasText;
+	}
+}
+
+@keyframes route-dash {
+	to {
+		stroke-dashoffset: -20;
+	}
+}
+
+@keyframes place-pulse {
+	0% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	30%,
+	100% {
+		opacity: 0;
+		transform: scale(2.6);
+	}
+}
+
+@keyframes route-travel {
+	from {
+		offset-distance: 0%;
+	}
+
+	to {
+		offset-distance: 100%;
+	}
+}
+
+@keyframes mark-bob {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+
+	50% {
+		transform: translateY(-3px);
+	}
+}

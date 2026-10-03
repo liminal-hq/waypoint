@@ -13,6 +13,7 @@ import {
 	EditIcon,
 	EyeIcon,
 	FolderOpenIcon,
+	HelpIcon,
 	WindowIcon,
 } from '../icons/MenuIcons';
 import type { CommandFacts } from './commandEnv';
@@ -25,18 +26,20 @@ export const MENU_IDS = {
 	edit: 'menu:edit',
 	view: 'menu:view',
 	window: 'menu:window',
+	help: 'menu:help',
 	history: 'menu:history',
 } as const;
 
 /**
- * Alt plus the letter opens that menu: `Alt+F` File, `Alt+E` Edit, `Alt+V` View and `Alt+W`
- * Window. There is no Help menu (Waypoint has no help destination yet), so `H` is not bound.
+ * Alt plus the letter opens that menu: `Alt+F` File, `Alt+E` Edit, `Alt+V` View, `Alt+W` Window
+ * and `Alt+H` Help.
  */
 export const APP_MENU_MNEMONICS: Readonly<Record<string, string>> = {
 	f: MENU_IDS.file,
 	e: MENU_IDS.edit,
 	v: MENU_IDS.view,
 	w: MENU_IDS.window,
+	h: MENU_IDS.help,
 };
 
 /** The row of a command: hidden commands have none, and an unavailable one is disabled with its reason as the tooltip. */
@@ -144,7 +147,7 @@ export function historyItems(
 }
 
 /**
- * The menu: File (Settings is a section of its own, above the close commands), Edit, View and Window, each only when it has something to offer. `views` is the
+ * The menu: File (Settings is a section of its own, above the close commands), Edit, View, Window and Help, each only when it has something to offer. `views` is the
  * registry evaluated for the window (`evaluateCommands`).
  */
 export function appMenuItems(
@@ -195,6 +198,7 @@ export function appMenuItems(
 		rows('commandPalette'),
 	);
 	const window = menuSections(rows('duplicateTab', 'moveTabToNewWindow'), rows('alwaysOnTop'));
+	const help = menuSections(rows('help', 'keyboardShortcuts'), rows('tour', 'about'));
 
 	const menus: Array<{ id: string; label: string; icon: ReactNode; items: MenuItem[] }> = [
 		{
@@ -211,6 +215,7 @@ export function appMenuItems(
 			icon: createElement(WindowIcon),
 			items: window,
 		},
+		{ id: MENU_IDS.help, label: t('appMenu.help'), icon: createElement(HelpIcon), items: help },
 	];
 	return menus.flatMap((menu) =>
 		menu.items.length === 0 ? [] : [{ type: 'submenu', ...menu } satisfies MenuItem],

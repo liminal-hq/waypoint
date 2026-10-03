@@ -357,3 +357,30 @@ export const CommandPaletteIcon = (props: IconProps) => (
 		<path d="M3 4.5 7 8l-4 3.5M8.5 12H13" />
 	</Glyph>
 );
+
+export const HelpIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle cx="8" cy="8" r="6" />
+		<path d="M6.2 6.3a1.9 1.9 0 0 1 3.7.5c0 1.2-1.9 1.5-1.9 2.7M8 11.4v.1" />
+	</Glyph>
+);
+
+export const KeyboardIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect x="1.5" y="4" width="13" height="8" rx="1.4" />
+		<path d="M4 6.8h.1M6.4 6.8h.1M8.8 6.8h.1M11.2 6.8h.1M4.5 9.4h7" />
+	</Glyph>
+);
+
+export const TourIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M4 14V2.5M4 3h7.5l-1.6 2.6 1.6 2.6H4" />
+	</Glyph>
+);
+
+export const InfoIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle cx="8" cy="8" r="6" />
+		<path d="M8 7.2v4M8 4.9v.1" />
+	</Glyph>
+);

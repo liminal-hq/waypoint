@@ -7564,6 +7564,246 @@
     "description": "Area: appMenu.",
     "source": "9819b01b"
   },
+  "appMenu.help": {
+    "message": "Aide",
+    "description": "Area: appMenu.",
+    "source": "b79cac92"
+  },
+  "cmd.help": {
+    "message": "Aide",
+    "description": "Area: cmd.",
+    "source": "b79cac92"
+  },
+  "cmd.keyboardShortcuts": {
+    "message": "Raccourcis clavier",
+    "description": "Area: cmd.",
+    "source": "59cdaa26"
+  },
+  "cmd.tour": {
+    "message": "Faire la visite guidée",
+    "description": "Area: cmd.",
+    "source": "9434332e"
+  },
+  "cmd.about": {
+    "message": "À propos de Waypoint",
+    "description": "Area: cmd.",
+    "source": "29914b78"
+  },
+  "help.title": {
+    "message": "Aide",
+    "description": "Area: help.",
+    "source": "b79cac92"
+  },
+  "help.subtitle": {
+    "message": "Quelques repères utiles.",
+    "description": "Area: help.",
+    "source": "7edddd51"
+  },
+  "help.rows.label": {
+    "message": "Touches utiles",
+    "description": "Area: help.",
+    "source": "3f63057d"
+  },
+  "help.row.commandPalette": {
+    "message": "Ouvrir la palette de commandes",
+    "description": "Area: help.",
+    "source": "2fee1e28"
+  },
+  "help.row.newTab": {
+    "message": "Ouvrir un nouvel onglet",
+    "description": "Area: help.",
+    "source": "2b75279f"
+  },
+  "help.row.splitView": {
+    "message": "Diviser la vue en paire",
+    "description": "Area: help.",
+    "source": "98e1da09"
+  },
+  "help.row.undo": {
+    "message": "Annuler la dernière modification de fichier",
+    "description": "Area: help.",
+    "source": "c09bb329"
+  },
+  "help.row.toggleShelf": {
+    "message": "Afficher ou masquer l’étagère",
+    "description": "Area: help.",
+    "source": "26758f84"
+  },
+  "help.row.keyboardShortcuts": {
+    "message": "Voir tous les raccourcis",
+    "description": "Area: help.",
+    "source": "68f45384"
+  },
+  "help.close": {
+    "message": "Fermer",
+    "description": "Area: help.",
+    "source": "7d9eb7ac"
+  },
+  "help.about": {
+    "message": "À propos",
+    "description": "Area: help.",
+    "source": "4efca0d1"
+  },
+  "help.art.caption": {
+    "message": "Chaque lieu est un point de passage",
+    "description": "Area: help.",
+    "source": "d78c78e0"
+  },
+  "shortcuts.title": {
+    "message": "Raccourcis clavier",
+    "description": "Area: shortcuts.",
+    "source": "59cdaa26"
+  },
+  "shortcuts.subtitle": {
+    "message": "Toutes les commandes qui ont une touche, comme les menus les montrent.",
+    "description": "Area: shortcuts.",
+    "source": "9dd1e63b"
+  },
+  "shortcuts.done": {
+    "message": "Terminé",
+    "description": "Area: shortcuts.",
+    "source": "11a6767d"
+  },
+  "shortcuts.empty": {
+    "message": "Aucune commande avec raccourci n’est disponible ici.",
+    "description": "Area: shortcuts.",
+    "source": "408bb3f1"
+  },
+  "shortcuts.list.label": {
+    "message": "Raccourcis : {group}",
+    "description": "Area: shortcuts. Placeholders, kept exactly as written: {group} is the name of a group.",
+    "source": "2821159e"
+  },
+  "tour.title.welcome": {
+    "message": "Bienvenue dans Waypoint",
+    "description": "Area: tour.",
+    "source": "f24116ae"
+  },
+  "tour.text.welcome": {
+    "message": "Waypoint est un gestionnaire de fichiers à onglets pour Linux et Windows. Cette courte visite présente les idées qui le distinguent. Vous pouvez la quitter en tout temps et la retrouver dans le menu Aide.",
+    "description": "Area: tour.",
+    "source": "249e61ae"
+  },
+  "tour.title.tabs": {
+    "message": "Les onglets sont des espaces de travail",
+    "description": "Area: tour.",
+    "source": "8f4037f6"
+  },
+  "tour.text.tabs": {
+    "message": "Épinglez, colorez et regroupez les onglets, et divisez un onglet en paire avec {split} pour parcourir deux dossiers côte à côte. Faites glisser un onglet hors de la fenêtre pour le détacher, ou sur une autre fenêtre pour le fusionner. {reopen} rouvre un onglet fermé.",
+    "description": "Area: tour. Placeholders, kept exactly as written: {reopen}; {split}.",
+    "source": "2aac0416"
+  },
+  "tour.title.dnd": {
+    "message": "Glisser-déposer, partout",
+    "description": "Area: tour.",
+    "source": "26412f37"
+  },
+  "tour.text.dnd": {
+    "message": "Faites glisser des fichiers vers les dossiers, les onglets et la barre latérale, ainsi que vers d’autres applications et depuis celles-ci. Maintenez Ctrl pour copier, Maj pour déplacer, ou Alt pour choisir. Déposez des fichiers sur l’étagère ({shelf}) pendant que vous naviguez.",
+    "description": "Area: tour. Placeholders, kept exactly as written: {shelf}.",
+    "source": "dd9c5b98"
+  },
+  "tour.title.commands": {
+    "message": "Commandes",
+    "description": "Area: tour.",
+    "source": "b269dc4e"
+  },
+  "tour.text.commands": {
+    "message": "Appuyez sur {palette} pour la palette de commandes, où chaque commande des menus se trouve par son nom. Appuyez sur {shortcuts} pour la liste des raccourcis.",
+    "description": "Area: tour. Placeholders, kept exactly as written: {palette}; {shortcuts}.",
+    "source": "3f317b64"
+  },
+  "tour.title.desktop": {
+    "message": "S’accorde avec votre bureau",
+    "description": "Area: tour.",
+    "source": "24feed87"
+  },
+  "tour.text.desktop": {
+    "message": "Waypoint suit le thème de votre bureau, sa couleur d’accent et l’horloge de 12 ou de 24 heures. Les fichiers supprimés vont dans la corbeille du bureau, d’où on peut les restaurer, et on peut copier et coller des fichiers, ou les glisser, entre Waypoint et d’autres applications.",
+    "description": "Area: tour.",
+    "source": "6d4c834f"
+  },
+  "tour.progress": {
+    "message": "Étape {step} sur {total}",
+    "description": "Area: tour. Placeholders, kept exactly as written: {step}; {total} is a total, a number or a size.",
+    "source": "0560ca6c"
+  },
+  "tour.skip": {
+    "message": "Passer",
+    "description": "Area: tour.",
+    "source": "28d03596"
+  },
+  "tour.back": {
+    "message": "Précédent",
+    "description": "Area: tour.",
+    "source": "76900f1b"
+  },
+  "tour.next": {
+    "message": "Suivant",
+    "description": "Area: tour.",
+    "source": "1ff57a29"
+  },
+  "tour.done": {
+    "message": "Commencer",
+    "description": "Area: tour.",
+    "source": "983f3110"
+  },
+  "about.title": {
+    "message": "Waypoint",
+    "description": "Area: about.",
+    "source": "d7cfab3c"
+  },
+  "about.version": {
+    "message": "Version {version}",
+    "description": "Area: about. Placeholders, kept exactly as written: {version}.",
+    "source": "a1874512"
+  },
+  "about.versionUnavailable": {
+    "message": "La version n’a pas pu être lue",
+    "description": "Area: about.",
+    "source": "4f5b7f4c"
+  },
+  "about.versionLoading": {
+    "message": "Lecture de la version…",
+    "description": "Area: about.",
+    "source": "72328968"
+  },
+  "about.rows.label": {
+    "message": "À propos de Waypoint",
+    "description": "Area: about.",
+    "source": "29914b78"
+  },
+  "about.licence": {
+    "message": "Licence",
+    "description": "Area: about.",
+    "source": "f3ec8e88"
+  },
+  "about.licence.value": {
+    "message": "Apache-2.0 OR MIT",
+    "description": "Area: about.",
+    "source": "12c4662d"
+  },
+  "about.builtWith": {
+    "message": "Conçu avec",
+    "description": "Area: about.",
+    "source": "39e511f4"
+  },
+  "about.builtWith.value": {
+    "message": "Tauri, React et Rust",
+    "description": "Area: about.",
+    "source": "7caa1d85"
+  },
+  "about.credit": {
+    "message": "© 2026 Liminal HQ, Scott Morris",
+    "description": "Area: about.",
+    "source": "9a6ae6bb"
+  },
+  "about.close": {
+    "message": "Fermer",
+    "description": "Area: about.",
+    "source": "7d9eb7ac"
+  },
   "palette.title": {
     "message": "Palette de commandes",
     "description": "Area: palette.",

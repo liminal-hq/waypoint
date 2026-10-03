@@ -1,0 +1,146 @@
+/* The rows and key chips Help, the shortcut list and About share. */
+.rows {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-block-size: 32px;
+	padding-block: 4px;
+	padding-inline: 12px;
+	background: var(--wp-field-bg);
+	border-radius: 8px;
+}
+
+.action {
+	min-inline-size: 0;
+	overflow-wrap: anywhere;
+}
+
+.keys {
+	display: flex;
+	flex-shrink: 0;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 4px;
+}
+
+.key {
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	min-block-size: 24px;
+	padding-inline: 10px;
+	color: var(--wp-text-secondary);
+	background: var(--wp-field-bg);
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+	font-family: var(--wp-font-mono);
+	font-size: 11.5px;
+	white-space: nowrap;
+}
+
+/* In the shortcut list the rows are plain lines divided by a rule, because there are many of them. */
+.group {
+	margin-block-end: 16px;
+}
+
+.group:last-child {
+	margin-block-end: 0;
+}
+
+.groupTitle {
+	margin: 0 0 4px;
+	padding-inline: 4px;
+	color: var(--wp-text-muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.plain .row {
+	padding-inline: 4px;
+	background: none;
+	border-radius: 0;
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.empty {
+	margin: 0;
+	color: var(--wp-text-secondary);
+}
+
+.step {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12.5px;
+}
+
+.facts {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+.fact {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-block-size: 32px;
+	padding-block: 4px;
+	padding-inline: 12px;
+	background: var(--wp-field-bg);
+	border-radius: 8px;
+}
+
+.fact dt {
+	min-inline-size: 0;
+}
+
+.fact dd {
+	margin: 0;
+	color: var(--wp-text-secondary);
+	text-align: end;
+}
+
+.credit {
+	margin: 12px 0 0;
+	color: var(--wp-text-muted);
+	font-size: 12px;
+}
+
+/* A touch screen needs larger rows to hit and read. */
+@media (pointer: coarse) {
+	.row,
+	.fact {
+		min-block-size: 44px;
+	}
+}
+
+@media (forced-colors: active) {
+	.row,
+	.fact {
+		border: 1px solid CanvasText;
+	}
+
+	.plain .row {
+		border-inline: 0;
+		border-block-start: 0;
+	}
+
+	.key {
+		border-color: CanvasText;
+		color: CanvasText;
+	}
+}

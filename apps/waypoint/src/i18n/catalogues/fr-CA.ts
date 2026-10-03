@@ -3188,6 +3188,107 @@ const messages: Catalogue = {
 	'cmd.goTo.trash': 'Aller à la Corbeille',
 	// source: 9819b01b
 	'appMenu.history.more': 'Plus dans la palette de commandes…',
+	// source: b79cac92
+	'appMenu.help': 'Aide',
+	// source: b79cac92
+	'cmd.help': 'Aide',
+	// source: 59cdaa26
+	'cmd.keyboardShortcuts': 'Raccourcis clavier',
+	// source: 9434332e
+	'cmd.tour': 'Faire la visite guidée',
+	// source: 29914b78
+	'cmd.about': 'À propos de Waypoint',
+	// source: b79cac92
+	'help.title': 'Aide',
+	// source: 7edddd51
+	'help.subtitle': 'Quelques repères utiles.',
+	// source: 3f63057d
+	'help.rows.label': 'Touches utiles',
+	// source: 2fee1e28
+	'help.row.commandPalette': 'Ouvrir la palette de commandes',
+	// source: 2b75279f
+	'help.row.newTab': 'Ouvrir un nouvel onglet',
+	// source: 98e1da09
+	'help.row.splitView': 'Diviser la vue en paire',
+	// source: c09bb329
+	'help.row.undo': 'Annuler la dernière modification de fichier',
+	// source: 26758f84
+	'help.row.toggleShelf': 'Afficher ou masquer l’étagère',
+	// source: 68f45384
+	'help.row.keyboardShortcuts': 'Voir tous les raccourcis',
+	// source: 7d9eb7ac
+	'help.close': 'Fermer',
+	// source: 4efca0d1
+	'help.about': 'À propos',
+	// source: d78c78e0
+	'help.art.caption': 'Chaque lieu est un point de passage',
+	// source: 59cdaa26
+	'shortcuts.title': 'Raccourcis clavier',
+	// source: 9dd1e63b
+	'shortcuts.subtitle': 'Toutes les commandes qui ont une touche, comme les menus les montrent.',
+	// source: 11a6767d
+	'shortcuts.done': 'Terminé',
+	// source: 408bb3f1
+	'shortcuts.empty': 'Aucune commande avec raccourci n’est disponible ici.',
+	// source: 2821159e
+	'shortcuts.list.label': 'Raccourcis : {group}',
+	// source: f24116ae
+	'tour.title.welcome': 'Bienvenue dans Waypoint',
+	// source: 249e61ae
+	'tour.text.welcome':
+		'Waypoint est un gestionnaire de fichiers à onglets pour Linux et Windows. Cette courte visite présente les idées qui le distinguent. Vous pouvez la quitter en tout temps et la retrouver dans le menu Aide.',
+	// source: 8f4037f6
+	'tour.title.tabs': 'Les onglets sont des espaces de travail',
+	// source: 2aac0416
+	'tour.text.tabs':
+		'Épinglez, colorez et regroupez les onglets, et divisez un onglet en paire avec {split} pour parcourir deux dossiers côte à côte. Faites glisser un onglet hors de la fenêtre pour le détacher, ou sur une autre fenêtre pour le fusionner. {reopen} rouvre un onglet fermé.',
+	// source: 26412f37
+	'tour.title.dnd': 'Glisser-déposer, partout',
+	// source: dd9c5b98
+	'tour.text.dnd':
+		'Faites glisser des fichiers vers les dossiers, les onglets et la barre latérale, ainsi que vers d’autres applications et depuis celles-ci. Maintenez Ctrl pour copier, Maj pour déplacer, ou Alt pour choisir. Déposez des fichiers sur l’étagère ({shelf}) pendant que vous naviguez.',
+	// source: b269dc4e
+	'tour.title.commands': 'Commandes',
+	// source: 3f317b64
+	'tour.text.commands':
+		'Appuyez sur {palette} pour la palette de commandes, où chaque commande des menus se trouve par son nom. Appuyez sur {shortcuts} pour la liste des raccourcis.',
+	// source: 24feed87
+	'tour.title.desktop': 'S’accorde avec votre bureau',
+	// source: 6d4c834f
+	'tour.text.desktop':
+		'Waypoint suit le thème de votre bureau, sa couleur d’accent et l’horloge de 12 ou de 24 heures. Les fichiers supprimés vont dans la corbeille du bureau, d’où on peut les restaurer, et on peut copier et coller des fichiers, ou les glisser, entre Waypoint et d’autres applications.',
+	// source: 0560ca6c
+	'tour.progress': 'Étape {step} sur {total}',
+	// source: 28d03596
+	'tour.skip': 'Passer',
+	// source: 76900f1b
+	'tour.back': 'Précédent',
+	// source: 1ff57a29
+	'tour.next': 'Suivant',
+	// source: 983f3110
+	'tour.done': 'Commencer',
+	// source: d7cfab3c
+	'about.title': 'Waypoint',
+	// source: a1874512
+	'about.version': 'Version {version}',
+	// source: 4f5b7f4c
+	'about.versionUnavailable': 'La version n’a pas pu être lue',
+	// source: 72328968
+	'about.versionLoading': 'Lecture de la version…',
+	// source: 29914b78
+	'about.rows.label': 'À propos de Waypoint',
+	// source: f3ec8e88
+	'about.licence': 'Licence',
+	// source: 12c4662d
+	'about.licence.value': 'Apache-2.0 OR MIT',
+	// source: 39e511f4
+	'about.builtWith': 'Conçu avec',
+	// source: 7caa1d85
+	'about.builtWith.value': 'Tauri, React et Rust',
+	// source: 9a6ae6bb
+	'about.credit': '© 2026 Liminal HQ, Scott Morris',
+	// source: 7d9eb7ac
+	'about.close': 'Fermer',
 	// source: 56d80c4b
 	'palette.title': 'Palette de commandes',
 	// source: f37cf202

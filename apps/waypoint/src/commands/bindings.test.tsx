@@ -11,6 +11,7 @@ import { createViewStore } from '../browse/viewStore';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
 import { isBatchRenameKey } from '../ops/batchRename/useBatchRenameShortcut';
 import { handleFileKey, isRestoreKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
+import { helpPageForKey } from '../help/helpModel';
 import { isSettingsShortcut } from '../settings/openSettingsWindow';
 import { createSidebarStore } from '../sidebar/sidebarStore';
 import { createInspectorStore } from '../inspector/inspectorStore';
@@ -186,6 +187,14 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 		expect(isBatchRenameKey(new KeyboardEvent('keydown', keyEventInit(s)))).toBe(true),
 	commandPalette: (s) =>
 		expect(isPaletteKey({ ...keyEventInit(s), isComposing: false } as never)).toBe(true),
+	help: (s) =>
+		expect(helpPageForKey({ ...keyEventInit(s), isComposing: false, target: null } as never)).toBe(
+			'help',
+		),
+	keyboardShortcuts: (s) =>
+		expect(helpPageForKey({ ...keyEventInit(s), isComposing: false, target: null } as never)).toBe(
+			'shortcuts',
+		),
 	settings: (s) =>
 		expect(isSettingsShortcut({ ...keyEventInit(s), isComposing: false } as never)).toBe(true),
 

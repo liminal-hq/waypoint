@@ -35,7 +35,7 @@ describe('the menu bar', () => {
 			within(bar)
 				.getAllByRole('menuitem')
 				.map((item) => item.textContent),
-		).toEqual(['File', 'Edit', 'View', 'Window']);
+		).toEqual(['File', 'Edit', 'View', 'Window', 'Help']);
 	});
 
 	it('opens a menu with the same rows as the app menu and runs the command', async () => {

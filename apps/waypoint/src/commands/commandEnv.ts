@@ -7,6 +7,7 @@ import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generate
 import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKind';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { ViewMode } from '../browse/viewStore';
+import type { HelpPage } from '../help/helpPages';
 import {
 	commandStates,
 	type CommandState,
@@ -105,6 +106,8 @@ export interface CommandActions {
 	openSettings(): void;
 	/** Opens the command palette, with `query` typed into it. */
 	openPalette(query?: string): void;
+	/** Opens the Help dialog, or one of its siblings (the shortcut list, the tour, About). */
+	openHelp(page: HelpPage): void;
 	/** Opens one of the sidebar's places in the active tab. */
 	goToPlace(place: PlaceKind): void;
 	/** The Shelf panel: show or hide it, move the keyboard into it, and put the active pane's selection on it. */
@@ -200,6 +203,7 @@ export function idleActions(): CommandActions {
 		closeWindow: nothing,
 		openSettings: nothing,
 		openPalette: nothing,
+		openHelp: nothing,
 		goToPlace: nothing,
 		toggleShelf: nothing,
 		focusShelf: nothing,

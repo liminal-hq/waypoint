@@ -442,6 +442,26 @@ describe('selection and keyboard', () => {
 		expect(selectedRows()[0]).toHaveTextContent('my other.txt');
 	});
 
+	it('leaves ? to the window (the shortcut list) unless it continues a typed prefix', async () => {
+		const client = new FakeVfsClient();
+		client.setFolder(
+			FOLDER,
+			['alpha', 'what?.txt', 'zebra'].map((name, i) => makeEntry(i + 1, name)),
+		);
+		renderList(client);
+		const list = await screen.findByRole('listbox');
+		await waitFor(() => expect(rows()[0]).not.toHaveAttribute('data-placeholder'));
+		act(() => list.focus());
+		// With nothing typed the key is not consumed, so it reaches the window's handler.
+		expect(fireEvent.keyDown(list, { key: '?' })).toBe(true);
+		// Inside a name being typed it is just a character.
+		for (const character of ['w', 'h', 'a', 't', '?']) {
+			expect(fireEvent.keyDown(list, { key: character })).toBe(false);
+		}
+		await waitFor(() => expect(selectedRows()).toHaveLength(1));
+		expect(selectedRows()[0]).toHaveTextContent('what?.txt');
+	});
+
 	it('abandons a pending type-ahead scan when another navigation key is pressed', async () => {
 		const client = new FakeVfsClient();
 		const names = Array.from({ length: 700 }, (_, i) => `a-${String(i).padStart(4, '0')}`);
