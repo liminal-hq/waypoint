@@ -864,6 +864,206 @@
     "description": "Area: settings.",
     "source": "c340dc01"
   },
+  "settings.group.backup": {
+    "message": "Sauvegarde et restauration",
+    "description": "Area: settings.",
+    "source": "4c438374"
+  },
+  "settings.backup.export.label": {
+    "message": "Exporter les paramètres",
+    "description": "Area: settings.",
+    "source": "4431ea74"
+  },
+  "settings.backup.export.description": {
+    "message": "Enregistrez vos paramètres dans un fichier que vous pouvez conserver ou charger sur un autre ordinateur.",
+    "description": "Area: settings.",
+    "source": "75ffb988"
+  },
+  "settings.backup.export.action": {
+    "message": "Exporter les paramètres…",
+    "description": "Area: settings. A button that opens a save dialog; the ellipsis means a dialog follows.",
+    "source": "3cd14bbe"
+  },
+  "settings.backup.import.label": {
+    "message": "Importer les paramètres",
+    "description": "Area: settings.",
+    "source": "72f01a73"
+  },
+  "settings.backup.import.description": {
+    "message": "Remplacez vos paramètres par ceux d’un fichier exporté plus tôt.",
+    "description": "Area: settings.",
+    "source": "10e4e1e8"
+  },
+  "settings.backup.import.action": {
+    "message": "Importer les paramètres…",
+    "description": "Area: settings. A button that opens a file dialog; the ellipsis means a dialog follows.",
+    "source": "5fcef179"
+  },
+  "settings.backup.exported": {
+    "message": "Paramètres exportés vers {path}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {path} is a folder or file path. Shown after saving. {path} is the full path of the file that was written.",
+    "source": "4b7cc8ef"
+  },
+  "settings.backup.imported": {
+    "message": "Paramètres importés.",
+    "description": "Area: settings.",
+    "source": "476e61c7"
+  },
+  "settings.backup.nothingToChange": {
+    "message": "Ce fichier correspond à vos paramètres actuels; rien n’a été modifié.",
+    "description": "Area: settings.",
+    "source": "e6950042"
+  },
+  "settings.backup.confirm.title": {
+    "message": "Remplacer vos paramètres ?",
+    "description": "Area: settings.",
+    "source": "187d0662"
+  },
+  "settings.backup.confirm.description": {
+    "message": "Vos paramètres actuels seront remplacés par ceux de ce fichier.",
+    "description": "Area: settings.",
+    "source": "eb505954"
+  },
+  "settings.backup.confirm.source": {
+    "message": "Ce fichier a été créé par Waypoint {version}.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {version}. {version} is a Waypoint version number such as 0.1.0.",
+    "source": "badaab99"
+  },
+  "settings.backup.confirm.changes": {
+    "message": "Ce qui va changer",
+    "description": "Area: settings.",
+    "source": "6eb4bc42"
+  },
+  "settings.backup.confirm.replace": {
+    "message": "Remplacer mes paramètres",
+    "description": "Area: settings.",
+    "source": "95559635"
+  },
+  "settings.backup.confirm.cancel": {
+    "message": "Annuler",
+    "description": "Area: settings.",
+    "source": "19766ed6"
+  },
+  "settings.backup.changes.one": {
+    "message": "{count} modification",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.changes.many, settings.backup.changes.other. How many values of a group of settings an import would change, in a list beside the group’s name.",
+    "source": "eae3c8cd"
+  },
+  "settings.backup.changes.many": {
+    "message": "{count} de modifications",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.changes.one, settings.backup.changes.other. How many values of a group of settings an import would change, in a list beside the group’s name.",
+    "source": "7f8fbadf"
+  },
+  "settings.backup.changes.other": {
+    "message": "{count} modifications",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.changes.one, settings.backup.changes.many. How many values of a group of settings an import would change, in a list beside the group’s name.",
+    "source": "7f8fbadf"
+  },
+  "settings.backup.group.ui": {
+    "message": "Barre de titre et barre d’actions",
+    "description": "Area: settings.",
+    "source": "3edaa6b5"
+  },
+  "settings.backup.warning.unknownKeys.one": {
+    "message": "{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.many, settings.backup.warning.unknownKeys.other.",
+    "source": "9bee25a4"
+  },
+  "settings.backup.warning.unknownKeys.many": {
+    "message": "{count} de paramètres du fichier n’existent pas dans cette version de Waypoint; ils seront ignorés.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.one, settings.backup.warning.unknownKeys.other.",
+    "source": "809d1b7e"
+  },
+  "settings.backup.warning.unknownKeys.other": {
+    "message": "{count} paramètres du fichier n’existent pas dans cette version de Waypoint; ils seront ignorés.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.one, settings.backup.warning.unknownKeys.many.",
+    "source": "809d1b7e"
+  },
+  "settings.backup.warning.unknownFiles.one": {
+    "message": "{count} partie du fichier n’existe pas dans cette version de Waypoint; elle sera ignorée.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownFiles.many, settings.backup.warning.unknownFiles.other.",
+    "source": "2dd1b0de"
+  },
+  "settings.backup.warning.unknownFiles.many": {
+    "message": "{count} de parties du fichier n’existent pas dans cette version de Waypoint; elles seront ignorées.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownFiles.one, settings.backup.warning.unknownFiles.other.",
+    "source": "963668a0"
+  },
+  "settings.backup.warning.unknownFiles.other": {
+    "message": "{count} parties du fichier n’existent pas dans cette version de Waypoint; elles seront ignorées.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownFiles.one, settings.backup.warning.unknownFiles.many.",
+    "source": "963668a0"
+  },
+  "settings.backup.warning.unlistedEntries.one": {
+    "message": "{count} fichier supplémentaire de l’archive n’a pas été lu.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unlistedEntries.many, settings.backup.warning.unlistedEntries.other.",
+    "source": "fc50de09"
+  },
+  "settings.backup.warning.unlistedEntries.many": {
+    "message": "{count} de fichiers supplémentaires de l’archive n’ont pas été lus.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unlistedEntries.one, settings.backup.warning.unlistedEntries.other.",
+    "source": "f8974337"
+  },
+  "settings.backup.warning.unlistedEntries.other": {
+    "message": "{count} fichiers supplémentaires de l’archive n’ont pas été lus.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unlistedEntries.one, settings.backup.warning.unlistedEntries.many.",
+    "source": "f8974337"
+  },
+  "settings.backup.error.notABundle": {
+    "message": "Ce fichier n’est pas un fichier de paramètres Waypoint.",
+    "description": "Area: settings.",
+    "source": "19cff21e"
+  },
+  "settings.backup.error.corrupt": {
+    "message": "Ce fichier est endommagé ou incomplet; il ne peut donc pas être lu.",
+    "description": "Area: settings.",
+    "source": "1df0fc70"
+  },
+  "settings.backup.error.newerFormat": {
+    "message": "Ce fichier a été créé par une version plus récente de Waypoint. Mettez Waypoint à jour pour l’importer.",
+    "description": "Area: settings.",
+    "source": "fb233e0d"
+  },
+  "settings.backup.error.tooLarge": {
+    "message": "Ce fichier est trop volumineux pour être un fichier de paramètres.",
+    "description": "Area: settings.",
+    "source": "42186c50"
+  },
+  "settings.backup.error.unsafe": {
+    "message": "Cette archive contient des fichiers que Waypoint ne lira pas; rien n’a été importé.",
+    "description": "Area: settings.",
+    "source": "98be8dfd"
+  },
+  "settings.backup.error.invalid": {
+    "message": "Ce fichier contient un paramètre non permis : {detail}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {detail}. {detail} is a technical sentence naming the setting and what is wrong with it, in English.",
+    "source": "07cf9157"
+  },
+  "settings.backup.error.nothing": {
+    "message": "Il n’y a aucun paramètre à exporter.",
+    "description": "Area: settings.",
+    "source": "f4a5e6ed"
+  },
+  "settings.backup.error.io": {
+    "message": "Le fichier n’a pas pu être lu ou écrit : {detail}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {detail}. {detail} is a technical sentence from the system saying why the file could not be read or written.",
+    "source": "6a93db10"
+  },
+  "settings.backup.error.unavailable": {
+    "message": "Ce système n’a aucune boîte de dialogue de fichier que Waypoint peut utiliser.",
+    "description": "Area: settings.",
+    "source": "6aebff8d"
+  },
+  "settings.backup.error.stale": {
+    "message": "Cette importation n’est plus prête. Choisissez de nouveau le fichier.",
+    "description": "Area: settings.",
+    "source": "92b2c4f7"
+  },
+  "settings.backup.error.apply": {
+    "message": "L’importation a échoué; vos paramètres sont restés tels quels : {detail}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {detail}. {detail} is a technical sentence from the system saying what went wrong, in English.",
+    "source": "4927c4ba"
+  },
   "settings.general.startup.label": {
     "message": "Au démarrage de Waypoint",
     "description": "Area: settings.",

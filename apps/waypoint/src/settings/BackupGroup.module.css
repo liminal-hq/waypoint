@@ -1,0 +1,51 @@
+.plan {
+	display: grid;
+	gap: 8px;
+}
+
+.source {
+	margin: 0;
+	color: var(--wp-text-secondary);
+}
+
+.heading {
+	margin: 0;
+	font-size: inherit;
+	font-weight: 600;
+	color: var(--wp-text-primary);
+}
+
+.list,
+.warnings {
+	display: grid;
+	gap: 4px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.list li {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	padding-block: 4px;
+	border-block-end: 1px solid var(--wp-border-subtle);
+}
+
+.group {
+	color: var(--wp-text-primary);
+}
+
+.count {
+	color: var(--wp-text-secondary);
+}
+
+.warnings li {
+	padding-block: 6px;
+	padding-inline: 10px;
+	border: 1px solid var(--wp-border-subtle);
+	border-inline-start-width: 4px;
+	border-inline-start-color: var(--wp-warning);
+	border-radius: 6px;
+	background: var(--wp-bg-raised);
+}

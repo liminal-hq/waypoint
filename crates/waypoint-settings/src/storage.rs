@@ -58,6 +58,12 @@ pub trait SettingsStorage: Send + Sync {
     /// The saved document, or `None` when nothing usable was saved.
     fn load(&self) -> Result<Option<SettingsDocument>, StorageError>;
     fn save(&self, document: &SettingsDocument) -> Result<(), StorageError>;
+
+    /// Keeps the saved document as the previous copy now, so the next `save` replaces a document
+    /// whose predecessor is the one being replaced. Saving alone keeps only the document the run
+    /// started with; an import calls this first so one step back is always the document it
+    /// replaced. Storage with no previous copy does nothing.
+    fn keep_as_previous(&self) {}
 }
 
 /// Settings kept in memory: for tests, and for an app that cannot open its settings file.
@@ -162,6 +168,16 @@ impl<K: KeyValue> SettingsStorage for Persistence<K> {
             }
         }
         Ok(None)
+    }
+
+    fn keep_as_previous(&self) {
+        if let Some(Ok(_)) = self.read(SETTINGS_KEY) {
+            if let Some(current) = self.kv.get(SETTINGS_KEY) {
+                self.kv.set(PREVIOUS_KEY, current);
+            }
+        }
+        // The rotation of this run has happened: the first save must not rotate over it.
+        self.rotated.store(true, Ordering::Release);
     }
 
     fn save(&self, document: &SettingsDocument) -> Result<(), StorageError> {
@@ -284,6 +300,46 @@ mod tests {
         let previous: SettingsDocument =
             serde_json::from_value(memory.get(PREVIOUS_KEY).unwrap()).unwrap();
         assert_eq!(previous, with_view(DefaultView::Grid));
+    }
+
+    #[test]
+    fn keeping_as_previous_makes_the_replaced_document_the_one_step_back_even_after_a_rotation() {
+        let (memory, storage) = setup();
+        memory.set(
+            SETTINGS_KEY,
+            serde_json::to_value(with_view(DefaultView::Grid)).unwrap(),
+        );
+        // The run's own rotation keeps the document the run started with…
+        storage.save(&with_view(DefaultView::List)).unwrap();
+        let previous = |memory: &Arc<Memory>| -> SettingsDocument {
+            serde_json::from_value(memory.get(PREVIOUS_KEY).unwrap()).unwrap()
+        };
+        assert_eq!(previous(&memory), with_view(DefaultView::Grid));
+        // …and an import steps in front of it: the document it replaces is the previous one.
+        storage.keep_as_previous();
+        let mut imported = Settings::default();
+        imported.dnd.default_action_rule = DropActionRule::AlwaysCopy;
+        storage
+            .save(&SettingsDocument::new(imported.clone()))
+            .unwrap();
+        assert_eq!(previous(&memory), with_view(DefaultView::List));
+        assert_eq!(
+            storage.load().unwrap(),
+            Some(SettingsDocument::new(imported))
+        );
+    }
+
+    #[test]
+    fn keeping_as_previous_before_any_save_rotates_once_and_a_bad_copy_is_not_kept() {
+        let (memory, storage) = setup();
+        storage.keep_as_previous();
+        assert!(memory.get(PREVIOUS_KEY).is_none(), "nothing to keep");
+        memory.set(SETTINGS_KEY, json!("nonsense"));
+        storage.keep_as_previous();
+        assert!(
+            memory.get(PREVIOUS_KEY).is_none(),
+            "an unusable copy is not kept"
+        );
     }
 
     #[test]

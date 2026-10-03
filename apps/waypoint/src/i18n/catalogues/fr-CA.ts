@@ -389,6 +389,106 @@ const messages: Catalogue = {
 	'settings.error.saveFailed': 'Le changement n’a pas pu être enregistré : {reason}',
 	// source: c340dc01
 	'settings.error.generic': 'une erreur s’est produite',
+	// source: 4c438374
+	'settings.group.backup': 'Sauvegarde et restauration',
+	// source: 4431ea74
+	'settings.backup.export.label': 'Exporter les paramètres',
+	// source: 75ffb988
+	'settings.backup.export.description':
+		'Enregistrez vos paramètres dans un fichier que vous pouvez conserver ou charger sur un autre ordinateur.',
+	// source: 3cd14bbe
+	'settings.backup.export.action': 'Exporter les paramètres…',
+	// source: 72f01a73
+	'settings.backup.import.label': 'Importer les paramètres',
+	// source: 10e4e1e8
+	'settings.backup.import.description':
+		'Remplacez vos paramètres par ceux d’un fichier exporté plus tôt.',
+	// source: 5fcef179
+	'settings.backup.import.action': 'Importer les paramètres…',
+	// source: 4b7cc8ef
+	'settings.backup.exported': 'Paramètres exportés vers {path}',
+	// source: 476e61c7
+	'settings.backup.imported': 'Paramètres importés.',
+	// source: e6950042
+	'settings.backup.nothingToChange':
+		'Ce fichier correspond à vos paramètres actuels; rien n’a été modifié.',
+	// source: 187d0662
+	'settings.backup.confirm.title': 'Remplacer vos paramètres ?',
+	// source: eb505954
+	'settings.backup.confirm.description':
+		'Vos paramètres actuels seront remplacés par ceux de ce fichier.',
+	// source: badaab99
+	'settings.backup.confirm.source': 'Ce fichier a été créé par Waypoint {version}.',
+	// source: 6eb4bc42
+	'settings.backup.confirm.changes': 'Ce qui va changer',
+	// source: 95559635
+	'settings.backup.confirm.replace': 'Remplacer mes paramètres',
+	// source: 19766ed6
+	'settings.backup.confirm.cancel': 'Annuler',
+	// source: eae3c8cd
+	'settings.backup.changes.one': '{count} modification',
+	// source: 7f8fbadf
+	'settings.backup.changes.many': '{count} de modifications',
+	// source: 7f8fbadf
+	'settings.backup.changes.other': '{count} modifications',
+	// source: 3edaa6b5
+	'settings.backup.group.ui': 'Barre de titre et barre d’actions',
+	// source: 9bee25a4
+	'settings.backup.warning.unknownKeys.one':
+		'{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.',
+	// source: 809d1b7e
+	'settings.backup.warning.unknownKeys.many':
+		'{count} de paramètres du fichier n’existent pas dans cette version de Waypoint; ils seront ignorés.',
+	// source: 809d1b7e
+	'settings.backup.warning.unknownKeys.other':
+		'{count} paramètres du fichier n’existent pas dans cette version de Waypoint; ils seront ignorés.',
+	// source: 2dd1b0de
+	'settings.backup.warning.unknownFiles.one':
+		'{count} partie du fichier n’existe pas dans cette version de Waypoint; elle sera ignorée.',
+	// source: 963668a0
+	'settings.backup.warning.unknownFiles.many':
+		'{count} de parties du fichier n’existent pas dans cette version de Waypoint; elles seront ignorées.',
+	// source: 963668a0
+	'settings.backup.warning.unknownFiles.other':
+		'{count} parties du fichier n’existent pas dans cette version de Waypoint; elles seront ignorées.',
+	// source: fc50de09
+	'settings.backup.warning.unlistedEntries.one':
+		'{count} fichier supplémentaire de l’archive n’a pas été lu.',
+	// source: f8974337
+	'settings.backup.warning.unlistedEntries.many':
+		'{count} de fichiers supplémentaires de l’archive n’ont pas été lus.',
+	// source: f8974337
+	'settings.backup.warning.unlistedEntries.other':
+		'{count} fichiers supplémentaires de l’archive n’ont pas été lus.',
+	// source: 19cff21e
+	'settings.backup.error.notABundle': 'Ce fichier n’est pas un fichier de paramètres Waypoint.',
+	// source: 1df0fc70
+	'settings.backup.error.corrupt':
+		'Ce fichier est endommagé ou incomplet; il ne peut donc pas être lu.',
+	// source: fb233e0d
+	'settings.backup.error.newerFormat':
+		'Ce fichier a été créé par une version plus récente de Waypoint. Mettez Waypoint à jour pour l’importer.',
+	// source: 42186c50
+	'settings.backup.error.tooLarge':
+		'Ce fichier est trop volumineux pour être un fichier de paramètres.',
+	// source: 98be8dfd
+	'settings.backup.error.unsafe':
+		'Cette archive contient des fichiers que Waypoint ne lira pas; rien n’a été importé.',
+	// source: 07cf9157
+	'settings.backup.error.invalid': 'Ce fichier contient un paramètre non permis : {detail}',
+	// source: f4a5e6ed
+	'settings.backup.error.nothing': 'Il n’y a aucun paramètre à exporter.',
+	// source: 6a93db10
+	'settings.backup.error.io': 'Le fichier n’a pas pu être lu ou écrit : {detail}',
+	// source: 6aebff8d
+	'settings.backup.error.unavailable':
+		'Ce système n’a aucune boîte de dialogue de fichier que Waypoint peut utiliser.',
+	// source: 92b2c4f7
+	'settings.backup.error.stale':
+		'Cette importation n’est plus prête. Choisissez de nouveau le fichier.',
+	// source: 4927c4ba
+	'settings.backup.error.apply':
+		'L’importation a échoué; vos paramètres sont restés tels quels : {detail}',
 	// source: cfa24c48
 	'settings.general.startup.label': 'Au démarrage de Waypoint',
 	// source: 8b9f3270

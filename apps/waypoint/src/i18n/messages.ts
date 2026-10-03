@@ -230,6 +230,62 @@ export const enMessages = {
 	'settings.error.range': 'Choose a value between {min} and {max}.',
 	'settings.error.saveFailed': 'The change could not be saved: {reason}',
 	'settings.error.generic': 'something went wrong',
+	'settings.group.backup': 'Back up and restore',
+	'settings.backup.export.label': 'Export settings',
+	'settings.backup.export.description':
+		'Save your settings to a file you can keep, or load on another computer.',
+	// translator: A button that opens a save dialog; the ellipsis means a dialog follows.
+	'settings.backup.export.action': 'Export settings…',
+	'settings.backup.import.label': 'Import settings',
+	'settings.backup.import.description':
+		'Replace your settings with the ones in a file you exported earlier.',
+	// translator: A button that opens a file dialog; the ellipsis means a dialog follows.
+	'settings.backup.import.action': 'Import settings…',
+	// translator: Shown after saving. {path} is the full path of the file that was written.
+	'settings.backup.exported': 'Settings exported to {path}',
+	'settings.backup.imported': 'Settings imported.',
+	'settings.backup.nothingToChange':
+		'That file matches your current settings, so nothing was changed.',
+	'settings.backup.confirm.title': 'Replace your settings?',
+	'settings.backup.confirm.description':
+		'Your current settings will be replaced by the ones in this file.',
+	// translator: {version} is a Waypoint version number such as 0.1.0.
+	'settings.backup.confirm.source': 'The file was made by Waypoint {version}.',
+	'settings.backup.confirm.changes': 'What will change',
+	'settings.backup.confirm.replace': 'Replace my settings',
+	'settings.backup.confirm.cancel': 'Cancel',
+	// translator: How many values of a group of settings an import would change, in a list beside the group’s name.
+	'settings.backup.changes.one': '{count} change',
+	'settings.backup.changes.other': '{count} changes',
+	'settings.backup.group.ui': 'Title bar and Action bar',
+	'settings.backup.warning.unknownKeys.one':
+		'{count} setting in the file is not in this version of Waypoint, so it will be left out.',
+	'settings.backup.warning.unknownKeys.other':
+		'{count} settings in the file are not in this version of Waypoint, so they will be left out.',
+	'settings.backup.warning.unknownFiles.one':
+		'{count} part of the file is not in this version of Waypoint, so it will be left out.',
+	'settings.backup.warning.unknownFiles.other':
+		'{count} parts of the file are not in this version of Waypoint, so they will be left out.',
+	'settings.backup.warning.unlistedEntries.one': '{count} extra file in the archive was not read.',
+	'settings.backup.warning.unlistedEntries.other':
+		'{count} extra files in the archive were not read.',
+	'settings.backup.error.notABundle': 'That file is not a Waypoint settings file.',
+	'settings.backup.error.corrupt': 'That file is damaged or incomplete, so it cannot be read.',
+	'settings.backup.error.newerFormat':
+		'That file was made by a newer version of Waypoint. Update Waypoint to import it.',
+	'settings.backup.error.tooLarge': 'That file is too large to be a settings file.',
+	'settings.backup.error.unsafe':
+		'That archive holds files Waypoint will not read, so nothing was imported.',
+	// translator: {detail} is a technical sentence naming the setting and what is wrong with it, in English.
+	'settings.backup.error.invalid': 'That file holds a setting that is not allowed: {detail}',
+	'settings.backup.error.nothing': 'There are no settings to export.',
+	// translator: {detail} is a technical sentence from the system saying why the file could not be read or written.
+	'settings.backup.error.io': 'The file could not be read or written: {detail}',
+	'settings.backup.error.unavailable': 'This system has no file dialog Waypoint can use.',
+	'settings.backup.error.stale': 'That import is no longer ready. Choose the file again.',
+	// translator: {detail} is a technical sentence from the system saying what went wrong, in English.
+	'settings.backup.error.apply':
+		'The import failed, so your settings were left as they were: {detail}',
 	'settings.general.startup.label': 'When Waypoint starts',
 	'settings.general.startup.description':
 		'Bring back the windows and tabs from last time, or open one window at Home. Takes effect the next time Waypoint starts.',

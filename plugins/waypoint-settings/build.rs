@@ -8,6 +8,9 @@ const COMMANDS: &[&str] = &[
     "get_settings",
     "set_settings",
     "set_ui_settings",
+    "export_settings",
+    "plan_settings_import",
+    "apply_settings_import",
 ];
 
 fn main() {

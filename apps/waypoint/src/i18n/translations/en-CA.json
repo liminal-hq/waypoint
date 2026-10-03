@@ -691,6 +691,150 @@
     "message": "something went wrong",
     "description": "Area: settings."
   },
+  "settings.group.backup": {
+    "message": "Back up and restore",
+    "description": "Area: settings."
+  },
+  "settings.backup.export.label": {
+    "message": "Export settings",
+    "description": "Area: settings."
+  },
+  "settings.backup.export.description": {
+    "message": "Save your settings to a file you can keep, or load on another computer.",
+    "description": "Area: settings."
+  },
+  "settings.backup.export.action": {
+    "message": "Export settings…",
+    "description": "Area: settings. A button that opens a save dialog; the ellipsis means a dialog follows."
+  },
+  "settings.backup.import.label": {
+    "message": "Import settings",
+    "description": "Area: settings."
+  },
+  "settings.backup.import.description": {
+    "message": "Replace your settings with the ones in a file you exported earlier.",
+    "description": "Area: settings."
+  },
+  "settings.backup.import.action": {
+    "message": "Import settings…",
+    "description": "Area: settings. A button that opens a file dialog; the ellipsis means a dialog follows."
+  },
+  "settings.backup.exported": {
+    "message": "Settings exported to {path}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {path} is a folder or file path. Shown after saving. {path} is the full path of the file that was written."
+  },
+  "settings.backup.imported": {
+    "message": "Settings imported.",
+    "description": "Area: settings."
+  },
+  "settings.backup.nothingToChange": {
+    "message": "That file matches your current settings, so nothing was changed.",
+    "description": "Area: settings."
+  },
+  "settings.backup.confirm.title": {
+    "message": "Replace your settings?",
+    "description": "Area: settings."
+  },
+  "settings.backup.confirm.description": {
+    "message": "Your current settings will be replaced by the ones in this file.",
+    "description": "Area: settings."
+  },
+  "settings.backup.confirm.source": {
+    "message": "The file was made by Waypoint {version}.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {version}. {version} is a Waypoint version number such as 0.1.0."
+  },
+  "settings.backup.confirm.changes": {
+    "message": "What will change",
+    "description": "Area: settings."
+  },
+  "settings.backup.confirm.replace": {
+    "message": "Replace my settings",
+    "description": "Area: settings."
+  },
+  "settings.backup.confirm.cancel": {
+    "message": "Cancel",
+    "description": "Area: settings."
+  },
+  "settings.backup.changes.one": {
+    "message": "{count} change",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.changes.other. How many values of a group of settings an import would change, in a list beside the group’s name."
+  },
+  "settings.backup.changes.other": {
+    "message": "{count} changes",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.changes.one. How many values of a group of settings an import would change, in a list beside the group’s name."
+  },
+  "settings.backup.group.ui": {
+    "message": "Title bar and Action bar",
+    "description": "Area: settings."
+  },
+  "settings.backup.warning.unknownKeys.one": {
+    "message": "{count} setting in the file is not in this version of Waypoint, so it will be left out.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.other."
+  },
+  "settings.backup.warning.unknownKeys.other": {
+    "message": "{count} settings in the file are not in this version of Waypoint, so they will be left out.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.one."
+  },
+  "settings.backup.warning.unknownFiles.one": {
+    "message": "{count} part of the file is not in this version of Waypoint, so it will be left out.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownFiles.other."
+  },
+  "settings.backup.warning.unknownFiles.other": {
+    "message": "{count} parts of the file are not in this version of Waypoint, so they will be left out.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownFiles.one."
+  },
+  "settings.backup.warning.unlistedEntries.one": {
+    "message": "{count} extra file in the archive was not read.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unlistedEntries.other."
+  },
+  "settings.backup.warning.unlistedEntries.other": {
+    "message": "{count} extra files in the archive were not read.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unlistedEntries.one."
+  },
+  "settings.backup.error.notABundle": {
+    "message": "That file is not a Waypoint settings file.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.corrupt": {
+    "message": "That file is damaged or incomplete, so it cannot be read.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.newerFormat": {
+    "message": "That file was made by a newer version of Waypoint. Update Waypoint to import it.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.tooLarge": {
+    "message": "That file is too large to be a settings file.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.unsafe": {
+    "message": "That archive holds files Waypoint will not read, so nothing was imported.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.invalid": {
+    "message": "That file holds a setting that is not allowed: {detail}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {detail}. {detail} is a technical sentence naming the setting and what is wrong with it, in English."
+  },
+  "settings.backup.error.nothing": {
+    "message": "There are no settings to export.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.io": {
+    "message": "The file could not be read or written: {detail}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {detail}. {detail} is a technical sentence from the system saying why the file could not be read or written."
+  },
+  "settings.backup.error.unavailable": {
+    "message": "This system has no file dialog Waypoint can use.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.stale": {
+    "message": "That import is no longer ready. Choose the file again.",
+    "description": "Area: settings."
+  },
+  "settings.backup.error.apply": {
+    "message": "The import failed, so your settings were left as they were: {detail}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {detail}. {detail} is a technical sentence from the system saying what went wrong, in English."
+  },
   "settings.general.startup.label": {
     "message": "When Waypoint starts",
     "description": "Area: settings."

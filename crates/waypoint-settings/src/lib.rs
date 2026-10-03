@@ -9,11 +9,23 @@
 // key-value file the document is saved in.
 
 mod accelerator;
+mod bundle;
+mod import;
 mod model;
 mod storage;
 
 pub use accelerator::{
     validate_accelerator, ACCELERATOR_HINT, ACCELERATOR_MAX_LEN, DEFAULT_ACCELERATOR,
+};
+pub use bundle::{
+    export as export_bundle, read as read_bundle, valid_id as valid_file_id, Bundle, BundleError,
+    BundleKind, ExportFile, ExportMeta, ExportedBundle, BUNDLE_FORMAT, BUNDLE_VERSION,
+    MANIFEST_NAME, MAX_ENTRIES, MAX_FILE_BYTES, MAX_TOTAL_BYTES,
+};
+pub use import::{
+    apply_import, change_groups, differing_paths, plan_import, plan_settings, unknown_paths,
+    ApplyError, ChangeGroup, ConfigFile, ExportReceipt, FilePlan, ImportPlan, ImportPreview,
+    ImportWarning, PlannedImport, SETTINGS_FILE_ID,
 };
 pub use model::{
     BlurLevel, ClickMode, ColourMode, DefaultView, DndSettings, DropActionRule, GeneralSettings,

@@ -8,6 +8,7 @@ import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/Setting
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { t, tf } from '../i18n/messages';
+import { BackupGroup } from './BackupGroup';
 import { DEFAULT_OPS } from './opsDefaults';
 import { useSettingsEditor } from './SettingsEditor';
 
@@ -105,6 +106,7 @@ export function GeneralPage() {
 					onChange={(confirmTrash) => changeOps('confirmTrash', (o) => ({ ...o, confirmTrash }))}
 				/>
 			</SettingsGroup>
+			<BackupGroup />
 		</SettingsSection>
 	);
 }

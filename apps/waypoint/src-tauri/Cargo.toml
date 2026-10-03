@@ -21,6 +21,8 @@ tauri = { workspace = true }
 tauri-plugin-log = "2"
 tauri-plugin-os = "2"
 tauri-plugin-store = "2"
+# The system file dialogs, used from Rust only (the settings export and import).
+tauri-plugin-dialog = "2"
 tauri-plugin-os-prefs = { path = "../../../plugins/os-prefs" }
 tauri-plugin-system-appearance = { path = "../../../plugins/system-appearance" }
 tauri-plugin-window-effects = { path = "../../../plugins/window-effects" }

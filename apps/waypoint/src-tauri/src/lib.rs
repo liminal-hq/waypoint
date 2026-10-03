@@ -12,6 +12,7 @@ mod ops_window;
 mod persistence;
 mod properties_window;
 mod settings;
+mod settings_transfer;
 mod settings_window;
 mod shelf_window;
 mod storage;
@@ -157,6 +158,8 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        // Only Rust opens a dialog through it (`settings_transfer`); no capability gives a window its commands.
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os_prefs::init())
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
@@ -210,6 +213,7 @@ pub fn run() {
             let saver = Arc::clone(&saver);
             move |app| {
                 settings::wire(app.handle());
+                settings_transfer::wire(app.handle());
                 effects::wire(app.handle());
                 thumbnails::wire(app.handle());
                 integrations::wire(app.handle());

@@ -8,6 +8,7 @@ mod error;
 mod state;
 #[cfg(test)]
 mod tests;
+mod transfer;
 
 use std::sync::Arc;
 
@@ -19,6 +20,7 @@ use waypoint_settings::SettingsStorage;
 
 pub use error::Error;
 pub use state::{ChangeHook, SettingsStore};
+pub use transfer::{FilePicker, SettingsConfigFile, Transfers};
 
 /// Sent to every window after every change, with a `SettingsSnapshot` whose revision grows by one
 /// each time. A window reads `get_settings` first and applies events with a higher revision.
@@ -42,6 +44,9 @@ pub fn init_with<R: Runtime>(
             commands::get_settings,
             commands::set_settings,
             commands::set_ui_settings,
+            commands::export_settings,
+            commands::plan_settings_import,
+            commands::apply_settings_import,
         ])
         .setup(move |app, _api| {
             let make = make
@@ -51,6 +56,9 @@ pub fn init_with<R: Runtime>(
                 .ok_or("the settings plugin was set up twice")?;
             let storage = make(app);
             app.manage(SettingsStore::new(app.clone(), storage));
+            let transfers = Transfers::default();
+            transfers.register(Arc::new(SettingsConfigFile(app.clone())));
+            app.manage(transfers);
             Ok(())
         })
         .build()

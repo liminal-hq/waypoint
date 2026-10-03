@@ -22,6 +22,7 @@ import type { DefaultFileManagerClient } from '../services/defaultFileManagerCli
 import type { IntegrationsClient } from '../services/integrationsClient';
 import type { OpsSettings } from '../services/opsClient';
 import { isSettingsError, type Settings } from '../services/settingsClient';
+import type { SettingsTransferClient } from '../services/settingsTransferClient';
 import type { SettingsHandle } from './settingsStore';
 
 /** The rows that can show an error, by the setting each one edits. */
@@ -33,6 +34,8 @@ export type RowKey =
 	| 'appNameInTitle'
 	| 'menuBar'
 	| 'confirmTrash'
+	| 'exportSettings'
+	| 'importSettings'
 	| 'verify'
 	| 'algorithm'
 	| 'concurrency'
@@ -112,10 +115,16 @@ export interface SettingsEditor {
 	availabilityUnreadable: string | null;
 	/** Making Waypoint the default file manager; `null` when the page was given no client for it. */
 	fileManager: DefaultFileManagerClient | null;
+	/** Saving the settings to a file and loading them back; `null` when the page was given no client for it. */
+	transfer: SettingsTransferClient | null;
 	errors: Partial<Record<RowKey, string>>;
 	/** Asks Rust for the settings `change` makes of the ones in force. The row shows the answer, never the request. */
 	changeSettings(key: RowKey, change: (settings: Settings) => Settings): void;
 	changeOps(key: RowKey, change: (ops: OpsSettings) => OpsSettings): void;
+	/** Shows `message` under a row, or clears what it shows with `null`: for actions that are not a change of one value. */
+	setRowError(key: RowKey, message: string | null): void;
+	/** Reads the operations settings again, after something other than this page changed them (an import). */
+	refreshOps(): Promise<void>;
 }
 
 const SettingsEditorContext = createContext<SettingsEditor | null>(null);
@@ -153,6 +162,8 @@ interface SettingsEditorProviderProps {
 	integrations?: IntegrationsClient;
 	/** The default file manager action and who is default now, for the Integrations page. */
 	fileManager?: DefaultFileManagerClient;
+	/** Export and import of the settings, for the General page's Back up and restore group. */
+	transfer?: SettingsTransferClient;
 	children: ReactNode;
 }
 
@@ -169,6 +180,7 @@ export function SettingsEditorProvider({
 	windowEffectsStatus,
 	integrations,
 	fileManager,
+	transfer,
 	children,
 }: SettingsEditorProviderProps) {
 	const { settings, ready: settingsReady } = useStore(handle.store, (state) => state);
@@ -299,6 +311,27 @@ export function SettingsEditorProvider({
 		[opsApi, run],
 	);
 
+	const setRowError = useCallback<SettingsEditor['setRowError']>((key, message) => {
+		setErrors((current) => {
+			if (message === null) {
+				if (!(key in current)) return current;
+				const { [key]: _cleared, ...rest } = current;
+				return rest;
+			}
+			return { ...current, [key]: message };
+		});
+	}, []);
+
+	const refreshOps = useCallback(async () => {
+		try {
+			const value = await opsApi.getSettings();
+			opsNow.current = value;
+			setOps(value);
+		} catch (error) {
+			console.warn('could not read the operations settings again', error);
+		}
+	}, [opsApi]);
+
 	const value = useMemo<SettingsEditor>(
 		() => ({
 			ready: settingsReady && opsReady,
@@ -311,9 +344,12 @@ export function SettingsEditorProvider({
 			availability,
 			availabilityUnreadable,
 			fileManager: fileManager ?? null,
+			transfer: transfer ?? null,
 			errors,
 			changeSettings,
 			changeOps,
+			setRowError,
+			refreshOps,
 		}),
 		[
 			settingsReady,
@@ -327,9 +363,12 @@ export function SettingsEditorProvider({
 			availability,
 			availabilityUnreadable,
 			fileManager,
+			transfer,
 			errors,
 			changeSettings,
 			changeOps,
+			setRowError,
+			refreshOps,
 		],
 	);
 	return <SettingsEditorContext.Provider value={value}>{children}</SettingsEditorContext.Provider>;

@@ -262,3 +262,444 @@ fn a_ui_change_that_changes_nothing_makes_no_revision() {
     let before = store(&app).snapshot();
     assert_eq!(store(&app).update_ui(|_| {}).unwrap(), before);
 }
+
+// Export and import
+
+use std::path::{Path, PathBuf};
+
+use serde_json::Value;
+use waypoint_settings::{
+    change_groups, differing_paths, BundleError, BundleKind, ConfigFile, ExportReceipt, FilePlan,
+    ImportPreview, MAX_TOTAL_BYTES,
+};
+
+use crate::{FilePicker, Transfers};
+
+/// A picker that answers with what the test says, and remembers what it was asked.
+#[derive(Default)]
+struct Picker {
+    save_to: Mutex<Option<PathBuf>>,
+    open: Mutex<Option<PathBuf>>,
+    asked: Mutex<Vec<String>>,
+}
+
+impl FilePicker for Picker {
+    fn save(&self, window: &str, suggested_name: &str, kind: BundleKind) -> Option<PathBuf> {
+        self.asked.lock().unwrap().push(format!(
+            "save {window} {suggested_name} {}",
+            kind.extension()
+        ));
+        self.save_to.lock().unwrap().clone()
+    }
+    fn open(&self, window: &str) -> Option<PathBuf> {
+        self.asked.lock().unwrap().push(format!("open {window}"));
+        self.open.lock().unwrap().clone()
+    }
+}
+
+/// A storage that remembers each save and each time the replaced document was kept.
+#[derive(Default)]
+struct Recording {
+    inner: MemoryStorage,
+    log: Mutex<Vec<&'static str>>,
+}
+
+impl SettingsStorage for Recording {
+    fn load(&self) -> Result<Option<SettingsDocument>, StorageError> {
+        self.inner.load()
+    }
+    fn save(&self, document: &SettingsDocument) -> Result<(), StorageError> {
+        self.log.lock().unwrap().push("save");
+        self.inner.save(document)
+    }
+    fn keep_as_previous(&self) {
+        self.log.lock().unwrap().push("keep");
+    }
+}
+
+fn transfers(app: &App) -> tauri::State<'_, Transfers> {
+    app.state::<Transfers>()
+}
+
+fn with_picker(app: &App) -> Arc<Picker> {
+    let picker = Arc::new(Picker::default());
+    transfers(app).set_picker(picker.clone());
+    picker
+}
+
+fn export(app: &App, picker: &Picker, to: &Path) -> Result<Option<ExportReceipt>, Error> {
+    *picker.save_to.lock().unwrap() = Some(to.to_path_buf());
+    tauri::async_runtime::block_on(commands::export_settings(window(app), transfers(app), -240))
+}
+
+fn plan(app: &App, picker: &Picker, file: &Path) -> Result<Option<ImportPreview>, Error> {
+    *picker.open.lock().unwrap() = Some(file.to_path_buf());
+    tauri::async_runtime::block_on(commands::plan_settings_import(window(app), transfers(app)))
+}
+
+fn apply(app: &App, plan_id: u64) -> Result<SettingsSnapshot, Error> {
+    tauri::async_runtime::block_on(commands::apply_settings_import(
+        window(app),
+        store(app),
+        transfers(app),
+        plan_id,
+    ))
+}
+
+fn kind_of(error: &Error) -> String {
+    serde_json::to_value(error).unwrap()["kind"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+
+/// Another configuration file, kept in memory (the operations settings are one in the app).
+struct Extra {
+    value: Mutex<Value>,
+    fail: Mutex<bool>,
+}
+
+impl Extra {
+    fn new(value: Value) -> Arc<Self> {
+        Arc::new(Self {
+            value: Mutex::new(value),
+            fail: Mutex::new(false),
+        })
+    }
+}
+
+impl ConfigFile for Extra {
+    fn id(&self) -> &str {
+        "ops"
+    }
+    fn export(&self) -> Result<Value, String> {
+        Ok(self.value.lock().unwrap().clone())
+    }
+    fn plan(&self, incoming: &Value) -> Result<FilePlan, BundleError> {
+        let now = self.value.lock().unwrap().clone();
+        Ok(FilePlan {
+            document: incoming.clone(),
+            changes: change_groups("ops", &differing_paths(&now, incoming), None),
+            warnings: Vec::new(),
+        })
+    }
+    fn apply(&self, document: &Value) -> Result<(), String> {
+        if *self.fail.lock().unwrap() {
+            return Err("no room".to_owned());
+        }
+        *self.value.lock().unwrap() = document.clone();
+        Ok(())
+    }
+}
+
+#[test]
+fn export_asks_where_then_writes_one_json_for_the_one_file() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    set(&app, grid()).unwrap();
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let receipt = export(&app, &picker, &dir.path().join("mine.json"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(receipt.kind, BundleKind::Json);
+    assert_eq!(receipt.files, ["settings"]);
+    assert_eq!(receipt.path, dir.path().join("mine.json").to_string_lossy());
+    let written: Value = serde_json::from_slice(&std::fs::read(&receipt.path).unwrap()).unwrap();
+    assert_eq!(written["format"], "waypoint-settings");
+    assert_eq!(
+        written["files"]["settings"]["body"]["general"]["defaultView"],
+        "grid"
+    );
+    let asked = picker.asked.lock().unwrap().clone();
+    assert_eq!(asked.len(), 1);
+    assert!(
+        asked[0].starts_with("save settings waypoint-settings-20"),
+        "{asked:?}"
+    );
+    assert!(asked[0].ends_with(".json json"));
+    assert_eq!(
+        std::fs::read_dir(dir.path()).unwrap().count(),
+        1,
+        "no temporary file is left"
+    );
+}
+
+#[test]
+fn export_of_several_files_is_a_zip_and_a_name_without_an_extension_gets_one() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    transfers(&app).register(Extra::new(serde_json::json!({ "concurrency": 2 })));
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let receipt = export(&app, &picker, &dir.path().join("mine"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(receipt.kind, BundleKind::Zip);
+    assert_eq!(receipt.files, ["settings", "ops"]);
+    assert!(receipt.path.ends_with("mine.zip"));
+    assert!(std::fs::read(&receipt.path)
+        .unwrap()
+        .starts_with(b"PK\x03\x04"));
+}
+
+#[test]
+fn a_closed_dialog_exports_and_imports_nothing() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    *picker.save_to.lock().unwrap() = None;
+    let answer =
+        tauri::async_runtime::block_on(commands::export_settings(window(&app), transfers(&app), 0))
+            .unwrap();
+    assert!(answer.is_none());
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    *picker.open.lock().unwrap() = None;
+    let planned = tauri::async_runtime::block_on(commands::plan_settings_import(
+        window(&app),
+        transfers(&app),
+    ))
+    .unwrap();
+    assert!(planned.is_none());
+}
+
+#[test]
+fn without_a_dialog_export_and_import_say_so() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let refused =
+        tauri::async_runtime::block_on(commands::export_settings(window(&app), transfers(&app), 0))
+            .unwrap_err();
+    assert_eq!(kind_of(&refused), "unavailable");
+    let refused = tauri::async_runtime::block_on(commands::plan_settings_import(
+        window(&app),
+        transfers(&app),
+    ))
+    .unwrap_err();
+    assert_eq!(kind_of(&refused), "unavailable");
+}
+
+#[test]
+fn a_round_trip_through_a_file_restores_the_settings_after_a_reset() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let mut mine = grid();
+    mine.dnd.spring_load_ms = 1100;
+    set(&app, mine.clone()).unwrap();
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("backup.json");
+    export(&app, &picker, &file).unwrap();
+    set(&app, Settings::default()).unwrap();
+
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    assert_eq!(preview.plan.kind, BundleKind::Json);
+    assert_eq!(preview.plan.files, ["settings"]);
+    let groups: Vec<(&str, u32)> = preview
+        .plan
+        .changes
+        .iter()
+        .map(|c| (c.group.as_str(), c.count))
+        .collect();
+    assert_eq!(groups, [("dnd", 1), ("general", 1)]);
+    assert_eq!(
+        store(&app).get(),
+        Settings::default(),
+        "planning changed nothing"
+    );
+
+    let answer = apply(&app, preview.plan_id).unwrap();
+    assert_eq!(answer.settings, mine);
+    assert_eq!(store(&app).get(), mine);
+}
+
+#[test]
+fn applying_is_one_revision_one_event_and_keeps_the_replaced_document_as_previous() {
+    let storage = Arc::new(Recording::default());
+    let app = app_with(storage.clone());
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("backup.json");
+    set(&app, grid()).unwrap();
+    export(&app, &picker, &file).unwrap();
+    set(&app, Settings::default()).unwrap();
+    let before = store(&app).snapshot().revision;
+    let heard = hear(&app, "main-1");
+    storage.log.lock().unwrap().clear();
+
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    assert!(
+        storage.log.lock().unwrap().is_empty(),
+        "the plan saved nothing"
+    );
+    apply(&app, preview.plan_id).unwrap();
+
+    assert_eq!(
+        *storage.log.lock().unwrap(),
+        ["keep", "save"],
+        "kept, then saved, once"
+    );
+    let heard = heard.lock().unwrap();
+    assert_eq!(heard.len(), 1, "one event");
+    assert_eq!(heard[0].revision, before + 1);
+    assert_eq!(heard[0].settings, grid());
+}
+
+#[test]
+fn importing_what_is_in_force_keeps_nothing_and_says_nothing() {
+    let storage = Arc::new(Recording::default());
+    let app = app_with(storage.clone());
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("same.json");
+    export(&app, &picker, &file).unwrap();
+    let heard = hear(&app, "main-1");
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    assert!(preview.plan.changes.is_empty());
+    apply(&app, preview.plan_id).unwrap();
+    assert!(storage.log.lock().unwrap().is_empty());
+    assert!(heard.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_plan_is_replaced_by_the_next_one_and_spent_when_used() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("a.json");
+    set(&app, grid()).unwrap();
+    export(&app, &picker, &file).unwrap();
+    set(&app, Settings::default()).unwrap();
+    let first = plan(&app, &picker, &file).unwrap().unwrap();
+    let second = plan(&app, &picker, &file).unwrap().unwrap();
+    assert_ne!(first.plan_id, second.plan_id);
+    for stale in [first.plan_id, second.plan_id + 1, 0] {
+        assert_eq!(kind_of(&apply(&app, stale).unwrap_err()), "stale");
+    }
+    // The wrong numbers left the real plan alone, and using it spends it.
+    apply(&app, second.plan_id).unwrap();
+    assert_eq!(kind_of(&apply(&app, second.plan_id).unwrap_err()), "stale");
+}
+
+#[test]
+fn apply_checks_the_kept_file_again_against_what_is_in_force_now() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("a.json");
+    set(&app, grid()).unwrap();
+    export(&app, &picker, &file).unwrap();
+    set(&app, Settings::default()).unwrap();
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    // Another window changes something between the plan and the apply; the file's settings win
+    // whole, because that is what the person confirmed replacing theirs with.
+    let mut other = Settings::default();
+    other.dnd.spring_load_ms = 700;
+    set(&app, other).unwrap();
+    let answer = apply(&app, preview.plan_id).unwrap();
+    assert_eq!(answer.settings, grid());
+}
+
+#[test]
+fn a_file_with_a_value_a_normal_change_would_refuse_is_refused_with_its_field() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("bad.json");
+    let mut value = serde_json::to_value(SettingsDocument::new(Settings::default())).unwrap();
+    value["body"]["dnd"]["springLoadMs"] = serde_json::json!(5);
+    let bytes = waypoint_settings::export_bundle(
+        &[waypoint_settings::ExportFile {
+            id: "settings".into(),
+            document: value,
+        }],
+        &waypoint_settings::ExportMeta {
+            app_version: "0".into(),
+            exported_at_unix: 0,
+            local_offset_minutes: 0,
+        },
+    )
+    .unwrap()
+    .bytes;
+    std::fs::write(&file, bytes).unwrap();
+    let refused = plan(&app, &picker, &file).unwrap_err();
+    let wire = serde_json::to_value(&refused).unwrap();
+    assert_eq!(wire["kind"], "transfer");
+    assert_eq!(wire["reason"], "invalid");
+    assert!(wire["message"]
+        .as_str()
+        .unwrap()
+        .contains("dnd.springLoadMs"));
+}
+
+#[test]
+fn files_that_cannot_be_imported_are_refused_plainly() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let reason = |bytes: &[u8]| {
+        let file = dir.path().join("f");
+        std::fs::write(&file, bytes).unwrap();
+        let wire = serde_json::to_value(plan(&app, &picker, &file).unwrap_err()).unwrap();
+        assert_eq!(wire["kind"], "transfer", "{wire}");
+        wire["reason"].as_str().unwrap().to_owned()
+    };
+    assert_eq!(reason(b"just some text"), "not-a-bundle");
+    assert_eq!(
+        reason(b"{\"format\": \"waypoint-settings\", \"ver"),
+        "corrupt"
+    );
+    assert_eq!(reason(b"PK\x03\x04 and then nothing useful"), "corrupt");
+    assert_eq!(
+        reason(br#"{"format":"waypoint-settings","version":9,"files":{}}"#),
+        "newer-format"
+    );
+    assert_eq!(reason(&vec![b' '; MAX_TOTAL_BYTES + 1]), "too-large");
+    // A folder is not a file, and a file that is not there is an I/O error.
+    assert_eq!(
+        kind_of(&plan(&app, &picker, dir.path()).unwrap_err()),
+        "transfer"
+    );
+    assert_eq!(
+        kind_of(&plan(&app, &picker, &dir.path().join("gone")).unwrap_err()),
+        "io"
+    );
+    assert_eq!(store(&app).get(), Settings::default());
+}
+
+#[test]
+fn a_failure_part_way_through_several_files_changes_none_of_them() {
+    let app = app_with(Arc::new(MemoryStorage::default()));
+    let ops = Extra::new(serde_json::json!({ "concurrency": 2 }));
+    transfers(&app).register(ops.clone());
+    let picker = with_picker(&app);
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("all.zip");
+    set(&app, grid()).unwrap();
+    *ops.value.lock().unwrap() = serde_json::json!({ "concurrency": 6 });
+    export(&app, &picker, &file).unwrap();
+    set(&app, Settings::default()).unwrap();
+    *ops.value.lock().unwrap() = serde_json::json!({ "concurrency": 2 });
+
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    assert_eq!(preview.plan.kind, BundleKind::Zip);
+    assert_eq!(preview.plan.files, ["settings", "ops"]);
+    *ops.fail.lock().unwrap() = true;
+    let refused = apply(&app, preview.plan_id).unwrap_err();
+    assert_eq!(kind_of(&refused), "apply");
+    assert_eq!(
+        store(&app).get(),
+        Settings::default(),
+        "the settings were put back"
+    );
+    assert_eq!(
+        *ops.value.lock().unwrap(),
+        serde_json::json!({ "concurrency": 2 })
+    );
+
+    // With the disk back, the same file imports both.
+    *ops.fail.lock().unwrap() = false;
+    let preview = plan(&app, &picker, &file).unwrap().unwrap();
+    apply(&app, preview.plan_id).unwrap();
+    assert_eq!(store(&app).get(), grid());
+    assert_eq!(
+        *ops.value.lock().unwrap(),
+        serde_json::json!({ "concurrency": 6 })
+    );
+}
