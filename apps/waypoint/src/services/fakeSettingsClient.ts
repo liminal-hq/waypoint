@@ -59,6 +59,9 @@ export function invalidError(field: string, reason: string): SettingsCommandErro
 function refusal(settings: Settings): SettingsCommandError | null {
 	const ranges: [string, number, number, number][] = [
 		['transparency.opacity', settings.transparency.opacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.rowsOpacity', settings.transparency.rowsOpacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.sidebarOpacity', settings.transparency.sidebarOpacity, OPACITY_MIN, OPACITY_MAX],
+		['transparency.contentOpacity', settings.transparency.contentOpacity, OPACITY_MIN, OPACITY_MAX],
 		['transparency.menuOpacity', settings.transparency.menuOpacity, MENU_OPACITY_MIN, OPACITY_MAX],
 		['previews.maxFileMb', settings.previews.maxFileMb, PREVIEW_MAX_MB_MIN, PREVIEW_MAX_MB_MAX],
 	];

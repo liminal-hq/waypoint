@@ -34,7 +34,15 @@ const DARK: SurfaceColours = {
 	menu: '#292524',
 };
 const regions = { sidebar: true, content: false, titleBar: true };
-const input = { opacity: 82, regions, menus: false, menuOpacity: 96 };
+const input = {
+	opacity: 82,
+	rowsOpacity: 90,
+	sidebarOpacity: 94,
+	contentOpacity: 98,
+	regions,
+	menus: false,
+	menuOpacity: 96,
+};
 
 /** The blend the compositor makes, as a colour. */
 function blended(surface: string, backdrop: string, alpha: number): string {
@@ -53,7 +61,7 @@ function blended(surface: string, backdrop: string, alpha: number): string {
 }
 
 describe('requestedAlphas', () => {
-	it('gives the title bar the master opacity and every other part a more solid tier', () => {
+	it('gives every part its own opacity, the defaults reproducing the old tiers of 82', () => {
 		expect(requestedAlphas(input)).toEqual({
 			titleBar: 0.82,
 			rows: 0.9,
@@ -64,21 +72,30 @@ describe('requestedAlphas', () => {
 		const all = requestedAlphas({
 			...input,
 			opacity: 40,
+			rowsOpacity: 55,
+			sidebarOpacity: 70,
+			contentOpacity: 98,
 			regions: { sidebar: true, content: true, titleBar: true },
 			menus: true,
 			menuOpacity: 60,
 		});
-		expect(all).toEqual({ titleBar: 0.4, rows: 0.48, sidebar: 0.52, content: 0.56, menu: 0.6 });
+		expect(all).toEqual({ titleBar: 0.4, rows: 0.55, sidebar: 0.7, content: 0.98, menu: 0.6 });
 	});
 
-	it('keeps a part solid when its region is not translucent, and never goes past solid', () => {
+	it('does not let the title bar slider move the other parts', () => {
+		const a = requestedAlphas(input);
+		const b = requestedAlphas({ ...input, opacity: 40 });
+		expect(b.titleBar).toBe(0.4);
+		expect([b.rows, b.sidebar, b.content]).toEqual([a.rows, a.sidebar, a.content]);
+	});
+
+	it('keeps a part solid when its region is not translucent', () => {
 		const none = requestedAlphas({
 			...input,
 			regions: { sidebar: false, content: false, titleBar: false },
 		});
 		expect([none.titleBar, none.rows, none.sidebar, none.content]).toEqual([1, 1, 1, 1]);
-		expect(requestedAlphas({ ...input, opacity: 100 }).sidebar).toBe(1);
-		expect(requestedAlphas({ ...input, opacity: 95 }).rows).toBe(1);
+		expect(requestedAlphas({ ...input, sidebarOpacity: 100 }).sidebar).toBe(1);
 	});
 });
 
@@ -133,6 +150,9 @@ describe('effectiveAlphas', () => {
 		const low = {
 			...input,
 			opacity: 40,
+			rowsOpacity: 40,
+			sidebarOpacity: 40,
+			contentOpacity: 40,
 			regions: { sidebar: true, content: true, titleBar: true },
 		};
 		const { alphas, requested, raised } = effectiveAlphas(low, DARK);

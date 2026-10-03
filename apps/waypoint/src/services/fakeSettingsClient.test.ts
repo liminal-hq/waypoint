@@ -85,6 +85,12 @@ describe('the milestone 5 sections', () => {
 				{ ...DEFAULT_SETTINGS, transparency: { ...DEFAULT_SETTINGS.transparency, opacity: 39 } },
 				'transparency.opacity',
 			],
+			...(['rowsOpacity', 'sidebarOpacity', 'contentOpacity'] as const).map(
+				(key): [Settings, string] => [
+					{ ...DEFAULT_SETTINGS, transparency: { ...DEFAULT_SETTINGS.transparency, [key]: 39 } },
+					`transparency.${key}`,
+				],
+			),
 			[
 				{
 					...DEFAULT_SETTINGS,
@@ -137,6 +143,9 @@ describe('the milestone 5 sections', () => {
 				...DEFAULT_SETTINGS.transparency,
 				enabled: true,
 				opacity: 40,
+				rowsOpacity: 40,
+				sidebarOpacity: 100,
+				contentOpacity: 40,
 				menuOpacity: 60,
 			},
 			accessibility: { ...DEFAULT_SETTINGS.accessibility, textSize: 130 },

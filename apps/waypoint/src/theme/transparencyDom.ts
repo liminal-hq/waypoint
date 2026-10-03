@@ -57,6 +57,9 @@ export function applyTransparency(
 	const effective = effectiveAlphas(
 		{
 			opacity: settings.opacity,
+			rowsOpacity: settings.rowsOpacity,
+			sidebarOpacity: settings.sidebarOpacity,
+			contentOpacity: settings.contentOpacity,
 			regions: settings.regions,
 			menus: settings.menus,
 			menuOpacity: settings.menuOpacity,

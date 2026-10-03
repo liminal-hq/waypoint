@@ -6,16 +6,6 @@
 import type { TransparencyRegions } from '@liminal-hq/waypoint-protocol/generated/TransparencyRegions';
 import { luminance, parseHex, TEXT_CONTRAST } from './accent';
 
-/**
- * How much more solid each part of the window is than the title bar, which takes the master
- * opacity (docs/theming-and-platforms.md: tiers of the master value, so the structure stays
- * readable). The rows under the title bar (tabs, the toolbar, the status bar) are a little more
- * solid, the sidebar and the Inspector more again, and the file area the most.
- */
-export const TIER_ROWS = 0.08;
-export const TIER_SIDEBAR = 0.12;
-export const TIER_CONTENT = 0.16;
-
 /** The opacity a surface falls back to when its colours cannot be read (a plain browser, a test). */
 export const FALLBACK_FLOOR = 0.7;
 
@@ -90,8 +80,14 @@ export type Region = 'titleBar' | 'rows' | 'sidebar' | 'content' | 'menu';
 export type RegionAlphas = Record<Region, number>;
 
 export interface TransparencyInput {
-	/** The master opacity in percent (40 to 100). */
+	/** The title bar's and menu bar's opacity in percent (40 to 100). */
 	opacity: number;
+	/** The tabs', toolbar's and status bar's opacity in percent (40 to 100). */
+	rowsOpacity: number;
+	/** The sidebar's and Inspector's opacity in percent (40 to 100). */
+	sidebarOpacity: number;
+	/** The file area's opacity in percent (40 to 100). */
+	contentOpacity: number;
 	regions: TransparencyRegions;
 	menus: boolean;
 	/** The menus' opacity in percent (60 to 100). */
@@ -112,15 +108,18 @@ const REGIONS: Region[] = ['titleBar', 'rows', 'sidebar', 'content', 'menu'];
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 const hundredths = (value: number): number => Math.round(clamp01(value) * 100) / 100;
 
-/** What each part of the window would be at the person's settings, before the contrast floor. */
+/**
+ * What each part of the window would be at the person's settings, before the contrast floor: its
+ * own opacity, or solid when its switch is off. The tabs and toolbar follow the title bar's switch.
+ */
 export function requestedAlphas(input: TransparencyInput): RegionAlphas {
-	const master = clamp01(input.opacity / 100);
+	const own = (percent: number): number => hundredths(percent / 100);
 	return {
-		titleBar: input.regions.titleBar ? hundredths(master) : 1,
-		rows: input.regions.titleBar ? hundredths(master + TIER_ROWS) : 1,
-		sidebar: input.regions.sidebar ? hundredths(master + TIER_SIDEBAR) : 1,
-		content: input.regions.content ? hundredths(master + TIER_CONTENT) : 1,
-		menu: input.menus ? hundredths(input.menuOpacity / 100) : 1,
+		titleBar: input.regions.titleBar ? own(input.opacity) : 1,
+		rows: input.regions.titleBar ? own(input.rowsOpacity) : 1,
+		sidebar: input.regions.sidebar ? own(input.sidebarOpacity) : 1,
+		content: input.regions.content ? own(input.contentOpacity) : 1,
+		menu: input.menus ? own(input.menuOpacity) : 1,
 	};
 }
 
