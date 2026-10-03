@@ -77,6 +77,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	transparency: {
 		enabled: false,
 		opacity: 82,
+		rowsOpacity: 90,
+		sidebarOpacity: 94,
+		contentOpacity: 98,
 		blur: 'low',
 		regions: { sidebar: true, content: false, titleBar: true },
 		menus: false,
