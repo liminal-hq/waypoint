@@ -22,7 +22,9 @@ export interface TitlebarConfig {
 const STYLE_BY_DESKTOP: Record<TitlebarPreferences['desktopEnvironment'], ControlsStyle> = {
 	gnome: 'gnome',
 	kde: 'kde',
-	cinnamon: 'cinnamon',
+	// Cinnamon draws the same window controls as GNOME (the compact square `cinnamon` style stays in
+	// the chrome for a later choice). Which buttons appear and where still follow Cinnamon's settings.
+	cinnamon: 'gnome',
 	windows: 'win11',
 	// No dedicated style yet: these fall back to the GNOME look.
 	mate: 'gnome',

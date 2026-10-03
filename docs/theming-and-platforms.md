@@ -50,7 +50,7 @@ Guardrails: no part of the window is more see-through than keeps its text at 4.5
 | DE           | Frame treatment                                                       | Controls                           | Accent / type                        |
 | ------------ | --------------------------------------------------------------------- | ---------------------------------- | ------------------------------------ |
 | GNOME 4x     | libadwaita: rounded 12 px, big header, circular controls on the right | ✕ only by default (layout setting) | GNOME accent, Cantarell/Adwaita Sans |
-| Cinnamon     | Mint-Y: 6 px radius, flat title, square controls on the right         | – ▢ ✕                              | Mint green accent, Ubuntu/Noto       |
+| Cinnamon     | Mint-Y: 6 px radius, flat title, the same controls as GNOME           | – ▢ ✕ (the GNOME icons)            | Mint green accent, Ubuntu/Noto       |
 | KDE Plasma 6 | Breeze: 8 px radius, thin title, round-hover controls                 | – ▢ ✕ (plus Keep Above)            | Breeze blue, Noto Sans               |
 | Windows 11   | Mica, 8 px radius, 46 px wide caption buttons, Close hover red        | – ▢ ✕                              | Win accent, Segoe UI Variable        |
 
