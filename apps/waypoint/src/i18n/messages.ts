@@ -302,11 +302,19 @@ export const enMessages = {
 	'settings.transparency.off.unavailable':
 		'Transparency is on in the settings, but this window cannot be see-through.',
 	'settings.transparency.off.unfocused': 'This window is solid while it is not in front.',
-	'settings.transparency.opacity.label': 'Window opacity',
+	'settings.transparency.opacity.label': 'Title bar and menu bar opacity',
 	'settings.transparency.opacity.description':
-		'How solid the title bar is; the rest of the window is a little more solid than that, so the structure stays readable. Lower is more see-through.',
+		'How solid the title bar and the menu bar are. Lower is more see-through.',
+	'settings.transparency.opacity.rows.label': 'Tabs and toolbar opacity',
+	'settings.transparency.opacity.rows.description':
+		'How solid the tabs, the toolbar and the status bar are.',
+	'settings.transparency.opacity.sidebar.label': 'Sidebar opacity',
+	'settings.transparency.opacity.sidebar.description':
+		'How solid the sidebar, the Inspector and the Shelf are.',
+	'settings.transparency.opacity.content.label': 'File area opacity',
+	'settings.transparency.opacity.content.description': 'How solid the list and the grid are.',
 	'settings.transparency.opacity.raised':
-		'To keep text readable on this theme, some parts stay at least {percent}% opaque.',
+		'To keep text readable on this theme, this part stays at least {percent}% opaque.',
 	'settings.transparency.opacity.unit': '%',
 	'settings.transparency.blur.label': 'Blur behind the window',
 	'settings.transparency.blur.description':
@@ -319,18 +327,24 @@ export const enMessages = {
 		'this system offers no way to blur behind a window.',
 	'settings.group.transparencyWindow': 'Window',
 	'settings.group.transparencyPreview': 'Preview',
+	'settings.group.transparencyOpacity': 'Opacity',
 	'settings.group.transparencyRegions': 'Parts of the window',
+	'settings.group.transparencyReset': 'Defaults',
+	'settings.transparency.reset.label': 'Reset to defaults',
+	'settings.transparency.reset.description':
+		'Puts every setting on this page back to its default, except the Transparent window switch.',
+	'settings.transparency.reset.action': 'Reset',
 	'settings.group.transparencyMenus': 'Menus',
 	'settings.group.transparencyFocus': 'When the window is not in front',
 	'settings.transparency.regions.titleBar.label': 'Title bar, tabs and toolbar',
 	'settings.transparency.regions.titleBar.description':
-		'The rows above the files. The title bar uses the window opacity; the tabs, toolbar and status bar are a little more solid.',
+		'The title bar, tabs, toolbar and status bar. Off keeps them on a solid background.',
 	'settings.transparency.regions.sidebar.label': 'Sidebar and side panels',
 	'settings.transparency.regions.sidebar.description':
-		'The sidebar, the Inspector and the Shelf, more solid than the title bar.',
+		'The sidebar, the Inspector and the Shelf. Off keeps them on a solid background.',
 	'settings.transparency.regions.content.label': 'File area',
 	'settings.transparency.regions.content.description':
-		'The list and the grid, the most solid part of the window. Off keeps files on a solid background.',
+		'The list and the grid. Off keeps files on a solid background.',
 	'settings.transparency.menus.label': 'Translucent menus',
 	'settings.transparency.menus.description':
 		'Context menus and the application menu show what is behind them, blurred.',
