@@ -47,15 +47,17 @@ export const PORTAGE_FILE_ART: Record<Exclude<IconGroup, 'folder'>, PortageFileN
 	playlist: 'playlist',
 	package: 'package',
 	symlink: 'symlink',
-	other: 'unknown',
+	other: 'blank',
 };
 
 /**
- * Groups that Portage has no icon of their own for, and the art each one borrows. `other` is any file
- * the tables could not classify: Portage's closest is its "Unknown" page, which carries a question mark.
+ * Groups that Portage has no icon of their own for, and the art each one uses. `other` is any file
+ * the tables could not classify: the prototype's closest is its "Unknown" page with a question mark,
+ * which would put one on every unclassified file, so Waypoint draws a plain page of the same shape
+ * (`files/blank.svg`: the page, its lower band, fold and highlight, with no label).
  */
 export const PORTAGE_FALLBACK_ART: Partial<Record<IconGroup, PortageFileName>> = {
-	other: 'unknown',
+	other: 'blank',
 };
 
 /** The mark each standard folder wears on its front panel. */

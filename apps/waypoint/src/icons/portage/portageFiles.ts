@@ -6,6 +6,7 @@
 import appSvg from './files/app.svg?raw';
 import archiveSvg from './files/archive.svg?raw';
 import audioSvg from './files/audio.svg?raw';
+import blankSvg from './files/blank.svg?raw';
 import calendarSvg from './files/calendar.svg?raw';
 import certificateSvg from './files/certificate.svg?raw';
 import codeSvg from './files/code.svg?raw';
@@ -40,6 +41,7 @@ export const PORTAGE_FILE_SVGS = {
 	app: appSvg,
 	archive: archiveSvg,
 	audio: audioSvg,
+	blank: blankSvg,
 	calendar: calendarSvg,
 	certificate: certificateSvg,
 	code: codeSvg,
