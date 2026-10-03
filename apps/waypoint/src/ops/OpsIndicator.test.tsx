@@ -59,6 +59,8 @@ describe('the ring', () => {
 		await mount();
 		expect(ring()).toHaveAttribute('data-urgency', 'idle');
 		expect(ring()).toHaveAccessibleName('Operations, none in progress');
+		// A hover tooltip says the same, since the ring is only a picture.
+		expect(ring()).toHaveAttribute('title', 'Operations, none in progress');
 		expect(ring()).toHaveAttribute('aria-expanded', 'false');
 		expect(document.querySelector('circle')).toBeNull();
 	});

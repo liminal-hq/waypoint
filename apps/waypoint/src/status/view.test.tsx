@@ -71,6 +71,8 @@ describe('the view switcher', () => {
 		expect(slider).toHaveAttribute('max', '256');
 		expect(slider).toHaveAttribute('step', '8');
 		expect(slider).toHaveValue('96');
+		// The slider has a hover tooltip with the current size, as the buttons beside it have.
+		expect(slider).toHaveAttribute('title', 'Icon size: 96 pixels');
 		fireEvent.change(slider, { target: { value: '200' } });
 		await waitFor(() =>
 			expect(screen.getByRole('listbox').style.getPropertyValue('--wp-grid-size')).toBe('200px'),
