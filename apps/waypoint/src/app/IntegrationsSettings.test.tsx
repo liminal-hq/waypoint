@@ -70,6 +70,7 @@ async function open(
 }
 
 const NOTIFY = 'Notify when a job finishes';
+const BUTTONS = 'Show buttons on notifications';
 const PROGRESS = 'Show progress on the app icon';
 const SLEEP = 'Keep the computer awake during jobs';
 const SERVICE = 'Open folders other applications ask for';
@@ -99,6 +100,7 @@ describe('the Integrations page', () => {
 		await waitFor(() =>
 			expect(lastIntegrations(settings)).toEqual({
 				notifications: true,
+				notificationActions: true,
 				preventSleep: true,
 				launcherProgress: true,
 				defaultFileManager: true,
@@ -106,6 +108,41 @@ describe('the Integrations page', () => {
 				globalShortcut: null,
 			}),
 		);
+	});
+
+	it('offers the notification buttons switch on, dimmed until notifications are on', async () => {
+		const { settings } = await open();
+		const buttons = await screen.findByRole('switch', { name: BUTTONS });
+		expect(buttons).toBeChecked();
+		expect(buttons).toBeDisabled();
+		await userEvent.click(screen.getByRole('switch', { name: NOTIFY }));
+		await waitFor(() => expect(buttons).toBeEnabled());
+		await userEvent.click(buttons);
+		await waitFor(() => expect(screen.getByRole('switch', { name: BUTTONS })).not.toBeChecked());
+		expect(lastIntegrations(settings)).toMatchObject({
+			notifications: true,
+			notificationActions: false,
+		});
+	});
+
+	it('hides the notification buttons switch where the system cannot draw buttons', async () => {
+		const integrations = createFakeIntegrationsClient(
+			without({ notificationActions: 'The notification server does not draw buttons.' }),
+		);
+		await open({ integrations });
+		// The other notification rows are there, so the page has loaded what the system can do.
+		await waitFor(() => expect(screen.getByRole('switch', { name: NOTIFY })).toBeEnabled());
+		expect(screen.queryByRole('switch', { name: BUTTONS })).toBeNull();
+	});
+
+	it('does not offer the notification buttons switch when what the system can do cannot be read', async () => {
+		const integrations = createFakeIntegrationsClient(everythingWorks(), {}, 'no command');
+		await open({ integrations });
+		const notify = await screen.findByRole('switch', { name: NOTIFY });
+		await waitFor(() =>
+			expect(notify).toHaveAccessibleDescription(/could not check what this system can do/),
+		);
+		expect(screen.queryByRole('switch', { name: BUTTONS })).toBeNull();
 	});
 
 	it('dims a switch the system cannot do and gives the Services reason, and will not change it', async () => {

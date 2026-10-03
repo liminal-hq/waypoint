@@ -95,9 +95,12 @@ function fileManagerNote(
  * panel below lists every service. The settings are Rust's: a switch shows what is in force.
  */
 export function IntegrationsPage() {
-	const { settings, errors, changeSettings, fileManager } = useSettingsEditor();
+	const { settings, errors, changeSettings, fileManager, availability } = useSettingsEditor();
 	const wanted = settings.integrations;
 	const notifications = useReason((a) => a.notifications);
+	// Hidden, not dimmed, where the system cannot draw buttons (D118); the Services panel says why.
+	// It stays hidden until what the system can do has been read.
+	const showButtons = availability?.notificationActions.available === true;
 	const progress = useReason((a) => a.launcherProgress);
 	const sleep = useReason((a) => a.preventSleep);
 	const service = useReason((a) => a.fileManagerService);
@@ -121,6 +124,18 @@ export function IntegrationsPage() {
 					checked={wanted.notifications}
 					onChange={(value) => change('notifications', (i) => ({ ...i, notifications: value }))}
 				/>
+				{showButtons && (
+					<ToggleRow
+						label={t('settings.integrations.notificationActions.label')}
+						description={t('settings.integrations.notificationActions.description')}
+						disabled={!wanted.notifications}
+						error={errors.notificationActions}
+						checked={wanted.notificationActions}
+						onChange={(value) =>
+							change('notificationActions', (i) => ({ ...i, notificationActions: value }))
+						}
+					/>
+				)}
 				<ToggleRow
 					label={t('settings.integrations.progress.label')}
 					description={t('settings.integrations.progress.description')}

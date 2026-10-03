@@ -107,6 +107,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	},
 	integrations: {
 		notifications: false,
+		notificationActions: true,
 		launcherProgress: false,
 		preventSleep: false,
 		defaultFileManager: false,

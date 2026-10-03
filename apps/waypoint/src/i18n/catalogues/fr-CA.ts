@@ -135,6 +135,11 @@ const messages: Catalogue = {
 	// source: 921f8ffa
 	'settings.integrations.notifications.description':
 		'Affiche une notification quand une tâche se termine ou échoue alors qu’aucune fenêtre de Waypoint n’est au premier plan ou après plus de 10 secondes d’exécution, et chaque fois qu’une tâche attend votre réponse. Un clic sur la notification ramène Waypoint au premier plan.',
+	// source: a30790ca
+	'settings.integrations.notificationActions.label': 'Afficher des boutons sur les notifications',
+	// source: fef01152
+	'settings.integrations.notificationActions.description':
+		'Ajoute des boutons à la notification d’une tâche : Afficher dans le dossier à la fin, Afficher les détails en cas d’échec, Annuler après un déplacement ou une mise à la corbeille, et Remplacer, Ignorer et Garder les deux quand un fichier existe déjà. Certains bureaux n’affichent les boutons que lorsque la notification est développée, et d’autres n’offrent que le clic, qui ramène Waypoint au premier plan.',
 	// source: df1c2178
 	'settings.integrations.progress.label': 'Afficher la progression sur l’icône de l’application',
 	// source: 50dc170e

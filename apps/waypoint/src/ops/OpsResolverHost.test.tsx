@@ -188,6 +188,30 @@ describe('conflicts', () => {
 		expect(await screen.findByRole('dialog')).toBeInTheDocument();
 	});
 
+	it('brings a parked question back when a notification\u2019s "Show" asks for it', async () => {
+		const user = userEvent.setup();
+		const fake = createFakeOpsClient({ concurrency: 4 });
+		await mount(fake);
+		const id = await submit(fake);
+		await run(() => fake.askConflicts(id, conflicts()));
+		const dialog = await screen.findByRole('dialog');
+		await user.click(within(dialog).getByRole('button', { name: 'Decide later' }));
+		expect(screen.queryByRole('dialog')).toBeNull();
+		// Another job's id does nothing.
+		await run(() => fake.emitShowJob(id + 100));
+		expect(screen.queryByRole('dialog')).toBeNull();
+		await run(() => fake.emitShowJob(id));
+		expect(await screen.findByRole('dialog')).toBeInTheDocument();
+	});
+
+	it('ignores "Show" for a job that is not waiting', async () => {
+		const fake = createFakeOpsClient({ concurrency: 4 });
+		await mount(fake);
+		const id = await submit(fake);
+		await run(() => fake.emitShowJob(id));
+		expect(screen.queryByRole('dialog')).toBeNull();
+	});
+
 	it('gives focus to the operations button when the dialog closes with nothing to return to', async () => {
 		const user = userEvent.setup();
 		const fake = createFakeOpsClient({ concurrency: 4 });

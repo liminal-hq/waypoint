@@ -4,8 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import * as ops from '@liminal-hq/waypoint-plugin-ops';
+import { listen } from '@tauri-apps/api/event';
 import type { OpsClient } from './opsClient';
 import type { Unsubscribe } from './vfsClient';
+
+/** The event the shell sends a window when a notification's "Show" button is pressed (`integrations.rs`). */
+export const SHOW_JOB_EVENT = 'waypoint://show-job';
 
 /** Turns a listener registration that resolves later into an unsubscribe that works at once. */
 function subscribe(registration: Promise<() => void>): Unsubscribe {
@@ -58,5 +62,7 @@ export function createTauriOpsClient(): OpsClient {
 		onEvent: (listener) => subscribe(ops.onOpsEvent(listener)),
 		onClipboard: (listener) => subscribe(ops.onClipboardChanged(listener)),
 		onRecovered: (listener) => subscribe(ops.onRecovered(listener)),
+		onShowJob: (listener) =>
+			subscribe(listen<number>(SHOW_JOB_EVENT, (event) => listener(event.payload))),
 	};
 }

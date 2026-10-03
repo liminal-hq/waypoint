@@ -124,6 +124,17 @@ describe('createTauriOpsClient', () => {
 		expect(invoked.find((i) => i.command === 'journal_entry_of')?.args).toEqual({ job: 4 });
 	});
 
+	it('listens for a notification\u2019s "Show" on the shell\u2019s event', async () => {
+		const { listen } = await import('@tauri-apps/api/event');
+		const seen: number[] = [];
+		const stop = createTauriOpsClient().onShowJob((job) => seen.push(job));
+		const call = vi.mocked(listen).mock.calls.find(([name]) => name === 'waypoint://show-job');
+		expect(call).toBeDefined();
+		(call![1] as (event: { payload: number }) => void)({ payload: 7 });
+		expect(seen).toEqual([7]);
+		expect(() => stop()).not.toThrow();
+	});
+
 	it('listens to the broadcast events and stops when asked', () => {
 		const client = createTauriOpsClient();
 		const stop = client.onEvent(() => {});

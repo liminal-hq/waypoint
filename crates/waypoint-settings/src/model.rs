@@ -410,11 +410,14 @@ impl Default for PreviewSettings {
 }
 
 /// The Integrations page. Every integration is off until it is enabled (D118).
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct IntegrationSettings {
     pub notifications: bool,
+    /// Whether a job's notification carries action buttons ("Show in folder", "Undo", …) where the
+    /// system draws them. It is on by default, so it takes effect as soon as `notifications` is.
+    pub notification_actions: bool,
     pub launcher_progress: bool,
     pub prevent_sleep: bool,
     /// Take `org.freedesktop.FileManager1` while Waypoint runs, so other applications' "Show in
@@ -426,6 +429,20 @@ pub struct IntegrationSettings {
     /// The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none means the
     /// default (`DEFAULT_ACCELERATOR`).
     pub global_shortcut: Option<String>,
+}
+
+impl Default for IntegrationSettings {
+    fn default() -> Self {
+        Self {
+            notifications: false,
+            notification_actions: true,
+            launcher_progress: false,
+            prevent_sleep: false,
+            default_file_manager: false,
+            global_shortcut_enabled: false,
+            global_shortcut: None,
+        }
+    }
 }
 
 /// Everything the Settings window edits that is not an operations setting.
@@ -729,6 +746,7 @@ mod tests {
         assert!(s.previews.measure_home_on_open);
         // Every integration is off until it is enabled (D118).
         assert!(!s.integrations.notifications);
+        assert!(s.integrations.notification_actions);
         assert!(!s.integrations.launcher_progress);
         assert!(!s.integrations.prevent_sleep);
         assert!(!s.integrations.default_file_manager);
@@ -854,6 +872,23 @@ mod tests {
         assert_eq!(old.locale, LocaleSettings::default());
         assert_eq!(old.previews, PreviewSettings::default());
         assert_eq!(old.integrations, IntegrationSettings::default());
+    }
+
+    #[test]
+    fn an_integrations_document_without_the_notification_buttons_switch_has_it_on() {
+        let old: Settings =
+            serde_json::from_str(r#"{"integrations":{"notifications":true,"preventSleep":true}}"#)
+                .unwrap();
+        assert!(old.integrations.notifications);
+        assert!(old.integrations.prevent_sleep);
+        assert!(old.integrations.notification_actions);
+        assert!(!old.integrations.launcher_progress);
+        let off: Settings =
+            serde_json::from_str(r#"{"integrations":{"notificationActions":false}}"#).unwrap();
+        assert!(!off.integrations.notification_actions);
+        assert_eq!(off.validate(), Ok(()));
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        assert_eq!(json["integrations"]["notificationActions"], true);
     }
 
     #[test]

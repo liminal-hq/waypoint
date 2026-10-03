@@ -120,6 +120,7 @@ export class FakeOpsClient implements OpsClient {
 	private readonly progressListeners = new Set<(progress: JobProgress) => void>();
 	private readonly clipboardListeners = new Set<(clipboard: Clipboard) => void>();
 	private readonly recoveredListeners = new Set<(report: RecoveryReport) => void>();
+	private readonly showJobListeners = new Set<(job: JobId) => void>();
 	private clipboard: Clipboard = { mode: 'copy', items: [], source: 'app', revision: 0 };
 	private settings: OpsSettings = {
 		concurrency: 2,
@@ -487,6 +488,18 @@ export class FakeOpsClient implements OpsClient {
 		return () => {
 			this.recoveredListeners.delete(listener);
 		};
+	}
+
+	onShowJob(listener: (job: JobId) => void) {
+		this.showJobListeners.add(listener);
+		return () => {
+			this.showJobListeners.delete(listener);
+		};
+	}
+
+	/** A notification's "Show" button was pressed for the job, as the shell tells the window. */
+	emitShowJob(job: JobId): void {
+		this.showJobListeners.forEach((listener) => listener(job));
 	}
 
 	// --- The script: what the worker pool and the user's answers do ---------------------------

@@ -243,6 +243,14 @@
     "message": "Shows a notification when a job finishes or fails while no Waypoint window is in front or after it ran for more than 10 seconds, and whenever a job needs your answer. Clicking it brings Waypoint forward.",
     "description": "Area: settings."
   },
+  "settings.integrations.notificationActions.label": {
+    "message": "Show buttons on notifications",
+    "description": "Area: settings."
+  },
+  "settings.integrations.notificationActions.description": {
+    "message": "Adds buttons to a job’s notification: Show in folder when it finishes, Show details when it fails, Undo after a move or a trash, and Replace, Skip and Keep both when a file already exists. Some desktops show the buttons only when the notification is expanded, and some show only the click, which brings Waypoint forward.",
+    "description": "Area: settings."
+  },
   "settings.integrations.progress.label": {
     "message": "Show progress on the app icon",
     "description": "Area: settings."
