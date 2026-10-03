@@ -1,0 +1,181 @@
+# Remote and virtual locations
+
+Status: **proposed** (milestone 6, slice 0) · the contract every provider of milestone 6 builds on · decisions A78 to A85 in [`decisions.md`](decisions.md) and D146 to D152 in [`../decisions.md`](../decisions.md) · library choices pending spike #278
+
+Milestone 6 makes SFTP, SMB, WebDAV and S3 servers, archives and Git revisions browse like local folders (SPEC §7). Those locations are slow, cannot always be watched, need a login, and can go away while a tab shows them. This document fixes how they meet the rest of Waypoint: the URIs, the `Provider` contract, credentials and trust, saved connections, listings without a watcher, operations across providers, the crate and plugin layout, and the order of work. It is written so that every later slice (#280 to #308, #432) starts from it without changing it; a slice that needs more adds to it, as A45 added the write primitives to the milestone 2 trait.
+
+## 1. Principles
+
+- **A remote is a provider, not a mount.** Waypoint talks to servers through its own provider crates, not through GVfs, KIO or a FUSE mount, so it behaves the same on Linux, in a Flatpak and on Windows (D45). A share that the desktop has already mounted (`/run/user/1000/gvfs/…`, a mapped drive) is a local folder and stays with the local provider; Devices shows it with its "Network" badge.
+- **Rust owns the connection.** Sessions, credentials, host keys and the list of saved connections are Rust state with one writer each. The page sees locations, states and events, never a socket, a password or a key.
+- **Nothing secret travels or is written.** No password, passphrase, token or secret key is ever part of a URI, a `Location`, a log line, an error, an event, a session file or a journal. Secrets live only in the system keyring (through the reusable `secrets` plugin, D44) or, for one session, in memory.
+- **Honest capabilities.** A provider says what it can do; the UI hides what it cannot (A6, principle 3 of `docs/os-integrations.md`), and the engine picks its strategy from the same flags. An unknown is reported as unknown, never guessed.
+- **Slow is normal, offline is a state.** Every remote call is bounded by a timeout and can be cancelled. A server that has gone away is a designed state with Reconnect (SPEC §5.5), never a blank view or a hang.
+
+## 2. URIs
+
+Every location is a `Location { display, uri }` (A19). The `uri` is the canonical form below, produced and read only by `waypoint-path`; the page never splits or joins one (SPEC §5.3). Two spellings of one place canonicalise to the same `uri`, so history, Recently Closed, the Shelf, workspaces and favourites compare them by string.
+
+| Scheme          | Canonical form                                           | Default port | Notes                                                                                                                                                                                                                     |
+| --------------- | -------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sftp`          | `sftp://[user@]host[:port]/absolute/path`                | 22           | The path is absolute on the server; `sftp://host` is `/`. The folder a connection opens at (the login home) is part of the saved connection, not the URI.                                                                 |
+| `smb`           | `smb://[domain;user@]host[:port]/share/path`             | 445          | `smb://host/` is the share browser (the shares of one server). There is no network neighbourhood browsing.                                                                                                                |
+| `dav`, `davs`   | `davs://[user@]host[:port]/path`                         | 80, 443      | `dav` is plain HTTP and is accepted for local servers only (the Connect dialog warns). `webdav://` and `webdavs://` are read as `dav://` and `davs://`.                                                                   |
+| `s3`            | `s3://bucket/key/prefix[?endpoint=origin]`               | none         | The bucket is the authority, kept as written (legacy buckets may hold capitals). Without `endpoint` the bucket is on AWS; MinIO, R2 and other services carry their origin (`https://minio.lan:9000`), percent-encoded.    |
+| `archive`       | `archive:{container URI}!/inner/path`                    | none         | The container is the canonical URI of the archive file in any provider, a remote or another archive included, so archives nest. A literal `!` in a name is always percent-encoded, so the last `!/` separates the levels. |
+| `git+file`      | `git+file:///repository/path!/inner/path[?rev=revision]` | none         | A local repository only. Without `rev` the location follows `HEAD`. The status overlay on ordinary `file://` listings is not a location at all.                                                                           |
+| `file`, `trash` | unchanged (A19)                                          |              |                                                                                                                                                                                                                           |
+
+**Canonicalisation.** The scheme and a host name are lower-cased; an IPv4 address is written in dotted form, and an IPv6 address in brackets in its compressed form with a zone as `%25zone`; a default port is dropped; the user name and every path segment are percent-encoded except the unreserved characters (`;` is kept in an SMB user to separate the domain); `.`, `..`, empty segments and a trailing `/` are folded away, and `..` stops at the root. Path segments are bytes: an SFTP name that is not UTF-8 survives the round trip, as a local one does. A host name that is not ASCII is kept as Unicode (lower-cased and percent-encoded in the URI); converting it to its punycode form is the provider's job. The segment of an S3 key that is empty, `.` or `..` cannot be addressed, and the S3 provider lists such keys as unreadable entries.
+
+**Display.** `display` is the canonical form with the segments decoded for reading (lossy where a name is not UTF-8): `sftp://me@nas.lan/srv/media`, `smb://WORK;me@files/Projects`, `s3://photos/2026 (minio.lan:9000)`, `photos.zip › 2026/` for an archive (the container's own display, then the inner path) and `waypoint @ main › src` for a Git revision. Breadcrumbs (`describe_location`) start at the server (`me@nas.lan`, labelled with the connection's name when one is saved), the share or the bucket, and the parent of an archive's or a revision's root is the folder that holds the archive or the repository, so Up leaves it.
+
+**Passwords.** The canonical form never has a password. Typed text with one (`sftp://me:hunter2@host`) is parsed with the password stripped and dropped, and the path bar says that it was not kept and that Waypoint asks for it when it connects (D147); a stored URI with a password is refused as malformed, because no part of Waypoint writes one.
+
+**Connection key.** The part of a remote URI that names one login, `scheme://[user@]host[:port]` (plus the endpoint for S3), is the `ConnectionKey`: the key of the session pool, of the saved connection and of the credential in the keyring. An archive's key is its container's; `file`, `trash` and `git+file` have none.
+
+## 3. The provider contract
+
+The `Provider` trait of `waypoint-vfs` stays synchronous and object-safe: every caller already runs on a worker thread (the listing threads, the operations pool, `spawn_blocking` in the plugins). A provider built on an asynchronous library owns its runtime (one small multi-threaded Tokio runtime per provider crate, created on first use) and blocks on it inside each call. Everything below is additive: every new method has a default, so the local provider, the Trash and every test provider keep working unchanged.
+
+### 3.1 Capabilities
+
+`Capabilities` (non-exhaustive, built with `Capabilities::new(case_rule)` and then set field by field, so a flag added later breaks no provider) is what a provider reports and what both the UI and the engine read:
+
+| Flag           | Meaning                                                                                                                                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `watch`        | `watch` reports changes. When false the listing refreshes as §4 describes.                                                                                                                                     |
+| `case_rule`    | How names compare (SFTP, WebDAV, S3, archives and Git: sensitive; SMB: insensitive). Server-dependent providers report the common case and the conformance suite checks it against the test server.            |
+| `remote`       | Reads cost time or money: nothing reads content without being asked (thumbnails off by default per D14, no content sniffing, no folder sizes or directory scans unless started, no Quick Look of large files). |
+| `write`        | The provider implements the write primitives. `read_only()` still says whether this location refuses changes now (an archive opened read-only, a share mounted read-only).                                     |
+| `rename`       | `None` (S3: a move is copy and delete), `Replacing` (a rename may replace the target, so a no-clobber rename is a check then a rename, which can race) or `NoReplace` (atomic no-clobber, as local).           |
+| `server_copy`  | `copy_file_within` copies on the server (SFTP `copy-data`, WebDAV `COPY`, S3 `CopyObject`, SMB server-side copy), so a copy within one connection sends no bytes through Waypoint.                             |
+| `atomic_write` | A stream's data becomes visible only when `finish` succeeds (S3 `PutObject` and multipart completion), so the engine writes straight to the final name instead of a partial name and a rename (A49).           |
+| `resume_write` | `resume_write(path, offset)` continues a partial file from `offset` (SFTP and SMB write at offsets; S3 resumes a multipart upload; WebDAV cannot).                                                             |
+| `range_read`   | `open_read_at` seeks instead of reading past the start (SFTP, SMB, HTTP `Range`, S3 ranged `GetObject`).                                                                                                       |
+| `permissions`  | `None`, `ReadOnlyFlag` or `Unix` (SFTP has mode bits; SMB and WebDAV a read-only state at best; S3 and Git none).                                                                                              |
+| `symlinks`     | Links exist and are reported as links (SFTP, archives, Git). Elsewhere `symlink` and `read_link` are `Unsupported`.                                                                                            |
+| `set_times`    | The modification time can be set (SFTP, SMB; not WebDAV or S3), so a copy keeps it, or the conflict dialog cannot rely on it.                                                                                  |
+| `max_name_len` | The longest name in bytes, when known; `validate_name` refuses a longer one with `InvalidName` before anything is sent.                                                                                        |
+
+### 3.2 Connections
+
+A remote provider serves every connection of its scheme and keeps a pool of sessions keyed by `ConnectionKey`. The trait gains:
+
+- `connection_key(path)`: the key a path belongs to (`None` by default: no sessions).
+- `connection_state(key)`: `Idle`, `Connecting`, `Connected` or `Failed { error }` (a wire type, so the sidebar and the tab show it).
+- `connect(key, answer, cancel)`: opens a session now, with an optional `ConnectAnswer` (a credential, or trust in a host key or a certificate) for the question the last attempt asked. The default does nothing.
+- `disconnect(key)`: closes the session; calls in flight end with `Disconnected`.
+
+**Connecting is lazy.** Any call on a path whose session is not open connects first, with what the provider can find on its own (the SSH agent, key files, `~/.ssh/config`) and what the injected `CredentialSource` returns. When that is not enough the call fails with a typed error that says what is needed (§3.3), and nothing waits on the person inside a provider call. Explicit Connect and Reconnect (the sidebar, a tab's disconnected state) call `connect` with the person's answer. Idle sessions are closed after a timeout the connection manager sets (five minutes by default) and reopened by the next call.
+
+**Concurrency per connection.** A provider limits the parallel requests on one connection (SFTP channels and pipelined requests, SMB credits, HTTP connections) and queues the rest, so a listing and a running copy share a server politely whatever the operations concurrency setting is; the limit is a per-connection option with a provider default.
+
+### 3.3 Errors
+
+`VfsError` (in `waypoint-protocol`) gains one variant per state the UI shows differently (README §3, "errors are typed"):
+
+| Variant                                          | Meaning and UI                                                                                                                                                                   |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Disconnected { location }`                      | The session is closed or was lost. A tab shows the disconnected state with Reconnect; a job offers Retry.                                                                        |
+| `Unreachable { location, reason }`               | Nothing answered: `NameNotResolved`, `Refused`, `NoRoute` or `Offline`, each worded in the state.                                                                                |
+| `Timeout { location }`                           | The server stopped answering within the connection's timeout (30 s by default).                                                                                                  |
+| `AuthRequired { location, prompt }`              | A credential is needed: `prompt` is an `AuthPrompt` (`Password`, `Passphrase` for a key file or an encrypted archive, `Challenge` for keyboard-interactive, `AccessKey` for S3). |
+| `AuthFailed { location }`                        | The credential was refused. The next attempt asks again, saying so.                                                                                                              |
+| `HostKeyUnknown { location, key }`               | An SSH server not in `known_hosts`: the dialog shows `key` (algorithm and SHA-256 fingerprint) and starts on Cancel.                                                             |
+| `HostKeyChanged { location, key }`               | The server's key differs from the recorded one. Refused, never overridden in the app (D148).                                                                                     |
+| `CertificateUntrusted { location, certificate }` | A TLS certificate the system does not trust: subject, issuer, SHA-256 fingerprint and the reason.                                                                                |
+| `RateLimited { location, retry_after_ms }`       | The service asked to slow down (S3 `SlowDown`, HTTP 429); the engine waits and retries by itself before asking.                                                                  |
+| `Corrupt { location }`                           | An archive or a repository that cannot be read as one.                                                                                                                           |
+
+No error carries a secret, and a server's own message (which may echo a user name) goes to the log at `debug` only. In `waypoint-ops` every connection error becomes `OpsError::Connection { error }`, one kind for Skip all, answered with Retry (which reconnects), Skip or Cancel.
+
+### 3.4 Cancellation and timeouts
+
+Long calls already take a `CancelToken` (`list`, `folder_size`, `copy_file_within`), and streams are cancelled between chunks by their caller. Every other call is bounded by the connection's timeout inside the provider; `disconnect` ends whatever is still waiting. A provider never blocks forever, and a cancelled call returns `Cancelled`, not `Disconnected`.
+
+### 3.5 What remotes cannot express
+
+`ScannedEntry` already makes size and time optional; a provider leaves out what it does not know (an S3 "folder" has neither) rather than inventing a value. `details` keeps its default, which lists every local-only field as unavailable (A64), and a provider adds what it really has (S3 storage class and ETag, SFTP owner IDs) through the same `EntryDetails`. Permissions follow `Capabilities::permissions`: `None` means the Inspector shows no permission rows and the copy engine sets none. An S3 prefix with no marker object is a folder that exists only while something is in it, and creating a folder on S3 writes the `key/` marker.
+
+### 3.6 Credentials and trust
+
+```
+page ── Connect dialog ──► plugin command (credential, remember) ──► connection manager ─┬─► secrets plugin (keyring)
+                                                                                         └─► session cache (memory)
+provider ── needs a credential ──► CredentialSource (app: cache, then keyring) ──► none: AuthRequired { prompt } ──► page asks
+```
+
+- The provider asks the injected `CredentialSource` for the credential of a `ConnectionKey` and a prompt; the app implements it over an in-memory session cache and the `SecretStore` the `secrets` plugin backs. A `Secret` value has a redacted `Debug`, no `Serialize`, and is zeroed when dropped.
+- A credential reaches Rust once, from the dialog's command, and is never sent back to a page. "Remember" stores it in the keyring under the attributes `service = ca.liminalhq.waypoint`, `connection = {ConnectionKey}`, `kind = password | passphrase | access-key`; without a keyring (or with it locked and the unlock refused) the credential lasts for the session and the dialog says why it cannot be remembered.
+- Host keys are checked against `~/.ssh/known_hosts` (shared with OpenSSH, as the Trash is shared with other file managers) and an accepted key is appended to it, through a `KnownHosts` trait the SFTP crate defines so tests use a fake. TLS uses the system's trust store; a certificate the person accepts is pinned by fingerprint in the saved connection, never added to the system store.
+
+### 3.7 The provider registry
+
+`waypoint-vfs` gains `ProviderRegistry`: providers by scheme, `for_path`, `for_location` and `schemes`. The vfs plugin and the operations engine are given the same registry by `src-tauri` (the engine's `Providers` adopts it when the first remote provider is registered), so a scheme exists everywhere or nowhere. `parse_location_with` takes the set of registered schemes: text in a scheme with no provider is still `Unsupported`, exactly as today.
+
+## 4. Listings without a watcher
+
+- **Streaming.** `list_batches(path, cancel, budget, sink)` hands entries over in batches (the default calls `list` and hands over one), so a listing can show the first rows of a 100 000-entry SFTP folder before the last arrive (A18's batch size of about 2 000 to 5 000). The listing adopts it with the first remote provider (#289), where the remote listing budget from spike #278 applies.
+- **Refresh.** A provider without `watch` leaves the listing `Unavailable` for watching, and the listing is refreshed (a rescan diffed into changes, so selection and scroll survive) when its tab becomes active or its window is focused and it is older than ten seconds, on F5, and after any job of Waypoint's writes into it. A connection can opt in to a periodic refresh (Refresh every N seconds, off by default) through the generic `PollWatch` in `waypoint-vfs`, which runs any provider's `list` on an interval and diffs it as the local polling fallback does. The status bar says when a folder is not watched.
+- **Losing the connection.** A refresh that fails with a connection error moves the listing to that error's state but keeps its rows on screen, dimmed, until the person reconnects or leaves, so a dropped Wi-Fi never empties a view.
+
+## 5. Sessions, tabs and history
+
+A remote location is an ordinary `Location` in `waypoint-session`: tabs, per-tab history, Recently Closed, pairs, workspaces, favourites and the Shelf hold its canonical URI and nothing else (D146). Restoring a session reopens remote tabs **lazily**: a tab connects only when it is shown, and a tab that cannot (no keyring credential, the host is down) shows its state with Reconnect instead of prompting at start-up. Closing the last tab of a connection does not disconnect it at once; the idle timeout does. The tab icon's remote badge and the breadcrumbs' server segment come from `describe_location`, so the page never reads a scheme.
+
+## 6. Operations across providers
+
+- **Stream through the app by default.** A copy or move between two providers (local and remote, or two connections) is the existing chunked loop over `open_read` and `create_write` (A50), with the same progress, verification, conflicts and journal. Within one connection, `copy_file_within` is the server-side copy when `server_copy` is set, and a move is the provider's `rename` (S3: copy then delete, item by item).
+- **Writes stay atomic per item.** Where `atomic_write` is false a remote copy writes `.waypoint-partial-{job}-{n}-{name}` and renames it into place as locally (A49); where `rename` is `Replacing`, the no-clobber rename is a `stat` then a `rename`, and a clash found by the `stat` is a conflict like any other. Where `atomic_write` is set the engine writes to the final name with exclusive create (S3's conditional `If-None-Match: *`).
+- **Conflicts and verification.** Conflicts are planned the same way, from `stat` over the remote; the dialog shows what is known (a missing time says "unknown", and Replace if newer treats an unknown time as not newer). Previews are not made for remote files unless the connection's thumbnails are on (D14). Verification reads the copy back through the destination provider; on a remote that doubles the traffic, so the setting's note says so, and a provider whose server reports a checksum the engine trusts (none in milestone 6) may later skip the read-back.
+- **Resume (D62).** A failed remote item keeps its partial file and records its length in the job; Retry continues with `resume_write` when the provider has it and starts the file over when it does not, saying so. Cancel and Dismiss remove partial files as today. With verification on, the whole file is verified after a resumed copy; without it, the resumed bytes are trusted from the recorded length. The journal records interrupted remote jobs and start-up recovery reports them; nothing resumes by itself (#306, #435).
+- **Speed limits and jobs at once (#432)** are applied by the engine to the bytes it moves, whatever the provider, and never change correctness; the per-connection request limit (§3.2) is separate and protects the server.
+- **The drop rule.** A different provider is a different volume, so a drop onto a remote copies by default and Shift moves (SPEC §6, "Upload to host").
+
+## 7. Crates and plugins
+
+| Part                                                                   | Kind                          | Concern                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `waypoint-path`                                                        | pure crate (existing)         | The remote, archive and Git URIs, canonical forms, display and the `ConnectionKey`.                                                                                                                                                                                                                              |
+| `waypoint-vfs`                                                         | pure crate (existing)         | The contract above: capabilities, connection methods, `CredentialSource`, `Secret`, `ProviderRegistry`, `PollWatch`, the conformance suite and, behind `testing`, `FakeRemoteProvider`.                                                                                                                          |
+| `waypoint-protocol`                                                    | pure crate (existing)         | The new `VfsError` variants and the wire types they carry (`AuthPrompt`, `HostKey`, `Certificate`, `ConnectionState`).                                                                                                                                                                                           |
+| `waypoint-provider-sftp`, `-smb`, `-webdav`, `-s3`, `-archive`, `-git` | pure crates, one per protocol | Each depends on `waypoint-vfs` and its protocol library only, and is registered by `src-tauri` behind a Cargo feature of the app (all on by default), so a build can leave a heavy dependency out and each crate is tested alone.                                                                                |
+| `waypoint-connections`                                                 | pure crate (new)              | Saved connections (A81): the versioned document, validation, a store with one writer, a revision and events, the `ConnectionStorage` and `SecretStore` traits, the connection manager's state machine.                                                                                                           |
+| `tauri-plugin-waypoint-vfs`                                            | domain plugin                 | Holds the registry and the connection store, and exposes the connection, connect and credential commands and the connection events. It calls no other plugin: the secret store and storage are injected.                                                                                                         |
+| `tauri-plugin-secrets`                                                 | reusable plugin (new)         | `store`, `fetch`, `delete` and `get_status` by attributes, over Secret Service (KWallet through its bridge), the Secret portal in a Flatpak (by extending the shared `xdg-portal` first) and Windows Credential Manager. No Waypoint imports; graduates to the shared workspace (§4 of `crates-and-plugins.md`). |
+| `thumbnails` (existing reusable plugin)                                | extension                     | Thumbnails of remote files are made from bytes the app streams through the provider (a generate-from-bytes entry point, still generic), only for connections that turn them on (#307).                                                                                                                           |
+
+What is reusable and what is not: anything that knows `Provider`, `VfsPath` or a Waypoint connection is a domain crate. The keyring is generic and becomes the `secrets` plugin. An SSH config parser or known-hosts reader that the chosen library does not provide is written as a small crate with no Waypoint imports, so it can be published or moved to the shared workspace; nothing else in milestone 6 is generic enough to be a reusable plugin.
+
+**On Windows**, an `smb://` location is served by the SMB provider over the operating system's own client (UNC paths through the local provider's code, with `WNetAddConnection2` for a login), so domain logins, Kerberos and signing work as in Explorer; on Linux it is a userspace client (pending spike #278). Every other provider is the same code on both systems.
+
+**The conformance suite.** `waypoint_vfs::conformance` (behind the `testing` feature) is the shared suite: given a provider and an empty folder it checks the read and write contract, the typed error kinds, names with awkward characters, the case rule, range reads, resumed writes and that every capability flag tells the truth. Every provider crate runs it in its tests: against `FakeRemoteProvider` and its own fakes everywhere, and against a real server in CI containers (OpenSSH `sshd`, Samba, a WebDAV server and MinIO), described in `ci-cd.md` when the first provider lands.
+
+## 8. Libraries (pending spike #278)
+
+The choice is the spike's, which appends the results to `decisions.md`. The criteria, in order: a licence compatible with `Apache-2.0 OR MIT` distribution (no GPL library linked in); builds for Linux and Windows without system daemons and works in a Flatpak; pure Rust preferred over C bindings; streaming reads and writes with offsets; cancellation and timeouts; for SSH, the agent (`SSH_AUTH_SOCK`, and the Windows OpenSSH agent pipe and Pageant), key files, keyboard-interactive, jump hosts and the host key handed to us to check; first-rows latency and throughput of a 100 000-entry SFTP listing at LAN and 100 ms latency; and maintenance.
+
+| Protocol | Candidates                                                                                                                                                          | Status             |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| SSH/SFTP | `russh` with `russh-sftp` (pure Rust); `ssh2` (libssh2 bindings); `openssh` with `openssh-sftp-client` (drives the system `ssh`, which brings its config and agent) | pending spike #278 |
+| SMB      | `smb-rs` (pure Rust) on Linux; the operating system's client on Windows; `pavao` (libsmbclient, GPL) is excluded by the licence criterion                           | pending spike #278 |
+| WebDAV   | `reqwest` with `quick-xml` for `PROPFIND`; `reqwest_dav`; `opendal`'s WebDAV service                                                                                | pending spike #278 |
+| S3       | `object_store`; `aws-sdk-s3`; `rust-s3`; `opendal`'s S3 service                                                                                                     | pending spike #278 |
+| TLS      | `rustls` with `rustls-platform-verifier`, so the system's trust store and enterprise roots apply                                                                    | pending spike #278 |
+| Archives | `zip`, `tar` with `flate2`, `xz2`, `zstd` and `bzip2`, `sevenz-rust2`; libarchive bindings as the fallback                                                          | chosen in #297     |
+| Git      | `gix`                                                                                                                                                               | chosen in #301     |
+
+## 9. Order of work
+
+Slice 0 (#276) is this contract (#277), the spikes (#278) and the foundations (#279). Then, by dependency:
+
+1. **Secrets** — #281 (Secret Service and the portal), then #282 (Windows Credential Manager) and #283 (remembered volume passphrases, D120).
+2. **Connections** — #285 (store and manager; needs #279 and #281), then #286 (Connect dialog) and #287 (Network section and remote tab states).
+3. **SFTP** — #289 (listing, stat and reading; needs #278 and #279), then #290 (host keys, jump hosts, SSH config) and #291 (writes and conformance against `sshd`).
+4. **SMB, WebDAV, S3** — #293, #294 and #295, each after #291, in parallel.
+5. **Archives** — #297 (needs #279 only, so it can run beside SFTP), then #298 (Extract and Compress) and #299 (drops and writable archives).
+6. **Git** — #301 (needs #279), then #302 and #303.
+7. **Transfers** — #305 (needs #287 and #291), then #306 (resumable jobs) and #307 (remote thumbnails).
+8. **Queue controls** — #433 (speed limits and jobs at once; needs only this contract), then #434 and #435 (resume, after #288 and #433).
+9. **Verification** — #309, #310 and #311 when everything above is in.

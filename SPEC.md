@@ -150,7 +150,7 @@ Clicking or focusing the search box (or pressing / or Ctrl+F) opens a search bar
 ### 5.3 Toolbar & path bar
 
 - Back, forward and up, each with a long-press history menu. Up is disabled where the location has no parent. **Alt+Left, Alt+Right and Alt+Up** do the same from the keyboard.
-- **Path bar:** breadcrumbs by default, each one navigates. A middle-click on one opens that location in a background tab (Ctrl+middle-click in a new window). Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Enter goes, Escape (or clicking away) cancels, and text that is not a location shows a message under the field and keeps it open. Typed text is parsed by Rust (`~`, relative paths and `file://` are understood), never split or joined in the UI. Autocomplete and sibling dropdowns on the breadcrumbs come later. Breadcrumb segments are drop targets and have sibling dropdowns.
+- **Path bar:** breadcrumbs by default, each one navigates. A middle-click on one opens that location in a background tab (Ctrl+middle-click in a new window). Click empty space or press Ctrl+L to edit it as text with autocomplete (local paths, `sftp://`, bookmarks, recent). Enter goes, Escape (or clicking away) cancels, and text that is not a location shows a message under the field and keeps it open. Typed text is parsed by Rust (`~`, relative paths and `file://` are understood, and the server schemes of §7 once their providers exist), never split or joined in the UI; a password typed in a server address is stripped and never shown (D147). Autocomplete and sibling dropdowns on the breadcrumbs come later. Breadcrumb segments are drop targets and have sibling dropdowns.
 - Search: filter-as-you-type in the current folder, with Enter for recursive search and saved-search chips.
 - The view switcher is not in the toolbar: per D23 the view icons live in the status bar footer (§5.8), and sort and group live in the empty-space context menu (§5.5).
 - **Panel toggles** at the right end of the row, after the path bar: Sidebar (F9) and Split View (F3), each a toggle button pressed while its panel shows, with a tooltip of its name and key. A press runs the same command as the menu, the palette and the key. The Shelf is not here: it has its button in the status bar (§5.8). The inspector and terminal drawer toggles join them when those panels exist. When the toolbar is narrow the toggles collapse into one More menu that lists the same commands with their state.
@@ -174,7 +174,7 @@ Sections can be reordered and collapsed:
 - **Workspaces:** named bookmark sets that switch the Favourites list.
 - **Places:** Home, Desktop, Documents, Downloads, Pictures, Music, Videos, Trash. Trash opens `trash:/` in the tab and shows a live badge with the number of items in it. Where the Trash cannot be browsed (the Flatpak portal can only trash) the place stays and shows an explanatory "Trash can't be browsed here" state with the reason, instead of a list.
 - **Devices:** drives with usage bars; Mount, Unmount and Eject are separate actions, and a busy device says what holds it. Locked encrypted volumes show a lock and unlock inline (the passphrase is not remembered until the keyring arrives). Changes appear within a second of plugging in. Overview (§5.8a) shows the same volumes in full.
-- **Network:** saved remotes, each with a connection status dot.
+- **Network:** saved remotes, each with a connection status (connected, connecting, disconnected, or a problem with its reason), written in words as well as shown by a dot. A remote opens in the active tab; its menu has Connect or Disconnect, Edit Connection and Remove. The list is Rust's (saved connections never hold a password, D147), shared by every window.
 - **Smart folders:** saved searches.
 - **Tags:** colour labels.
 - **Plugin sections:** added by plugins.
@@ -286,17 +286,26 @@ Full rules are in `docs/interactions.md` §3. Summary:
 
 ## 7. Remote & virtual locations
 
-| Provider     | URI                                        | Notes                                                                      |
-| ------------ | ------------------------------------------ | -------------------------------------------------------------------------- |
-| SFTP/SSH     | `sftp://user@host:port/path`               | Key agent, known-hosts prompt, jump host, "Open terminal here" over SSH    |
-| SMB          | `smb://host/share`                         | Domain auth, share browser                                                 |
-| WebDAV       | `davs://host/path`                         | Nextcloud preset                                                           |
-| S3           | `s3://bucket/prefix`                       | Endpoint preset (AWS, MinIO, R2), storage class column                     |
-| Git          | `git+file://repo` or a local repo overlay  | Status column, branch in the status bar, stage and commit actions (plugin) |
-| Archives     | Browsing into `*.zip`, `*.tar.*` or `*.7z` | Read-only, or read/write where the format allows                           |
-| Cloud drives | Plugin-provided                            | Nextcloud and Google Drive samples                                         |
+| Provider     | URI                                                                            | Notes                                                                                         |
+| ------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| SFTP/SSH     | `sftp://user@host:port/path`                                                   | Key agent, known-hosts prompt, jump host, "Open terminal here" over SSH                       |
+| SMB          | `smb://domain;user@host/share/path`                                            | Domain auth, share browser (`smb://host/` lists the shares)                                   |
+| WebDAV       | `davs://host/path` (`dav://` for HTTP)                                         | Nextcloud preset                                                                              |
+| S3           | `s3://bucket/prefix`                                                           | Endpoint preset (AWS, MinIO, R2), storage class column                                        |
+| Git          | `git+file:///repo!/path?rev=main` or a local repo overlay                      | Status column, branch in the status bar, stage and commit actions (plugin)                    |
+| Archives     | `archive:{archive's location}!/path`, opened from `*.zip`, `*.tar.*` or `*.7z` | Read-only, or read/write where the format allows; archives inside archives and on servers too |
+| Cloud drives | Plugin-provided                                                                | Nextcloud and Google Drive samples                                                            |
 
 **Connect dialog:** pick a protocol, fill host, user and auth, test the connection, then save to the sidebar (optionally into a workspace). Thumbnails are off for remotes by default and can be turned on per remote.
+
+**Milestone 6 decisions (D146 to D152; the design is `docs/architecture/remote-locations.md`).**
+
+- **Addresses.** Each location has one written form: Waypoint tidies what is typed (the host's letter case, default ports, `..`), IPv6 hosts go in brackets, another S3 service adds its endpoint (`s3://photos/2026?endpoint=https%3A%2F%2Fminio.lan%3A9000`, shown as "s3://photos/2026 (minio.lan:9000)"), and the breadcrumbs start at the server, the share or the bucket. Up from the top of an archive or a revision goes to the folder that holds it (D149, D152).
+- **Signing in.** Waypoint never writes a password, passphrase or secret key to its own files, locations, logs or errors. A password typed into a location is stripped and the path bar says it will be asked for. The SSH agent and key files are tried first; otherwise a sign-in dialog asks, with **Remember**, which stores the secret in the system keyring; without a keyring the login lasts for the session and the dialog says why (D147).
+- **Host keys and certificates.** An unknown SSH host key asks in a dialog that starts on Cancel, with the key type and SHA-256 fingerprint, and accepting adds it to `~/.ssh/known_hosts`. A changed key is refused with a warning that explains the fix and never connects. An untrusted TLS certificate asks the same way and is remembered for that connection only (D148).
+- **Remote tabs.** A remote location is kept in tabs, history, Recently Closed, workspaces, favourites and the Shelf like any folder. A restored session connects a remote tab only when it is shown; one that cannot shows its own state (Disconnected, Unreachable, Sign in needed, Timed out) with Reconnect or Sign in, never a prompt at start-up and never a blank view. An idle connection closes after five minutes and reopens when needed (D146).
+- **Folders that are not watched.** A server folder refreshes when its tab is shown or its window is focused (when more than ten seconds old), on F5 and after Waypoint writes into it, keeping the selection and scroll position; a connection can refresh every N seconds (off by default); the status bar says the folder is not watched; and if the connection drops, the rows stay, dimmed, under the disconnected state (D150).
+- **Transfers.** Copy and move between any two locations are ordinary jobs with progress, conflicts, verification and Undo, done on the server when both ends are on one server. A drop onto a remote copies by default and Shift moves. A time the server does not give shows as "unknown", and Replace if newer does not replace then. A failed transfer keeps what it sent and Retry continues from there where the server allows, or starts the file again and says so (D151, D62).
 
 ## 8. Operations
 
