@@ -6,9 +6,6 @@
 	box-sizing: border-box;
 	min-width: 200px;
 	padding: 4px;
-	background: var(--wp-bg-menu);
-	-webkit-backdrop-filter: var(--wp-menu-backdrop);
-	backdrop-filter: var(--wp-menu-backdrop);
 	color: var(--wp-text-primary);
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 8px;
@@ -22,6 +19,23 @@
 	max-height: calc(100vh - 2 * var(--wp-menu-viewport-margin));
 	overflow: auto;
 	overscroll-behavior: contain;
+}
+
+/*
+ * The menu's background and blur live on a layer behind its rows, not on the menu itself: a
+ * `backdrop-filter` on the menu makes it the containing block of its fixed-position submenus, which
+ * then sit inside it and are clipped by its `overflow`, so no submenu would show.
+ */
+.menu::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	background: var(--wp-bg-menu);
+	-webkit-backdrop-filter: var(--wp-menu-backdrop);
+	backdrop-filter: var(--wp-menu-backdrop);
+	pointer-events: none;
 }
 
 .item {
