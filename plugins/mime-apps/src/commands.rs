@@ -76,3 +76,8 @@ pub(crate) async fn open_default_apps_settings<R: Runtime>(
 ) -> Result<(), MimeAppsError> {
     app.mime_apps().open_default_apps_settings().await
 }
+
+#[command]
+pub(crate) fn refresh_type_icons<R: Runtime>(app: AppHandle<R>) {
+    app.mime_apps().refresh_type_icons();
+}

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	collectServiceStatuses,
 	integrationServiceStatus,
+	mimeAppsServiceStatus,
 	nativeDndServiceStatus,
 	SERVICE_SOURCES,
 	systemAppearanceServiceStatus,
@@ -23,7 +24,9 @@ const plugins = vi.hoisted(() => ({
 	effects: vi.fn(),
 	appearance: vi.fn(),
 	integrations: vi.fn(),
+	mimeApps: vi.fn(),
 }));
+vi.mock('@liminal-hq/plugin-mime-apps', () => ({ getStatus: plugins.mimeApps }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
 vi.mock('@liminal-hq/plugin-system-appearance', () => ({ getStatus: plugins.appearance }));
@@ -226,6 +229,53 @@ describe('the native drag and drop status', () => {
 			reason: 'no clipboard portal',
 			features: ['outbound-drag'],
 		});
+	});
+});
+
+describe('the file types status', () => {
+	const mimeFeature = (name: string, available: boolean, message: string | null = null) => ({
+		name,
+		available,
+		reason: available ? null : 'no-icon-theme',
+		message,
+	});
+
+	it('lists the file and folder icon features that work, and says why the others do not', async () => {
+		plugins.mimeApps.mockResolvedValue({
+			available: true,
+			reason: 'no-icon-theme',
+			message: 'no icon theme is installed besides the fallback one',
+			flavour: 'gio',
+			associationFiles: [],
+			features: [
+				mimeFeature('typeInfo', true),
+				mimeFeature('typeIcons', false, 'no icon theme is installed besides the fallback one'),
+				mimeFeature('folderIcons', false, 'no icon theme is installed besides the fallback one'),
+			],
+		});
+		expect(await mimeAppsServiceStatus()).toEqual({
+			available: true,
+			reason: 'no icon theme is installed besides the fallback one',
+			features: ['typeInfo'],
+		});
+	});
+
+	it('lists them as working on a desktop with an icon theme', async () => {
+		plugins.mimeApps.mockResolvedValue({
+			available: true,
+			reason: null,
+			message: null,
+			flavour: 'gio',
+			associationFiles: [],
+			features: [
+				mimeFeature('typeInfo', true),
+				mimeFeature('typeIcons', true),
+				mimeFeature('folderIcons', true),
+			],
+		});
+		const status = await mimeAppsServiceStatus();
+		expect(status.features).toEqual(['typeInfo', 'typeIcons', 'folderIcons']);
+		expect(status.reason).toBeNull();
 	});
 });
 

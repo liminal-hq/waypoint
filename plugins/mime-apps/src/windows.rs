@@ -10,29 +10,46 @@
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Runtime};
-use windows::core::{HRESULT, HSTRING, PCWSTR, PWSTR};
+use windows::core::{GUID, HRESULT, HSTRING, PCWSTR, PWSTR};
 use windows::Win32::Foundation::HWND;
+use windows::Win32::Graphics::Gdi::{
+    CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO,
+    BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP, HGDIOBJ,
+};
+use windows::Win32::Storage::FileSystem::{
+    FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
+};
 use windows::Win32::System::Com::{
     CoInitializeEx, CoTaskMemFree, CoUninitialize, IBindCtx, IDataObject, COINIT_APARTMENTTHREADED,
 };
+use windows::Win32::UI::Controls::{IImageList, ILD_TRANSPARENT};
 use windows::Win32::UI::Shell::Common::ITEMIDLIST;
 use windows::Win32::UI::Shell::{
-    AssocQueryStringW, IAssocHandler, SHAssocEnumHandlers, SHCreateDataObject, SHOpenWithDialog,
-    SHParseDisplayName, ShellExecuteW, ASSOCF_INIT_IGNOREUNKNOWN, ASSOCSTR, ASSOCSTR_CONTENTTYPE,
-    ASSOCSTR_EXECUTABLE, ASSOCSTR_FRIENDLYAPPNAME, ASSOCSTR_FRIENDLYDOCNAME, ASSOC_FILTER,
-    ASSOC_FILTER_NONE, ASSOC_FILTER_RECOMMENDED, OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OPENASINFO,
+    AssocQueryStringW, FOLDERID_Desktop, FOLDERID_Documents, FOLDERID_Downloads, FOLDERID_Music,
+    FOLDERID_Pictures, FOLDERID_Profile, FOLDERID_Public, FOLDERID_Templates, FOLDERID_Videos,
+    IAssocHandler, SHAssocEnumHandlers, SHCreateDataObject, SHGetFileInfoW, SHGetImageList,
+    SHGetKnownFolderIDList, SHOpenWithDialog, SHParseDisplayName, ShellExecuteW,
+    ASSOCF_INIT_IGNOREUNKNOWN, ASSOCSTR, ASSOCSTR_CONTENTTYPE, ASSOCSTR_EXECUTABLE,
+    ASSOCSTR_FRIENDLYAPPNAME, ASSOCSTR_FRIENDLYDOCNAME, ASSOC_FILTER, ASSOC_FILTER_NONE,
+    ASSOC_FILTER_RECOMMENDED, OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OPENASINFO, SHFILEINFOW,
+    SHGFI_PIDL, SHGFI_SYSICONINDEX, SHGFI_USEFILEATTRIBUTES,
 };
-use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+use windows::Win32::UI::WindowsAndMessaging::{
+    DestroyIcon, GetIconInfo, HICON, ICONINFO, SW_SHOWNORMAL,
+};
 
 use crate::assoc::{self, RawDefault, RawHandler};
 use crate::backend::{Backend, ParentWindow};
 use crate::error::{MimeAppsError, Result};
 use crate::models::{
     FeatureStatus, Flavour, Handlers, PluginStatus, Reason, TypeInfo, DIRECTORY_TYPE,
-    FEATURE_APP_ICONS, FEATURE_CHOOSER, FEATURE_HANDLERS, FEATURE_OPEN_DEFAULT, FEATURE_OPEN_WITH,
-    FEATURE_SET_DEFAULT, FEATURE_TYPE_INFO,
+    FEATURE_APP_ICONS, FEATURE_CHOOSER, FEATURE_FOLDER_ICONS, FEATURE_HANDLERS,
+    FEATURE_OPEN_DEFAULT, FEATURE_OPEN_WITH, FEATURE_SET_DEFAULT, FEATURE_TYPE_ICONS,
+    FEATURE_TYPE_INFO,
 };
+use crate::shellicon::{self, ImageList};
 use crate::target::Target;
+use crate::typeicons::{extension_for_mime, FolderKind, IconKind, IconRequest};
 
 /// `HRESULT_FROM_WIN32(ERROR_CANCELLED)`: what `SHOpenWithDialog` returns when the person closes it.
 const ERROR_CANCELLED: u32 = 1223;
@@ -271,6 +288,174 @@ fn shell_open(what: &str) -> Result<()> {
     }
 }
 
+/// The known folder that has a folder kind's own icon in Explorer, or `None` for an ordinary folder.
+fn known_folder(kind: FolderKind) -> Option<&'static GUID> {
+    Some(match kind {
+        FolderKind::Plain => return None,
+        FolderKind::Home => &FOLDERID_Profile,
+        FolderKind::Desktop => &FOLDERID_Desktop,
+        FolderKind::Documents => &FOLDERID_Documents,
+        FolderKind::Downloads => &FOLDERID_Downloads,
+        FolderKind::Pictures => &FOLDERID_Pictures,
+        FolderKind::Music => &FOLDERID_Music,
+        FolderKind::Videos => &FOLDERID_Videos,
+        FolderKind::Templates => &FOLDERID_Templates,
+        FolderKind::Public => &FOLDERID_Public,
+    })
+}
+
+/// The index of an icon in the shell's system image list: for a type, the one Explorer shows for a file with that extension (no file needs to exist: `SHGFI_USEFILEATTRIBUTES` makes the shell go by the name alone); for a folder, the folder icon, or a standard folder's own.
+fn system_icon_index(kind: &IconKind) -> Option<i32> {
+    let size = std::mem::size_of::<SHFILEINFOW>() as u32;
+    let by_attributes = |name: &str, attributes: FILE_FLAGS_AND_ATTRIBUTES| {
+        let mut info = SHFILEINFOW::default();
+        let name = HSTRING::from(name);
+        // SAFETY: `name` outlives the call, `info` is a valid out structure of the size passed, and with `SHGFI_USEFILEATTRIBUTES` the shell does not read the file system.
+        let result = unsafe {
+            SHGetFileInfoW(
+                PCWSTR(name.as_ptr()),
+                attributes,
+                Some(&mut info),
+                size,
+                SHGFI_SYSICONINDEX | SHGFI_USEFILEATTRIBUTES,
+            )
+        };
+        (result != 0).then_some(info.iIcon)
+    };
+    match kind {
+        IconKind::Extension(extension) => {
+            by_attributes(&format!(".{extension}"), FILE_ATTRIBUTE_NORMAL)
+        }
+        IconKind::Mime(mime) => by_attributes(extension_for_mime(mime), FILE_ATTRIBUTE_NORMAL),
+        IconKind::Folder(folder) => known_folder(*folder)
+            .and_then(known_folder_icon_index)
+            .or_else(|| by_attributes("folder", FILE_ATTRIBUTE_DIRECTORY)),
+    }
+}
+
+/// The icon index of a known folder, by its item identifier list.
+fn known_folder_icon_index(id: &GUID) -> Option<i32> {
+    // SAFETY: the list the shell allocates is used only for the call below and freed once; `info` is a valid out structure of the size passed.
+    unsafe {
+        let pidl = SHGetKnownFolderIDList(id, 0, None).ok()?;
+        let mut info = SHFILEINFOW::default();
+        let result = SHGetFileInfoW(
+            PCWSTR(pidl as *const u16),
+            FILE_FLAGS_AND_ATTRIBUTES(0),
+            Some(&mut info),
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            SHGFI_SYSICONINDEX | SHGFI_PIDL,
+        );
+        CoTaskMemFree(Some(pidl as *const _));
+        (result != 0).then_some(info.iIcon)
+    }
+}
+
+/// An icon's pixels as straight RGBA, with its width and height.
+fn icon_pixels(icon: HICON) -> Option<(u32, u32, Vec<u8>)> {
+    let mut info = ICONINFO::default();
+    // SAFETY: `icon` is a live handle; on success the two bitmaps in `info` are ours to delete, which `release` below does once.
+    unsafe { GetIconInfo(icon, &mut info) }.ok()?;
+    let release = |info: &ICONINFO| unsafe {
+        // SAFETY: each bitmap was created by `GetIconInfo` for us and is deleted once; a null one is skipped.
+        for bitmap in [info.hbmColor, info.hbmMask] {
+            if !bitmap.is_invalid() {
+                let _ = DeleteObject(HGDIOBJ(bitmap.0));
+            }
+        }
+    };
+    let pixels = (|| {
+        if info.hbmColor.is_invalid() {
+            return None;
+        }
+        let mut bitmap = BITMAP::default();
+        // SAFETY: `bitmap` is a valid out structure of the size passed, for a bitmap handle that is live.
+        let got = unsafe {
+            GetObjectW(
+                HGDIOBJ(info.hbmColor.0),
+                std::mem::size_of::<BITMAP>() as i32,
+                Some(&mut bitmap as *mut BITMAP as *mut _),
+            )
+        };
+        if got == 0 || bitmap.bmWidth <= 0 || bitmap.bmHeight <= 0 {
+            return None;
+        }
+        let (width, height) = (bitmap.bmWidth as u32, bitmap.bmHeight as u32);
+        // SAFETY: a memory device context for the screen, deleted below.
+        let dc = unsafe { CreateCompatibleDC(None) };
+        let read = |bitmap: HBITMAP| -> Option<Vec<u8>> {
+            let mut header = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: width as i32,
+                    // Negative: rows from the top, as an image file wants them.
+                    biHeight: -(height as i32),
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: BI_RGB.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let mut buffer = vec![0u8; (width * height * 4) as usize];
+            // SAFETY: the buffer holds `width * height` 32-bit pixels, which is what the header asks for; the bitmap is not selected into another device context.
+            let lines = unsafe {
+                GetDIBits(
+                    dc,
+                    bitmap,
+                    0,
+                    height,
+                    Some(buffer.as_mut_ptr() as *mut _),
+                    &mut header,
+                    DIB_RGB_COLORS,
+                )
+            };
+            (lines != 0).then_some(buffer)
+        };
+        let mut colour = read(info.hbmColor);
+        let mask = if info.hbmMask.is_invalid() {
+            None
+        } else {
+            read(info.hbmMask)
+        };
+        // SAFETY: the context was created above and is deleted once.
+        let _ = unsafe { DeleteDC(dc) };
+        if let Some(buffer) = colour.as_mut() {
+            shellicon::bgra_to_rgba(buffer, mask.as_deref());
+        }
+        colour.map(|buffer| (width, height, buffer))
+    })();
+    release(&info);
+    pixels
+}
+
+fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut out, width, height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().ok()?;
+        writer.write_image_data(rgba).ok()?;
+    }
+    Some(out)
+}
+
+/// The shell's icon for a type or a folder as PNG bytes, from the system image list whose icons are the smallest that are big enough. Needs a single-threaded apartment.
+fn shell_icon(request: &IconRequest) -> Option<Vec<u8>> {
+    let index = system_icon_index(&request.kind)?;
+    let list = ImageList::for_pixels(request.pixels());
+    // SAFETY: the shell hands back a reference-counted interface, released when it drops; the icon it gives is ours to destroy, which happens once below.
+    unsafe {
+        let images: IImageList = SHGetImageList(list.shil()).ok()?;
+        let icon = images.GetIcon(index, ILD_TRANSPARENT.0).ok()?;
+        let pixels = icon_pixels(icon);
+        let _ = DestroyIcon(icon);
+        let (width, height, rgba) = pixels?;
+        encode_png(width, height, &rgba)
+    }
+}
+
 impl Backend for Platform {
     fn status(&self) -> PluginStatus {
         PluginStatus::build(
@@ -291,6 +476,8 @@ impl Backend for Platform {
                     Reason::NotImplemented,
                     "application icons are not served on Windows yet",
                 ),
+                FeatureStatus::available(FEATURE_TYPE_ICONS),
+                FeatureStatus::available(FEATURE_FOLDER_ICONS),
             ],
         )
     }
@@ -429,5 +616,10 @@ impl Backend for Platform {
 
     fn app_icon(&self, _app_id: &str, _size: u32) -> Option<Vec<u8>> {
         None
+    }
+
+    fn type_icon(&self, request: &IconRequest) -> Option<Vec<u8>> {
+        let request = request.clone();
+        on_sta(move || shell_icon(&request).ok_or(MimeAppsError::Unsupported)).ok()
     }
 }

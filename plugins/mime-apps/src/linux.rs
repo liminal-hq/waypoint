@@ -7,12 +7,15 @@
 //!
 //! Starting an application goes through the main thread when the plugin has an app handle, because only the toolkit's launch context knows the display's activation token (so the application's window is raised and focused on Wayland). Icons are drawn through GTK's icon theme and so also need the main thread, which is where the `appicon://` scheme handler runs.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
 
 use gio::glib::translate::FromGlibPtrFull;
 use gio::prelude::*;
-use gtk::prelude::IconThemeExt;
+use gtk::prelude::{GtkSettingsExt, IconThemeExt};
 use tauri::{AppHandle, Runtime};
 
 use crate::backend::{Backend, ParentWindow};
@@ -22,6 +25,7 @@ use crate::mimeapps::XdgEnv;
 use crate::models::{Handlers, PluginStatus, TypeInfo};
 use crate::status::{linux_status, LinuxEnv};
 use crate::target::Target;
+use crate::typeicons::{candidate_names, IconRequest, NameSource};
 
 /// How long a launch waits for the main thread before giving up.
 const MAIN_THREAD_WAIT: Duration = Duration::from_secs(10);
@@ -195,10 +199,115 @@ impl AppDirectory for GioDirectory {
     }
 }
 
+/// What gio says about content types, as the names a theme is asked for.
+struct GioNames;
+
+impl NameSource for GioNames {
+    fn mime_names(&self, mime: &str) -> Vec<String> {
+        icon_names(&gio::content_type_get_icon(mime))
+    }
+
+    fn mime_for_extension(&self, extension: &str) -> String {
+        guess_by_name(&format!("x.{extension}"))
+    }
+}
+
+/// Every name of a themed icon, in the order gio lists them.
+fn icon_names(icon: &gio::Icon) -> Vec<String> {
+    icon.downcast_ref::<gio::ThemedIcon>()
+        .map(|themed| themed.names().iter().map(|name| name.to_string()).collect())
+        .unwrap_or_default()
+}
+
+/// How many icon themes one thread keeps open besides the default one.
+const OPEN_THEMES: usize = 8;
+
+thread_local! {
+    /// The themes that were asked for by name, as GTK's icon theme objects. GTK objects live on the main thread, which is the only thread that draws icons, so this is plain thread-local state.
+    static THEMES: RefCell<HashMap<String, gtk::IconTheme>> = RefCell::new(HashMap::new());
+}
+
+/// The icon theme the system is set to, as GTK reads it from the settings daemon.
+fn live_theme_name() -> Option<String> {
+    gtk::Settings::default()?
+        .gtk_icon_theme_name()
+        .map(|name| name.to_string())
+        .filter(|name| !name.is_empty())
+}
+
+/// Runs `job` with the theme named, or the default one when none is named or the name is the one the system is set to now (so it follows the settings and their inheritance exactly).
+fn with_theme<T>(name: Option<&str>, job: impl FnOnce(&gtk::IconTheme) -> Option<T>) -> Option<T> {
+    let live = live_theme_name();
+    match name.filter(|name| Some(*name) != live.as_deref()) {
+        None => job(&gtk::IconTheme::default()?),
+        Some(name) => THEMES.with(|themes| {
+            let mut themes = themes.borrow_mut();
+            if !themes.contains_key(name) {
+                if themes.len() >= OPEN_THEMES {
+                    themes.clear();
+                }
+                let theme = gtk::IconTheme::new();
+                theme.set_custom_theme(Some(name));
+                themes.insert(name.to_string(), theme);
+            }
+            job(&themes[name])
+        }),
+    }
+}
+
+/// The icons of the user's GTK icon theme, drawn the way a GTK file manager draws them: the names gio gives a type, looked up in the theme at the size and scale asked for. Symbolic icons are never used.
+#[derive(Default)]
+pub struct GtkIcons {
+    /// The theme's files may have changed: the next draw on the main thread rescans.
+    stale: AtomicBool,
+}
+
+impl GtkIcons {
+    pub fn theme_name(&self) -> Option<String> {
+        if !gtk::is_initialized_main_thread() {
+            return None;
+        }
+        live_theme_name()
+    }
+
+    pub fn invalidate(&self) {
+        self.stale.store(true, Ordering::SeqCst);
+    }
+
+    /// The icon as PNG bytes, or `None` when GTK is not running here or the theme has none of the names. Main thread only.
+    pub fn render(&self, request: &IconRequest) -> Option<Vec<u8>> {
+        if !gtk::is_initialized_main_thread() {
+            return None;
+        }
+        if self.stale.swap(false, Ordering::SeqCst) {
+            THEMES.with(|themes| themes.borrow_mut().clear());
+            if let Some(theme) = gtk::IconTheme::default() {
+                theme.rescan_if_needed();
+            }
+        }
+        let names = candidate_names(&request.kind, &GioNames);
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        if refs.is_empty() {
+            return None;
+        }
+        let size = i32::try_from(request.size).ok()?;
+        let scale = i32::try_from(request.scale).ok()?;
+        with_theme(request.theme.as_deref(), |theme| {
+            // GTK's own "choose" takes the names as one list; looked up one by one, in order and with no generic fallback, a name earlier in the list wins over any later one.
+            let flags = gtk::IconLookupFlags::FORCE_SIZE | gtk::IconLookupFlags::FORCE_REGULAR;
+            let info = refs
+                .iter()
+                .find_map(|name| theme.lookup_icon_for_scale(name, size, scale, flags))?;
+            info.load_icon().ok()?.save_to_bufferv("png", &[]).ok()
+        })
+    }
+}
+
 /// The Linux backend: gio, or the portal in a sandbox.
 pub struct Platform {
     inner: DirectoryBackend<GioDirectory>,
     env: LinuxEnv,
+    icons: GtkIcons,
 }
 
 impl Default for Platform {
@@ -228,6 +337,7 @@ impl Platform {
         Platform {
             inner: DirectoryBackend::new(dir, Some(xdg), move || linux_status(env)),
             env,
+            icons: GtkIcons::default(),
         }
     }
 }
@@ -289,6 +399,18 @@ impl Backend for Platform {
             return None;
         }
         self.inner.app_icon(app_id, size)
+    }
+
+    fn type_icon_theme(&self) -> Option<String> {
+        self.icons.theme_name()
+    }
+
+    fn type_icon(&self, request: &IconRequest) -> Option<Vec<u8>> {
+        self.icons.render(request)
+    }
+
+    fn refresh_type_icons(&self) {
+        self.icons.invalidate();
     }
 }
 

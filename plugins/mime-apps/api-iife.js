@@ -73,6 +73,30 @@ var __TAURI_PLUGIN_MIME_APPS__ = (function (exports, core) {
         const base = isWindowsWebview() ? 'http://appicon.localhost' : 'appicon://localhost';
         return `${base}/${encodeURIComponent(appId)}?size=${size}`;
     }
+    /**
+     * The address of the icon the system shows for a type of file or a kind of folder, for an `<img src>`, served by the
+     * `typeicon://` scheme and keyed by type, never by file: a listing needs one request per distinct type. The picture is a
+     * PNG of `size * scale` pixels, drawn from the user's icon theme (Linux) or the shell (Windows); it is a 404 when the
+     * system has none, so keep your own icon underneath. Check the `typeIcons` and `folderIcons` features first.
+     */
+    function typeIconUrl(target, options = {}) {
+        const base = isWindowsWebview() ? 'http://typeicon.localhost' : 'typeicon://localhost';
+        const [kind, value] = 'mime' in target
+            ? ['mime', target.mime]
+            : 'extension' in target
+                ? ['ext', target.extension]
+                : ['folder', target.folder];
+        const params = [`size=${options.size ?? 32}`, `scale=${options.scale ?? 1}`];
+        if (options.theme)
+            params.push(`theme=${encodeURIComponent(options.theme)}`);
+        if (options.revision)
+            params.push(`v=${options.revision}`);
+        return `${base}/${kind}/${encodeURIComponent(value)}?${params.join('&')}`;
+    }
+    /** Forgets every file and folder icon the plugin made and what the platform kept for them. Call it when the system's icon theme changes, then ask again with a higher `revision`. */
+    async function refreshTypeIcons() {
+        await cmd('refresh_type_icons');
+    }
     function isWindowsWebview() {
         return typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent);
     }
@@ -92,7 +116,9 @@ var __TAURI_PLUGIN_MIME_APPS__ = (function (exports, core) {
     exports.openDefault = openDefault;
     exports.openDefaultAppsSettings = openDefaultAppsSettings;
     exports.openWith = openWith;
+    exports.refreshTypeIcons = refreshTypeIcons;
     exports.setDefault = setDefault;
+    exports.typeIconUrl = typeIconUrl;
     exports.typeInfo = typeInfo;
 
     return exports;

@@ -9,9 +9,10 @@ import { SelectRow } from '@liminal-hq/waypoint-chrome/SettingsShell/SelectRow';
 import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsGroup';
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import type { AccentChoice } from '@liminal-hq/waypoint-protocol/generated/AccentChoice';
-import { t } from '../i18n/messages';
+import { t, tf } from '../i18n/messages';
 import styles from './AppearancePage.module.css';
 import { resolveIconTheme } from '../icons/iconTheme';
+import { useSystemOffer } from '../icons/systemIcons';
 import { EMBER } from '../theme/accent';
 import { FolderColourRow, IconStyleRow, IconThemeRow } from './IconChoices';
 import { useSettingsEditor } from './SettingsEditor';
@@ -23,8 +24,12 @@ export function AppearancePage() {
 	const { settings, errors, changeSettings } = useSettingsEditor();
 	const { appearance } = settings;
 	const accent = appearance.accent;
-	// `system` is in the schema but not offered yet, and draws as Waypoint, so the page shows it so.
-	const iconTheme = resolveIconTheme(appearance.iconTheme);
+	const offer = useSystemOffer();
+	const chosen = resolveIconTheme(appearance.iconTheme);
+	// A setting of `system` the system cannot supply draws the Waypoint icons, so the page shows that;
+	// until the plugin has answered, the choice stands.
+	const system = chosen === 'system' && (offer.loading || offer.offered);
+	const iconTheme = chosen === 'system' && !system ? 'waypoint' : chosen;
 	const portage = iconTheme === 'portage';
 	return (
 		<SettingsSection>
@@ -128,6 +133,13 @@ export function AppearancePage() {
 						}))
 					}
 				/>
+				{!offer.loading && !offer.offered && (
+					<p className={styles.note}>
+						{offer.reason
+							? tf('settings.appearance.iconTheme.systemUnavailable', { reason: offer.reason })
+							: t('settings.appearance.iconTheme.systemUnavailableNoReason')}
+					</p>
+				)}
 				{portage ? (
 					<FolderColourRow
 						error={errors.folderColour}
@@ -140,10 +152,16 @@ export function AppearancePage() {
 						}
 					/>
 				) : (
-					<p className={styles.note}>{t('settings.appearance.folderColour.waypointNote')}</p>
+					<p className={styles.note}>
+						{t(
+							system
+								? 'settings.appearance.folderColour.systemNote'
+								: 'settings.appearance.folderColour.waypointNote',
+						)}
+					</p>
 				)}
 				<IconStyleRow
-					disabled={portage}
+					disabled={portage || system}
 					error={errors.iconStyle}
 					value={appearance.iconStyle}
 					onChange={(iconStyle) =>
@@ -153,6 +171,7 @@ export function AppearancePage() {
 						}))
 					}
 				/>
+				{system && <p className={styles.note}>{t('settings.appearance.iconStyle.systemNote')}</p>}
 			</SettingsGroup>
 		</SettingsSection>
 	);

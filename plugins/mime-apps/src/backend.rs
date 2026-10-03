@@ -6,6 +6,7 @@
 use crate::error::Result;
 use crate::models::{Handlers, PluginStatus, TypeInfo};
 use crate::target::Target;
+use crate::typeicons::IconRequest;
 
 /// The native handle of the window a system dialog should belong to (an `HWND` on Windows), when there is one.
 pub type ParentWindow = Option<isize>;
@@ -43,4 +44,17 @@ pub trait Backend: Send + Sync + 'static {
 
     /// The application's icon as PNG bytes at about `size` pixels. May need the main thread; the scheme handler runs there.
     fn app_icon(&self, app_id: &str, size: u32) -> Option<Vec<u8>>;
+
+    /// The icon theme the system draws with now, for the cache key of a request that names none. `None` where there is no such thing.
+    fn type_icon_theme(&self) -> Option<String> {
+        None
+    }
+
+    /// The picture of an icon for a type or a folder as PNG bytes, `size * scale` pixels along an edge. May need the main thread; the scheme handler runs there.
+    fn type_icon(&self, _request: &IconRequest) -> Option<Vec<u8>> {
+        None
+    }
+
+    /// Forgets what the platform cached about icons (theme files read, shell icon lists): the theme changed or its files did.
+    fn refresh_type_icons(&self) {}
 }

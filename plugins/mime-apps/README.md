@@ -25,7 +25,7 @@ fn main() {
 }
 ```
 
-Grant the windows that use it `mime-apps:default` in a capability file, or the individual `mime-apps:allow-get-status`, `mime-apps:allow-type-info`, `mime-apps:allow-handlers`, `mime-apps:allow-open-with`, `mime-apps:allow-open-default`, `mime-apps:allow-choose`, `mime-apps:allow-set-default` and `mime-apps:allow-open-default-apps-settings`. The `appicon://` scheme needs `appicon:` (and `http://appicon.localhost` on Windows) in the `img-src` of the page's content security policy.
+Grant the windows that use it `mime-apps:default` in a capability file, or the individual `mime-apps:allow-get-status`, `mime-apps:allow-type-info`, `mime-apps:allow-handlers`, `mime-apps:allow-open-with`, `mime-apps:allow-open-default`, `mime-apps:allow-choose`, `mime-apps:allow-set-default` `mime-apps:allow-open-default-apps-settings` and `mime-apps:allow-refresh-type-icons`. The `appicon://` scheme needs `appicon:` (and `http://appicon.localhost` on Windows) in the `img-src` of the page's content security policy.
 
 ### JavaScript
 
@@ -102,6 +102,8 @@ app.mime_apps().open_default(&["/home/me/cat.png".into()]).await?;
 | `setDefault(mime, appId)`                                     | Makes an application the default for a type (writes the user's `mimeapps.list` through gio).                                                                                                                                                                |
 | `openDefaultAppsSettings()`                                   | Opens Windows Settings at Default apps. `unsupported` elsewhere.                                                                                                                                                                                            |
 | `appIconUrl(appId, size?)`                                    | The `appicon://` address of an application's icon, a PNG of 16 to 256 pixels.                                                                                                                                                                               |
+| `typeIconUrl(target, options?)`                               | The `typeicon://` address of the system's icon for `{ mime }`, `{ extension }` or `{ folder }`, at `size`, `scale`, `theme` and `revision`.                                                                                                                 |
+| `refreshTypeIcons()`                                          | Forgets the file and folder icons made so far: call it when the system's icon theme changed.                                                                                                                                                                |
 | `hasFeature(status, name)`, `featureReason`, `featureMessage` | Read the status.                                                                                                                                                                                                                                            |
 
 A location is a path (`/home/me/a.txt`, `C:\Users\me\a.txt`) or a URI (`file:///…`, `smb://…`, `sftp://…`); a relative path is rejected. An `App` is `{ id, name, icon, execHint }`: `id` is the desktop-file id on Linux (`org.gnome.eog.desktop`; `.desktop` may be left off when passing it back) and the shell's handler name on Windows, and is otherwise opaque. `icon` is an icon-theme name for a tooltip or a fallback; the picture comes from `appIconUrl`. `execHint` is the command line, for a tooltip, and is never run by the plugin.
@@ -111,6 +113,12 @@ Errors are `MimeAppsError` objects with a `kind`: `appNotFound`, `noHandler` (wi
 ### Icons by app id only
 
 `appicon://localhost/{app id}?size=32` serves an application's icon as a PNG, resolved through the icon theme and kept in memory per size. The scheme takes an application id and nothing else: it is a 404 for an id the system does not know, for anything that is not a single path segment, for `.`, `..` and for any encoded slash, so it cannot be used to read a file. Only `GET` and `HEAD` are answered.
+
+### File and folder icons by type
+
+`typeicon://localhost/{kind}/{value}?size=32&scale=2&theme=Adwaita` serves the icon the system shows for a type of file or a folder, as a PNG of `size * scale` pixels. `kind` is `mime` (`application%2Fpdf`), `ext` (`pdf`, the system guesses the type of `x.pdf`) or `folder` (`plain`, `home`, `desktop`, `documents`, `downloads`, `pictures`, `music`, `videos`, `templates` or `public`). It is keyed by type, never by file, so a listing of ten thousand files needs a request for each distinct extension and no more; the webview keeps each picture, and so does the plugin, in memory, bounded in entries and in bytes.
+
+`typeIconUrl({ extension: 'pdf' }, { size: 24, scale: 2, theme, revision })` makes the address. `theme` is the icon theme the system reports, and is part of the address so a change of theme is a new picture; `revision` only changes the address, so raise it after `refreshTypeIcons()` (which empties the plugin's cache and what the platform kept) when the theme changed. An icon the system does not have is a 404: keep your own icon underneath it. Nothing but a type or a folder kind is served (never a path), and only `GET` and `HEAD` are answered.
 
 ## Features and status
 
@@ -125,6 +133,8 @@ Errors are `MimeAppsError` objects with a `kind`: `appNotFound`, `noHandler` (wi
 | `setDefault`  | The default application for a type can be changed.                        |
 | `chooser`     | The system has a chooser to call (otherwise draw a list from `handlers`). |
 | `appIcons`    | `appicon://` serves icons.                                                |
+| `typeIcons`   | `typeicon://` serves the system's icon for a type of file.                |
+| `folderIcons` | `typeicon://` serves the system's icon for folders, standard ones too.    |
 
 `flavour` is `gio`, `portal`, `windows` or `unsupported`. `associationFiles` lists the `mimeapps.list` files that exist, from the one that wins to the one that loses (Linux; empty elsewhere), which says where a default comes from. A `reason` is a code to branch on and `message` a sentence for people:
 
@@ -134,6 +144,7 @@ Errors are `MimeAppsError` objects with a `kind`: `appNotFound`, `noHandler` (wi
 | `no-system-chooser`    | The system has no chooser to call; the front end draws its own list.     |
 | `managed-by-system`    | The system does not allow a silent change of the default (Windows).      |
 | `no-display`           | There is no display, so there is no icon theme to draw from.             |
+| `no-icon-theme`        | No icon theme besides the fallback one is installed (Linux).             |
 | `not-implemented`      | The plugin does not do this on this operating system yet.                |
 | `unsupported-platform` | This operating system has no support in the plugin.                      |
 
@@ -149,6 +160,8 @@ Errors are `MimeAppsError` objects with a `kind`: `appNotFound`, `noHandler` (wi
 - Inside a Flatpak sandbox (`/.flatpak-info`) the OpenURI portal opens each location (`ask` for `choose`). The portal cannot list applications, open in a chosen one or change a default, so `handlers`, `openWith`, `setDefault` and `appIcons` are reported unavailable with `flatpak-sandbox`.
 - Outside a sandbox there is no system chooser to call: `choose` is unavailable (`no-system-chooser`) and the front end draws its own list from `handlers`.
 
+- File and folder icons: for a type, the names gio gives its content type (`application-pdf`, then the generic `x-office-document`, and so on) are looked up in the user's GTK icon theme at the size and scale asked for, in order, with the theme's inheritance and no symbolic icons, and rendered to PNG. A standard folder asks for the names themes use (`user-home`, `folder-download`, …) and then the plain folder's (`inode-directory`, `folder`). The request's `theme` is opened as its own icon theme object, so a switch of theme never waits on GTK to catch up; without one the theme in force is used. Drawing needs the main thread, where the scheme handler runs. The icons are available when there is a display and an icon theme other than `hicolor`; otherwise `no-display`, `no-icon-theme` or, in a Flatpak sandbox that sees none, `flatpak-sandbox`.
+
 ### Windows (`windows`)
 
 - Handlers belong to an extension. `SHAssocEnumHandlers` lists them (the recommended ones with `ASSOC_FILTER_RECOMMENDED`), `AssocQueryStringW` reads the default and the registered content type, and `IAssocHandler::Invoke` opens files in a chosen handler. The type reported is the extension's content type, or the extension itself (`.png`) when it has none.
@@ -157,6 +170,7 @@ Errors are `MimeAppsError` objects with a `kind`: `appNotFound`, `noHandler` (wi
 - Windows does not let an application change the default silently: `setDefault` is unavailable (`managed-by-system`) and `openDefaultAppsSettings()` opens `ms-settings:defaultapps`.
 - Every shell call runs on a thread of its own with COM initialised as a single-threaded apartment.
 - Application icons are not served yet (`appIcons` is `not-implemented`).
+- File and folder icons: `SHGetFileInfoW` with `SHGFI_USEFILEATTRIBUTES` finds the icon of an extension in the shell's system image list (no file needs to exist), a folder's by its attributes and a standard folder's by its known-folder item list; `SHGetImageList` then gives the icon from the smallest list that is big enough (16, 32, 48 or 256 pixels), which is converted to PNG. Windows has no content types, so a few well-known ones stand for an extension, and anything else is the shell's plain file. Windows icons do not change with the colour mode.
 - Cross-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the ignored `live_handlers_windows` test.
 
 ### Other systems
@@ -166,5 +180,7 @@ Every feature is reported unavailable with `unsupported-platform`.
 ## Testing
 
 `cargo nextest run -p tauri-plugin-mime-apps` runs headless: the `mimeapps.list` parser and precedence, the mapping of a fake directory to the handler lists, locations to names and types, the `appicon://` guard, the status in a simulated Flatpak and the commands through Tauri's mock runtime over a fake backend. Nothing starts an application, opens a dialog or changes a default, and the owner's `mimeapps.list` is never read.
+
+`cargo test -p tauri-plugin-mime-apps --test live live_type_icons -- --nocapture` draws a few icons through the real icon theme, and skips with a message when there is no display or theme.
 
 `cargo test -p tauri-plugin-mime-apps --test live -- --ignored --nocapture` prints this machine's answer for `image/png`, `text/plain` and `inode/directory` (Linux `live_handlers`; Windows `live_handlers_windows`). It only asks.

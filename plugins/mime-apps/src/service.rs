@@ -14,12 +14,14 @@ use crate::error::{MimeAppsError, Result};
 use crate::models::{Handlers, PluginStatus, TypeInfo};
 use crate::scheme::IconCache;
 use crate::target::{self, Target};
+use crate::typeicons::TypeIconCache;
 
 /// File types and the applications that open them. Every call runs the blocking system query off the async runtime, and nothing here starts an application except `open_with`, `open_default` and `choose`.
 pub struct MimeApps<R: Runtime> {
     app: AppHandle<R>,
     backend: Arc<dyn Backend>,
     icons: Arc<IconCache>,
+    type_icons: Arc<TypeIconCache>,
 }
 
 impl<R: Runtime> MimeApps<R> {
@@ -28,12 +30,24 @@ impl<R: Runtime> MimeApps<R> {
             app,
             backend,
             icons: Arc::default(),
+            type_icons: Arc::default(),
         }
     }
 
     /// What the scheme handler needs: the backend and the picture cache.
     pub(crate) fn scheme_parts(&self) -> (Arc<dyn Backend>, Arc<IconCache>) {
         (Arc::clone(&self.backend), Arc::clone(&self.icons))
+    }
+
+    /// What the `typeicon://` scheme handler needs: the backend and the picture cache.
+    pub(crate) fn type_icon_parts(&self) -> (Arc<dyn Backend>, Arc<TypeIconCache>) {
+        (Arc::clone(&self.backend), Arc::clone(&self.type_icons))
+    }
+
+    /// Forgets every file and folder icon made so far and what the platform kept for them. Call it when the system's icon theme changes (or its files do), then ask for the icons again.
+    pub fn refresh_type_icons(&self) {
+        self.type_icons.clear();
+        self.backend.refresh_type_icons();
     }
 
     async fn run<T: Send + 'static>(

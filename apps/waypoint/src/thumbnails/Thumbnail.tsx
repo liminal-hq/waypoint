@@ -16,6 +16,10 @@ interface ThumbnailProps {
 	/** The loader's key for this entry; `null` for one with no thumbnail to ask for (a folder). */
 	thumbKey: string | null;
 	group: IconGroup;
+	/** The entry's name, for the System icon set: its extension picks the type's icon. */
+	name?: string;
+	/** The size the icon is drawn at in CSS pixels, when it is not the list's 16. */
+	iconSize?: number;
 	/** The standard folder a folder is, so the icon carries its mark. */
 	special?: SpecialFolder | null;
 	/** Sizes the frame; the icon and the picture fill it. */
@@ -35,6 +39,8 @@ export function Thumbnail({
 	loader,
 	thumbKey,
 	group,
+	name,
+	iconSize,
 	special,
 	className,
 	iconClassName,
@@ -57,7 +63,13 @@ export function Thumbnail({
 			className={className ? `${styles.frame} ${className}` : styles.frame}
 			data-thumbnail={state ?? undefined}
 		>
-			<FileIcon group={group} special={special} className={iconClassName} />
+			<FileIcon
+				group={group}
+				special={special}
+				name={name}
+				size={iconSize}
+				className={iconClassName}
+			/>
 			{url !== null && state !== 'broken' && (
 				<img
 					className={styles.picture}

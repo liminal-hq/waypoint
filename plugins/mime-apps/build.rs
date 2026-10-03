@@ -12,6 +12,7 @@ const COMMANDS: &[&str] = &[
     "choose",
     "set_default",
     "open_default_apps_settings",
+    "refresh_type_icons",
 ];
 
 fn main() {

@@ -614,6 +614,26 @@
     "description": "Area: settings. The name of an icon set (a portage is a carry between waterways), kept as “Portage”.",
     "source": "9485c24f"
   },
+  "settings.appearance.iconTheme.system": {
+    "message": "Système",
+    "description": "Area: settings. The name of an icon set: the icons the operating system itself shows for files and folders (in its own file manager). Not “system” as in the computer.",
+    "source": "6725e7bb"
+  },
+  "settings.appearance.iconTheme.systemUnavailable": {
+    "message": "Le thème d’icônes Système n’est pas disponible sur ce système : {reason}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words. {reason} is a sentence from the operating system layer, in English, that says what is missing.",
+    "source": "cd52621b"
+  },
+  "settings.appearance.iconTheme.systemUnavailableNoReason": {
+    "message": "Le thème d’icônes Système n’est pas disponible sur ce système.",
+    "description": "Area: settings.",
+    "source": "29b9017c"
+  },
+  "settings.appearance.iconStyle.systemNote": {
+    "message": "Le style des icônes s’applique au thème d’icônes Waypoint. Le thème Système dessine les icônes que dessine votre système.",
+    "description": "Area: settings.",
+    "source": "0ed86024"
+  },
   "settings.appearance.folderColour.label": {
     "message": "Couleur des dossiers",
     "description": "Area: settings.",
@@ -628,6 +648,11 @@
     "message": "Les couleurs de dossier s’appliquent au thème d’icônes Portage. Le thème Waypoint dessine les dossiers dans la couleur d’accent.",
     "description": "Area: settings.",
     "source": "5fb0dd13"
+  },
+  "settings.appearance.folderColour.systemNote": {
+    "message": "Les couleurs de dossier s’appliquent au thème d’icônes Portage. Le thème Système dessine les dossiers comme le fait votre système.",
+    "description": "Area: settings.",
+    "source": "10d42061"
   },
   "settings.appearance.folderColour.liminal": {
     "message": "Liminal",

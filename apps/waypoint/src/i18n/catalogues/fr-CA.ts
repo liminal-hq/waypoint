@@ -278,6 +278,17 @@ const messages: Catalogue = {
 	'settings.appearance.iconTheme.waypoint': 'Waypoint',
 	// source: 9485c24f
 	'settings.appearance.iconTheme.portage': 'Portage',
+	// source: 6725e7bb
+	'settings.appearance.iconTheme.system': 'Système',
+	// source: cd52621b
+	'settings.appearance.iconTheme.systemUnavailable':
+		'Le thème d’icônes Système n’est pas disponible sur ce système : {reason}',
+	// source: 29b9017c
+	'settings.appearance.iconTheme.systemUnavailableNoReason':
+		'Le thème d’icônes Système n’est pas disponible sur ce système.',
+	// source: 0ed86024
+	'settings.appearance.iconStyle.systemNote':
+		'Le style des icônes s’applique au thème d’icônes Waypoint. Le thème Système dessine les icônes que dessine votre système.',
 	// source: 9eab1db2
 	'settings.appearance.folderColour.label': 'Couleur des dossiers',
 	// source: fdeb8a8e
@@ -286,6 +297,9 @@ const messages: Catalogue = {
 	// source: 5fb0dd13
 	'settings.appearance.folderColour.waypointNote':
 		'Les couleurs de dossier s’appliquent au thème d’icônes Portage. Le thème Waypoint dessine les dossiers dans la couleur d’accent.',
+	// source: 10d42061
+	'settings.appearance.folderColour.systemNote':
+		'Les couleurs de dossier s’appliquent au thème d’icônes Portage. Le thème Système dessine les dossiers comme le fait votre système.',
 	// source: 1c3f97b6
 	'settings.appearance.folderColour.liminal': 'Liminal',
 	// source: 8f6a75fa

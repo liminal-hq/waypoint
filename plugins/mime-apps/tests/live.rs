@@ -82,3 +82,59 @@ fn live_handlers_windows() {
     print(&platform, ".txt", r"C:\nonexistent\notes.txt");
     print(&platform, "directory", r"C:\Windows\");
 }
+
+/// Draws file and folder icons through the real GTK icon theme. It needs a display and an icon theme, and skips with a message when there is none; it never fails for a missing system theme, only for a picture that is not a PNG. Run with `-- --nocapture` to see what it found.
+#[test]
+#[cfg(target_os = "linux")]
+fn live_type_icons() {
+    use tauri_plugin_mime_apps::typeicons::{FolderKind, IconKind, IconRequest};
+
+    if gtk::init().is_err() {
+        println!("skipped: GTK cannot start here (no display)");
+        return;
+    }
+    let platform = Platform::new();
+    let status = platform.status();
+    if !status.has("typeIcons") || !status.has("folderIcons") {
+        println!("skipped: the status says icons are unavailable: {status:?}");
+        return;
+    }
+    println!("icon theme in force: {:?}", platform.type_icon_theme());
+    let kinds = [
+        IconKind::Folder(FolderKind::Plain),
+        IconKind::Folder(FolderKind::Downloads),
+        IconKind::Extension("png".into()),
+        IconKind::Extension("pdf".into()),
+        IconKind::Extension("zip".into()),
+        IconKind::Mime("text/plain".into()),
+    ];
+    let mut drawn = 0;
+    for kind in kinds {
+        let request = IconRequest::new(kind.clone(), 32, 2, None);
+        match platform.type_icon(&request) {
+            Some(png) => {
+                assert!(png.starts_with(b"\x89PNG"), "{kind:?} is not a PNG");
+                println!("{kind:?}: {} bytes at {} px", png.len(), request.pixels());
+                drawn += 1;
+            }
+            None => println!("{kind:?}: this theme has none"),
+        }
+    }
+    println!("{drawn} of 6 drawn");
+    // A theme named in the request draws from that theme, whatever the system is set to.
+    for theme in ["Adwaita", "breeze"] {
+        let request = IconRequest::new(
+            IconKind::Folder(FolderKind::Plain),
+            32,
+            1,
+            Some(theme.into()),
+        );
+        match platform.type_icon(&request) {
+            Some(png) => {
+                assert!(png.starts_with(b"\x89PNG"));
+                println!("folder in {theme}: {} bytes", png.len());
+            }
+            None => println!("folder in {theme}: not installed or none"),
+        }
+    }
+}

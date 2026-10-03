@@ -1,0 +1,7 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "system-icons",
+	"description": "Lets the windows that draw file and folder icons (outside the main windows, which hold the file types plugin's default set) ask whether the operating system can supply them and tell the plugin to forget the ones it made when the OS icon theme changes. The icons themselves come from the `typeicon://` scheme, which takes a type or a folder kind and nothing else, so it needs no permission. They may not open files, list applications or change a default.",
+	"windows": ["settings", "properties-*", "shelf"],
+	"permissions": ["mime-apps:allow-get-status", "mime-apps:allow-refresh-type-icons"]
+}

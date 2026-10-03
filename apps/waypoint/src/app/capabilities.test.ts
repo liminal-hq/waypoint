@@ -167,6 +167,22 @@ describe('window capabilities', () => {
 		]);
 	});
 
+	it('lets every window that draws file icons read whether the system can supply them and refresh them, and nothing that opens a file', () => {
+		const capability = byId('system-icons');
+		expect(capability.permissions).toEqual([
+			'mime-apps:allow-get-status',
+			'mime-apps:allow-refresh-type-icons',
+		]);
+		// The main windows hold the plugin's default set, which includes both.
+		expect(byId('main').permissions).toContain('mime-apps:default');
+		for (const label of ['settings', 'properties-3', 'shelf']) {
+			expect(covers(capability, label), label).toBe(true);
+		}
+		for (const label of ['ops', 'tear-ghost', 'mystery']) {
+			expect(covers(capability, label), label).toBe(false);
+		}
+	});
+
 	it('lets the Settings window read the status of every plugin the Services panel reports, and nothing more of the ones it is given only for that', () => {
 		const settings = byId('settings');
 		// The Services panel runs in the Settings window and asks each plugin for its status; a plugin

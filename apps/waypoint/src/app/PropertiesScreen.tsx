@@ -177,15 +177,22 @@ function Body({
 			content = <p className={styles.note}>{t('properties.window.failed')}</p>;
 			break;
 		case 'gone':
-			icon = <FileIcon group="other" className={styles.icon} />;
+			icon = <FileIcon group="other" size={32} className={styles.icon} />;
 			content = <p className={styles.note}>{t('properties.window.gone.note')}</p>;
 			break;
 		case 'root':
-			icon = <FileIcon group="folder" className={styles.icon} />;
+			icon = <FileIcon group="folder" size={32} className={styles.icon} />;
 			content = <RootBody vfs={vfs} location={subject.location} />;
 			break;
 		case 'entry':
-			icon = <FileIcon group={subject.entry.group} className={styles.icon} />;
+			icon = (
+				<FileIcon
+					group={subject.entry.group}
+					name={subject.entry.name}
+					size={32}
+					className={styles.icon}
+				/>
+			);
 			content = (
 				<EntryBody
 					subject={subject}

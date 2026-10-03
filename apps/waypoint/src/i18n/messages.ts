@@ -163,11 +163,22 @@ export const enMessages = {
 	'settings.appearance.iconTheme.waypoint': 'Waypoint',
 	// translator: The name of an icon set (a portage is a carry between waterways), kept as “Portage”.
 	'settings.appearance.iconTheme.portage': 'Portage',
+	// translator: The name of an icon set: the icons the operating system itself shows for files and folders (in its own file manager). Not “system” as in the computer.
+	'settings.appearance.iconTheme.system': 'System',
+	// translator: {reason} is a sentence from the operating system layer, in English, that says what is missing.
+	'settings.appearance.iconTheme.systemUnavailable':
+		'The System icon theme is not available on this system: {reason}',
+	'settings.appearance.iconTheme.systemUnavailableNoReason':
+		'The System icon theme is not available on this system.',
+	'settings.appearance.iconStyle.systemNote':
+		'Icon style applies to the Waypoint icon theme. The System theme draws the icons your system draws.',
 	'settings.appearance.folderColour.label': 'Folder colour',
 	'settings.appearance.folderColour.description':
 		'The colour of folders in the Portage icon theme. The shade follows light or dark mode.',
 	'settings.appearance.folderColour.waypointNote':
 		'Folder colours apply to the Portage icon theme. The Waypoint theme draws folders in the accent colour.',
+	'settings.appearance.folderColour.systemNote':
+		'Folder colours apply to the Portage icon theme. The System theme draws folders as your system does.',
 	// translator: A folder colour named for the brand: Liminal HQ’s own amber.
 	'settings.appearance.folderColour.liminal': 'Liminal',
 	// translator: A folder colour named for the GNOME desktop’s blue; “GNOME” is not translated.

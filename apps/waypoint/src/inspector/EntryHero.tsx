@@ -45,6 +45,8 @@ export function EntryHero({
 					loader={loader}
 					thumbKey={thumbKey}
 					group={entry.group}
+					name={entry.name}
+					iconSize={64}
 					className={styles.thumbnail}
 					iconClassName={styles.icon}
 				/>
@@ -65,7 +67,7 @@ export function FolderHero({ name, facts }: { name: string; facts: string }) {
 	return (
 		<div className={styles.hero} data-hero="">
 			<div className={styles.stage}>
-				<FileIcon group="folder" className={styles.folderIcon} />
+				<FileIcon group="folder" size={64} className={styles.folderIcon} />
 			</div>
 			<p className={styles.title} data-selectable="">
 				{name}

@@ -13,7 +13,7 @@ keywords = ["tauri", "plugin", "mime", "open-with", "default-apps"]
 categories = ["api-bindings", "filesystem"]
 
 [package.metadata.platforms.support]
-windows = { level = "partial", notes = "Lists the handlers of an extension with SHAssocEnumHandlers, opens through IAssocHandler, asks with SHOpenWithDialog and reads the default through AssocQueryStringW, all on single-threaded-apartment threads; cross-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the plugin's ignored `live_handlers_windows` test. Changing the default is reported unavailable because Windows does not allow a silent change, and app icons are not served" }
+windows = { level = "partial", notes = "Draws the shell icon of a file type and of the folders (the standard ones included) through `SHGetFileInfoW` with `SHGFI_USEFILEATTRIBUTES` and the system image lists, as PNG; lists the handlers of an extension with SHAssocEnumHandlers, opens through IAssocHandler, asks with SHOpenWithDialog and reads the default through AssocQueryStringW, all on single-threaded-apartment threads; cross-checked with `cargo xwin` and exercised in a Windows 11 virtual machine through the plugin's ignored `live_handlers_windows` test. Changing the default is reported unavailable because Windows does not allow a silent change, and app icons are not served" }
 linux = { level = "full", notes = "Lists and opens through gio's AppInfo, which follows mimeapps.list and the desktop files; in a Flatpak sandbox it opens through the OpenURI portal and reports the list and the default as unavailable" }
 macos = { level = "none", notes = "Reports every feature unavailable" }
 android = { level = "none", notes = "Desktop only" }
@@ -43,11 +43,16 @@ ashpd = { version = "0.13", default-features = false, features = ["tokio", "open
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
   "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
   "Win32_System_Com",
+  "Win32_UI_Controls",
   "Win32_UI_Shell",
   "Win32_UI_Shell_Common",
   "Win32_UI_WindowsAndMessaging",
 ] }
+# Writes the shell's icons as PNG; the version the workspace already resolves.
+png = "0.18"
 
 [dev-dependencies]
 tauri = { workspace = true, features = ["test"] }
