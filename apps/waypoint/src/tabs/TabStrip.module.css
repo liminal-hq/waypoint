@@ -24,6 +24,33 @@
 	border-radius: 6px;
 }
 
+/*
+ * The strip's own drop cue (a folder over its empty space opens a tab) is drawn by a layer over the
+ * tabs, not by the scroller's background, which the tabs would cover; the layer ignores the pointer.
+ */
+.scroller[data-drop-over] {
+	position: relative;
+	outline: none;
+	background-image: none;
+}
+
+.scroller[data-drop-over]::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 4;
+	border-radius: 6px;
+	outline: 2px solid var(--wp-drop-ok-outline);
+	outline-offset: -2px;
+	background: var(--wp-drop-ok-fill);
+	pointer-events: none;
+}
+
+.scroller[data-drop-over='blocked']::after {
+	outline: 2px dashed var(--wp-drop-blocked-outline);
+	background: var(--wp-drop-blocked-fill);
+}
+
 .tablist {
 	position: relative;
 	display: flex;

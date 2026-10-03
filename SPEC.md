@@ -103,7 +103,7 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 #### The + button
 
 - **Click:** new tab in the current folder. **Middle-click:** new tab at Home. **Right-click, or press and hold for about half a second,** opens a menu (the Menu key or Shift+F10 does too, when the button has focus). Milestone 3 has New Tab, New Tab at Home, New Window (announced as “Opened a new window”), Reopen Closed Tab and Recently Closed ▸; the full list is: New Tab, New Tab at Home, New Empty Tab (start page), New Tab in Group, New Split Tab, New Tab from Clipboard Path, New Window, New Terminal Tab, Connect to Server, Reopen Closed Tab, Recently Closed Tabs (last 10), Open Bookmarks. The closed list is read afresh each time a menu opens.
-- **Drop:** a folder opens a new tab there; a file opens its parent folder; several folders open several tabs; holding Alt opens a split pair.
+- **Drop:** on the button or on the strip's empty space (not a tab, a group chip or a scroll arrow), a folder opens a new tab there; a file opens its parent folder; several folders open several tabs; holding Alt opens a split pair.
 - **Double-click the strip's empty space:** a new tab in the current folder at the end of the strip, as in a browser. A double-click on a tab, a group chip, a pair or a button does nothing extra.
 - The button is fixed at the right end of the strip, next to the all-tabs list. Tabs scroll horizontally when they overflow, with arrows that appear only when needed.
 
