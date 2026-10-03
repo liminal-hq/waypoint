@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod gsettings;
-mod kdeglobals;
-mod portal;
+pub(crate) mod kdeglobals;
+pub(crate) mod portal;
 
 use tokio::sync::mpsc::UnboundedSender;
 

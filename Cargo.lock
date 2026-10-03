@@ -4555,6 +4555,7 @@ version = "0.1.0"
 dependencies = [
  "ashpd",
  "futures-util",
+ "gtk",
  "log",
  "notify",
  "serde",

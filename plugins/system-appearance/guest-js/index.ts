@@ -16,6 +16,12 @@ import type { ColourScheme } from './bindings/ColourScheme';
 import type { Contrast } from './bindings/Contrast';
 import type { DesktopEnvironment } from './bindings/DesktopEnvironment';
 import type { LayoutSource } from './bindings/LayoutSource';
+import type { Palette } from './bindings/Palette';
+import type { PaletteColour } from './bindings/PaletteColour';
+import type { PaletteColours } from './bindings/PaletteColours';
+import type { PaletteEntry } from './bindings/PaletteEntry';
+import type { PaletteSource } from './bindings/PaletteSource';
+import type { PaletteStatus } from './bindings/PaletteStatus';
 import type { PluginStatus } from './bindings/PluginStatus';
 import type { TitlebarAction } from './bindings/TitlebarAction';
 import type { TitlebarActions } from './bindings/TitlebarActions';
@@ -32,6 +38,9 @@ export const TITLEBAR_PREFERENCES_CHANGED_EVENT =
 
 /** Event emitted to all windows when the appearance preferences change. */
 export const APPEARANCE_CHANGED_EVENT = 'system-appearance://appearance-changed';
+
+/** Event emitted to all windows when the colour palette changes. */
+export const PALETTE_CHANGED_EVENT = 'system-appearance://palette-changed';
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -64,6 +73,17 @@ export function getAppearance(): Promise<AppearancePreferences> {
 	return cmd<AppearancePreferences>('get_appearance');
 }
 
+/**
+ * Reads the operating system's colour palette (window and view backgrounds and text, the raised
+ * surface, the selection and its text, the border, the focus colour and the warning, error and
+ * success colours), stamped with a revision. Each colour is a `PaletteEntry` with the `source`
+ * that supplied it, or a typed `reason` and a `detail` when it is unavailable; `status` says
+ * whether the palette can be used at all. Keep the highest revision seen and ignore anything older.
+ */
+export function getPalette(): Promise<Palette> {
+	return cmd<Palette>('get_palette');
+}
+
 /** Subscribes to titlebar preference changes and resolves to a function that unsubscribes. */
 export function onTitlebarPreferencesChanged(
 	callback: (_snapshot: TitlebarSnapshot) => void,
@@ -85,6 +105,14 @@ export function onAppearanceChanged(
 	);
 }
 
+/**
+ * Subscribes to palette changes and resolves to a function that unsubscribes. Subscribe first and
+ * read second, so a change made while starting up is not missed.
+ */
+export function onPaletteChanged(callback: (_palette: Palette) => void): Promise<() => void> {
+	return listen<Palette>(PALETTE_CHANGED_EVENT, (event) => callback(event.payload));
+}
+
 export type {
 	AppearanceFeature,
 	AppearanceFeatureStatus,
@@ -97,6 +125,12 @@ export type {
 	Contrast,
 	DesktopEnvironment,
 	LayoutSource,
+	Palette,
+	PaletteColour,
+	PaletteColours,
+	PaletteEntry,
+	PaletteSource,
+	PaletteStatus,
 	PluginStatus,
 	TitlebarAction,
 	TitlebarActions,

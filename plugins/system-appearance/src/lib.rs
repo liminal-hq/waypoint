@@ -7,6 +7,7 @@ pub mod appearance;
 mod commands;
 mod error;
 pub mod models;
+pub mod palette;
 pub mod parse;
 mod service;
 
@@ -37,6 +38,7 @@ use tauri::{
 
 pub use appearance::service::APPEARANCE_CHANGED_EVENT;
 pub use error::Error;
+pub use palette::service::PALETTE_CHANGED_EVENT;
 pub use service::CHANGED_EVENT;
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -45,6 +47,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::get_status,
             commands::get_titlebar_preferences,
             commands::get_appearance,
+            commands::get_palette,
         ])
         .setup(|app, _api| {
             app.manage(service::Service::default());
@@ -52,12 +55,15 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             app.manage(appearance::service::AppearanceService::default());
             app.state::<appearance::service::AppearanceService>()
                 .start(app);
+            app.manage(palette::service::PaletteService::default());
+            app.state::<palette::service::PaletteService>().start(app);
             Ok(())
         })
         .on_event(|app, event| {
             if let RunEvent::Exit = event {
                 app.state::<service::Service>().stop();
                 app.state::<appearance::service::AppearanceService>().stop();
+                app.state::<palette::service::PaletteService>().stop();
             }
         })
         .build()

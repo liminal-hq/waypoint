@@ -11,6 +11,8 @@ var __TAURI_PLUGIN_SYSTEM_APPEARANCE__ = (function (exports, core, event) {
     const TITLEBAR_PREFERENCES_CHANGED_EVENT = 'system-appearance://titlebar-preferences-changed';
     /** Event emitted to all windows when the appearance preferences change. */
     const APPEARANCE_CHANGED_EVENT = 'system-appearance://appearance-changed';
+    /** Event emitted to all windows when the colour palette changes. */
+    const PALETTE_CHANGED_EVENT = 'system-appearance://palette-changed';
     function cmd(name, args) {
         return core.invoke(`${PREFIX}${name}`, args);
     }
@@ -38,6 +40,16 @@ var __TAURI_PLUGIN_SYSTEM_APPEARANCE__ = (function (exports, core, event) {
     function getAppearance() {
         return cmd('get_appearance');
     }
+    /**
+     * Reads the operating system's colour palette (window and view backgrounds and text, the raised
+     * surface, the selection and its text, the border, the focus colour and the warning, error and
+     * success colours), stamped with a revision. Each colour is a `PaletteEntry` with the `source`
+     * that supplied it, or a typed `reason` and a `detail` when it is unavailable; `status` says
+     * whether the palette can be used at all. Keep the highest revision seen and ignore anything older.
+     */
+    function getPalette() {
+        return cmd('get_palette');
+    }
     /** Subscribes to titlebar preference changes and resolves to a function that unsubscribes. */
     function onTitlebarPreferencesChanged(callback) {
         return event.listen(TITLEBAR_PREFERENCES_CHANGED_EVENT, (event) => callback(event.payload));
@@ -49,13 +61,23 @@ var __TAURI_PLUGIN_SYSTEM_APPEARANCE__ = (function (exports, core, event) {
     function onAppearanceChanged(callback) {
         return event.listen(APPEARANCE_CHANGED_EVENT, (event) => callback(event.payload));
     }
+    /**
+     * Subscribes to palette changes and resolves to a function that unsubscribes. Subscribe first and
+     * read second, so a change made while starting up is not missed.
+     */
+    function onPaletteChanged(callback) {
+        return event.listen(PALETTE_CHANGED_EVENT, (event) => callback(event.payload));
+    }
 
     exports.APPEARANCE_CHANGED_EVENT = APPEARANCE_CHANGED_EVENT;
+    exports.PALETTE_CHANGED_EVENT = PALETTE_CHANGED_EVENT;
     exports.TITLEBAR_PREFERENCES_CHANGED_EVENT = TITLEBAR_PREFERENCES_CHANGED_EVENT;
     exports.getAppearance = getAppearance;
+    exports.getPalette = getPalette;
     exports.getStatus = getStatus;
     exports.getTitlebarPreferences = getTitlebarPreferences;
     exports.onAppearanceChanged = onAppearanceChanged;
+    exports.onPaletteChanged = onPaletteChanged;
     exports.onTitlebarPreferencesChanged = onTitlebarPreferencesChanged;
 
     return exports;

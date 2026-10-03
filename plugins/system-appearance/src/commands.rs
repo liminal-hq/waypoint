@@ -9,6 +9,7 @@ use crate::{
     appearance::{models::AppearancePreferences, service::AppearanceService},
     error::Error,
     models::{PluginStatus, TitlebarSnapshot},
+    palette::{models::Palette, service::PaletteService},
     service::Service,
 };
 
@@ -17,10 +18,12 @@ pub async fn get_status<R: Runtime>(
     app: AppHandle<R>,
     service: State<'_, Service>,
     appearance: State<'_, AppearanceService>,
+    palette: State<'_, PaletteService>,
 ) -> Result<PluginStatus, Error> {
     let titlebar = service.refresh(&app).await.snapshot.status;
     let appearance = appearance.refresh(&app).await.status;
-    Ok(titlebar.with_appearance(appearance))
+    let palette = palette.refresh(&app).await.status;
+    Ok(titlebar.with_appearance(appearance).with_palette(palette))
 }
 
 #[tauri::command]
@@ -37,4 +40,12 @@ pub async fn get_appearance<R: Runtime>(
     service: State<'_, AppearanceService>,
 ) -> Result<AppearancePreferences, Error> {
     Ok(service.refresh(&app).await.preferences)
+}
+
+#[tauri::command]
+pub async fn get_palette<R: Runtime>(
+    app: AppHandle<R>,
+    service: State<'_, PaletteService>,
+) -> Result<Palette, Error> {
+    Ok(service.refresh(&app).await)
 }

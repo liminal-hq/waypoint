@@ -1,15 +1,14 @@
-// Reads the operating system's appearance preferences and pushes changes: colour scheme, accent, contrast, motion, transparency, text scale and icon theme
+// Reads the operating system's colour palette and pushes changes: backgrounds, text, selection, borders, focus and the status colours
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 pub mod models;
 pub mod parse;
-pub mod resolve;
 pub(crate) mod service;
 
 #[cfg(target_os = "linux")]
-pub(crate) mod linux;
+mod linux;
 #[cfg(target_os = "linux")]
 use linux as platform;
 
