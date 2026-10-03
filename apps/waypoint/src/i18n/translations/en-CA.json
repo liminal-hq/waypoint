@@ -5819,6 +5819,198 @@
     "message": "More in Command Palette…",
     "description": "Area: appMenu."
   },
+  "appMenu.help": {
+    "message": "Help",
+    "description": "Area: appMenu."
+  },
+  "cmd.help": {
+    "message": "Help",
+    "description": "Area: cmd."
+  },
+  "cmd.keyboardShortcuts": {
+    "message": "Keyboard Shortcuts",
+    "description": "Area: cmd."
+  },
+  "cmd.tour": {
+    "message": "Take the Tour",
+    "description": "Area: cmd."
+  },
+  "cmd.about": {
+    "message": "About Waypoint",
+    "description": "Area: cmd."
+  },
+  "help.title": {
+    "message": "Help",
+    "description": "Area: help."
+  },
+  "help.subtitle": {
+    "message": "A few things worth knowing.",
+    "description": "Area: help."
+  },
+  "help.rows.label": {
+    "message": "Useful keys",
+    "description": "Area: help."
+  },
+  "help.row.commandPalette": {
+    "message": "Open the command palette",
+    "description": "Area: help."
+  },
+  "help.row.newTab": {
+    "message": "Open a new tab",
+    "description": "Area: help."
+  },
+  "help.row.splitView": {
+    "message": "Split the view into a pair",
+    "description": "Area: help."
+  },
+  "help.row.undo": {
+    "message": "Undo the last file change",
+    "description": "Area: help."
+  },
+  "help.row.toggleShelf": {
+    "message": "Show or hide the Shelf",
+    "description": "Area: help."
+  },
+  "help.row.keyboardShortcuts": {
+    "message": "See every shortcut",
+    "description": "Area: help."
+  },
+  "help.close": {
+    "message": "Close",
+    "description": "Area: help."
+  },
+  "help.about": {
+    "message": "About",
+    "description": "Area: help."
+  },
+  "help.art.caption": {
+    "message": "Every place is a waypoint",
+    "description": "Area: help."
+  },
+  "shortcuts.title": {
+    "message": "Keyboard Shortcuts",
+    "description": "Area: shortcuts."
+  },
+  "shortcuts.subtitle": {
+    "message": "Every command that has a key, as the menus show it.",
+    "description": "Area: shortcuts."
+  },
+  "shortcuts.done": {
+    "message": "Done",
+    "description": "Area: shortcuts."
+  },
+  "shortcuts.empty": {
+    "message": "No commands with a shortcut are available here.",
+    "description": "Area: shortcuts."
+  },
+  "shortcuts.list.label": {
+    "message": "{group} shortcuts",
+    "description": "Area: shortcuts. Placeholders, kept exactly as written: {group} is the name of a group."
+  },
+  "tour.title.welcome": {
+    "message": "Welcome to Waypoint",
+    "description": "Area: tour."
+  },
+  "tour.text.welcome": {
+    "message": "Waypoint is a tabbed file manager for Linux and Windows. This short tour covers the ideas that make it different. You can leave at any time and find it again under Help.",
+    "description": "Area: tour."
+  },
+  "tour.title.tabs": {
+    "message": "Tabs are workspaces",
+    "description": "Area: tour."
+  },
+  "tour.text.tabs": {
+    "message": "Pin, colour and group tabs, and split a tab into a pair with {split} to browse two folders side by side. Drag a tab out of the window to tear it off, or onto another window to merge it. {reopen} brings back a closed tab.",
+    "description": "Area: tour. Placeholders, kept exactly as written: {reopen}; {split}."
+  },
+  "tour.title.dnd": {
+    "message": "Drag and drop, everywhere",
+    "description": "Area: tour."
+  },
+  "tour.text.dnd": {
+    "message": "Drag files onto folders, tabs and the sidebar, and to and from other applications. Hold Ctrl to copy, Shift to move, or Alt to choose. Park files on the Shelf ({shelf}) while you browse.",
+    "description": "Area: tour. Placeholders, kept exactly as written: {shelf}."
+  },
+  "tour.title.commands": {
+    "message": "Commands",
+    "description": "Area: tour."
+  },
+  "tour.text.commands": {
+    "message": "Press {palette} for the command palette, where every command in the menus can be found by name. Press {shortcuts} for the list of shortcuts.",
+    "description": "Area: tour. Placeholders, kept exactly as written: {palette}; {shortcuts}."
+  },
+  "tour.title.desktop": {
+    "message": "Works with your desktop",
+    "description": "Area: tour."
+  },
+  "tour.text.desktop": {
+    "message": "Waypoint follows your desktop’s theme, accent colour and 12 or 24-hour clock. Deleted files go to the desktop’s Trash, where they can be restored, and files can be copied and pasted, or dragged, between Waypoint and other applications.",
+    "description": "Area: tour."
+  },
+  "tour.progress": {
+    "message": "Step {step} of {total}",
+    "description": "Area: tour. Placeholders, kept exactly as written: {step}; {total} is a total, a number or a size."
+  },
+  "tour.skip": {
+    "message": "Skip",
+    "description": "Area: tour."
+  },
+  "tour.back": {
+    "message": "Back",
+    "description": "Area: tour."
+  },
+  "tour.next": {
+    "message": "Next",
+    "description": "Area: tour."
+  },
+  "tour.done": {
+    "message": "Get Started",
+    "description": "Area: tour."
+  },
+  "about.title": {
+    "message": "Waypoint",
+    "description": "Area: about."
+  },
+  "about.version": {
+    "message": "Version {version}",
+    "description": "Area: about. Placeholders, kept exactly as written: {version}."
+  },
+  "about.versionUnavailable": {
+    "message": "The version could not be read",
+    "description": "Area: about."
+  },
+  "about.versionLoading": {
+    "message": "Reading the version…",
+    "description": "Area: about."
+  },
+  "about.rows.label": {
+    "message": "About Waypoint",
+    "description": "Area: about."
+  },
+  "about.licence": {
+    "message": "Licence",
+    "description": "Area: about."
+  },
+  "about.licence.value": {
+    "message": "Apache-2.0 OR MIT",
+    "description": "Area: about."
+  },
+  "about.builtWith": {
+    "message": "Built with",
+    "description": "Area: about."
+  },
+  "about.builtWith.value": {
+    "message": "Tauri, React and Rust",
+    "description": "Area: about."
+  },
+  "about.credit": {
+    "message": "© 2026 Liminal HQ, Scott Morris",
+    "description": "Area: about."
+  },
+  "about.close": {
+    "message": "Close",
+    "description": "Area: about."
+  },
   "palette.title": {
     "message": "Command Palette",
     "description": "Area: palette."
