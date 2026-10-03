@@ -14,11 +14,12 @@ import {
 	PORTAGE_FALLBACK_ART,
 	PORTAGE_FILE_ART,
 	PORTAGE_STANDARD_FOLDER_GLYPHS,
+	portageIconMarkup,
 	portageIconSvg,
 } from './portageIcons';
 import { PORTAGE_FOLDER_BADGES, PORTAGE_FOLDER_GLYPHS } from './portage/portageFolderArt';
 import { portageFolderSvg, type PortageFolderVariant } from './portage/portageFolderSvg';
-import { PORTAGE_FILE_SVGS } from './portage/portageFiles';
+import { PORTAGE_FILE_SVGS, portageFileSvg } from './portage/portageFiles';
 import { FOLDER_COLOURS, FOLDER_PALETTE, type FolderTone } from './portage/portagePalette';
 
 /** The string literals of a generated union type, read from the file Rust generates. */
@@ -224,7 +225,8 @@ describe('PortageIcon', () => {
 			<PortageIcon group="folder" special="music" colour="purple" tone="light" />,
 		);
 		expect(html).toContain('data-special="music"');
-		expect(html).toContain('pf-purple-light-closed-music');
+		expect(html).toContain('data-colour="purple"');
+		expect(html).toContain('data-tone="light"');
 		expect(renderToStaticMarkup(<PortageIcon group="pdf" special="music" />)).not.toContain(
 			'data-special',
 		);
@@ -234,5 +236,74 @@ describe('PortageIcon', () => {
 		for (const group of literals('IconGroup') as IconGroup[]) {
 			expect(renderToStaticMarkup(<PortageIcon group={group} />), group).toMatch(SHAPES);
 		}
+	});
+});
+
+describe('the shadow', () => {
+	const SHADOW = /<filter|feGaussianBlur|filter="|cy="57\.5"/;
+
+	it('is left out of every icon by default, with no filter definition at all', () => {
+		for (const group of literals('IconGroup') as IconGroup[]) {
+			expect(portageIconSvg({ group }), group).not.toMatch(SHADOW);
+		}
+		for (const svg of folderOutputs()) expect(svg).not.toMatch(SHADOW);
+		expect(portageIconSvg({ group: 'folder', special: 'home' })).not.toMatch(SHADOW);
+	});
+
+	it('leaves the other art, ids and references of a shadowless icon valid', () => {
+		for (const group of literals('IconGroup') as IconGroup[]) {
+			const svg = portageIconSvg({ group });
+			const root = parse(svg);
+			const own = ids(root);
+			for (const [, ref] of svg.matchAll(/url\(#([^)]+)\)/g)) expect(own, group).toContain(ref);
+			expect(svg, group).toMatch(SHAPES);
+		}
+	});
+
+	it('is drawn on request, for a file and for a folder, as one blurred ellipse', () => {
+		for (const options of [{ group: 'pdf' as const }, { group: 'folder' as const }]) {
+			const svg = portageIconSvg({ ...options, shadow: true });
+			const root = parse(svg);
+			expect(root.querySelectorAll('filter')).toHaveLength(1);
+			expect(root.querySelectorAll('ellipse')).toHaveLength(1);
+			const own = ids(root);
+			for (const [, ref] of svg.matchAll(/url\(#([^)]+)\)/g)) expect(own).toContain(ref);
+			expect(svg).not.toBe(portageIconSvg(options));
+		}
+		expect(portageFolderSvg({ shadow: true })).toMatch(/<filter/);
+		expect(portageFolderSvg()).not.toMatch(/<filter/);
+		expect(PORTAGE_FILE_SVGS.pdf).toContain('<filter');
+		expect(portageFileSvg('pdf', true)).toBe(PORTAGE_FILE_SVGS.pdf);
+	});
+
+	it('is smaller to ship in every shadowless icon', () => {
+		for (const name of Object.keys(PORTAGE_FILE_SVGS) as (keyof typeof PORTAGE_FILE_SVGS)[]) {
+			expect(portageFileSvg(name).length, name).toBeLessThan(PORTAGE_FILE_SVGS[name].length);
+		}
+	});
+});
+
+describe('memoisation', () => {
+	const folder = { group: 'folder', special: 'music', colour: 'red', tone: 'dark' } as const;
+
+	it('returns the same string instance for the same icon and a different one for another', () => {
+		const a = portageIconSvg({ ...folder });
+		expect(portageIconSvg({ ...folder })).toBe(a);
+		expect(portageIconMarkup({ ...folder })).toBe(portageIconMarkup({ ...folder }));
+		expect(portageIconSvg({ ...folder, tone: 'light' })).not.toBe(a);
+		expect(portageIconSvg({ ...folder, shadow: true })).not.toBe(a);
+		expect(portageFileSvg('image')).toBe(portageFileSvg('image'));
+	});
+
+	it('shares one string between every file of a type, whatever the folder options', () => {
+		expect(portageIconSvg({ group: 'pdf', colour: 'pink', tone: 'light' })).toBe(
+			portageIconSvg({ group: 'pdf', colour: 'red', tone: 'dark' }),
+		);
+	});
+
+	it('builds the markup of an icon without the svg element around it', () => {
+		const markup = portageIconMarkup({ group: 'image' });
+		expect(markup).not.toContain('<svg');
+		expect(markup).toMatch(SHAPES);
 	});
 });

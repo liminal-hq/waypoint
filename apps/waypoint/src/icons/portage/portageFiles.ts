@@ -72,3 +72,29 @@ export const PORTAGE_FILE_SVGS = {
 } as const;
 
 export type PortageFileName = keyof typeof PORTAGE_FILE_SVGS;
+
+const SHADOW_FILTER = /<filter id="[^"]*-sh"[^>]*>[\s\S]*?<\/filter>\n?/;
+const SHADOW_ELLIPSE = /<ellipse [^>]*filter="url\(#[^"]*-sh\)"[^>]*\/>\n?/;
+const EMPTY_DEFS = /<defs>\s*<\/defs>\n?/;
+
+/** The art without its shadow: the blur filter and the ellipse that uses it, and any `<defs>` left empty. */
+function withoutShadow(svg: string): string {
+	return svg.replace(SHADOW_FILTER, '').replace(SHADOW_ELLIPSE, '').replace(EMPTY_DEFS, '');
+}
+
+const SHADOWLESS = new Map<PortageFileName, string>();
+
+/**
+ * One file type's SVG. The shadow (a blurred ellipse under the page, drawn with an SVG filter) is left
+ * out unless asked for: it costs a filter pass per icon, which a long listing feels. The shadowless
+ * string is built once per type and the same instance is returned thereafter.
+ */
+export function portageFileSvg(name: PortageFileName, shadow = false): string {
+	if (shadow) return PORTAGE_FILE_SVGS[name];
+	let svg = SHADOWLESS.get(name);
+	if (svg === undefined) {
+		svg = withoutShadow(PORTAGE_FILE_SVGS[name]);
+		SHADOWLESS.set(name, svg);
+	}
+	return svg;
+}

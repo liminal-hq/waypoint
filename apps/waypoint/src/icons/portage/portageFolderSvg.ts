@@ -26,6 +26,8 @@ export interface PortageFolderOptions {
 	badge?: PortageFolderBadge;
 	/** The mark on the front panel: one of the user's standard folders. */
 	glyph?: PortageFolderGlyph;
+	/** A soft shadow on the ground under the folder (an SVG blur filter). Off by default: it costs a filter pass per icon. */
+	shadow?: boolean;
 }
 
 const PAPER = '#f6f2ea';
@@ -43,21 +45,31 @@ function bandedGradient(id: string, colour: string, y1: number, y2: number): str
 }
 
 /**
- * The folder as a standalone 64 by 64 SVG. Ids (the shadow filter and any gradients) are derived from
+ * The folder as a standalone 64 by 64 SVG. Ids (the shadow filter, when drawn, and any gradients) are derived from
  * the options, so any number of folders can be inlined in one page and two draws of the same folder
  * share definitions that are identical.
  */
 export function portageFolderSvg(options: PortageFolderOptions = {}): string {
-	const { colour = 'liminal', tone = 'dark', variant = 'closed', badge, glyph } = options;
+	const {
+		colour = 'liminal',
+		tone = 'dark',
+		variant = 'closed',
+		badge,
+		glyph,
+		shadow = false,
+	} = options;
 	const fill = FOLDER_PALETTE[colour][tone];
 	const stops = typeof fill === 'string' ? null : fill;
 	const open = variant === 'open';
 	const empty = variant === 'empty';
 	const id = ['pf', colour, tone, variant, badge, glyph].filter(Boolean).join('-');
 
-	const defs = [
-		`<filter id="${id}-sh" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.2"/></filter>`,
-	];
+	const defs: string[] = [];
+	if (shadow) {
+		defs.push(
+			`<filter id="${id}-sh" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.2"/></filter>`,
+		);
+	}
 	let back: string;
 	let front: string;
 	let ink: string;
@@ -82,10 +94,13 @@ export function portageFolderSvg(options: PortageFolderOptions = {}): string {
 		ink = mixColour(fill as string, '#000000', 0.6);
 	}
 
-	const parts: string[] = [
-		`<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#${id}-sh)"/>`,
-		`<path d="${FOLDER_BACK}" fill="${back}"/>`,
-	];
+	const parts: string[] = [];
+	if (shadow) {
+		parts.push(
+			`<ellipse cx="32" cy="57.5" rx="18" ry="2.4" fill="#000" fill-opacity=".22" filter="url(#${id}-sh)"/>`,
+		);
+	}
+	parts.push(`<path d="${FOLDER_BACK}" fill="${back}"/>`);
 	if (stops) parts.push(`<path d="${FOLDER_BACK}" fill="#000" fill-opacity=".2"/>`);
 	if (open) {
 		parts.push(
@@ -122,5 +137,5 @@ export function portageFolderSvg(options: PortageFolderOptions = {}): string {
 			`<path d="${badgeGlyph}" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" transform="translate(47 47) scale(2) translate(-17.5 -17.5)"/>`,
 		);
 	}
-	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><defs>${defs.join('')}</defs>${parts.join('')}</svg>`;
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">${defs.length ? `<defs>${defs.join('')}</defs>` : ''}${parts.join('')}</svg>`;
 }

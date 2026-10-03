@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useMemo } from 'react';
-import { portageIconSvg, type PortageIconOptions } from './portageIcons';
+import { portageIconMarkup, type PortageIconOptions } from './portageIcons';
 import styles from './PortageIcon.module.css';
 
 interface PortageIconProps extends PortageIconOptions {
@@ -12,11 +12,6 @@ interface PortageIconProps extends PortageIconOptions {
 	size?: number;
 	/** An extra class, for a view that draws the icon at a size the list does not. */
 	className?: string;
-}
-
-/** The inside of an `<svg>`: everything between its opening and closing tags. */
-function innerMarkup(svg: string): string {
-	return svg.slice(svg.indexOf('>') + 1, svg.lastIndexOf('</svg>'));
 }
 
 /**
@@ -31,19 +26,23 @@ export function PortageIcon({
 	tone,
 	variant,
 	badge,
+	shadow,
 	size = 16,
 	className,
 }: PortageIconProps) {
 	const markup = useMemo(
-		() => innerMarkup(portageIconSvg({ group, special, colour, tone, variant, badge })),
-		[group, special, colour, tone, variant, badge],
+		() => portageIconMarkup({ group, special, colour, tone, variant, badge, shadow }),
+		[group, special, colour, tone, variant, badge, shadow],
 	);
-	const marked = group === 'folder' && special ? special : undefined;
+	const folder = group === 'folder';
+	const marked = folder && special ? special : undefined;
 	return (
 		<svg
 			className={className ? `${styles.icon} ${className}` : styles.icon}
 			data-group={group}
 			data-special={marked}
+			data-colour={folder ? colour : undefined}
+			data-tone={folder ? tone : undefined}
 			width={size}
 			height={size}
 			viewBox="0 0 64 64"
