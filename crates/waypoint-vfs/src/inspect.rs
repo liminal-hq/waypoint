@@ -59,6 +59,7 @@ mod tests {
             link_target: None,
             link_pending: false,
             group: IconGroup::Video,
+            special: None,
             size: Some(42),
             modified_ms: Some(7),
             hidden: false,

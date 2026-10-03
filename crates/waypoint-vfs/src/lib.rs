@@ -62,8 +62,8 @@ pub use serve::{
 };
 pub use size::{lower_thread_priority, FolderSizeRun, REPORT_EVERY as FOLDER_SIZE_REPORT_EVERY};
 pub use space::free_space;
-pub use text::{read_text_head, TEXT_HEAD_MAX};
 pub use special::{SpecialDirs, SpecialFolder};
+pub use text::{read_text_head, TEXT_HEAD_MAX};
 #[cfg(any(test, feature = "testing"))]
 pub use trash::MemoryTrashSource;
 pub use trash::{
