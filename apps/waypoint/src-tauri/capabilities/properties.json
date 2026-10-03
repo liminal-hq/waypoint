@@ -1,7 +1,11 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "properties",
-	"description": "Lets the Properties windows name the application that opens a file (the file types plugin's status and handlers, to read only) for the Opens with row. They may not open files with an application or change a default.",
+	"description": "Lets the Properties windows name the application that opens a file (the file types plugin's status and handlers, to read only) for the Opens with row, and read the system's 12/24-hour clock setting so their dates are shown the way the rest of the app shows them. They may not open files with an application or change a default.",
 	"windows": ["properties-*"],
-	"permissions": ["mime-apps:allow-get-status", "mime-apps:allow-handlers"]
+	"permissions": [
+		"mime-apps:allow-get-status",
+		"mime-apps:allow-handlers",
+		"os-prefs:allow-get-time-format"
+	]
 }
