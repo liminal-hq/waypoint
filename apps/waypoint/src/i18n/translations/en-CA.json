@@ -567,6 +567,22 @@
     "message": "Starts the title bar’s label with “Waypoint”. Off, the label is just “Main”.",
     "description": "Area: settings."
   },
+  "menuBar.label": {
+    "message": "Menu bar",
+    "description": "Area: menuBar."
+  },
+  "menuBar.more": {
+    "message": "More",
+    "description": "Area: menuBar."
+  },
+  "settings.general.menuBar.label": {
+    "message": "Show a menu bar under the title bar",
+    "description": "Area: settings."
+  },
+  "settings.general.menuBar.description": {
+    "message": "Lays the application menu’s menus (File, Edit, View and Window) across a bar of their own. The app name button then stays as a label.",
+    "description": "Area: settings."
+  },
   "settings.general.showHidden.description": {
     "message": "A new window lists hidden files. Windows that are already open keep their choice.",
     "description": "Area: settings."
