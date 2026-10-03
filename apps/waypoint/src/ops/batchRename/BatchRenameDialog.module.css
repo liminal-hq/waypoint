@@ -10,8 +10,6 @@
 	color: var(--wp-text-secondary);
 	font-size: 12px;
 	font-weight: 600;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
 }
 
 .stack {

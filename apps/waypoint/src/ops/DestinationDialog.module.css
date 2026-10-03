@@ -16,11 +16,9 @@
 	color: var(--wp-text-secondary);
 	font-size: 12px;
 	font-weight: 600;
-	letter-spacing: 0.02em;
 }
 
 .heading {
-	text-transform: uppercase;
 }
 
 .input {
