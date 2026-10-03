@@ -844,6 +844,26 @@
     "description": "Area: settings.",
     "source": "4f21c593"
   },
+  "menuBar.label": {
+    "message": "Barre de menus",
+    "description": "Area: menuBar.",
+    "source": "2d9de7e6"
+  },
+  "menuBar.more": {
+    "message": "Plus",
+    "description": "Area: menuBar.",
+    "source": "d47d7cb0"
+  },
+  "settings.general.menuBar.label": {
+    "message": "Afficher une barre de menus sous la barre de titre",
+    "description": "Area: settings.",
+    "source": "982e1ab2"
+  },
+  "settings.general.menuBar.description": {
+    "message": "Place les menus de l’application (Fichier, Édition, Affichage et Fenêtre) dans une barre à part. Le bouton du nom de l’application reste alors une simple étiquette.",
+    "description": "Area: settings.",
+    "source": "1c421a68"
+  },
   "settings.general.showHidden.description": {
     "message": "Une nouvelle fenêtre affiche les fichiers masqués. Les fenêtres déjà ouvertes gardent leur choix.",
     "description": "Area: settings.",
