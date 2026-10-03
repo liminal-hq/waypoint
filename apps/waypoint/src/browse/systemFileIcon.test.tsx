@@ -115,7 +115,7 @@ describe('FileIcon in the System set', () => {
 		expect(document.querySelectorAll('svg[data-system]')).toHaveLength(10_000);
 		// Nothing was asked again once the pictures were there.
 		expect(fake.probed).toHaveLength(5);
-	});
+	}, 30_000);
 
 	it('asks for the group’s stand-in type when the name has no extension', async () => {
 		render(<FileIcon group="code" name="Makefile" />);

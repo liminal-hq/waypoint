@@ -271,7 +271,9 @@ mod tests {
     #[test]
     fn a_theme_besides_hicolor_is_an_icon_theme() {
         let dirs = vec![PathBuf::from("/a/icons"), PathBuf::from("/b/icons")];
-        let list = |dir: &Path| match dir.to_str().unwrap() {
+        // Windows spells a path with backslashes; the fixtures are written with slashes.
+        let slashed = |path: &Path| path.to_str().unwrap().replace('\\', "/");
+        let list = |dir: &Path| match slashed(dir).as_str() {
             "/a/icons" => vec![PathBuf::from("/a/icons/hicolor")],
             "/b/icons" => vec![
                 PathBuf::from("/b/icons/default"),
@@ -281,17 +283,14 @@ mod tests {
         };
         let with_index = |path: &Path| {
             matches!(
-                path.to_str().unwrap(),
+                slashed(path).as_str(),
                 "/a/icons/hicolor/index.theme" | "/b/icons/Adwaita/index.theme"
             )
         };
         assert!(has_icon_theme(&dirs, list, with_index));
         // Only the fallback theme, or a folder with no `index.theme`, is not a theme to draw from.
         assert!(!has_icon_theme(&dirs[..1], list, with_index));
-        assert!(!has_icon_theme(&dirs, list, |path| path
-            .to_str()
-            .unwrap()
-            .starts_with("/a/")));
+        assert!(!has_icon_theme(&dirs, list, |path| slashed(path).starts_with("/a/")));
         assert!(!has_icon_theme(&[], list, with_index));
     }
 
