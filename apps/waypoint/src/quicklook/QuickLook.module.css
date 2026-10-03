@@ -20,10 +20,16 @@
 	outline-offset: -2px;
 }
 
+/*
+ * The one cell is the picture box's own size (`minmax(0, 1fr)`, not `auto`): with an `auto` track the
+ * full image takes its height from its own proportions, so a portrait picture ran at the box's full
+ * width, spilled past it, and its thumbnail underneath showed as a miniature in front.
+ */
 .picture {
 	position: relative;
 	display: grid;
 	flex: 1;
+	grid-template: minmax(0, 1fr) / minmax(0, 1fr);
 	min-block-size: 0;
 	place-items: center;
 }
@@ -34,6 +40,8 @@
 
 .image,
 .underlay {
+	min-inline-size: 0;
+	min-block-size: 0;
 	max-inline-size: 100%;
 	max-block-size: 100%;
 	object-fit: contain;
