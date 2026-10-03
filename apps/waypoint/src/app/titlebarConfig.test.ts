@@ -56,7 +56,8 @@ describe('titlebarConfigFor with the OS preferences', () => {
 			titlebarConfigFor(preferences({ desktopEnvironment }), 'linux').controlsStyle;
 		expect(style('gnome')).toBe('gnome');
 		expect(style('kde')).toBe('kde');
-		expect(style('cinnamon')).toBe('cinnamon');
+		// Cinnamon uses GNOME's window controls.
+		expect(style('cinnamon')).toBe('gnome');
 		expect(style('windows')).toBe('win11');
 		expect(style('xfce')).toBe('gnome');
 		expect(style('unknown')).toBe('gnome');
