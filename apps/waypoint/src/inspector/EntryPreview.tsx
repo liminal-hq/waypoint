@@ -139,6 +139,29 @@ export function EntryPreview({ client, handle, entry, details }: EntryPreviewPro
 					/>
 				)}
 			</div>
+			<div className={styles.summary}>
+				<p className={styles.name} data-selectable="">
+					{entry.name}
+				</p>
+				<p className={styles.facts}>
+					{label}
+					{!folder && (details?.size ?? entry.size) !== null && (
+						<> · {formatSize(details?.size ?? entry.size ?? 0)}</>
+					)}
+				</p>
+			</div>
+			<dl className={styles.rows}>
+				<div className={styles.fact}>
+					<dt>{t('inspector.field.kind')}</dt>
+					<dd>{label}</dd>
+				</div>
+				{!folder && (details?.size ?? entry.size) !== null && (
+					<div className={styles.fact}>
+						<dt>{t('inspector.field.size')}</dt>
+						<dd>{formatSize(details?.size ?? entry.size ?? 0)}</dd>
+					</div>
+				)}
+			</dl>
 			{head?.status === 'ready' && (
 				<div className={styles.textBlock}>
 					<pre
@@ -157,17 +180,6 @@ export function EntryPreview({ client, handle, entry, details }: EntryPreviewPro
 					{head.lossy && <p className={styles.notice}>{t('inspector.preview.lossy')}</p>}
 				</div>
 			)}
-			<div className={styles.summary}>
-				<p className={styles.name} data-selectable="">
-					{entry.name}
-				</p>
-				<p className={styles.facts}>
-					{label}
-					{!folder && (details?.size ?? entry.size) !== null && (
-						<> · {formatSize(details?.size ?? entry.size ?? 0)}</>
-					)}
-				</p>
-			</div>
 		</div>
 	);
 }

@@ -13,8 +13,8 @@
 	align-items: center;
 	justify-content: center;
 	box-sizing: border-box;
-	inline-size: min(100%, 176px);
-	aspect-ratio: 4 / 3;
+	inline-size: min(100%, 168px);
+	block-size: 126px;
 	margin-block-end: 10px;
 	border-radius: 10px;
 	background: var(--wp-bg-hover);

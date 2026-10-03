@@ -14,6 +14,8 @@
 	min-block-size: var(--wp-hit-target, 0px);
 	padding-block: 6px;
 	min-inline-size: 0;
+	border-block-end: 1px solid var(--wp-border-subtle);
+	font-size: 12.5px;
 }
 
 /* The Name field: the label over a bordered, full-width value. */
@@ -22,25 +24,26 @@
 	align-items: stretch;
 	justify-content: flex-start;
 	gap: 4px;
-	padding-block: 0 10px;
+	padding-block: 0 4px;
+	border-block-end: 0;
 }
 
 .label {
 	flex: none;
 	color: var(--wp-text-muted);
-	font-size: 12px;
+	white-space: nowrap;
 }
 
 .value {
 	min-inline-size: 0;
 	margin: 0;
-	font-size: 12px;
 	text-align: end;
 	overflow-wrap: anywhere;
 }
 
 .row[data-stacked] .label {
-	font-size: 11px;
+	font-size: 12px;
+	white-space: normal;
 }
 
 .row[data-stacked] .value {
@@ -53,13 +56,13 @@
 	justify-content: space-between;
 	gap: 8px;
 	box-sizing: border-box;
-	min-block-size: 28px;
+	min-block-size: max(32px, var(--wp-hit-target, 0px));
 	padding-block: 3px;
 	padding-inline: 10px 4px;
 	border: 1px solid var(--wp-border-subtle);
-	border-radius: 6px;
-	background: var(--wp-bg-hover);
-	font-size: 12px;
+	border-radius: 8px;
+	background: var(--wp-control-bg);
+	font-size: 13px;
 }
 
 .nameText {

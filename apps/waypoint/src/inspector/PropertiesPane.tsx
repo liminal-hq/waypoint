@@ -23,6 +23,7 @@ import { useFreeSpace } from '../status/useFreeSpace';
 import { baseName, formatPermissions, isFolderKind, kindMessage } from './inspectorModel';
 import type { InspectorSubject } from './useInspectorSubject';
 import type { DetailsState } from './useEntryDetails';
+import { EmptyState } from './EmptyState';
 import { EntryHero, FolderHero } from './EntryHero';
 import { useEntryExtras } from './useEntryExtras';
 import { useFolderSize, type FolderSizeState } from './useFolderSize';
@@ -78,7 +79,7 @@ export function PropertiesPane({
 }: PropertiesPaneProps) {
 	switch (subject.kind) {
 		case 'none':
-			return <p className={styles.empty}>{t('inspector.properties.empty')}</p>;
+			return <EmptyState />;
 		case 'folder':
 			return (
 				<FolderProperties
@@ -154,11 +155,7 @@ function ManyProperties({ session }: { session: ListingSession | null }) {
 	const vfs = useOptionalVfsClient();
 	return (
 		<>
-			{vfs && session ? (
-				<ManySummary client={vfs} session={session} />
-			) : (
-				<p className={styles.empty}>{t('inspector.properties.empty')}</p>
-			)}
+			{vfs && session ? <ManySummary client={vfs} session={session} /> : <EmptyState />}
 			<p className={styles.note}>{t('inspector.many.note')}</p>
 		</>
 	);

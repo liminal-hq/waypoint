@@ -19,3 +19,11 @@ export const PropertiesIcon = (props: IconProps) => (
 		<path d="M8 7.2V11M8 5v.2" />
 	</Glyph>
 );
+
+/** An eye, for the empty state: nothing selected to look at. */
+export const EmptyIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
+		<circle cx="8" cy="8" r="2" />
+	</Glyph>
+);
