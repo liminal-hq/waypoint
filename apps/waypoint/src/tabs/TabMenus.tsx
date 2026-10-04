@@ -17,6 +17,7 @@ import { useWindowActions } from './windowActions';
 import { usePairActions } from './pairActions';
 import { pairOfTab } from './pairLayout';
 import { insertBefore, pairTabItems, runPairMenuItem } from './pairMenus';
+import { useConnections } from '../connections/ConnectionsContext';
 import { plusMenuItems, runPlusMenuItem, runTabMenuItem, tabMenuItems } from './tabMenuModel';
 
 interface MenuProps {
@@ -68,6 +69,7 @@ export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabS
 
 /** Opened by press-and-hold or right-click on the + button, or by the Menu key when it has focus. */
 export function PlusMenu({ closed, ...rest }: MenuProps) {
+	const connect = useConnections() !== null;
 	const actions = useTabActions();
 	const extras = useTabExtras();
 	const windows = useWindowActions();
@@ -75,7 +77,7 @@ export function PlusMenu({ closed, ...rest }: MenuProps) {
 		<ContextMenu
 			{...rest}
 			ariaLabel={t('tabs.plusMenu.label')}
-			items={plusMenuItems(closed)}
+			items={plusMenuItems(closed, connect)}
 			onSelect={(item) => runPlusMenuItem(item, actions, { closed, extras, windows })}
 		/>
 	);

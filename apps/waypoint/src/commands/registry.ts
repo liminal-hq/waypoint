@@ -60,6 +60,7 @@ import {
 import { OpenWithIcon } from '../openWith/OpenWithIcons';
 import { OverviewIcon } from '../overview/OverviewIcons';
 import { InspectorIcon, PropertiesIcon } from '../inspector/InspectorIcons';
+import { ServerIcon } from '../connections/ConnectionIcons';
 import { AddToShelfIcon, ShelfIcon } from '../shelf/ShelfIcons';
 import type { CommandActions, CommandFacts } from './commandEnv';
 import type { FileCommandId } from '../ops/fileCommands';
@@ -102,6 +103,7 @@ export type CommandId =
 	| 'groupType'
 	| 'newWindow'
 	| 'newTab'
+	| 'connectToServer'
 	| 'closeTab'
 	| 'reopenClosedTab'
 	| 'duplicateTab'
@@ -309,6 +311,14 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'file',
 		when: () => SHOWN,
 		run: (a) => a.newTab(),
+	},
+	{
+		id: 'connectToServer',
+		label: 'cmd.connectToServer',
+		icon: ServerIcon,
+		group: 'file',
+		when: (f) => (f.connections ? SHOWN : HIDDEN),
+		run: (a) => a.connectToServer(),
 	},
 	{
 		id: 'newFolder',

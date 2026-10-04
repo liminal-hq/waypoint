@@ -30,6 +30,8 @@ import type { TabActions } from './tabActions';
 import type { TabExtras } from './tabExtras';
 import { locationLabel } from './tabTitle';
 import { createElement } from 'react';
+import { ServerIcon } from '../connections/ConnectionIcons';
+import { openConnectDialog } from '../connections/connectStore';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { runWindowMoveItem, windowMoveItems } from './windowMoveMenu';
 import type { WindowActions } from './windowActions';
@@ -182,7 +184,8 @@ export function tabMenuItems(
 	];
 }
 
-export function plusMenuItems(closed: readonly ClosedTab[]): MenuItem[] {
+/** The + button's menu; `connect` adds Connect to Server… where connections are available. */
+export function plusMenuItems(closed: readonly ClosedTab[], connect = false): MenuItem[] {
 	return [
 		{
 			type: 'action',
@@ -204,6 +207,16 @@ export function plusMenuItems(closed: readonly ClosedTab[]): MenuItem[] {
 			shortcut: 'Ctrl+Shift+N',
 			icon: createElement(WindowIcon),
 		},
+		...(connect
+			? [
+					{
+						type: 'action',
+						id: 'connectToServer',
+						label: t('cmd.connectToServer'),
+						icon: createElement(ServerIcon),
+					} satisfies MenuItem,
+				]
+			: []),
 		{ type: 'separator', id: 'sep-closed' },
 		...closedTabItems(closed),
 	];
@@ -278,6 +291,7 @@ export function runPlusMenuItem(
 	if (item.id === 'newTab') actions.newTab();
 	else if (item.id === 'newTabHome') actions.newTabAtHome();
 	else if (item.id === 'newWindow') void windows.newWindow();
+	else if (item.id === 'connectToServer') openConnectDialog();
 }
 
 function runClosedItem(

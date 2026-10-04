@@ -52,6 +52,7 @@ import type { ShelfWindowClient } from '../services/shelfWindowClient';
 import type { TearoffClient } from '../services/tearoffClient';
 import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
+import { ConnectHost } from '../connections/ConnectHost';
 import { createTearCardStore } from '../tabs/tearOffCardModel';
 import { TearOffCard } from '../tabs/TearOffCard';
 import { createTearOff } from '../tabs/tearOff';
@@ -529,6 +530,7 @@ function WorkspaceBody({
 									<NoticeToast />
 									{commandDialog}
 									<BatchRenameHost api={batchRenameApi} announce={notify} />
+									<ConnectHost />
 									<DestinationHost />
 									<OpenWithHost />
 									<QuickLookHost />

@@ -23,6 +23,8 @@ import { SettingsProvider } from '../settings/SettingsContext';
 import { TabsProvider } from '../tabs/TabsContext';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
 import type { DevicesClient } from '../devices/devicesClient';
+import { ConnectionsProvider } from '../connections/ConnectionsContext';
+import type { ConnectionsClient } from '../connections/connectionsClient';
 import type { TrashClient } from '../trash/trashClient';
 import { TrashClientProvider } from '../trash/TrashClientContext';
 import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
@@ -65,6 +67,8 @@ export async function renderWorkspace(
 		trash?: TrashClient;
 		/** The volumes service behind the sidebar's Devices section. */
 		devices?: DevicesClient;
+		/** The saved connections and login states (no Network section or Connect dialog when omitted). */
+		connections?: ConnectionsClient;
 		/** The operations queue: the window follows it and answers the jobs it started (`main-1`). */
 		ops?: OpsClient;
 		/** The settings the window follows (the defaults when omitted). */
@@ -124,16 +128,18 @@ export async function renderWorkspace(
 			<PlacesClientProvider client={places}>
 				<TrashClientProvider client={options.trash}>
 					<DevicesClientProvider client={options.devices}>
-						<HomeScanProvider client={options.dirScan}>
-							{options.ops ? (
-								<OpsProvider client={options.ops} windowLabel="main-1">
-									{workspace}
-									<OpsResolverHost />
-								</OpsProvider>
-							) : (
-								workspace
-							)}
-						</HomeScanProvider>
+						<ConnectionsProvider client={options.connections}>
+							<HomeScanProvider client={options.dirScan}>
+								{options.ops ? (
+									<OpsProvider client={options.ops} windowLabel="main-1">
+										{workspace}
+										<OpsResolverHost />
+									</OpsProvider>
+								) : (
+									workspace
+								)}
+							</HomeScanProvider>
+						</ConnectionsProvider>
 					</DevicesClientProvider>
 				</TrashClientProvider>
 			</PlacesClientProvider>

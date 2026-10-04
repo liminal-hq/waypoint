@@ -16,6 +16,7 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/ParsedAddress';
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
+import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
 import type { Unsubscribe } from '../services/vfsClient';
 
 /**
@@ -38,11 +39,12 @@ export interface ConnectionsClient {
 	forgetLogin(location: Location): Promise<KeyringUnavailable | null>;
 	/** Connects now with the person's answer; the answer is sent once and never kept here. */
 	connect(location: Location, answer?: AnswerInput | null, remember?: boolean): Promise<Remembered>;
+	/** Tries a draft without saving it, and says where it opens. */
 	test(
 		draft: ConnectionDraft,
 		answer?: AnswerInput | null,
 		remember?: boolean,
-	): Promise<Remembered>;
+	): Promise<TestedConnection>;
 	disconnect(location: Location): Promise<void>;
 	state(location: Location): Promise<ConnectionStatus | null>;
 	onChanged(listener: (change: ConnectionsChanged) => void): Unsubscribe;

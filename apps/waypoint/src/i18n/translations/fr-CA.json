@@ -4539,6 +4539,676 @@
     "description": "Area: devices. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
     "source": "cf1068ce"
   },
+  "connect.title": {
+    "message": "Se connecter à un serveur",
+    "description": "Area: connect.",
+    "source": "62de0ed6"
+  },
+  "connect.titleEdit": {
+    "message": "Modifier la connexion",
+    "description": "Area: connect.",
+    "source": "33756c40"
+  },
+  "connect.description": {
+    "message": "Tapez l’adresse d’un serveur ou remplissez les champs. Tester l’essaie sans l’enregistrer; Enregistrer le garde dans la section Réseau.",
+    "description": "Area: connect.",
+    "source": "444cc5d6"
+  },
+  "connect.cancel": {
+    "message": "Annuler",
+    "description": "Area: connect.",
+    "source": "19766ed6"
+  },
+  "connect.test": {
+    "message": "Tester",
+    "description": "Area: connect. Button: try connecting to the server without saving it.",
+    "source": "532eaabd"
+  },
+  "connect.testing": {
+    "message": "Test en cours…",
+    "description": "Area: connect.",
+    "source": "407b7a04"
+  },
+  "connect.save": {
+    "message": "Enregistrer",
+    "description": "Area: connect.",
+    "source": "1509f561"
+  },
+  "connect.saveChanges": {
+    "message": "Enregistrer les modifications",
+    "description": "Area: connect.",
+    "source": "35322b5b"
+  },
+  "connect.connect": {
+    "message": "Se connecter",
+    "description": "Area: connect.",
+    "source": "1a2303ed"
+  },
+  "connect.connecting": {
+    "message": "Connexion…",
+    "description": "Area: connect.",
+    "source": "72021eb7"
+  },
+  "connect.more": {
+    "message": "Plus d’options",
+    "description": "Area: connect.",
+    "source": "bc79cdff"
+  },
+  "connect.copyName": {
+    "message": "{name} (copie)",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "83ad538b"
+  },
+  "connect.field.address": {
+    "message": "Adresse",
+    "description": "Area: connect.",
+    "source": "56ef8f20"
+  },
+  "connect.field.protocol": {
+    "message": "Protocole",
+    "description": "Area: connect.",
+    "source": "cf088334"
+  },
+  "connect.field.host": {
+    "message": "Hôte",
+    "description": "Area: connect. A server's host name or IP address.",
+    "source": "4a823118"
+  },
+  "connect.field.port": {
+    "message": "Port",
+    "description": "Area: connect.",
+    "source": "72e9a59f"
+  },
+  "connect.field.user": {
+    "message": "Utilisateur",
+    "description": "Area: connect.",
+    "source": "b512d97e"
+  },
+  "connect.field.name": {
+    "message": "Nom",
+    "description": "Area: connect.",
+    "source": "dcd1d522"
+  },
+  "connect.field.nameHint": {
+    "message": "Le nom affiché dans la section Réseau. Laissez vide pour utiliser l’adresse.",
+    "description": "Area: connect.",
+    "source": "103475d6"
+  },
+  "connect.field.auth": {
+    "message": "Se connecter avec",
+    "description": "Area: connect.",
+    "source": "11aaa142"
+  },
+  "connect.field.keyFile": {
+    "message": "Fichier de clé",
+    "description": "Area: connect.",
+    "source": "33c7999c"
+  },
+  "connect.field.keyFileHint": {
+    "message": "La clé privée, par exemple ~/.ssh/id_ed25519. Sa phrase secrète est demandée au besoin.",
+    "description": "Area: connect.",
+    "source": "f1b38adb"
+  },
+  "connect.field.password": {
+    "message": "Mot de passe",
+    "description": "Area: connect.",
+    "source": "e7cf3ef4"
+  },
+  "connect.field.passwordHint": {
+    "message": "Laissez vide pour qu’il soit demandé à la connexion. Il n’est jamais enregistré avec la connexion.",
+    "description": "Area: connect.",
+    "source": "2cc09793"
+  },
+  "connect.field.jumpHost": {
+    "message": "Hôte de rebond",
+    "description": "Area: connect. An SSH server passed through on the way to the target (ProxyJump).",
+    "source": "ce98d52f"
+  },
+  "connect.field.jumpHostHint": {
+    "message": "Un serveur SSH par lequel passer d’abord, sous la forme utilisateur@hôte:port.",
+    "description": "Area: connect.",
+    "source": "6e97954f"
+  },
+  "connect.field.startFolder": {
+    "message": "Dossier de départ",
+    "description": "Area: connect.",
+    "source": "ef05c31f"
+  },
+  "connect.field.startFolderHint": {
+    "message": "Le dossier ouvert au départ, par exemple /srv/media. Laissez vide pour le haut du serveur.",
+    "description": "Area: connect.",
+    "source": "ab9ceac3"
+  },
+  "connect.field.refresh": {
+    "message": "Actualiser toutes les (secondes)",
+    "description": "Area: connect.",
+    "source": "6daccb23"
+  },
+  "connect.field.refreshHint": {
+    "message": "Laissez vide pour actualiser seulement quand un dossier est affiché, avec F5 et après que Waypoint y écrit.",
+    "description": "Area: connect.",
+    "source": "395edb9c"
+  },
+  "connect.field.thumbnails": {
+    "message": "Afficher les aperçus des fichiers de ce serveur",
+    "description": "Area: connect.",
+    "source": "2ea0c143"
+  },
+  "connect.auth.auto": {
+    "message": "Automatiquement",
+    "description": "Area: connect. Sign-in method: the SSH agent and key files first, then ask.",
+    "source": "a15c6adf"
+  },
+  "connect.auth.autoHint": {
+    "message": "Essaie l’agent SSH et vos fichiers de clé, puis demande un mot de passe.",
+    "description": "Area: connect.",
+    "source": "78a4438c"
+  },
+  "connect.auth.password": {
+    "message": "Mot de passe",
+    "description": "Area: connect.",
+    "source": "e7cf3ef4"
+  },
+  "connect.auth.passwordHint": {
+    "message": "Se connecte avec un mot de passe, tapé ci-dessous ou demandé à la connexion.",
+    "description": "Area: connect.",
+    "source": "394dd92f"
+  },
+  "connect.auth.keyFile": {
+    "message": "Fichier de clé",
+    "description": "Area: connect.",
+    "source": "33c7999c"
+  },
+  "connect.auth.keyFileHint": {
+    "message": "Se connecte avec le fichier de clé indiqué ci-dessous.",
+    "description": "Area: connect.",
+    "source": "c696dab1"
+  },
+  "connect.address.placeholder": {
+    "message": "sftp://utilisateur@hôte/dossier",
+    "description": "Area: connect.",
+    "source": "cc3e0a54"
+  },
+  "connect.address.hint": {
+    "message": "Par exemple sftp://moi@nas.lan/srv. Les champs ci-dessous se remplissent pendant la saisie.",
+    "description": "Area: connect.",
+    "source": "30d79ebe"
+  },
+  "connect.address.invalid": {
+    "message": "Ce n’est pas une adresse de serveur.",
+    "description": "Area: connect.",
+    "source": "f72619c9"
+  },
+  "connect.address.unsupported": {
+    "message": "Waypoint ne peut pas se connecter aux serveurs {scheme} ici.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {scheme}.",
+    "source": "1a93af13"
+  },
+  "connect.address.passwordDropped": {
+    "message": "Le mot de passe de l’adresse n’a pas été gardé. Waypoint le demandera à la connexion.",
+    "description": "Area: connect.",
+    "source": "be690623"
+  },
+  "connect.saved.heading": {
+    "message": "Connexions enregistrées",
+    "description": "Area: connect.",
+    "source": "0c667864"
+  },
+  "connect.saved.new": {
+    "message": "Nouvelle connexion",
+    "description": "Area: connect.",
+    "source": "729bceee"
+  },
+  "connect.saved.empty": {
+    "message": "Aucune connexion n’est encore enregistrée.",
+    "description": "Area: connect.",
+    "source": "54aec582"
+  },
+  "connect.saved.edit": {
+    "message": "Modifier {name}",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "2313fe21"
+  },
+  "connect.saved.duplicate": {
+    "message": "Dupliquer {name}",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "fe06d16b"
+  },
+  "connect.saved.duplicateShort": {
+    "message": "Dupliquer",
+    "description": "Area: connect.",
+    "source": "02cdaabf"
+  },
+  "connect.saved.remove": {
+    "message": "Supprimer {name}",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "3cf8146e"
+  },
+  "connect.saved.removeShort": {
+    "message": "Supprimer",
+    "description": "Area: connect.",
+    "source": "e2d0a549"
+  },
+  "connect.forget.title": {
+    "message": "Supprimer « {name} »?",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "8e13216a"
+  },
+  "connect.forget.message": {
+    "message": "La connexion est retirée de la section Réseau. Les onglets ouverts sur elle restent ouverts.",
+    "description": "Area: connect.",
+    "source": "f7097bc0"
+  },
+  "connect.forget.login": {
+    "message": "Oublier aussi son mot de passe enregistré",
+    "description": "Area: connect.",
+    "source": "13f05d64"
+  },
+  "connect.forget.confirm": {
+    "message": "Supprimer",
+    "description": "Area: connect.",
+    "source": "e2d0a549"
+  },
+  "connect.remember.label": {
+    "message": "Mémoriser dans le trousseau",
+    "description": "Area: connect.",
+    "source": "c5e2885f"
+  },
+  "connect.remember.hint": {
+    "message": "Gardé seulement une fois accepté par le serveur.",
+    "description": "Area: connect.",
+    "source": "f1830e4c"
+  },
+  "connect.remember.unavailable": {
+    "message": "Il ne peut pas être mémorisé : {reason}. Il dure jusqu’à la fermeture de Waypoint.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "56d20db3"
+  },
+  "connect.remembered.kept": {
+    "message": "Le mot de passe est mémorisé dans le trousseau.",
+    "description": "Area: connect.",
+    "source": "0327fb97"
+  },
+  "connect.remembered.sessionOnly": {
+    "message": "Le mot de passe n’a pas été mémorisé : {reason}. Il dure jusqu’à la fermeture de Waypoint.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "3646093f"
+  },
+  "connect.keyring.noKeyring": {
+    "message": "aucun trousseau n’est en cours d’exécution",
+    "description": "Area: connect.",
+    "source": "6a7e0a0d"
+  },
+  "connect.keyring.locked": {
+    "message": "le trousseau est verrouillé",
+    "description": "Area: connect.",
+    "source": "1027e3ca"
+  },
+  "connect.keyring.failed": {
+    "message": "le trousseau n’a pas répondu",
+    "description": "Area: connect.",
+    "source": "9ffe6ac1"
+  },
+  "connect.result.trying": {
+    "message": "Connexion…",
+    "description": "Area: connect.",
+    "source": "72021eb7"
+  },
+  "connect.result.connected": {
+    "message": "Connecté à {server}.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {server}.",
+    "source": "bb4d8e69"
+  },
+  "connect.result.cancelled": {
+    "message": "Non connecté : annulé.",
+    "description": "Area: connect.",
+    "source": "7fee582f"
+  },
+  "connect.result.saved": {
+    "message": "{name} enregistré.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "9148a257"
+  },
+  "connect.result.updated": {
+    "message": "Modifications de {name} enregistrées.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "5b076ba3"
+  },
+  "connect.result.duplicated": {
+    "message": "Dupliqué sous le nom {name}.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "a0799a8a"
+  },
+  "connect.result.removed": {
+    "message": "{name} supprimé.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "1f9ebcfd"
+  },
+  "connect.result.removedKeyring": {
+    "message": "{name} supprimé. Son mot de passe n’a pas pu être oublié : {reason}.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words.",
+    "source": "fc25578d"
+  },
+  "connect.problem.name": {
+    "message": "Le nom est trop long ou contient des caractères qui ne peuvent pas être utilisés.",
+    "description": "Area: connect.",
+    "source": "e34bd4c0"
+  },
+  "connect.problem.scheme": {
+    "message": "Choisissez un protocole avec lequel Waypoint peut se connecter.",
+    "description": "Area: connect.",
+    "source": "c2a061d0"
+  },
+  "connect.problem.host": {
+    "message": "Tapez un nom d’hôte ou une adresse IP.",
+    "description": "Area: connect.",
+    "source": "5b7270d8"
+  },
+  "connect.problem.user": {
+    "message": "Ce nom d’utilisateur ne peut pas être utilisé.",
+    "description": "Area: connect.",
+    "source": "11014c22"
+  },
+  "connect.problem.password": {
+    "message": "Un mot de passe n’a pas sa place dans l’adresse; Waypoint le demande à la connexion.",
+    "description": "Area: connect.",
+    "source": "74289d15"
+  },
+  "connect.problem.port": {
+    "message": "Le port est un nombre de 1 à 65535.",
+    "description": "Area: connect.",
+    "source": "3475f551"
+  },
+  "connect.problem.keyFile": {
+    "message": "Indiquez le chemin complet du fichier de clé, ou un chemin commençant par ~/.",
+    "description": "Area: connect.",
+    "source": "a6c60678"
+  },
+  "connect.problem.jumpHost": {
+    "message": "Écrivez l’hôte de rebond sous la forme utilisateur@hôte:port.",
+    "description": "Area: connect.",
+    "source": "ca592d84"
+  },
+  "connect.problem.startFolder": {
+    "message": "Le dossier de départ est un chemin sur le serveur commençant par /.",
+    "description": "Area: connect.",
+    "source": "70d04aac"
+  },
+  "connect.problem.refresh": {
+    "message": "Actualisez toutes les 10 à 3600 secondes, ou laissez vide.",
+    "description": "Area: connect.",
+    "source": "9c534aa8"
+  },
+  "connect.problem.tooMany": {
+    "message": "Aucune autre connexion ne peut être enregistrée.",
+    "description": "Area: connect.",
+    "source": "09d0d5fd"
+  },
+  "connect.problem.gone": {
+    "message": "Cette connexion n’est plus enregistrée.",
+    "description": "Area: connect.",
+    "source": "c2ccccde"
+  },
+  "connect.error.nameNotResolved": {
+    "message": "Non connecté : le nom d’hôte est introuvable.",
+    "description": "Area: connect.",
+    "source": "98105ab5"
+  },
+  "connect.error.refused": {
+    "message": "Non connecté : le serveur a refusé la connexion.",
+    "description": "Area: connect.",
+    "source": "7dca0896"
+  },
+  "connect.error.noRoute": {
+    "message": "Non connecté : il n’y a pas de route vers le serveur.",
+    "description": "Area: connect.",
+    "source": "e0ad0a93"
+  },
+  "connect.error.offline": {
+    "message": "Non connecté : cet ordinateur est hors ligne.",
+    "description": "Area: connect.",
+    "source": "48014f6e"
+  },
+  "connect.error.timeout": {
+    "message": "Non connecté : le serveur n’a pas répondu à temps.",
+    "description": "Area: connect.",
+    "source": "2bdde388"
+  },
+  "connect.error.disconnected": {
+    "message": "La connexion a été perdue.",
+    "description": "Area: connect.",
+    "source": "7c6bac9a"
+  },
+  "connect.error.authRequired": {
+    "message": "Non connecté : le serveur demande de vous connecter.",
+    "description": "Area: connect.",
+    "source": "8af7408f"
+  },
+  "connect.error.authFailed": {
+    "message": "Non connecté : le serveur n’a pas accepté l’identification.",
+    "description": "Area: connect.",
+    "source": "188fa9bb"
+  },
+  "connect.error.hostKeyUnknown": {
+    "message": "Non connecté : la clé du serveur n’a pas été approuvée.",
+    "description": "Area: connect.",
+    "source": "72b3aa0e"
+  },
+  "connect.error.hostKeyChanged": {
+    "message": "Non connecté : la clé du serveur a changé.",
+    "description": "Area: connect.",
+    "source": "52b64e99"
+  },
+  "connect.error.certificate": {
+    "message": "Non connecté : le certificat du serveur n’est pas approuvé.",
+    "description": "Area: connect.",
+    "source": "d6521db1"
+  },
+  "connect.error.unsupported": {
+    "message": "Non connecté : Waypoint ne peut pas se connecter aux serveurs {what} ici.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
+    "source": "341f2ec5"
+  },
+  "connect.error.invalid": {
+    "message": "Non connecté : ce n’est pas une adresse de serveur.",
+    "description": "Area: connect.",
+    "source": "673f0784"
+  },
+  "connect.error.permissionDenied": {
+    "message": "Connecté, mais le dossier de départ ne peut pas être lu.",
+    "description": "Area: connect.",
+    "source": "a9a569e1"
+  },
+  "connect.error.notFound": {
+    "message": "Connecté, mais le dossier de départ n’existe pas.",
+    "description": "Area: connect.",
+    "source": "1f459ea8"
+  },
+  "connect.error.cancelled": {
+    "message": "Non connecté : annulé.",
+    "description": "Area: connect.",
+    "source": "7fee582f"
+  },
+  "connect.error.other": {
+    "message": "Non connecté : {detail}",
+    "description": "Area: connect. Placeholders, kept exactly as written: {detail}.",
+    "source": "fc4e7217"
+  },
+  "connect.scheme.sftp": {
+    "message": "SFTP (SSH)",
+    "description": "Area: connect.",
+    "source": "ad90c9b7"
+  },
+  "connect.scheme.smb": {
+    "message": "Partage Windows (SMB)",
+    "description": "Area: connect.",
+    "source": "12ba6a49"
+  },
+  "connect.scheme.davs": {
+    "message": "WebDAV (HTTPS)",
+    "description": "Area: connect.",
+    "source": "fa3f6715"
+  },
+  "connect.scheme.dav": {
+    "message": "WebDAV (HTTP, non chiffré)",
+    "description": "Area: connect.",
+    "source": "26519330"
+  },
+  "connect.scheme.s3": {
+    "message": "Stockage S3",
+    "description": "Area: connect.",
+    "source": "80b078ca"
+  },
+  "connect.signIn.title": {
+    "message": "Se connecter à {server}",
+    "description": "Area: connect. Placeholders, kept exactly as written: {server}.",
+    "source": "f69ee155"
+  },
+  "connect.signIn.passphraseTitle": {
+    "message": "Déverrouiller {subject}",
+    "description": "Area: connect. Placeholders, kept exactly as written: {subject}.",
+    "source": "33215114"
+  },
+  "connect.signIn.description": {
+    "message": "Le serveur demande de vous connecter.",
+    "description": "Area: connect.",
+    "source": "023242f8"
+  },
+  "connect.signIn.refused": {
+    "message": "Le serveur n’a pas accepté ces informations. Réessayez.",
+    "description": "Area: connect.",
+    "source": "7adfac1b"
+  },
+  "connect.signIn.password": {
+    "message": "Mot de passe",
+    "description": "Area: connect.",
+    "source": "e7cf3ef4"
+  },
+  "connect.signIn.passphrase": {
+    "message": "Phrase secrète",
+    "description": "Area: connect.",
+    "source": "e7611f05"
+  },
+  "connect.signIn.keyId": {
+    "message": "ID de clé d’accès",
+    "description": "Area: connect.",
+    "source": "14eb0f96"
+  },
+  "connect.signIn.secretKey": {
+    "message": "Clé secrète",
+    "description": "Area: connect.",
+    "source": "f47a99eb"
+  },
+  "connect.signIn.confirm": {
+    "message": "Se connecter",
+    "description": "Area: connect.",
+    "source": "bcc0bcc9"
+  },
+  "connect.hostKey.title": {
+    "message": "Faire confiance à {host}?",
+    "description": "Area: connect. Placeholders, kept exactly as written: {host}.",
+    "source": "2018c997"
+  },
+  "connect.hostKey.description": {
+    "message": "Waypoint ne s’est jamais connecté à ce serveur. Comparez l’empreinte avec celle que vous donne l’administrateur du serveur avant de lui faire confiance.",
+    "description": "Area: connect.",
+    "source": "71c653f7"
+  },
+  "connect.hostKey.host": {
+    "message": "Hôte",
+    "description": "Area: connect.",
+    "source": "4a823118"
+  },
+  "connect.hostKey.algorithm": {
+    "message": "Type de clé",
+    "description": "Area: connect.",
+    "source": "90bb1f8c"
+  },
+  "connect.hostKey.fingerprint": {
+    "message": "Empreinte",
+    "description": "Area: connect.",
+    "source": "ba7af0b7"
+  },
+  "connect.hostKey.once": {
+    "message": "Faire confiance une fois",
+    "description": "Area: connect.",
+    "source": "3dc0fb22"
+  },
+  "connect.hostKey.remember": {
+    "message": "Faire confiance et mémoriser",
+    "description": "Area: connect.",
+    "source": "fe4435d5"
+  },
+  "connect.hostKeyChanged.title": {
+    "message": "La clé de {host} a changé",
+    "description": "Area: connect. Placeholders, kept exactly as written: {host}.",
+    "source": "726596c3"
+  },
+  "connect.hostKeyChanged.description": {
+    "message": "Le serveur présente une clé différente de celle enregistrée pour lui.",
+    "description": "Area: connect.",
+    "source": "75e4def7"
+  },
+  "connect.hostKeyChanged.warningTitle": {
+    "message": "Quelqu’un pourrait se faire passer pour ce serveur.",
+    "description": "Area: connect.",
+    "source": "18777d45"
+  },
+  "connect.hostKeyChanged.warning": {
+    "message": "Une clé modifiée peut signifier que le serveur a été réinstallé, ou que la connexion est interceptée. Ne vous connectez pas sans que l’administrateur du serveur confirme la nouvelle empreinte.",
+    "description": "Area: connect.",
+    "source": "e744fedf"
+  },
+  "connect.hostKeyChanged.recorded": {
+    "message": "Clé enregistrée",
+    "description": "Area: connect.",
+    "source": "d99646ed"
+  },
+  "connect.hostKeyChanged.offered": {
+    "message": "Clé présentée maintenant",
+    "description": "Area: connect.",
+    "source": "83d15e0f"
+  },
+  "connect.hostKeyChanged.trust": {
+    "message": "Faire confiance à la nouvelle clé",
+    "description": "Area: connect.",
+    "source": "31797dce"
+  },
+  "connect.certificate.title": {
+    "message": "Faire confiance au certificat de {server}?",
+    "description": "Area: connect. Placeholders, kept exactly as written: {server}.",
+    "source": "c1e1e958"
+  },
+  "connect.certificate.description": {
+    "message": "Cet ordinateur ne fait pas confiance au certificat du serveur.",
+    "description": "Area: connect.",
+    "source": "7c5ab765"
+  },
+  "connect.certificate.subject": {
+    "message": "Délivré à",
+    "description": "Area: connect.",
+    "source": "17b043ed"
+  },
+  "connect.certificate.issuer": {
+    "message": "Délivré par",
+    "description": "Area: connect.",
+    "source": "5f06f118"
+  },
+  "connect.certificate.reason": {
+    "message": "Raison du refus",
+    "description": "Area: connect.",
+    "source": "ed17874e"
+  },
+  "connect.certificate.once": {
+    "message": "Faire confiance une fois",
+    "description": "Area: connect.",
+    "source": "3dc0fb22"
+  },
+  "connect.certificate.remember": {
+    "message": "Faire confiance pour cette connexion",
+    "description": "Area: connect.",
+    "source": "aec527b7"
+  },
   "menu.rename": {
     "message": "Renommer",
     "description": "Area: menu.",
@@ -8048,6 +8718,11 @@
     "message": "Nouvel onglet",
     "description": "Area: cmd.",
     "source": "b2f8fd63"
+  },
+  "cmd.connectToServer": {
+    "message": "Se connecter à un serveur…",
+    "description": "Area: cmd.",
+    "source": "661cc7f7"
   },
   "cmd.newFolder": {
     "message": "Nouveau dossier",

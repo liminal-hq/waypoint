@@ -17,6 +17,7 @@ import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/Pars
 import type { RecentServer } from '@liminal-hq/waypoint-protocol/generated/RecentServer';
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
+import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import type { Unsubscribe } from '../services/vfsClient';
 import type { ConnectionsClient, ConnectionsRefusal } from './connectionsClient';
@@ -307,9 +308,12 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		d: ConnectionDraft,
 		answer: AnswerInput | null = null,
 		remember = false,
-	): Promise<Remembered> {
+	): Promise<TestedConnection> {
 		this.record('test', d, answer?.kind ?? null, remember);
-		return this.run(keyOf(this.check(d)), answer, remember);
+		const checked = this.check(d);
+		const key = keyOf(checked);
+		const remembered = await this.run(key, answer, remember);
+		return { remembered, key, location: serverLocation(key, checked.startFolder ?? '/') };
 	}
 
 	async disconnect(location: Location): Promise<void> {
