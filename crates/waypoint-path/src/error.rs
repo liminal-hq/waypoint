@@ -5,7 +5,7 @@
 
 use thiserror::Error;
 
-/// Why a string, a URI or a native path is not a usable [`crate::FilePath`].
+/// Why a string, a URI or a native path is not a usable [`crate::VfsPath`].
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum PathError {
     #[error("the path is empty")]
@@ -24,4 +24,8 @@ pub enum PathError {
     RemoteHost(String),
     #[error("the path cannot be represented as text on this platform")]
     Unrepresentable,
+    /// A stored location held a password. Canonical URIs never do, so this is refused rather than
+    /// read; typed text has its password stripped instead.
+    #[error("a location cannot hold a password")]
+    PasswordInUri,
 }
