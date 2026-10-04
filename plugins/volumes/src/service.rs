@@ -19,6 +19,9 @@ use crate::models::{
 use crate::passphrases::SharedStore;
 use crate::space::{system_space, Measurer, SpaceFn};
 
+/// How many failed reads of a remembered passphrase are tolerated for one plugged-in volume.
+const MAX_RECALL_FAILURES: u32 = 3;
+
 /// What a host can tune, and what tests inject.
 #[derive(Clone)]
 pub struct Options {
@@ -67,6 +70,8 @@ pub(crate) struct Core {
     refreshing: tokio::sync::Mutex<()>,
     /// The containers (by UUID) a remembered passphrase was already tried on since they were plugged in, so a wrong one is not tried again and again.
     attempted: Mutex<HashSet<String>>,
+    /// How many times reading a container's remembered passphrase failed (a locked keyring, a dismissed prompt) since it was plugged in. A failed read is retried on the next change, up to `MAX_RECALL_FAILURES`, so a locked keyring is not asked in a loop.
+    recall_failures: Mutex<std::collections::HashMap<String, u32>>,
     emit: Emit,
 }
 
@@ -96,6 +101,7 @@ impl Core {
             }),
             refreshing: tokio::sync::Mutex::new(()),
             attempted: Mutex::new(HashSet::new()),
+            recall_failures: Mutex::new(std::collections::HashMap::new()),
             emit,
         })
     }
@@ -345,7 +351,7 @@ impl Core {
         Ok(forgotten)
     }
 
-    /// Unlocks, once, each locked volume that has a remembered passphrase and was not tried since it was plugged in, and mounts it as unlocking by hand does. A wrong or unreadable passphrase leaves the volume locked for the person to deal with, and is not tried again until the volume is plugged in anew.
+    /// Unlocks, once, each locked volume that has a remembered passphrase and was not tried since it was plugged in, and mounts it as unlocking by hand does. A wrong passphrase leaves the volume locked and is not tried again until the volume is plugged in anew; a passphrase that cannot be read (a locked keyring) is asked for again on later changes, up to three times.
     pub(crate) async fn auto_unlock(&self) {
         let Some(store) = &self.options.passphrases else {
             return;
@@ -358,6 +364,10 @@ impl Core {
                 .lock()
                 .expect("attempted lock")
                 .retain(|uuid| present.contains(uuid.as_str()));
+            self.recall_failures
+                .lock()
+                .expect("failures lock")
+                .retain(|uuid, _| present.contains(uuid.as_str()));
         }
         let wanted: Vec<&Volume> = volumes
             .iter()
@@ -368,26 +378,46 @@ impl Core {
         }
         for volume in wanted {
             let uuid = volume.uuid.clone().expect("filtered on a uuid");
-            if !self
+            if self
                 .attempted
                 .lock()
                 .expect("attempted lock")
-                .insert(uuid.clone())
+                .contains(&uuid)
             {
                 continue;
             }
-            let passphrase = match store.recall(uuid).await {
+            let failures = self
+                .recall_failures
+                .lock()
+                .expect("failures lock")
+                .get(&uuid)
+                .copied()
+                .unwrap_or(0);
+            if failures >= MAX_RECALL_FAILURES {
+                continue;
+            }
+            let passphrase = match store.recall(uuid.clone()).await {
                 Ok(Some(passphrase)) => passphrase,
+                // Nothing kept for this volume: nothing to try, and nothing prompted, so it stays open to a later try.
                 Ok(None) => continue,
                 Err(why) => {
+                    // A locked keyring or a dismissed prompt: try again on a later change, a few times.
+                    *self
+                        .recall_failures
+                        .lock()
+                        .expect("failures lock")
+                        .entry(uuid)
+                        .or_insert(0) += 1;
                     log::debug!(
-                        "volumes: no remembered passphrase for {}: {}",
+                        "volumes: could not read the remembered passphrase for {}: {}",
                         volume.label,
                         why.message
                     );
                     continue;
                 }
             };
+            // Only now is the volume tried: a wrong passphrase is not tried again until it is plugged in anew.
+            self.attempted.lock().expect("attempted lock").insert(uuid);
             match self.backend.unlock(volume.id.clone(), passphrase).await {
                 Ok(opened) => {
                     log::info!(
