@@ -1,0 +1,31 @@
+[package]
+name = "waypoint-provider-archive"
+version = "0.1.0"
+description = "Waypoint's archive provider: zip, tar and 7z files browsed as read-only folders"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+bzip2 = "0.6"
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
+log = { workspace = true }
+lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz"] }
+ruzstd = "0.9"
+sevenz-rust2 = { version = "0.23", default-features = false, features = ["aes256", "bzip2", "deflate"] }
+tar = { version = "0.4", default-features = false }
+tempfile = "3"
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+zip = { version = "8.6", default-features = false, features = ["aes-crypto", "bzip2", "deflate-flate2-zlib-rs", "deflate64", "lzma"] }
+
+[dev-dependencies]
+bzip2 = "0.6"
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
+lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz", "encoder"] }
+sevenz-rust2 = { version = "0.23", default-features = false, features = ["aes256", "bzip2", "deflate", "compress", "util"] }
+waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }
