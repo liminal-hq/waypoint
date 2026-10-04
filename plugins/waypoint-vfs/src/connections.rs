@@ -14,7 +14,7 @@ use tauri::{AppHandle, Emitter, Runtime, State};
 use waypoint_connections::{
     check_draft, parse_address, AnswerInput, ConnectionDraft, ConnectionEntry, ConnectionStatus,
     ConnectionSupport, ConnectionsError, ConnectionsHub, ConnectionsOverview, KeyringUnavailable,
-    ParsedAddress, Remembered, SuggestedServer,
+    ParsedAddress, Remembered, SuggestedServer, TestedConnection,
 };
 use waypoint_path::{ConnectionKey, VfsPath};
 use waypoint_protocol::{Location, VfsError};
@@ -200,16 +200,18 @@ pub async fn connect(
 }
 
 /// Tries a draft's server without saving it: connects its login (which stays open until it is
-/// idle, so saving and opening it next costs nothing) and reports as `connect` does.
+/// idle, so saving and opening it next costs nothing) and resolves with what became of "Remember"
+/// and where the draft opens; rejects as `connect` does.
 #[tauri::command]
 pub async fn test_connection(
     state: State<'_, Vfs>,
     draft: ConnectionDraft,
     answer: Option<AnswerInput>,
     remember: Option<bool>,
-) -> Result<Remembered, Error> {
+) -> Result<TestedConnection, Error> {
     let hub = hub(&state)?;
     let checked = check_draft(&draft).map_err(ConnectionsError::from)?;
+    let location = VfsPath::Remote(checked.start).to_location();
     let root = VfsPath::Remote(checked.root);
     state.remote().for_path(&root)?;
     let key = root
@@ -218,9 +220,15 @@ pub async fn test_connection(
             input: root.to_uri(),
         })?;
     let answer = answer.map(ConnectAnswer::from);
-    blocking(move || hub.connect(&key, answer, remember.unwrap_or(false), &CancelToken::new()))
-        .await?
-        .map_err(Error::from)
+    let login = key.as_str().to_owned();
+    let remembered =
+        blocking(move || hub.connect(&key, answer, remember.unwrap_or(false), &CancelToken::new()))
+            .await??;
+    Ok(TestedConnection {
+        remembered,
+        key: login,
+        location,
+    })
 }
 
 /// Closes a server's login. Listings on it fail with `Disconnected` and show Reconnect.

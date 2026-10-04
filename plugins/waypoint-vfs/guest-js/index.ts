@@ -44,6 +44,7 @@ import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated
 import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/ParsedAddress';
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
+import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
 
 const PREFIX = 'plugin:waypoint-vfs|';
 const LISTING_EVENT = 'waypoint-vfs://listing';
@@ -380,13 +381,13 @@ export function connect(
 	return cmd<Remembered>('connect', { location, answer, remember });
 }
 
-/** Tries a draft's server without saving it, as `connect` does. */
+/** Tries a draft's server without saving it, as `connect` does, and says where the draft opens. */
 export function testConnection(
 	draft: ConnectionDraft,
 	answer: AnswerInput | null = null,
 	remember = false,
-): Promise<Remembered> {
-	return cmd<Remembered>('test_connection', { draft, answer, remember });
+): Promise<TestedConnection> {
+	return cmd<TestedConnection>('test_connection', { draft, answer, remember });
 }
 
 /** Closes a server's login; its listings show the disconnected state. */
@@ -425,6 +426,7 @@ export type {
 	ParsedAddress,
 	Remembered,
 	SuggestedServer,
+	TestedConnection,
 	DirScanEvent,
 	DirScanOptions,
 	DirScanResult,

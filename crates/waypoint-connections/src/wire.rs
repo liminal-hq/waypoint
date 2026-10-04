@@ -10,7 +10,7 @@ use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{ConnectAnswer, Credential, Secret};
 
 use crate::credentials::{KeyringUnavailable, SecretKind, SecretStore};
-use crate::manager::ConnectionStatus;
+use crate::manager::{ConnectionStatus, Remembered};
 use crate::model::{check_draft, host_text, ConnectionDraft};
 use crate::store::ConnectionsSnapshot;
 
@@ -131,6 +131,18 @@ impl ConnectionSupport {
 pub struct ConnectionsOverview {
     pub connections: ConnectionsSnapshot,
     pub statuses: Vec<ConnectionStatus>,
+}
+
+/// What a test of a draft found: what became of "Remember", the login and where the draft opens,
+/// so the dialog can open it without building an address.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct TestedConnection {
+    pub remembered: Remembered,
+    pub key: String,
+    /// The start folder, or the server's root.
+    pub location: Location,
 }
 
 /// A host from `~/.ssh/config` the Connect dialog offers.

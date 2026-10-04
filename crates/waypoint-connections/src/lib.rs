@@ -40,5 +40,5 @@ pub use store::{
 };
 pub use wire::{
     parse_address, AnswerInput, ConnectionSupport, ConnectionsOverview, NoKeyring, ParsedAddress,
-    SuggestedServer,
+    SuggestedServer, TestedConnection,
 };
