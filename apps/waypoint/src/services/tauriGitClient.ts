@@ -31,6 +31,7 @@ export function createTauriGitClient(): GitClient {
 		watch: (location) => git.gitWatch(location),
 		unwatch: (id) => git.gitUnwatch(id),
 		badges: (locations) => git.gitBadges(locations),
+		pathInfo: (location, limit) => git.gitPathInfo(location, limit),
 		onChanged: (listener) => subscribe(git.onGitChanged(listener)),
 	};
 }

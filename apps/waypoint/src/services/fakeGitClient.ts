@@ -5,7 +5,7 @@
 
 import type { GitSummary } from '@liminal-hq/waypoint-protocol/generated/GitSummary';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
-import type { GitBadge, GitChanged, GitClient, GitWatch } from './gitClient';
+import type { GitBadge, GitChanged, GitClient, GitPathInfo, GitWatch } from './gitClient';
 import type { Unsubscribe } from './vfsClient';
 
 /** A clean repository on `main` with no upstream: what a test changes from. */
@@ -37,6 +37,10 @@ export interface FakeRepository {
 export interface FakeGitClient extends GitClient {
 	/** The watches now open, by id. */
 	readonly watching: ReadonlyMap<number, Location>;
+	/** What `pathInfo` answers, by the location's uri; a path with none has no repository. */
+	readonly pathInfos: Map<string, GitPathInfo>;
+	/** Every `pathInfo` that was asked, in order. */
+	readonly pathInfoAsked: Location[];
 	/** Every `watch` that was asked, in order, whether it found a repository or not. */
 	readonly watched: Location[];
 	/** Changes a repository as the plugin would: its summary is replaced and every watch of it is told. */
@@ -56,6 +60,8 @@ export function createFakeGitClient(
 	const watching = new Map<number, Location>();
 	const revisions = new Map<number, number>();
 	const watched: Location[] = [];
+	const pathInfos = new Map<string, GitPathInfo>();
+	const pathInfoAsked: Location[] = [];
 	const listeners = new Set<(changed: GitChanged) => void>();
 	let hold: Promise<void> | null = null;
 
@@ -67,6 +73,12 @@ export function createFakeGitClient(
 	return {
 		watching,
 		watched,
+		pathInfos,
+		pathInfoAsked,
+		async pathInfo(location) {
+			pathInfoAsked.push(location);
+			return pathInfos.get(location.uri) ?? null;
+		},
 		async watch(location) {
 			watched.push(location);
 			if (hold) await hold;

@@ -109,6 +109,49 @@ pub struct GitBadge {
     pub conflicted: u32,
 }
 
+/// One commit, as the Inspector lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct GitCommit {
+    /// The full id in hexadecimal.
+    pub id: String,
+    /// The abbreviated id.
+    pub short: String,
+    /// The first line of the message.
+    pub summary: String,
+    pub author: String,
+    /// When it was committed, in milliseconds since the Unix epoch.
+    #[ts(type = "number")]
+    pub time_ms: i64,
+}
+
+/// How much changed under a path since `HEAD`, as `git diff --stat HEAD` counts it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct GitDiffStat {
+    pub files: u32,
+    pub added: u32,
+    pub removed: u32,
+    /// Files whose content is not text: counted in `files`, not in the lines.
+    pub binary: u32,
+    /// Some files were not read (too many, or too large), so the counts are a floor.
+    pub partial: bool,
+}
+
+/// What the Inspector's Git tab shows about one file or folder, read once the selection settles.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct GitPathInfo {
+    /// The newest commits that changed the path, newest first.
+    pub commits: Vec<GitCommit>,
+    /// The search stopped before it reached the oldest, so older ones may exist.
+    pub truncated: bool,
+    pub diff: GitDiffStat,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

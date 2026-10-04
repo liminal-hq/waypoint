@@ -12,7 +12,7 @@ export const DEFAULT_WIDTH = 320;
 export const MIN_WIDTH = 240;
 export const MAX_WIDTH = 640;
 
-export type InspectorTab = 'preview' | 'properties';
+export type InspectorTab = 'preview' | 'properties' | 'git';
 
 export interface InspectorState {
 	open: boolean;

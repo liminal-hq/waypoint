@@ -48,6 +48,11 @@ export function GitProvider({ client, children }: GitProviderProps) {
 	return <GitContext.Provider value={handle}>{children}</GitContext.Provider>;
 }
 
+/** The window's Git service, or `null` without one. */
+export function useGitClient(): GitClient | null {
+	return useContext(GitContext)?.client ?? null;
+}
+
 /** Whether the Settings switch has the Git status on. */
 export function useGitEnabled(): boolean {
 	return useSettings(selectGitDecorations);

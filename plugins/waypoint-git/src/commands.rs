@@ -8,7 +8,10 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{Emitter, Runtime, State, Window};
 use waypoint_path::VfsPath;
-use waypoint_protocol::{GitBadge, GitChanged, GitWatch, Location, PluginStatus, VfsError};
+use waypoint_protocol::{
+    GitBadge, GitChanged, GitCommit, GitDiffStat, GitPathInfo, GitWatch, Location, PluginStatus,
+    VfsError,
+};
 use waypoint_provider_git::{TrackEvent, TrackSink};
 
 use crate::error::Error;
@@ -173,4 +176,65 @@ pub async fn git_badges(
     })
     .await
     .map_err(|error| Error::Internal(error.to_string()))
+}
+
+/// The newest commits that changed a file or folder and how much of it has changed since `HEAD`,
+/// for the Inspector's Git tab. `None` when `location` is not in a working tree (or not local) or
+/// Git is off. The path is read on a blocking thread and the search is bounded
+/// (`waypoint_provider_git::SCAN_CAP` commits, `DIFF_FILE_CAP` files).
+#[tauri::command]
+pub async fn git_path_info(
+    state: State<'_, Git>,
+    location: Location,
+    limit: Option<u32>,
+) -> Result<Option<GitPathInfo>, Error> {
+    if !state.enabled() {
+        return Ok(None);
+    }
+    let Some(folder) = local_folder(&location)? else {
+        return Ok(None);
+    };
+    let Some(root) = state.service.repository_of(&folder) else {
+        return Ok(None);
+    };
+    let source = state.badge_source();
+    let limit = limit.unwrap_or(5).clamp(1, 50) as usize;
+    tauri::async_runtime::spawn_blocking(move || {
+        let rel = folder
+            .strip_prefix(&root)
+            .map(waypoint_provider_git::rel_bytes)
+            .unwrap_or_default();
+        let cancel = waypoint_vfs::CancelToken::new();
+        let found = waypoint_provider_git::history(&root, &rel, limit, &cancel)
+            .map_err(|error| Error::from(crate::state::failure(&location, &error)))?;
+        let diff = match source.status(&root) {
+            Some(status) => {
+                waypoint_provider_git::diff_stat(&root, &status, &rel, &cancel).unwrap_or_default()
+            }
+            None => Default::default(),
+        };
+        Ok(Some(GitPathInfo {
+            commits: found
+                .commits
+                .into_iter()
+                .map(|c| GitCommit {
+                    short: c.id.chars().take(8).collect(),
+                    id: c.id,
+                    summary: c.summary,
+                    author: c.author,
+                    time_ms: c.time_ms,
+                })
+                .collect(),
+            truncated: found.truncated,
+            diff: GitDiffStat {
+                files: diff.files,
+                added: diff.added,
+                removed: diff.removed,
+                binary: diff.binary,
+                partial: diff.partial,
+            },
+        }))
+    })
+    .await
+    .map_err(|error| Error::Internal(error.to_string()))?
 }

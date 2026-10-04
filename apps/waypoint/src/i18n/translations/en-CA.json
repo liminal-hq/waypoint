@@ -8686,5 +8686,101 @@
   "services.name.waypoint-git": {
     "message": "Git status",
     "description": "Area: services."
+  },
+  "inspector.tab.git": {
+    "message": "Git",
+    "description": "Area: inspector. A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”."
+  },
+  "git.pane.repository": {
+    "message": "Repository",
+    "description": "Area: git."
+  },
+  "git.pane.branch": {
+    "message": "Branch",
+    "description": "Area: git."
+  },
+  "git.pane.upstream": {
+    "message": "Upstream",
+    "description": "Area: git."
+  },
+  "git.pane.changes": {
+    "message": "Changes",
+    "description": "Area: git."
+  },
+  "git.pane.operation": {
+    "message": "In progress",
+    "description": "Area: git."
+  },
+  "git.pane.item": {
+    "message": "Selected item",
+    "description": "Area: git."
+  },
+  "git.pane.status": {
+    "message": "Status",
+    "description": "Area: git."
+  },
+  "git.pane.clean": {
+    "message": "No changes",
+    "description": "Area: git."
+  },
+  "git.pane.sinceCommit": {
+    "message": "Since the last commit",
+    "description": "Area: git."
+  },
+  "git.pane.diff.files.one": {
+    "message": "{count} file changed",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.files.other."
+  },
+  "git.pane.diff.files.other": {
+    "message": "{count} files changed",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.files.one."
+  },
+  "git.pane.diff.lines": {
+    "message": "+{added} −{removed} lines",
+    "description": "Area: git. Placeholders, kept exactly as written: {added}; {removed}. {added} lines added and {removed} lines removed, as in a diff summary."
+  },
+  "git.pane.diff.binary.one": {
+    "message": "{count} binary file",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.binary.other."
+  },
+  "git.pane.diff.binary.other": {
+    "message": "{count} binary files",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.binary.one."
+  },
+  "git.pane.diff.partial": {
+    "message": "Some files were not read, so these counts are a minimum.",
+    "description": "Area: git."
+  },
+  "git.pane.commits": {
+    "message": "Recent commits",
+    "description": "Area: git."
+  },
+  "git.pane.loading": {
+    "message": "Reading the history…",
+    "description": "Area: git."
+  },
+  "git.pane.noCommits": {
+    "message": "No commit has changed this yet.",
+    "description": "Area: git."
+  },
+  "git.pane.truncated": {
+    "message": "Older commits may exist: only the most recent ones were searched.",
+    "description": "Area: git."
+  },
+  "git.pane.failed": {
+    "message": "Could not read the history.",
+    "description": "Area: git."
+  },
+  "git.pane.commit.by": {
+    "message": "{author}, {date}",
+    "description": "Area: git. Placeholders, kept exactly as written: {author}; {date}. {author} is a person’s name and {date} the date and time of a commit."
+  },
+  "git.pane.many": {
+    "message": "The history shows for one item at a time. Select a single item to see it.",
+    "description": "Area: git."
+  },
+  "git.pane.repositoryName": {
+    "message": "Git repository {name}",
+    "description": "Area: git. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
   }
 }

@@ -4765,6 +4765,60 @@ const messages: Catalogue = {
 		'Dans un dossier d’une copie de travail Git, signale les fichiers et les dossiers modifiés, ajoute une colonne Git à la liste et affiche la branche dans la barre d’état et dans l’Inspecteur. Waypoint ne fait que lire le dépôt et ne le modifie jamais. Désactivé, Waypoint ne lit rien des dépôts.',
 	// source: 591239c6
 	'services.name.waypoint-git': 'État Git',
+	// source: b949c922
+	'inspector.tab.git': 'Git',
+	// source: 13d6ff07
+	'git.pane.repository': 'Dépôt',
+	// source: 52656e81
+	'git.pane.branch': 'Branche',
+	// source: 94adc696
+	'git.pane.upstream': 'Branche amont',
+	// source: bbd4b6a8
+	'git.pane.changes': 'Modifications',
+	// source: c1f88e9d
+	'git.pane.operation': 'En cours',
+	// source: abb8fd53
+	'git.pane.item': 'Élément sélectionné',
+	// source: 920e413c
+	'git.pane.status': 'État',
+	// source: c699aa00
+	'git.pane.clean': 'Aucune modification',
+	// source: 924fd54d
+	'git.pane.sinceCommit': 'Depuis le dernier commit',
+	// source: 9c46d354
+	'git.pane.diff.files.one': '{count} fichier modifié',
+	// source: 959e8066
+	'git.pane.diff.files.many': '{count} de fichiers modifiés',
+	// source: 959e8066
+	'git.pane.diff.files.other': '{count} fichiers modifiés',
+	// source: aeb400b3
+	'git.pane.diff.lines': '+{added} −{removed} lignes',
+	// source: d51a439b
+	'git.pane.diff.binary.one': '{count} fichier binaire',
+	// source: f3603cb4
+	'git.pane.diff.binary.many': '{count} de fichiers binaires',
+	// source: f3603cb4
+	'git.pane.diff.binary.other': '{count} fichiers binaires',
+	// source: 29e3ab3d
+	'git.pane.diff.partial': 'Certains fichiers n’ont pas été lus : ces nombres sont des minimums.',
+	// source: 24a1708d
+	'git.pane.commits': 'Commits récents',
+	// source: c435448b
+	'git.pane.loading': 'Lecture de l’historique…',
+	// source: d267a85e
+	'git.pane.noCommits': 'Aucun commit n’a encore modifié cet élément.',
+	// source: 3e22d058
+	'git.pane.truncated':
+		'Il peut exister des commits plus anciens : seuls les plus récents ont été examinés.',
+	// source: 52df9b88
+	'git.pane.failed': 'Impossible de lire l’historique.',
+	// source: dd689975
+	'git.pane.commit.by': '{author}, {date}',
+	// source: b003a54b
+	'git.pane.many':
+		'L’historique s’affiche pour un seul élément à la fois. Sélectionnez un élément pour le voir.',
+	// source: 46053dfe
+	'git.pane.repositoryName': 'Dépôt Git {name}',
 };
 
 export default messages;

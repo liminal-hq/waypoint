@@ -3,7 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-const COMMANDS: &[&str] = &["get_status", "git_watch", "git_unwatch", "git_badges"];
+const COMMANDS: &[&str] = &[
+    "get_status",
+    "git_watch",
+    "git_unwatch",
+    "git_badges",
+    "git_path_info",
+];
 
 fn main() {
     tauri_plugin::Builder::new(COMMANDS)

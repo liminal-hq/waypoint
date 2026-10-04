@@ -33,6 +33,13 @@ var __TAURI_PLUGIN_WAYPOINT_GIT__ = (function (exports, core, event) {
     function gitBadges(locations) {
         return cmd('git_badges', { locations });
     }
+    /**
+     * The newest commits that changed a file or folder and how much of it changed since `HEAD`, or `null`
+     * outside a working tree. Read it once a selection settles: it walks history.
+     */
+    function gitPathInfo(location, limit) {
+        return cmd('git_path_info', { location, limit });
+    }
     /** Hears every change of the repositories this window watches. */
     function onGitChanged(listener) {
         return event.listen(GIT_EVENT, (e) => listener(e.payload));
@@ -41,6 +48,7 @@ var __TAURI_PLUGIN_WAYPOINT_GIT__ = (function (exports, core, event) {
     exports.GIT_EVENT = GIT_EVENT;
     exports.getStatus = getStatus;
     exports.gitBadges = gitBadges;
+    exports.gitPathInfo = gitPathInfo;
     exports.gitUnwatch = gitUnwatch;
     exports.gitWatch = gitWatch;
     exports.onGitChanged = onGitChanged;

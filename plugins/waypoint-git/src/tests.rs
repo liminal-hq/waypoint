@@ -394,3 +394,55 @@ fn a_folder_that_is_not_in_a_repository_is_not_decorated_and_neither_is_a_remote
     let revision = VfsPath::from_uri("git+file:///tmp/x!/?rev=main").unwrap();
     assert!(git.overlay().attach(&revision, sink).is_none());
 }
+
+#[test]
+fn path_info_lists_the_commits_that_changed_a_path_and_counts_what_changed_since() {
+    let Some(dir) = repo() else { return };
+    std::fs::write(dir.path().join("a.txt"), "a\nmore\n").unwrap();
+    git(dir.path(), &["add", "-A"]);
+    git(dir.path(), &["commit", "-q", "-m", "grow a"]);
+    std::fs::write(dir.path().join("a.txt"), "a\nmore\nand more\n").unwrap();
+    let app = app();
+    let info = tauri::async_runtime::block_on(commands::git_path_info(
+        app.state::<Git>(),
+        location(&dir.path().join("a.txt")),
+        Some(5),
+    ))
+    .unwrap()
+    .expect("a repository");
+    let summaries: Vec<&str> = info.commits.iter().map(|c| c.summary.as_str()).collect();
+    assert_eq!(summaries, ["grow a", "base"]);
+    assert_eq!(info.commits[0].short.len(), 8);
+    assert_eq!(info.commits[0].author, "Ada");
+    assert!(!info.truncated);
+    assert_eq!(
+        (info.diff.files, info.diff.added, info.diff.removed),
+        (1, 1, 0)
+    );
+    // A folder asks the same question of everything in it, and the limit holds.
+    let folder = tauri::async_runtime::block_on(commands::git_path_info(
+        app.state::<Git>(),
+        location(dir.path()),
+        Some(1),
+    ))
+    .unwrap()
+    .unwrap();
+    assert_eq!(folder.commits.len(), 1);
+    // Outside a repository, or with Git off, there is nothing.
+    let elsewhere = tempfile::tempdir().unwrap();
+    assert!(tauri::async_runtime::block_on(commands::git_path_info(
+        app.state::<Git>(),
+        location(elsewhere.path()),
+        None
+    ))
+    .unwrap()
+    .is_none());
+    app.state::<Git>().set_enabled(false);
+    assert!(tauri::async_runtime::block_on(commands::git_path_info(
+        app.state::<Git>(),
+        location(dir.path()),
+        None
+    ))
+    .unwrap()
+    .is_none());
+}

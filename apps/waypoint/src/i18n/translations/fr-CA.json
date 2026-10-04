@@ -11243,5 +11243,135 @@
     "message": "État Git",
     "description": "Area: services.",
     "source": "591239c6"
+  },
+  "inspector.tab.git": {
+    "message": "Git",
+    "description": "Area: inspector. A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.",
+    "source": "b949c922"
+  },
+  "git.pane.repository": {
+    "message": "Dépôt",
+    "description": "Area: git.",
+    "source": "13d6ff07"
+  },
+  "git.pane.branch": {
+    "message": "Branche",
+    "description": "Area: git.",
+    "source": "52656e81"
+  },
+  "git.pane.upstream": {
+    "message": "Branche amont",
+    "description": "Area: git.",
+    "source": "94adc696"
+  },
+  "git.pane.changes": {
+    "message": "Modifications",
+    "description": "Area: git.",
+    "source": "bbd4b6a8"
+  },
+  "git.pane.operation": {
+    "message": "En cours",
+    "description": "Area: git.",
+    "source": "c1f88e9d"
+  },
+  "git.pane.item": {
+    "message": "Élément sélectionné",
+    "description": "Area: git.",
+    "source": "abb8fd53"
+  },
+  "git.pane.status": {
+    "message": "État",
+    "description": "Area: git.",
+    "source": "920e413c"
+  },
+  "git.pane.clean": {
+    "message": "Aucune modification",
+    "description": "Area: git.",
+    "source": "c699aa00"
+  },
+  "git.pane.sinceCommit": {
+    "message": "Depuis le dernier commit",
+    "description": "Area: git.",
+    "source": "924fd54d"
+  },
+  "git.pane.diff.files.one": {
+    "message": "{count} fichier modifié",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.files.many, git.pane.diff.files.other.",
+    "source": "9c46d354"
+  },
+  "git.pane.diff.files.many": {
+    "message": "{count} de fichiers modifiés",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.files.one, git.pane.diff.files.other.",
+    "source": "959e8066"
+  },
+  "git.pane.diff.files.other": {
+    "message": "{count} fichiers modifiés",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.files.one, git.pane.diff.files.many.",
+    "source": "959e8066"
+  },
+  "git.pane.diff.lines": {
+    "message": "+{added} −{removed} lignes",
+    "description": "Area: git. Placeholders, kept exactly as written: {added}; {removed}. {added} lines added and {removed} lines removed, as in a diff summary.",
+    "source": "aeb400b3"
+  },
+  "git.pane.diff.binary.one": {
+    "message": "{count} fichier binaire",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.binary.many, git.pane.diff.binary.other.",
+    "source": "d51a439b"
+  },
+  "git.pane.diff.binary.many": {
+    "message": "{count} de fichiers binaires",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.binary.one, git.pane.diff.binary.other.",
+    "source": "f3603cb4"
+  },
+  "git.pane.diff.binary.other": {
+    "message": "{count} fichiers binaires",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.pane.diff.binary.one, git.pane.diff.binary.many.",
+    "source": "f3603cb4"
+  },
+  "git.pane.diff.partial": {
+    "message": "Certains fichiers n’ont pas été lus : ces nombres sont des minimums.",
+    "description": "Area: git.",
+    "source": "29e3ab3d"
+  },
+  "git.pane.commits": {
+    "message": "Commits récents",
+    "description": "Area: git.",
+    "source": "24a1708d"
+  },
+  "git.pane.loading": {
+    "message": "Lecture de l’historique…",
+    "description": "Area: git.",
+    "source": "c435448b"
+  },
+  "git.pane.noCommits": {
+    "message": "Aucun commit n’a encore modifié cet élément.",
+    "description": "Area: git.",
+    "source": "d267a85e"
+  },
+  "git.pane.truncated": {
+    "message": "Il peut exister des commits plus anciens : seuls les plus récents ont été examinés.",
+    "description": "Area: git.",
+    "source": "3e22d058"
+  },
+  "git.pane.failed": {
+    "message": "Impossible de lire l’historique.",
+    "description": "Area: git.",
+    "source": "52df9b88"
+  },
+  "git.pane.commit.by": {
+    "message": "{author}, {date}",
+    "description": "Area: git. Placeholders, kept exactly as written: {author}; {date}. {author} is a person’s name and {date} the date and time of a commit.",
+    "source": "dd689975"
+  },
+  "git.pane.many": {
+    "message": "L’historique s’affiche pour un seul élément à la fois. Sélectionnez un élément pour le voir.",
+    "description": "Area: git.",
+    "source": "b003a54b"
+  },
+  "git.pane.repositoryName": {
+    "message": "Dépôt Git {name}",
+    "description": "Area: git. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "46053dfe"
   }
 }

@@ -2467,6 +2467,34 @@ export const enMessages = {
 	'settings.general.gitDecorations.description':
 		'In a folder of a Git working tree, mark changed files and folders, add a Git column to the list, and show the branch in the status bar and the Inspector. Waypoint only reads the repository and never changes it. Off, Waypoint reads nothing from repositories.',
 	'services.name.waypoint-git': 'Git status',
+
+	// translator: A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.
+	'inspector.tab.git': 'Git',
+	'git.pane.repository': 'Repository',
+	'git.pane.branch': 'Branch',
+	'git.pane.upstream': 'Upstream',
+	'git.pane.changes': 'Changes',
+	'git.pane.operation': 'In progress',
+	'git.pane.item': 'Selected item',
+	'git.pane.status': 'Status',
+	'git.pane.clean': 'No changes',
+	'git.pane.sinceCommit': 'Since the last commit',
+	'git.pane.diff.files.one': '{count} file changed',
+	'git.pane.diff.files.other': '{count} files changed',
+	// translator: {added} lines added and {removed} lines removed, as in a diff summary.
+	'git.pane.diff.lines': '+{added} −{removed} lines',
+	'git.pane.diff.binary.one': '{count} binary file',
+	'git.pane.diff.binary.other': '{count} binary files',
+	'git.pane.diff.partial': 'Some files were not read, so these counts are a minimum.',
+	'git.pane.commits': 'Recent commits',
+	'git.pane.loading': 'Reading the history…',
+	'git.pane.noCommits': 'No commit has changed this yet.',
+	'git.pane.truncated': 'Older commits may exist: only the most recent ones were searched.',
+	'git.pane.failed': 'Could not read the history.',
+	// translator: {author} is a person’s name and {date} the date and time of a commit.
+	'git.pane.commit.by': '{author}, {date}',
+	'git.pane.many': 'The history shows for one item at a time. Select a single item to see it.',
+	'git.pane.repositoryName': 'Git repository {name}',
 } as const;
 
 export type MessageId = keyof typeof enMessages;

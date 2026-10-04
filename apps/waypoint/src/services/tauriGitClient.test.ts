@@ -54,10 +54,12 @@ describe('createTauriGitClient', () => {
 		await client.watch(HOME);
 		await client.unwatch(4);
 		await client.badges([HOME]);
+		await client.pathInfo(HOME, 5);
 		expect(calls).toEqual([
 			['git_watch', { location: HOME }],
 			['git_unwatch', { id: 4 }],
 			['git_badges', { locations: [HOME] }],
+			['git_path_info', { location: HOME, limit: 5 }],
 		]);
 	});
 
@@ -91,6 +93,7 @@ describe('the capabilities for Git', () => {
 		await client.watch(HOME);
 		await client.unwatch(1);
 		await client.badges([]);
+		await client.pathInfo(HOME);
 		for (const [command] of calls) {
 			expect(allowed.has(command.replaceAll('_', '-')), command).toBe(true);
 		}

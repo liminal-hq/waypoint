@@ -28,6 +28,8 @@ import {
 } from './inspectorStore';
 import { baseName } from './inspectorModel';
 import { OpenInWindowButton } from './OpenInWindowButton';
+import { useRepository } from '../git/GitContext';
+import { GitPane } from './GitPane';
 import { PropertiesPane } from './PropertiesPane';
 import { useEntryDetails } from './useEntryDetails';
 import { useInspectorSubject, type InspectorSubject } from './useInspectorSubject';
@@ -40,7 +42,7 @@ import styles from './InspectorPanel.module.css';
 const DIVIDER_STEP = 16;
 const DIVIDER_BIG_STEP = 64;
 
-const TABS: ReadonlyArray<InspectorTab> = ['preview', 'properties'];
+const BASE_TABS: ReadonlyArray<InspectorTab> = ['preview', 'properties'];
 
 /**
  * The docked Inspector, shown while the window's store says it is open. It follows the active
@@ -58,7 +60,11 @@ export function InspectorPanel({
 	location: Location | undefined;
 }) {
 	const store = useInspectorStore();
-	const tab = useStore(store, (s) => s.tab);
+	const chosen = useStore(store, (s) => s.tab);
+	// The Git tab exists only in a folder of a working tree; where it does not, the panel is on another tab.
+	const repository = useRepository(location);
+	const TABS: ReadonlyArray<InspectorTab> = repository ? [...BASE_TABS, 'git'] : BASE_TABS;
+	const tab: InspectorTab = TABS.includes(chosen) ? chosen : 'preview';
 	const width = useStore(store, (s) => s.width);
 	const idBase = useId();
 	const tabRefs = useRef(new Map<InspectorTab, HTMLButtonElement>());
@@ -118,7 +124,7 @@ export function InspectorPanel({
 							tabIndex={tab === which ? 0 : -1}
 							onClick={() => store.getState().setTab(which)}
 						>
-							{t(which === 'preview' ? 'inspector.tab.preview' : 'inspector.tab.properties')}
+							{t(TAB_LABELS[which])}
 						</button>
 					))}
 				</div>
@@ -144,6 +150,8 @@ export function InspectorPanel({
 					{tab === which &&
 						(which === 'preview' ? (
 							<PreviewBody subject={subject} session={session} client={client} details={details} />
+						) : which === 'git' ? (
+							repository && <GitPane subject={subject} repository={repository} />
 						) : (
 							<>
 								<PropertiesPane
@@ -163,6 +171,12 @@ export function InspectorPanel({
 		</aside>
 	);
 }
+
+const TAB_LABELS = {
+	preview: 'inspector.tab.preview',
+	properties: 'inspector.tab.properties',
+	git: 'inspector.tab.git',
+} as const;
 
 /** The Preview tab for each kind of subject. */
 function PreviewBody({

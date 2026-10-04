@@ -49,6 +49,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::git_watch,
             commands::git_unwatch,
             commands::git_badges,
+            commands::git_path_info,
         ])
         .setup(|app, _api| {
             app.manage(Git::default());

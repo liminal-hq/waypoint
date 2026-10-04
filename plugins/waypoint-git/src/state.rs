@@ -193,3 +193,17 @@ impl BadgeSource {
         Some(status)
     }
 }
+
+/// A failure to read a repository, as the typed error the page already knows.
+pub(crate) fn failure(
+    location: &waypoint_protocol::Location,
+    error: &waypoint_provider_git::StatusError,
+) -> waypoint_protocol::VfsError {
+    match error {
+        waypoint_provider_git::StatusError::Cancelled => waypoint_protocol::VfsError::Cancelled,
+        other => waypoint_protocol::VfsError::Io {
+            message: other.to_string(),
+            location: Some(location.clone()),
+        },
+    }
+}

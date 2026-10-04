@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { GitBadge } from '@liminal-hq/waypoint-protocol/generated/GitBadge';
 import type { GitChanged } from '@liminal-hq/waypoint-protocol/generated/GitChanged';
+import type { GitPathInfo } from '@liminal-hq/waypoint-protocol/generated/GitPathInfo';
 import type { GitWatch } from '@liminal-hq/waypoint-protocol/generated/GitWatch';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
@@ -43,6 +44,14 @@ export function gitUnwatch(id: number): Promise<void> {
 /** How many paths changed inside each of `locations` that is a folder in a working tree; the others have no entry. */
 export function gitBadges(locations: Location[]): Promise<GitBadge[]> {
 	return cmd<GitBadge[]>('git_badges', { locations });
+}
+
+/**
+ * The newest commits that changed a file or folder and how much of it changed since `HEAD`, or `null`
+ * outside a working tree. Read it once a selection settles: it walks history.
+ */
+export function gitPathInfo(location: Location, limit?: number): Promise<GitPathInfo | null> {
+	return cmd<GitPathInfo | null>('git_path_info', { location, limit });
 }
 
 /** Hears every change of the repositories this window watches. */
