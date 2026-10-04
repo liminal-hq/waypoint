@@ -80,6 +80,9 @@ pub struct IntegrationAvailability {
     /// Owning `org.freedesktop.FileManager1`, which only Linux has.
     pub file_manager_service: Availability,
     pub global_shortcut: Availability,
+    /// Keeping the passphrase of an encrypted volume in the keyring: whether a keyring answers
+    /// and may be asked. Asked of the `secrets` plugin, not of the portal or the desktop service.
+    pub remember_passphrases: Availability,
 }
 
 #[cfg(test)]

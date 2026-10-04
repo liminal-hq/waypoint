@@ -470,6 +470,8 @@ pub struct IntegrationSettings {
     /// The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none means the
     /// default (`DEFAULT_ACCELERATOR`).
     pub global_shortcut: Option<String>,
+    /// Offer to keep the passphrase of an encrypted volume in the system keyring when it is unlocked, and unlock a remembered volume by itself when it is plugged in. Off until it is enabled (D118, D153); turning it off keeps what is in the keyring but stops using it.
+    pub remember_volume_passphrases: bool,
 }
 
 impl Default for IntegrationSettings {
@@ -482,6 +484,7 @@ impl Default for IntegrationSettings {
             default_file_manager: false,
             global_shortcut_enabled: false,
             global_shortcut: None,
+            remember_volume_passphrases: false,
         }
     }
 }
@@ -856,6 +859,7 @@ mod tests {
         assert!(!s.integrations.launcher_progress);
         assert!(!s.integrations.prevent_sleep);
         assert!(!s.integrations.default_file_manager);
+        assert!(!s.integrations.remember_volume_passphrases);
         assert!(!s.integrations.global_shortcut_enabled);
         assert_eq!(s.integrations.global_shortcut, None);
         assert_eq!(s.validate(), Ok(()));
@@ -978,6 +982,20 @@ mod tests {
         assert_eq!(old.locale, LocaleSettings::default());
         assert_eq!(old.previews, PreviewSettings::default());
         assert_eq!(old.integrations, IntegrationSettings::default());
+    }
+
+    #[test]
+    fn an_integrations_document_without_the_passphrase_switch_has_it_off() {
+        let old: Settings =
+            serde_json::from_str(r#"{"integrations":{"notifications":true}}"#).unwrap();
+        assert!(old.integrations.notifications);
+        assert!(!old.integrations.remember_volume_passphrases);
+        let on: Settings =
+            serde_json::from_str(r#"{"integrations":{"rememberVolumePassphrases":true}}"#).unwrap();
+        assert!(on.integrations.remember_volume_passphrases);
+        assert_eq!(on.validate(), Ok(()));
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        assert_eq!(json["integrations"]["rememberVolumePassphrases"], false);
     }
 
     #[test]

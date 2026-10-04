@@ -16,7 +16,8 @@ export function createTauriDevicesClient(): DevicesClient {
 		mount: (id) => volumes.mount(id),
 		unmount: (id) => volumes.unmount(id),
 		eject: (id) => volumes.eject(id),
-		unlock: (id, passphrase) => volumes.unlock(id, passphrase),
+		unlock: (id, passphrase, remember) => volumes.unlock(id, passphrase, remember),
+		forget: (id) => volumes.forget(id),
 		onChanged(listener): Unsubscribe {
 			let stopped = false;
 			let unlisten: (() => void) | undefined;

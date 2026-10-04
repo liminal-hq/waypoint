@@ -23,4 +23,8 @@ globalShortcutEnabled: boolean,
  * The accelerator that brings Waypoint to the front, such as `Ctrl+Alt+W`; none means the
  * default (`DEFAULT_ACCELERATOR`).
  */
-globalShortcut: string | null, };
+globalShortcut: string | null, 
+/**
+ * Offer to keep the passphrase of an encrypted volume in the system keyring when it is unlocked, and unlock a remembered volume by itself when it is plugged in. Off until it is enabled (D118, D153); turning it off keeps what is in the keyring but stops using it.
+ */
+rememberVolumePassphrases: boolean, };

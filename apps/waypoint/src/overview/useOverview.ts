@@ -10,6 +10,7 @@ import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInf
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDevices, type UnlockResult } from '../devices/useDevices';
+import type { RememberOffer } from '../devices/deviceModel';
 import type { DevicesClient } from '../devices/devicesClient';
 import { t, tf } from '../i18n/messages';
 import type { VfsClient } from '../services/vfsClient';
@@ -43,7 +44,9 @@ export interface Overview {
 	/** Measures a network volume on request. */
 	measure(volume: Volume): Promise<void>;
 	mount(volume: Volume): Promise<boolean>;
-	unlock(volume: Volume, passphrase: string): Promise<UnlockResult>;
+	unlock(volume: Volume, passphrase: string, remember: boolean): Promise<UnlockResult>;
+	/** What the Unlock dialog offers about remembering the passphrase. */
+	rememberOffer: RememberOffer | null;
 }
 
 export interface OverviewSources {
@@ -157,10 +160,10 @@ export function useOverview(sources: OverviewSources): Overview {
 		[run],
 	);
 	const unlock = useCallback(
-		async (volume: Volume, passphrase: string) => {
+		async (volume: Volume, passphrase: string, remember: boolean) => {
 			gate.current = true;
 			try {
-				return await unlockVolume(volume, passphrase);
+				return await unlockVolume(volume, passphrase, remember);
 			} finally {
 				gate.current = false;
 			}
@@ -214,5 +217,6 @@ export function useOverview(sources: OverviewSources): Overview {
 		measure,
 		mount,
 		unlock,
+		rememberOffer: devices.rememberOffer,
 	};
 }

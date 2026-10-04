@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { PluginStatus, Volume, VolumesChanged } from '@liminal-hq/plugin-volumes';
+import type { PluginStatus, Unlocked, Volume, VolumesChanged } from '@liminal-hq/plugin-volumes';
 import type { Unsubscribe } from '../services/vfsClient';
 
 /**
@@ -24,8 +24,14 @@ export interface DevicesClient {
 	mount(id: string): Promise<string>;
 	unmount(id: string): Promise<void>;
 	eject(id: string): Promise<void>;
-	/** Unlocks an encrypted volume and resolves with the id of the volume that appears. The passphrase is never kept. */
-	unlock(id: string, passphrase: string): Promise<string>;
+	/**
+	 * Unlocks an encrypted volume and resolves with the id of the volume that appears and what became
+	 * of `remember` (D153). The passphrase is sent once; the plugin keeps it only through the app's
+	 * keyring when `remember` is true.
+	 */
+	unlock(id: string, passphrase: string, remember: boolean): Promise<Unlocked>;
+	/** Forgets the passphrase kept for an encrypted volume; true when there was one. */
+	forget(id: string): Promise<boolean>;
 	/** Hears the whole list after each change, with a revision that only grows. */
 	onChanged(listener: (event: VolumesChanged) => void): Unsubscribe;
 }

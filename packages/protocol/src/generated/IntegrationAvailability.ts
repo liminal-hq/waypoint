@@ -14,4 +14,9 @@ notificationActions: Availability, launcherProgress: Availability, preventSleep:
 /**
  * Owning `org.freedesktop.FileManager1`, which only Linux has.
  */
-fileManagerService: Availability, globalShortcut: Availability, };
+fileManagerService: Availability, globalShortcut: Availability, 
+/**
+ * Keeping the passphrase of an encrypted volume in the keyring: whether a keyring answers
+ * and may be asked. Asked of the `secrets` plugin, not of the portal or the desktop service.
+ */
+rememberPassphrases: Availability, };

@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "unmount",
     "eject",
     "unlock",
+    "forget",
 ];
 
 fn main() {

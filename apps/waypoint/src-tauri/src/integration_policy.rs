@@ -233,6 +233,7 @@ pub fn availability(
     platform: Platform,
     portal: &PortalStatus,
     desktop: &DesktopStatus,
+    keyring: Availability,
 ) -> IntegrationAvailability {
     if platform == Platform::Other {
         let none = || Availability::no("This operating system does not offer it.");
@@ -243,6 +244,7 @@ pub fn availability(
             prevent_sleep: none(),
             file_manager_service: none(),
             global_shortcut: none(),
+            remember_passphrases: none(),
         };
     }
     IntegrationAvailability {
@@ -267,6 +269,7 @@ pub fn availability(
         ),
         file_manager_service: desktop_availability(desktop, DesktopFeature::FileManager),
         global_shortcut: desktop_availability(desktop, DesktopFeature::GlobalShortcuts),
+        remember_passphrases: keyring,
     }
 }
 
@@ -1091,14 +1094,24 @@ mod tests {
 
     #[test]
     fn availability_says_what_works_and_gives_the_fallbacks_reason_when_nothing_does() {
-        let fine = availability(Platform::Linux, &portal(false, false), &desktop(&ALL));
+        let fine = availability(
+            Platform::Linux,
+            &portal(false, false),
+            &desktop(&ALL),
+            Availability::yes(),
+        );
         assert!(fine.notifications.available);
         assert!(fine.launcher_progress.available);
         assert!(fine.prevent_sleep.available);
         assert!(fine.file_manager_service.available);
         assert!(fine.global_shortcut.available);
 
-        let bare = availability(Platform::Linux, &portal(false, false), &desktop(&[]));
+        let bare = availability(
+            Platform::Linux,
+            &portal(false, false),
+            &desktop(&[]),
+            Availability::yes(),
+        );
         assert_eq!(
             bare.notifications.reason.as_deref(),
             Some("No notification server is running.")
@@ -1115,7 +1128,12 @@ mod tests {
         assert!(!bare.file_manager_service.available);
 
         // The portal alone is enough for notifications and the inhibitor.
-        let portal_only = availability(Platform::Linux, &portal(true, true), &desktop(&[]));
+        let portal_only = availability(
+            Platform::Linux,
+            &portal(true, true),
+            &desktop(&[]),
+            Availability::yes(),
+        );
         assert!(portal_only.notifications.available);
         assert!(portal_only.prevent_sleep.available);
         assert!(!portal_only.launcher_progress.available);
@@ -1123,7 +1141,23 @@ mod tests {
 
     #[test]
     fn no_integration_is_offered_on_an_unsupported_platform() {
-        let none = availability(Platform::Other, &portal(true, true), &desktop(&ALL));
+        let no_keyring = availability(
+            Platform::Linux,
+            &portal(false, false),
+            &desktop(&ALL),
+            Availability::no("no keyring is running"),
+        );
+        assert_eq!(
+            no_keyring.remember_passphrases,
+            Availability::no("no keyring is running")
+        );
+        assert!(no_keyring.notifications.available);
+        let none = availability(
+            Platform::Other,
+            &portal(true, true),
+            &desktop(&ALL),
+            Availability::yes(),
+        );
         for a in [
             none.notifications,
             none.notification_actions,
@@ -1888,14 +1922,24 @@ mod tests {
         ));
         assert!(actions_work(Route::Desktop, &portal(false, false), &all));
         // The page's switch follows the same status, with the reason in the Services panel.
-        let bare = availability(Platform::Linux, &portal(false, false), &no_buttons);
+        let bare = availability(
+            Platform::Linux,
+            &portal(false, false),
+            &no_buttons,
+            Availability::yes(),
+        );
         assert!(bare.notifications.available);
         assert!(!bare.notification_actions.available);
         assert_eq!(
             bare.notification_actions.reason.as_deref(),
             Some("The notification server does not draw buttons, so notifications offer only a click.")
         );
-        let fine = availability(Platform::Linux, &portal(false, false), &all);
+        let fine = availability(
+            Platform::Linux,
+            &portal(false, false),
+            &all,
+            Availability::yes(),
+        );
         assert!(fine.notification_actions.available);
         let summary = desktop_summary(&no_buttons);
         assert!(!summary.features.contains(&"notificationActions".to_owned()));

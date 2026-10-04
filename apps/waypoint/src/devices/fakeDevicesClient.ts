@@ -5,6 +5,9 @@
 
 import type {
 	PluginStatus,
+	Reason,
+	RememberOutcome,
+	Unlocked,
 	Volume,
 	VolumesChanged,
 	VolumesError,
@@ -30,18 +33,30 @@ export function fakeVolume(id: string, overrides: Partial<Volume> = {}): Volume 
 		locked: false,
 		isSystem: false,
 		device: `/dev/${id}`,
+		uuid: null,
+		remembered: false,
 		...overrides,
 	};
 }
 
 /** A status in which every feature works, or with `unavailable` features reported as missing. */
-export function fakeStatus(unavailable: readonly string[] = []): PluginStatus {
+export function fakeStatus(
+	unavailable: readonly string[] = [],
+	/** Whether remembering passphrases works: `on`, or the reason it does not (`disabled`, the default, is the Settings switch being off). */
+	remember: 'on' | Reason = 'disabled',
+): PluginStatus {
 	const features = ['list', 'mount', 'unmount', 'eject', 'unlock', 'watch'].map((name) => ({
 		name,
 		available: !unavailable.includes(name),
 		reason: unavailable.includes(name) ? ('not-supported' as const) : null,
 		message: unavailable.includes(name) ? `${name} is not supported here` : null,
 	}));
+	features.push({
+		name: 'remember',
+		available: remember === 'on',
+		reason: remember === 'on' ? null : (remember as 'not-supported'),
+		message: remember === 'on' ? null : `remembering is unavailable (${remember})`,
+	});
 	return {
 		available: features.some((feature) => feature.available),
 		reason: null,
@@ -53,9 +68,10 @@ export function fakeStatus(unavailable: readonly string[] = []): PluginStatus {
 
 /** What an action did, for a test to read. */
 export interface FakeCall {
-	action: 'mount' | 'unmount' | 'eject' | 'unlock' | 'refreshSpace';
+	action: 'mount' | 'unmount' | 'eject' | 'unlock' | 'forget' | 'refreshSpace';
 	id: string;
 	passphrase?: string;
+	remember?: boolean;
 }
 
 /**
@@ -75,6 +91,8 @@ export class FakeDevicesClient implements DevicesClient {
 	private open: (() => void) | null = null;
 	/** The passphrase that unlocks, per locked volume id; any other rejects with `wrongPassphrase`. */
 	passphrases = new Map<string, string>();
+	/** What a request to remember comes to, when the passphrase is right; `remembered` also marks the volume. */
+	rememberOutcome: RememberOutcome = { state: 'remembered' };
 
 	constructor(volumes: Volume[] = [], status: PluginStatus = fakeStatus()) {
 		this.volumes = volumes;
@@ -119,8 +137,8 @@ export class FakeDevicesClient implements DevicesClient {
 		this.remove(id);
 	}
 
-	async unlock(id: string, passphrase: string): Promise<string> {
-		await this.begin({ action: 'unlock', id, passphrase });
+	async unlock(id: string, passphrase: string, remember = false): Promise<Unlocked> {
+		await this.begin({ action: 'unlock', id, passphrase, remember });
 		if (this.passphrases.get(id) !== passphrase) throw { kind: 'wrongPassphrase' } as VolumesError;
 		const opened = `${id}-open`;
 		const locked = this.find(id);
@@ -133,10 +151,22 @@ export class FakeDevicesClient implements DevicesClient {
 				mountPoint: null,
 				canMount: true,
 				canUnmount: false,
+				uuid: locked.uuid,
+				remembered: remember && this.rememberOutcome.state === 'remembered',
 			}),
 		);
 		this.publish();
-		return opened;
+		return {
+			id: opened,
+			remember: remember ? this.rememberOutcome : { state: 'notAsked' },
+		};
+	}
+
+	async forget(id: string): Promise<boolean> {
+		await this.begin({ action: 'forget', id });
+		const had = this.find(id).remembered;
+		this.replace(id, { remembered: false });
+		return had;
 	}
 
 	onChanged(listener: (event: VolumesChanged) => void): Unsubscribe {

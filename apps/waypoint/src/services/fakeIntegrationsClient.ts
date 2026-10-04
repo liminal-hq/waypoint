@@ -18,6 +18,7 @@ export function everythingWorks(): IntegrationAvailability {
 		preventSleep: works,
 		fileManagerService: works,
 		globalShortcut: works,
+		rememberPassphrases: works,
 	};
 }
 

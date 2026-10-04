@@ -61,6 +61,10 @@ pub struct Volume {
     pub is_system: bool,
     /// The device node (`/dev/sdb1`) or, for a mapped drive, the remote name (`\\server\share`).
     pub device: Option<String>,
+    /// The UUID of an encrypted volume's container (its LUKS header), locked or unlocked: the same every time it is plugged in, which `id` is not. Absent for anything else.
+    pub uuid: Option<String>,
+    /// A passphrase for this encrypted volume is kept in the keyring, so it unlocks by itself when it is plugged in. False when none is, when remembering is off, or when the keyring cannot be asked.
+    pub remembered: bool,
 }
 
 /// The payload of `volumes://changed`: the whole list after the change, with a revision that only ever grows.
@@ -117,6 +121,14 @@ pub enum Reason {
     UnsupportedPlatform,
     /// The system has no such operation (Windows mounts drives by itself and has no unlock of its own).
     NotSupported,
+    /// There is no keyring to keep a passphrase in.
+    NoKeyring,
+    /// The keyring is locked and was not unlocked.
+    KeyringLocked,
+    /// Remembering passphrases is turned off.
+    Disabled,
+    /// The host app did not supply a place to keep passphrases.
+    NotConfigured,
 }
 
 pub const FEATURE_LIST: &str = "list";
@@ -125,6 +137,8 @@ pub const FEATURE_UNMOUNT: &str = "unmount";
 pub const FEATURE_EJECT: &str = "eject";
 pub const FEATURE_UNLOCK: &str = "unlock";
 pub const FEATURE_WATCH: &str = "watch";
+/// Passphrases can be kept in the keyring and used to unlock a volume when it is plugged in. Listed after the features above, which are the backend's; it depends on what the host supplies, not on the system.
+pub const FEATURE_REMEMBER: &str = "remember";
 
 /// Every feature, in the order `get_status` lists them.
 pub const FEATURES: [&str; 6] = [
@@ -135,6 +149,28 @@ pub const FEATURES: [&str; 6] = [
     FEATURE_UNLOCK,
     FEATURE_WATCH,
 ];
+
+/// What became of the request to remember a passphrase, which `unlock` reports beside the new volume: unlocking worked either way.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "state", rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub enum RememberOutcome {
+    /// The caller did not ask.
+    NotAsked,
+    /// The passphrase is in the keyring.
+    Remembered,
+    /// It could not be kept, with the reason as a code to branch on and a sentence.
+    Failed { reason: Reason, message: String },
+}
+
+/// What `unlock` returns: the id of the volume that appeared (mount it next) and what became of a request to remember the passphrase.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../guest-js/bindings/")]
+pub struct Unlocked {
+    pub id: String,
+    pub remember: RememberOutcome,
+}
 
 /// Whether one feature of the plugin works on this system.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]

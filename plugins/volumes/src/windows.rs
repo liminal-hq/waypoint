@@ -178,6 +178,8 @@ fn volume_for(
         locked: false,
         is_system: kind == VolumeKind::Internal && is_system_drive(root, system_drive),
         device,
+        uuid: None,
+        remembered: false,
     }
 }
 

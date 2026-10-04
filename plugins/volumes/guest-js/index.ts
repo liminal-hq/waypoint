@@ -9,6 +9,8 @@ import type { FeatureStatus } from './bindings/FeatureStatus';
 import type { Flavour } from './bindings/Flavour';
 import type { PluginStatus } from './bindings/PluginStatus';
 import type { Reason } from './bindings/Reason';
+import type { RememberOutcome } from './bindings/RememberOutcome';
+import type { Unlocked } from './bindings/Unlocked';
 import type { Volume } from './bindings/Volume';
 import type { VolumeKind } from './bindings/VolumeKind';
 import type { VolumesChanged } from './bindings/VolumesChanged';
@@ -19,6 +21,8 @@ export type {
 	Flavour,
 	PluginStatus,
 	Reason,
+	RememberOutcome,
+	Unlocked,
 	Volume,
 	VolumeKind,
 	VolumesChanged,
@@ -31,7 +35,7 @@ const PREFIX = 'plugin:volumes|';
 export const CHANGED_EVENT = 'volumes://changed';
 
 /** The names `getStatus().features` uses. */
-export type Feature = 'list' | 'mount' | 'unmount' | 'eject' | 'unlock' | 'watch';
+export type Feature = 'list' | 'mount' | 'unmount' | 'eject' | 'unlock' | 'watch' | 'remember';
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -88,10 +92,18 @@ export async function eject(id: string): Promise<void> {
 
 /**
  * Unlocks an encrypted volume and returns the id of the volume that appears (mount it next). The
- * passphrase is sent once and neither logged nor kept; a wrong one rejects with `wrongPassphrase`.
+ * passphrase is sent once and neither logged nor kept by the plugin; a wrong one rejects with
+ * `wrongPassphrase`. With `remember` true the passphrase is also handed to the app's own store (a
+ * keyring), when the `remember` feature works: `remember` in the result says whether that
+ * happened, or why not. A passphrase that could not be kept does not undo the unlock.
  */
-export function unlock(id: string, passphrase: string): Promise<string> {
-	return cmd<string>('unlock', { id, passphrase });
+export function unlock(id: string, passphrase: string, remember = false): Promise<Unlocked> {
+	return cmd<Unlocked>('unlock', { id, passphrase, remember });
+}
+
+/** Forgets the passphrase kept for an encrypted volume (`Volume.remembered`); true when there was one. */
+export function forget(id: string): Promise<boolean> {
+	return cmd<boolean>('forget', { id });
 }
 
 /**

@@ -7,7 +7,7 @@ use tauri::{command, AppHandle, Runtime};
 
 use crate::{
     error::VolumesError,
-    models::{Passphrase, PluginStatus, Volume},
+    models::{Passphrase, PluginStatus, Unlocked, Volume},
     VolumesExt,
 };
 
@@ -55,6 +55,17 @@ pub(crate) async fn unlock<R: Runtime>(
     app: AppHandle<R>,
     id: String,
     passphrase: String,
-) -> Result<String, VolumesError> {
-    app.volumes().unlock(&id, Passphrase(passphrase)).await
+    remember: Option<bool>,
+) -> Result<Unlocked, VolumesError> {
+    app.volumes()
+        .unlock_and_remember(&id, Passphrase(passphrase), remember.unwrap_or(false))
+        .await
+}
+
+#[command]
+pub(crate) async fn forget<R: Runtime>(
+    app: AppHandle<R>,
+    id: String,
+) -> Result<bool, VolumesError> {
+    app.volumes().forget(&id).await
 }

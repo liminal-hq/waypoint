@@ -17,6 +17,7 @@ mod settings_window;
 mod shelf_window;
 mod storage;
 mod thumbnails;
+mod volume_passphrases;
 mod windows;
 
 use std::sync::Arc;
@@ -125,6 +126,7 @@ fn forget_properties_window<R: tauri::Runtime>(window: &tauri::Window<R>) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let saver = Arc::new(Saver::new());
+    let (volume_passphrases, volume_passphrases_app) = volume_passphrases::store();
     let geometry = GeometryCapture::default();
 
     #[allow(unused_mut)]
@@ -166,7 +168,13 @@ pub fn run() {
         .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
         .plugin(tauri_plugin_trash::init())
         .plugin(tauri_plugin_thumbnails::init())
-        .plugin(tauri_plugin_volumes::init())
+        // The passphrases of encrypted volumes are kept through `volume_passphrases`, which adapts the keyring and the Settings switch (D153); the volumes plugin never calls the secrets plugin.
+        .plugin(tauri_plugin_volumes::init_with_system(
+            tauri_plugin_volumes::Options {
+                passphrases: Some(volume_passphrases),
+                ..tauri_plugin_volumes::Options::default()
+            },
+        ))
         // The keyring behind saved logins and remembered passphrases. No window may read a secret back; the Settings window only reads its status.
         .plugin(tauri_plugin_secrets::init())
         .plugin(tauri_plugin_window_effects::init())
@@ -217,6 +225,7 @@ pub fn run() {
         .setup({
             let saver = Arc::clone(&saver);
             move |app| {
+                let _ = volume_passphrases_app.set(app.handle().clone());
                 settings::wire(app.handle());
                 settings_transfer::wire(app.handle());
                 effects::wire(app.handle());

@@ -227,6 +227,18 @@
     "message": "Notifications and progress",
     "description": "Area: settings."
   },
+  "settings.group.devices": {
+    "message": "Drives and volumes",
+    "description": "Area: settings."
+  },
+  "settings.integrations.rememberPassphrases.label": {
+    "message": "Remember encrypted-volume passphrases",
+    "description": "Area: settings."
+  },
+  "settings.integrations.rememberPassphrases.description": {
+    "message": "Offers to keep a passphrase in the system keyring when you unlock an encrypted volume, and unlocks remembered volumes by themselves when they are plugged in. Off until you turn it on.",
+    "description": "Area: settings."
+  },
   "settings.group.fileManager": {
     "message": "File manager",
     "description": "Area: settings."
@@ -3418,6 +3430,50 @@
   "devices.unlock.wrong": {
     "message": "That passphrase did not unlock the volume. Try again.",
     "description": "Area: devices."
+  },
+  "devices.verb.forget": {
+    "message": "forget the passphrase of",
+    "description": "Area: devices."
+  },
+  "devices.action.forget": {
+    "message": "Forget the saved passphrase of {name}",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "devices.announce.forgotten": {
+    "message": "Forgot the saved passphrase of {name}",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "devices.announce.remembered": {
+    "message": "Saved the passphrase of {name} in the keyring",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "devices.remember.reason.noKeyring": {
+    "message": "no keyring is running",
+    "description": "Area: devices."
+  },
+  "devices.remember.reason.keyringLocked": {
+    "message": "the keyring is locked",
+    "description": "Area: devices."
+  },
+  "devices.remember.failed": {
+    "message": "Unlocked {name}, but its passphrase was not remembered: {reason}.",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words."
+  },
+  "devices.unlock.descriptionRemember": {
+    "message": "Enter the passphrase of this encrypted volume. Waypoint saves it in the keyring only if you tick the box.",
+    "description": "Area: devices."
+  },
+  "devices.unlock.remember": {
+    "message": "Remember in keyring",
+    "description": "Area: devices."
+  },
+  "devices.unlock.rememberHint": {
+    "message": "The volume then unlocks by itself when it is plugged in. Forget the passphrase from the volume’s row.",
+    "description": "Area: devices."
+  },
+  "devices.unlock.rememberUnavailable": {
+    "message": "The passphrase cannot be remembered: {reason}.",
+    "description": "Area: devices. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
   },
   "menu.rename": {
     "message": "Rename",
