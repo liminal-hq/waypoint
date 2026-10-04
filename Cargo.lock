@@ -3580,6 +3580,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssh-config"
+version = "0.1.0"
+dependencies = [
+ "data-encoding",
+ "hmac",
+ "sha1 0.11.0",
+ "tempfile",
+]
+
+[[package]]
 name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6848,6 +6858,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "openssh-config",
  "russh",
  "russh-sftp",
  "tempfile",
