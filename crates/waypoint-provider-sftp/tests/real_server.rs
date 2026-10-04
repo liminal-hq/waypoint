@@ -1,5 +1,5 @@
-// The SFTP provider against a real OpenSSH server run as the current user: listing, stat,
-// reading, host keys, logins, cancelling, timeouts and reconnecting. Each test skips with a
+// The SFTP provider against a real OpenSSH server run as the current user: the conformance suite,
+// listing, stat, reading, host keys, logins, cancelling, timeouts and reconnecting. Each test skips with a
 // message when there is no `sshd` (see `support`).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
@@ -202,7 +202,7 @@ fn lists_stats_and_reads_a_real_server() {
 }
 
 #[test]
-fn passes_the_read_side_of_the_conformance_suite() {
+fn passes_the_conformance_suite() {
     let Some(server) = Sshd::start() else { return };
     let empty = server.data.join("empty");
     fs::create_dir(&empty).unwrap();
