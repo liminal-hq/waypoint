@@ -76,6 +76,9 @@ export async function thumbnailsServiceStatus(): Promise<PluginStatus> {
 	);
 }
 
+/** The reason codes of a feature that is simply not in use (remembering passphrases switched off, or not offered by the app). */
+const QUIET_REASONS: ReadonlyArray<string> = ['disabled', 'not-configured'];
+
 /** The volumes plugin's status in the shared shape: its features carry typed reasons, shown as the sentence they hold. */
 export async function volumesServiceStatus(): Promise<PluginStatus> {
 	const status = await volumesStatus();
@@ -83,7 +86,15 @@ export async function volumesServiceStatus(): Promise<PluginStatus> {
 		{ available: status.available, reason: status.message },
 		status.features.map(
 			(feature) =>
-				[feature.name, { available: feature.available, reason: feature.message }] as const,
+				[
+					feature.name,
+					{
+						available: feature.available,
+						// Remembering passphrases is off until the person turns it on (D153): not a fault to show.
+						reason:
+							feature.reason && QUIET_REASONS.includes(feature.reason) ? null : feature.message,
+					},
+				] as const,
 		),
 	);
 }

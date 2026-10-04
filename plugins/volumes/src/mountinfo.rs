@@ -265,6 +265,8 @@ fn network_volume(entry: &MountEntry) -> Volume {
         locked: false,
         is_system: false,
         device: Some(entry.source.clone()),
+        uuid: None,
+        remembered: false,
     }
 }
 
@@ -293,6 +295,8 @@ fn disk_volume(entry: &MountEntry) -> Volume {
         locked: false,
         is_system: kind == VolumeKind::Internal,
         device: Some(entry.source.clone()),
+        uuid: None,
+        remembered: false,
     }
 }
 

@@ -10,6 +10,7 @@ mod error;
 mod holders;
 pub mod models;
 pub mod mountinfo;
+pub mod passphrases;
 mod service;
 pub mod space;
 pub mod udisks;
@@ -42,6 +43,7 @@ pub use backend::{Backend, BoxFuture, Notify};
 pub use debounce::Debounce;
 pub use error::{Result, VolumesError};
 pub use models::*;
+pub use passphrases::{PassphraseStore, SharedStore, Unavailable};
 pub use service::{Options, Volumes};
 pub use space::{Space, SpaceFn};
 
@@ -61,6 +63,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     init_with(Arc::new(platform::Platform::new()), Options::default())
 }
 
+/// Initialises the plugin over the real system with options of the caller's: the host's [`PassphraseStore`], say.
+pub fn init_with_system<R: Runtime>(options: Options) -> TauriPlugin<R> {
+    init_with(Arc::new(platform::Platform::new()), options)
+}
+
 /// Initialises the plugin over a backend and options of the caller's: a fake in a test, or other timeouts.
 pub fn init_with<R: Runtime>(backend: Arc<dyn Backend>, options: Options) -> TauriPlugin<R> {
     Builder::new("volumes")
@@ -72,6 +79,7 @@ pub fn init_with<R: Runtime>(backend: Arc<dyn Backend>, options: Options) -> Tau
             commands::unmount,
             commands::eject,
             commands::unlock,
+            commands::forget,
         ])
         .setup(move |app, _api| {
             let volumes = Volumes::new(app.clone(), backend, options);

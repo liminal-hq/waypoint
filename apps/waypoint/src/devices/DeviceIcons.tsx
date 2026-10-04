@@ -23,6 +23,13 @@ export const MountIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+export const ForgetIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<circle data-fill cx="5.5" cy="8" r="2.5" />
+		<path d="M8 8h5.5M11.5 8v2.25M3 13.5l10-11" />
+	</Glyph>
+);
+
 export const LockIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<rect data-fill x="3.5" y="7" width="9" height="6.5" rx="1.2" />

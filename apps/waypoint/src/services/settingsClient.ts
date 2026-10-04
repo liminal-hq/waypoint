@@ -117,6 +117,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		defaultFileManager: false,
 		globalShortcutEnabled: false,
 		globalShortcut: null,
+		rememberVolumePassphrases: false,
 	},
 };
 

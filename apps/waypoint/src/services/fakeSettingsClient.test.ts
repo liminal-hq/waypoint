@@ -76,6 +76,7 @@ describe('the milestone 5 sections', () => {
 			notificationActions: true,
 			launcherProgress: false,
 			preventSleep: false,
+			rememberVolumePassphrases: false,
 			defaultFileManager: false,
 			globalShortcutEnabled: false,
 			globalShortcut: null,

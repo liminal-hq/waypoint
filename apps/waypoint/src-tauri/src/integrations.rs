@@ -45,7 +45,9 @@ use tauri_plugin_xdg_portal::models::{
 };
 use tauri_plugin_xdg_portal::PortalExt;
 use waypoint_ops::{JobId, Resolution};
-use waypoint_protocol::{IntegrationAvailability, Location, PluginStatus, WindowKind};
+use waypoint_protocol::{
+    Availability, IntegrationAvailability, Location, PluginStatus, WindowKind,
+};
 use waypoint_session::{Command, SessionEvent, TabHints};
 use waypoint_settings::{Settings, DEFAULT_ACCELERATOR};
 
@@ -153,10 +155,28 @@ fn any_window_focused<R: Runtime>(app: &AppHandle<R>) -> bool {
         .any(|window| window.is_focused().unwrap_or(false))
 }
 
+/// Whether a keyring can keep a volume's passphrase, from the `secrets` plugin's own status: the sentence it gives when it cannot (no keyring running, or locked) is the reason.
+async fn keyring_availability<R: Runtime>(app: &AppHandle<R>) -> Availability {
+    let Some(secrets) = app.try_state::<tauri_plugin_secrets::Secrets>() else {
+        return Availability::no("The keyring is not set up.");
+    };
+    let status = secrets.get_status().await;
+    if status.has(tauri_plugin_secrets::FEATURE_STORE) {
+        Availability::yes()
+    } else {
+        Availability::no(
+            status
+                .message
+                .unwrap_or_else(|| "No keyring is available.".to_string()),
+        )
+    }
+}
+
 async fn probe<R: Runtime>(app: &AppHandle<R>) -> Probes {
     let portal = app.portal().status().await;
     let desktop = app.desktop_services().status().await;
-    let availability = availability(Platform::current(), &portal, &desktop);
+    let keyring = keyring_availability(app).await;
+    let availability = availability(Platform::current(), &portal, &desktop, keyring);
     Probes {
         portal,
         desktop,

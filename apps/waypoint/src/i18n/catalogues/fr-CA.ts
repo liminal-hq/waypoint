@@ -126,6 +126,14 @@ const messages: Catalogue = {
 	'services.name.desktop-integration': 'Services de bureau',
 	// source: 24a834c0
 	'settings.group.notifications': 'Notifications et progression',
+	// source: b15a7fb6
+	'settings.group.devices': 'Lecteurs et volumes',
+	// source: f0fc20bd
+	'settings.integrations.rememberPassphrases.label':
+		'Mémoriser les phrases secrètes des volumes chiffrés',
+	// source: a38411f4
+	'settings.integrations.rememberPassphrases.description':
+		'Propose d’enregistrer une phrase secrète dans le trousseau du système lorsque vous déverrouillez un volume chiffré, et déverrouille d’elles-mêmes les volumes mémorisés lorsqu’ils sont branchés. Désactivé tant que vous ne l’activez pas.',
 	// source: 8106f6bc
 	'settings.group.fileManager': 'Gestionnaire de fichiers',
 	// source: ca7eb278
@@ -1873,6 +1881,31 @@ const messages: Catalogue = {
 	'devices.unlock.working': 'Déverrouillage…',
 	// source: a638d5d1
 	'devices.unlock.wrong': 'Cette phrase secrète n’a pas déverrouillé le volume. Réessayez.',
+	// source: 5bdc5e1d
+	'devices.verb.forget': 'oublier la phrase secrète de',
+	// source: 31aaa27a
+	'devices.action.forget': 'Oublier la phrase secrète enregistrée de {name}',
+	// source: b6afde60
+	'devices.announce.forgotten': 'Phrase secrète enregistrée de {name} oubliée',
+	// source: b84dd7c6
+	'devices.announce.remembered': 'Phrase secrète de {name} enregistrée dans le trousseau',
+	// source: 6a7e0a0d
+	'devices.remember.reason.noKeyring': 'aucun trousseau n’est en cours d’exécution',
+	// source: 1027e3ca
+	'devices.remember.reason.keyringLocked': 'le trousseau est verrouillé',
+	// source: 9e597ed9
+	'devices.remember.failed':
+		'{name} est déverrouillé, mais sa phrase secrète n’a pas été mémorisée : {reason}.',
+	// source: 60007f11
+	'devices.unlock.descriptionRemember':
+		'Saisissez la phrase secrète de ce volume chiffré. Waypoint ne l’enregistre dans le trousseau que si vous cochez la case.',
+	// source: c5e2885f
+	'devices.unlock.remember': 'Mémoriser dans le trousseau',
+	// source: 91bed1d7
+	'devices.unlock.rememberHint':
+		'Le volume se déverrouille ensuite de lui-même lorsqu’il est branché. Oubliez la phrase secrète depuis la ligne du volume.',
+	// source: cf1068ce
+	'devices.unlock.rememberUnavailable': 'La phrase secrète ne peut pas être mémorisée : {reason}.',
 	// source: 3064d79a
 	'menu.rename': 'Renommer',
 	// source: 298167e2

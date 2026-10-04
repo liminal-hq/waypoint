@@ -415,6 +415,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 				<UnlockDialog
 					volume={unlocking}
 					onUnlock={devices.unlock}
+					remember={devices.rememberOffer}
 					onClose={() => setUnlocking(null)}
 				/>
 			)}

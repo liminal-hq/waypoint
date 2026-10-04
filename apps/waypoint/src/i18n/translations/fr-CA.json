@@ -284,6 +284,21 @@
     "description": "Area: settings.",
     "source": "24a834c0"
   },
+  "settings.group.devices": {
+    "message": "Lecteurs et volumes",
+    "description": "Area: settings.",
+    "source": "b15a7fb6"
+  },
+  "settings.integrations.rememberPassphrases.label": {
+    "message": "Mémoriser les phrases secrètes des volumes chiffrés",
+    "description": "Area: settings.",
+    "source": "f0fc20bd"
+  },
+  "settings.integrations.rememberPassphrases.description": {
+    "message": "Propose d’enregistrer une phrase secrète dans le trousseau du système lorsque vous déverrouillez un volume chiffré, et déverrouille d’elles-mêmes les volumes mémorisés lorsqu’ils sont branchés. Désactivé tant que vous ne l’activez pas.",
+    "description": "Area: settings.",
+    "source": "a38411f4"
+  },
   "settings.group.fileManager": {
     "message": "Gestionnaire de fichiers",
     "description": "Area: settings.",
@@ -4348,6 +4363,61 @@
     "message": "Cette phrase secrète n’a pas déverrouillé le volume. Réessayez.",
     "description": "Area: devices.",
     "source": "a638d5d1"
+  },
+  "devices.verb.forget": {
+    "message": "oublier la phrase secrète de",
+    "description": "Area: devices.",
+    "source": "5bdc5e1d"
+  },
+  "devices.action.forget": {
+    "message": "Oublier la phrase secrète enregistrée de {name}",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "31aaa27a"
+  },
+  "devices.announce.forgotten": {
+    "message": "Phrase secrète enregistrée de {name} oubliée",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "b6afde60"
+  },
+  "devices.announce.remembered": {
+    "message": "Phrase secrète de {name} enregistrée dans le trousseau",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "b84dd7c6"
+  },
+  "devices.remember.reason.noKeyring": {
+    "message": "aucun trousseau n’est en cours d’exécution",
+    "description": "Area: devices.",
+    "source": "6a7e0a0d"
+  },
+  "devices.remember.reason.keyringLocked": {
+    "message": "le trousseau est verrouillé",
+    "description": "Area: devices.",
+    "source": "1027e3ca"
+  },
+  "devices.remember.failed": {
+    "message": "{name} est déverrouillé, mais sa phrase secrète n’a pas été mémorisée : {reason}.",
+    "description": "Area: devices. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words.",
+    "source": "9e597ed9"
+  },
+  "devices.unlock.descriptionRemember": {
+    "message": "Saisissez la phrase secrète de ce volume chiffré. Waypoint ne l’enregistre dans le trousseau que si vous cochez la case.",
+    "description": "Area: devices.",
+    "source": "60007f11"
+  },
+  "devices.unlock.remember": {
+    "message": "Mémoriser dans le trousseau",
+    "description": "Area: devices.",
+    "source": "c5e2885f"
+  },
+  "devices.unlock.rememberHint": {
+    "message": "Le volume se déverrouille ensuite de lui-même lorsqu’il est branché. Oubliez la phrase secrète depuis la ligne du volume.",
+    "description": "Area: devices.",
+    "source": "91bed1d7"
+  },
+  "devices.unlock.rememberUnavailable": {
+    "message": "La phrase secrète ne peut pas être mémorisée : {reason}.",
+    "description": "Area: devices. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "cf1068ce"
   },
   "menu.rename": {
     "message": "Renommer",

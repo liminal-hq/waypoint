@@ -4,7 +4,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { actionsFor, failureText, statusText, usageOf, visibleVolumes } from './deviceModel';
+import {
+	actionsFor,
+	failureText,
+	rememberOffer,
+	statusText,
+	usageOf,
+	visibleVolumes,
+} from './deviceModel';
 import { fakeStatus, fakeVolume } from './fakeDevicesClient';
 
 describe('usageOf', () => {
@@ -87,5 +94,42 @@ describe('failureText', () => {
 			'bad superblock',
 		);
 		expect(failureText('mount', 'A', new Error('x'))).toBe('Could not mount A.');
+	});
+});
+
+describe('rememberOffer', () => {
+	it('asks when remembering works, and says why only when it is on but cannot work', () => {
+		expect(rememberOffer(fakeStatus([], 'on'))).toEqual({ kind: 'ask' });
+		expect(rememberOffer(fakeStatus([], 'no-keyring'))).toEqual({
+			kind: 'unavailable',
+			reason: 'no-keyring',
+		});
+		expect(rememberOffer(fakeStatus([], 'keyring-locked'))).toEqual({
+			kind: 'unavailable',
+			reason: 'keyring-locked',
+		});
+		expect(rememberOffer(fakeStatus([], 'disabled'))).toBeNull();
+		expect(rememberOffer(fakeStatus([], 'not-configured'))).toBeNull();
+		expect(rememberOffer(null)).toBeNull();
+	});
+
+	it('offers nothing where volumes cannot be unlocked at all', () => {
+		expect(rememberOffer(fakeStatus(['unlock'], 'on'))).toBeNull();
+	});
+});
+
+describe('the forget action', () => {
+	const remembered = fakeVolume('v', { remembered: true, uuid: 'u' });
+
+	it('is offered for a remembered volume while remembering works, locked or not, and last', () => {
+		expect(actionsFor(remembered, fakeStatus([], 'on'))).toEqual(['unmount', 'eject', 'forget']);
+		const locked = fakeVolume('v', { remembered: true, locked: true, mountPoint: null });
+		expect(actionsFor(locked, fakeStatus([], 'on'))).toEqual(['unlock', 'forget']);
+	});
+
+	it('is not offered for one that is not remembered, or while remembering is off or cannot work', () => {
+		expect(actionsFor(fakeVolume('v'), fakeStatus([], 'on'))).not.toContain('forget');
+		expect(actionsFor(remembered, fakeStatus([], 'disabled'))).not.toContain('forget');
+		expect(actionsFor(remembered, fakeStatus([], 'no-keyring'))).not.toContain('forget');
 	});
 });

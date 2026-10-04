@@ -48,4 +48,12 @@ isSystem: boolean,
 /**
  * The device node (`/dev/sdb1`) or, for a mapped drive, the remote name (`\\server\share`).
  */
-device: string | null, };
+device: string | null, 
+/**
+ * The UUID of an encrypted volume's container (its LUKS header), locked or unlocked: the same every time it is plugged in, which `id` is not. Absent for anything else.
+ */
+uuid: string | null, 
+/**
+ * A passphrase for this encrypted volume is kept in the keyring, so it unlocks by itself when it is plugged in. False when none is, when remembering is off, or when the keyring cannot be asked.
+ */
+remembered: boolean, };

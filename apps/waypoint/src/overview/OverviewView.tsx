@@ -172,6 +172,7 @@ export function OverviewView({ tabId }: OverviewViewProps) {
 				<UnlockDialog
 					volume={unlocking}
 					onUnlock={overview.unlock}
+					remember={overview.rememberOffer}
 					onClose={() => setUnlocking(null)}
 				/>
 			)}
@@ -267,6 +268,8 @@ function fallbackCard(space: { totalBytes: number; freeBytes: number }): VolumeC
 		locked: false,
 		isSystem: true,
 		device: null,
+		uuid: null,
+		remembered: false,
 	};
 	return {
 		volume,

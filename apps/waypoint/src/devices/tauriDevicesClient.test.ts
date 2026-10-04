@@ -13,6 +13,7 @@ const plugin = vi.hoisted(() => ({
 	unmount: vi.fn(),
 	eject: vi.fn(),
 	unlock: vi.fn(),
+	forget: vi.fn(),
 	refreshSpace: vi.fn(),
 	onChanged: vi.fn(),
 }));
@@ -25,15 +26,21 @@ beforeEach(() => {
 describe('createTauriDevicesClient', () => {
 	it('passes the actions to the plugin', async () => {
 		plugin.mount.mockResolvedValue('/run/media/a/Backup');
-		plugin.unlock.mockResolvedValue('vol-2');
+		plugin.unlock.mockResolvedValue({ id: 'vol-2', remember: { state: 'notAsked' } });
+		plugin.forget.mockResolvedValue(true);
 		const client = createTauriDevicesClient();
 		expect(await client.mount('vol-1')).toBe('/run/media/a/Backup');
 		await client.unmount('vol-1');
 		await client.eject('vol-1');
-		expect(await client.unlock('vol-3', 'secret')).toBe('vol-2');
+		expect(await client.unlock('vol-3', 'secret', true)).toEqual({
+			id: 'vol-2',
+			remember: { state: 'notAsked' },
+		});
+		expect(await client.forget('vol-3')).toBe(true);
 		expect(plugin.unmount).toHaveBeenCalledWith('vol-1');
 		expect(plugin.eject).toHaveBeenCalledWith('vol-1');
-		expect(plugin.unlock).toHaveBeenCalledWith('vol-3', 'secret');
+		expect(plugin.unlock).toHaveBeenCalledWith('vol-3', 'secret', true);
+		expect(plugin.forget).toHaveBeenCalledWith('vol-3');
 	});
 
 	it('measures one volume on request', async () => {

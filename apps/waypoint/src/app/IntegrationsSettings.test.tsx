@@ -74,6 +74,7 @@ const BUTTONS = 'Show buttons on notifications';
 const PROGRESS = 'Show progress on the app icon';
 const SLEEP = 'Keep the computer awake during jobs';
 const SERVICE = 'Open folders other applications ask for';
+const REMEMBER = 'Remember encrypted-volume passphrases';
 const SHORTCUT_ON = 'Bring Waypoint forward with a shortcut';
 
 const lastIntegrations = (settings: FakeSettings) =>
@@ -106,6 +107,7 @@ describe('the Integrations page', () => {
 				defaultFileManager: true,
 				globalShortcutEnabled: false,
 				globalShortcut: null,
+				rememberVolumePassphrases: false,
 			}),
 		);
 	});
@@ -143,6 +145,27 @@ describe('the Integrations page', () => {
 			expect(notify).toHaveAccessibleDescription(/could not check what this system can do/),
 		);
 		expect(screen.queryByRole('switch', { name: BUTTONS })).toBeNull();
+	});
+
+	it('offers the passphrase switch off, and saves turning it on', async () => {
+		const { settings } = await open();
+		const remember = await screen.findByRole('switch', { name: REMEMBER });
+		expect(remember).not.toBeChecked();
+		await userEvent.click(remember);
+		await waitFor(() => expect(screen.getByRole('switch', { name: REMEMBER })).toBeChecked());
+		expect(lastIntegrations(settings)).toMatchObject({ rememberVolumePassphrases: true });
+	});
+
+	it('dims the passphrase switch with the reason where there is no keyring', async () => {
+		const integrations = createFakeIntegrationsClient(
+			without({ rememberPassphrases: 'No keyring is running.' }),
+		);
+		const { settings } = await open({ integrations });
+		const remember = await screen.findByRole('switch', { name: REMEMBER });
+		await waitFor(() => expect(remember).toBeDisabled());
+		expect(remember).toHaveAccessibleDescription(/No keyring is running\./);
+		await userEvent.click(remember);
+		expect(settings.calls).toHaveLength(0);
 	});
 
 	it('dims a switch the system cannot do and gives the Services reason, and will not change it', async () => {

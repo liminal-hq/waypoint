@@ -105,6 +105,7 @@ export function IntegrationsPage() {
 	const sleep = useReason((a) => a.preventSleep);
 	const service = useReason((a) => a.fileManagerService);
 	const shortcut = useReason((a) => a.globalShortcut);
+	const remember = useReason((a) => a.rememberPassphrases);
 	const change = (
 		key: Parameters<typeof changeSettings>[0],
 		edit: (integrations: typeof wanted) => typeof wanted,
@@ -153,6 +154,21 @@ export function IntegrationsPage() {
 					error={errors.preventSleep}
 					checked={wanted.preventSleep}
 					onChange={(value) => change('preventSleep', (i) => ({ ...i, preventSleep: value }))}
+				/>
+			</SettingsGroup>
+			<SettingsGroup title={t('settings.group.devices')}>
+				<ToggleRow
+					label={t('settings.integrations.rememberPassphrases.label')}
+					description={t('settings.integrations.rememberPassphrases.description')}
+					unavailableReason={remember}
+					error={errors.rememberVolumePassphrases}
+					checked={wanted.rememberVolumePassphrases}
+					onChange={(value) =>
+						change('rememberVolumePassphrases', (i) => ({
+							...i,
+							rememberVolumePassphrases: value,
+						}))
+					}
 				/>
 			</SettingsGroup>
 			{defaults.action && (

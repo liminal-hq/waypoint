@@ -170,7 +170,7 @@ describe('unlock', () => {
 		return client;
 	}
 
-	it('asks for a passphrase with no way to remember it', async () => {
+	it('asks for a passphrase with no way to remember it while remembering is off', async () => {
 		await setup(locked());
 		fireEvent.click(within(await devices()).getByRole('button', { name: 'Unlock Vault' }));
 		const dialog = await screen.findByRole('dialog', { name: 'Unlock Vault' });
@@ -202,6 +202,142 @@ describe('unlock', () => {
 		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 		expect(client.calls.map((call) => call.action)).toEqual(['unlock', 'mount']);
 		expect(client.calls[1]?.id).toBe('vault-open');
+	});
+});
+
+describe('remembering a passphrase (D153)', () => {
+	function lockedWith(status: ReturnType<typeof fakeStatus>, overrides = {}) {
+		const client = new FakeDevicesClient(
+			[
+				fakeVolume('vault', {
+					label: 'Vault',
+					kind: 'encrypted',
+					mountPoint: null,
+					locked: true,
+					uuid: 'luks-1',
+					...overrides,
+				}),
+			],
+			status,
+		);
+		client.passphrases.set('vault', 'correct horse');
+		return client;
+	}
+
+	async function openDialog() {
+		fireEvent.click(within(await devices()).getByRole('button', { name: 'Unlock Vault' }));
+		return screen.findByRole('dialog', { name: 'Unlock Vault' });
+	}
+
+	async function unlockWith(dialog: HTMLElement) {
+		fireEvent.change(within(dialog).getByLabelText('Passphrase'), {
+			target: { value: 'correct horse' },
+		});
+		fireEvent.click(within(dialog).getByRole('button', { name: 'Unlock' }));
+		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+	}
+
+	it('offers "Remember in keyring" unticked when the keyring works and the switch is on', async () => {
+		await setup(lockedWith(fakeStatus([], 'on')));
+		const dialog = await openDialog();
+		const box = within(dialog).getByRole('checkbox', { name: 'Remember in keyring' });
+		expect(box).not.toBeChecked();
+		expect(box).toHaveAccessibleDescription(/unlocks by itself/);
+	});
+
+	it('sends the choice with the unlock and says the passphrase was kept', async () => {
+		const client = lockedWith(fakeStatus([], 'on'));
+		await setup(client);
+		const dialog = await openDialog();
+		fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Remember in keyring' }));
+		await unlockWith(dialog);
+		expect(client.calls[0]).toMatchObject({ action: 'unlock', remember: true });
+		expect(status()).toHaveTextContent('Saved the passphrase of Vault in the keyring');
+	});
+
+	it('does not remember when the box is left unticked', async () => {
+		const client = lockedWith(fakeStatus([], 'on'));
+		await setup(client);
+		await unlockWith(await openDialog());
+		expect(client.calls[0]).toMatchObject({ action: 'unlock', remember: false });
+	});
+
+	it('hides the option where the switch is off, and the dialog says nothing of it', async () => {
+		await setup(lockedWith(fakeStatus([], 'disabled')));
+		const dialog = await openDialog();
+		expect(within(dialog).queryByRole('checkbox')).toBeNull();
+		expect(within(dialog).queryByText(/cannot be remembered/)).toBeNull();
+	});
+
+	it('says why it cannot be remembered when it is on but there is no keyring', async () => {
+		await setup(lockedWith(fakeStatus([], 'no-keyring')));
+		const dialog = await openDialog();
+		expect(within(dialog).queryByRole('checkbox')).toBeNull();
+		expect(
+			within(dialog).getByText('The passphrase cannot be remembered: no keyring is running.'),
+		).toBeVisible();
+	});
+
+	it('says why it cannot be remembered when the keyring is locked', async () => {
+		await setup(lockedWith(fakeStatus([], 'keyring-locked')));
+		const dialog = await openDialog();
+		expect(
+			within(dialog).getByText('The passphrase cannot be remembered: the keyring is locked.'),
+		).toBeVisible();
+	});
+
+	it('tells the person when the volume unlocked but the passphrase could not be kept', async () => {
+		const client = lockedWith(fakeStatus([], 'on'));
+		client.rememberOutcome = {
+			state: 'failed',
+			reason: 'keyring-locked',
+			message: 'The keyring is locked.',
+		};
+		await setup(client);
+		const dialog = await openDialog();
+		fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Remember in keyring' }));
+		await unlockWith(dialog);
+		expect(client.calls.map((call) => call.action)).toEqual(['unlock', 'mount']);
+		expect(status()).toHaveTextContent(
+			'Unlocked Vault, but its passphrase was not remembered: the keyring is locked.',
+		);
+	});
+
+	it('forgets a remembered passphrase from the volume row, and only offers it for one', async () => {
+		const client = new FakeDevicesClient(
+			[
+				fakeVolume('vault', { label: 'Vault', uuid: 'luks-1', remembered: true }),
+				fakeVolume('plain', { label: 'Plain' }),
+			],
+			fakeStatus([], 'on'),
+		);
+		await setup(client);
+		const group = await devices();
+		expect(
+			within(group).queryByRole('button', { name: 'Forget the saved passphrase of Plain' }),
+		).toBeNull();
+		fireEvent.click(
+			within(group).getByRole('button', { name: 'Forget the saved passphrase of Vault' }),
+		);
+		await waitFor(() =>
+			expect(
+				within(group).queryByRole('button', { name: 'Forget the saved passphrase of Vault' }),
+			).toBeNull(),
+		);
+		expect(client.calls).toEqual([{ action: 'forget', id: 'vault' }]);
+		expect(status()).toHaveTextContent('Forgot the saved passphrase of Vault');
+	});
+
+	it('does not offer to forget while remembering is off', async () => {
+		await setup(
+			new FakeDevicesClient(
+				[fakeVolume('vault', { label: 'Vault', uuid: 'luks-1', remembered: true })],
+				fakeStatus([], 'disabled'),
+			),
+		);
+		expect(
+			within(await devices()).queryByRole('button', { name: /Forget the saved passphrase/ }),
+		).toBeNull();
 	});
 });
 

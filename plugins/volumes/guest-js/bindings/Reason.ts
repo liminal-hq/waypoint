@@ -3,4 +3,4 @@
 /**
  * Why a feature is unavailable. A code the front end can branch on; `message` beside it is a sentence for people.
  */
-export type Reason = "no-system-bus" | "udisks2-missing" | "flatpak-sandbox" | "udisks2-failed" | "unsupported-platform" | "not-supported";
+export type Reason = "no-system-bus" | "udisks2-missing" | "flatpak-sandbox" | "udisks2-failed" | "unsupported-platform" | "not-supported" | "no-keyring" | "keyring-locked" | "disabled" | "not-configured";

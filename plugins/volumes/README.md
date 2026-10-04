@@ -73,7 +73,7 @@ if (hasFeature(status, 'list')) {
 }
 
 const mountPoint = await mount(id); // where it is mounted
-const unlocked = await unlock(lockedId, passphrase); // the id of the volume that appears; mount it next
+const { id: unlocked, remember } = await unlock(lockedId, passphrase, true); // the id of the volume that appears (mount it next) and what became of the request to remember the passphrase
 await eject(id); // unmounts everything on the drive, then ejects or powers it off
 const nas = await refreshSpace(networkId); // network volumes are measured only when asked
 ```
@@ -91,17 +91,18 @@ let mount_point = app.volumes().mount(&volumes[0].id).await?;
 
 ## API
 
-| Function                                                      | What it does                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `getStatus()`                                                 | `{ available, reason, message, flavour, features }`; see below.                                                                                                                                                                                        |
-| `list(measure?)`                                              | Every volume now. Mounted local volumes are measured within the timeout; with `measure` true network and FUSE mounts are too.                                                                                                                          |
-| `refreshSpace(id)`                                            | Measures one volume of any kind within the timeout and returns it.                                                                                                                                                                                     |
-| `mount(id)`                                                   | Mounts a volume and returns its mount point.                                                                                                                                                                                                           |
-| `unmount(id)`                                                 | Unmounts a volume.                                                                                                                                                                                                                                     |
-| `eject(id)`                                                   | Unmounts every volume on the drive, locks what is unlocked, then ejects the drive and powers it off as it allows.                                                                                                                                      |
-| `unlock(id, passphrase)`                                      | Unlocks an encrypted volume and returns the id of the volume that appears. The passphrase is sent once; it is not logged or kept.                                                                                                                      |
-| `onChanged(handler)`                                          | Listens for `volumes://changed`, which carries `{ revision, volumes }`. Revisions start at 1 and only grow. The event is sent when the list changes, not when only free space does, and a burst of changes is announced once, 100 ms after it settles. |
-| `hasFeature(status, name)`, `featureReason`, `featureMessage` | Read the status.                                                                                                                                                                                                                                       |
+| Function                                                      | What it does                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getStatus()`                                                 | `{ available, reason, message, flavour, features }`; see below.                                                                                                                                                                                                                                 |
+| `list(measure?)`                                              | Every volume now. Mounted local volumes are measured within the timeout; with `measure` true network and FUSE mounts are too.                                                                                                                                                                   |
+| `refreshSpace(id)`                                            | Measures one volume of any kind within the timeout and returns it.                                                                                                                                                                                                                              |
+| `mount(id)`                                                   | Mounts a volume and returns its mount point.                                                                                                                                                                                                                                                    |
+| `unmount(id)`                                                 | Unmounts a volume.                                                                                                                                                                                                                                                                              |
+| `eject(id)`                                                   | Unmounts every volume on the drive, locks what is unlocked, then ejects the drive and powers it off as it allows.                                                                                                                                                                               |
+| `unlock(id, passphrase, remember?)`                           | Unlocks an encrypted volume and returns `{ id, remember }`: the id of the volume that appears and what became of a request to remember the passphrase (`notAsked`, `remembered`, or `failed` with a reason and a sentence). The passphrase is sent once and is never kept by the plugin itself. |
+| `forget(id)`                                                  | Forgets the passphrase kept for an encrypted volume; true when there was one.                                                                                                                                                                                                                   |
+| `onChanged(handler)`                                          | Listens for `volumes://changed`, which carries `{ revision, volumes }`. Revisions start at 1 and only grow. The event is sent when the list changes, not when only free space does, and a burst of changes is announced once, 100 ms after it settles.                                          |
+| `hasFeature(status, name)`, `featureReason`, `featureMessage` | Read the status.                                                                                                                                                                                                                                                                                |
 
 A `Volume` is `{ id, label, kind, fileSystem, mountPoint, uri, total, free, canMount, canUnmount, canEject, canPowerOff, locked, isSystem, device }`. `kind` is `internal`, `removable`, `optical`, `network`, `loop` or `encrypted`. `id` is opaque: use it only to name the volume in the commands. `total` and `free` are bytes or `null`. `isSystem` marks a fixed, internal device. A hidden partition (`HintIgnore` in UDisks2) is not listed.
 
@@ -115,14 +116,15 @@ Each measurement (`statvfs`, `GetDiskFreeSpaceExW`) runs on a thread of its own 
 
 `getStatus()` returns `{ available, reason, message, flavour, features }`, where each feature is `{ name, available, reason, message }`. Decide behaviour from the features, never from the platform.
 
-| Feature   | Meaning                                                |
-| --------- | ------------------------------------------------------ |
-| `list`    | Volumes can be listed.                                 |
-| `mount`   | A volume can be mounted.                               |
-| `unmount` | A volume can be unmounted.                             |
-| `eject`   | A drive can be ejected (or powered off).               |
-| `unlock`  | An encrypted volume can be unlocked.                   |
-| `watch`   | `volumes://changed` is sent when something is plugged. |
+| Feature    | Meaning                                                           |
+| ---------- | ----------------------------------------------------------------- |
+| `list`     | Volumes can be listed.                                            |
+| `mount`    | A volume can be mounted.                                          |
+| `unmount`  | A volume can be unmounted.                                        |
+| `eject`    | A drive can be ejected (or powered off).                          |
+| `unlock`   | An encrypted volume can be unlocked.                              |
+| `watch`    | `volumes://changed` is sent when something is plugged.            |
+| `remember` | The host can keep passphrases and read them back now (see below). |
 
 `flavour` is `udisks2`, `mountinfo`, `windows` or `unsupported`. A `reason` is a code to branch on and `message` a sentence for people:
 
@@ -133,6 +135,10 @@ Each measurement (`statvfs`, `GetDiskFreeSpaceExW`) runs on a thread of its own 
 | `flatpak-sandbox`      | A Flatpak without access to the system bus (grant `--system-talk-name=org.freedesktop.UDisks2`).                                 |
 | `udisks2-failed`       | UDisks2 answered but would not describe its objects.                                                                             |
 | `unsupported-platform` | This operating system has no volume support in the plugin.                                                                       |
+| `no-keyring`           | There is no keyring to keep passphrases in (`remember`).                                                                         |
+| `keyring-locked`       | The keyring is locked and was not unlocked (`remember`).                                                                         |
+| `disabled`             | The host has remembering turned off (`remember`).                                                                                |
+| `not-configured`       | The host gave the plugin no place to keep passphrases (`remember`).                                                              |
 | `not-supported`        | The system has no such operation: Windows mounts drives by itself, has no unmount apart from eject and unlocks BitLocker itself. |
 
 ## Platform notes

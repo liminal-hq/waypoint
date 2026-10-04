@@ -226,6 +226,18 @@ fn kind_of(snapshot: &Snapshot, path: &str, encrypted: bool) -> VolumeKind {
     VolumeKind::Internal
 }
 
+/// The UUID of an encrypted volume's container: the ciphertext's own (a locked volume), or its backing device's (an unlocked one, shown as its cleartext). Nothing for a volume that is not encrypted.
+fn container_uuid(snapshot: &Snapshot, path: &str, kind: VolumeKind) -> Option<String> {
+    if kind != VolumeKind::Encrypted {
+        return None;
+    }
+    let container = snapshot.backing(path).unwrap_or(path);
+    snapshot
+        .string(container, BLOCK, "IdUUID")
+        .filter(|uuid| !uuid.is_empty())
+        .map(str::to_string)
+}
+
 /// Maps a snapshot of UDisks2's objects to the volumes a person would see. Hidden partitions (`HintIgnore`), partitions with no file system and nothing to unlock, empty drives and the ciphertext of an unlocked volume are left out.
 pub fn volumes_from_snapshot(snapshot: &Snapshot) -> Vec<Volume> {
     let mut volumes = Vec::new();
@@ -279,6 +291,8 @@ pub fn volumes_from_snapshot(snapshot: &Snapshot) -> Vec<Volume> {
             locked,
             is_system: hint_system,
             device: snapshot.string(path, BLOCK, "Device").map(str::to_string),
+            uuid: container_uuid(snapshot, path, kind),
+            remembered: false,
         });
     }
     volumes
@@ -437,6 +451,29 @@ mod tests {
         // It cannot be ejected, but it can be powered off, which `eject` does.
         assert!(disk.can_eject && disk.can_power_off);
         assert_eq!(disk.total, Some(2_000_000_000_000));
+    }
+
+    #[test]
+    fn an_encrypted_volume_carries_its_containers_uuid_locked_or_not() {
+        let locked = volume("udisks2:sdd1");
+        assert_eq!(
+            locked.uuid.as_deref(),
+            Some("9b1e0c52-5d57-4e60-8a7c-0d0f6a0b1a11")
+        );
+        // Unlocked, it is shown as its cleartext device, with the ciphertext's UUID.
+        let unlocked = volume("udisks2:dm_2d0");
+        assert_eq!(unlocked.kind, VolumeKind::Encrypted);
+        assert_eq!(
+            unlocked.uuid.as_deref(),
+            Some("5c3f2a77-3a1d-4a0e-9f0e-6b2c7d8e9f22")
+        );
+        // Nothing else has one, and nothing is remembered before the host is asked.
+        for volume in volumes_from_snapshot(&snapshot()) {
+            if volume.kind != VolumeKind::Encrypted {
+                assert_eq!(volume.uuid, None, "{}", volume.id);
+            }
+            assert!(!volume.remembered);
+        }
     }
 
     #[test]

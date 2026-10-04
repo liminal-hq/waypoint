@@ -16,8 +16,9 @@ use serde_json::json;
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
 use tauri::{App, Listener};
 use tauri_plugin_volumes::{
-    Backend, BoxFuture, Flavour, Notify, Options, Passphrase, PluginStatus, Reason, Space, Volume,
-    VolumeKind, VolumesChanged, VolumesError, VolumesExt, EVENT_CHANGED, FEATURES, FEATURE_LIST,
+    Backend, BoxFuture, Flavour, Notify, Options, Passphrase, PassphraseStore, PluginStatus,
+    Reason, RememberOutcome, Space, Unavailable, Unlocked, Volume, VolumeKind, VolumesChanged,
+    VolumesError, VolumesExt, EVENT_CHANGED, FEATURES, FEATURE_LIST, FEATURE_REMEMBER,
 };
 
 type Calls = Arc<Mutex<Vec<String>>>;
@@ -158,6 +159,8 @@ fn volume(id: &str, kind: VolumeKind, mount: Option<&str>) -> Volume {
         locked: false,
         is_system: false,
         device: None,
+        uuid: None,
+        remembered: false,
     }
 }
 
@@ -244,8 +247,13 @@ async fn the_status_lists_every_feature_and_the_flavour() {
     let names: Vec<&str> = status.features.iter().map(|f| f.name.as_str()).collect();
     assert_eq!(
         names,
-        ["list", "mount", "unmount", "eject", "unlock", "watch"]
+        ["list", "mount", "unmount", "eject", "unlock", "watch", "remember"]
     );
+    // No place to keep passphrases was supplied: the feature says so, the plugin itself is fine.
+    let remember = status.features.last().unwrap();
+    assert!(!remember.available);
+    assert_eq!(remember.reason, Some(Reason::NotConfigured));
+    assert_eq!(status.reason, None);
     let json = serde_json::to_value(&status).unwrap();
     assert_eq!(json["flavour"], "udisks2");
     assert_eq!(
@@ -514,4 +522,397 @@ async fn a_volume_serialises_in_camel_case() {
     assert_eq!(json["canMount"], false);
     assert_eq!(json["canPowerOff"], false);
     assert_eq!(json["isSystem"], false);
+}
+
+// ---- Remembering passphrases ----
+
+use std::collections::HashMap;
+
+/// A host's passphrase store over a map, that can be switched off.
+#[derive(Default)]
+struct FakeStore {
+    kept: Mutex<HashMap<String, String>>,
+    off: Mutex<Option<Unavailable>>,
+    /// Makes `recall` alone fail, as a locked keyring does while its status still says yes.
+    recall_failure: Mutex<Option<Unavailable>>,
+    recalls: std::sync::atomic::AtomicUsize,
+}
+
+impl FakeStore {
+    fn new() -> Arc<Self> {
+        Arc::new(FakeStore::default())
+    }
+
+    fn turn_off(&self, reason: Reason, message: &str) {
+        *self.off.lock().unwrap() = Some(Unavailable::new(reason, message));
+    }
+
+    fn kept(&self, uuid: &str) -> Option<String> {
+        self.kept.lock().unwrap().get(uuid).cloned()
+    }
+
+    fn put(&self, uuid: &str, passphrase: &str) {
+        self.kept
+            .lock()
+            .unwrap()
+            .insert(uuid.into(), passphrase.into());
+    }
+}
+
+impl PassphraseStore for FakeStore {
+    fn status(&self) -> BoxFuture<'_, Option<Unavailable>> {
+        Box::pin(async { self.off.lock().unwrap().clone() })
+    }
+
+    fn remember(
+        &self,
+        uuid: String,
+        passphrase: Passphrase,
+    ) -> BoxFuture<'_, Result<(), Unavailable>> {
+        Box::pin(async move {
+            self.kept.lock().unwrap().insert(uuid, passphrase.0);
+            Ok(())
+        })
+    }
+
+    fn recall(&self, uuid: String) -> BoxFuture<'_, Result<Option<Passphrase>, Unavailable>> {
+        Box::pin(async move {
+            self.recalls.fetch_add(1, Ordering::SeqCst);
+            if let Some(why) = self.recall_failure.lock().unwrap().clone() {
+                return Err(why);
+            }
+            Ok(self.kept(&uuid).map(Passphrase))
+        })
+    }
+
+    fn has(&self, uuid: String) -> BoxFuture<'_, Result<bool, Unavailable>> {
+        Box::pin(async move { Ok(self.kept(&uuid).is_some()) })
+    }
+
+    fn forget(&self, uuid: String) -> BoxFuture<'_, Result<bool, Unavailable>> {
+        Box::pin(async move { Ok(self.kept.lock().unwrap().remove(&uuid).is_some()) })
+    }
+}
+
+fn locked(id: &str, uuid: Option<&str>) -> Volume {
+    Volume {
+        kind: VolumeKind::Encrypted,
+        locked: true,
+        can_mount: false,
+        uuid: uuid.map(str::to_string),
+        ..volume(id, VolumeKind::Encrypted, None)
+    }
+}
+
+fn with_store(volumes: Vec<Volume>, store: &Arc<FakeStore>) -> Fixture {
+    let mut options = options(|_| None, 2000);
+    options.passphrases = Some(store.clone());
+    fixture_with(volumes, options)
+}
+
+/// Waits until the plugin is watching, so a change announced next is heard.
+async fn watching(fx: &Fixture) {
+    eventually("the plugin starts watching", || {
+        fx.fake.notify.lock().unwrap().is_some()
+    })
+    .await;
+}
+
+/// Waits (a little) for something the plugin does by itself.
+async fn eventually(what: &str, mut check: impl FnMut() -> bool) {
+    for _ in 0..200 {
+        if check() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("never happened: {what}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_remember_feature_follows_the_hosts_store() {
+    let store = FakeStore::new();
+    let fx = with_store(vec![], &store);
+    let status = fx.app.volumes().get_status().await;
+    assert!(status.has(FEATURE_REMEMBER));
+    store.turn_off(Reason::Disabled, "turned off in the settings");
+    let status = fx.app.volumes().get_status().await;
+    let remember = status.features.last().unwrap();
+    assert_eq!(remember.name, FEATURE_REMEMBER);
+    assert_eq!(remember.reason, Some(Reason::Disabled));
+    assert_eq!(
+        remember.message.as_deref(),
+        Some("turned off in the settings")
+    );
+    // The plugin as a whole is unaffected, and the code is the one the page branches on.
+    assert!(status.available);
+    assert_eq!(status.reason, None);
+    assert_eq!(
+        serde_json::to_value(Reason::NoKeyring).unwrap(),
+        "no-keyring"
+    );
+    assert_eq!(
+        serde_json::to_value(Reason::KeyringLocked).unwrap(),
+        "keyring-locked"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn unlocking_with_remember_keeps_the_passphrase_under_the_containers_uuid() {
+    let store = FakeStore::new();
+    let fx = with_store(vec![locked("luks", Some("uuid-1"))], &store);
+    let unlocked = fx
+        .app
+        .volumes()
+        .unlock_and_remember("luks", Passphrase("hunter2".into()), true)
+        .await
+        .unwrap();
+    assert_eq!(
+        unlocked,
+        Unlocked {
+            id: "fake:unlocked".into(),
+            remember: RememberOutcome::Remembered
+        }
+    );
+    assert_eq!(store.kept("uuid-1").as_deref(), Some("hunter2"));
+    // The list says it is remembered, so the page can offer to forget it.
+    let list = fx.app.volumes().list(false).await.unwrap();
+    assert!(list[0].remembered);
+    assert_eq!(
+        serde_json::to_value(&unlocked).unwrap(),
+        json!({ "id": "fake:unlocked", "remember": { "state": "remembered" } })
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn unlocking_without_remember_keeps_nothing() {
+    let store = FakeStore::new();
+    let fx = with_store(vec![locked("luks", Some("uuid-1"))], &store);
+    let unlocked = fx
+        .app
+        .volumes()
+        .unlock_and_remember("luks", Passphrase("hunter2".into()), false)
+        .await
+        .unwrap();
+    assert_eq!(unlocked.remember, RememberOutcome::NotAsked);
+    assert_eq!(store.kept("uuid-1"), None);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_passphrase_that_cannot_be_kept_does_not_undo_the_unlock() {
+    let store = FakeStore::new();
+    store.turn_off(Reason::NoKeyring, "no keyring is running");
+    let fx = with_store(
+        vec![locked("luks", Some("uuid-1")), locked("bare", None)],
+        &store,
+    );
+    let unlocked = fx
+        .app
+        .volumes()
+        .unlock_and_remember("luks", Passphrase("hunter2".into()), true)
+        .await
+        .unwrap();
+    assert_eq!(unlocked.id, "fake:unlocked");
+    assert_eq!(
+        unlocked.remember,
+        RememberOutcome::Failed {
+            reason: Reason::NoKeyring,
+            message: "no keyring is running".into()
+        }
+    );
+    assert_eq!(store.kept("uuid-1"), None);
+    // A volume with no identifier cannot be remembered, with its own reason.
+    store.turn_off(Reason::Disabled, "x");
+    *store.off.lock().unwrap() = None;
+    let bare = fx
+        .app
+        .volumes()
+        .unlock_and_remember("bare", Passphrase("p".into()), true)
+        .await
+        .unwrap();
+    assert!(matches!(
+        bare.remember,
+        RememberOutcome::Failed {
+            reason: Reason::NotSupported,
+            ..
+        }
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn without_a_store_remembering_fails_with_not_configured_and_forgetting_is_unsupported() {
+    let fx = fixture(vec![locked("luks", Some("uuid-1"))]);
+    let unlocked = fx
+        .app
+        .volumes()
+        .unlock_and_remember("luks", Passphrase("p".into()), true)
+        .await
+        .unwrap();
+    assert!(matches!(
+        unlocked.remember,
+        RememberOutcome::Failed {
+            reason: Reason::NotConfigured,
+            ..
+        }
+    ));
+    assert_eq!(
+        fx.app.volumes().forget("luks").await,
+        Err(VolumesError::Unsupported)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn forgetting_removes_the_passphrase_and_the_mark() {
+    let store = FakeStore::new();
+    store.put("uuid-1", "hunter2");
+    let fx = with_store(vec![locked("luks", Some("uuid-1"))], &store);
+    assert!(fx.app.volumes().list(false).await.unwrap()[0].remembered);
+    assert_eq!(fx.app.volumes().forget("luks").await, Ok(true));
+    assert_eq!(store.kept("uuid-1"), None);
+    assert!(!fx.app.volumes().list(false).await.unwrap()[0].remembered);
+    assert_eq!(fx.app.volumes().forget("luks").await, Ok(false));
+    assert_eq!(
+        fx.app.volumes().forget("gone").await,
+        Err(VolumesError::NotFound)
+    );
+    // It can still be forgotten while remembering is off.
+    store.put("uuid-1", "again");
+    store.turn_off(Reason::Disabled, "off");
+    assert_eq!(fx.app.volumes().forget("luks").await, Ok(true));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_remembered_volume_unlocks_and_mounts_when_it_appears_and_only_once() {
+    let store = FakeStore::new();
+    store.put("uuid-1", "hunter2");
+    let fx = with_store(vec![], &store);
+    assert_eq!(next_event(&fx).revision, 1);
+    watching(&fx).await;
+    fx.fake.set(vec![
+        locked("luks", Some("uuid-1")),
+        locked("other", Some("uuid-2")),
+    ]);
+    fx.fake.announce();
+    eventually("the remembered volume is unlocked", || {
+        fx.fake.calls.lock().unwrap().len() >= 2
+    })
+    .await;
+    let calls = fx.fake.calls.lock().unwrap().clone();
+    // Only the volume with a remembered passphrase; unlocked with the text's length, then mounted.
+    assert_eq!(
+        calls,
+        ["unlock luks with 7 characters", "mount fake:unlocked"]
+    );
+    // Another change does not try again, even though the volume is still locked in the fake.
+    fx.fake.announce();
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(fx.fake.calls.lock().unwrap().len(), 2);
+    // Unplugged and plugged in again, it is tried again.
+    fx.fake.set(vec![]);
+    fx.fake.announce();
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    fx.fake.set(vec![locked("luks", Some("uuid-1"))]);
+    fx.fake.announce();
+    eventually("it unlocks again after a re-plug", || {
+        fx.fake.calls.lock().unwrap().len() >= 4
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn nothing_unlocks_by_itself_while_remembering_is_off() {
+    let store = FakeStore::new();
+    store.put("uuid-1", "hunter2");
+    store.turn_off(Reason::Disabled, "off");
+    let fx = with_store(vec![locked("luks", Some("uuid-1"))], &store);
+    assert_eq!(next_event(&fx).revision, 1);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(fx.fake.calls.lock().unwrap().is_empty());
+    // Off also means the list does not say what is kept.
+    assert!(!fx.app.volumes().list(false).await.unwrap()[0].remembered);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_wrong_remembered_passphrase_leaves_the_volume_locked_and_is_not_retried() {
+    let store = FakeStore::new();
+    store.put("uuid-1", "stale");
+    let fx = with_store(vec![], &store);
+    assert_eq!(next_event(&fx).revision, 1);
+    watching(&fx).await;
+    *fx.fake.failure.lock().unwrap() = Some(VolumesError::WrongPassphrase);
+    fx.fake.set(vec![locked("luks", Some("uuid-1"))]);
+    fx.fake.announce();
+    eventually("the one attempt", || {
+        !fx.fake.calls.lock().unwrap().is_empty()
+    })
+    .await;
+    fx.fake.announce();
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(fx.fake.calls.lock().unwrap().len(), 1);
+    // The stale passphrase is kept for the person to replace by unlocking by hand.
+    assert_eq!(store.kept("uuid-1").as_deref(), Some("stale"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_failed_read_of_the_passphrase_is_retried_and_then_stops() {
+    let store = FakeStore::new();
+    store.put("uuid-1", "hunter2");
+    *store.recall_failure.lock().unwrap() = Some(Unavailable::new(Reason::KeyringLocked, "locked"));
+    let fx = with_store(vec![], &store);
+    assert_eq!(next_event(&fx).revision, 1);
+    watching(&fx).await;
+    fx.fake.set(vec![locked("luks", Some("uuid-1"))]);
+    fx.fake.announce();
+    eventually("the first failed read", || {
+        store.recalls.load(Ordering::SeqCst) >= 1
+    })
+    .await;
+    // The keyring is unlocked now: the next change unlocks the volume, which was not given up on.
+    *store.recall_failure.lock().unwrap() = None;
+    fx.fake.announce();
+    eventually("the volume unlocks once the read works", || {
+        fx.fake.calls.lock().unwrap().len() >= 2
+    })
+    .await;
+    assert_eq!(
+        fx.fake.calls.lock().unwrap()[0],
+        "unlock luks with 7 characters"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_keyring_that_stays_locked_is_not_asked_in_a_loop() {
+    let store = FakeStore::new();
+    store.put("uuid-1", "hunter2");
+    *store.recall_failure.lock().unwrap() = Some(Unavailable::new(Reason::KeyringLocked, "locked"));
+    let fx = with_store(vec![], &store);
+    assert_eq!(next_event(&fx).revision, 1);
+    watching(&fx).await;
+    fx.fake.set(vec![locked("luks", Some("uuid-1"))]);
+    for _ in 0..6 {
+        fx.fake.announce();
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    assert_eq!(store.recalls.load(Ordering::SeqCst), 3);
+    assert!(fx.fake.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_volume_with_nothing_remembered_is_tried_when_a_passphrase_appears_later() {
+    let store = FakeStore::new();
+    let fx = with_store(vec![], &store);
+    assert_eq!(next_event(&fx).revision, 1);
+    watching(&fx).await;
+    fx.fake.set(vec![locked("luks", Some("uuid-1"))]);
+    fx.fake.announce();
+    eventually("the empty read", || {
+        store.recalls.load(Ordering::SeqCst) >= 1
+    })
+    .await;
+    store.put("uuid-1", "hunter2");
+    fx.fake.announce();
+    eventually("unlocks once something is kept", || {
+        !fx.fake.calls.lock().unwrap().is_empty()
+    })
+    .await;
 }

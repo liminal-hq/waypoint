@@ -11,10 +11,17 @@ import {
 } from '@liminal-hq/plugin-volumes';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { tf, type MessageId } from '../i18n/messages';
-import { failureText, type DeviceAction } from './deviceModel';
+import {
+	failureText,
+	rememberOffer,
+	rememberReasonText,
+	type DeviceAction,
+	type RememberOffer,
+} from './deviceModel';
 import type { DevicesClient } from './devicesClient';
 
 const DONE: Record<Exclude<DeviceAction, 'unlock'>, MessageId> = {
+	forget: 'devices.announce.forgotten',
 	mount: 'devices.announce.mounted',
 	unmount: 'devices.announce.unmounted',
 	eject: 'devices.announce.ejected',
@@ -38,8 +45,11 @@ export interface Devices {
 	volumes: readonly Volume[];
 	/** The ids of the volumes an action is running on. */
 	busy: ReadonlySet<string>;
+	/** What the Unlock dialog offers about remembering the passphrase, or `null` for nothing. */
+	rememberOffer: RememberOffer | null;
 	run(action: Exclude<DeviceAction, 'unlock'>, volume: Volume): Promise<boolean>;
-	unlock(volume: Volume, passphrase: string): Promise<UnlockResult>;
+	/** Unlocks and mounts; `remember` also keeps the passphrase in the keyring. */
+	unlock(volume: Volume, passphrase: string, remember?: boolean): Promise<UnlockResult>;
 }
 
 /**
@@ -129,6 +139,7 @@ export function useDevices(client: DevicesClient | null, callbacks: DevicesCallb
 			try {
 				if (action === 'mount') await client.mount(volume.id);
 				else if (action === 'unmount') await client.unmount(volume.id);
+				else if (action === 'forget') await client.forget(volume.id);
 				else await client.eject(volume.id);
 				callbackRef.current.announce(tf(DONE[action], { name: volume.label }));
 				return true;
@@ -145,13 +156,28 @@ export function useDevices(client: DevicesClient | null, callbacks: DevicesCallb
 	);
 
 	const unlock = useCallback(
-		async (volume: Volume, passphrase: string): Promise<UnlockResult> => {
+		async (volume: Volume, passphrase: string, remember = false): Promise<UnlockResult> => {
 			if (!client) return 'failed';
 			setBusyFor(volume.id, true);
 			running.current += 1;
 			try {
-				const opened = await client.unlock(volume.id, passphrase);
+				const { id: opened, remember: outcome } = await client.unlock(
+					volume.id,
+					passphrase,
+					remember,
+				);
 				callbackRef.current.announce(tf('devices.announce.unlocked', { name: volume.label }));
+				if (outcome.state === 'remembered') {
+					callbackRef.current.announce(tf('devices.announce.remembered', { name: volume.label }));
+				} else if (outcome.state === 'failed') {
+					// Unlocking worked; say, in words and not only in the log, why the passphrase was not kept.
+					const message = tf('devices.remember.failed', {
+						name: volume.label,
+						reason: rememberReasonText(outcome.reason, outcome.message),
+					});
+					callbackRef.current.announce(message);
+					callbackRef.current.notice(message);
+				}
 				// The unlocked volume appears under a new id; mounting it is what the person wants next.
 				try {
 					await client.mount(opened);
@@ -172,8 +198,9 @@ export function useDevices(client: DevicesClient | null, callbacks: DevicesCallb
 	);
 
 	const available = client !== null && status !== null && hasFeature(status, 'list');
+	const offer = useMemo(() => rememberOffer(status), [status]);
 	return useMemo(
-		() => ({ status, available, volumes, busy, run, unlock }),
-		[status, available, volumes, busy, run, unlock],
+		() => ({ status, available, volumes, busy, rememberOffer: offer, run, unlock }),
+		[status, available, volumes, busy, offer, run, unlock],
 	);
 }

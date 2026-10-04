@@ -1,5 +1,5 @@
 [default]
-description = "Default permissions for the volumes plugin: report its status, list volumes, measure one, and mount, unmount, eject and unlock them"
+description = "Default permissions for the volumes plugin: report its status, list volumes, measure one, and mount, unmount, eject and unlock them, and forget a remembered passphrase"
 permissions = [
   "allow-get-status",
   "allow-list",
@@ -8,4 +8,5 @@ permissions = [
   "allow-unmount",
   "allow-eject",
   "allow-unlock",
+  "allow-forget",
 ]

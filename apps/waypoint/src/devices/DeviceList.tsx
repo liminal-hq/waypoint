@@ -9,7 +9,7 @@ import { DriveIcon } from '../icons/MenuIcons';
 import { ITEM_ATTRIBUTE, moveFocusInList } from '../sidebar/itemList';
 import sidebar from '../sidebar/Sidebar.module.css';
 import { actionsFor, statusText, usageOf, type DeviceAction } from './deviceModel';
-import { EjectIcon, LockIcon, MountIcon, UnmountIcon } from './DeviceIcons';
+import { EjectIcon, ForgetIcon, LockIcon, MountIcon, UnmountIcon } from './DeviceIcons';
 import styles from './DeviceList.module.css';
 
 const ACTION_LABELS: Record<DeviceAction, MessageId> = {
@@ -17,6 +17,7 @@ const ACTION_LABELS: Record<DeviceAction, MessageId> = {
 	unmount: 'devices.action.unmount',
 	eject: 'devices.action.eject',
 	unlock: 'devices.action.unlock',
+	forget: 'devices.action.forget',
 };
 
 const ACTION_ICONS = {
@@ -24,6 +25,7 @@ const ACTION_ICONS = {
 	unmount: UnmountIcon,
 	eject: EjectIcon,
 	unlock: LockIcon,
+	forget: ForgetIcon,
 };
 
 interface DeviceListProps {

@@ -13,9 +13,14 @@ use crate::backend::{Backend, Notify};
 use crate::debounce::Debounce;
 use crate::error::{Result, VolumesError};
 use crate::models::{
-    Passphrase, PluginStatus, Volume, VolumeKind, VolumesChanged, EVENT_CHANGED, FEATURE_WATCH,
+    FeatureStatus, Passphrase, PluginStatus, Reason, RememberOutcome, Unlocked, Volume, VolumeKind,
+    VolumesChanged, EVENT_CHANGED, FEATURE_REMEMBER, FEATURE_UNLOCK, FEATURE_WATCH,
 };
+use crate::passphrases::SharedStore;
 use crate::space::{system_space, Measurer, SpaceFn};
+
+/// How many failed reads of a remembered passphrase are tolerated for one plugged-in volume.
+const MAX_RECALL_FAILURES: u32 = 3;
 
 /// What a host can tune, and what tests inject.
 #[derive(Clone)]
@@ -30,6 +35,8 @@ pub struct Options {
     pub space: SpaceFn,
     /// A monotonic clock in milliseconds, for the debounce. Default: the system's.
     pub clock: Arc<dyn Fn() -> u64 + Send + Sync>,
+    /// Where the passphrases of encrypted volumes are kept, when the host supplies one. Without it nothing can be remembered and the `remember` feature says `not-configured`. Default: none.
+    pub passphrases: Option<SharedStore>,
 }
 
 impl Default for Options {
@@ -41,6 +48,7 @@ impl Default for Options {
             max_debounce: Duration::from_secs(1),
             space: Arc::new(system_space),
             clock: Arc::new(move || start.elapsed().as_millis() as u64),
+            passphrases: None,
         }
     }
 }
@@ -60,6 +68,10 @@ pub(crate) struct Core {
     state: Mutex<State>,
     /// Refreshes take turns, so an older reading of the system never overwrites a newer one.
     refreshing: tokio::sync::Mutex<()>,
+    /// The containers (by UUID) a remembered passphrase was already tried on since they were plugged in, so a wrong one is not tried again and again.
+    attempted: Mutex<HashSet<String>>,
+    /// How many times reading a container's remembered passphrase failed (a locked keyring, a dismissed prompt) since it was plugged in. A failed read is retried on the next change, up to `MAX_RECALL_FAILURES`, so a locked keyring is not asked in a loop.
+    recall_failures: Mutex<std::collections::HashMap<String, u32>>,
     emit: Emit,
 }
 
@@ -88,12 +100,54 @@ impl Core {
                 volumes: Vec::new(),
             }),
             refreshing: tokio::sync::Mutex::new(()),
+            attempted: Mutex::new(HashSet::new()),
+            recall_failures: Mutex::new(std::collections::HashMap::new()),
             emit,
         })
     }
 
     pub(crate) async fn status(&self) -> PluginStatus {
-        self.backend.status().await
+        let mut status = self.backend.status().await;
+        let remember = self.remember_status(&status).await;
+        // Only the feature: the plugin's own reason stays the backend's, so a host that keeps passphrases off does not make the whole plugin look broken.
+        status.features.push(remember);
+        status
+    }
+
+    async fn remember_status(&self, backend: &PluginStatus) -> FeatureStatus {
+        if !backend.has(FEATURE_UNLOCK) {
+            return FeatureStatus::unavailable(
+                FEATURE_REMEMBER,
+                Reason::NotSupported,
+                "this system cannot unlock encrypted volumes",
+            );
+        }
+        match &self.options.passphrases {
+            None => FeatureStatus::unavailable(
+                FEATURE_REMEMBER,
+                Reason::NotConfigured,
+                "this app does not keep passphrases",
+            ),
+            Some(store) => match store.status().await {
+                None => FeatureStatus::available(FEATURE_REMEMBER),
+                Some(why) => FeatureStatus::unavailable(FEATURE_REMEMBER, why.reason, why.message),
+            },
+        }
+    }
+
+    /// Marks the encrypted volumes whose passphrase is kept. Asks only when passphrases can be read at all, and never prompts.
+    async fn mark_remembered(&self, volumes: &mut [Volume]) {
+        let Some(store) = &self.options.passphrases else {
+            return;
+        };
+        if !volumes.iter().any(|volume| volume.uuid.is_some()) || store.status().await.is_some() {
+            return;
+        }
+        for volume in volumes.iter_mut() {
+            if let Some(uuid) = volume.uuid.clone() {
+                volume.remembered = store.has(uuid).await.unwrap_or(false);
+            }
+        }
     }
 
     /// The last list that was read, and its revision.
@@ -106,6 +160,7 @@ impl Core {
     pub(crate) async fn refresh(&self, measure_network: bool) -> Result<Vec<Volume>> {
         let _turn = self.refreshing.lock().await;
         let mut volumes = self.backend.volumes().await?;
+        self.mark_remembered(&mut volumes).await;
         let wanted: Vec<String> = volumes
             .iter()
             .filter(|volume| measure_network || volume.kind != VolumeKind::Network)
@@ -197,10 +252,194 @@ impl Core {
         Ok(())
     }
 
-    pub(crate) async fn unlock(&self, id: &str, passphrase: Passphrase) -> Result<String> {
-        let unlocked = self.backend.unlock(id.to_string(), passphrase).await?;
+    /// Reads the list first when it has not been read yet, so a volume the caller names is known.
+    async fn ensure_listed(&self) {
+        let unread = self.state.lock().expect("state lock").revision == 0;
+        if unread {
+            let _ = self.refresh(false).await;
+        }
+    }
+
+    /// The UUID of the container of the volume with this id, from the last list.
+    fn uuid_of(&self, id: &str) -> Option<String> {
+        let state = self.state.lock().expect("state lock");
+        state
+            .volumes
+            .iter()
+            .find(|volume| volume.id == id)
+            .and_then(|volume| volume.uuid.clone())
+    }
+
+    /// Unlocks, and keeps the passphrase when asked to and when that works. A passphrase that could not be kept does not undo the unlock: the outcome says why.
+    pub(crate) async fn unlock(
+        &self,
+        id: &str,
+        passphrase: Passphrase,
+        remember: bool,
+    ) -> Result<Unlocked> {
+        self.ensure_listed().await;
+        let uuid = self.uuid_of(id);
+        let kept = remember.then(|| passphrase.clone());
+        let opened = self.backend.unlock(id.to_string(), passphrase).await?;
+        let outcome = match kept {
+            None => RememberOutcome::NotAsked,
+            Some(passphrase) => self.remember(uuid, passphrase).await,
+        };
+        if let Some(uuid) = self.uuid_of(id) {
+            // The person just unlocked it by hand: nothing for the automatic unlock to do on it.
+            self.attempted.lock().expect("attempted lock").insert(uuid);
+        }
         let _ = self.refresh(false).await;
-        Ok(unlocked)
+        Ok(Unlocked {
+            id: opened,
+            remember: outcome,
+        })
+    }
+
+    async fn remember(&self, uuid: Option<String>, passphrase: Passphrase) -> RememberOutcome {
+        let failed = |reason, message: &str| RememberOutcome::Failed {
+            reason,
+            message: message.to_string(),
+        };
+        let Some(store) = &self.options.passphrases else {
+            return failed(Reason::NotConfigured, "this app does not keep passphrases");
+        };
+        let Some(uuid) = uuid else {
+            return failed(
+                Reason::NotSupported,
+                "this volume has no identifier to remember it by",
+            );
+        };
+        if let Some(why) = store.status().await {
+            return RememberOutcome::Failed {
+                reason: why.reason,
+                message: why.message,
+            };
+        }
+        match store.remember(uuid, passphrase).await {
+            Ok(()) => RememberOutcome::Remembered,
+            Err(why) => RememberOutcome::Failed {
+                reason: why.reason,
+                message: why.message,
+            },
+        }
+    }
+
+    /// Forgets the passphrase kept for a volume; true when there was one. It works while remembering is switched off, so what was kept can still be removed.
+    pub(crate) async fn forget(&self, id: &str) -> Result<bool> {
+        let Some(store) = &self.options.passphrases else {
+            return Err(VolumesError::Unsupported);
+        };
+        self.ensure_listed().await;
+        let uuid = {
+            let state = self.state.lock().expect("state lock");
+            let volume = state
+                .volumes
+                .iter()
+                .find(|volume| volume.id == id)
+                .ok_or(VolumesError::NotFound)?;
+            volume.uuid.clone()
+        };
+        let Some(uuid) = uuid else {
+            return Ok(false);
+        };
+        let forgotten = store
+            .forget(uuid)
+            .await
+            .map_err(|why| VolumesError::io(why.message))?;
+        let _ = self.refresh(false).await;
+        Ok(forgotten)
+    }
+
+    /// Unlocks, once, each locked volume that has a remembered passphrase and was not tried since it was plugged in, and mounts it as unlocking by hand does. A wrong passphrase leaves the volume locked and is not tried again until the volume is plugged in anew; a passphrase that cannot be read (a locked keyring) is asked for again on later changes, up to three times.
+    pub(crate) async fn auto_unlock(&self) {
+        let Some(store) = &self.options.passphrases else {
+            return;
+        };
+        let (_, volumes) = self.current();
+        {
+            // Volumes that went away may be tried again when they return.
+            let present: HashSet<&str> = volumes.iter().filter_map(|v| v.uuid.as_deref()).collect();
+            self.attempted
+                .lock()
+                .expect("attempted lock")
+                .retain(|uuid| present.contains(uuid.as_str()));
+            self.recall_failures
+                .lock()
+                .expect("failures lock")
+                .retain(|uuid, _| present.contains(uuid.as_str()));
+        }
+        let wanted: Vec<&Volume> = volumes
+            .iter()
+            .filter(|volume| volume.locked && volume.uuid.is_some())
+            .collect();
+        if wanted.is_empty() || store.status().await.is_some() {
+            return;
+        }
+        for volume in wanted {
+            let uuid = volume.uuid.clone().expect("filtered on a uuid");
+            if self
+                .attempted
+                .lock()
+                .expect("attempted lock")
+                .contains(&uuid)
+            {
+                continue;
+            }
+            let failures = self
+                .recall_failures
+                .lock()
+                .expect("failures lock")
+                .get(&uuid)
+                .copied()
+                .unwrap_or(0);
+            if failures >= MAX_RECALL_FAILURES {
+                continue;
+            }
+            let passphrase = match store.recall(uuid.clone()).await {
+                Ok(Some(passphrase)) => passphrase,
+                // Nothing kept for this volume: nothing to try, and nothing prompted, so it stays open to a later try.
+                Ok(None) => continue,
+                Err(why) => {
+                    // A locked keyring or a dismissed prompt: try again on a later change, a few times.
+                    *self
+                        .recall_failures
+                        .lock()
+                        .expect("failures lock")
+                        .entry(uuid)
+                        .or_insert(0) += 1;
+                    log::debug!(
+                        "volumes: could not read the remembered passphrase for {}: {}",
+                        volume.label,
+                        why.message
+                    );
+                    continue;
+                }
+            };
+            // Only now is the volume tried: a wrong passphrase is not tried again until it is plugged in anew.
+            self.attempted.lock().expect("attempted lock").insert(uuid);
+            match self.backend.unlock(volume.id.clone(), passphrase).await {
+                Ok(opened) => {
+                    log::info!(
+                        "volumes: unlocked {} with a remembered passphrase",
+                        volume.label
+                    );
+                    if let Err(error) = self.backend.mount(opened).await {
+                        log::warn!(
+                            "volumes: could not mount {} after unlocking it: {error}",
+                            volume.label
+                        );
+                    }
+                    let _ = self.refresh(false).await;
+                }
+                Err(error) => {
+                    log::warn!(
+                        "volumes: the remembered passphrase for {} did not unlock it: {error}",
+                        volume.label
+                    );
+                }
+            }
+        }
     }
 
     /// Reads the first list and then keeps it current: the backend's notifications are debounced and each settled burst reads the list again. Runs until the plugin is dropped.
@@ -208,6 +447,7 @@ impl Core {
         if let Err(error) = self.refresh(false).await {
             log::warn!("volumes: the first listing failed: {error}");
         }
+        self.auto_unlock().await;
         if !self.backend.status().await.has(FEATURE_WATCH) {
             return;
         }
@@ -244,6 +484,7 @@ impl Core {
             if let Err(error) = self.refresh(false).await {
                 log::warn!("volumes: listing after a change failed: {error}");
             }
+            self.auto_unlock().await;
         }
     }
 }
@@ -308,6 +549,21 @@ impl<R: Runtime> Volumes<R> {
 
     /// Unlocks an encrypted volume and returns the id of the volume that appeared. The passphrase is not logged and not kept.
     pub async fn unlock(&self, id: &str, passphrase: Passphrase) -> Result<String> {
-        self.core.unlock(id, passphrase).await
+        Ok(self.core.unlock(id, passphrase, false).await?.id)
+    }
+
+    /// Unlocks an encrypted volume and, when `remember` is true, keeps the passphrase through the host's [`crate::PassphraseStore`] so the volume unlocks by itself next time. Failing to keep it does not undo the unlock; the outcome says why.
+    pub async fn unlock_and_remember(
+        &self,
+        id: &str,
+        passphrase: Passphrase,
+        remember: bool,
+    ) -> Result<Unlocked> {
+        self.core.unlock(id, passphrase, remember).await
+    }
+
+    /// Forgets the passphrase kept for an encrypted volume; true when there was one.
+    pub async fn forget(&self, id: &str) -> Result<bool> {
+        self.core.forget(id).await
     }
 }

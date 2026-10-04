@@ -83,6 +83,7 @@ export type RowKey =
 	| 'notificationActions'
 	| 'launcherProgress'
 	| 'preventSleep'
+	| 'rememberVolumePassphrases'
 	| 'fileManagerService'
 	| 'shortcutEnabled'
 	| 'shortcut';

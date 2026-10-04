@@ -7,6 +7,7 @@ import {
 	hasFeature,
 	isVolumesError,
 	type PluginStatus,
+	type Reason,
 	type Volume,
 	type VolumesError,
 } from '@liminal-hq/plugin-volumes';
@@ -14,7 +15,7 @@ import { formatSize } from '../browse/format';
 import { t, tf, type MessageId } from '../i18n/messages';
 
 /** The actions a volume's row can offer. */
-export type DeviceAction = 'mount' | 'unmount' | 'eject' | 'unlock';
+export type DeviceAction = 'mount' | 'unmount' | 'eject' | 'unlock' | 'forget';
 
 /** From this share used, a bar is marked "almost full" in words and in its pattern, not only its colour. */
 export const ALMOST_FULL_PERCENT = 90;
@@ -62,18 +63,52 @@ export function visibleVolumes(volumes: readonly Volume[]): Volume[] {
 	);
 }
 
+/** What the Unlock dialog says about remembering the passphrase (D147, D153). */
+export type RememberOffer =
+	| { kind: 'ask' }
+	/** The person turned it on but it cannot work now: the dialog says why. */
+	| { kind: 'unavailable'; reason: 'no-keyring' | 'keyring-locked' };
+
+/**
+ * Whether to offer "Remember in keyring": the checkbox when the plugin says it works, a line of
+ * words when the person has it switched on but there is no keyring or it is locked, and nothing
+ * where it is off in Settings or cannot exist here (the Services panel says why).
+ */
+export function rememberOffer(status: PluginStatus | null): RememberOffer | null {
+	if (!status || !hasFeature(status, 'unlock')) return null;
+	if (hasFeature(status, 'remember')) return { kind: 'ask' };
+	const reason = status.features.find((feature) => feature.name === 'remember')?.reason;
+	if (reason === 'no-keyring' || reason === 'keyring-locked')
+		return { kind: 'unavailable', reason };
+	return null;
+}
+
+const REMEMBER_REASONS: Partial<Record<Reason, MessageId>> = {
+	'no-keyring': 'devices.remember.reason.noKeyring',
+	'keyring-locked': 'devices.remember.reason.keyringLocked',
+};
+
+/** The short phrase for why a passphrase could not be remembered, from the plugin's reason code. */
+export function rememberReasonText(reason: Reason, message: string): string {
+	const id = REMEMBER_REASONS[reason];
+	return id ? t(id) : message;
+}
+
 /** The actions to offer for `volume`: those it allows and the plugin reports as working here. */
 export function actionsFor(volume: Volume, status: PluginStatus | null): DeviceAction[] {
 	if (!status) return [];
 	const actions: DeviceAction[] = [];
+	const forget = volume.remembered && hasFeature(status, 'remember');
 	if (volume.locked) {
 		if (hasFeature(status, 'unlock')) actions.push('unlock');
+		if (forget) actions.push('forget');
 		return actions;
 	}
 	if (volume.canMount && !volume.mountPoint && hasFeature(status, 'mount')) actions.push('mount');
 	if (volume.canUnmount && volume.mountPoint && hasFeature(status, 'unmount'))
 		actions.push('unmount');
 	if (volume.canEject && hasFeature(status, 'eject')) actions.push('eject');
+	if (forget) actions.push('forget');
 	return actions;
 }
 
@@ -82,6 +117,7 @@ const VERBS: Record<DeviceAction, MessageId> = {
 	unmount: 'devices.verb.unmount',
 	eject: 'devices.verb.eject',
 	unlock: 'devices.verb.unlock',
+	forget: 'devices.verb.forget',
 };
 
 /** The sentence for a failed action: the reason, and what holds the volume when the plugin says (D120). */

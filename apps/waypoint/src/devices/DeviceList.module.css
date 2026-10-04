@@ -124,3 +124,23 @@
 	color: var(--wp-danger);
 	font-size: 12px;
 }
+
+.remember {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	align-items: center;
+	column-gap: 8px;
+	row-gap: 2px;
+}
+
+.remember label {
+	color: var(--wp-text-primary);
+	font-size: 13px;
+}
+
+.hint {
+	grid-column: 1 / -1;
+	margin: 0;
+	color: var(--wp-text-secondary);
+	font-size: 12px;
+}

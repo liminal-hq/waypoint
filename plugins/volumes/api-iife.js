@@ -54,10 +54,17 @@ var __TAURI_PLUGIN_VOLUMES__ = (function (exports, core, event) {
     }
     /**
      * Unlocks an encrypted volume and returns the id of the volume that appears (mount it next). The
-     * passphrase is sent once and neither logged nor kept; a wrong one rejects with `wrongPassphrase`.
+     * passphrase is sent once and neither logged nor kept by the plugin; a wrong one rejects with
+     * `wrongPassphrase`. With `remember` true the passphrase is also handed to the app's own store (a
+     * keyring), when the `remember` feature works: `remember` in the result says whether that
+     * happened, or why not. A passphrase that could not be kept does not undo the unlock.
      */
-    function unlock(id, passphrase) {
-        return cmd('unlock', { id, passphrase });
+    function unlock(id, passphrase, remember = false) {
+        return cmd('unlock', { id, passphrase, remember });
+    }
+    /** Forgets the passphrase kept for an encrypted volume (`Volume.remembered`); true when there was one. */
+    function forget(id) {
+        return cmd('forget', { id });
     }
     /**
      * Calls `handler` with the whole list each time it changes. Revisions only grow: ignore an event
@@ -75,6 +82,7 @@ var __TAURI_PLUGIN_VOLUMES__ = (function (exports, core, event) {
     exports.eject = eject;
     exports.featureMessage = featureMessage;
     exports.featureReason = featureReason;
+    exports.forget = forget;
     exports.getStatus = getStatus;
     exports.hasFeature = hasFeature;
     exports.isVolumesError = isVolumesError;

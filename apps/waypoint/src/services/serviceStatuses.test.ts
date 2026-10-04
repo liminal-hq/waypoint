@@ -9,6 +9,7 @@ import {
 	integrationServiceStatus,
 	mimeAppsServiceStatus,
 	secretsServiceStatus,
+	volumesServiceStatus,
 	nativeDndServiceStatus,
 	SERVICE_SOURCES,
 	systemAppearanceServiceStatus,
@@ -27,7 +28,9 @@ const plugins = vi.hoisted(() => ({
 	integrations: vi.fn(),
 	mimeApps: vi.fn(),
 	secrets: vi.fn(),
+	volumes: vi.fn(),
 }));
+vi.mock('@liminal-hq/plugin-volumes', () => ({ getStatus: plugins.volumes }));
 vi.mock('@liminal-hq/plugin-secrets', () => ({ getStatus: plugins.secrets }));
 vi.mock('@liminal-hq/plugin-mime-apps', () => ({ getStatus: plugins.mimeApps }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
@@ -456,5 +459,39 @@ describe('the Rust-only plugins', () => {
 		const all = await collectServiceStatuses();
 		expect(all['xdg-portal']).toMatchObject({ available: false, reason: 'no command' });
 		expect(all['desktop-integration']).toMatchObject({ available: false, reason: 'no command' });
+	});
+});
+
+describe('the volumes plugin', () => {
+	const feature = (name: string, reason: string | null) => ({
+		name,
+		available: reason === null,
+		reason,
+		message: reason === null ? null : `${name}: ${reason}`,
+	});
+	const status = (remember: string | null) => ({
+		available: true,
+		reason: null,
+		message: null,
+		flavour: 'udisks2',
+		features: [feature('list', null), feature('unlock', null), feature('remember', remember)],
+	});
+
+	it('does not show remembering as a fault while it is off or not offered', async () => {
+		for (const reason of ['disabled', 'not-configured']) {
+			plugins.volumes.mockResolvedValue(status(reason));
+			expect(await volumesServiceStatus()).toEqual({
+				available: true,
+				reason: null,
+				features: ['list', 'unlock'],
+			});
+		}
+	});
+
+	it('gives the keyring as the reason remembering is not working when it is on', async () => {
+		plugins.volumes.mockResolvedValue(status('no-keyring'));
+		const result = await volumesServiceStatus();
+		expect(result.reason).toBe('remember: no-keyring');
+		expect(result.features).toEqual(['list', 'unlock']);
 	});
 });
