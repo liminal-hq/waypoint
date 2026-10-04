@@ -14,7 +14,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use support::Sshd;
 use waypoint_protocol::VfsError;
-use waypoint_provider_sftp::SftpProvider;
+use waypoint_provider_sftp::{AgentSource, SftpConfig, SftpProvider};
 use waypoint_vfs::{CancelToken, EntryKind, FileTimes, Permissions, Provider, WriteOptions};
 
 fn read_all(provider: &SftpProvider, path: &waypoint_path::VfsPath) -> Vec<u8> {
@@ -70,6 +70,12 @@ fn streams_write_large_files_and_resume_partial_ones() {
             .map(|_| ()),
         Err(VfsError::NotFound { .. })
     ));
+    // A partial file shorter than the offset is refused, never padded with zeros.
+    assert!(matches!(
+        provider.resume_write(&file, 10).map(|_| ()),
+        Err(VfsError::Io { .. })
+    ));
+    assert_eq!(read_all(&provider, &file), b"shoORE");
 
     // A stream dropped without finishing closes the file and leaves the session usable.
     let mut dropped = provider
@@ -293,4 +299,102 @@ fn typed_errors_for_what_sftp_reports_as_a_generic_failure() {
         fs::set_permissions(&locked, fs::Permissions::from_mode(0o700)).unwrap();
         assert!(matches!(denied, Err(VfsError::PermissionDenied { .. })));
     }
+}
+
+/// A provider that uses none of OpenSSH's extensions, as against a server with version 3 only.
+fn plain_provider(server: &Sshd) -> SftpProvider {
+    SftpProvider::new(
+        SftpConfig::new(server.known_hosts(server.port))
+            .with_agent(AgentSource::None)
+            .with_identity_files(vec![server.client_key.clone()])
+            .with_plain_protocol(),
+    )
+}
+
+#[test]
+fn a_replacing_rename_without_the_extension_never_loses_the_target() {
+    let Some(server) = Sshd::start() else { return };
+    let root = server.data_location();
+    for provider in [server.provider(), plain_provider(&server)] {
+        fs::write(server.data.join("keep.txt"), "only copy").unwrap();
+        let keep = root.join("keep.txt").unwrap();
+        // Onto itself: a no-op, with or without `overwrite`.
+        provider.rename(&keep, &keep, true).unwrap();
+        provider.rename(&keep, &keep, false).unwrap();
+        assert_eq!(
+            fs::read(server.data.join("keep.txt")).unwrap(),
+            b"only copy"
+        );
+
+        // A missing source leaves the target alone.
+        assert!(matches!(
+            provider.rename(&root.join("ghost").unwrap(), &keep, true),
+            Err(VfsError::NotFound { .. })
+        ));
+        assert_eq!(
+            fs::read(server.data.join("keep.txt")).unwrap(),
+            b"only copy"
+        );
+
+        // A replacing rename replaces and leaves nothing beside.
+        fs::write(server.data.join("new.txt"), "new").unwrap();
+        provider
+            .rename(&root.join("new.txt").unwrap(), &keep, true)
+            .unwrap();
+        assert_eq!(fs::read(server.data.join("keep.txt")).unwrap(), b"new");
+        let left: Vec<_> = fs::read_dir(&server.data)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(left, ["keep.txt"], "nothing left beside");
+        fs::remove_file(server.data.join("keep.txt")).unwrap();
+    }
+
+    // A rename that fails after the target was moved aside puts it back: the source sits in a
+    // folder the user may not change, so it cannot be moved out of it.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let provider = plain_provider(&server);
+        fs::write(server.data.join("target.txt"), "old").unwrap();
+        let locked = server.data.join("locked");
+        fs::create_dir(&locked).unwrap();
+        fs::write(locked.join("source.txt"), "new").unwrap();
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o500)).unwrap();
+        let result = provider.rename(
+            &root.join("locked/source.txt").unwrap(),
+            &root.join("target.txt").unwrap(),
+            true,
+        );
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(matches!(result, Err(VfsError::PermissionDenied { .. })));
+        assert_eq!(fs::read(server.data.join("target.txt")).unwrap(), b"old");
+        let left: Vec<_> = fs::read_dir(&server.data)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with(".waypoint"))
+            .collect();
+        assert!(left.is_empty(), "nothing left beside: {left:?}");
+    }
+}
+
+#[test]
+fn a_time_sftp_cannot_carry_is_refused_not_written_as_1970() {
+    let Some(server) = Sshd::start() else { return };
+    let provider = server.provider();
+    fs::write(server.data.join("a.txt"), "x").unwrap();
+    let file = server.data_location().join("a.txt").unwrap();
+    let before = provider.stat(&file).unwrap().modified_ms;
+    let old = UNIX_EPOCH - Duration::from_secs(86_400);
+    assert!(matches!(
+        provider.set_times(
+            &file,
+            FileTimes {
+                accessed: None,
+                modified: Some(old),
+            },
+        ),
+        Err(VfsError::Unsupported { .. })
+    ));
+    assert_eq!(provider.stat(&file).unwrap().modified_ms, before);
 }

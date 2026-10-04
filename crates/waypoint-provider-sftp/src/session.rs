@@ -317,7 +317,8 @@ impl Opening<'_> {
             .init()
             .await
             .map_err(|error| from_sftp(&error, location))?;
-        let announced = |name: &str| version.extensions.contains_key(name);
+        let plain = self.config.plain_protocol;
+        let announced = |name: &str| !plain && version.extensions.contains_key(name);
         let extensions = Extensions {
             posix_rename: announced("posix-rename@openssh.com"),
             fsync: announced("fsync@openssh.com"),

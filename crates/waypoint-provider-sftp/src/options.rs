@@ -81,6 +81,7 @@ pub struct SftpConfig {
     pub(crate) identity_files: Option<Vec<PathBuf>>,
     pub(crate) ssh_config: Option<Arc<dyn SshConfigSource>>,
     pub(crate) options: SftpOptions,
+    pub(crate) plain_protocol: bool,
 }
 
 impl SftpConfig {
@@ -95,6 +96,7 @@ impl SftpConfig {
             identity_files: None,
             ssh_config: None,
             options: SftpOptions::default(),
+            plain_protocol: false,
         }
     }
 
@@ -122,6 +124,14 @@ impl SftpConfig {
     /// `~/.ssh/id_ed25519`, `id_ecdsa` and `id_rsa`.
     pub fn with_identity_files(mut self, files: Vec<PathBuf>) -> Self {
         self.identity_files = Some(files);
+        self
+    }
+
+    /// Uses none of OpenSSH's protocol extensions even where the server has them, as against a
+    /// server that only speaks version 3 of the draft. For tests of those paths.
+    #[doc(hidden)]
+    pub fn with_plain_protocol(mut self) -> Self {
+        self.plain_protocol = true;
         self
     }
 

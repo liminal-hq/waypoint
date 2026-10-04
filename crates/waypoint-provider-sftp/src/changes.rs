@@ -20,10 +20,11 @@ fn put_string(out: &mut Vec<u8>, text: &str) {
     out.extend_from_slice(text.as_bytes());
 }
 
-fn seconds(time: SystemTime) -> u32 {
-    time.duration_since(UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_secs().min(u64::from(u32::MAX)) as u32)
-        .unwrap_or(0)
+/// A time as SFTP version 3 carries it: whole seconds since 1970 in 32 bits, so nothing before
+/// 1970 or after early 2106. `None` for a time it cannot carry.
+fn seconds(time: SystemTime) -> Option<u32> {
+    let elapsed = time.duration_since(UNIX_EPOCH).ok()?;
+    u32::try_from(elapsed.as_secs()).ok()
 }
 
 /// The status an extended request answered with.
@@ -157,6 +158,15 @@ pub(crate) async fn rename(session: &Session, rename: Rename<'_>) -> Result<(), 
     let clash = || VfsError::AlreadyExists {
         location: rename.to_location.clone(),
     };
+    // Renaming onto itself changes nothing, whatever `overwrite` says.
+    if rename.from == rename.to {
+        return match lstat(session, rename.from).await {
+            Some(_) => Ok(()),
+            None => Err(VfsError::NotFound {
+                location: rename.from_location.clone(),
+            }),
+        };
+    }
     if !rename.overwrite && lstat(session, rename.to).await.is_some() {
         return Err(clash());
     }
@@ -167,17 +177,41 @@ pub(crate) async fn rename(session: &Session, rename: Rename<'_>) -> Result<(), 
         let reply = sftp.extended("posix-rename@openssh.com", data).await;
         return status_of(reply, rename.from_location);
     }
+    // Without an atomic replacing rename, a file in the way is moved aside, never removed, until
+    // the new one has its name; if the rename fails it is put back.
+    let mut aside = None;
     if rename.overwrite {
-        // Without an atomic replacing rename, a file in the way is removed first.
         if let Some(target) = lstat(session, rename.to).await {
             if !target.is_dir() {
-                sftp.remove(rename.to)
+                if lstat(session, rename.from).await.is_none() {
+                    return Err(VfsError::NotFound {
+                        location: rename.from_location.clone(),
+                    });
+                }
+                let moved = aside_name(rename.to);
+                sftp.rename(rename.to, moved.as_str())
                     .await
                     .map_err(|error| from_sftp(&error, rename.to_location))?;
+                aside = Some(moved);
             }
         }
     }
-    match sftp.rename(rename.from, rename.to).await {
+    let renamed = sftp.rename(rename.from, rename.to).await;
+    if let Some(moved) = aside {
+        match &renamed {
+            Ok(_) => {
+                if let Err(error) = sftp.remove(moved.as_str()).await {
+                    log::warn!("sftp: could not remove the replaced file {moved}: {error}");
+                }
+            }
+            Err(_) => {
+                if let Err(error) = sftp.rename(moved.as_str(), rename.to).await {
+                    log::warn!("sftp: could not put the replaced file back from {moved}: {error}");
+                }
+            }
+        }
+    }
+    match renamed {
         Ok(_) => Ok(()),
         Err(error) => {
             if lstat(session, rename.from).await.is_none() {
@@ -191,6 +225,21 @@ pub(crate) async fn rename(session: &Session, rename: Rename<'_>) -> Result<(), 
             Err(from_sftp(&error, rename.from_location))
         }
     }
+}
+
+/// A name beside `path` that nothing else uses: hidden, and marked as Waypoint's.
+fn aside_name(path: &str) -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let (folder, name) = path.rsplit_once('/').unwrap_or(("", path));
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    format!(
+        "{folder}/.waypoint-replaced-{}-{stamp}-{n}-{name}",
+        std::process::id()
+    )
 }
 
 pub(crate) async fn remove_file(
@@ -277,18 +326,19 @@ pub(crate) async fn set_times(
         .await
         .map_err(|error| from_sftp(&error, location))?
         .attrs;
+    let wire = |time: Option<SystemTime>| match time {
+        None => Ok(None),
+        Some(time) => seconds(time)
+            .map(Some)
+            .ok_or_else(|| VfsError::Unsupported {
+                what: "a time before 1970 or after 2106 over SFTP".to_owned(),
+            }),
+    };
+    let (accessed, modified) = (wire(times.accessed)?, wire(times.modified)?);
     // SFTP version 3 sets both times at once.
     let attrs = FileAttributes {
-        atime: times
-            .accessed
-            .map(seconds)
-            .or(current.atime)
-            .or(current.mtime),
-        mtime: times
-            .modified
-            .map(seconds)
-            .or(current.mtime)
-            .or(current.atime),
+        atime: accessed.or(current.atime).or(current.mtime),
+        mtime: modified.or(current.mtime).or(current.atime),
         ..FileAttributes::empty()
     };
     if attrs.atime.is_none() || attrs.mtime.is_none() {
@@ -382,7 +432,15 @@ mod tests {
         let mut out = Vec::new();
         put_string(&mut out, "/a b");
         assert_eq!(out, [0, 0, 0, 4, b'/', b'a', b' ', b'b']);
-        assert_eq!(seconds(UNIX_EPOCH + std::time::Duration::from_secs(7)), 7);
-        assert_eq!(seconds(UNIX_EPOCH - std::time::Duration::from_secs(7)), 0);
+        assert_eq!(
+            seconds(UNIX_EPOCH + std::time::Duration::from_secs(7)),
+            Some(7)
+        );
+        assert_eq!(
+            seconds(UNIX_EPOCH - std::time::Duration::from_secs(7)),
+            None
+        );
+        let past_2106 = UNIX_EPOCH + std::time::Duration::from_secs(u64::from(u32::MAX) + 1);
+        assert_eq!(seconds(past_2106), None);
     }
 }

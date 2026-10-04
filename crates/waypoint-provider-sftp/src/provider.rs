@@ -579,6 +579,24 @@ impl Provider for SftpProvider {
                 let handle =
                     changes::open_for_writing(&session, &server, OpenFlags::WRITE, None, &location)
                         .await?;
+                // A partial file shorter than the part already sent is not the one that was
+                // left: cutting it to the offset would fill the gap with zeros.
+                let length = session
+                    .sftp
+                    .fstat(handle.clone())
+                    .await
+                    .ok()
+                    .and_then(|attrs| attrs.attrs.size);
+                if length.is_none_or(|length| length < offset) {
+                    let _ = session.sftp.close(handle).await;
+                    return Err(VfsError::Io {
+                        message: format!(
+                            "the partial file is shorter than the {offset} bytes already sent, \
+                             so it cannot be resumed"
+                        ),
+                        location: Some(location),
+                    });
+                }
                 // Whatever is past the offset was not confirmed and is written again.
                 if let Err(error) = changes::truncate(&session, &handle, offset, &location).await {
                     let _ = session.sftp.close(handle).await;
