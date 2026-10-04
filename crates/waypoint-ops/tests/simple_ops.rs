@@ -375,6 +375,7 @@ fn trash_and_restore_round_trip() {
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
             rename: None,
+            archive: None,
         };
         let restored = done(request, &mut h);
         assert_eq!(restored.restored.len(), 2);
@@ -400,6 +401,7 @@ fn restore_never_replaces_what_took_the_name() {
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
             rename: None,
+            archive: None,
         };
         let result = h.run(request);
         assert!(matches!(
@@ -437,6 +439,7 @@ fn trash_needs_a_trash_and_refuses_protected_places() {
                 options: JobOptions::default(),
                 origin_window: "main-1".to_owned(),
                 rename: None,
+                archive: None,
             };
             assert!(matches!(
                 refused(request, &mut h),
@@ -502,6 +505,7 @@ fn delete_refuses_roots_the_home_folder_and_mount_points() {
                 options: JobOptions::default(),
                 origin_window: "main-1".to_owned(),
                 rename: None,
+                archive: None,
             };
             assert!(matches!(
                 refused(request, &mut h),

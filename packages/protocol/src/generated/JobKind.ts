@@ -4,4 +4,4 @@ import type { JournalId } from "./JournalId";
 /**
  * What a job does.
  */
-export type JobKind = { "kind": "createFolder" } | { "kind": "createFile" } | { "kind": "rename" } | { "kind": "duplicate" } | { "kind": "trash" } | { "kind": "restore" } | { "kind": "delete" } | { "kind": "emptyTrash", olderThanDays: number | null, } | { "kind": "copy" } | { "kind": "move" } | { "kind": "link" } | { "kind": "batchRename" } | { "kind": "undo", of: JournalId, } | { "kind": "redo", of: JournalId, };
+export type JobKind = { "kind": "createFolder" } | { "kind": "createFile" } | { "kind": "rename" } | { "kind": "duplicate" } | { "kind": "trash" } | { "kind": "restore" } | { "kind": "delete" } | { "kind": "emptyTrash", olderThanDays: number | null, } | { "kind": "copy" } | { "kind": "move" } | { "kind": "link" } | { "kind": "batchRename" } | { "kind": "extract" } | { "kind": "compress" } | { "kind": "undo", of: JournalId, } | { "kind": "redo", of: JournalId, };

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{ListingHandle, Provider, SelectionSpec};
+use waypoint_vfs::{ArchiveCatalog, ArchiveWriters, ListingHandle, Provider, SelectionSpec};
 
 use crate::model::{OpsError, OpsSettings};
 
@@ -147,6 +147,10 @@ impl IdSource for CounterIds {
 #[derive(Clone, Default)]
 pub struct Providers {
     by_scheme: HashMap<&'static str, Arc<dyn Provider>>,
+    /// What lists an archive's entries for extraction, when archives are served.
+    catalog: Option<Arc<dyn ArchiveCatalog>>,
+    /// What makes archives, when they can be made.
+    writers: Option<Arc<dyn ArchiveWriters>>,
 }
 
 impl Providers {
@@ -164,6 +168,36 @@ impl Providers {
     /// Adds a provider under its scheme, replacing any earlier one for that scheme.
     pub fn register(&mut self, provider: Arc<dyn Provider>) {
         self.by_scheme.insert(provider.scheme(), provider);
+    }
+
+    /// Registers an archive provider: as the provider of the `archive` scheme, and as what lists
+    /// archives for extraction and makes them for compression.
+    pub fn register_archives<P>(&mut self, provider: Arc<P>)
+    where
+        P: Provider + ArchiveCatalog + ArchiveWriters + 'static,
+    {
+        self.catalog = Some(provider.clone());
+        self.writers = Some(provider.clone());
+        self.register(provider);
+    }
+
+    /// The provider of a scheme, if there is one.
+    pub fn get(&self, scheme: &str) -> Option<Arc<dyn Provider>> {
+        self.by_scheme.get(scheme).cloned()
+    }
+
+    /// The catalogue of archive entries, or `Unsupported` when archives are not served.
+    pub fn catalog(&self) -> Result<Arc<dyn ArchiveCatalog>, OpsError> {
+        self.catalog.clone().ok_or_else(|| OpsError::Unsupported {
+            what: "extracting archives".to_owned(),
+        })
+    }
+
+    /// The archive writers, or `Unsupported` when archives cannot be made.
+    pub fn writers(&self) -> Result<Arc<dyn ArchiveWriters>, OpsError> {
+        self.writers.clone().ok_or_else(|| OpsError::Unsupported {
+            what: "making archives".to_owned(),
+        })
     }
 
     pub fn for_path(&self, path: &VfsPath) -> Result<Arc<dyn Provider>, OpsError> {

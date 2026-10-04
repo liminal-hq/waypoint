@@ -20,7 +20,9 @@ use crate::model::{
 use crate::names::{file_name_of, fold_name, is_within, same_name, same_path, unique_full_name};
 use crate::traits::{Protected, Providers, SelectionResolver, Trash};
 
+mod archive;
 mod batch;
+pub use archive::{LeftOut, MAX_BYTES, MAX_ENTRIES, MAX_RATIO, RATIO_FLOOR_BYTES};
 pub use batch::{preview_batch, BatchPlan, BatchStep};
 
 /// What the planner needs from the world.
@@ -67,6 +69,32 @@ pub enum PlanWarning {
     DuplicateSource { location: Location },
     /// The entry is already in the destination folder, so it was left out.
     AlreadyThere { location: Location },
+    /// An entry of an archive that is not extracted, and why.
+    LeftOut { location: Location, why: LeftOut },
+    /// An archive that holds nothing, so there was nothing to extract from it.
+    EmptyArchive { location: Location },
+}
+
+/// What an extraction adds to the plan: the entries it leaves out, the bytes the archives declare,
+/// and which archive each item came from (what a redo runs again).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtractPlan {
+    /// Entries of the archives that are not extracted. The run does not see them, whatever the
+    /// archive does: a listing of the archive leaves them out and a read of one is `NotFound`.
+    pub skip: HashSet<VfsPath>,
+    /// What the archives say they hold, in bytes: no entry yields more than it declares, and the
+    /// job as a whole not more than this.
+    pub declared_bytes: u64,
+    /// The archive file each item of the plan is from, one per item.
+    pub item_archives: Vec<VfsPath>,
+}
+
+/// What a compression adds to the plan: the format and the archive file it makes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompressPlan {
+    pub kind: waypoint_vfs::ArchiveKind,
+    /// The archive file, under the name it will have.
+    pub target: VfsPath,
 }
 
 /// Everything known before the first write.
@@ -87,6 +115,8 @@ pub struct Plan {
     pub warnings: Vec<PlanWarning>,
     /// What a batch rename adds: the renames in order, and what a redo needs.
     pub batch: Option<BatchPlan>,
+    pub extract: Option<ExtractPlan>,
+    pub compress: Option<CompressPlan>,
 }
 
 impl Plan {
@@ -231,6 +261,8 @@ pub fn plan_with_progress(
         JobKind::EmptyTrash { .. } => planner.empty_trash(),
         JobKind::Copy | JobKind::Move | JobKind::Link => planner.transfer(),
         JobKind::BatchRename => planner.batch_rename(),
+        JobKind::Extract => planner.extract(),
+        JobKind::Compress => planner.compress(),
         JobKind::Undo { .. } | JobKind::Redo { .. } => Err(OpsError::Unsupported {
             what: "undo and redo".to_owned(),
         }),
@@ -302,6 +334,8 @@ impl Planner<'_, '_> {
             conflicts,
             warnings: std::mem::take(&mut self.warnings),
             batch: None,
+            extract: None,
+            compress: None,
         }
     }
 

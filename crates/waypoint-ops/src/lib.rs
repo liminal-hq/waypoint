@@ -39,8 +39,10 @@ pub use names::{
     unique_name,
 };
 pub use plan::{
-    plan, plan_with_progress, preview_batch, BatchPlan, BatchStep, Plan, PlanCtx, PlanItem,
-    PlanProgress, PlanWarning,
+    plan, plan_with_progress, preview_batch, BatchPlan, BatchStep, CompressPlan, ExtractPlan,
+    LeftOut, Plan, PlanCtx, PlanItem, PlanProgress, PlanWarning, MAX_BYTES as ARCHIVE_MAX_BYTES,
+    MAX_ENTRIES as ARCHIVE_MAX_ENTRIES, MAX_RATIO as ARCHIVE_MAX_RATIO,
+    RATIO_FLOOR_BYTES as ARCHIVE_RATIO_FLOOR_BYTES,
 };
 pub use preview::{
     conflict_preview, ConflictPreview, DiffLine, PreviewKind, PreviewSide, TextDiff,

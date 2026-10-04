@@ -183,6 +183,7 @@ impl<P: Provider + 'static> Harness<P> {
             options: JobOptions::default(),
             origin_window: "main-1".to_owned(),
             rename: None,
+            archive: None,
         }
     }
 

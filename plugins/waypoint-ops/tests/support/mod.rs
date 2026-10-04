@@ -460,6 +460,7 @@ impl Env {
             options: JobOptions::default(),
             origin_window: "someone-else".to_owned(),
             rename: None,
+            archive: None,
         }
     }
 

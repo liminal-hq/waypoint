@@ -707,6 +707,13 @@ impl<R: Runtime> Shared<R> {
                     PlanWarning::AlreadyThere { location } => PlanNote::AlreadyThere {
                         location: location.clone(),
                     },
+                    PlanWarning::LeftOut { location, why } => PlanNote::LeftOut {
+                        location: location.clone(),
+                        why: (*why).into(),
+                    },
+                    PlanWarning::EmptyArchive { location } => PlanNote::EmptyArchive {
+                        location: location.clone(),
+                    },
                 })
                 .collect(),
         })

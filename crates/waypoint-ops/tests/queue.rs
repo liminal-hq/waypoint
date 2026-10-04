@@ -46,6 +46,7 @@ fn request(name: &str, destination: Option<&str>) -> JobRequest {
         options: JobOptions::default(),
         origin_window: "main-1".to_owned(),
         rename: None,
+        archive: None,
     }
 }
 

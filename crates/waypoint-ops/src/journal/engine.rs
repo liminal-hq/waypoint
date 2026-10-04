@@ -81,6 +81,7 @@ fn request_of(kind: JobKind, origin_window: &str) -> JobRequest {
         options: JobOptions::default(),
         origin_window: origin_window.to_owned(),
         rename: None,
+        archive: None,
     }
 }
 

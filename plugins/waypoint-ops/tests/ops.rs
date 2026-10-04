@@ -1924,6 +1924,7 @@ fn a_scheduled_job_left_by_the_last_run_is_queued_again_at_start_up() {
                     options: waypoint_ops::JobOptions::default(),
                     origin_window: "main-1".to_owned(),
                     rename: None,
+                    archive: None,
                 };
                 request.options.schedule = Some(Schedule::StartAt {
                     at_ms: clock_ms() + 700,

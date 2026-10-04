@@ -31,3 +31,4 @@ waypoint-vfs = { path = "../waypoint-vfs" }
 serde_json = { workspace = true }
 tempfile = "3"
 waypoint-ops = { path = ".", features = ["testing"] }
+waypoint-provider-archive = { path = "../waypoint-provider-archive" }

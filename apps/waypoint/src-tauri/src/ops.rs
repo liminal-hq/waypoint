@@ -523,6 +523,7 @@ pub fn sweep_request(days: u32) -> JobRequest {
         options: JobOptions::default(),
         origin_window: SWEEP_ORIGIN.to_owned(),
         rename: None,
+        archive: None,
     }
 }
 

@@ -46,6 +46,19 @@ pub fn is_within(path: &VfsPath, ancestor: &VfsPath, rule: CaseRule) -> bool {
     false
 }
 
+/// The bytes of a name, as an archive stores it (a name that is not Unicode is lossy on Windows,
+/// which holds none).
+pub fn name_bytes(name: &OsStr) -> Vec<u8> {
+    #[cfg(unix)]
+    {
+        std::os::unix::ffi::OsStrExt::as_bytes(name).to_vec()
+    }
+    #[cfg(not(unix))]
+    {
+        name.to_string_lossy().into_owned().into_bytes()
+    }
+}
+
 /// The last component of a path.
 pub fn file_name_of(path: &VfsPath) -> Option<OsString> {
     path.file_name()
