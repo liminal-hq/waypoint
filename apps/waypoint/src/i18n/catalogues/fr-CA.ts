@@ -114,6 +114,8 @@ const messages: Catalogue = {
 	'services.name.thumbnails': 'Miniatures',
 	// source: b15a7fb6
 	'services.name.volumes': 'Lecteurs et volumes',
+	// source: 79cd7236
+	'services.name.secrets': 'Trousseau et mots de passe enregistrés',
 	// source: 77fe0e58
 	'services.name.window-effects': 'Effets de fenêtre',
 	// source: 97918f06

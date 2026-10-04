@@ -7,6 +7,7 @@ import { getStatus as mimeAppsStatus } from '@liminal-hq/plugin-mime-apps';
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import { getStatus as osPrefsStatus } from '@liminal-hq/plugin-os-prefs';
 import { getStatus as systemAppearanceStatus } from '@liminal-hq/plugin-system-appearance';
+import { getStatus as secretsStatus } from '@liminal-hq/plugin-secrets';
 import { getStatus as thumbnailsStatus } from '@liminal-hq/plugin-thumbnails';
 import { getStatus as trashStatus } from '@liminal-hq/plugin-trash';
 import { getStatus as volumesStatus } from '@liminal-hq/plugin-volumes';
@@ -78,6 +79,18 @@ export async function thumbnailsServiceStatus(): Promise<PluginStatus> {
 /** The volumes plugin's status in the shared shape: its features carry typed reasons, shown as the sentence they hold. */
 export async function volumesServiceStatus(): Promise<PluginStatus> {
 	const status = await volumesStatus();
+	return summarise(
+		{ available: status.available, reason: status.message },
+		status.features.map(
+			(feature) =>
+				[feature.name, { available: feature.available, reason: feature.message }] as const,
+		),
+	);
+}
+
+/** The keyring plugin's status in the shared shape: its features carry typed reasons, shown as the sentence they hold (no keyring running, or locked). */
+export async function secretsServiceStatus(): Promise<PluginStatus> {
+	const status = await secretsStatus();
 	return summarise(
 		{ available: status.available, reason: status.message },
 		status.features.map(
@@ -197,6 +210,8 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'window-tearoff': windowTearoffStatus,
 	thumbnails: thumbnailsServiceStatus,
 	volumes: volumesServiceStatus,
+	// Saved logins and remembered passphrases: says why when no keyring runs or it stays locked.
+	secrets: secretsServiceStatus,
 	'window-effects': windowEffectsServiceStatus,
 	'mime-apps': mimeAppsServiceStatus,
 	// Used only from Rust, so they report through the app's `get_integration_statuses` (A66).

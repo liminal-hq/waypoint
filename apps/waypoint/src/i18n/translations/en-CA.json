@@ -203,6 +203,10 @@
     "message": "Drives and volumes",
     "description": "Area: services."
   },
+  "services.name.secrets": {
+    "message": "Keyring and saved passwords",
+    "description": "Area: services."
+  },
   "services.name.window-effects": {
     "message": "Window effects",
     "description": "Area: services."

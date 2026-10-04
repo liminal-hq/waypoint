@@ -30,7 +30,7 @@
 		"i18n:import": "bun scripts/i18n.ts import",
 		"i18n:status": "bun scripts/i18n.ts status",
 		"check:case": "bash scripts/check-case-collisions.test.sh && bash scripts/check-case-collisions.sh",
-		"build:plugins": "bun run --cwd plugins/os-prefs build && bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/trash build && bun run --cwd plugins/thumbnails build && bun run --cwd plugins/native-dnd build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build && bun run --cwd plugins/waypoint-ops build && bun run --cwd plugins/waypoint-settings build && bun run --cwd plugins/volumes build && bun run --cwd plugins/window-effects build && bun run --cwd plugins/mime-apps build",
+		"build:plugins": "bun run --cwd plugins/os-prefs build && bun run --cwd plugins/system-appearance build && bun run --cwd plugins/window-manager build && bun run --cwd plugins/window-tearoff build && bun run --cwd plugins/trash build && bun run --cwd plugins/thumbnails build && bun run --cwd plugins/native-dnd build && bun run --cwd plugins/waypoint-vfs build && bun run --cwd plugins/waypoint-session build && bun run --cwd plugins/waypoint-ops build && bun run --cwd plugins/waypoint-settings build && bun run --cwd plugins/volumes build && bun run --cwd plugins/secrets build && bun run --cwd plugins/window-effects build && bun run --cwd plugins/mime-apps build",
 		"check:bindings": "bash scripts/check-bindings-drift.sh",
 		"build:windows": "bash scripts/build-windows-remote-dev.sh"
 	},
