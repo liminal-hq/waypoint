@@ -11,6 +11,7 @@ members = [
   "crates/waypoint-provider-archive",
   "crates/waypoint-connections",
   "crates/waypoint-provider-git",
+  "crates/waypoint-provider-webdav",
   "crates/openssh-config",
   "crates/wayland-toplevel-drag",
   "apps/waypoint/src-tauri",
