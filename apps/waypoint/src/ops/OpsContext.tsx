@@ -92,6 +92,13 @@ export function useOpsJobs(): JobWithProgress[] {
 	);
 }
 
+/** Whether Pause all is in force; `false` before the first snapshot. */
+export function useOpsPaused(): boolean {
+	const ops = useOps();
+	const fallback = useMemo(() => createEmptyStores(), []);
+	return useStore(ops?.handle.store ?? fallback.store, (s) => s.snapshot?.paused ?? false);
+}
+
 /** The rows for the queue UI. */
 export function useOpsViews(): JobView[] {
 	const ops = useOps();

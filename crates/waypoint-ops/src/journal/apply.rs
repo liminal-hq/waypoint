@@ -48,6 +48,9 @@ pub struct RedoPlan {
 
 /// What `prepare` made of a request.
 #[derive(Debug, Clone, PartialEq, Eq)]
+// A plan is held for a moment between planning and running; boxing the variants would only add a
+// pointer to each use.
+#[allow(clippy::large_enum_variant)]
 pub enum Prepared {
     /// Any other job, planned as `plan` plans it.
     Plain(Plan),

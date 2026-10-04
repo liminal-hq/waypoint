@@ -26,6 +26,7 @@ import type {
 	PlanPreview,
 	RecoveryReport,
 	Resolution,
+	Schedule,
 	SelectionSpec,
 } from '@liminal-hq/waypoint-plugin-ops';
 import type { Unsubscribe } from './vfsClient';
@@ -53,6 +54,7 @@ export type {
 	PlanPreview,
 	RecoveryReport,
 	Resolution,
+	Schedule,
 	SelectionSpec,
 };
 
@@ -80,6 +82,15 @@ export interface OpsClient {
 	 * priority (`null` is normal). A running copy obeys the new limit at once.
 	 */
 	setJobLimits(job: JobId, speedLimit: number | null, priority: JobPriority | null): Promise<void>;
+	/**
+	 * Sets or clears when a job that has not started may start (`null` is "Run now"). The plugin
+	 * keeps the schedule in the journal, so the job comes back after a restart.
+	 */
+	setJobSchedule(job: JobId, schedule: Schedule | null): Promise<void>;
+	/** Pauses every running job and holds back everything queued. */
+	pauseAll(): Promise<void>;
+	/** Lets queued jobs start again and runs every paused job on. */
+	resumeAll(): Promise<void>;
 	resolve(job: JobId, decisions: Resolution[], applyToAll?: ConflictPolicy): Promise<void>;
 	/**
 	 * The two files of one clash a waiting job holds (`item` is the clash's source): sizes, times and

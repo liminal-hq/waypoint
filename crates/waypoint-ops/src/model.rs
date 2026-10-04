@@ -7,11 +7,13 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use ts_rs::TS;
+
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{ListingHandle, SelectionSpec};
 
 use crate::journal::{JournalEntrySummary, JournalId, JournalSnapshot, StaleReason};
 use crate::rename_rules::RenameSpec;
+use crate::schedule::Schedule;
 
 /// Names a job. Global to the store and never reused while the store lives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -108,6 +110,10 @@ pub struct JobOptions {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub priority: Option<JobPriority>,
+    /// When the job may start; `None` starts it as soon as a slot is free (D157).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub schedule: Option<Schedule>,
 }
 
 /// How soon a queued job is taken when a slot frees up: the highest first, and in queue order
@@ -524,6 +530,9 @@ pub struct OpsSnapshot {
     #[ts(type = "number")]
     pub revision: u64,
     pub jobs: Vec<JobSnapshot>,
+    /// Pause all is in force: no queued job starts until Resume all (D157).
+    #[serde(default)]
+    pub paused: bool,
     /// What Undo and Redo would do. The journal counts its own revision, so this part is mirrored
     /// by `OpsEvent::JournalChanged` on its own gate.
     pub journal: JournalSnapshot,
@@ -562,6 +571,13 @@ pub enum OpsEvent {
         #[ts(type = "number")]
         revision: u64,
     },
+    /// Pause all or Resume all: whether queued jobs are held back from starting (D157). The jobs
+    /// it paused or resumed arrive as `JobChanged` events of their own.
+    QueuePaused {
+        paused: bool,
+        #[ts(type = "number")]
+        revision: u64,
+    },
     /// The undo history changed. `revision` is the journal's own, not the queue's.
     JournalChanged {
         #[ts(type = "number")]
@@ -578,6 +594,7 @@ impl OpsEvent {
             | OpsEvent::JobChanged { revision, .. }
             | OpsEvent::JobRemoved { revision, .. }
             | OpsEvent::QueueReordered { revision, .. }
+            | OpsEvent::QueuePaused { revision, .. }
             | OpsEvent::JournalChanged { revision, .. } => *revision,
         }
     }
@@ -615,6 +632,7 @@ impl OpsSnapshot {
             }
             OpsEvent::JobRemoved { id, .. } => self.jobs.retain(|j| j.id != *id),
             OpsEvent::JournalChanged { .. } => {}
+            OpsEvent::QueuePaused { paused, .. } => self.paused = *paused,
             OpsEvent::QueueReordered { order, .. } => {
                 let mut taken: Vec<Option<JobSnapshot>> = std::mem::take(&mut self.jobs)
                     .into_iter()

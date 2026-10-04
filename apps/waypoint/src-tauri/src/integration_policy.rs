@@ -329,6 +329,8 @@ pub struct JobFacts {
     pub origin_window: String,
     /// What a waiting job waits on.
     pub wait: Wait,
+    /// The job was held by a schedule, so its start is news (D157).
+    pub scheduled: bool,
 }
 
 /// A job's kind, reduced to what its buttons depend on.
@@ -408,6 +410,7 @@ pub fn facts(job: &JobSnapshot) -> JobFacts {
         destination: job.destination.clone(),
         origin_window: job.origin_window.clone(),
         wait,
+        scheduled: job.options.schedule.is_some(),
     }
 }
 
@@ -584,6 +587,8 @@ pub enum Transition {
     Finished(JobFacts),
     /// The job stopped to ask a question.
     NeedsAttention(JobFacts),
+    /// A job that was held by a schedule has started (D157).
+    Started(JobFacts),
 }
 
 /// Notices the changes between one look at the queue and the next. A job that is cancelled is
@@ -609,6 +614,11 @@ impl Tracker {
             match job.phase {
                 Phase::Waiting if before != Some(Phase::Waiting) => {
                     found.push(Transition::NeedsAttention(job.clone()));
+                }
+                // A scheduled job that was queued and is running now: someone away from the
+                // window learns that it began. A job first seen already running is not news.
+                Phase::Running if job.scheduled && before == Some(Phase::Queued) => {
+                    found.push(Transition::Started(job.clone()));
                 }
                 Phase::Done | Phase::Failed if !before.is_some_and(Phase::is_finished) => {
                     found.push(Transition::Finished(job.clone()));
@@ -646,6 +656,18 @@ pub fn notice_id(job: u64) -> String {
 /// does. A cancelled job never reaches here.
 pub fn notice(transition: &Transition, any_window_focused: bool) -> Option<Notice> {
     match transition {
+        Transition::Started(job) => {
+            // Told only while nobody is looking: with a window focused the Operations list shows it.
+            if any_window_focused {
+                return None;
+            }
+            Some(Notice {
+                id: notice_id(job.id),
+                title: job.title.clone(),
+                body: "A scheduled job has started.".to_owned(),
+                actions: Vec::new(),
+            })
+        }
         Transition::NeedsAttention(job) => Some(Notice {
             id: notice_id(job.id),
             title: job.title.clone(),
@@ -794,6 +816,7 @@ pub fn buttons(job: &JobFacts, undo_is_this: bool) -> Vec<Button> {
             acts
         }
         Phase::Failed => vec![Act::ShowDetails],
+        Phase::Running if job.scheduled => vec![Act::ShowDetails],
         Phase::Waiting => match job.wait {
             Wait::PlainConflict { .. } => vec![
                 Act::Resolve(ConflictPolicy::Replace),
@@ -818,7 +841,7 @@ pub fn buttons(job: &JobFacts, undo_is_this: bool) -> Vec<Button> {
 /// undo journal would undo now, if any.
 pub fn transition_buttons(transition: &Transition, undo_top: Option<u64>) -> Vec<Button> {
     match transition {
-        Transition::Finished(job) | Transition::NeedsAttention(job) => {
+        Transition::Finished(job) | Transition::NeedsAttention(job) | Transition::Started(job) => {
             buttons(job, undo_top == Some(job.id))
         }
     }
@@ -983,6 +1006,7 @@ mod tests {
             destination: None,
             origin_window: "main-1".to_owned(),
             wait: Wait::None,
+            scheduled: false,
         }
     }
 
@@ -1421,6 +1445,41 @@ mod tests {
         assert!(matches!(&done[0], Transition::Finished(j) if j.id == 1));
         // The same state again is not news.
         assert!(tracker.observe(&[job(1, Phase::Done)]).is_empty());
+    }
+
+    #[test]
+    fn a_scheduled_job_that_starts_is_reported_once_and_an_ordinary_one_is_not() {
+        let held = |phase| JobFacts {
+            scheduled: true,
+            ..job(1, phase)
+        };
+        let mut tracker = Tracker::default();
+        assert!(tracker.observe(&[held(Phase::Queued)]).is_empty());
+        let started = tracker.observe(&[held(Phase::Running)]);
+        assert_eq!(started.len(), 1);
+        assert!(matches!(&started[0], Transition::Started(j) if j.id == 1));
+        assert!(tracker.observe(&[held(Phase::Running)]).is_empty());
+        // A job that was not scheduled starts without a word, and so does one first seen running.
+        let mut plain = Tracker::default();
+        plain.observe(&[job(2, Phase::Queued)]);
+        assert!(plain.observe(&[job(2, Phase::Running)]).is_empty());
+        let mut late = Tracker::default();
+        assert!(late.observe(&[held(Phase::Running)]).is_empty());
+    }
+
+    #[test]
+    fn a_scheduled_start_notifies_only_while_no_window_has_focus_and_offers_details() {
+        let started = Transition::Started(JobFacts {
+            scheduled: true,
+            ..job(1, Phase::Running)
+        });
+        assert_eq!(notice(&started, true), None);
+        let told = notice(&started, false).unwrap();
+        assert_eq!(told.id, notice_id(1));
+        assert_eq!(told.body, "A scheduled job has started.");
+        let buttons = transition_buttons(&started, None);
+        assert_eq!(buttons.len(), 1);
+        assert_eq!(parse_action(&buttons[0].id), Some((1, Act::ShowDetails)));
     }
 
     #[test]

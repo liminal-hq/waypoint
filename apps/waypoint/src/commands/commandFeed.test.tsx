@@ -7,6 +7,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createViewStore } from '../browse/viewStore';
 import { createSidebarStore } from '../sidebar/sidebarStore';
+import { request } from '../test/opsHarness';
 import { commandsHarness, select, type CommandsHarness } from '../test/fileCommandsHarness';
 import { CommandBridgeProvider, createCommandBridge, useCommands } from './commandBridge';
 import { startCommandFeed } from './commandFeed';
@@ -115,6 +116,18 @@ describe('the feed', () => {
 		s.h.session.store.getState().deselectAll();
 		expect(s.facts().selected).toBe(0);
 		expect(s.facts().file.copy.enabled).toBe(false);
+	});
+
+	it('follows what runs and whether Pause all is in force', async () => {
+		const s = await setup();
+		expect(s.facts()).toMatchObject({ opsRunning: 0, opsPaused: false });
+		const job = await s.h.fake.submit(request(['a']));
+		s.h.fake.start(job);
+		await waitFor(() => expect(s.facts().opsRunning).toBe(1));
+		await s.h.fake.pauseAll();
+		await waitFor(() => expect(s.facts()).toMatchObject({ opsRunning: 0, opsPaused: true }));
+		await s.h.fake.resumeAll();
+		await waitFor(() => expect(s.facts()).toMatchObject({ opsRunning: 1, opsPaused: false }));
 	});
 
 	it('follows the view and the sidebar', async () => {

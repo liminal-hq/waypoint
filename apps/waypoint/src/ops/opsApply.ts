@@ -57,6 +57,9 @@ export function applyOpsEvent(snapshot: OpsSnapshot, event: OpsEvent): ApplyResu
 		case 'jobRemoved':
 			next.jobs = snapshot.jobs.filter((job) => job.id !== event.id);
 			break;
+		case 'queuePaused':
+			next.paused = event.paused;
+			break;
 		case 'queueReordered': {
 			const byId = new Map<number, JobSnapshot>(snapshot.jobs.map((job) => [job.id, job]));
 			const ordered: JobSnapshot[] = [];

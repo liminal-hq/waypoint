@@ -32,6 +32,7 @@ import type {
 	PlanPreview,
 	RecoveryReport,
 	Resolution,
+	Schedule,
 	SelectionSpec,
 } from './opsClient';
 
@@ -133,6 +134,7 @@ export class FakeOpsClient implements OpsClient {
 		speedLimitBps: null,
 	};
 	private recovery: RecoveryReport | null = null;
+	private paused = false;
 	private mute = 0;
 	private readonly options: Required<Omit<FakeOpsOptions, 'totals' | 'resolveSelection'>> &
 		Pick<FakeOpsOptions, 'totals' | 'resolveSelection'>;
@@ -164,6 +166,7 @@ export class FakeOpsClient implements OpsClient {
 		const lastUndone = [...undone].sort((a, b) => b.undoneAt - a.undoneAt)[0];
 		return {
 			revision: this.revision,
+			paused: this.paused,
 			jobs: this.entries.map((entry) => structuredClone(entry.snapshot)),
 			journal: {
 				revision: this.journalRevision,
@@ -293,6 +296,42 @@ export class FakeOpsClient implements OpsClient {
 			order: this.entries.map((e) => e.snapshot.id),
 			revision: this.revision,
 		});
+	}
+
+	async setJobSchedule(job: JobId, schedule: Schedule | null): Promise<void> {
+		this.calls.push(['setJobSchedule', job, schedule]);
+		const entry = this.find(job);
+		const state = entry.snapshot.state.state;
+		if (state !== 'planning' && state !== 'queued') this.illegal(entry, 'schedule');
+		if (schedule === null) delete entry.snapshot.options.schedule;
+		else entry.snapshot.options.schedule = schedule;
+		this.changed(entry);
+		this.startQueued();
+	}
+
+	async pauseAll(): Promise<void> {
+		this.calls.push(['pauseAll']);
+		if (!this.paused) {
+			this.paused = true;
+			this.revision += 1;
+			this.emit({ kind: 'queuePaused', paused: true, revision: this.revision });
+		}
+		for (const entry of this.entries) {
+			if (entry.snapshot.state.state === 'running') this.go(entry, { state: 'paused' }, 'pause');
+		}
+	}
+
+	async resumeAll(): Promise<void> {
+		this.calls.push(['resumeAll']);
+		if (this.paused) {
+			this.paused = false;
+			this.revision += 1;
+			this.emit({ kind: 'queuePaused', paused: false, revision: this.revision });
+		}
+		for (const entry of this.entries) {
+			if (entry.snapshot.state.state === 'paused') this.go(entry, { state: 'running' }, 'resume');
+		}
+		this.startQueued();
 	}
 
 	async setJobLimits(
@@ -776,11 +815,16 @@ export class FakeOpsClient implements OpsClient {
 	}
 
 	private startQueued(): void {
-		if (!this.options.autoStart) return;
+		if (!this.options.autoStart || this.paused) return;
 		// The highest priority first, and in queue order among equals (the sort is stable).
 		const rank = { low: 0, normal: 1, high: 2 } as const;
 		const queued = this.entries
 			.filter((e) => e.snapshot.state.state === 'queued')
+			.filter((e) => {
+				// A job held by a start time waits for it (windows are Rust's to judge).
+				const schedule = e.snapshot.options.schedule;
+				return !schedule || schedule.kind !== 'startAt' || schedule.atMs <= this.options.now();
+			})
 			.sort(
 				(a, b) =>
 					rank[b.snapshot.options.priority ?? 'normal'] -

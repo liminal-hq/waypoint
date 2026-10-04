@@ -70,6 +70,7 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 
 	const latest = useRef({
 		...sources,
+		ops,
 		snapshot,
 		tabActions,
 		extras,
@@ -83,6 +84,7 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 	});
 	latest.current = {
 		...sources,
+		ops,
 		snapshot,
 		tabActions,
 		extras,
@@ -195,6 +197,8 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 				const session = latest.current.activeSession();
 				if (session) void session.model.setSort(change(session.model.sort));
 			},
+			pauseAll: () => void latest.current.ops?.handle.client.pauseAll(),
+			resumeAll: () => void latest.current.ops?.handle.client.resumeAll(),
 			undoEntry: (entry) => void latest.current.commands?.undoEntry(entry),
 			redoEntry: (entry) => void latest.current.commands?.redoEntry(entry),
 			newWindow: () => void latest.current.windows.newWindow(),

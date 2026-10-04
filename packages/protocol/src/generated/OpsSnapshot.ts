@@ -7,6 +7,10 @@ import type { JournalSnapshot } from "./JournalSnapshot";
  */
 export type OpsSnapshot = { revision: number, jobs: Array<JobSnapshot>, 
 /**
+ * Pause all is in force: no queued job starts until Resume all (D157).
+ */
+paused: boolean, 
+/**
  * What Undo and Redo would do. The journal counts its own revision, so this part is mirrored
  * by `OpsEvent::JournalChanged` on its own gate.
  */

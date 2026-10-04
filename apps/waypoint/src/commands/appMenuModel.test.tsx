@@ -80,6 +80,8 @@ describe('the menus', () => {
 			'duplicate',
 			'moveToTrash',
 			'deletePermanently',
+			'pauseAll',
+			'resumeAll',
 			'settings',
 			'closeTab',
 			'reopenClosedTab',

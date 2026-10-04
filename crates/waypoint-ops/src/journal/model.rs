@@ -220,6 +220,18 @@ pub struct PendingRecord {
     pub renames: Vec<RenamePair>,
 }
 
+/// A job held by a schedule that has not started: what the journal keeps so that it is made again
+/// after a restart (D157). The request carries the schedule, the options as they are now and the
+/// sources as locations (a selection was resolved when the job was submitted).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ScheduledRecord {
+    /// The job this run knew it as; job ids restart with the app, so this is for reference only.
+    pub job: JobId,
+    pub request: JobRequest,
+}
+
 /// Everything the journal keeps. Entries are oldest first.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -233,6 +245,9 @@ pub struct JournalBody {
     pub undo_counter: u64,
     pub entries: Vec<JournalEntry>,
     pub pending: Vec<PendingRecord>,
+    /// Jobs waiting for their schedule.
+    #[serde(default)]
+    pub scheduled: Vec<ScheduledRecord>,
 }
 
 /// The journal as a file: a version so a later build can migrate, and the body.

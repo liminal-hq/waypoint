@@ -288,6 +288,33 @@ describe('availability', () => {
 		expect(read(states(emptyFacts()).focusShelf)).toBe('enabled');
 	});
 
+	it('offers Pause All while something runs and Resume All once something is paused', () => {
+		const idle = states(emptyFacts());
+		expect(read(idle.pauseAll)).toBe(`disabled: ${t('cmd.reason.nothingToPause')}`);
+		expect(read(idle.resumeAll)).toBe(`disabled: ${t('cmd.reason.nothingToResume')}`);
+		const running = states(factsFor({}, { opsRunning: 2 }));
+		expect(read(running.pauseAll)).toBe('enabled');
+		expect(read(running.resumeAll)).toBe(`disabled: ${t('cmd.reason.nothingToResume')}`);
+		// Paused, with nothing left running: only Resume All.
+		const paused = states(factsFor({}, { opsPaused: true }));
+		expect(read(paused.pauseAll)).toBe(`disabled: ${t('cmd.reason.nothingToPause')}`);
+		expect(read(paused.resumeAll)).toBe('enabled');
+		// Paused while another job runs: Resume All, not Pause All again.
+		const both = states(factsFor({}, { opsRunning: 1, opsPaused: true }));
+		expect(read(both.pauseAll)).toBe(`disabled: ${t('cmd.reason.nothingToPause')}`);
+		expect(read(both.resumeAll)).toBe('enabled');
+	});
+
+	it('runs Pause All and Resume All through the window’s actions', () => {
+		const actions = { ...idleActions(), pauseAll: vi.fn(), resumeAll: vi.fn() };
+		expect(runCommand('pauseAll', actions, factsFor({}, { opsRunning: 1 }))).toBe(true);
+		expect(runCommand('pauseAll', actions, emptyFacts())).toBe(false);
+		expect(runCommand('resumeAll', actions, factsFor({}, { opsPaused: true }))).toBe(true);
+		expect(runCommand('resumeAll', actions, emptyFacts())).toBe(false);
+		expect(actions.pauseAll).toHaveBeenCalledTimes(1);
+		expect(actions.resumeAll).toHaveBeenCalledTimes(1);
+	});
+
 	it('runs the Shelf commands through the window’s actions', () => {
 		const actions = {
 			...idleActions(),

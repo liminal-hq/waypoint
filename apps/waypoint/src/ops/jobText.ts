@@ -7,7 +7,7 @@ import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSna
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import { formatSize } from '../browse/format';
 import { t, tf, tn, type MessageId, type PluralId } from '../i18n/messages';
-import type { JobPriority, Location } from '../services/opsClient';
+import type { JobPriority, Location, Schedule } from '../services/opsClient';
 import { isFinished, jobFraction, type JobWithProgress } from './opsSelectors';
 
 /** The kinds this area words itself; the others show the title Rust made. */
@@ -49,6 +49,10 @@ export interface JobView {
 	canLimit: boolean;
 	/** Whether the row offers a priority: a job that still waits for a slot. */
 	canPrioritise: boolean;
+	/** When the job may start, or `null` for as soon as a slot is free. */
+	schedule: Schedule | null;
+	/** Whether the row offers a schedule: a job that has not started. */
+	canSchedule: boolean;
 }
 
 export function baseName(display: string): string {
@@ -212,6 +216,8 @@ export function jobViews(items: readonly JobWithProgress[], canShow: boolean): J
 			priority: job.options.priority ?? 'normal',
 			canLimit: !isFinished(job) && (job.kind.kind === 'copy' || job.kind.kind === 'move'),
 			canPrioritise: state === 'planning' || state === 'queued',
+			schedule: job.options.schedule ?? null,
+			canSchedule: state === 'planning' || state === 'queued',
 		};
 	});
 }

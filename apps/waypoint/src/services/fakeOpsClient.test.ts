@@ -177,6 +177,42 @@ describe('FakeOpsClient', () => {
 		expect(fake.jobs()[2]!.options.priority).toBeUndefined();
 	});
 
+	it('pauses and resumes everything, holds back the queue meanwhile, and says so in events', async () => {
+		const fake = createFakeOpsClient({ concurrency: 3, autoStart: true });
+		const seen: string[] = [];
+		fake.onEvent((e) => e.kind === 'queuePaused' && seen.push(String(e.paused)));
+		const a = await fake.submit(request(['a']));
+		const b = await fake.submit(request(['b']));
+		expect(fake.jobs().map((j) => j.state.state)).toEqual(['running', 'running']);
+		await fake.pauseAll();
+		expect(fake.jobs().map((j) => j.state.state)).toEqual(['paused', 'paused']);
+		const c = await fake.submit(request(['c']));
+		expect(fake.jobs()[2]!.state.state).toBe('queued');
+		await fake.resumeAll();
+		expect(fake.jobs().map((j) => j.state.state)).toEqual(['running', 'running', 'running']);
+		await fake.pauseAll();
+		await fake.pauseAll();
+		expect(seen).toEqual(['true', 'false', 'true']);
+		expect([a, b, c]).toHaveLength(3);
+	});
+
+	it('schedules a job that has not started, holds it for its start time and runs it on Run now', async () => {
+		const fake = createFakeOpsClient({ concurrency: 1, autoStart: true, now: () => 1_000 });
+		const a = await fake.submit(request(['a']));
+		const b = await fake.submit(request(['b']));
+		const at = { kind: 'startAt', atMs: 9_000_000 } as const;
+		await fake.setJobSchedule(b, at);
+		expect(fake.jobs()[1]!.options.schedule).toEqual(at);
+		// A started job cannot be scheduled.
+		await expect(fake.setJobSchedule(a, at)).rejects.toMatchObject({ kind: 'queue' });
+		// The slot frees up and the held job does not take it.
+		fake.done(a);
+		expect(fake.jobs()[1]!.state.state).toBe('queued');
+		await fake.setJobSchedule(b, null);
+		expect(fake.jobs()[1]!.options.schedule).toBeUndefined();
+		expect(fake.jobs()[1]!.state.state).toBe('running');
+	});
+
 	it('waits on conflicts, keeps the unanswered ones, and runs once all are answered', async () => {
 		const fake = createFakeOpsClient();
 		const id = await fake.submit(request(['a', 'b']));

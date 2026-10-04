@@ -17,6 +17,7 @@ mod preview;
 mod queue;
 mod rename_clash;
 mod rename_rules;
+mod schedule;
 mod speed;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
@@ -55,6 +56,7 @@ pub use rename_rules::{
     validate_rules, CaseMode, DateSource, InsertAt, RenameCtx, RenameInput, RenameRule,
     RenameScope, RenameSpec, RuleError, RulePosition,
 };
+pub use schedule::Schedule;
 pub use speed::SpeedEstimator;
 pub use throttle::{Bucket, Pacer, RateCell, SystemPacer, Throttle, WAIT_SLICE};
 pub use traits::{

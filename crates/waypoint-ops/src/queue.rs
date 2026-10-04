@@ -35,6 +35,7 @@ use crate::model::{
     OpsSnapshot, PlanTotals, Progress, Resolution, Sources, SourcesSummary, Verification,
     WaitReason,
 };
+use crate::schedule::Schedule;
 use crate::traits::{Clock, SettingsReader};
 
 /// Why the queue refused a change. The store is unchanged.
@@ -169,6 +170,8 @@ pub struct OpsStore {
     revision: u64,
     next_id: u64,
     jobs: Vec<Job>,
+    /// Pause all is in force.
+    paused: bool,
     settings: Arc<dyn SettingsReader>,
     clock: Arc<dyn Clock>,
 }
@@ -179,6 +182,7 @@ impl OpsStore {
             revision: 0,
             next_id: 1,
             jobs: Vec::new(),
+            paused: false,
             settings,
             clock,
         }
@@ -192,6 +196,7 @@ impl OpsStore {
         OpsSnapshot {
             revision: self.revision,
             jobs: self.jobs.iter().map(|j| j.snapshot.clone()).collect(),
+            paused: self.paused,
             journal: Default::default(),
         }
     }
@@ -394,18 +399,124 @@ impl OpsStore {
     }
 
     /// The next job a free worker should run, if a slot is free: the queued job of the highest
-    /// priority, the first in queue order among equals.
+    /// priority, the first in queue order among equals. Nothing starts while Pause all is in force,
+    /// and a job whose schedule is not open yet (D157) is passed over.
     pub fn next_runnable(&self) -> Option<JobId> {
-        if self.slots_in_use() >= self.concurrency() {
+        if self.paused || self.slots_in_use() >= self.concurrency() {
             return None;
         }
+        let now = self.clock.now_ms();
         self.jobs
             .iter()
             .filter(|j| j.snapshot.state == JobState::Queued)
+            .filter(|j| j.snapshot.options.schedule.is_none_or(|s| s.is_open(now)))
             // `max_by_key` keeps the last of equals, so the order is reversed to keep the first.
             .rev()
             .max_by_key(|j| j.snapshot.options.priority())
             .map(|j| j.snapshot.id)
+    }
+
+    /// When the soonest queued job held by its schedule opens, in milliseconds from now, for the
+    /// plugin's timer; `None` when no queued job waits for a time.
+    pub fn next_wake_in_ms(&self) -> Option<i64> {
+        let now = self.clock.now_ms();
+        self.jobs
+            .iter()
+            .filter(|j| j.snapshot.state == JobState::Queued)
+            .filter_map(|j| j.snapshot.options.schedule)
+            .map(|s| s.opens_in_ms(now))
+            .filter(|ms| *ms > 0)
+            .min()
+    }
+
+    /// Sets or clears when a job that has not started may start. `None` is "Run now".
+    pub fn set_schedule(
+        &mut self,
+        id: JobId,
+        schedule: Option<Schedule>,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        let snapshot = &mut self.jobs[index].snapshot;
+        if !matches!(snapshot.state, JobState::Planning | JobState::Queued) {
+            return Err(QueueError::Illegal {
+                id,
+                from: snapshot.state.name(),
+                action: "schedule",
+            });
+        }
+        if snapshot.options.schedule == schedule {
+            return Ok(Vec::new());
+        }
+        snapshot.options.schedule = schedule;
+        self.jobs[index].request.options.schedule = schedule;
+        Ok(vec![self.changed(index)])
+    }
+
+    /// The jobs that have not started and are held by a schedule, as the requests that would make
+    /// them again: what the journal keeps so they survive a restart.
+    pub fn scheduled_requests(&self) -> Vec<(JobId, JobRequest)> {
+        self.jobs
+            .iter()
+            .filter(|j| matches!(j.snapshot.state, JobState::Planning | JobState::Queued))
+            .filter(|j| j.snapshot.options.schedule.is_some())
+            .map(|j| {
+                let mut request = j.request.clone();
+                request.options = j.snapshot.options;
+                (j.snapshot.id, request)
+            })
+            .collect()
+    }
+
+    /// Pause all: nothing queued starts, and every running job pauses where it is (a job that is
+    /// waiting for an answer keeps waiting). Idempotent.
+    pub fn pause_all(&mut self) -> Vec<OpsEvent> {
+        let mut events = Vec::new();
+        if !self.paused {
+            self.paused = true;
+            let revision = self.bump();
+            events.push(OpsEvent::QueuePaused {
+                paused: true,
+                revision,
+            });
+        }
+        let running: Vec<JobId> = self
+            .jobs
+            .iter()
+            .filter(|j| j.snapshot.state == JobState::Running)
+            .map(|j| j.snapshot.id)
+            .collect();
+        for id in running {
+            events.extend(self.pause(id).unwrap_or_default());
+        }
+        events
+    }
+
+    /// Resume all: queued jobs may start again and every paused job runs on. Idempotent.
+    pub fn resume_all(&mut self) -> Vec<OpsEvent> {
+        let mut events = Vec::new();
+        if self.paused {
+            self.paused = false;
+            let revision = self.bump();
+            events.push(OpsEvent::QueuePaused {
+                paused: false,
+                revision,
+            });
+        }
+        let paused: Vec<JobId> = self
+            .jobs
+            .iter()
+            .filter(|j| j.snapshot.state == JobState::Paused)
+            .map(|j| j.snapshot.id)
+            .collect();
+        for id in paused {
+            events.extend(self.resume(id).unwrap_or_default());
+        }
+        events
+    }
+
+    /// Whether Pause all is in force.
+    pub fn is_paused(&self) -> bool {
+        self.paused
     }
 
     /// Changes a job's speed limit and priority while it waits or runs (D157); a finished job keeps

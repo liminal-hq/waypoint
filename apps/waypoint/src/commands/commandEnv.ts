@@ -49,6 +49,9 @@ export interface CommandFacts {
 	/** The entry Undo would undo and the entry Redo would redo: the only two the history menu enables. */
 	undoHead: number | null;
 	redoHead: number | null;
+	/** How many jobs are running, and whether Pause all is in force or any job is paused. */
+	opsRunning: number;
+	opsPaused: boolean;
 	/** The window has an active tab. */
 	tab: boolean;
 	tabCount: number;
@@ -110,6 +113,9 @@ export interface CommandActions {
 	setAlwaysOnTop(on: boolean): void;
 	closeWindow(): void;
 	openSettings(): void;
+	/** Pause all and Resume all: every running job, and the queue's start of the next. */
+	pauseAll(): void;
+	resumeAll(): void;
 	/** Opens the command palette, with `query` typed into it. */
 	openPalette(query?: string): void;
 	/** Opens the Help dialog, or one of its siblings (the shortcut list, the tour, About). */
@@ -163,6 +169,8 @@ export function emptyFacts(): CommandFacts {
 		history: [],
 		undoHead: null,
 		redoHead: null,
+		opsRunning: 0,
+		opsPaused: false,
 		tab: false,
 		tabCount: 0,
 		paired: false,
@@ -211,6 +219,8 @@ export function idleActions(): CommandActions {
 		setAlwaysOnTop: nothing,
 		closeWindow: nothing,
 		openSettings: nothing,
+		pauseAll: nothing,
+		resumeAll: nothing,
 		openPalette: nothing,
 		openHelp: nothing,
 		goToPlace: nothing,
