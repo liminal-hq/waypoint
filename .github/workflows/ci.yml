@@ -245,6 +245,37 @@ jobs:
           path: target/nextest/ci/junit.xml
           if-no-files-found: error
 
+  # The remote providers against real servers (A85). OpenSSH's `sshd` runs as the runner's user
+  # with keys the tests generate (no root, no container); `WAYPOINT_SFTP_REQUIRE` makes a missing
+  # server a failure here, where elsewhere the same tests skip.
+  remote-conformance:
+    name: Remote providers against real servers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the OpenSSH server
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends openssh-server
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+
+      - name: Run the SFTP provider against sshd
+        id: sftp
+        env:
+          WAYPOINT_SFTP_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Remote providers against real servers"
+            echo "| Step | Result | Command |"
+            echo "|---|---|---|"
+            echo "| SFTP | \`${{ steps.sftp.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config\` |"
+            echo
+            bash scripts/junit-summary.sh target/nextest/ci/junit.xml
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   # Windows 11 is a real target (A11): the whole workspace must keep compiling and linting there, and
   # the pure crates' tests, including path rules, run on Windows. Linting and testing are separate
   # jobs so they build in parallel, and the tests run on nextest, which runs every test binary at once

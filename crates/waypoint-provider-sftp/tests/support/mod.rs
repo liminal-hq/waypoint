@@ -8,8 +8,9 @@
 //! configuration that needs no root (`UsePAM no`, `StrictModes no`) and runs `sshd -D` on a free
 //! loopback port, as spike #278 did. It returns `None`, after printing why, when there is no
 //! `sshd`, `sftp-server` or `ssh-keygen` (always on Windows), or when `WAYPOINT_SFTP_TESTS=off`,
-//! so the tests skip instead of failing. Set `WAYPOINT_SSHD` to choose the `sshd` binary and
-//! `WAYPOINT_TEST_TMP` to choose where the temporary folders go.
+//! so the tests skip instead of failing; with `WAYPOINT_SFTP_REQUIRE=1` (CI's `remote-conformance`
+//! job) they fail instead. Set `WAYPOINT_SSHD` to choose the `sshd` binary and `WAYPOINT_TEST_TMP`
+//! to choose where the temporary folders go.
 
 #![allow(dead_code)]
 
@@ -32,6 +33,10 @@ use waypoint_provider_sftp::{
 pub const PASSPHRASE: &str = "correct horse battery staple";
 
 fn skip(why: &str) -> Option<Sshd> {
+    // CI's real-server job sets this, so a missing server fails there instead of passing quietly.
+    if std::env::var_os("WAYPOINT_SFTP_REQUIRE").is_some_and(|v| v == "1") {
+        panic!("WAYPOINT_SFTP_REQUIRE is set and the real-server tests cannot run: {why}");
+    }
     eprintln!("skipping: {why}");
     None
 }
