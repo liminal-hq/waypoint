@@ -80,9 +80,17 @@ pub enum Credential {
 pub enum ConnectAnswer {
     /// A credential for an `AuthRequired`.
     Credential(Credential),
-    /// Trust an SSH host key, named by its fingerprint so an answer cannot be applied to a key
-    /// the person was not shown. `remember` adds it to `known_hosts`.
+    /// Trust an unknown SSH host key, named by its fingerprint so an answer cannot be applied to a
+    /// key the person was not shown. `remember` adds it to `known_hosts`. It never answers a
+    /// changed key.
     TrustHostKey { fingerprint: String, remember: bool },
+    /// The explicit "Trust the new key" action on a changed SSH host key (D148), naming both the
+    /// recorded and the offered fingerprint the warning showed. It replaces the recorded entry in
+    /// `known_hosts`; nothing else ever does.
+    TrustChangedHostKey {
+        recorded_fingerprint: String,
+        offered_fingerprint: String,
+    },
     /// Trust a TLS certificate, named by its fingerprint. `remember` pins it in the saved
     /// connection; otherwise it is trusted for this session.
     TrustCertificate { fingerprint: String, remember: bool },

@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use waypoint_path::{CaseRule, ConnectionKey, FilePath, RemotePath, RemoteScheme, VfsPath};
 use waypoint_protocol::{
-    AuthPrompt, ConnectionState, HostKey, Location, UnreachableReason, VfsError,
+    AuthPrompt, ConnectionState, HostKey, HostKeyChange, Location, UnreachableReason, VfsError,
 };
 
 use crate::memory::MemoryProvider;
@@ -53,8 +53,10 @@ struct State {
     fault: Option<RemoteFault>,
     /// The login the server wants, when it wants one.
     password: Option<(Option<String>, String)>,
+    /// The key the server offers.
     host_key: Option<HostKey>,
-    host_key_trusted: bool,
+    /// The key recorded for the server (its `known_hosts` entry), if any.
+    known_host_key: Option<HostKey>,
     sessions: HashMap<ConnectionKey, Session>,
     connects: usize,
     batch: usize,
@@ -136,7 +138,7 @@ impl FakeRemoteProvider {
                 fault: None,
                 password: None,
                 host_key: None,
-                host_key_trusted: false,
+                known_host_key: None,
                 sessions: HashMap::new(),
                 connects: 0,
                 batch: 2,
@@ -194,7 +196,15 @@ impl FakeRemoteProvider {
     pub fn require_host_key(&self, key: HostKey) {
         let mut state = self.lock();
         state.host_key = Some(key);
-        state.host_key_trusted = false;
+        state.known_host_key = None;
+    }
+
+    /// The server now offers another key (it was reinstalled, or something sits in the way): the
+    /// recorded key stays, every session drops, and the next connection is `HostKeyChanged`.
+    pub fn change_host_key(&self, key: HostKey) {
+        let mut state = self.lock();
+        state.host_key = Some(key);
+        state.sessions.clear();
     }
 
     /// How many entries each batch of `list_batches` holds.
@@ -350,12 +360,25 @@ impl FakeRemoteProvider {
         };
         {
             let mut state = self.lock();
-            if let Some(host_key) = state.host_key.clone() {
-                if !state.host_key_trusted {
-                    let error = VfsError::HostKeyUnknown {
+            if let Some(offered) = state.host_key.clone() {
+                let error = match state.known_host_key.clone() {
+                    Some(known) if known.fingerprint == offered.fingerprint => None,
+                    Some(known) => Some(VfsError::HostKeyChanged {
                         location: location.clone(),
-                        key: Box::new(host_key),
-                    };
+                        change: Box::new(HostKeyChange {
+                            host: offered.host.clone(),
+                            recorded_algorithm: known.algorithm,
+                            recorded_fingerprint: known.fingerprint,
+                            offered_algorithm: offered.algorithm,
+                            offered_fingerprint: offered.fingerprint,
+                        }),
+                    }),
+                    None => Some(VfsError::HostKeyUnknown {
+                        location: location.clone(),
+                        key: Box::new(offered),
+                    }),
+                };
+                if let Some(error) = error {
                     return fail(&mut state, error);
                 }
             }
@@ -552,12 +575,32 @@ impl Provider for FakeRemoteProvider {
         let credential = match answer {
             Some(ConnectAnswer::TrustHostKey { fingerprint, .. }) => {
                 let mut state = self.lock();
-                if state
+                // Only an unknown key: a changed one needs the explicit answer below.
+                if state.known_host_key.is_none()
+                    && state
+                        .host_key
+                        .as_ref()
+                        .is_some_and(|key| key.fingerprint == fingerprint)
+                {
+                    state.known_host_key = state.host_key.clone();
+                }
+                None
+            }
+            Some(ConnectAnswer::TrustChangedHostKey {
+                recorded_fingerprint,
+                offered_fingerprint,
+            }) => {
+                let mut state = self.lock();
+                let recorded = state
+                    .known_host_key
+                    .as_ref()
+                    .is_some_and(|key| key.fingerprint == recorded_fingerprint);
+                let offered = state
                     .host_key
                     .as_ref()
-                    .is_some_and(|key| key.fingerprint == fingerprint)
-                {
-                    state.host_key_trusted = true;
+                    .is_some_and(|key| key.fingerprint == offered_fingerprint);
+                if recorded && offered {
+                    state.known_host_key = state.host_key.clone();
                 }
                 None
             }
@@ -821,6 +864,58 @@ mod tests {
         fake.connect(&key(&fake), Some(trust), &CancelToken::new())
             .unwrap();
         fake.stat(&root).unwrap();
+    }
+
+    #[test]
+    fn a_changed_host_key_connects_only_after_the_explicit_trust() {
+        let fake = FakeRemoteProvider::sftp();
+        let key_of = |fingerprint: &str| HostKey {
+            host: "fake.test".into(),
+            algorithm: "ssh-ed25519".into(),
+            fingerprint: fingerprint.into(),
+        };
+        fake.require_host_key(key_of("SHA256:old"));
+        let root = fake.root("me@fake.test");
+        let trust = |fingerprint: &str| ConnectAnswer::TrustHostKey {
+            fingerprint: fingerprint.into(),
+            remember: true,
+        };
+        fake.connect(&key(&fake), Some(trust("SHA256:old")), &CancelToken::new())
+            .unwrap();
+        fake.change_host_key(key_of("SHA256:new"));
+        let Err(VfsError::HostKeyChanged { change, .. }) = fake.stat(&root) else {
+            panic!("a changed key is reported as changed");
+        };
+        assert_eq!(change.host, "fake.test");
+        assert_eq!(change.recorded_fingerprint, "SHA256:old");
+        assert_eq!(change.offered_fingerprint, "SHA256:new");
+        // Never silently, and a plain trust of the new key is not the explicit action.
+        assert!(fake.stat(&root).is_err());
+        assert!(matches!(
+            fake.connect(&key(&fake), Some(trust("SHA256:new")), &CancelToken::new()),
+            Err(VfsError::HostKeyChanged { .. })
+        ));
+        // The explicit action must name both keys the warning showed.
+        let wrong = ConnectAnswer::TrustChangedHostKey {
+            recorded_fingerprint: "SHA256:other".into(),
+            offered_fingerprint: "SHA256:new".into(),
+        };
+        assert!(fake
+            .connect(&key(&fake), Some(wrong), &CancelToken::new())
+            .is_err());
+        let explicit = ConnectAnswer::TrustChangedHostKey {
+            recorded_fingerprint: "SHA256:old".into(),
+            offered_fingerprint: "SHA256:new".into(),
+        };
+        fake.connect(&key(&fake), Some(explicit), &CancelToken::new())
+            .unwrap();
+        fake.stat(&root).unwrap();
+        // The new key replaced the old one: going back is a change again.
+        fake.change_host_key(key_of("SHA256:old"));
+        assert!(matches!(
+            fake.stat(&root),
+            Err(VfsError::HostKeyChanged { .. })
+        ));
     }
 
     #[test]

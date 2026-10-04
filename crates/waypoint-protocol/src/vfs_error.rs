@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{AuthPrompt, Certificate, HostKey, Location, UnreachableReason};
+use crate::{AuthPrompt, Certificate, HostKey, HostKeyChange, Location, UnreachableReason};
 
 /// Why a listing or location could not be opened or kept up to date. Each variant is something
 /// the UI shows as a distinct state (SPEC 5.3b, 5.5), never a blank view.
@@ -77,10 +77,12 @@ pub enum VfsError {
         location: Location,
         key: Box<HostKey>,
     },
-    /// An SSH server whose key differs from the one recorded for it. Refused, never overridden.
+    /// An SSH server whose key differs from the one recorded for it. It never connects silently:
+    /// only the explicit `TrustChangedHostKey` answer, after a warning that shows both
+    /// fingerprints, replaces the recorded key (D148).
     HostKeyChanged {
         location: Location,
-        key: Box<HostKey>,
+        change: Box<HostKeyChange>,
     },
     /// A TLS certificate the system does not trust.
     CertificateUntrusted {

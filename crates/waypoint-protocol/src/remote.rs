@@ -70,6 +70,24 @@ pub struct HostKey {
     pub fingerprint: String,
 }
 
+/// An SSH server whose key differs from the one recorded for it in `known_hosts`: the host and
+/// both keys, so the warning can show the old and the new fingerprint side by side.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct HostKeyChange {
+    /// The host and port the key was offered for (`nas.lan`, `[nas.lan]:2222`).
+    pub host: String,
+    /// The key type recorded in `known_hosts`.
+    pub recorded_algorithm: String,
+    /// The recorded key's `SHA256:` fingerprint.
+    pub recorded_fingerprint: String,
+    /// The key type the server offers now.
+    pub offered_algorithm: String,
+    /// The offered key's `SHA256:` fingerprint.
+    pub offered_fingerprint: String,
+}
+
 /// A TLS certificate the system does not trust, as the trust dialog shows it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
