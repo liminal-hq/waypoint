@@ -302,8 +302,10 @@ impl Line {
             Some((uri, label)) => (uri, Some(label.trim()).filter(|l| !l.is_empty())),
             None => (trimmed, None),
         };
+        // Only local folders are favourites; another file manager's server bookmarks
+        // (`smb://…`, `sftp://…`) are kept as they are, untouched.
         match VfsPath::from_uri(uri) {
-            Ok(path) if uri.contains("://") => Line::Bookmark {
+            Ok(path @ VfsPath::File(_)) if uri.contains("://") => Line::Bookmark {
                 raw: raw.to_owned(),
                 path,
                 label: label.map(str::to_owned),

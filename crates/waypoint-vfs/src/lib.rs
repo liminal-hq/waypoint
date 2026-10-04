@@ -5,10 +5,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod cancel;
+#[cfg(any(test, feature = "testing"))]
+pub mod conformance;
 mod details;
 mod dirscan;
 mod dirscan_cache;
 mod error;
+#[cfg(any(test, feature = "testing"))]
+mod fake_remote;
 mod group;
 mod icon;
 mod index;
@@ -23,7 +27,10 @@ mod names;
 mod navigation;
 mod order;
 mod places;
+mod poll;
 mod provider;
+mod provider_registry;
+mod remote;
 mod serve;
 mod size;
 mod space;
@@ -44,6 +51,8 @@ pub use details::*;
 pub use dirscan::*;
 pub use dirscan_cache::{DirScanCache, CACHE_FILE, CACHE_MAX_ROOTS, CACHE_MAX_ROWS, CACHE_VERSION};
 pub use error::{from_io, from_io_pair, InjectedError};
+#[cfg(any(test, feature = "testing"))]
+pub use fake_remote::{FakeRemoteProvider, RemoteFault};
 pub use icon::{group_for, group_for_mime, group_for_scan};
 pub use listing::{EventSink, Listing, ListingOptions, WatchState};
 pub use local::LocalProvider;
@@ -52,10 +61,13 @@ pub use memory::{MemOp, MemoryProvider};
 pub use mime::{guess as guess_mime, SNIFF_LEN};
 pub use model::*;
 pub use names::{child_path, validate_name};
-pub use navigation::{describe_location, parse_location};
+pub use navigation::{describe_location, parse_location, parse_location_with};
 pub use order::natural_key;
 pub use places::*;
+pub use poll::PollWatch;
 pub use provider::*;
+pub use provider_registry::ProviderRegistry;
+pub use remote::{ConnectAnswer, Credential, CredentialSource, NoCredentials, Secret};
 pub use serve::{
     error_response, parse_range, serve_file, status_response, ByteRange, ServedFile, MAX_CHUNK,
     MAX_WHOLE,

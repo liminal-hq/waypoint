@@ -225,11 +225,10 @@ impl Provider for TrashProvider {
     }
 
     fn capabilities(&self) -> Capabilities {
-        Capabilities {
-            watch: true,
-            // Ids are compared as they are.
-            case_rule: CaseRule::Sensitive,
-        }
+        // Ids are compared as they are; the Trash is changed only through the `trash` plugin.
+        let mut capabilities = Capabilities::new(CaseRule::Sensitive);
+        capabilities.watch = true;
+        capabilities
     }
 
     fn read_only(&self) -> bool {
