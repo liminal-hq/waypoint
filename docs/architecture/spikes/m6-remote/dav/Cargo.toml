@@ -1,0 +1,10 @@
+[package]
+name = "dav"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "stream"] }
+quick-xml = "0.41"
+tokio = { version = "1", features = ["full"] }
+reqwest_dav = "0.3"
+futures-util = "0.3"

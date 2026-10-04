@@ -1,0 +1,2 @@
+[workspace]
+members = ["smb-smb", "smb2-t"]
