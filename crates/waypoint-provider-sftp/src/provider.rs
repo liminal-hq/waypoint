@@ -99,13 +99,13 @@ impl SftpProvider {
     }
 
     fn target(&self, path: &RemotePath) -> Target {
-        let files = self
-            .inner
-            .config
-            .identity_files
-            .clone()
-            .unwrap_or_else(default_identity_files);
-        Target::plain(path, files)
+        let config = &self.inner.config;
+        crate::ssh_config::resolve(
+            path,
+            config.ssh_config.as_deref(),
+            config.identity_files.as_deref(),
+            &default_identity_files,
+        )
     }
 
     /// The open session of `path`'s connection, opening one when there is none. With an `answer`

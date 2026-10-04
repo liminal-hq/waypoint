@@ -10,6 +10,7 @@ use std::time::Duration;
 use waypoint_vfs::{CredentialSource, NoCredentials};
 
 use crate::host_keys::KnownHosts;
+use crate::ssh_config::SshConfigSource;
 
 /// The tuning of one connection (A81's per-connection options). The defaults are the ones spike
 /// #278 measured: 64 `readdir` requests in flight, 64 reads of 32 KiB, and an 8 MiB SSH window.
@@ -78,18 +79,21 @@ pub struct SftpConfig {
     pub(crate) known_hosts: Arc<dyn KnownHosts>,
     pub(crate) agent: AgentSource,
     pub(crate) identity_files: Option<Vec<PathBuf>>,
+    pub(crate) ssh_config: Option<Arc<dyn SshConfigSource>>,
     pub(crate) options: SftpOptions,
 }
 
 impl SftpConfig {
     /// A configuration that checks server keys against `known_hosts`, asks no credential source
-    /// (every password is asked for), uses the system's agent and the default key files.
+    /// (every password is asked for), reads no SSH config, and uses the system's agent and the
+    /// default key files.
     pub fn new(known_hosts: Arc<dyn KnownHosts>) -> Self {
         Self {
             credentials: Arc::new(NoCredentials),
             known_hosts,
             agent: AgentSource::System,
             identity_files: None,
+            ssh_config: None,
             options: SftpOptions::default(),
         }
     }
@@ -106,8 +110,16 @@ impl SftpConfig {
         self
     }
 
-    /// The private key files to try, in order, instead of `~/.ssh/id_ed25519`, `id_ecdsa` and
-    /// `id_rsa`.
+    /// Where host names find their address, user, port, key files and jump hosts
+    /// (`openssh_config::SshConfig::for_user()` for `~/.ssh/config`). Without one a location is
+    /// taken as written.
+    pub fn with_ssh_config(mut self, source: Arc<dyn SshConfigSource>) -> Self {
+        self.ssh_config = Some(source);
+        self
+    }
+
+    /// The private key files to try, in order, instead of the configuration's `IdentityFile`s or
+    /// `~/.ssh/id_ed25519`, `id_ecdsa` and `id_rsa`.
     pub fn with_identity_files(mut self, files: Vec<PathBuf>) -> Self {
         self.identity_files = Some(files);
         self

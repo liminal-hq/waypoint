@@ -18,7 +18,7 @@ use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -250,6 +250,7 @@ pub struct Proxy {
     stalled: Arc<AtomicBool>,
     stopped: Arc<AtomicBool>,
     sockets: Arc<Mutex<Vec<TcpStream>>>,
+    connections: Arc<AtomicUsize>,
 }
 
 impl Proxy {
@@ -259,15 +260,22 @@ impl Proxy {
         let stalled = Arc::new(AtomicBool::new(false));
         let stopped = Arc::new(AtomicBool::new(false));
         let sockets = Arc::new(Mutex::new(Vec::new()));
+        let connections = Arc::new(AtomicUsize::new(0));
         let one_way = round_trip / 2;
         {
-            let (stalled, stopped, sockets) = (stalled.clone(), stopped.clone(), sockets.clone());
+            let (stalled, stopped, sockets, connections) = (
+                stalled.clone(),
+                stopped.clone(),
+                sockets.clone(),
+                connections.clone(),
+            );
             thread::spawn(move || {
                 for client in listener.incoming() {
                     if stopped.load(Ordering::SeqCst) {
                         break;
                     }
                     let Ok(client) = client else { continue };
+                    connections.fetch_add(1, Ordering::SeqCst);
                     let Ok(server) = TcpStream::connect(("127.0.0.1", target)) else {
                         continue;
                     };
@@ -293,7 +301,13 @@ impl Proxy {
             stalled,
             stopped,
             sockets,
+            connections,
         }
+    }
+
+    /// How many connections have come through.
+    pub fn connections(&self) -> usize {
+        self.connections.load(Ordering::SeqCst)
     }
 
     /// Holds every byte until `resume`, as a server that stopped answering.

@@ -1,0 +1,18 @@
+[package]
+name = "openssh-config"
+version = "0.1.0"
+description = "Reads OpenSSH's client configuration and reads and writes its known_hosts file"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+data-encoding = "2"
+hmac = "0.13"
+sha1 = "0.11"
+
+[dev-dependencies]
+tempfile = "3"
