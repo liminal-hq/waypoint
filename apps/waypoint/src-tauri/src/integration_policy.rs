@@ -618,6 +618,9 @@ pub trait InhibitBackend {
     /// What a taken inhibitor is released by.
     type Handle: Copy;
 
+    /// The route a handle was taken through.
+    fn route_of(handle: Self::Handle) -> Route;
+
     async fn acquire(&self, route: Route) -> Result<Self::Handle, String>;
     async fn release(&self, handle: Self::Handle) -> Result<(), String>;
 }
@@ -633,7 +636,9 @@ async fn release_inhibitor<B: InhibitBackend>(
 ) {
     match backend.release(handle).await {
         Ok(()) => {}
-        Err(e) if request_is_gone(&e) => {
+        // Only the portal has a request object that a backend can drop; on logind a missing object
+        // is an ordinary failure.
+        Err(e) if B::route_of(handle) == Route::Portal && request_is_gone(&e) => {
             if inhibitor.refused() {
                 log::warn!("prevent sleep is unavailable: {INHIBIT_REFUSED_REASON} ({e})");
             }
@@ -1413,6 +1418,10 @@ mod tests {
     impl InhibitBackend for Refusing {
         type Handle = u32;
 
+        fn route_of(_: u32) -> Route {
+            Route::Portal
+        }
+
         async fn acquire(&self, _: Route) -> Result<u32, String> {
             self.acquires.set(self.acquires.get() + 1);
             Ok(1)
@@ -1456,6 +1465,9 @@ mod tests {
         struct Broken;
         impl InhibitBackend for Broken {
             type Handle = u32;
+            fn route_of(_: u32) -> Route {
+                Route::Portal
+            }
             async fn acquire(&self, _: Route) -> Result<u32, String> {
                 Ok(2)
             }
@@ -1474,6 +1486,30 @@ mod tests {
             InhibitAction::Acquire,
             "it can be asked for again"
         );
+    }
+
+    #[test]
+    fn a_missing_object_on_the_logind_route_is_not_a_refusal() {
+        struct Logind;
+        impl InhibitBackend for Logind {
+            type Handle = u32;
+            fn route_of(_: u32) -> Route {
+                Route::Desktop
+            }
+            async fn acquire(&self, _: Route) -> Result<u32, String> {
+                Ok(3)
+            }
+            async fn release(&self, _: u32) -> Result<(), String> {
+                Err("UnknownObject: Object does not exist at path /x".to_owned())
+            }
+        }
+        let mut inhibitor = Inhibitor::<u32>::new();
+        tauri::async_runtime::block_on(async {
+            drive_inhibitor(&Logind, &mut inhibitor, true, Some(Route::Desktop)).await;
+            drive_inhibitor(&Logind, &mut inhibitor, false, Some(Route::Desktop)).await;
+        });
+        assert!(!inhibitor.is_refused());
+        assert_eq!(inhibitor.want(true), InhibitAction::Acquire);
     }
 
     #[test]

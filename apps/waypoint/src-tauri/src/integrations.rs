@@ -280,6 +280,10 @@ struct AppBackend<'a, R: Runtime>(&'a AppHandle<R>);
 impl<R: Runtime> InhibitBackend for AppBackend<'_, R> {
     type Handle = Handle;
 
+    fn route_of((route, _): Handle) -> Route {
+        route
+    }
+
     async fn acquire(&self, route: Route) -> Result<Handle, String> {
         acquire(self.0, route).await
     }
@@ -306,7 +310,7 @@ impl<R: Runtime> InhibitBackend for AppBackend<'_, R> {
 /// already dropped (a refused inhibitor) is not worth a warning.
 async fn release_at_exit<R: Runtime>(app: &AppHandle<R>, held: Handle) {
     if let Err(e) = AppBackend(app).release(held).await {
-        if !request_is_gone(&e) {
+        if held.0 != Route::Portal || !request_is_gone(&e) {
             log::warn!("could not release the sleep inhibitor: {e}");
         }
     }
