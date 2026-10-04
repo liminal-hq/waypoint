@@ -8,7 +8,9 @@ mod support;
 use std::collections::BTreeMap;
 
 use support::*;
-use waypoint_provider_git::{compute, Change, EntryStatus, RepoStatus, StatusOptions, UntrackedMode};
+use waypoint_provider_git::{
+    compute, Change, EntryStatus, RepoStatus, StatusOptions, UntrackedMode,
+};
 use waypoint_vfs::CancelToken;
 
 fn status_of(repo: &Repo, options: &StatusOptions) -> RepoStatus {
@@ -21,10 +23,19 @@ fn oracle(repo: &Repo, untracked: &str) -> BTreeMap<String, String> {
     // Not `Repo::git`, which trims the output and so the first entry's leading space.
     let out = std::process::Command::new("git")
         .current_dir(repo.path())
-        .args(["-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z"])
+        .args([
+            "-c",
+            "core.fsmonitor=false",
+            "status",
+            "--porcelain=v1",
+            "-z",
+        ])
         .args(["--ignored=traditional", &format!("-u{untracked}")])
         .env("GIT_CONFIG_NOSYSTEM", "1")
-        .env("GIT_CONFIG_GLOBAL", if cfg!(windows) { "NUL" } else { "/dev/null" })
+        .env(
+            "GIT_CONFIG_GLOBAL",
+            if cfg!(windows) { "NUL" } else { "/dev/null" },
+        )
         .output()
         .unwrap();
     let out = String::from_utf8(out.stdout).unwrap();
@@ -56,7 +67,16 @@ fn ours(status: &RepoStatus) -> BTreeMap<String, String> {
 fn busy_repo() -> Option<Repo> {
     let repo = repo()?;
     repo.write(".gitignore", "*.log\nout/\n");
-    for name in ["a", "b", "c", "d", "e", "g_staged_later", "dir/in", "move_me"] {
+    for name in [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "g_staged_later",
+        "dir/in",
+        "move_me",
+    ] {
         repo.write(name, &format!("{name}\n"));
     }
     repo.commit_all("base");
@@ -188,7 +208,10 @@ fn a_merge_conflict_is_conflicted_and_counted() {
     let merge = std::process::Command::new("git")
         .current_dir(repo.path())
         .args(["merge", "other"])
-        .env("GIT_CONFIG_GLOBAL", if cfg!(windows) { "NUL" } else { "/dev/null" })
+        .env(
+            "GIT_CONFIG_GLOBAL",
+            if cfg!(windows) { "NUL" } else { "/dev/null" },
+        )
         .env("GIT_AUTHOR_NAME", "a")
         .env("GIT_AUTHOR_EMAIL", "a@example.test")
         .env("GIT_COMMITTER_NAME", "a")
@@ -278,6 +301,11 @@ fn a_cancelled_status_says_so() {
 #[test]
 fn a_folder_that_is_not_a_repository_is_an_error_not_a_panic() {
     let dir = tempfile::tempdir().unwrap();
-    let result = compute(dir.path(), &StatusOptions::default(), &CancelToken::new(), None);
+    let result = compute(
+        dir.path(),
+        &StatusOptions::default(),
+        &CancelToken::new(),
+        None,
+    );
     assert!(result.is_err());
 }

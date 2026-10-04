@@ -184,7 +184,9 @@ impl RepoStatus {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&[u8], &EntryStatus)> {
-        self.entries.iter().map(|(path, status)| (path.as_slice(), status))
+        self.entries
+            .iter()
+            .map(|(path, status)| (path.as_slice(), status))
     }
 
     /// The status recorded for exactly this path.
@@ -207,10 +209,7 @@ impl RepoStatus {
         while let Some(folder) = at {
             if !folder.is_empty() {
                 if let Some(status) = self.entries.get(folder) {
-                    if matches!(
-                        status.unstaged,
-                        Some(Change::Untracked | Change::Ignored)
-                    ) {
+                    if matches!(status.unstaged, Some(Change::Untracked | Change::Ignored)) {
                         return Some(*status);
                     }
                 }
@@ -218,6 +217,30 @@ impl RepoStatus {
             at = parent_of(folder);
         }
         None
+    }
+
+    /// The untracked or ignored folder entry above `rel` (not `rel` itself), with its status.
+    pub fn collapsed_ancestor(&self, rel: &[u8]) -> Option<(&[u8], EntryStatus)> {
+        let mut at = parent_of(rel);
+        while let Some(folder) = at {
+            if !folder.is_empty() {
+                if let Some((path, status)) = self.entries.get_key_value(folder) {
+                    if matches!(status.unstaged, Some(Change::Untracked | Change::Ignored)) {
+                        return Some((path.as_slice(), *status));
+                    }
+                }
+            }
+            at = parent_of(folder);
+        }
+        None
+    }
+
+    /// Whether any path has a staged rename, which a status of only some paths cannot tell from a
+    /// delete and an add.
+    pub fn has_staged_renames(&self) -> bool {
+        self.entries
+            .values()
+            .any(|status| status.staged == Some(Change::Renamed))
     }
 
     /// What changed inside a folder, or `None` when nothing has (the badge a folder shows). The
@@ -343,7 +366,10 @@ mod tests {
 
     #[test]
     fn a_change_badges_every_folder_above_it() {
-        let s = status(&[("a/b/c.txt", MODIFIED), ("a/d.txt", EntryStatus::untracked())]);
+        let s = status(&[
+            ("a/b/c.txt", MODIFIED),
+            ("a/d.txt", EntryStatus::untracked()),
+        ]);
         assert_eq!(s.badge(b"a/b").unwrap().changed, 1);
         assert_eq!(s.badge(b"a").unwrap().changed, 2);
         assert_eq!(s.badge(b"").unwrap().changed, 2);
@@ -455,7 +481,11 @@ mod tests {
         assert_eq!(merged.entry(b"a/one"), None);
         assert_eq!(merged.entry(b"a/two"), Some(&EntryStatus::untracked()));
         assert_eq!(merged.entry(b"b/three"), Some(&MODIFIED));
-        assert_eq!(merged.entry(b"ab"), Some(&MODIFIED), "a sibling of the same prefix stays");
+        assert_eq!(
+            merged.entry(b"ab"),
+            Some(&MODIFIED),
+            "a sibling of the same prefix stays"
+        );
         assert_eq!(merged.badge(b"a").unwrap().changed, 1);
     }
 

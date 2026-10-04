@@ -32,7 +32,10 @@ pub struct Repo {
 /// Starts a test: `None` (after saying why) when `git` is missing and not required.
 pub fn repo() -> Option<Repo> {
     if !have_git() {
-        assert!(!required(), "WAYPOINT_GIT_REQUIRE is set but `git` is missing");
+        assert!(
+            !required(),
+            "WAYPOINT_GIT_REQUIRE is set but `git` is missing"
+        );
         eprintln!("skipped: `git` is not installed (set WAYPOINT_GIT_REQUIRE to fail instead)");
         return None;
     }
@@ -56,7 +59,12 @@ impl Repo {
         let out = Command::new("git")
             .current_dir(dir)
             .args(["-c", "core.autocrlf=false", "-c", "commit.gpgsign=false"])
-            .args(["-c", "core.fsmonitor=false", "-c", "protocol.file.allow=always"])
+            .args([
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "protocol.file.allow=always",
+            ])
             .args(args)
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_CONFIG_GLOBAL", null_device())
@@ -112,7 +120,11 @@ impl Repo {
             .env("GIT_COMMITTER_DATE", date)
             .output()
             .unwrap();
-        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
         self.git(&["rev-parse", "HEAD"])
     }
 
@@ -151,12 +163,22 @@ impl Repo {
             std::fs::remove_file(at).unwrap();
             id
         };
-        self.git(&["update-index", "--add", "--cacheinfo", &format!("120000,{blob},{rel}")]);
+        self.git(&[
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            &format!("120000,{blob},{rel}"),
+        ]);
     }
 
     /// Records a submodule (a commit of another repository) in the index.
     pub fn index_submodule(&self, rel: &str, commit: &str) {
-        self.git(&["update-index", "--add", "--cacheinfo", &format!("160000,{commit},{rel}")]);
+        self.git(&[
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            &format!("160000,{commit},{rel}"),
+        ]);
     }
 }
 

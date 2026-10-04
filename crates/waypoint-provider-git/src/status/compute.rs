@@ -96,7 +96,11 @@ fn staged_change(change: &gix::diff::index::Change) -> Option<(BString, Change)>
         ),
         C::Rewrite { location, copy, .. } => (
             location.clone().into_owned(),
-            if *copy { Change::Added } else { Change::Renamed },
+            if *copy {
+                Change::Added
+            } else {
+                Change::Renamed
+            },
         ),
     })
 }
@@ -112,9 +116,7 @@ fn worktree_change(item: &gix::status::index_worktree::Item) -> Option<(BString,
                 S::Conflict { .. } => Change::Conflicted,
                 S::Change(W::Removed) => Change::Deleted,
                 S::Change(W::Type { .. }) => Change::TypeChanged,
-                S::Change(W::Modification { .. } | W::SubmoduleModification(_)) => {
-                    Change::Modified
-                }
+                S::Change(W::Modification { .. } | W::SubmoduleModification(_)) => Change::Modified,
                 S::NeedsUpdate(_) => return None,
                 S::IntentToAdd => Change::Added,
             };
@@ -165,9 +167,7 @@ pub fn compute(
         .map_err(failed)?
         .untracked_files(untracked)
         .dirwalk_options(|walk| {
-            walk.emit_ignored(
-                ignored.then_some(gix::dir::walk::EmissionMode::CollapseDirectory),
-            )
+            walk.emit_ignored(ignored.then_some(gix::dir::walk::EmissionMode::CollapseDirectory))
         })
         .index_worktree_rewrites(None)
         .tree_index_track_renames(rename_mode)
@@ -186,10 +186,7 @@ pub fn compute(
         match &item {
             Item::TreeIndex(change) => {
                 if let Some((path, change)) = staged_change(change) {
-                    entries
-                        .entry(path.as_bytes().to_vec())
-                        .or_default()
-                        .staged = Some(change);
+                    entries.entry(path.as_bytes().to_vec()).or_default().staged = Some(change);
                 }
             }
             Item::IndexWorktree(item) => {

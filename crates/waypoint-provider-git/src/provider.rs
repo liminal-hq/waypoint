@@ -12,7 +12,7 @@ use gix::object::tree::EntryKind as TreeKind;
 use waypoint_path::{CaseRule, GitPath, VfsPath};
 use waypoint_protocol::VfsError;
 use waypoint_vfs::{
-    group_for_scan, Capabilities, CancelToken, EntryKind, IconGroup, Provider, ReadStream,
+    group_for_scan, CancelToken, Capabilities, EntryKind, IconGroup, Provider, ReadStream,
     ScannedEntry,
 };
 

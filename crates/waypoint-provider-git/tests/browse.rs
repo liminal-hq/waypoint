@@ -102,9 +102,15 @@ fn a_branch_a_tag_and_a_commit_each_show_their_own_tree() {
     let provider = GitProvider::new();
 
     assert_eq!(read(&provider, &repo.at_inner(None, "a.txt")), "two");
-    assert_eq!(read(&provider, &repo.at_inner(Some("main"), "a.txt")), "two");
+    assert_eq!(
+        read(&provider, &repo.at_inner(Some("main"), "a.txt")),
+        "two"
+    );
     assert_eq!(read(&provider, &repo.at_inner(Some("v1"), "a.txt")), "one");
-    assert_eq!(read(&provider, &repo.at_inner(Some("side"), "a.txt")), "one");
+    assert_eq!(
+        read(&provider, &repo.at_inner(Some("side"), "a.txt")),
+        "one"
+    );
     assert_eq!(
         read(&provider, &repo.at_inner(Some(&first), "a.txt")),
         "one"
@@ -134,7 +140,10 @@ fn what_is_not_there_is_not_found() {
     let provider = GitProvider::new();
     let cancel = CancelToken::new();
 
-    assert_eq!(kind(&provider.stat(&repo.at_inner(None, "missing"))), "notFound");
+    assert_eq!(
+        kind(&provider.stat(&repo.at_inner(None, "missing"))),
+        "notFound"
+    );
     assert_eq!(
         kind(&provider.stat(&repo.at_inner(None, "a.txt/under-a-file"))),
         "notFound"
@@ -178,13 +187,25 @@ fn a_repository_with_no_commits_is_an_empty_folder() {
 #[test]
 fn names_that_are_awkward_survive() {
     let Some(repo) = repo() else { return };
-    for name in ["with space.txt", "100%.txt", "café.txt", "日本語.txt", "#hash"] {
+    for name in [
+        "with space.txt",
+        "100%.txt",
+        "café.txt",
+        "日本語.txt",
+        "#hash",
+    ] {
         repo.write(name, name);
     }
     repo.commit_all("names");
     let provider = GitProvider::new();
     assert_eq!(list(&provider, &repo.at(None)).len(), 5);
-    for name in ["with space.txt", "100%.txt", "café.txt", "日本語.txt", "#hash"] {
+    for name in [
+        "with space.txt",
+        "100%.txt",
+        "café.txt",
+        "日本語.txt",
+        "#hash",
+    ] {
         assert_eq!(read(&provider, &repo.at_inner(None, name)), name);
     }
 }
@@ -203,7 +224,10 @@ fn an_executable_is_reported_as_one() {
         ObjectKind::Executable
     );
     assert_eq!(
-        provider.describe(&repo.at_inner(None, "plain")).unwrap().kind,
+        provider
+            .describe(&repo.at_inner(None, "plain"))
+            .unwrap()
+            .kind,
         ObjectKind::Blob
     );
     let run = provider.stat(&repo.at_inner(None, "run")).unwrap();
@@ -237,9 +261,7 @@ fn links_are_reported_as_links_and_resolved_inside_the_tree() {
     assert!(!by("to-file").link_pending);
     assert_eq!(by("to-file").size, Some("target.txt".len() as u64));
     assert_eq!(
-        provider
-            .read_link(&repo.at_inner(None, "to-file"))
-            .unwrap(),
+        provider.read_link(&repo.at_inner(None, "to-file")).unwrap(),
         "target.txt"
     );
     // A link in a folder resolves against that folder, and a file link reads as its target.
@@ -251,7 +273,10 @@ fn links_are_reported_as_links_and_resolved_inside_the_tree() {
     assert_eq!(read(&provider, &repo.at_inner(None, "to-file")), "payload");
     assert_eq!(read(&provider, &repo.at_inner(None, "dir/up")), "payload");
     assert_eq!(
-        provider.describe(&repo.at_inner(None, "to-dir")).unwrap().kind,
+        provider
+            .describe(&repo.at_inner(None, "to-dir"))
+            .unwrap()
+            .kind,
         ObjectKind::Symlink
     );
 }
@@ -296,7 +321,9 @@ fn a_submodule_is_listed_as_one_and_cannot_be_opened_here() {
     assert_eq!(lib.kind, EntryKind::Other);
     assert_eq!(lib.group, IconGroup::Folder);
     assert_eq!(lib.size, None);
-    let info = provider.describe(&repo.at_inner(None, "vendor/lib")).unwrap();
+    let info = provider
+        .describe(&repo.at_inner(None, "vendor/lib"))
+        .unwrap();
     assert_eq!(info.kind, ObjectKind::Submodule);
     assert_eq!(info.id, sub, "the id is the commit it is pinned at");
     assert_eq!(
@@ -309,7 +336,11 @@ fn a_submodule_is_listed_as_one_and_cannot_be_opened_here() {
         "unsupported"
     );
     assert_eq!(
-        kind(&provider.open_read(&repo.at_inner(None, "vendor/lib")).map(|_| ())),
+        kind(
+            &provider
+                .open_read(&repo.at_inner(None, "vendor/lib"))
+                .map(|_| ())
+        ),
         "unsupported"
     );
 }
@@ -359,7 +390,9 @@ fn describe_names_the_commit_a_revision_resolved_to() {
     repo.write("a", "x");
     let head = repo.commit_all("one");
     let provider = GitProvider::new();
-    let info = provider.describe(&repo.at_inner(Some("main"), "a")).unwrap();
+    let info = provider
+        .describe(&repo.at_inner(Some("main"), "a"))
+        .unwrap();
     assert_eq!(info.commit.as_deref(), Some(head.as_str()));
     assert_eq!(info.kind, ObjectKind::Blob);
     assert_eq!(info.id, repo.git(&["rev-parse", "HEAD:a"]));

@@ -68,10 +68,7 @@ mod tests {
         // A submodule's `.git` is a file.
         std::fs::write(inner.join(".git"), "gitdir: ../.git/modules/sub\n").unwrap();
         assert_eq!(find_repository(&inner.join("deeper")), Some(inner.clone()));
-        assert_eq!(
-            git_dir_of(&inner),
-            Some(inner.join("../.git/modules/sub"))
-        );
+        assert_eq!(git_dir_of(&inner), Some(inner.join("../.git/modules/sub")));
     }
 
     #[test]
