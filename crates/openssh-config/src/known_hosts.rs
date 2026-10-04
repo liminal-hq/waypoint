@@ -205,9 +205,10 @@ impl KnownHostsFile {
         file.sync_all()
     }
 
-    /// Replaces the `recorded` key of `host` on `port` with `algorithm base64`: every line of the
-    /// user's file that names the server with the recorded key is removed, and the new key is
-    /// appended. The file is rewritten through a temporary file and a rename. A recorded key that
+    /// Replaces the `recorded` key of `host` on `port` with `algorithm base64`: the server is taken
+    /// out of every line of the user's file that names it with the recorded key (a line naming
+    /// only it is removed; one that also names other hosts keeps them, and a wildcard that covers
+    /// it gets a negation), and the new key is appended on a line of its own. The file is rewritten through a temporary file and a rename. A recorded key that
     /// is only in a system file stays there, and the new key, appended to the user's file, is
     /// found first.
     pub fn replace(
@@ -226,13 +227,18 @@ impl KnownHostsFile {
         };
         let mut kept = String::with_capacity(text.len());
         for line in text.lines() {
-            let drop = parse(line).is_some_and(|parsed| {
-                parsed.marker.is_none()
-                    && parsed.base64 == recorded.base64
-                    && hosts_match(parsed.hosts, &label)
-            });
-            if !drop {
-                kept.push_str(line);
+            let rewritten = match parse(line) {
+                Some(parsed)
+                    if parsed.marker.is_none()
+                        && parsed.base64 == recorded.base64
+                        && hosts_match(parsed.hosts, &label) =>
+                {
+                    without_host(line, parsed.hosts, &label)
+                }
+                _ => Some(line.to_owned()),
+            };
+            if let Some(line) = rewritten {
+                kept.push_str(&line);
                 kept.push('\n');
             }
         }
@@ -251,6 +257,38 @@ impl KnownHostsFile {
         }
         fs::rename(&temporary, &self.user)
     }
+}
+
+/// `line` with `label` taken out of its host list `hosts`, so the line keeps vouching for every
+/// other host: an entry naming exactly `label` (plainly or hashed) is removed, and a wildcard that
+/// covers it gets `!label` beside it. `None` when no other host is left.
+fn without_host(line: &str, hosts: &str, label: &str) -> Option<String> {
+    let mut entries: Vec<String> = Vec::new();
+    let mut needs_negation = false;
+    for entry in hosts.split(',') {
+        let exact = if entry.starts_with('!') {
+            false
+        } else if let Some(hashed) = entry.strip_prefix("|1|") {
+            hashed_matches(hashed, label)
+        } else if entry.contains(['*', '?']) {
+            needs_negation |= wildcard(entry, label);
+            false
+        } else {
+            entry.eq_ignore_ascii_case(label)
+        };
+        if !exact {
+            entries.push(entry.to_owned());
+        }
+    }
+    if !entries.iter().any(|entry| !entry.starts_with('!')) {
+        return None;
+    }
+    if needs_negation {
+        entries.push(format!("!{label}"));
+    }
+    let start = line.len() - line.trim_start().len();
+    let rest = &line[start + hosts.len()..];
+    Some(format!("{}{}{rest}", &line[..start], entries.join(",")))
 }
 
 fn create_private_dir(path: &Path) -> io::Result<()> {
@@ -393,6 +431,50 @@ mod tests {
             assert_eq!(
                 fs::metadata(&path).unwrap().permissions().mode() & 0o777,
                 0o600
+            );
+        }
+    }
+
+    #[test]
+    fn replacing_keeps_the_trust_of_every_other_host() {
+        let salt = [9u8; 20];
+        let mut mac = <Hmac<Sha1> as KeyInit>::new_from_slice(&salt).unwrap();
+        mac.update(b"nas.lan");
+        let hashed = format!(
+            "|1|{}|{}",
+            BASE64.encode(&salt),
+            BASE64.encode(&mac.finalize().into_bytes())
+        );
+        let (_dir, hosts) = file(&format!(
+            "nas.lan,10.0.0.5 ssh-ed25519 {ED} combined\n*.lan ssh-ed25519 {ED}\n{hashed},tv.lan ssh-ed25519 {ED}\n"
+        ));
+        let recorded = RecordedKey {
+            algorithm: "ssh-ed25519".into(),
+            base64: ED.into(),
+        };
+        hosts
+            .replace("nas.lan", 22, &recorded, "ssh-ed25519", ED2)
+            .unwrap();
+        let text = fs::read_to_string(hosts.path()).unwrap();
+        assert_eq!(
+            text,
+            format!(
+                "10.0.0.5 ssh-ed25519 {ED} combined\n*.lan,!nas.lan ssh-ed25519 {ED}\ntv.lan ssh-ed25519 {ED}\nnas.lan ssh-ed25519 {ED2}\n"
+            )
+        );
+        assert_eq!(
+            hosts.check("nas.lan", 22, "ssh-ed25519", ED2),
+            Lookup::Known
+        );
+        assert!(matches!(
+            hosts.check("nas.lan", 22, "ssh-ed25519", ED),
+            Lookup::Changed { .. }
+        ));
+        for other in ["10.0.0.5", "printer.lan", "tv.lan"] {
+            assert_eq!(
+                hosts.check(other, 22, "ssh-ed25519", ED),
+                Lookup::Known,
+                "{other}"
             );
         }
     }
