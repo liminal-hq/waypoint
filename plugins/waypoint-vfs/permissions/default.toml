@@ -29,3 +29,24 @@ permissions = [
   "allow-rename-favourite",
   "allow-move-favourite",
 ]
+
+[[set]]
+identifier = "connections"
+description = "The saved connections and the connection manager, for the main windows: read, add, change, copy, reorder and forget saved connections and recent servers, read a typed server address, list the SSH hosts to suggest, connect, test, disconnect and read a login's state, and forget a remembered login. A secret is sent to Rust inside an answer and never read back"
+permissions = [
+  "allow-list-connections",
+  "allow-connection-support",
+  "allow-suggested-servers",
+  "allow-parse-address-text",
+  "allow-add-connection",
+  "allow-update-connection",
+  "allow-duplicate-connection",
+  "allow-remove-connection",
+  "allow-move-connection",
+  "allow-forget-recent-server",
+  "allow-forget-login",
+  "allow-connect",
+  "allow-test-connection",
+  "allow-disconnect",
+  "allow-connection-state",
+]

@@ -31,6 +31,21 @@ const COMMANDS: &[&str] = &[
     "remove_favourite",
     "rename_favourite",
     "move_favourite",
+    "list_connections",
+    "connection_support",
+    "suggested_servers",
+    "parse_address_text",
+    "add_connection",
+    "update_connection",
+    "duplicate_connection",
+    "remove_connection",
+    "move_connection",
+    "forget_recent_server",
+    "forget_login",
+    "connect",
+    "test_connection",
+    "disconnect",
+    "connection_state",
 ];
 
 fn main() {

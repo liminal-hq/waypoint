@@ -9,14 +9,15 @@ use serde::Deserialize;
 use tauri::ipc::Channel;
 use tauri::{Emitter, Manager, Runtime, State, Window};
 use tauri_plugin_opener::OpenerExt;
+use waypoint_connections::ConnectionsHub;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
     DirScanCache, DirScanEvent, DirScanOptions, DirScanResult, Entry, EntryDetails, EntryKind,
     Filter, FolderCheck, FolderSizeEvent, Listing, ListingEvent, ListingHandle, ListingLayout,
     ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
-    SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo, TrashProvider, TrashSource,
-    VolumeSpace,
+    ProviderRegistry, SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo,
+    TrashProvider, TrashSource, VolumeSpace,
 };
 
 use crate::error::Error;
@@ -24,6 +25,9 @@ use crate::registry::{Registry, SizeJobs};
 
 /// The one event name every listing event is emitted under, to the window that owns the listing.
 pub const LISTING_EVENT: &str = "waypoint-vfs://listing";
+
+/// Lists the `Host` aliases of `~/.ssh/config` (the app reads the file; the plugin only offers them).
+pub type Suggestions = Arc<dyn Fn() -> Vec<String> + Send + Sync>;
 
 /// The plugin's managed state: the open listings and the providers that serve them.
 pub struct Vfs {
@@ -33,6 +37,11 @@ pub struct Vfs {
     /// The `trash:` provider, once the app has given the plugin a Trash to read (A4: this plugin
     /// calls no other, so the composition root adapts the Trash plugin to `TrashSource`).
     trash: RwLock<Option<Arc<TrashProvider>>>,
+    /// The server, archive and Git providers the app registered (A85), by scheme.
+    remote: Arc<ProviderRegistry>,
+    /// The saved connections and the connection manager, when the app gave them.
+    connections: Option<Arc<ConnectionsHub>>,
+    suggestions: Option<Suggestions>,
 }
 
 impl Vfs {
@@ -180,11 +189,58 @@ impl Vfs {
 
 impl Default for Vfs {
     fn default() -> Self {
+        Self::new(Arc::new(ProviderRegistry::new()), None, None)
+    }
+}
+
+impl Vfs {
+    /// The state over the app's remote providers, saved connections and SSH host suggestions. A
+    /// listing on a login holds it open (the manager never closes it as idle) until it closes.
+    pub fn new(
+        remote: Arc<ProviderRegistry>,
+        connections: Option<Arc<ConnectionsHub>>,
+        suggestions: Option<Suggestions>,
+    ) -> Self {
+        let registry = Registry::default();
+        if let Some(hub) = &connections {
+            let manager = hub.manager().clone();
+            registry.set_on_close(Arc::new(move |listing: &Listing| {
+                if let Some(key) = listing.provider().connection_key(listing.path()) {
+                    manager.release(&key);
+                }
+            }));
+        }
         Self {
-            registry: Arc::new(Registry::default()),
+            registry: Arc::new(registry),
             size_jobs: Arc::new(SizeJobs::default()),
             local: Arc::new(LocalProvider::new()),
             trash: RwLock::new(None),
+            remote,
+            connections,
+            suggestions,
+        }
+    }
+
+    /// The server, archive and Git providers, for the operations engine to serve the same schemes.
+    pub fn remote(&self) -> &Arc<ProviderRegistry> {
+        &self.remote
+    }
+
+    /// The saved connections and the connection manager.
+    pub fn connections(&self) -> Option<&Arc<ConnectionsHub>> {
+        self.connections.as_ref()
+    }
+
+    pub(crate) fn suggestions(&self) -> Option<Suggestions> {
+        self.suggestions.clone()
+    }
+
+    /// Tells the connection manager what a call on `path` found.
+    pub(crate) fn observe(&self, path: &VfsPath, outcome: Result<(), &VfsError>) {
+        if let (Some(hub), VfsPath::Remote(_)) = (&self.connections, path) {
+            if let Some(key) = hub.manager().key_of(path) {
+                hub.manager().observe(&key, outcome);
+            }
         }
     }
 }
@@ -210,11 +266,9 @@ impl Vfs {
                 .ok_or_else(|| VfsError::Unsupported {
                     what: "the Trash cannot be read here".to_owned(),
                 }),
-            // Server, archive and Git providers are registered from milestone 6 on (A85).
+            // Server, archive and Git providers are the ones the app registered (A85).
             VfsPath::Remote(_) | VfsPath::Archive(_) | VfsPath::Git(_) => {
-                Err(VfsError::Unsupported {
-                    what: path.scheme().to_owned(),
-                })
+                self.remote.for_path(path)
             }
         }
     }
@@ -245,7 +299,9 @@ fn parse(location: &Location) -> Result<VfsPath, VfsError> {
 }
 
 /// Reports what the plugin can do here. `polling-fallback` appears while any open listing is
-/// being kept up to date by polling because notifications are unavailable.
+/// being kept up to date by polling because notifications are unavailable; `connections` when
+/// saved connections are kept, and `remote-{scheme}` for each server protocol a provider serves
+/// (`remote-sftp`).
 #[tauri::command]
 pub async fn get_status(state: State<'_, Vfs>) -> Result<PluginStatus, Error> {
     let mut features = vec![
@@ -261,6 +317,15 @@ pub async fn get_status(state: State<'_, Vfs>) -> Result<PluginStatus, Error> {
     if state.registry.any_polling() {
         features.push("polling-fallback".to_owned());
     }
+    if state.connections().is_some() {
+        features.push("connections".to_owned());
+    }
+    features.extend(
+        state
+            .remote()
+            .schemes()
+            .map(|scheme| format!("remote-{scheme}")),
+    );
     if let Some(provider) = state.trash_provider() {
         if provider.source().available().is_ok() {
             features.push("trash-view".to_owned());
@@ -285,7 +350,9 @@ pub async fn open_listing<R: Runtime>(
     let options = options.unwrap_or_default();
 
     let probe = (provider.clone(), path.clone());
-    let entry = blocking(move || probe.0.stat(&probe.1)).await??;
+    let entry = blocking(move || probe.0.stat(&probe.1)).await?;
+    state.observe(&path, entry.as_ref().map(|_| ()));
+    let entry = entry?;
     let is_folder = entry.kind == EntryKind::Directory
         || (entry.kind == EntryKind::Symlink && entry.link_target == Some(EntryKind::Directory));
     if !is_folder {
@@ -319,26 +386,44 @@ pub async fn open_listing<R: Runtime>(
     );
     let first = listing.snapshot();
     registry.insert(&label, listing.clone());
+    let manager = state.connections().map(|hub| hub.manager().clone());
+    let key = listing.provider().connection_key(listing.path());
+    if let (Some(manager), Some(key)) = (&manager, &key) {
+        manager.acquire(key);
+    }
 
-    tauri::async_runtime::spawn_blocking(move || scan(&listing, &sink));
+    tauri::async_runtime::spawn_blocking(move || {
+        let outcome = scan(&listing, &sink);
+        if let (Some(manager), Some(key)) = (manager, key) {
+            manager.observe(&key, outcome.as_ref().map(|_| ()));
+        }
+    });
     Ok(first)
 }
 
 /// Watches first (so nothing is missed while scanning), scans, then resolves any symlinks the scan
-/// left for later. A scan that fails tells the window; one that was cancelled stays quiet.
-fn scan(listing: &Arc<Listing>, sink: &Arc<dyn Fn(ListingEvent) + Send + Sync>) {
+/// left for later. A scan that fails tells the window; one that was cancelled stays quiet. Returns
+/// what the scan found, for the connection manager.
+fn scan(
+    listing: &Arc<Listing>,
+    sink: &Arc<dyn Fn(ListingEvent) + Send + Sync>,
+) -> Result<(), VfsError> {
     let _ = listing.start_watching();
     match listing.scan() {
         Ok(_) => {
             if let Err(error) = listing.resolve_pending_links() {
                 log::debug!("could not resolve every symlink: {error:?}");
             }
+            Ok(())
         }
-        Err(VfsError::Cancelled) => {}
-        Err(error) => sink(ListingEvent::Failed {
-            handle: listing.handle(),
-            error,
-        }),
+        Err(VfsError::Cancelled) => Err(VfsError::Cancelled),
+        Err(error) => {
+            sink(ListingEvent::Failed {
+                handle: listing.handle(),
+                error: error.clone(),
+            });
+            Err(error)
+        }
     }
 }
 

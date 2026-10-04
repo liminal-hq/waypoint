@@ -1,5 +1,5 @@
 if ('__TAURI__' in window) {
-var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
+var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWindow) {
     'use strict';
 
     // Exposes typed guest-side wrappers for the waypoint-vfs plugin
@@ -8,6 +8,8 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     // SPDX-License-Identifier: Apache-2.0 OR MIT
     const PREFIX = 'plugin:waypoint-vfs|';
     const LISTING_EVENT = 'waypoint-vfs://listing';
+    const CONNECTIONS_EVENT = 'waypoint-vfs://connections';
+    const CONNECTION_STATE_EVENT = 'waypoint-vfs://connection-state';
     function cmd(name, args) {
         return core.invoke(`${PREFIX}${name}`, args);
     }
@@ -188,39 +190,138 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, webviewWindow) {
     function onListingEvent(handler) {
         return webviewWindow.getCurrentWebviewWindow().listen(LISTING_EVENT, (event) => handler(event.payload));
     }
+    /** The saved connections and recent servers, with the state of every login Rust knows. */
+    function listConnections() {
+        return cmd('list_connections');
+    }
+    /**
+     * The server protocols a provider serves here, and why a login cannot be remembered in the keyring
+     * (`null` when it can). Never asks the keyring to unlock.
+     */
+    function connectionSupport() {
+        return cmd('connection_support');
+    }
+    /** Hosts of `~/.ssh/config` to offer in the Connect dialog. */
+    function suggestedServers() {
+        return cmd('suggested_servers');
+    }
+    /**
+     * Reads a typed server address into the dialog's fields, saying whether a password written in it
+     * was dropped. Rejects with a `VfsError` (`invalidLocation`, or `unsupported` for a protocol no
+     * provider serves).
+     */
+    function parseAddress(text) {
+        return cmd('parse_address_text', { text });
+    }
+    /** Saves a new connection. Rejects with `{ kind: 'connections', error }` naming the bad field. */
+    function addConnection(draft) {
+        return cmd('add_connection', { draft });
+    }
+    /** Changes a saved connection. */
+    function updateConnection(id, draft) {
+        return cmd('update_connection', { id, draft });
+    }
+    /** Saves a copy of a connection right after it, under `name`. */
+    function duplicateConnection(id, name) {
+        return cmd('duplicate_connection', { id, name });
+    }
+    /**
+     * Forgets a saved connection; with `forgetLogin` its remembered secrets go too. Resolves with why
+     * the keyring could not forget them, or `null`.
+     */
+    function removeConnection(id, forgetLogin) {
+        return cmd('remove_connection', { id, forgetLogin });
+    }
+    /** Moves a saved connection to position `to`. */
+    function moveConnection(id, to) {
+        return cmd('move_connection', { id, to });
+    }
+    /** Forgets one recent server by its login, or all of them with `null`. */
+    function forgetRecentServer(key) {
+        return cmd('forget_recent_server', { key });
+    }
+    /** Forgets the remembered secrets of a server's login. Resolves with why it could not, or `null`. */
+    function forgetLogin(location) {
+        return cmd('forget_login', { location });
+    }
+    /**
+     * Connects a server's login now, with the person's answer to the question its last attempt asked
+     * (none retries, as Reconnect does). The answer, which may hold a secret, is sent once and never
+     * comes back. Rejects with the `VfsError` that says what is still needed.
+     */
+    function connect(location, answer = null, remember = false) {
+        return cmd('connect', { location, answer, remember });
+    }
+    /** Tries a draft's server without saving it, as `connect` does. */
+    function testConnection(draft, answer = null, remember = false) {
+        return cmd('test_connection', { draft, answer, remember });
+    }
+    /** Closes a server's login; its listings show the disconnected state. */
+    function disconnect(location) {
+        return cmd('disconnect', { location });
+    }
+    /** The state of the login a location belongs to, or `null` for one with no login. */
+    function connectionState(location) {
+        return cmd('connection_state', { location });
+    }
+    /** Hears every change to the saved connections and recent servers, in any window. */
+    function onConnectionsChanged(handler) {
+        return event.listen(CONNECTIONS_EVENT, (event) => handler(event.payload));
+    }
+    /** Hears every change of a login's state. */
+    function onConnectionState(handler) {
+        return event.listen(CONNECTION_STATE_EVENT, (event) => handler(event.payload));
+    }
 
     exports.PREVIEW_SCHEME = PREVIEW_SCHEME;
+    exports.addConnection = addConnection;
     exports.addFavourite = addFavourite;
     exports.cancelDirScan = cancelDirScan;
     exports.cancelFolderSize = cancelFolderSize;
     exports.checkFolder = checkFolder;
     exports.closeListing = closeListing;
+    exports.connect = connect;
+    exports.connectionState = connectionState;
+    exports.connectionSupport = connectionSupport;
     exports.describeLocation = describeLocation;
+    exports.disconnect = disconnect;
+    exports.duplicateConnection = duplicateConnection;
     exports.entryDetails = entryDetails;
     exports.entryLocation = entryLocation;
     exports.folderSize = folderSize;
+    exports.forgetLogin = forgetLogin;
+    exports.forgetRecentServer = forgetRecentServer;
     exports.getCachedDirScan = getCachedDirScan;
     exports.getFreeSpace = getFreeSpace;
     exports.getHome = getHome;
     exports.getRange = getRange;
     exports.getStatus = getStatus;
     exports.getTrashInfo = getTrashInfo;
+    exports.listConnections = listConnections;
     exports.listPlaces = listPlaces;
+    exports.moveConnection = moveConnection;
     exports.moveFavourite = moveFavourite;
+    exports.onConnectionState = onConnectionState;
+    exports.onConnectionsChanged = onConnectionsChanged;
     exports.onListingEvent = onListingEvent;
     exports.openEntry = openEntry;
     exports.openListing = openListing;
+    exports.parseAddress = parseAddress;
     exports.parseLocation = parseLocation;
     exports.previewUrl = previewUrl;
     exports.readTextHead = readTextHead;
+    exports.removeConnection = removeConnection;
     exports.removeFavourite = removeFavourite;
     exports.renameFavourite = renameFavourite;
     exports.scanDirSizes = scanDirSizes;
     exports.setFilter = setFilter;
     exports.setSort = setSort;
+    exports.suggestedServers = suggestedServers;
     exports.summariseSelection = summariseSelection;
+    exports.testConnection = testConnection;
+    exports.updateConnection = updateConnection;
 
     return exports;
 
-})({}, __TAURI__.core, __TAURI__.webviewWindow);
+})({}, __TAURI__.core, __TAURI__.event, __TAURI__.webviewWindow);
 Object.defineProperty(window.__TAURI__, 'waypointVfs', { value: __TAURI_PLUGIN_WAYPOINT_VFS__ }) }
