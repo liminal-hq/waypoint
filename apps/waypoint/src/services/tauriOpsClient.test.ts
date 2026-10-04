@@ -62,6 +62,9 @@ describe('createTauriOpsClient', () => {
 		await client.dismissFinished();
 		await client.reorder(1, 0);
 		await client.setJobLimits(1, 1_000_000, 'high');
+		await client.setJobSchedule(1, { kind: 'startAt', atMs: 5 });
+		await client.pauseAll();
+		await client.resumeAll();
 		await client.resolve(1, []);
 		await client.conflictPreview?.(1, location);
 		await client.resolveError(1, 'skip');
@@ -90,6 +93,9 @@ describe('createTauriOpsClient', () => {
 			'dismiss_finished',
 			'reorder',
 			'set_job_limits',
+			'set_job_schedule',
+			'pause_all',
+			'resume_all',
 			'resolve',
 			'conflict_preview',
 			'resolve_error',

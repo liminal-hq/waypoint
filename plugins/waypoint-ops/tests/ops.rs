@@ -19,7 +19,7 @@ use tauri_plugin_waypoint_ops::{
 };
 use waypoint_ops::{
     ConflictPolicy, Decision, JobKind, JobPriority, JobState, JournalStorage, OpsError, OpsEvent,
-    OpsSettings, OpsSnapshot, Resolution, VerifyAlgorithm, WaitReason,
+    OpsSettings, OpsSnapshot, Resolution, Schedule, VerifyAlgorithm, WaitReason,
 };
 use waypoint_protocol::VfsError;
 use waypoint_vfs::Provider;
@@ -1810,4 +1810,208 @@ fn ops_one_at_a_time(env: &Env) {
         ..ops.settings()
     })
     .unwrap();
+}
+
+fn in_ms(ms: i64) -> Schedule {
+    Schedule::StartAt {
+        at_ms: clock_ms() + ms,
+    }
+}
+
+fn scheduled_in_journal(env: &Env) -> usize {
+    env.journal
+        .current_document()
+        .map_or(0, |d| d.body.scheduled.len())
+}
+
+#[test]
+fn a_scheduled_job_waits_for_its_time_is_kept_in_the_journal_and_starts_by_itself() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    let mut request = env.copy(&["a.txt"], "dst");
+    request.options.schedule = Some(in_ms(1_200));
+    let id = env.submit("main-1", request);
+    env.wait_state(id, "queued", |s| *s == JobState::Queued);
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(env.state(id), JobState::Queued, "not before its time");
+    assert!(!env.exists("dst/a.txt"));
+    tauri_plugin_waypoint_ops::on_window_destroyed(env.app.handle(), "main-1");
+    assert_eq!(scheduled_in_journal(&env), 1, "saved while it waits");
+    let held = &env.journal.current_document().unwrap().body.scheduled[0];
+    assert_eq!(held.request.options.schedule, env.job(id).options.schedule);
+
+    env.wait_done(id);
+    assert_eq!(env.read("dst/a.txt"), b"alpha");
+    env.wait_for("the record to go", |e| {
+        tauri_plugin_waypoint_ops::on_window_destroyed(e.app.handle(), "main-1");
+        scheduled_in_journal(e) == 0
+    });
+}
+
+#[test]
+fn run_now_clears_a_schedule_and_a_started_job_cannot_be_scheduled() {
+    let env = env();
+    let ops = env.ops();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    let mut request = env.copy(&["a.txt"], "dst");
+    request.options.schedule = Some(in_ms(3_600_000));
+    let id = env.submit("main-1", request);
+    env.wait_state(id, "queued", |s| *s == JobState::Queued);
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(env.state(id), JobState::Queued);
+    ops.set_job_schedule(id, None).unwrap();
+    assert_eq!(env.job(id).options.schedule, None);
+    env.wait_done(id);
+    assert!(ops.set_job_schedule(id, Some(in_ms(1_000))).is_err());
+    // A schedule that cannot run is refused, on a job and when submitting.
+    let bad = Schedule::Window {
+        start_minute: 60,
+        end_minute: 60,
+        utc_offset_minutes: 0,
+    };
+    let mut request = env.copy(&["a.txt"], "dst");
+    request.options.schedule = Some(bad);
+    assert!(ops.submit("main-1", request).is_err());
+}
+
+#[test]
+fn a_job_held_by_a_window_that_is_closed_waits_and_others_pass_it() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.write("b.txt", b"bravo");
+    env.dir("dst");
+    // A one-minute window that is not now: it opens in the next hour or so.
+    let minute = ((clock_ms() / 60_000).rem_euclid(1440)) as u16;
+    let window = Schedule::Window {
+        start_minute: (minute + 30) % 1440,
+        end_minute: (minute + 31) % 1440,
+        utc_offset_minutes: 0,
+    };
+    let mut held = env.copy(&["a.txt"], "dst");
+    held.options.schedule = Some(window);
+    let held = env.submit("main-1", held);
+    let free = env.submit("main-1", env.copy(&["b.txt"], "dst"));
+    env.wait_done(free);
+    assert_eq!(env.state(held), JobState::Queued);
+    assert!(!env.exists("dst/a.txt"));
+}
+
+#[test]
+fn a_scheduled_job_left_by_the_last_run_is_queued_again_at_start_up() {
+    use waypoint_ops::{JobId, JournalBody, JournalDocument, ScheduledRecord};
+    let journal = Arc::new(waypoint_ops::testing::journal_storage::MemoryJournalStorage::new());
+    let setup = Setup {
+        journal: journal.clone(),
+        prepare: Box::new({
+            let journal = journal.clone();
+            move |work, fs| {
+                let src = work.join("a.txt").unwrap();
+                let mut stream = fs
+                    .create_write(&src, waypoint_vfs::WriteOptions::exclusive())
+                    .unwrap();
+                std::io::Write::write_all(&mut stream, b"alpha").unwrap();
+                stream.finish(false).unwrap();
+                fs.create_dir(&work.join("dst").unwrap()).unwrap();
+                let mut request = waypoint_ops::JobRequest {
+                    kind: JobKind::Copy,
+                    sources: waypoint_ops::Sources::Locations {
+                        locations: vec![src.to_location()],
+                    },
+                    destination: Some(work.join("dst").unwrap().to_location()),
+                    name: None,
+                    options: waypoint_ops::JobOptions::default(),
+                    origin_window: "main-1".to_owned(),
+                    rename: None,
+                };
+                request.options.schedule = Some(Schedule::StartAt {
+                    at_ms: clock_ms() + 700,
+                });
+                journal
+                    .save(&JournalDocument::new(JournalBody {
+                        next_id: 1,
+                        scheduled: vec![ScheduledRecord {
+                            job: JobId(41),
+                            request,
+                        }],
+                        ..JournalBody::default()
+                    }))
+                    .unwrap();
+            }
+        }),
+        ..Setup::default()
+    };
+    let env = env_with(setup);
+    let jobs = env.snapshot().jobs;
+    assert_eq!(jobs.len(), 1, "the job is back in the queue");
+    let id = jobs[0].id;
+    assert_ne!(env.state(id), JobState::Done, "and waits for its time");
+    assert!(!env.exists("dst/a.txt"));
+    env.wait_done(id);
+    assert_eq!(env.read("dst/a.txt"), b"alpha");
+    // It is not an interruption, so there is nothing to report.
+    assert!(env.recovered.lock().unwrap().is_empty());
+}
+
+#[test]
+fn quitting_keeps_the_jobs_waiting_for_their_time() {
+    let env = env();
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    let mut request = env.copy(&["a.txt"], "dst");
+    request.options.schedule = Some(in_ms(3_600_000));
+    let id = env.submit("main-1", request);
+    env.wait_state(id, "queued", |s| *s == JobState::Queued);
+    tauri_plugin_waypoint_ops::on_exit(env.app.handle());
+    assert_eq!(
+        scheduled_in_journal(&env),
+        1,
+        "cancelled for now, kept for next time"
+    );
+}
+
+#[test]
+fn pause_all_stops_every_running_copy_and_holds_the_queue_and_resume_all_goes_on() {
+    let env = env();
+    let ops = env.ops();
+    env.write("big.bin", &big(6));
+    env.write("b.txt", b"bravo");
+    env.dir("dst");
+    let mut request = env.copy(&["big.bin"], "dst");
+    request.options.speed_limit = Some(MIB);
+    let big_job = env.submit("main-1", request);
+    env.wait_for("some bytes moved", |e| moved(e, big_job) > 0);
+
+    ops.pause_all();
+    env.wait_state(big_job, "paused", |s| *s == JobState::Paused);
+    assert!(env.snapshot().paused);
+    // The progress stands still while paused.
+    std::thread::sleep(Duration::from_millis(200));
+    let at = moved(&env, big_job);
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(moved(&env, big_job), at);
+    // A free slot does not start a new job.
+    let other = env.submit("main-1", env.copy(&["b.txt"], "dst"));
+    env.wait_state(other, "queued", |s| *s == JobState::Queued);
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(env.state(other), JobState::Queued);
+
+    ops.set_job_limits(big_job, None, None).unwrap();
+    ops.resume_all();
+    assert!(!env.snapshot().paused);
+    env.wait_done(big_job);
+    env.wait_done(other);
+    assert_eq!(env.read("dst/big.bin"), big(6));
+    assert_eq!(env.read("dst/b.txt"), b"bravo");
+    // Both windows heard the flag change, in order.
+    let flags: Vec<bool> = env
+        .events_of("main-2")
+        .into_iter()
+        .filter_map(|e| match e {
+            OpsEvent::QueuePaused { paused, .. } => Some(paused),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(flags, vec![true, false]);
 }

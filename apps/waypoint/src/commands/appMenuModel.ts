@@ -166,6 +166,7 @@ export function appMenuItems(
 		rows('openWith'),
 		rows('rename', 'batchRename', 'duplicate'),
 		rows('moveToTrash', 'deletePermanently'),
+		rows('pauseAll', 'resumeAll'),
 		rows('settings'),
 		rows('closeTab', 'reopenClosedTab', 'closeWindow'),
 	);

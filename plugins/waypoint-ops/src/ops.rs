@@ -23,8 +23,8 @@ use waypoint_ops::{
     JobPriority, JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument,
     JournalEntrySummary, JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings,
     OpsSnapshot, OpsStore, Pacer, PlanCtx, PlanWarning, Prepared, QueueError, RateCell,
-    RecoveryReport, Resolution, SaveRequest, SelectionResolver, SettingsReader, SimpleCopy,
-    Sources, StorageError, SystemPacer, Throttle,
+    RecoveryReport, Resolution, SaveRequest, Schedule, ScheduledRecord, SelectionResolver,
+    SettingsReader, SimpleCopy, Sources, StorageError, SystemPacer, Throttle,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec};
@@ -246,6 +246,23 @@ impl Core {
                 || store.job(*id).is_some_and(|j| !j.state.is_finished())
         });
         self.entries.retain(|id, _| store.job(*id).is_some());
+        self.sync_scheduled();
+    }
+
+    /// Records in the journal the jobs that wait for a schedule, so they are queued again after a
+    /// restart; a job that has started, ended or been dismissed drops out of it.
+    pub(crate) fn sync_scheduled(&mut self) {
+        // On the way out every job is cancelled, and the scheduled ones must stay in the file.
+        if self.shutdown {
+            return;
+        }
+        let held = self
+            .store
+            .scheduled_requests()
+            .into_iter()
+            .map(|(job, request)| ScheduledRecord { job, request })
+            .collect();
+        self.journal.set_scheduled(held);
     }
 }
 
@@ -353,6 +370,15 @@ impl<R: Runtime> Ops<R> {
             }),
             cv: Condvar::new(),
         });
+        // Jobs the last run left waiting for their time are queued again, and the journal records
+        // them anew (a time that has passed means they start now).
+        {
+            let mut core = shared.lock();
+            let held = core.journal.take_scheduled();
+            for record in held {
+                shared.enqueue(&mut core, record.request);
+            }
+        }
         let weak = Arc::downgrade(&shared);
         let _ = flush_hook.set(Box::new(move || {
             if let Some(shared) = weak.upgrade() {
@@ -556,6 +582,7 @@ impl<R: Runtime> Shared<R> {
         let limit = request.options.speed_limit;
         let (id, events) = core.store.add(request);
         core.ctl.insert(id, Ctl::new(limit));
+        core.sync_scheduled();
         self.publish(events);
         self.ensure_workers(core);
         self.cv.notify_all();
@@ -587,6 +614,7 @@ impl<R: Runtime> Shared<R> {
                 if let Some(ctl) = core.ctl.get_mut(&id) {
                     ctl.stage = Stage::Running;
                 }
+                core.sync_scheduled();
                 self.publish(events);
                 Some(Task::Run(id))
             }
@@ -702,6 +730,7 @@ impl<R: Runtime> Ops<R> {
                 what: "submitting an undo or redo; use the undo and redo commands".to_owned(),
             }));
         }
+        Self::validate_options(&request)?;
         request.origin_window = window.to_owned();
         // A selection is resolved once, here, and the job keeps the locations: a retry, a redo and
         // the journal then work on the list the user confirmed, not on a listing that has changed
@@ -713,6 +742,53 @@ impl<R: Runtime> Ops<R> {
         self.shared.freeze_now(&mut request);
         let mut core = self.shared.lock();
         Ok(self.shared.enqueue(&mut core, request))
+    }
+
+    fn validate_options(request: &JobRequest) -> Result<(), Error> {
+        if request
+            .options
+            .speed_limit
+            .is_some_and(|limit| limit == 0 || limit > MAX_SPEED_LIMIT)
+        {
+            return Err(Error::Invalid(format!(
+                "the speed limit must be between 1 and {MAX_SPEED_LIMIT} bytes a second, or off"
+            )));
+        }
+        if let Some(schedule) = request.options.schedule {
+            schedule.validate().map_err(Error::Invalid)?;
+        }
+        Ok(())
+    }
+
+    /// Sets or clears when a job that has not started may start; `None` starts it as soon as a slot
+    /// is free ("Run now"). A schedule is kept in the journal, so the job survives a restart.
+    pub fn set_job_schedule(&self, id: JobId, schedule: Option<Schedule>) -> Result<(), Error> {
+        if let Some(schedule) = schedule {
+            schedule.validate().map_err(Error::Invalid)?;
+        }
+        let mut core = self.shared.lock();
+        let events = core.store.set_schedule(id, schedule)?;
+        core.sync_scheduled();
+        self.shared.publish(events);
+        // A job that may start now is for a worker that is waiting; one that must wait sets its timer.
+        self.shared.cv.notify_all();
+        Ok(())
+    }
+
+    /// Pause all: every running job pauses where it is and nothing queued starts.
+    pub fn pause_all(&self) {
+        let mut core = self.shared.lock();
+        let events = core.store.pause_all();
+        self.shared.publish(events);
+        self.shared.cv.notify_all();
+    }
+
+    /// Resume all: queued jobs may start again and every paused job runs on.
+    pub fn resume_all(&self) {
+        let mut core = self.shared.lock();
+        let events = core.store.resume_all();
+        self.shared.publish(events);
+        self.shared.cv.notify_all();
     }
 
     /// What a batch rename would do, without queueing it.

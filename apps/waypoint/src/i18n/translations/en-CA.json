@@ -4475,6 +4475,98 @@
     "message": "Priority of {title}: {priority}",
     "description": "Area: ops. Placeholders, kept exactly as written: {priority}; {title} is the title of a tab."
   },
+  "ops.schedule.button": {
+    "message": "Schedule…",
+    "description": "Area: ops."
+  },
+  "ops.schedule.title": {
+    "message": "Schedule: {title}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
+  },
+  "ops.schedule.mode.label": {
+    "message": "When this job may start",
+    "description": "Area: ops."
+  },
+  "ops.schedule.mode.startAt": {
+    "message": "Start at",
+    "description": "Area: ops."
+  },
+  "ops.schedule.mode.window": {
+    "message": "Only between",
+    "description": "Area: ops."
+  },
+  "ops.schedule.startAt.label": {
+    "message": "Start time",
+    "description": "Area: ops."
+  },
+  "ops.schedule.from": {
+    "message": "From",
+    "description": "Area: ops."
+  },
+  "ops.schedule.until": {
+    "message": "Until",
+    "description": "Area: ops."
+  },
+  "ops.schedule.apply": {
+    "message": "Set schedule",
+    "description": "Area: ops."
+  },
+  "ops.schedule.runNow": {
+    "message": "Run now",
+    "description": "Area: ops."
+  },
+  "ops.schedule.cancel": {
+    "message": "Cancel",
+    "description": "Area: ops."
+  },
+  "ops.schedule.error.past": {
+    "message": "Choose a time in the future.",
+    "description": "Area: ops."
+  },
+  "ops.schedule.error.same": {
+    "message": "Choose two different times.",
+    "description": "Area: ops."
+  },
+  "ops.schedule.error.incomplete": {
+    "message": "Fill in every time.",
+    "description": "Area: ops."
+  },
+  "ops.schedule.startsAt": {
+    "message": "Scheduled for {time}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {time} is a time or a length of time."
+  },
+  "ops.schedule.window": {
+    "message": "Scheduled between {from} and {to} each day",
+    "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value."
+  },
+  "ops.schedule.announce": {
+    "message": "Schedule for {title}: {when}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab; {when}."
+  },
+  "ops.schedule.cleared": {
+    "message": "{title} will start as soon as it can",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
+  },
+  "ops.pauseAll": {
+    "message": "Pause all",
+    "description": "Area: ops."
+  },
+  "ops.resumeAll": {
+    "message": "Resume all",
+    "description": "Area: ops."
+  },
+  "ops.pauseAll.announce": {
+    "message": "All jobs paused",
+    "description": "Area: ops."
+  },
+  "ops.resumeAll.announce": {
+    "message": "Jobs resumed",
+    "description": "Area: ops."
+  },
+  "ops.pausedAll.note": {
+    "message": "Paused: nothing starts until you resume.",
+    "description": "Area: ops."
+  },
   "ops.moveUp": {
     "message": "Move up",
     "description": "Area: ops."
@@ -6095,6 +6187,14 @@
     "message": "Close Window",
     "description": "Area: cmd."
   },
+  "cmd.pauseAll": {
+    "message": "Pause All Operations",
+    "description": "Area: cmd."
+  },
+  "cmd.resumeAll": {
+    "message": "Resume All Operations",
+    "description": "Area: cmd."
+  },
   "openWith.default": {
     "message": "{name} (default)",
     "description": "Area: openWith. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
@@ -6289,6 +6389,14 @@
   },
   "cmd.reason.clipboardEmpty": {
     "message": "The clipboard is empty",
+    "description": "Area: cmd."
+  },
+  "cmd.reason.nothingToPause": {
+    "message": "Nothing is running",
+    "description": "Area: cmd."
+  },
+  "cmd.reason.nothingToResume": {
+    "message": "Nothing is paused",
     "description": "Area: cmd."
   },
   "cmd.reason.nothingToUndo": {

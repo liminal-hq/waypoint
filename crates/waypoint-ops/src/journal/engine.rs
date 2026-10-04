@@ -23,7 +23,7 @@ use waypoint_protocol::Location;
 
 use super::model::{
     EntryState, ForwardSpec, InverseStep, JournalBody, JournalDocument, JournalEntry,
-    JournalEntrySummary, JournalId, JournalSnapshot, PendingRecord,
+    JournalEntrySummary, JournalId, JournalSnapshot, PendingRecord, ScheduledRecord,
 };
 use super::storage::{JournalStorage, SaveRequest, StorageError};
 use crate::model::{JobId, JobKind, JobOptions, JobRequest, OpsError, OpsEvent, Sources};
@@ -203,6 +203,31 @@ impl Journal {
         self.body.pending.push(record);
         self.dirty = true;
         self.flush()
+    }
+
+    /// Replaces the jobs held by a schedule with `records`, asking for a save when that is a
+    /// change.
+    pub fn set_scheduled(&mut self, records: Vec<ScheduledRecord>) {
+        if self.body.scheduled != records {
+            self.body.scheduled = records;
+            self.touched();
+        }
+    }
+
+    /// The jobs the last run left held by a schedule, taken so the plugin can queue them again
+    /// (which records them anew). The saved file keeps them until the next save, which the plugin
+    /// makes after queueing them, so one that could not be queued does not come back for ever.
+    pub fn take_scheduled(&mut self) -> Vec<ScheduledRecord> {
+        let taken = std::mem::take(&mut self.body.scheduled);
+        if !taken.is_empty() {
+            self.touched();
+        }
+        taken
+    }
+
+    /// The jobs held by a schedule now.
+    pub fn scheduled(&self) -> &[ScheduledRecord] {
+        &self.body.scheduled
     }
 
     /// Drops the record of a job that wrote nothing.

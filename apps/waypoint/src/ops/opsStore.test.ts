@@ -25,6 +25,35 @@ async function mirror(fake: FakeOpsClient) {
 	return { handle, frames, state: () => handle.store.getState() };
 }
 
+describe('Pause all in the mirror', () => {
+	it('follows the flag and the jobs it paused, and a stale flag event changes nothing', async () => {
+		const fake = createFakeOpsClient({ concurrency: 2 });
+		const id = await fake.submit(request(['a']));
+		fake.start(id);
+		const { handle, state } = await mirror(fake);
+		expect(state().snapshot?.paused).toBe(false);
+		await fake.pauseAll();
+		expect(state().snapshot?.paused).toBe(true);
+		expect(state().snapshot?.jobs[0]?.state.state).toBe('paused');
+		await fake.resumeAll();
+		expect(state().snapshot?.paused).toBe(false);
+		expect(state().snapshot?.jobs[0]?.state.state).toBe('running');
+		const snapshot = state().snapshot!;
+		const stale = applyOpsEvent(snapshot, { kind: 'queuePaused', paused: true, revision: 1 });
+		expect(stale.applied).toBe(false);
+		expect(stale.snapshot.paused).toBe(false);
+		handle.dispose();
+	});
+
+	it('reads the flag from a snapshot taken while paused', async () => {
+		const fake = createFakeOpsClient();
+		await fake.pauseAll();
+		const { handle, state } = await mirror(fake);
+		expect(state().snapshot?.paused).toBe(true);
+		handle.dispose();
+	});
+});
+
 describe('createOpsStore', () => {
 	it('starts empty, then holds the snapshot', async () => {
 		const fake = createFakeOpsClient();

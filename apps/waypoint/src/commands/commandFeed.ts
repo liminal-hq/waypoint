@@ -79,6 +79,7 @@ export function startCommandFeed(bridge: CommandBridge, sources: CommandFeedSour
 			journalRevision = journal.revision;
 			loadHistory();
 		}
+		const queue = ops?.store.getState().snapshot;
 		const view = sources.view.getState();
 		const selection = session?.store.getState().selection;
 		bridge.patchFacts({
@@ -91,6 +92,10 @@ export function startCommandFeed(bridge: CommandBridge, sources: CommandFeedSour
 			sort: session?.model.sort ?? null,
 			undoLabel: journal?.undo?.label ?? null,
 			redoLabel: journal?.redo?.label ?? null,
+			opsRunning: queue?.jobs.filter((job) => job.state.state === 'running').length ?? 0,
+			opsPaused:
+				(queue?.paused ?? false) ||
+				(queue?.jobs.some((job) => job.state.state === 'paused') ?? false),
 			undoHead: journal?.undo?.id ?? null,
 			redoHead: journal?.redo?.id ?? null,
 			viewMode: view.mode,

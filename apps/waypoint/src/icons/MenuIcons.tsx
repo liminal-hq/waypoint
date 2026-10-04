@@ -167,6 +167,19 @@ export const ClockIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+export const PauseIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect data-fill x="4" y="3.5" width="2.6" height="9" rx="0.6" />
+		<rect data-fill x="9.4" y="3.5" width="2.6" height="9" rx="0.6" />
+	</Glyph>
+);
+
+export const PlayIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path data-fill d="M5 3.5v9l7.5-4.5z" />
+	</Glyph>
+);
+
 export const HistoryIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<path d="M2.5 8a5.5 5.5 0 1 0 1.7-4M2.5 2.5v3h3M8 5v3.2l2 1.3" />

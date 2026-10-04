@@ -200,3 +200,38 @@
 	outline: 2px solid var(--wp-focus-ring);
 	outline-offset: 1px;
 }
+
+.scheduleForm {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-block-start: 4px;
+	padding: 8px;
+	border: 1px solid var(--wp-border-subtle);
+	border-radius: 6px;
+}
+
+.fieldset {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.legend {
+	padding: 0;
+	margin-block-end: 2px;
+	color: var(--wp-text-secondary);
+}
+
+.problem {
+	margin: 0;
+	color: var(--wp-ops-failed);
+}
+
+.pausedNote {
+	margin: 0 0 8px;
+	color: var(--wp-text-primary);
+}

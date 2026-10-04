@@ -41,6 +41,8 @@ import {
 	UngroupIcon,
 	NewFolderIcon,
 	NewTabIcon,
+	PauseIcon,
+	PlayIcon,
 	PasteIcon,
 	RedoIcon,
 	RestoreIcon,
@@ -113,6 +115,8 @@ export type CommandId =
 	| 'actionBar'
 	| 'alwaysOnTop'
 	| 'closeWindow'
+	| 'pauseAll'
+	| 'resumeAll'
 	| 'settings'
 	| 'commandPalette'
 	// Help
@@ -418,6 +422,23 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'file',
 		when: needs((f) => f.tab, 'cmd.reason.noTab'),
 		run: (a) => a.closeTab(),
+	},
+	{
+		id: 'pauseAll',
+		label: 'cmd.pauseAll',
+		icon: PauseIcon,
+		group: 'file',
+		// Offered wherever there is a queue; it can run when something runs and Pause all is not in force.
+		when: (f) => (f.opsRunning > 0 && !f.opsPaused ? SHOWN : blocked('cmd.reason.nothingToPause')),
+		run: (a) => a.pauseAll(),
+	},
+	{
+		id: 'resumeAll',
+		label: 'cmd.resumeAll',
+		icon: PlayIcon,
+		group: 'file',
+		when: (f) => (f.opsPaused ? SHOWN : blocked('cmd.reason.nothingToResume')),
+		run: (a) => a.resumeAll(),
 	},
 	{
 		id: 'closeWindow',

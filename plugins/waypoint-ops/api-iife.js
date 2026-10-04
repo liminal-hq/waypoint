@@ -78,6 +78,21 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
         return cmd('set_job_limits', { job, speedLimit, priority });
     }
     /**
+     * Sets or clears when a job that has not started may start: at a time, or only inside a daily
+     * window. `null` is "Run now". The schedule is kept, so the job survives a restart.
+     */
+    function setJobSchedule(job, schedule) {
+        return cmd('set_job_schedule', { job, schedule });
+    }
+    /** Pauses every running job and holds back everything queued until `resumeAll`. */
+    function pauseAll() {
+        return cmd('pause_all');
+    }
+    /** Lets queued jobs start again and runs every paused job on. */
+    function resumeAll() {
+        return cmd('resume_all');
+    }
+    /**
      * Answers the conflicts a job waits on: each decision settles one source's clash, and
      * `applyToAll` is the policy for every other clash the job meets.
      */
@@ -203,6 +218,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.onOpsEvent = onOpsEvent;
     exports.onRecovered = onRecovered;
     exports.pause = pause;
+    exports.pauseAll = pauseAll;
     exports.plan = plan;
     exports.previewBatchRename = previewBatchRename;
     exports.redo = redo;
@@ -211,10 +227,12 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.resolveError = resolveError;
     exports.resolveSelection = resolveSelection;
     exports.resume = resume;
+    exports.resumeAll = resumeAll;
     exports.retry = retry;
     exports.setClipboard = setClipboard;
     exports.setClipboardFromSelection = setClipboardFromSelection;
     exports.setJobLimits = setJobLimits;
+    exports.setJobSchedule = setJobSchedule;
     exports.setSettings = setSettings;
     exports.submit = submit;
     exports.subscribeProgress = subscribeProgress;

@@ -16,6 +16,7 @@
 //             entry and ends the job, and the events go out in order
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tauri::{Emitter, Runtime};
 use waypoint_ops::{
@@ -29,6 +30,7 @@ use crate::models::JobJournal;
 use crate::ops::{Core, Ops, Shared, Stage, Task};
 
 /// What a planning worker takes from the journal before it unlocks.
+#[allow(clippy::large_enum_variant)]
 enum Pre {
     Plain,
     Undo(waypoint_ops::JournalId, Vec<waypoint_ops::InverseStep>),
@@ -51,7 +53,19 @@ pub(crate) fn worker_main<R: Runtime>(shared: Arc<Shared<R>>) {
                     shared.ensure_workers(&mut core);
                     break task;
                 }
-                core = shared.cv.wait(core).unwrap_or_else(|e| e.into_inner());
+                // A queued job held by a schedule is the one thing a worker waits on the clock for;
+                // the wait is capped, so a clock that was set is read again within a minute.
+                core = match core.store.next_wake_in_ms() {
+                    Some(ms) => {
+                        let wait = Duration::from_millis(ms.clamp(1, 60_000) as u64 + 5);
+                        shared
+                            .cv
+                            .wait_timeout(core, wait)
+                            .unwrap_or_else(|e| e.into_inner())
+                            .0
+                    }
+                    None => shared.cv.wait(core).unwrap_or_else(|e| e.into_inner()),
+                };
             }
         };
         match task {

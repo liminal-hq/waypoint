@@ -678,3 +678,54 @@ fn a_crash_at_any_call_of_a_replace_never_loses_the_original_it_set_aside() {
     sweep(&|| memory_jh(CaseRule::Sensitive));
     sweep(&|| memory_jh(CaseRule::Insensitive));
 }
+
+#[test]
+fn jobs_held_by_a_schedule_are_saved_and_come_back_after_a_restart() {
+    let (mut h, _g) = local_jh();
+    let mut request = create_folder(&h, "later");
+    request.options.schedule = Some(Schedule::StartAt { at_ms: 9_000_000 });
+    request.options.speed_limit = Some(2_000_000);
+    let record = ScheduledRecord {
+        job: JobId(4),
+        request,
+    };
+    h.journal.set_scheduled(vec![record.clone()]);
+    assert!(h.journal.is_dirty());
+    // The same set again is no change and asks for nothing.
+    h.journal.flush().unwrap();
+    h.journal.set_scheduled(vec![record.clone()]);
+    assert!(!h.journal.is_dirty());
+    assert_eq!(
+        h.storage.current_document().unwrap().body.scheduled,
+        vec![record.clone()]
+    );
+
+    let report = h.restart();
+    assert!(
+        !report.needs_notice(),
+        "a scheduled job is not an interruption"
+    );
+    assert_eq!(h.journal.scheduled(), std::slice::from_ref(&record));
+    // Taking them leaves the file as it was until the plugin has queued them again.
+    assert_eq!(h.journal.take_scheduled(), vec![record]);
+    assert!(h.journal.scheduled().is_empty());
+    assert_eq!(
+        h.storage.current_document().unwrap().body.scheduled.len(),
+        1
+    );
+    h.journal.flush().unwrap();
+    assert!(h
+        .storage
+        .current_document()
+        .unwrap()
+        .body
+        .scheduled
+        .is_empty());
+}
+
+#[test]
+fn a_journal_written_before_schedules_existed_reads_with_none() {
+    let json = r#"{"version":1,"body":{"revision":3,"nextId":2,"undoCounter":0,"entries":[],"pending":[]}}"#;
+    let document: JournalDocument = serde_json::from_str(json).unwrap();
+    assert!(document.body.scheduled.is_empty());
+}

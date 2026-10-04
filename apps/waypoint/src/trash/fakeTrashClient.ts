@@ -97,6 +97,7 @@ export class FakeTrashClient implements TrashClient {
 			snapshot: async () => ({
 				revision: this.revision,
 				jobs: this.jobs.map((job) => this.snapshot(job)),
+				paused: false,
 				journal: { revision: 0, undo: null, redo: null },
 			}),
 			resolve: async (job, resolutions, applyToAll) => {

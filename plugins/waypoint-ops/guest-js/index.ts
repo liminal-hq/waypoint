@@ -38,6 +38,7 @@ import type { PreviewSide } from '@liminal-hq/waypoint-protocol/generated/Previe
 import type { PreviewRow } from '@liminal-hq/waypoint-protocol/generated/PreviewRow';
 import type { Problem } from '@liminal-hq/waypoint-protocol/generated/Problem';
 import type { RuleError } from '@liminal-hq/waypoint-protocol/generated/RuleError';
+import type { Schedule } from '@liminal-hq/waypoint-protocol/generated/Schedule';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 import type { TextDiff } from '@liminal-hq/waypoint-protocol/generated/TextDiff';
 
@@ -75,6 +76,7 @@ export type {
 	RenameSpec,
 	Resolution,
 	RuleError,
+	Schedule,
 	SelectionSpec,
 	TextDiff,
 };
@@ -179,6 +181,24 @@ export function setJobLimits(
 	priority: JobPriority | null,
 ): Promise<void> {
 	return cmd<void>('set_job_limits', { job, speedLimit, priority });
+}
+
+/**
+ * Sets or clears when a job that has not started may start: at a time, or only inside a daily
+ * window. `null` is "Run now". The schedule is kept, so the job survives a restart.
+ */
+export function setJobSchedule(job: JobId, schedule: Schedule | null): Promise<void> {
+	return cmd<void>('set_job_schedule', { job, schedule });
+}
+
+/** Pauses every running job and holds back everything queued until `resumeAll`. */
+export function pauseAll(): Promise<void> {
+	return cmd<void>('pause_all');
+}
+
+/** Lets queued jobs start again and runs every paused job on. */
+export function resumeAll(): Promise<void> {
+	return cmd<void>('resume_all');
 }
 
 /**

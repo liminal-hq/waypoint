@@ -5729,6 +5729,121 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {priority}; {title} is the title of a tab.",
     "source": "ff227ba0"
   },
+  "ops.schedule.button": {
+    "message": "Schedule…",
+    "description": "Area: ops.",
+    "source": "10e27907"
+  },
+  "ops.schedule.title": {
+    "message": "Planifier : {title}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
+    "source": "d31b451c"
+  },
+  "ops.schedule.mode.label": {
+    "message": "Quand cette tâche peut démarrer",
+    "description": "Area: ops.",
+    "source": "28073ebe"
+  },
+  "ops.schedule.mode.startAt": {
+    "message": "Démarrer à",
+    "description": "Area: ops.",
+    "source": "334c284f"
+  },
+  "ops.schedule.mode.window": {
+    "message": "Seulement entre",
+    "description": "Area: ops.",
+    "source": "cee86e23"
+  },
+  "ops.schedule.startAt.label": {
+    "message": "Heure de début",
+    "description": "Area: ops.",
+    "source": "babe9dda"
+  },
+  "ops.schedule.from": {
+    "message": "De",
+    "description": "Area: ops.",
+    "source": "21819769"
+  },
+  "ops.schedule.until": {
+    "message": "À",
+    "description": "Area: ops.",
+    "source": "7caf856e"
+  },
+  "ops.schedule.apply": {
+    "message": "Enregistrer",
+    "description": "Area: ops.",
+    "source": "22185675"
+  },
+  "ops.schedule.runNow": {
+    "message": "Exécuter maintenant",
+    "description": "Area: ops.",
+    "source": "09913977"
+  },
+  "ops.schedule.cancel": {
+    "message": "Annuler",
+    "description": "Area: ops.",
+    "source": "19766ed6"
+  },
+  "ops.schedule.error.past": {
+    "message": "Choisissez une heure dans le futur.",
+    "description": "Area: ops.",
+    "source": "7fd7bbf4"
+  },
+  "ops.schedule.error.same": {
+    "message": "Choisissez deux heures différentes.",
+    "description": "Area: ops.",
+    "source": "8fec943e"
+  },
+  "ops.schedule.error.incomplete": {
+    "message": "Remplissez chaque heure.",
+    "description": "Area: ops.",
+    "source": "22cac4f9"
+  },
+  "ops.schedule.startsAt": {
+    "message": "Planifiée pour le {time}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {time} is a time or a length of time.",
+    "source": "098cb7e7"
+  },
+  "ops.schedule.window": {
+    "message": "Planifiée chaque jour entre {from} et {to}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value.",
+    "source": "7a0e48ce"
+  },
+  "ops.schedule.announce": {
+    "message": "Planification de {title} : {when}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab; {when}.",
+    "source": "9dcea3c1"
+  },
+  "ops.schedule.cleared": {
+    "message": "{title} démarrera dès que possible",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
+    "source": "ced5ff5e"
+  },
+  "ops.pauseAll": {
+    "message": "Tout suspendre",
+    "description": "Area: ops.",
+    "source": "0b6258b5"
+  },
+  "ops.resumeAll": {
+    "message": "Tout reprendre",
+    "description": "Area: ops.",
+    "source": "43e673c5"
+  },
+  "ops.pauseAll.announce": {
+    "message": "Toutes les tâches sont suspendues",
+    "description": "Area: ops.",
+    "source": "a6a9e28d"
+  },
+  "ops.resumeAll.announce": {
+    "message": "Les tâches ont repris",
+    "description": "Area: ops.",
+    "source": "fcef9dab"
+  },
+  "ops.pausedAll.note": {
+    "message": "Suspendu : rien ne démarre avant la reprise.",
+    "description": "Area: ops.",
+    "source": "24ac92fc"
+  },
   "ops.moveUp": {
     "message": "Monter",
     "description": "Area: ops.",
@@ -7924,6 +8039,16 @@
     "description": "Area: cmd.",
     "source": "32fd144c"
   },
+  "cmd.pauseAll": {
+    "message": "Suspendre toutes les opérations",
+    "description": "Area: cmd.",
+    "source": "8fd3bc48"
+  },
+  "cmd.resumeAll": {
+    "message": "Reprendre toutes les opérations",
+    "description": "Area: cmd.",
+    "source": "0d889459"
+  },
   "openWith.default": {
     "message": "{name} (par défaut)",
     "description": "Area: openWith. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
@@ -8173,6 +8298,16 @@
     "message": "Le presse-papiers est vide",
     "description": "Area: cmd.",
     "source": "678a49e2"
+  },
+  "cmd.reason.nothingToPause": {
+    "message": "Aucune opération en cours",
+    "description": "Area: cmd.",
+    "source": "38e67fb1"
+  },
+  "cmd.reason.nothingToResume": {
+    "message": "Aucune opération suspendue",
+    "description": "Area: cmd.",
+    "source": "c6adadf7"
   },
   "cmd.reason.nothingToUndo": {
     "message": "Il n’y a rien à annuler",

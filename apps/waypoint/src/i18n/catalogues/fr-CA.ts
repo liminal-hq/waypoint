@@ -2450,6 +2450,52 @@ const messages: Catalogue = {
 	'ops.priority.low': 'Faible',
 	// source: ff227ba0
 	'ops.priority.announce': 'Priorité de {title} : {priority}',
+	// source: 10e27907
+	'ops.schedule.button': 'Schedule…',
+	// source: d31b451c
+	'ops.schedule.title': 'Planifier : {title}',
+	// source: 28073ebe
+	'ops.schedule.mode.label': 'Quand cette tâche peut démarrer',
+	// source: 334c284f
+	'ops.schedule.mode.startAt': 'Démarrer à',
+	// source: cee86e23
+	'ops.schedule.mode.window': 'Seulement entre',
+	// source: babe9dda
+	'ops.schedule.startAt.label': 'Heure de début',
+	// source: 21819769
+	'ops.schedule.from': 'De',
+	// source: 7caf856e
+	'ops.schedule.until': 'À',
+	// source: 22185675
+	'ops.schedule.apply': 'Enregistrer',
+	// source: 09913977
+	'ops.schedule.runNow': 'Exécuter maintenant',
+	// source: 19766ed6
+	'ops.schedule.cancel': 'Annuler',
+	// source: 7fd7bbf4
+	'ops.schedule.error.past': 'Choisissez une heure dans le futur.',
+	// source: 8fec943e
+	'ops.schedule.error.same': 'Choisissez deux heures différentes.',
+	// source: 22cac4f9
+	'ops.schedule.error.incomplete': 'Remplissez chaque heure.',
+	// source: 098cb7e7
+	'ops.schedule.startsAt': 'Planifiée pour le {time}',
+	// source: 7a0e48ce
+	'ops.schedule.window': 'Planifiée chaque jour entre {from} et {to}',
+	// source: 9dcea3c1
+	'ops.schedule.announce': 'Planification de {title} : {when}',
+	// source: ced5ff5e
+	'ops.schedule.cleared': '{title} démarrera dès que possible',
+	// source: 0b6258b5
+	'ops.pauseAll': 'Tout suspendre',
+	// source: 43e673c5
+	'ops.resumeAll': 'Tout reprendre',
+	// source: a6a9e28d
+	'ops.pauseAll.announce': 'Toutes les tâches sont suspendues',
+	// source: fcef9dab
+	'ops.resumeAll.announce': 'Les tâches ont repris',
+	// source: 24ac92fc
+	'ops.pausedAll.note': 'Suspendu : rien ne démarre avant la reprise.',
 	// source: c66feb5e
 	'ops.moveUp': 'Monter',
 	// source: 40bb50da
@@ -3373,6 +3419,10 @@ const messages: Catalogue = {
 	'cmd.settings': 'Paramètres…',
 	// source: 32fd144c
 	'cmd.closeWindow': 'Fermer la fenêtre',
+	// source: 8fd3bc48
+	'cmd.pauseAll': 'Suspendre toutes les opérations',
+	// source: 0d889459
+	'cmd.resumeAll': 'Reprendre toutes les opérations',
 	// source: 8bc148d3
 	'openWith.default': '{name} (par défaut)',
 	// source: 81fc1029
@@ -3476,6 +3526,10 @@ const messages: Catalogue = {
 	'cmd.reason.nothingFocused': 'Sélectionnez un élément à renommer',
 	// source: 678a49e2
 	'cmd.reason.clipboardEmpty': 'Le presse-papiers est vide',
+	// source: 38e67fb1
+	'cmd.reason.nothingToPause': 'Aucune opération en cours',
+	// source: c6adadf7
+	'cmd.reason.nothingToResume': 'Aucune opération suspendue',
 	// source: 1e11588a
 	'cmd.reason.nothingToUndo': 'Il n’y a rien à annuler',
 	// source: 55c3f0d5

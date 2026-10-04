@@ -5,14 +5,17 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { showNotice } from '../app/notices';
+import { useHourCycle } from '../browse/TimeFormatContext';
 import { t, tf, type MessageId } from '../i18n/messages';
-import type { JobPriority } from '../services/opsClient';
+import type { JobPriority, Schedule } from '../services/opsClient';
 import { announce } from '../tabs/announcer';
 import type { JobView, JobAction } from './jobText';
-import { useOps, useOpsViews } from './OpsContext';
+import { useOps, useOpsPaused, useOpsViews } from './OpsContext';
 import { OpsDownIcon, OpsPopOutIcon, OpsUpIcon } from './OpsIcons';
 import styles from './OpsPanel.module.css';
 import { requestResolve } from './resolveHook';
+import { scheduleText } from './scheduleModel';
+import { ScheduleForm } from './ScheduleForm';
 import { speedLimitChoices, speedLimitLabel } from './speedLimits';
 
 const PRIORITIES: readonly JobPriority[] = ['high', 'normal', 'low'];
@@ -41,6 +44,9 @@ interface OpsPanelProps {
 export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 	const ops = useOps();
 	const views = useOpsViews();
+	const paused = useOpsPaused();
+	const hourCycle = useHourCycle();
+	const [scheduling, setScheduling] = useState<number | null>(null);
 	const headingId = useId();
 	const hintId = useId();
 	const rows = useRef(new Map<number, HTMLLIElement>());
@@ -67,6 +73,8 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 	if (!ops) return null;
 	const { handle, popOut, showInFolder } = ops;
 	const finishedCount = views.filter((v) => v.finished).length;
+	const running = views.some((v) => v.state === 'running');
+	const anyPaused = paused || views.some((v) => v.state === 'paused');
 
 	const guard = (work: Promise<unknown>) =>
 		work.catch((error: unknown) => showNotice(failureText(error)));
@@ -111,6 +119,30 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 				limit: speedLimitLabel(bytes),
 			}),
 		);
+	};
+
+	const applySchedule = (view: JobView, schedule: Schedule | null) => {
+		setScheduling(null);
+		refocus.current = view.id;
+		void guard(handle.client.setJobSchedule(view.id, schedule));
+		announce(
+			schedule
+				? tf('ops.schedule.announce', {
+						title: view.title,
+						when: scheduleText(schedule, undefined, hourCycle),
+					})
+				: tf('ops.schedule.cleared', { title: view.title }),
+		);
+	};
+
+	const pauseAll = () => {
+		void guard(handle.client.pauseAll());
+		announce(t('ops.pauseAll.announce'));
+	};
+
+	const resumeAll = () => {
+		void guard(handle.client.resumeAll());
+		announce(t('ops.resumeAll.announce'));
 	};
 
 	const setPriority = (view: JobView, priority: JobPriority) => {
@@ -163,6 +195,14 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 					<button
 						type="button"
 						className={styles.textButton}
+						disabled={!anyPaused && !running}
+						onClick={anyPaused ? resumeAll : pauseAll}
+					>
+						{anyPaused ? t('ops.resumeAll') : t('ops.pauseAll')}
+					</button>
+					<button
+						type="button"
+						className={styles.textButton}
 						disabled={finishedCount === 0}
 						onClick={() => void guard(handle.client.dismissFinished())}
 					>
@@ -183,6 +223,11 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 					)}
 				</div>
 			</header>
+			{paused && (
+				<p className={styles.pausedNote} role="status">
+					{t('ops.pausedAll.note')}
+				</p>
+			)}
 			{views.length === 0 ? (
 				<p className={styles.empty}>{t('ops.list.empty')}</p>
 			) : (
@@ -217,7 +262,9 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 										</span>
 										{view.route && <span className={styles.route}>{view.route}</span>}
 										<span id={stateId} className={styles.state}>
-											{view.stateText}
+											{view.schedule && view.state === 'queued'
+												? scheduleText(view.schedule, undefined, hourCycle)
+												: view.stateText}
 										</span>
 										{view.showProgress && (
 											<div
@@ -320,6 +367,20 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 												</button>
 											</>
 										)}
+										{view.canSchedule && (
+											<button
+												type="button"
+												className={styles.textButton}
+												aria-expanded={scheduling === view.id}
+												aria-label={tf('ops.action.for', {
+													action: t('ops.schedule.button'),
+													title: view.title,
+												})}
+												onClick={() => setScheduling(scheduling === view.id ? null : view.id)}
+											>
+												{t('ops.schedule.button')}
+											</button>
+										)}
 										{view.actions.map((action) => (
 											<button
 												key={action}
@@ -336,6 +397,19 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 											</button>
 										))}
 									</div>
+									{scheduling === view.id && view.canSchedule && (
+										<ScheduleForm
+											current={view.schedule}
+											label={tf('ops.schedule.title', { title: view.title })}
+											now={Date.now}
+											onApply={(schedule) => applySchedule(view, schedule)}
+											onRunNow={() => applySchedule(view, null)}
+											onCancel={() => {
+												setScheduling(null);
+												refocus.current = view.id;
+											}}
+										/>
+									)}
 								</li>
 							);
 						})}

@@ -173,6 +173,37 @@ pub async fn set_job_limits<R: Runtime>(
     ops.set_job_limits(job, speed_limit, priority)
 }
 
+/// Sets or clears when a job that has not started may start (`None` is "Run now").
+#[tauri::command]
+pub async fn set_job_schedule<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+    schedule: Option<waypoint_ops::Schedule>,
+) -> Result<(), Error> {
+    ops.set_job_schedule(job, schedule)
+}
+
+/// Pauses every running job and holds back everything queued.
+#[tauri::command]
+pub async fn pause_all<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+) -> Result<(), Error> {
+    ops.pause_all();
+    Ok(())
+}
+
+/// Lets queued jobs start again and runs every paused job on.
+#[tauri::command]
+pub async fn resume_all<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+) -> Result<(), Error> {
+    ops.resume_all();
+    Ok(())
+}
+
 /// Answers the conflicts a job waits on: `decisions` settle one source's clash each, and
 /// `apply_to_all` is the policy for every other clash the job meets.
 #[tauri::command]

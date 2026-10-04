@@ -7,4 +7,4 @@ import type { JournalEntrySummary } from "./JournalEntrySummary";
  * Something that happened to the queue. Applying the events in order to a snapshot at the
  * revision before the first reproduces the queue; each carries the revision it produced.
  */
-export type OpsEvent = { "kind": "jobAdded", job: JobSnapshot, revision: number, } | { "kind": "jobChanged", job: JobSnapshot, revision: number, } | { "kind": "jobRemoved", id: JobId, revision: number, } | { "kind": "queueReordered", order: Array<JobId>, revision: number, } | { "kind": "journalChanged", revision: number, undo: JournalEntrySummary | null, redo: JournalEntrySummary | null, };
+export type OpsEvent = { "kind": "jobAdded", job: JobSnapshot, revision: number, } | { "kind": "jobChanged", job: JobSnapshot, revision: number, } | { "kind": "jobRemoved", id: JobId, revision: number, } | { "kind": "queueReordered", order: Array<JobId>, revision: number, } | { "kind": "queuePaused", paused: boolean, revision: number, } | { "kind": "journalChanged", revision: number, undo: JournalEntrySummary | null, redo: JournalEntrySummary | null, };

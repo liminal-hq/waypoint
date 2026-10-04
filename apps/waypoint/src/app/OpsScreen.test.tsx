@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider';
@@ -135,6 +135,110 @@ describe('OpsScreen limits and priority', () => {
 		await waitFor(() =>
 			expect(fake.jobs().map((j) => j.state.state)).toEqual(['done', 'queued', 'running']),
 		);
+	});
+});
+
+describe('OpsScreen scheduling', () => {
+	it('schedules a waiting job from its row, words it in the row and the live region, and runs it now', async () => {
+		const user = userEvent.setup();
+		const fake = renderScreen(createFakeOpsClient({ concurrency: 1, autoStart: true }));
+		await screen.findByText('Nothing is running.');
+		await act(async () => {
+			await fake.submit(request(['a']));
+			await fake.submit(request(['b']));
+		});
+		expect(screen.queryByRole('button', { name: 'Schedule…: Copying a' })).toBeNull();
+		const open = await screen.findByRole('button', { name: 'Schedule…: Copying b' });
+		await user.click(open);
+		const form = await screen.findByRole('group', { name: 'Schedule: Copying b' });
+		expect(within(form).queryByRole('button', { name: 'Run now' })).toBeNull();
+		// A time that has passed is refused where the person can read why.
+		const time = within(form).getByLabelText('Start time');
+		fireEvent.change(time, { target: { value: '2001-01-01T10:00' } });
+		await user.click(within(form).getByRole('button', { name: 'Set schedule' }));
+		expect(await within(form).findByRole('alert')).toHaveTextContent(
+			'Choose a time in the future.',
+		);
+		expect(fake.jobs()[1]!.options.schedule).toBeUndefined();
+		fireEvent.change(time, { target: { value: '2999-01-01T10:00' } });
+		await user.click(within(form).getByRole('button', { name: 'Set schedule' }));
+		await waitFor(() => expect(fake.jobs()[1]!.options.schedule?.kind).toBe('startAt'));
+		expect(screen.queryByRole('group', { name: 'Schedule: Copying b' })).toBeNull();
+		expect(await screen.findByText(/^Scheduled for .*2999/)).toBeInTheDocument();
+		await waitFor(() =>
+			expect(
+				screen
+					.getAllByRole('status')
+					.map((r) => r.textContent)
+					.join('|'),
+			).toContain('Schedule for Copying b: Scheduled for'),
+		);
+		// The row's button now offers Run now, which clears it.
+		await user.click(screen.getByRole('button', { name: 'Schedule…: Copying b' }));
+		const again = await screen.findByRole('group', { name: 'Schedule: Copying b' });
+		await user.click(within(again).getByRole('button', { name: 'Run now' }));
+		await waitFor(() => expect(fake.jobs()[1]!.options.schedule).toBeUndefined());
+	});
+
+	it('takes a daily window, refuses two equal times and closes on Escape', async () => {
+		const user = userEvent.setup();
+		const fake = renderScreen(createFakeOpsClient({ concurrency: 1, autoStart: true }));
+		await screen.findByText('Nothing is running.');
+		await act(async () => {
+			await fake.submit(request(['a']));
+			await fake.submit(request(['b']));
+		});
+		await user.click(await screen.findByRole('button', { name: 'Schedule…: Copying b' }));
+		const form = await screen.findByRole('group', { name: 'Schedule: Copying b' });
+		await user.click(within(form).getByRole('radio', { name: 'Only between' }));
+		fireEvent.change(within(form).getByLabelText('From'), { target: { value: '09:00' } });
+		fireEvent.change(within(form).getByLabelText('Until'), { target: { value: '09:00' } });
+		await user.click(within(form).getByRole('button', { name: 'Set schedule' }));
+		expect(await within(form).findByRole('alert')).toHaveTextContent('Choose two different times.');
+		fireEvent.change(within(form).getByLabelText('Until'), { target: { value: '17:30' } });
+		await user.click(within(form).getByRole('button', { name: 'Set schedule' }));
+		await waitFor(() =>
+			expect(fake.jobs()[1]!.options.schedule).toMatchObject({
+				kind: 'window',
+				startMinute: 540,
+				endMinute: 1050,
+			}),
+		);
+		await user.click(screen.getByRole('button', { name: 'Schedule…: Copying b' }));
+		await screen.findByRole('group', { name: 'Schedule: Copying b' });
+		await user.keyboard('{Escape}');
+		await waitFor(() =>
+			expect(screen.queryByRole('group', { name: 'Schedule: Copying b' })).toBeNull(),
+		);
+	});
+});
+
+describe('OpsScreen Pause all', () => {
+	it('pauses every running job, says nothing starts, and resumes them', async () => {
+		const user = userEvent.setup();
+		const fake = renderScreen(createFakeOpsClient({ concurrency: 2, autoStart: true }));
+		await screen.findByText('Nothing is running.');
+		const pause = screen.getByRole('button', { name: 'Pause all' });
+		expect(pause).toBeDisabled();
+		await act(async () => {
+			await fake.submit(request(['a']));
+		});
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Pause all' })).toBeEnabled());
+		await user.click(screen.getByRole('button', { name: 'Pause all' }));
+		await waitFor(() => expect(fake.jobs()[0]!.state.state).toBe('paused'));
+		expect(await screen.findByText('Paused: nothing starts until you resume.')).toBeInTheDocument();
+		await waitFor(() =>
+			expect(
+				screen
+					.getAllByRole('status')
+					.map((r) => r.textContent)
+					.join('|'),
+			).toContain('All jobs paused'),
+		);
+		await user.click(screen.getByRole('button', { name: 'Resume all' }));
+		await waitFor(() => expect(fake.jobs()[0]!.state.state).toBe('running'));
+		expect(screen.queryByText(/^Paused: nothing starts/)).toBeNull();
+		expect(screen.getByRole('button', { name: 'Pause all' })).toBeInTheDocument();
 	});
 });
 

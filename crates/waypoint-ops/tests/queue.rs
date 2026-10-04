@@ -558,3 +558,158 @@ fn limits_change_on_a_running_job_with_an_event_and_not_on_a_finished_one() {
         Err(QueueError::UnknownJob(JobId(99)))
     );
 }
+
+fn scheduled(store: &mut OpsStore, name: &str, schedule: Schedule) -> JobId {
+    let id = queued(store, name);
+    store.set_schedule(id, Some(schedule)).unwrap();
+    id
+}
+
+#[test]
+fn a_scheduled_job_waits_for_its_time_and_is_passed_over_meanwhile() {
+    let (mut s, _, clock) = store(1);
+    // The clock starts at 1_000 ms.
+    let later = scheduled(&mut s, "later", Schedule::StartAt { at_ms: 61_000 });
+    let plain = queued(&mut s, "plain");
+    // The scheduled job is first in the queue and still not taken: the other one is.
+    assert_eq!(s.next_runnable(), Some(plain));
+    s.start(plain).unwrap();
+    s.done(plain).unwrap();
+    assert_eq!(s.next_runnable(), None, "nothing else may start yet");
+    assert_eq!(s.next_wake_in_ms(), Some(60_000));
+    clock.advance(59_999);
+    assert_eq!(s.next_runnable(), None);
+    assert_eq!(s.next_wake_in_ms(), Some(1));
+    clock.advance(1);
+    assert_eq!(s.next_runnable(), Some(later));
+    assert_eq!(
+        s.next_wake_in_ms(),
+        None,
+        "a job that may start is not waited for"
+    );
+    s.start(later).unwrap();
+    s.done(later).unwrap();
+}
+
+#[test]
+fn a_window_job_starts_inside_the_window_and_runs_on_past_its_end() {
+    let (mut s, _, clock) = store(1);
+    // 00:00:01 UTC; the window is 00:10 to 00:20 UTC.
+    let id = scheduled(
+        &mut s,
+        "night",
+        Schedule::Window {
+            start_minute: 10,
+            end_minute: 20,
+            utc_offset_minutes: 0,
+        },
+    );
+    assert_eq!(s.next_runnable(), None);
+    clock.advance(10 * 60_000);
+    assert_eq!(s.next_runnable(), Some(id));
+    s.start(id).unwrap();
+    // The window closes: the running job is not stopped, and no other job is held back by it.
+    clock.advance(20 * 60_000);
+    assert_eq!(state_of(&s, id), "running");
+    s.done(id).unwrap();
+    assert!(
+        s.scheduled_requests().is_empty(),
+        "a job that ran is not held"
+    );
+}
+
+#[test]
+fn a_schedule_can_be_changed_or_cleared_until_the_job_starts() {
+    let (mut s, _, _) = store(1);
+    let id = scheduled(&mut s, "a", Schedule::StartAt { at_ms: 9_000_000 });
+    assert_eq!(s.next_runnable(), None);
+    assert_eq!(s.scheduled_requests().len(), 1);
+    let events = s.set_schedule(id, None).unwrap();
+    assert!(matches!(events.as_slice(), [OpsEvent::JobChanged { .. }]));
+    assert_eq!(s.next_runnable(), Some(id), "Run now");
+    assert!(s.set_schedule(id, None).unwrap().is_empty());
+    s.start(id).unwrap();
+    assert!(matches!(
+        s.set_schedule(id, Some(Schedule::StartAt { at_ms: 1 })),
+        Err(QueueError::Illegal { .. })
+    ));
+}
+
+#[test]
+fn scheduled_requests_carry_the_options_the_job_has_now() {
+    let (mut s, _, _) = store(1);
+    let id = scheduled(&mut s, "a", Schedule::StartAt { at_ms: 5_000_000 });
+    s.set_limits(id, Some(3_000_000), Some(JobPriority::High))
+        .unwrap();
+    let held = s.scheduled_requests();
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].0, id);
+    let options = held[0].1.options;
+    assert_eq!(options.speed_limit, Some(3_000_000));
+    assert_eq!(options.priority, Some(JobPriority::High));
+    assert_eq!(
+        options.schedule,
+        Some(Schedule::StartAt { at_ms: 5_000_000 })
+    );
+}
+
+#[test]
+fn pause_all_pauses_what_runs_holds_back_the_queue_and_resume_all_undoes_it() {
+    let (mut s, _, _) = store(3);
+    let a = queued(&mut s, "a");
+    let b = queued(&mut s, "b");
+    let c = queued(&mut s, "c");
+    s.start(a).unwrap();
+    s.start(b).unwrap();
+    let events = s.pause_all();
+    assert!(s.is_paused());
+    assert!(matches!(
+        events.first(),
+        Some(OpsEvent::QueuePaused { paused: true, .. })
+    ));
+    assert_eq!(events.len(), 3, "the flag and the two running jobs");
+    assert_eq!((state_of(&s, a), state_of(&s, b)), ("paused", "paused"));
+    // A slot is free, and still nothing starts.
+    assert_eq!(s.next_runnable(), None);
+    assert_eq!(state_of(&s, c), "queued");
+    assert!(s.pause_all().is_empty(), "idempotent");
+    assert!(s.snapshot().paused);
+
+    let events = s.resume_all();
+    assert!(!s.is_paused());
+    assert_eq!(events.len(), 3);
+    assert_eq!((state_of(&s, a), state_of(&s, b)), ("running", "running"));
+    assert_eq!(s.next_runnable(), Some(c));
+    assert!(s.resume_all().is_empty());
+    assert!(s.violations().is_empty());
+}
+
+#[test]
+fn pause_all_leaves_a_job_that_waits_for_an_answer_waiting() {
+    let (mut s, _, _) = store(2);
+    let a = queued(&mut s, "a");
+    s.start(a).unwrap();
+    s.wait(a, WaitReason::Conflicts { conflicts: vec![] })
+        .unwrap();
+    s.pause_all();
+    assert_eq!(state_of(&s, a), "waiting");
+    s.resume_all();
+    assert_eq!(state_of(&s, a), "waiting");
+}
+
+#[test]
+fn the_pause_flag_travels_in_events_and_a_mirror_applies_it() {
+    let (mut s, _, _) = store(1);
+    let a = queued(&mut s, "a");
+    s.start(a).unwrap();
+    let mut mirror = s.snapshot();
+    for event in s.pause_all().iter().chain(s.resume_all().iter()) {
+        mirror.apply(event);
+    }
+    assert!(!mirror.paused);
+    for event in &s.pause_all() {
+        mirror.apply(event);
+    }
+    assert!(mirror.paused);
+    assert_eq!(mirror.jobs, s.snapshot().jobs);
+}
