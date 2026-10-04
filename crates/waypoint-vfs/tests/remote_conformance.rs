@@ -132,7 +132,14 @@ fn the_registry_serves_each_scheme_from_its_provider() {
     assert!(provider.capabilities().remote);
     assert!(
         !registry
-            .for_path(&VfsPath::from_uri("file:///").unwrap())
+            .for_path(
+                &VfsPath::from_uri(if cfg!(windows) {
+                    "file:///C:/"
+                } else {
+                    "file:///"
+                })
+                .unwrap()
+            )
             .unwrap()
             .capabilities()
             .remote

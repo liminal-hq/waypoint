@@ -80,7 +80,13 @@ mod tests {
             registry.for_path(&remote),
             Err(VfsError::Unsupported { what }) if what == "sftp"
         ));
-        let local = Location::new("/", "file:///");
+        // A local root is a drive on Windows.
+        let root = if cfg!(windows) {
+            "file:///C:/"
+        } else {
+            "file:///"
+        };
+        let local = Location::new("/", root);
         assert_eq!(registry.for_location(&local).unwrap().1.scheme(), "file");
         assert!(matches!(
             registry.for_location(&Location::new("x", "nonsense")),
