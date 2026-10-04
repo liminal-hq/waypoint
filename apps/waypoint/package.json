@@ -33,6 +33,7 @@
 		"@liminal-hq/plugin-window-tearoff": "workspace:*",
 		"@liminal-hq/waypoint-plugin-ops": "workspace:*",
 		"@liminal-hq/waypoint-plugin-session": "workspace:*",
+		"@liminal-hq/waypoint-plugin-git": "workspace:*",
 		"@liminal-hq/waypoint-plugin-settings": "workspace:*",
 		"@liminal-hq/waypoint-chrome": "workspace:*",
 		"@liminal-hq/waypoint-plugin-vfs": "workspace:*",

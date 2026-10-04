@@ -26,6 +26,7 @@ import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import type { TrashActions } from '../trash/trashJobs';
 import { useWindowActions } from '../tabs/windowActions';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { useRepository } from '../git/GitContext';
 import { openWithChooserStore } from '../openWith/openWithChooserStore';
 import { openWithAbilities, useOpenWithService } from '../openWith/OpenWithContext';
 import { openWithCommandAvailable, runOpenWithCommand } from '../openWith/openWithCommand';
@@ -118,6 +119,12 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 	}, [bridge, commands, handle, clipboard, view, sidebar, subscribePanes]);
 
 	const active = snapshot?.active ?? null;
+	// Whether the active tab's folder is in a working tree, which decides if Git's sort is offered.
+	const repository = useRepository(snapshot?.tabs.find((tab) => tab.id === active)?.location);
+	const inRepository = repository !== null;
+	useEffect(() => {
+		bridge.patchFacts({ git: inRepository });
+	}, [bridge, inRepository]);
 	const paired = pairOfTab(snapshot?.pairs ?? [], active) !== undefined;
 	const tabCount = snapshot?.tabs.length ?? 0;
 	useEffect(() => {

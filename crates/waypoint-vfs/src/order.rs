@@ -80,6 +80,8 @@ pub(crate) struct Sortable<'a> {
     pub size: Option<u64>,
     pub modified_ms: Option<i64>,
     pub deleted_ms: Option<i64>,
+    /// `GitMark::sort_rank` of the entry's mark.
+    pub git_rank: u8,
 }
 
 impl Sortable<'_> {
@@ -132,6 +134,7 @@ pub(crate) fn compare(sort: SortSpec, clock: &GroupClock, a: &Sortable, b: &Sort
             .deleted_ms
             .unwrap_or(i64::MIN)
             .cmp(&b.deleted_ms.unwrap_or(i64::MIN)),
+        SortKey::Git => a.git_rank.cmp(&b.git_rank),
     };
     let primary = if sort.descending {
         primary.reverse()

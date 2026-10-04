@@ -74,6 +74,10 @@ pub struct GeneralSettings {
     /// Whether a folder remembers its own view, sort and grouping (SPEC 5.3b). Off, every folder
     /// shows the window's view; what was remembered is kept for when it is turned on again.
     pub remember_folder_views: bool,
+    /// Whether the Git status shows in a working tree: the Git column, the marks on folders, the
+    /// branch in the status bar and the Inspector's Git tab (D161). On by default; off, Waypoint
+    /// reads nothing from the repository and the Services panel says it is switched off.
+    pub git_decorations: bool,
 }
 
 impl Default for GeneralSettings {
@@ -84,6 +88,7 @@ impl Default for GeneralSettings {
             default_view: DefaultView::List,
             click_mode: ClickMode::Double,
             remember_folder_views: true,
+            git_decorations: true,
         }
     }
 }
@@ -124,6 +129,9 @@ pub struct UiSettings {
     pub app_name_in_title: bool,
     /// Whether Main windows show a permanent menu bar under the title bar, carrying the application menu's menus.
     pub menu_bar: bool,
+    /// Whether the list shows the Git column in a folder of a working tree (the header menu's
+    /// choice; off, the marks on the rows and the branch stay).
+    pub git_column: bool,
 }
 
 impl Default for UiSettings {
@@ -133,6 +141,7 @@ impl Default for UiSettings {
             action_bar_labels: true,
             app_name_in_title: false,
             menu_bar: false,
+            git_column: true,
         }
     }
 }
@@ -751,12 +760,25 @@ mod tests {
                 action_bar_labels: false,
                 app_name_in_title: true,
                 menu_bar: true,
+                git_column: false,
             },
             ..Settings::default()
         };
         let text = serde_json::to_string(&icons_only).unwrap();
         assert_eq!(serde_json::from_str::<Settings>(&text).unwrap(), icons_only);
         assert_eq!(icons_only.validate(), Ok(()));
+    }
+
+    #[test]
+    fn the_git_column_defaults_on_and_follows_the_header_menu() {
+        let old: Settings = serde_json::from_str(r#"{"ui":{"actionBar":false}}"#).unwrap();
+        assert!(old.ui.git_column);
+        let off: Settings = serde_json::from_str(r#"{"ui":{"gitColumn":false}}"#).unwrap();
+        assert!(!off.ui.git_column);
+        assert_eq!(
+            serde_json::to_value(Settings::default()).unwrap()["ui"]["gitColumn"],
+            true
+        );
     }
 
     #[test]
@@ -853,6 +875,8 @@ mod tests {
         assert_eq!(s.locale.language, "system");
         assert_eq!(s.previews.max_file_mb, 50);
         assert!(s.previews.measure_home_on_open);
+        // The Git overlay is on until it is turned off (D161).
+        assert!(s.general.git_decorations);
         // Every integration is off until it is enabled (D118).
         assert!(!s.integrations.notifications);
         assert!(s.integrations.notification_actions);
@@ -982,6 +1006,20 @@ mod tests {
         assert_eq!(old.locale, LocaleSettings::default());
         assert_eq!(old.previews, PreviewSettings::default());
         assert_eq!(old.integrations, IntegrationSettings::default());
+    }
+
+    #[test]
+    fn a_general_document_without_the_git_switch_has_it_on() {
+        let old: Settings =
+            serde_json::from_str(r#"{"general":{"showHiddenDefault":true}}"#).unwrap();
+        assert!(old.general.show_hidden_default);
+        assert!(old.general.git_decorations);
+        let off: Settings =
+            serde_json::from_str(r#"{"general":{"gitDecorations":false}}"#).unwrap();
+        assert!(!off.general.git_decorations);
+        assert_eq!(off.validate(), Ok(()));
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        assert_eq!(json["general"]["gitDecorations"], true);
     }
 
     #[test]

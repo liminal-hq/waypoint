@@ -8498,5 +8498,193 @@
   "shelf.reveal.failed": {
     "message": "Could not open the folder of {name}",
     "description": "Area: shelf. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "browse.column.git": {
+    "message": "Git",
+    "description": "Area: browse. The column of the file list that says what Git thinks of each file and folder (changed, new, ignored…). “Git” is the program’s name and stays “Git”."
+  },
+  "browse.columns.menu.label": {
+    "message": "Columns",
+    "description": "Area: browse."
+  },
+  "git.column.show": {
+    "message": "Git status",
+    "description": "Area: git. A checkbox in the menu of the list’s column header: show or hide the Git column. “Git” stays “Git”."
+  },
+  "menu.sort.git": {
+    "message": "Git status",
+    "description": "Area: menu. Sorting the file list by what Git says about each item (conflicts first, then changes, then new files, then clean ones). “Git” stays “Git”."
+  },
+  "git.change.modified": {
+    "message": "Modified",
+    "description": "Area: git."
+  },
+  "git.change.added": {
+    "message": "Added",
+    "description": "Area: git."
+  },
+  "git.change.deleted": {
+    "message": "Deleted",
+    "description": "Area: git."
+  },
+  "git.change.renamed": {
+    "message": "Renamed",
+    "description": "Area: git."
+  },
+  "git.change.typeChanged": {
+    "message": "Type changed",
+    "description": "Area: git."
+  },
+  "git.change.untracked": {
+    "message": "Untracked",
+    "description": "Area: git."
+  },
+  "git.change.ignored": {
+    "message": "Ignored",
+    "description": "Area: git."
+  },
+  "git.change.conflicted": {
+    "message": "Conflict",
+    "description": "Area: git. A file with a merge conflict, which Git cannot settle by itself."
+  },
+  "git.side.staged": {
+    "message": "{change}, staged",
+    "description": "Area: git. Placeholders, kept exactly as written: {change}. {change} is a word such as “Modified”. “Staged” is Git’s word for a change chosen to go into the next commit."
+  },
+  "git.side.unstaged": {
+    "message": "{change}, not staged",
+    "description": "Area: git. Placeholders, kept exactly as written: {change}. {change} is a word such as “Modified”. A change that is not yet chosen to go into the next commit."
+  },
+  "git.mark.repository": {
+    "message": "Git repository",
+    "description": "Area: git."
+  },
+  "git.mark.inside.one": {
+    "message": "{count} changed item inside",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.mark.inside.other."
+  },
+  "git.mark.inside.other": {
+    "message": "{count} changed items inside",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.mark.inside.one."
+  },
+  "git.mark.insideConflicts.one": {
+    "message": "{count} in conflict",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.mark.insideConflicts.other."
+  },
+  "git.mark.insideConflicts.other": {
+    "message": "{count} in conflict",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.mark.insideConflicts.one."
+  },
+  "git.head.detached": {
+    "message": "Detached at {commit}",
+    "description": "Area: git. Placeholders, kept exactly as written: {commit}. {commit} is an abbreviated commit identifier; HEAD is on a commit that no branch names."
+  },
+  "git.head.unborn": {
+    "message": "{branch} (no commits yet)",
+    "description": "Area: git. Placeholders, kept exactly as written: {branch}. {branch} is a branch name; a branch with no commits yet."
+  },
+  "git.words.branch": {
+    "message": "Git repository {repository}, on branch {branch}",
+    "description": "Area: git. Placeholders, kept exactly as written: {branch}; {repository}."
+  },
+  "git.words.detached": {
+    "message": "Git repository {repository}, detached at commit {commit}",
+    "description": "Area: git. Placeholders, kept exactly as written: {commit}; {repository}."
+  },
+  "git.words.unborn": {
+    "message": "Git repository {repository}, on branch {branch}, with no commits yet",
+    "description": "Area: git. Placeholders, kept exactly as written: {branch}; {repository}."
+  },
+  "git.words.upToDate": {
+    "message": "Up to date with {upstream}",
+    "description": "Area: git. Placeholders, kept exactly as written: {upstream}."
+  },
+  "git.words.ahead.one": {
+    "message": "{count} commit ahead of the upstream branch",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.words.ahead.other."
+  },
+  "git.words.ahead.other": {
+    "message": "{count} commits ahead of the upstream branch",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.words.ahead.one."
+  },
+  "git.words.behind.one": {
+    "message": "{count} commit behind the upstream branch",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.words.behind.other."
+  },
+  "git.words.behind.other": {
+    "message": "{count} commits behind the upstream branch",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.words.behind.one."
+  },
+  "git.words.clean": {
+    "message": "No changes",
+    "description": "Area: git."
+  },
+  "git.operation.merge": {
+    "message": "A merge is in progress",
+    "description": "Area: git."
+  },
+  "git.operation.rebase": {
+    "message": "A rebase is in progress",
+    "description": "Area: git."
+  },
+  "git.operation.cherryPick": {
+    "message": "A cherry-pick is in progress",
+    "description": "Area: git."
+  },
+  "git.operation.revert": {
+    "message": "A revert is in progress",
+    "description": "Area: git."
+  },
+  "git.operation.bisect": {
+    "message": "A bisect is in progress",
+    "description": "Area: git."
+  },
+  "git.count.conflicted.one": {
+    "message": "{count} in conflict",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.conflicted.other."
+  },
+  "git.count.conflicted.other": {
+    "message": "{count} in conflict",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.conflicted.one."
+  },
+  "git.count.staged.one": {
+    "message": "{count} staged",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.staged.other."
+  },
+  "git.count.staged.other": {
+    "message": "{count} staged",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.staged.one."
+  },
+  "git.count.unstaged.one": {
+    "message": "{count} not staged",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.unstaged.other."
+  },
+  "git.count.unstaged.other": {
+    "message": "{count} not staged",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.unstaged.one."
+  },
+  "git.count.untracked.one": {
+    "message": "{count} untracked",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.untracked.other."
+  },
+  "git.count.untracked.other": {
+    "message": "{count} untracked",
+    "description": "Area: git. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are git.count.untracked.one."
+  },
+  "git.status.label": {
+    "message": "Git branch",
+    "description": "Area: git."
+  },
+  "settings.general.gitDecorations.label": {
+    "message": "Show Git status",
+    "description": "Area: settings."
+  },
+  "settings.general.gitDecorations.description": {
+    "message": "In a folder of a Git working tree, mark changed files and folders, add a Git column to the list, and show the branch in the status bar and the Inspector. Waypoint only reads the repository and never changes it. Off, Waypoint reads nothing from repositories.",
+    "description": "Area: settings."
+  },
+  "services.name.waypoint-git": {
+    "message": "Git status",
+    "description": "Area: services."
   }
 }

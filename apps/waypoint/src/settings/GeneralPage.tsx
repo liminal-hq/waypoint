@@ -72,6 +72,18 @@ export function GeneralPage() {
 					}
 				/>
 				<ToggleRow
+					label={t('settings.general.gitDecorations.label')}
+					description={t('settings.general.gitDecorations.description')}
+					error={errors.gitDecorations}
+					checked={general.gitDecorations}
+					onChange={(gitDecorations) =>
+						changeSettings('gitDecorations', (s) => ({
+							...s,
+							general: { ...s.general, gitDecorations },
+						}))
+					}
+				/>
+				<ToggleRow
 					label={t('settings.general.showHidden.label')}
 					description={t('settings.general.showHidden.description')}
 					error={errors.showHidden}

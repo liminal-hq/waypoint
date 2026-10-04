@@ -162,6 +162,7 @@ describe('hiding the bar and its labels', () => {
 			actionBarLabels: false,
 			appNameInTitle: false,
 			menuBar: false,
+			gitColumn: true,
 		});
 		await waitFor(() => expect(barButton('Cut')).toHaveTextContent(''));
 	});
@@ -190,7 +191,13 @@ describe('hiding the bar and its labels', () => {
 		act(() => {
 			settings.change({
 				...current,
-				ui: { actionBar: false, actionBarLabels: true, appNameInTitle: false, menuBar: false },
+				ui: {
+					actionBar: false,
+					actionBarLabels: true,
+					appNameInTitle: false,
+					menuBar: false,
+					gitColumn: true,
+				},
 			});
 		});
 		await waitFor(() => expect(bar()).not.toBeInTheDocument());
@@ -203,7 +210,13 @@ describe('hiding the bar and its labels', () => {
 		await tabs.openTab(HOME);
 		const settings = createFakeSettingsClient({
 			...createFakeSettingsClient().current().settings,
-			ui: { actionBar: true, actionBarLabels: false, appNameInTitle: false, menuBar: false },
+			ui: {
+				actionBar: true,
+				actionBarLabels: false,
+				appNameInTitle: false,
+				menuBar: false,
+				gitColumn: true,
+			},
 		});
 		render(
 			<VfsClientProvider client={vfs}>

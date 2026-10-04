@@ -147,6 +147,18 @@ describe('the menu buttons', () => {
 		expect(menu.filter((row) => row.type === 'separator')).toHaveLength(2);
 	});
 
+	it('Sort in a working tree adds Git status after Kind', () => {
+		const menu = byId(items(factsFor({}, { git: true })), 'sort').menu!;
+		const keys = menu.flatMap((row) => (row.type === 'checkbox' ? [row.id] : []));
+		expect(keys.slice(0, 5)).toEqual([
+			'sortName',
+			'sortSize',
+			'sortModified',
+			'sortKind',
+			'sortGit',
+		]);
+	});
+
 	it('Sort in the Trash offers Date deleted and not Modified or Kind', () => {
 		const menu = byId(items(factsFor({ readOnly: true, trash: true })), 'sort').menu!;
 		const keys = menu.flatMap((row) => (row.type === 'checkbox' ? [row.id] : []));

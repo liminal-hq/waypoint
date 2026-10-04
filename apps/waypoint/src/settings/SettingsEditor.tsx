@@ -32,6 +32,7 @@ export type RowKey =
 	| 'clickMode'
 	| 'showHidden'
 	| 'rememberFolderViews'
+	| 'gitDecorations'
 	| 'appNameInTitle'
 	| 'menuBar'
 	| 'confirmTrash'

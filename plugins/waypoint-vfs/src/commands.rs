@@ -14,9 +14,9 @@ use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
     DirScanCache, DirScanEvent, DirScanOptions, DirScanResult, Entry, EntryDetails, EntryKind,
-    Filter, FolderCheck, FolderSizeEvent, Listing, ListingEvent, ListingHandle, ListingLayout,
-    ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
-    ProviderRegistry, SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo,
+    Filter, FolderCheck, FolderOverlay, FolderSizeEvent, Listing, ListingEvent, ListingHandle,
+    ListingLayout, ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv,
+    Provider, ProviderRegistry, SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo,
     TrashProvider, TrashSource, TypedLocation, VolumeSpace,
 };
 
@@ -42,6 +42,8 @@ pub struct Vfs {
     /// The saved connections and the connection manager, when the app gave them.
     connections: Option<Arc<ConnectionsHub>>,
     suggestions: Option<Suggestions>,
+    /// What decorates the listings of folders (the Git status, A102), once the app has given one.
+    overlay: RwLock<Option<Arc<dyn FolderOverlay>>>,
 }
 
 impl Vfs {
@@ -218,6 +220,7 @@ impl Vfs {
             remote,
             connections,
             suggestions,
+            overlay: RwLock::new(None),
         }
     }
 
@@ -265,6 +268,19 @@ impl Vfs {
     pub fn set_trash_source(&self, source: Arc<dyn TrashSource>) {
         *self.trash.write().unwrap_or_else(|e| e.into_inner()) =
             Some(Arc::new(TrashProvider::new(source)));
+    }
+
+    /// Decorates every listing opened from now on with what `overlay` has for its folder. The app
+    /// adapts the Git plugin to it, so this plugin knows nothing of Git (A4).
+    pub fn set_overlay(&self, overlay: Arc<dyn FolderOverlay>) {
+        *self.overlay.write().unwrap_or_else(|e| e.into_inner()) = Some(overlay);
+    }
+
+    fn overlay(&self) -> Option<Arc<dyn FolderOverlay>> {
+        self.overlay
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// The Trash provider, when the app gave the plugin one.
@@ -401,6 +417,10 @@ pub async fn open_listing<R: Runtime>(
     );
     let first = listing.snapshot();
     registry.insert(&label, listing.clone());
+    // After the listing is registered, so the patch a mark change makes reaches the window.
+    if let Some(overlay) = state.overlay() {
+        listing.attach_overlay(overlay.as_ref());
+    }
     let manager = state.connections().map(|hub| hub.manager().clone());
     let key = listing.provider().connection_key(listing.path());
     if let (Some(manager), Some(key)) = (&manager, &key) {

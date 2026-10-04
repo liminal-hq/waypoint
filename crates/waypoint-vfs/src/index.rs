@@ -12,10 +12,11 @@ use waypoint_protocol::EntryId;
 use crate::group::{runs_of, GroupClock};
 use crate::icon::extension;
 use crate::model::{
-    Entry, EntryKind, Filter, GroupBy, GroupRun, IconGroup, KindFilter, PatchOp, SelectionSpec,
-    SelectionSummary, SortKey, SortSpec,
+    Entry, EntryKind, Filter, GitMark, GroupBy, GroupRun, IconGroup, KindFilter, PatchOp,
+    SelectionSpec, SelectionSummary, SortKey, SortSpec,
 };
 use crate::order::{compare, natural_key, Sortable};
+use crate::overlay::FolderMarks;
 use crate::provider::{Change, ScannedEntry, TrashedMeta};
 use crate::special::SpecialFolder;
 
@@ -42,6 +43,8 @@ pub(crate) struct Record {
     hidden: bool,
     /// Set for an item in the Trash, whose `name` is an id and whose sort key is its original name.
     trashed: Option<Box<TrashedMeta>>,
+    /// What an overlay says about the entry (`Index::set_marks`); never part of a scan.
+    git: Option<GitMark>,
 }
 
 /// The first 16 bytes of `bytes` as a big-endian number, zero-padded.
@@ -71,11 +74,19 @@ impl From<ScannedEntry> for Record {
             modified_ms: entry.modified_ms,
             hidden: entry.hidden,
             trashed: entry.trashed,
+            git: None,
         }
     }
 }
 
 impl Record {
+    /// A record for a scanned entry, carrying whatever mark the overlay has for its name.
+    fn from_scan(entry: ScannedEntry, marks: &FolderMarks) -> Self {
+        let mut record = Record::from(entry);
+        record.git = marks.mark_for(&record.name);
+        record
+    }
+
     /// The name people read: the original name of a trashed item, the entry's own otherwise.
     fn label(&self) -> &OsStr {
         match &self.trashed {
@@ -95,6 +106,7 @@ impl Record {
             size: self.size,
             modified_ms: self.modified_ms,
             deleted_ms: self.trashed.as_ref().map(|t| t.deleted_ms),
+            git_rank: GitMark::sort_rank(self.git.as_ref()),
         }
     }
 
@@ -123,6 +135,7 @@ impl Record {
             SortKey::Deleted => u128::from(
                 (self.trashed.as_ref().map_or(i64::MIN, |t| t.deleted_ms) as u64) ^ (1 << 63),
             ),
+            SortKey::Git => u128::from(GitMark::sort_rank(self.git.as_ref())),
             SortKey::Kind => {
                 let mut ext = [0u8; 8];
                 let raw = extension(self.label().as_encoded_bytes());
@@ -156,6 +169,7 @@ impl Record {
             hidden: self.hidden,
             original_path: self.trashed.as_ref().map(|t| t.original_path.clone()),
             deleted_ms: self.trashed.as_ref().map(|t| t.deleted_ms),
+            git: self.git,
         }
     }
 
@@ -186,6 +200,8 @@ pub(crate) struct Index {
     sort: SortSpec,
     filter: Filter,
     names: Option<HashMap<OsString, u32>>,
+    /// What an overlay says about the entries, applied to every record that arrives.
+    marks: FolderMarks,
     /// What "today" is for the Modified groups, fixed for as long as the order stands and read
     /// again from `clock_source` whenever the view is rebuilt.
     clock: GroupClock,
@@ -222,6 +238,7 @@ impl Index {
             sort,
             filter,
             names: None,
+            marks: FolderMarks::default(),
             clock: clock_source(),
             clock_source,
         }
@@ -242,7 +259,11 @@ impl Index {
 
     /// Replaces the contents with a scan's entries, numbering them from zero.
     pub fn load(&mut self, entries: Vec<ScannedEntry>) {
-        self.records = entries.into_iter().map(|e| Some(Record::from(e))).collect();
+        let marks = &self.marks;
+        self.records = entries
+            .into_iter()
+            .map(|e| Some(Record::from_scan(e, marks)))
+            .collect();
         self.names = None;
         self.rebuild();
     }
@@ -547,7 +568,12 @@ impl Index {
                         self.records.push(None);
                         (self.records.len() - 1) as u32
                     });
-                    stage(&self.records, &mut staged, id, Some(entry.into()));
+                    stage(
+                        &self.records,
+                        &mut staged,
+                        id,
+                        Some(Record::from_scan(entry, &self.marks)),
+                    );
                 }
                 Change::Remove(name) => {
                     if let Some(id) = names.remove(&name) {
@@ -560,7 +586,12 @@ impl Index {
                             self.records.push(None);
                             (self.records.len() - 1) as u32
                         });
-                        stage(&self.records, &mut staged, id, Some(to.into()));
+                        stage(
+                            &self.records,
+                            &mut staged,
+                            id,
+                            Some(Record::from_scan(to, &self.marks)),
+                        );
                     }
                     Some(id) => {
                         // Renaming over an existing name replaces that entry.
@@ -569,13 +600,82 @@ impl Index {
                                 stage(&self.records, &mut staged, replaced, None);
                             }
                         }
-                        stage(&self.records, &mut staged, id, Some(to.into()));
+                        stage(
+                            &self.records,
+                            &mut staged,
+                            id,
+                            Some(Record::from_scan(to, &self.marks)),
+                        );
                     }
                 },
             }
         }
         self.names = Some(names);
+        self.commit(staged, total, moved)
+    }
 
+    /// Replaces the overlay's marks and returns the patch (see `apply_tracking`) for the entries
+    /// whose mark changed: a changed mark is an update in place, or a move when the sort is by
+    /// Git.
+    pub fn set_marks(&mut self, marks: FolderMarks, moved: &mut Vec<u32>) -> Vec<PatchOp> {
+        moved.clear();
+        if self.marks == marks {
+            return Vec::new();
+        }
+        let default_changed = self.marks.default != marks.default;
+        let mut touched: Vec<OsString> = Vec::new();
+        if default_changed {
+            touched.extend(self.records.iter().flatten().map(|r| r.name.clone()));
+        } else {
+            for (name, mark) in &self.marks.names {
+                if marks.names.get(name) != Some(mark) {
+                    touched.push(name.clone());
+                }
+            }
+            for (name, mark) in &marks.names {
+                if self.marks.names.get(name) != Some(mark) {
+                    touched.push(name.clone());
+                }
+            }
+        }
+        self.ensure_names();
+        let names = self.names.take().expect("built above");
+        let mut staged: HashMap<u32, Staged> = HashMap::new();
+        for name in touched {
+            let Some(&id) = names.get(&name) else {
+                continue;
+            };
+            let Some(old) = self.records[id as usize].clone() else {
+                continue;
+            };
+            let mut new = old.clone();
+            new.git = marks.mark_for(&new.name);
+            if new != old {
+                staged.insert(
+                    id,
+                    Staged {
+                        old: Some(old),
+                        new: Some(new),
+                    },
+                );
+            }
+        }
+        self.names = Some(names);
+        self.marks = marks;
+        let total = staged.len();
+        if total == 0 {
+            return Vec::new();
+        }
+        self.commit(staged, total, moved)
+    }
+
+    /// Works out the patch for staged edits, applies them to the records and the view.
+    fn commit(
+        &mut self,
+        staged: HashMap<u32, Staged>,
+        total: usize,
+        moved: &mut Vec<u32>,
+    ) -> Vec<PatchOp> {
         // Work out, against the old view, who leaves, who arrives and who changes in place.
         let filter = self.filter;
         let mut remove_at: Vec<u32> = Vec::new();
@@ -1058,6 +1158,7 @@ mod tests {
             SortKey::Size,
             SortKey::Modified,
             SortKey::Kind,
+            SortKey::Git,
         ] {
             for descending in [false, true] {
                 for directories_first in [false, true] {
@@ -1126,6 +1227,195 @@ mod tests {
             assert_eq!(sorted.len(), after.len(), "names stay unique");
         }
     }
+
+    // -- overlay marks ----------------------------------------------------------------------
+
+    use crate::model::GitChange;
+
+    fn marked(change: GitChange) -> GitMark {
+        GitMark {
+            unstaged: Some(change),
+            ..GitMark::default()
+        }
+    }
+
+    fn marks(list: &[(&str, GitChange)]) -> FolderMarks {
+        FolderMarks {
+            default: None,
+            names: list
+                .iter()
+                .map(|(name, change)| (OsString::from(name), marked(*change)))
+                .collect(),
+        }
+    }
+
+    fn gits(index: &Index) -> Vec<(String, Option<GitMark>)> {
+        index
+            .range(0, u32::MAX)
+            .into_iter()
+            .map(|e| (e.name, e.git))
+            .collect()
+    }
+
+    fn by_git() -> SortSpec {
+        SortSpec {
+            key: SortKey::Git,
+            ..SortSpec::default()
+        }
+    }
+
+    #[test]
+    fn marks_decorate_rows_in_place_when_the_sort_ignores_them() {
+        let mut index = loaded(&[file("a", 1), file("b", 1), file("c", 1)]);
+        let before = names(&index);
+        let ops = index.set_marks(marks(&[("b", GitChange::Modified)]), &mut Vec::new());
+        assert_eq!(ops, vec![PatchOp::Update { at: 1, count: 1 }]);
+        assert_eq!(names(&index), before);
+        assert_eq!(
+            gits(&index),
+            [
+                ("a".to_owned(), None),
+                ("b".to_owned(), Some(marked(GitChange::Modified))),
+                ("c".to_owned(), None)
+            ]
+        );
+        // The same marks again change nothing.
+        assert!(index
+            .set_marks(marks(&[("b", GitChange::Modified)]), &mut Vec::new())
+            .is_empty());
+        // Taking one away updates just that row.
+        let ops = index.set_marks(FolderMarks::default(), &mut Vec::new());
+        assert_eq!(ops, vec![PatchOp::Update { at: 1, count: 1 }]);
+    }
+
+    #[test]
+    fn a_default_mark_decorates_every_row_and_a_named_one_wins() {
+        let mut index = loaded(&[file("a", 1), file("b", 1)]);
+        let mut set = marks(&[("b", GitChange::Modified)]);
+        set.default = Some(marked(GitChange::Ignored));
+        index.set_marks(set, &mut Vec::new());
+        assert_eq!(
+            gits(&index),
+            [
+                ("a".to_owned(), Some(marked(GitChange::Ignored))),
+                ("b".to_owned(), Some(marked(GitChange::Modified)))
+            ]
+        );
+    }
+
+    #[test]
+    fn a_git_sort_puts_conflicts_and_edits_first_clean_next_and_ignored_last() {
+        let mut index = Index::new(by_git(), Filter::default());
+        index.load(vec![
+            file("a-clean", 1),
+            file("b-ignored", 1),
+            file("c-modified", 1),
+            file("d-conflict", 1),
+            file("e-new", 1),
+        ]);
+        let before = names(&index);
+        let mut moved = Vec::new();
+        let ops = index.set_marks(
+            marks(&[
+                ("b-ignored", GitChange::Ignored),
+                ("c-modified", GitChange::Modified),
+                ("d-conflict", GitChange::Conflicted),
+                ("e-new", GitChange::Untracked),
+            ]),
+            &mut moved,
+        );
+        let after = names(&index);
+        assert_eq!(
+            after,
+            ["d-conflict", "c-modified", "e-new", "a-clean", "b-ignored"]
+        );
+        assert_eq!(replay(&before, &ops, &after), after);
+        assert!(
+            !moved.is_empty(),
+            "rows that changed place are reported as moved"
+        );
+    }
+
+    #[test]
+    fn a_row_that_arrives_after_the_marks_takes_its_mark() {
+        let mut index = loaded(&[file("a", 1)]);
+        index.set_marks(marks(&[("later", GitChange::Untracked)]), &mut Vec::new());
+        index.apply(vec![Change::Upsert(file("later", 2))]);
+        let later = gits(&index)
+            .into_iter()
+            .find(|(name, _)| name == "later")
+            .unwrap();
+        assert_eq!(later.1, Some(marked(GitChange::Untracked)));
+        // A rescan that changes the row keeps its mark.
+        index.apply(vec![Change::Upsert(file("later", 3))]);
+        assert!(gits(&index)
+            .iter()
+            .any(|(n, g)| n == "later" && g.is_some()));
+    }
+
+    #[test]
+    fn a_scan_after_the_marks_arrived_applies_them() {
+        let mut index = Index::new(SortSpec::default(), Filter::default());
+        index.set_marks(marks(&[("b", GitChange::Added)]), &mut Vec::new());
+        index.load(vec![file("a", 1), file("b", 1)]);
+        assert_eq!(gits(&index)[1].1, Some(marked(GitChange::Added)));
+        assert_eq!(gits(&index)[0].1, None);
+    }
+
+    #[test]
+    fn a_diff_against_a_fresh_scan_ignores_the_marks() {
+        let mut index = loaded(&[file("a", 1), file("b", 1)]);
+        index.set_marks(marks(&[("a", GitChange::Modified)]), &mut Vec::new());
+        assert!(index.diff(vec![file("a", 1), file("b", 1)]).is_empty());
+    }
+
+    #[test]
+    fn random_marks_always_replay_to_the_new_view_under_every_sort() {
+        let mut seed = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        let changes = [
+            GitChange::Modified,
+            GitChange::Added,
+            GitChange::Deleted,
+            GitChange::Untracked,
+            GitChange::Ignored,
+            GitChange::Conflicted,
+        ];
+        for sort in [SortSpec::default(), by_git()] {
+            let entries: Vec<ScannedEntry> =
+                (0..30).map(|n| file(&format!("n{n:02}"), n % 4)).collect();
+            let mut index = Index::new(sort, Filter::default());
+            index.load(entries.clone());
+            for round in 0..200 {
+                let before = names(&index);
+                let mut set = FolderMarks::default();
+                if next() % 8 == 0 {
+                    set.default = Some(marked(changes[(next() % 6) as usize]));
+                }
+                for _ in 0..(next() % 12) {
+                    set.names.insert(
+                        OsString::from(format!("n{:02}", next() % 30)),
+                        marked(changes[(next() % 6) as usize]),
+                    );
+                }
+                let ops = index.set_marks(set.clone(), &mut Vec::new());
+                let after = names(&index);
+                assert_eq!(replay(&before, &ops, &after), after, "round {round}");
+                // The view is what a fresh load with the same marks would build.
+                let mut fresh = Index::new(sort, Filter::default());
+                fresh.set_marks(set, &mut Vec::new());
+                fresh.load(entries.clone());
+                assert_eq!(after, names(&fresh), "round {round}");
+                assert_eq!(gits(&index), gits(&fresh), "round {round}");
+            }
+        }
+    }
+
     // -- grouping ---------------------------------------------------------------------------
 
     use crate::model::{GroupKey, ModifiedBucket, SizeBand};
@@ -1510,6 +1800,7 @@ mod tests {
                 SortKey::Size,
                 SortKey::Modified,
                 SortKey::Kind,
+                SortKey::Git,
             ] {
                 for descending in [false, true] {
                     for directories_first in [false, true] {

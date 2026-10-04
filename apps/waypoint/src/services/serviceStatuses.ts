@@ -14,6 +14,7 @@ import { getStatus as volumesStatus } from '@liminal-hq/plugin-volumes';
 import { getStatus as windowEffectsStatus } from '@liminal-hq/plugin-window-effects';
 import { getStatus as windowManagerStatus } from '@liminal-hq/plugin-window-manager';
 import { getStatus as windowTearoffStatus } from '@liminal-hq/plugin-window-tearoff';
+import { getStatus as gitStatus } from '@liminal-hq/waypoint-plugin-git';
 import { getStatus as opsStatus } from '@liminal-hq/waypoint-plugin-ops';
 import { getStatus as sessionStatus } from '@liminal-hq/waypoint-plugin-session';
 import { getStatus as settingsStatus } from '@liminal-hq/waypoint-plugin-settings';
@@ -215,6 +216,8 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'window-manager': windowManagerStatus,
 	'waypoint-ops': opsStatus,
 	'waypoint-session': sessionStatus,
+	// Reads repositories for the Git column, marks and branch; unavailable, with the reason, while the Settings switch has it off.
+	'waypoint-git': gitStatus,
 	'waypoint-settings': settingsStatus,
 	'os-prefs': osPrefsServiceStatus,
 	'system-appearance': systemAppearanceServiceStatus,

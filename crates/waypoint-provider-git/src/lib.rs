@@ -10,5 +10,5 @@ mod repository;
 mod status;
 
 pub use provider::{GitEntryInfo, GitProvider, ObjectKind};
-pub use repository::find_repository;
+pub use repository::{find_repository, repositories_in};
 pub use status::*;

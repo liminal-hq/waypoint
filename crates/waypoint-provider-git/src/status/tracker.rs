@@ -285,8 +285,8 @@ fn is_ignored(root: &Path, path: &Path, status: &RepoStatus) -> bool {
     )
 }
 
-/// A relative path as `/`-separated bytes.
-pub(crate) fn rel_bytes(rel: &Path) -> Vec<u8> {
+/// A relative path as `/`-separated bytes: the form `RepoStatus` is keyed by.
+pub fn rel_bytes(rel: &Path) -> Vec<u8> {
     let mut out = Vec::new();
     for component in rel.components() {
         if let std::path::Component::Normal(name) = component {

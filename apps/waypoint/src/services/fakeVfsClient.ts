@@ -23,6 +23,7 @@ import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/S
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
+import { markSortRank } from '../git/markRank';
 import type { OpenOptions, Unsubscribe, VfsClient } from './vfsClient';
 
 /** A local `file://` location for a path, the way `waypoint-path` will build one. */
@@ -244,6 +245,9 @@ function compare(sort: SortSpec): (a: Entry, b: Entry) => number {
 				break;
 			case 'deleted':
 				result = (a.deletedMs ?? 0) - (b.deletedMs ?? 0);
+				break;
+			case 'git':
+				result = markSortRank(a.git) - markSortRank(b.git);
 				break;
 		}
 		return (result || a.id - b.id) * direction;

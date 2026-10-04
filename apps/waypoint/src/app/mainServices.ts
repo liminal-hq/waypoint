@@ -8,6 +8,7 @@ import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPref
 import type { OpenWithClient } from '../openWith/openWithClient';
 import type { AppInfoClient } from '../services/appInfoClient';
 import type { FolderViewsClient } from '../services/folderViewsClient';
+import type { GitClient } from '../services/gitClient';
 import type { FakeVfsClient } from '../services/fakeVfsClient';
 import type { OpsClient } from '../services/opsClient';
 import type { NativeDndClient } from '../services/nativeDndClient';
@@ -65,6 +66,8 @@ export interface MainServices {
 	appInfo?: AppInfoClient;
 	/** What each folder remembers about its view, sort and grouping; without it every folder shows the window's. */
 	folderViews?: FolderViewsClient;
+	/** What Git says about the folders shown: the branch, the Git column and the sidebar's badges; without it the window shows no Git. */
+	git?: GitClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -89,6 +92,7 @@ export interface MainServicesDeps {
 	createDirScanClient?(): DirScanClient;
 	createAppInfoClient?(): AppInfoClient;
 	createFolderViewsClient?(): FolderViewsClient;
+	createGitClient?(): GitClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -125,6 +129,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		dirScan: deps.createDirScanClient?.(),
 		appInfo: deps.createAppInfoClient?.(),
 		folderViews: deps.createFolderViewsClient?.(),
+		git: deps.createGitClient?.(),
 		home,
 	};
 }

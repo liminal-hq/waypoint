@@ -94,7 +94,7 @@ export function actionBarItems(api: Pick<CommandsApi, 'get'>): ActionBarItem[] {
 	button('moveToTrash', t('actionBar.delete'), EDIT_GROUP);
 
 	const sortRows = menuSections(
-		(['sortName', 'sortSize', 'sortModified', 'sortKind', 'sortDeleted'] as const)
+		(['sortName', 'sortSize', 'sortModified', 'sortKind', 'sortDeleted', 'sortGit'] as const)
 			.map((id) => api.get(id))
 			.flatMap(commandRow),
 		(['sortDescending', 'sortFoldersFirst'] as const).map((id) => api.get(id)).flatMap(commandRow),

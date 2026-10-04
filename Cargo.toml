@@ -28,6 +28,7 @@ members = [
   "plugins/waypoint-ops",
   "plugins/waypoint-session",
   "plugins/waypoint-settings",
+  "plugins/waypoint-git",
   "plugins/waypoint-vfs",
 ]
 resolver = "2"

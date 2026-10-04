@@ -8,6 +8,9 @@ import { useSyncExternalStore, type ReactNode } from 'react';
 import { formatSize } from '../browse/format';
 import { useVfsClient } from '../browse/VfsClientContext';
 import type { ListingSession } from '../browse/useListingSession';
+import { useRepository } from '../git/GitContext';
+import { branchText, summaryWords } from '../git/gitModel';
+import { GitIcon } from '../icons/MenuIcons';
 import { t, tf, tn } from '../i18n/messages';
 import { OpsIndicator } from '../ops/OpsIndicator';
 import { MeasuringHome } from './MeasuringHome';
@@ -35,6 +38,11 @@ export function StatusBar({ session, location, notice, children }: StatusBarProp
 		() => session?.model.revision ?? 0,
 	);
 	const space = useFreeSpace(client, location, revision);
+	// The branch of the working tree this folder is in, with whether it is dirty and how far from its upstream.
+	const repository = useRepository(location);
+	const branch = repository?.summary ?? null;
+	const dirty =
+		branch !== null && branch.staged + branch.unstaged + branch.untracked + branch.conflicted > 0;
 
 	const selecting = summary.count > 0;
 	const items = tn('status.items', summary.total);
@@ -52,6 +60,25 @@ export function StatusBar({ session, location, notice, children }: StatusBarProp
 				<span className={styles.selection} data-pending={summary.pending ? '' : undefined}>
 					{selection}
 					{summary.size !== null && ` · ${formatSize(summary.size)}`}
+				</span>
+			)}
+			{repository && branch && (
+				<span
+					className={styles.git}
+					role="group"
+					aria-label={t('git.status.label')}
+					title={summaryWords(branch, repository.name)}
+					data-dirty={dirty ? '' : undefined}
+					data-operation={branch.operation ?? undefined}
+				>
+					<GitIcon aria-hidden="true" />
+					<span aria-hidden="true">{branchText(branch)}</span>
+					{dirty && (
+						<span aria-hidden="true" className={styles.dirty}>
+							●
+						</span>
+					)}
+					<span className={styles.srOnly}>{summaryWords(branch, repository.name)}</span>
 				</span>
 			)}
 			{notice && (

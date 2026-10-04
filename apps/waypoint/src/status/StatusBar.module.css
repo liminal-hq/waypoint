@@ -30,6 +30,30 @@
 	color: var(--wp-danger);
 }
 
+/* The branch of the working tree: its name, the distance from the upstream and a dot when changed (the words are in the tooltip and for screen readers). */
+.git {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	white-space: nowrap;
+	color: var(--wp-text-primary);
+}
+
+.git svg {
+	width: 12px;
+	height: 12px;
+}
+
+.git[data-operation] {
+	color: var(--wp-warning);
+}
+
+.dirty {
+	font-size: 8px;
+	color: var(--wp-warning);
+}
+
 .spacer {
 	flex: 1;
 }

@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod entry_id;
+mod git;
 mod location;
 mod remote;
 mod status;
@@ -13,6 +14,7 @@ mod vfs_error;
 mod window;
 
 pub use entry_id::*;
+pub use git::*;
 pub use location::*;
 pub use remote::*;
 pub use status::*;

@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		defaultView: 'list',
 		clickMode: 'double',
 		rememberFolderViews: true,
+		gitDecorations: true,
 	},
 	dnd: {
 		defaultActionRule: 'byVolume',
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		actionBarLabels: true,
 		appNameInTitle: false,
 		menuBar: false,
+		gitColumn: true,
 	},
 	appearance: {
 		mode: 'system',

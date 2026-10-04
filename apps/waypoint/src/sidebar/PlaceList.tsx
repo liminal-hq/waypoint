@@ -8,11 +8,13 @@ import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKin
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInfo';
 import { FileIcon } from '../browse/FileIcon';
+import type { GitBadge } from '../services/gitClient';
 import { t, tn, type MessageId } from '../i18n/messages';
 import { HomeIcon } from '../icons/AppIcons';
 import { OverviewIcon } from '../overview/OverviewIcons';
 import { TrashIcon } from '../icons/MenuIcons';
 import { itemGestures, type ItemActions } from './itemGestures';
+import { SidebarGitMark } from './SidebarGitMark';
 import { ITEM_ATTRIBUTE, moveFocusInList } from './itemList';
 import styles from './Sidebar.module.css';
 import { formatLocale } from '../i18n/active';
@@ -45,9 +47,17 @@ interface PlaceListProps {
 	actions: ItemActions;
 	/** The Trash's state, which the Trash place shows as a count; `null` before it is known and without a Trash service. */
 	trash?: TrashInfo | null;
+	/** What changed inside each place that is in a Git working tree, by `uri`; a place with nothing changed has none. */
+	gitBadges?: ReadonlyMap<string, GitBadge>;
 }
 
-export function PlaceList({ places, currentUri, actions, trash = null }: PlaceListProps) {
+export function PlaceList({
+	places,
+	currentUri,
+	actions,
+	trash = null,
+	gitBadges,
+}: PlaceListProps) {
 	return (
 		<ul className={styles.list} onKeyDown={moveFocusInList}>
 			{places.map((place) => {
@@ -86,6 +96,7 @@ export function PlaceList({ places, currentUri, actions, trash = null }: PlaceLi
 								<FileIcon group="folder" special={SPECIAL[place.kind]} />
 							)}
 							<span className={styles.label}>{label}</span>
+							<SidebarGitMark badge={gitBadges?.get(place.location.uri)} />
 							{count > 0 && (
 								<>
 									<span className={styles.badge} aria-hidden="true">

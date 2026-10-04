@@ -92,22 +92,6 @@ impl EntryStatus {
             ],
         }
     }
-
-    /// Sorts changed paths by how much attention they want: conflicts first, then edits, then new
-    /// files, with clean last (a `None` status sorts after everything).
-    pub fn sort_rank(status: Option<&EntryStatus>) -> u8 {
-        match status.and_then(EntryStatus::primary) {
-            Some(Change::Conflicted) => 0,
-            Some(Change::Modified) => 1,
-            Some(Change::Deleted) => 2,
-            Some(Change::Added) => 3,
-            Some(Change::Renamed) => 4,
-            Some(Change::TypeChanged) => 5,
-            Some(Change::Untracked) => 6,
-            Some(Change::Ignored) => 8,
-            None => 7,
-        }
-    }
 }
 
 /// What a folder shows when something inside it has changed. Ignored files are not counted.
@@ -392,11 +376,6 @@ mod tests {
         let s = status(&[("x/y", conflict), ("x/z", MODIFIED)]);
         assert_eq!(s.badge(b"x").unwrap().conflicted, 1);
         assert_eq!(s.counts().conflicted, 1);
-        assert_eq!(
-            EntryStatus::sort_rank(Some(&conflict)),
-            0,
-            "conflicts sort first"
-        );
         assert_eq!(conflict.short(), ['U', 'U']);
     }
 
@@ -487,25 +466,5 @@ mod tests {
             "a sibling of the same prefix stays"
         );
         assert_eq!(merged.badge(b"a").unwrap().changed, 1);
-    }
-
-    #[test]
-    fn sorting_by_status_puts_the_loudest_first_and_clean_before_ignored() {
-        let ranks: Vec<u8> = [
-            Some(EntryStatus {
-                staged: None,
-                unstaged: Some(Change::Conflicted),
-            }),
-            Some(MODIFIED),
-            Some(EntryStatus::untracked()),
-            None,
-            Some(EntryStatus::ignored()),
-        ]
-        .iter()
-        .map(|s| EntryStatus::sort_rank(s.as_ref()))
-        .collect();
-        let mut sorted = ranks.clone();
-        sorted.sort_unstable();
-        assert_eq!(ranks, sorted);
     }
 }

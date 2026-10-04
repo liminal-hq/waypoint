@@ -20,4 +20,9 @@ appNameInTitle: boolean,
 /**
  * Whether Main windows show a permanent menu bar under the title bar, carrying the application menu's menus.
  */
-menuBar: boolean, };
+menuBar: boolean, 
+/**
+ * Whether the list shows the Git column in a folder of a working tree (the header menu's
+ * choice; off, the marks on the rows and the branch stay).
+ */
+gitColumn: boolean, };

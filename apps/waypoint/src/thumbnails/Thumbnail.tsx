@@ -7,6 +7,7 @@ import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGrou
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import { FileIcon } from '../browse/FileIcon';
+import type { PortageFolderBadge } from '../icons/portage/portageFolderArt';
 import styles from './Thumbnail.module.css';
 import type { ThumbnailLoader } from './thumbnailLoader';
 
@@ -22,6 +23,8 @@ interface ThumbnailProps {
 	iconSize?: number;
 	/** The standard folder a folder is, so the icon carries its mark. */
 	special?: SpecialFolder | null;
+	/** A sticker the Portage set draws on a folder, such as the Git mark of a repository. */
+	badge?: PortageFolderBadge | undefined;
 	/** Sizes the frame; the icon and the picture fill it. */
 	className?: string;
 	/** The class the icon alone is drawn with. */
@@ -42,6 +45,7 @@ export function Thumbnail({
 	name,
 	iconSize,
 	special,
+	badge,
 	className,
 	iconClassName,
 }: ThumbnailProps) {
@@ -68,6 +72,7 @@ export function Thumbnail({
 				special={special}
 				name={name}
 				size={iconSize}
+				badge={badge}
 				className={iconClassName}
 			/>
 			{url !== null && state !== 'broken' && (

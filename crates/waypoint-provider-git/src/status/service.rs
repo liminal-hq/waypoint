@@ -105,6 +105,12 @@ impl StatusService {
         Subscription { shared, id }
     }
 
+    /// The latest snapshot of a repository that is being tracked, without starting to track it.
+    pub fn peek(&self, root: &Path) -> Option<Arc<Snapshot>> {
+        let repos = self.repos.lock().unwrap_or_else(|e| e.into_inner());
+        repos.get(root)?.upgrade()?.tracker.snapshot()
+    }
+
     /// How many repositories are being tracked now.
     pub fn tracked(&self) -> usize {
         let repos = self.repos.lock().unwrap_or_else(|e| e.into_inner());

@@ -74,6 +74,7 @@ export function setSettings(settings: Settings): Promise<SettingsSnapshot> {
 export interface UiSettingsChange {
 	actionBar?: boolean;
 	actionBarLabels?: boolean;
+	gitColumn?: boolean;
 }
 
 /**
