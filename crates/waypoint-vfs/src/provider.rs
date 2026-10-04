@@ -7,9 +7,10 @@ use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::sync::Arc;
 
-use waypoint_path::{CaseRule, VfsPath};
-use waypoint_protocol::VfsError;
+use waypoint_path::{CaseRule, ConnectionKey, VfsPath};
+use waypoint_protocol::{ConnectionState, VfsError};
 
+use crate::remote::ConnectAnswer;
 use crate::special::SpecialFolder;
 use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
 use crate::{CancelToken, EntryKind, IconGroup, VolumeSpace};
@@ -55,13 +56,107 @@ pub struct TrashedMeta {
     pub deleted_ms: i64,
 }
 
-/// What a provider can do at a location, so the UI hides what does not work (A9, A17).
+/// How a provider renames (A78).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenameSupport {
+    /// No rename at all (S3): a move is a copy and a delete.
+    None,
+    /// A rename may replace what has the target name, so a rename that must not is a check and
+    /// then a rename, which can race with another writer.
+    Replacing,
+    /// An atomic rename that refuses an existing target (`rename(from, to, false)` as locally).
+    NoReplace,
+}
+
+/// What permissions a provider has (A78).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PermissionModel {
+    /// None at all: the Inspector shows no permission rows and a copy sets none.
+    None,
+    /// A read-only state, nothing more.
+    ReadOnlyFlag,
+    /// Unix mode bits.
+    Unix,
+}
+
+/// What a provider can do, so the UI hides what does not work and the engine picks its strategy
+/// (A6, A78). It is non-exhaustive: build one with `Capabilities::new` (which claims nothing) or
+/// `Capabilities::local`, then set fields, so a flag added later breaks no provider.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Capabilities {
     /// Whether `Provider::watch` works, or listings must be refreshed by rescanning.
     pub watch: bool,
     /// How names compare in this provider.
     pub case_rule: CaseRule,
+    /// Reads cost time or money (a server): nothing reads content without being asked, so no
+    /// thumbnails by default, no sniffing and no folder sizes unless started.
+    pub remote: bool,
+    /// The provider implements the write primitives. `Provider::read_only` still says whether a
+    /// location refuses changes now.
+    pub write: bool,
+    pub rename: RenameSupport,
+    /// `copy_file_within` copies on the server, so a copy within one connection sends no bytes
+    /// through Waypoint.
+    pub server_copy: bool,
+    /// A written stream becomes visible only when `finish` succeeds, so the engine writes straight
+    /// to the final name instead of a partial name and a rename.
+    pub atomic_write: bool,
+    /// `resume_write` continues a partial file from an offset.
+    pub resume_write: bool,
+    /// `open_read_at` seeks instead of reading past the start.
+    pub range_read: bool,
+    pub permissions: PermissionModel,
+    /// Links exist and are reported as links.
+    pub symlinks: bool,
+    /// A modification time can be set, so a copy keeps it.
+    pub set_times: bool,
+    /// The longest name in bytes, when known; a longer one is `InvalidName`.
+    pub max_name_len: Option<u32>,
+}
+
+impl Capabilities {
+    /// A provider that claims nothing beyond listing: no watching, no writing, not remote.
+    pub const fn new(case_rule: CaseRule) -> Self {
+        Self {
+            watch: false,
+            case_rule,
+            remote: false,
+            write: false,
+            rename: RenameSupport::None,
+            server_copy: false,
+            atomic_write: false,
+            resume_write: false,
+            range_read: false,
+            permissions: PermissionModel::None,
+            symlinks: false,
+            set_times: false,
+            max_name_len: None,
+        }
+    }
+
+    /// Everything a local disk does, on this platform.
+    pub const fn local() -> Self {
+        Self {
+            watch: true,
+            case_rule: CaseRule::NATIVE,
+            remote: false,
+            write: true,
+            rename: RenameSupport::NoReplace,
+            server_copy: false,
+            atomic_write: false,
+            resume_write: false,
+            range_read: true,
+            permissions: if cfg!(unix) {
+                PermissionModel::Unix
+            } else {
+                PermissionModel::ReadOnlyFlag
+            },
+            symlinks: true,
+            set_times: true,
+            max_name_len: Some(255),
+        }
+    }
 }
 
 /// One change to a folder's contents, by name. Changes are idempotent: applying one twice leaves
@@ -156,6 +251,56 @@ pub trait Provider: Send + Sync {
         Err(VfsError::Unsupported {
             what: "watching this location".to_owned(),
         })
+    }
+
+    /// Lists a folder in batches, so a large or slow folder shows its first rows early (A83).
+    /// `sink` receives each batch as it is read. The default lists the whole folder with `list`
+    /// and hands it over as one batch.
+    fn list_batches(
+        &self,
+        path: &VfsPath,
+        cancel: &CancelToken,
+        inline_link_budget: usize,
+        sink: &mut dyn FnMut(Vec<ScannedEntry>),
+    ) -> Result<(), VfsError> {
+        let entries = self.list(path, cancel, inline_link_budget, &mut |_| {})?;
+        sink(entries);
+        Ok(())
+    }
+
+    // Connections (A78). A provider with sessions (a server) opens one lazily on the first call
+    // that needs it; these let the app show and steer that. The defaults describe a provider with
+    // no sessions, which is always ready.
+
+    /// The login `path` belongs to, or `None` when this provider has no sessions.
+    fn connection_key(&self, path: &VfsPath) -> Option<ConnectionKey> {
+        let _ = path;
+        None
+    }
+
+    /// The state of one connection.
+    fn connection_state(&self, key: &ConnectionKey) -> ConnectionState {
+        let _ = key;
+        ConnectionState::Connected
+    }
+
+    /// Opens a session now, with the person's `answer` to the question the last attempt asked (a
+    /// credential, or trust in a host key or a certificate). An answer that does not satisfy the
+    /// server fails with the typed error that says what is still needed. `cancel` stops a slow
+    /// attempt with `Cancelled`.
+    fn connect(
+        &self,
+        key: &ConnectionKey,
+        answer: Option<ConnectAnswer>,
+        cancel: &CancelToken,
+    ) -> Result<(), VfsError> {
+        let _ = (key, answer, cancel);
+        Ok(())
+    }
+
+    /// Closes a session. Calls in flight on it end with `Disconnected`; the next call reconnects.
+    fn disconnect(&self, key: &ConnectionKey) {
+        let _ = key;
     }
 
     // The write primitives (A45). Each defaults to `Unsupported`, so a read-only provider stays
@@ -310,6 +455,14 @@ pub trait Provider: Send + Sync {
     fn free_space(&self, path: &VfsPath) -> Option<VolumeSpace> {
         let _ = path;
         None
+    }
+
+    /// Opens a partial file to continue writing it at `offset` (its length so far), for a
+    /// transfer that resumes after a failure (D62, A84). Data past `offset` is discarded. Only a
+    /// provider whose `Capabilities::resume_write` is set implements it.
+    fn resume_write(&self, path: &VfsPath, offset: u64) -> Result<Box<dyn WriteStream>, VfsError> {
+        let _ = (path, offset);
+        unsupported("resuming a write here")
     }
 
     /// An optional fast path for copying one file's bytes within this provider (a reflink, a

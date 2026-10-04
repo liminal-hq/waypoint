@@ -7,12 +7,14 @@
 
 mod entry_id;
 mod location;
+mod remote;
 mod status;
 mod vfs_error;
 mod window;
 
 pub use entry_id::*;
 pub use location::*;
+pub use remote::*;
 pub use status::*;
 pub use vfs_error::*;
 pub use window::*;

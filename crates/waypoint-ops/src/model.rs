@@ -291,6 +291,10 @@ pub enum OpsError {
     /// There is no such entry in the journal, or it is not in a state this can be done in.
     #[error("{reason}")]
     UndoUnavailable { reason: String },
+    /// A server could not be reached, asked for a login or a trust decision, or dropped the
+    /// connection (A80). One kind, so Skip all covers every connection failure; Retry reconnects.
+    #[error("connection problem: {error:?}")]
+    Connection { error: VfsError },
     #[error("{message}")]
     Io { message: String },
 }
@@ -334,6 +338,18 @@ impl From<VfsError> for OpsError {
             VfsError::StaleHandle => OpsError::Io {
                 message: "the listing was closed".to_owned(),
             },
+            VfsError::Corrupt { location } => OpsError::Io {
+                message: format!("{} is damaged", location.display),
+            },
+            error @ (VfsError::Disconnected { .. }
+            | VfsError::Unreachable { .. }
+            | VfsError::Timeout { .. }
+            | VfsError::AuthRequired { .. }
+            | VfsError::AuthFailed { .. }
+            | VfsError::HostKeyUnknown { .. }
+            | VfsError::HostKeyChanged { .. }
+            | VfsError::CertificateUntrusted { .. }
+            | VfsError::RateLimited { .. }) => OpsError::Connection { error },
             VfsError::Io { message, .. } => OpsError::Io { message },
         }
     }
