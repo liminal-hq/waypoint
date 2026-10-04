@@ -1,0 +1,8 @@
+[package]
+name = "s3-opendal"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+opendal = { version = "0.59", default-features = false, features = ["services-s3", "services-webdav", "http-transport-reqwest", "executors-tokio", "auto-register-services"] }
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
