@@ -1,6 +1,6 @@
 # @liminal-hq/plugin-secrets
 
-Stores, tests for and deletes passwords, passphrases and tokens in the system keyring, so an app never writes one to its own files. On Linux it talks to the Secret Service on the session bus (GNOME Keyring, KWallet through its Secret Service bridge, KeePassXC) and, inside a Flatpak, to the Secret portal, both through [`oo7`](https://crates.io/crates/oo7). Windows Credential Manager is planned.
+Stores, tests for and deletes passwords, passphrases and tokens in the system keyring, so an app never writes one to its own files. On Linux it talks to the Secret Service on the session bus (GNOME Keyring, KWallet through its Secret Service bridge, KeePassXC) and, inside a Flatpak, to the Secret portal, both through [`oo7`](https://crates.io/crates/oo7). On Windows it uses Credential Manager.
 
 The plugin knows nothing about the app around it. It reports what works through `getStatus()` with a typed reason when no keyring runs or it stays locked, so an interface can hide an option and say why.
 
@@ -110,7 +110,7 @@ Errors are `SecretsError` objects with a `kind`: `noKeyring`, `locked` (it staye
 
 ## Features and status
 
-`getStatus()` returns `{ available, reason, message, flavour, features }`, where each feature is `{ name, available, reason, message }`. The features are `store`, `fetch` and `delete`; today they work or fail together. `flavour` is `secret-service`, `secret-portal` or `unsupported`.
+`getStatus()` returns `{ available, reason, message, flavour, features }`, where each feature is `{ name, available, reason, message }`. The features are `store`, `fetch` and `delete`; today they work or fail together. `flavour` is `secret-service`, `secret-portal`, `credential-manager` or `unsupported`.
 
 | Reason                 | Meaning                                                                                              |
 | ---------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -128,6 +128,13 @@ A locked keyring counts as working: the desktop's own prompt unlocks it when a s
 - Items carry the attributes `application` (the app identifier), `service`, `account` and `kind`, so the keyring's own manager can find them and another program's items are never touched. Text secrets are stored as `text/plain`, others as bytes.
 - Inside a Flatpak `oo7` asks the Secret portal for the key of an encrypted file and uses that; where the portal is missing it falls back to the Secret Service.
 - If the Secret Service goes away the next call reconnects.
+
+### Windows
+
+- Each secret is a generic credential persisted for the local machine, named `namespace/service/account/kind` (the namespace is the app identifier, `/` and `*` in a name are escaped) with the account as its user name and the label as its comment, so Windows Credentials lists it under the app's identifier.
+- Credential Manager keeps at most 2560 bytes per credential: a longer secret is refused as `invalid`, never cut.
+- The vault of a signed-in user is never locked, so there is no unlock prompt and the status is always available.
+- Type-checked with `cargo xwin`; not yet exercised on a real Windows machine. Run the ignored `live_windows` test there (`cargo test -p tauri-plugin-secrets --test live_windows -- --ignored --nocapture`).
 
 ### Other systems
 
