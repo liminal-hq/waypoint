@@ -6,6 +6,7 @@ members = [
   "crates/waypoint-session",
   "crates/waypoint-settings",
   "crates/waypoint-vfs",
+  "crates/waypoint-provider-sftp",
   "crates/wayland-toplevel-drag",
   "apps/waypoint/src-tauri",
   "plugins/native-dnd",

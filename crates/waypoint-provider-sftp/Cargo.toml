@@ -1,0 +1,24 @@
+[package]
+name = "waypoint-provider-sftp"
+version = "0.1.0"
+description = "Waypoint's SFTP provider: servers over SSH, through russh and russh-sftp"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+futures = "0.3"
+log = { workspace = true }
+russh = { version = "=0.63.3", default-features = false, features = ["flate2", "ring", "rsa"] }
+russh-sftp = "=3.0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+[dev-dependencies]
+tempfile = "3"
+waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }
