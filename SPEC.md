@@ -296,6 +296,8 @@ Full rules are in `docs/interactions.md` §3. Summary:
 | Archives     | `archive:{archive's location}!/path`, opened from `*.zip`, `*.tar.*` or `*.7z` | Read-only, or read/write where the format allows; archives inside archives and on servers too |
 | Cloud drives | Plugin-provided                                                                | Nextcloud and Google Drive samples                                                            |
 
+**SMB.** `smb://host/` is the share browser: the server's shares as a folder you open one share of, with no network neighbourhood. A location may name a domain (`smb://WORK;me@files/Projects`); Waypoint asks for the password when it connects and can remember it in the system keyring, and it signs in with NTLM. Kerberos single sign-on and servers or shares that require encryption are not supported on Linux yet, (the Services status panel gives the reason). On Windows the operating system's own SMB client does the work (UNC paths), so domain logins, Kerberos, signing and encryption behave as in Explorer, and a mapped drive stays a local folder in Devices. A folder of 100 000 entries on an SMB server shows its rows only once the server has sent all of them (about a second on a LAN).
+
 **Connect dialog:** pick a protocol, fill host, user and auth, test the connection, then save to the sidebar (optionally into a workspace). Thumbnails are off for remotes by default and can be turned on per remote.
 
 **Milestone 6 decisions (D146 to D152; the design is `docs/architecture/remote-locations.md`).**
