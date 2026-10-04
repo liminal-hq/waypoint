@@ -105,6 +105,8 @@ pub struct Harness<P: Provider + 'static> {
     pub protected: Protected,
     pub env: ExecEnv,
     pub store: OpsStore,
+    /// What an extraction allows an archive to be; tests change it.
+    pub archive_limits: crate::model::ArchiveLimits,
     /// Every event the store has made, in order.
     pub events: Vec<OpsEvent>,
 }
@@ -149,6 +151,7 @@ impl<P: Provider + 'static> Harness<P> {
             protected,
             env,
             store,
+            archive_limits: settings.archive_limits(),
             events: Vec::new(),
         }
     }
@@ -194,6 +197,7 @@ impl<P: Provider + 'static> Harness<P> {
             trash: self.trash.as_ref(),
             protected: &self.protected,
             cancel,
+            archive_limits: self.archive_limits,
         }
     }
 

@@ -30,4 +30,21 @@ trashExpiryDays: number | null,
  * The speed limit for every copy and move together, in bytes per second; `None` (the default)
  * is no limit (D157).
  */
-speedLimitBps: number | null, };
+speedLimitBps: number | null, 
+/**
+ * The most entries an archive may hold to be extracted without asking.
+ */
+archiveMaxEntries: number, 
+/**
+ * The most bytes an archive may expand to without asking.
+ */
+archiveMaxBytes: number, 
+/**
+ * How many times its own size an archive may expand to without asking, counted only once it
+ * expands to `archive_ratio_floor_bytes` or more.
+ */
+archiveMaxRatio: number, 
+/**
+ * The size an archive has to expand to before its ratio is looked at.
+ */
+archiveRatioFloorBytes: number, };

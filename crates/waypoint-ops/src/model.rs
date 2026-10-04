@@ -838,6 +838,73 @@ pub struct OpsSettings {
     #[serde(default)]
     #[ts(type = "number | null")]
     pub speed_limit_bps: Option<u64>,
+    /// The most entries an archive may hold to be extracted without asking.
+    #[serde(default = "default_archive_max_entries")]
+    #[ts(type = "number")]
+    pub archive_max_entries: u64,
+    /// The most bytes an archive may expand to without asking.
+    #[serde(default = "default_archive_max_bytes")]
+    #[ts(type = "number")]
+    pub archive_max_bytes: u64,
+    /// How many times its own size an archive may expand to without asking, counted only once it
+    /// expands to `archive_ratio_floor_bytes` or more.
+    #[serde(default = "default_archive_max_ratio")]
+    #[ts(type = "number")]
+    pub archive_max_ratio: u32,
+    /// The size an archive has to expand to before its ratio is looked at.
+    #[serde(default = "default_archive_ratio_floor_bytes")]
+    #[ts(type = "number")]
+    pub archive_ratio_floor_bytes: u64,
+}
+
+fn default_archive_max_entries() -> u64 {
+    ArchiveLimits::DEFAULT.max_entries
+}
+fn default_archive_max_bytes() -> u64 {
+    ArchiveLimits::DEFAULT.max_bytes
+}
+fn default_archive_max_ratio() -> u32 {
+    ArchiveLimits::DEFAULT.max_ratio
+}
+fn default_archive_ratio_floor_bytes() -> u64 {
+    ArchiveLimits::DEFAULT.ratio_floor_bytes
+}
+
+/// What an extraction allows an archive to be before it asks (D155).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArchiveLimits {
+    pub max_entries: u64,
+    pub max_bytes: u64,
+    pub max_ratio: u32,
+    pub ratio_floor_bytes: u64,
+}
+
+impl ArchiveLimits {
+    /// A million entries, 100 GiB, and 1 000 times its size once past 1 GiB.
+    pub const DEFAULT: ArchiveLimits = ArchiveLimits {
+        max_entries: 1_000_000,
+        max_bytes: 100 * 1024 * 1024 * 1024,
+        max_ratio: 1_000,
+        ratio_floor_bytes: 1024 * 1024 * 1024,
+    };
+}
+
+impl Default for ArchiveLimits {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl OpsSettings {
+    /// The limits an extraction keeps to.
+    pub fn archive_limits(&self) -> ArchiveLimits {
+        ArchiveLimits {
+            max_entries: self.archive_max_entries,
+            max_bytes: self.archive_max_bytes,
+            max_ratio: self.archive_max_ratio,
+            ratio_floor_bytes: self.archive_ratio_floor_bytes,
+        }
+    }
 }
 
 impl Default for OpsSettings {
@@ -850,6 +917,10 @@ impl Default for OpsSettings {
             undo_depth: 50,
             trash_expiry_days: None,
             speed_limit_bps: None,
+            archive_max_entries: ArchiveLimits::DEFAULT.max_entries,
+            archive_max_bytes: ArchiveLimits::DEFAULT.max_bytes,
+            archive_max_ratio: ArchiveLimits::DEFAULT.max_ratio,
+            archive_ratio_floor_bytes: ArchiveLimits::DEFAULT.ratio_floor_bytes,
         }
     }
 }

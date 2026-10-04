@@ -23,14 +23,6 @@ use crate::model::{
 };
 use crate::names::{file_name_of, fold_name, split_name, unique_full_name};
 
-/// The most entries an archive may hold to be extracted without being told to go ahead.
-pub const MAX_ENTRIES: u64 = 1_000_000;
-/// The most bytes an archive may expand to.
-pub const MAX_BYTES: u64 = 100 * 1024 * 1024 * 1024;
-/// How many times its own size an archive may expand to (deflate manages about 1 000 at most, so
-/// more than this means a stream built to deceive), counted only above `RATIO_FLOOR_BYTES`.
-pub const MAX_RATIO: u64 = 1_000;
-pub const RATIO_FLOOR_BYTES: u64 = 1024 * 1024 * 1024;
 /// Symlinks whose targets are read from their data to decide whether they point outside; a link
 /// past this many is left out unread.
 const MAX_LINK_READS: usize = 1_000;
@@ -73,7 +65,9 @@ pub(crate) fn with_extension(name: &str, format: ArchiveFormat) -> String {
 /// Resolves the text a link holds against its folder, within the archive: `None` when it is absolute
 /// or climbs out.
 fn link_stays_inside(folder: &[Vec<u8>], target: &[u8]) -> bool {
-    if target.first() == Some(&b'/') || target.contains(&0) {
+    // A root, a backslash (a root or a separator on Windows) or a drive letter points outside.
+    let drive = target.len() >= 2 && target[0].is_ascii_alphabetic() && target[1] == b':';
+    if target.first() == Some(&b'/') || target.contains(&b'\\') || drive || target.contains(&0) {
         return false;
     }
     let mut depth = folder.len() as i64;
@@ -129,33 +123,34 @@ impl Planner<'_, '_> {
             .filter(|e| e.kind == EntryKind::File)
             .map(|e| e.size.unwrap_or(0))
             .sum();
+        let limits = self.ctx.archive_limits;
         if !allow_large {
-            if entries.len() as u64 > MAX_ENTRIES {
+            if entries.len() as u64 > limits.max_entries {
                 return Err(OpsError::ArchiveLimit {
                     location,
                     limit: ArchiveLimit::Entries {
                         found: entries.len() as u64,
-                        max: MAX_ENTRIES,
+                        max: limits.max_entries,
                     },
                 });
             }
-            if total > MAX_BYTES {
+            if total > limits.max_bytes {
                 return Err(OpsError::ArchiveLimit {
                     location,
                     limit: ArchiveLimit::Bytes {
                         found: total,
-                        max: MAX_BYTES,
+                        max: limits.max_bytes,
                     },
                 });
             }
             if let Some(stored) = file_size.filter(|stored| *stored > 0) {
                 let ratio = total / stored;
-                if total >= RATIO_FLOOR_BYTES && ratio > MAX_RATIO {
+                if total >= limits.ratio_floor_bytes && ratio > u64::from(limits.max_ratio) {
                     return Err(OpsError::ArchiveLimit {
                         location,
                         limit: ArchiveLimit::Ratio {
                             ratio,
-                            max: MAX_RATIO,
+                            max: u64::from(limits.max_ratio),
                         },
                     });
                 }
@@ -594,6 +589,9 @@ mod tests {
         assert!(link_stays_inside(&folder, b"../../x"));
         assert!(!link_stays_inside(&folder, b"../../../x"));
         assert!(!link_stays_inside(&folder, b"/etc/passwd"));
+        assert!(!link_stays_inside(&folder, b"C:\\Windows"));
+        assert!(!link_stays_inside(&folder, b"..\\..\\x"));
+        assert!(!link_stays_inside(&folder, b"c:x"));
         assert!(link_stays_inside(&[], b"a/../b"));
         assert!(!link_stays_inside(&[], b".."));
     }

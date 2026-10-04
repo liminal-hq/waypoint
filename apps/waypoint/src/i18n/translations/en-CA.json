@@ -119,6 +119,10 @@
     "message": "Trash",
     "description": "Area: settings."
   },
+  "settings.group.archives": {
+    "message": "Archives",
+    "description": "Area: settings."
+  },
   "settings.group.dropping": {
     "message": "Dropping",
     "description": "Area: settings."
@@ -1097,6 +1101,66 @@
   },
   "settings.operations.trashDays.unit": {
     "message": "days",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveEntries.label": {
+    "message": "Most entries in an archive to extract without asking",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveEntries.description": {
+    "message": "Extracting an archive that holds more entries than this asks first.",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveEntries.unit": {
+    "message": "entries",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveBytes.label": {
+    "message": "Most an archive may expand to without asking",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveBytes.description": {
+    "message": "Extracting an archive whose contents add up to more than this asks first.",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveBytes.unit": {
+    "message": "GiB",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveRatio.label": {
+    "message": "Most times its size an archive may expand to",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveRatio.description": {
+    "message": "An archive that expands to far more than its own size may be built to fill the disk, so extracting one asks first. This applies only above the size below.",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveRatio.unit": {
+    "message": "times",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveFloor.label": {
+    "message": "Check the expansion ratio only above",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveFloor.description": {
+    "message": "Small archives that compress very well are fine; the ratio is checked only when an archive expands to at least this much.",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveFloor.unit": {
+    "message": "MiB",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveReset.label": {
+    "message": "Archive limits",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveReset.description": {
+    "message": "Puts the four limits above back to 1 000 000 entries, 100 GiB, 1 000 times its size, checked above 1 GiB.",
+    "description": "Area: settings."
+  },
+  "settings.operations.archiveReset.action": {
+    "message": "Reset to defaults",
     "description": "Area: settings."
   },
   "settings.dnd.unavailable": {
@@ -5338,6 +5402,22 @@
   "ops.problem.message.connection": {
     "message": "The connection to the server that holds {location} failed. Retry connects again.",
     "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
+  },
+  "ops.problem.message.archiveLimit": {
+    "message": "{location} is larger than the archive limits allow, so extracting it was stopped. The limits are in Settings, under Operations.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
+  },
+  "ops.problem.details.archiveEntries": {
+    "message": "It holds {found} entries; the limit is {max}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {found}; {max} is the largest allowed value."
+  },
+  "ops.problem.details.archiveBytes": {
+    "message": "It expands to {found}; the limit is {max}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {found}; {max} is the largest allowed value."
+  },
+  "ops.problem.details.archiveRatio": {
+    "message": "It expands to {ratio} times its own size; the limit is {max} times.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {max} is the largest allowed value; {ratio}."
   },
   "ops.problem.details": {
     "message": "Details",

@@ -473,7 +473,7 @@ fn an_archive_that_expands_past_the_limits_asks_first() {
     }
     // Too many bytes outright.
     put(&h, "huge.zip", &raw_zip(&[("big", b"x", u32::MAX)]));
-    let count = (ARCHIVE_MAX_BYTES / u64::from(u32::MAX)) as usize + 2;
+    let count = (h.archive_limits.max_bytes / u64::from(u32::MAX)) as usize + 2;
     let entries: Vec<(String, &[u8], u32)> = (0..count)
         .map(|n| (format!("f{n}"), &b"x"[..], u32::MAX))
         .collect();
@@ -655,4 +655,63 @@ fn modes_times_and_links_survive_a_round_trip_and_unsafe_bits_do_not() {
     assert_eq!(mode & 0o7000, 0, "setuid, setgid and sticky are not");
     let link = h.path("out/src/link");
     assert_eq!(h.provider.read_link(&link).unwrap(), "run.sh");
+}
+
+#[test]
+fn the_limits_are_the_ones_in_the_settings() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &tree(&[("out/", "")]));
+    let names: Vec<String> = (0..20).map(|n| format!("f{n}")).collect();
+    let entries: Vec<(&str, &[u8], u32)> =
+        names.iter().map(|n| (n.as_str(), &b"x"[..], 1)).collect();
+    put(&h, "twenty.zip", &raw_zip(&entries));
+    let request = extract(&h, &["twenty.zip"], Some("out"), ExtractLayout::Contents);
+    assert!(h.plan(&request).is_ok(), "within the defaults");
+    // Fewer entries allowed than it holds.
+    h.archive_limits.max_entries = 10;
+    assert!(matches!(
+        h.plan(&request),
+        Err(OpsError::ArchiveLimit {
+            limit: ArchiveLimit::Entries { found: 20, max: 10 },
+            ..
+        })
+    ));
+    h.archive_limits = OpsSettings::default().archive_limits();
+    // Fewer bytes allowed than it expands to.
+    put(&h, "five.zip", &raw_zip(&[("f", b"x", 5_000)]));
+    h.archive_limits.max_bytes = 1_000;
+    let five = extract(&h, &["five.zip"], Some("out"), ExtractLayout::Contents);
+    assert!(matches!(
+        h.plan(&five),
+        Err(OpsError::ArchiveLimit {
+            limit: ArchiveLimit::Bytes {
+                found: 5_000,
+                max: 1_000
+            },
+            ..
+        })
+    ));
+    // A ratio limit that applies once the archive expands past its floor.
+    h.archive_limits = OpsSettings::default().archive_limits();
+    h.archive_limits.max_ratio = 10;
+    h.archive_limits.ratio_floor_bytes = 1_000;
+    assert!(matches!(
+        h.plan(&five),
+        Err(OpsError::ArchiveLimit {
+            limit: ArchiveLimit::Ratio { max: 10, .. },
+            ..
+        })
+    ));
+    // Below the floor the ratio is not looked at.
+    h.archive_limits.ratio_floor_bytes = 10_000;
+    assert!(h.plan(&five).is_ok());
+    // And allowing large overrides every limit.
+    h.archive_limits.max_bytes = 1;
+    let mut allowed = five.clone();
+    allowed.archive = Some(ArchiveSpec::Extract {
+        layout: ExtractLayout::Contents,
+        allow_large: true,
+    });
+    assert!(h.plan(&allowed).is_ok());
+    let _ = &mut h;
 }

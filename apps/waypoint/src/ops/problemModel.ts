@@ -36,6 +36,33 @@ export function problemText(error: OpsError): ProblemText {
 				tf('ops.problem.details.actual', { digest: error.actual }),
 			);
 			break;
+		case 'archiveLimit': {
+			message = tf(key(error.kind), { location: error.location.display });
+			const { limit } = error;
+			if (limit.kind === 'entries') {
+				details.push(
+					tf('ops.problem.details.archiveEntries', {
+						found: String(limit.found),
+						max: String(limit.max),
+					}),
+				);
+			} else if (limit.kind === 'bytes') {
+				details.push(
+					tf('ops.problem.details.archiveBytes', {
+						found: formatSize(limit.found),
+						max: formatSize(limit.max),
+					}),
+				);
+			} else {
+				details.push(
+					tf('ops.problem.details.archiveRatio', {
+						ratio: String(limit.ratio),
+						max: String(limit.max),
+					}),
+				);
+			}
+			break;
+		}
 		case 'notEnoughSpace':
 			// Zero means the provider could not say how much it needed or had.
 			message =

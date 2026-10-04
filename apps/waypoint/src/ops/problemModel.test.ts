@@ -30,6 +30,10 @@ const CASES: Array<[OpsError, RegExp]> = [
 	],
 	[{ kind: 'cannotReplace', location: at }, /entry of another kind/],
 	[
+		{ kind: 'archiveLimit', location: at, limit: { kind: 'entries', found: 5, max: 2 } },
+		/larger than the archive limits allow/,
+	],
+	[
 		{ kind: 'undoStale', location: at, reason: 'missing' },
 		/cannot be undone.*no longer where it was/,
 	],
@@ -54,7 +58,7 @@ describe('problemText', () => {
 
 	it('covers every kind of error', () => {
 		const kinds = new Set(CASES.map(([error]) => error.kind));
-		expect(kinds.size).toBe(19);
+		expect(kinds.size).toBe(20);
 	});
 
 	it('keeps the checksums of a failed verification as details, not in the message', () => {
@@ -66,6 +70,28 @@ describe('problemText', () => {
 		});
 		expect(message).not.toMatch(/aa11|bb22/);
 		expect(details).toEqual(['Expected checksum: aa11', 'Found checksum: bb22']);
+	});
+
+	it('says which archive limit was passed, in details', () => {
+		const detail = (limit: Parameters<typeof problemText>[0] & { kind: 'archiveLimit' }) =>
+			problemText(limit).details;
+		expect(
+			detail({ kind: 'archiveLimit', location: at, limit: { kind: 'entries', found: 5, max: 2 } }),
+		).toEqual(['It holds 5 entries; the limit is 2.']);
+		expect(
+			detail({
+				kind: 'archiveLimit',
+				location: at,
+				limit: { kind: 'ratio', ratio: 5000, max: 1000 },
+			}),
+		).toEqual(['It expands to 5000 times its own size; the limit is 1000 times.']);
+		expect(
+			detail({
+				kind: 'archiveLimit',
+				location: at,
+				limit: { kind: 'bytes', found: 5_000_000, max: 1_000_000 },
+			})[0],
+		).toMatch(/expands to 5 MB; the limit is 1 MB/);
 	});
 
 	it('has no details for the others', () => {

@@ -22,7 +22,7 @@ use crate::traits::{Protected, Providers, SelectionResolver, Trash};
 
 mod archive;
 mod batch;
-pub use archive::{LeftOut, MAX_BYTES, MAX_ENTRIES, MAX_RATIO, RATIO_FLOOR_BYTES};
+pub use archive::LeftOut;
 pub use batch::{preview_batch, BatchPlan, BatchStep};
 
 /// What the planner needs from the world.
@@ -32,6 +32,8 @@ pub struct PlanCtx<'a> {
     pub trash: &'a dyn Trash,
     pub protected: &'a Protected,
     pub cancel: &'a CancelToken,
+    /// What an extraction allows an archive to be before it asks.
+    pub archive_limits: crate::model::ArchiveLimits,
 }
 
 /// How far a walk has got, reported as it goes.
