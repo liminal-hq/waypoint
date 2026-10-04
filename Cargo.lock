@@ -7219,6 +7219,7 @@ dependencies = [
  "waypoint-ops",
  "waypoint-path",
  "waypoint-protocol",
+ "waypoint-provider-archive",
  "waypoint-vfs",
 ]
 

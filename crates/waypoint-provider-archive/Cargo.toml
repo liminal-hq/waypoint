@@ -13,9 +13,9 @@ publish = false
 bzip2 = "0.6"
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 log = { workspace = true }
-lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz"] }
+lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz", "encoder"] }
 ruzstd = "0.9"
-sevenz-rust2 = { version = "0.23", default-features = false, features = ["aes256", "bzip2", "deflate"] }
+sevenz-rust2 = { version = "0.23", default-features = false, features = ["aes256", "bzip2", "deflate", "compress"] }
 tar = { version = "0.4", default-features = false }
 tempfile = "3"
 waypoint-path = { path = "../waypoint-path" }

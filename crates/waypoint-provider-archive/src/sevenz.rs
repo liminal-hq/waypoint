@@ -140,7 +140,7 @@ pub(crate) fn scan(
             match mode.map(|mode| mode & S_IFMT) {
                 Some(S_IFDIR) => EntryKind::Directory,
                 Some(S_IFLNK) => EntryKind::Symlink,
-                Some(S_IFREG) | None => EntryKind::File,
+                Some(S_IFREG) | Some(0) | None => EntryKind::File,
                 Some(_) => EntryKind::Other,
             }
         };

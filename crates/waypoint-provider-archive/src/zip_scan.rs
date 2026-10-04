@@ -341,7 +341,7 @@ pub(crate) fn scan(
         let kind = match mode.map(|mode| mode & S_IFMT) {
             Some(S_IFDIR) => EntryKind::Directory,
             Some(S_IFLNK) => EntryKind::Symlink,
-            Some(S_IFREG) | None => {
+            Some(S_IFREG) | Some(0) | None => {
                 if name_bytes.last() == Some(&b'/') || (dos_dir && mode.is_none()) {
                     EntryKind::Directory
                 } else {

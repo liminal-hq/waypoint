@@ -5,21 +5,7 @@
 
 use std::ffi::OsString;
 
-/// Why a name an archive stores cannot be used as it is written. The name the person sees and
-/// every path built from it is the safe one; this says what was changed, so an extraction can
-/// refuse or skip the entry instead of trusting the raw name (never write outside a destination).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum UnsafeName {
-    /// The name starts at the root (`/etc/passwd`) or a drive (`C:\Windows`).
-    Absolute,
-    /// A component is `..`, so the name climbs out of the folder it is extracted into.
-    Traversal,
-    /// The name holds a NUL or another control character.
-    ControlCharacters,
-    /// The entry sits below a name the archive made a link or a file, so extracting it would write
-    /// through the link.
-    ThroughLink,
-}
+pub use waypoint_vfs::UnsafeName;
 
 /// A name taken apart into safe components.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -40,11 +40,12 @@ mod sevenz;
 mod source;
 mod stream;
 mod tar_scan;
+mod write;
 mod zip_read;
 mod zip_scan;
 
 pub use format::{ArchiveFormat, TarCompression};
 pub use info::{ArchiveInfo, EntryInfo};
-pub use names::UnsafeName;
 pub use options::{ArchiveNotice, ArchiveOptions, ContainerSource, NoticeSink};
 pub use provider::ArchiveProvider;
+pub use waypoint_vfs::UnsafeName;

@@ -4,6 +4,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod archive;
 mod cancel;
 #[cfg(any(test, feature = "testing"))]
 pub mod conformance;
@@ -46,6 +47,10 @@ mod trash;
 mod watch;
 mod write;
 
+pub use archive::{
+    ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind, ArchiveWriters, EntryAttrs,
+    UnsafeName,
+};
 pub use cancel::CancelToken;
 pub use details::*;
 pub use dirscan::*;

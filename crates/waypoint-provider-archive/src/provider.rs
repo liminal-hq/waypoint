@@ -10,8 +10,9 @@ use std::sync::{Arc, Mutex, Weak};
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{
-    group_for_scan, CancelToken, Capabilities, EntryKind, PermissionModel, Permissions, Provider,
-    ReadStream, ScannedEntry, Secret,
+    group_for_scan, ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind, ArchiveWriters,
+    CancelToken, Capabilities, EntryKind, PermissionModel, Permissions, Provider, ReadStream,
+    ScannedEntry, Secret, WriteStream,
 };
 
 use crate::compress::{decoder, CancelReader};
@@ -800,5 +801,61 @@ impl Provider for ArchiveProvider {
             mode: Some(mode),
             readonly: mode & 0o222 == 0,
         })
+    }
+}
+
+impl ArchiveCatalog for ArchiveProvider {
+    fn archive_entries(
+        &self,
+        archive: &VfsPath,
+        cancel: &CancelToken,
+        progress: &mut dyn FnMut(u32),
+    ) -> Result<Vec<ArchiveEntryInfo>, VfsError> {
+        let VfsPath::Archive(top) = archive else {
+            return Err(VfsError::Unsupported {
+                what: archive.scheme().to_owned(),
+            });
+        };
+        let (index, _) = self.index(top.container(), cancel, progress)?;
+        let mut out = Vec::with_capacity(index.len().saturating_sub(1));
+        for node in 1..index.len() as u32 {
+            let entry = index.node(node);
+            let mut path = top.clone();
+            for part in index.path_of(node) {
+                path = path
+                    .join(os_name(&part))
+                    .map_err(|_| VfsError::InvalidLocation {
+                        input: archive.to_uri(),
+                    })?;
+            }
+            out.push(ArchiveEntryInfo {
+                path: VfsPath::Archive(path),
+                kind: entry.kind,
+                size: entry.size,
+                compressed_size: entry.compressed,
+                mode: entry.mode,
+                modified_ms: entry.modified_ms,
+                link_target: entry.link.as_ref().map(|link| link.to_vec()),
+                encrypted: entry.encrypted,
+                unsafe_name: entry.unsafe_name,
+                synthetic: entry.synthetic,
+            });
+        }
+        Ok(out)
+    }
+}
+
+impl ArchiveWriters for ArchiveProvider {
+    fn kinds(&self) -> Vec<ArchiveKind> {
+        ArchiveKind::ALL.to_vec()
+    }
+
+    fn begin(
+        &self,
+        kind: ArchiveKind,
+        out: Box<dyn WriteStream>,
+        location: Location,
+    ) -> Result<Box<dyn ArchiveBuilder>, VfsError> {
+        crate::write::begin(kind, out, location, self.options.scratch_dir.as_deref())
     }
 }
