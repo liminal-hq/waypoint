@@ -103,8 +103,13 @@ pub fn kind<T>(result: &Result<T, VfsError>) -> String {
 }
 
 /// Whether a command-line tool is installed. With `WAYPOINT_ARCHIVE_REQUIRE` set (CI does), a
-/// missing tool fails the test instead of skipping it.
+/// missing tool fails the test instead of skipping it. The tests that read archives made by `tar`,
+/// `zip` and `7z` assume the GNU and Info-ZIP tools, so on Windows (where `tar` is bsdtar and the
+/// others are rarely there) they always skip, and the Windows jobs run the pure tests.
 pub fn have(tool: &str) -> bool {
+    if cfg!(windows) {
+        return false;
+    }
     let found = Command::new(tool)
         .arg("--help")
         .output()

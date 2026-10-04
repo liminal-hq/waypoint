@@ -111,7 +111,8 @@ pub(crate) fn name_bytes(name: &std::ffi::OsStr) -> Vec<u8> {
 /// when the target is absolute or climbs above the top of the archive: such a link points outside
 /// and is shown as broken.
 pub(crate) fn resolve_link_target(folder: &[Vec<u8>], target: &[u8]) -> Option<Vec<Vec<u8>>> {
-    if target.first() == Some(&b'/') {
+    let drive = target.len() >= 2 && target[0].is_ascii_alphabetic() && target[1] == b':';
+    if target.first() == Some(&b'/') || target.contains(&b'\\') || drive {
         return None;
     }
     let mut out = folder.to_vec();
@@ -201,5 +202,7 @@ mod tests {
         );
         assert_eq!(resolve_link_target(&folder, b"../../../x"), None);
         assert_eq!(resolve_link_target(&folder, b"/etc"), None);
+        assert_eq!(resolve_link_target(&folder, b"C:\\x"), None);
+        assert_eq!(resolve_link_target(&folder, b"..\\x"), None);
     }
 }

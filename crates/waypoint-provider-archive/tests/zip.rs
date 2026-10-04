@@ -77,8 +77,17 @@ fn check_sample(p: &dyn Provider, root: &waypoint_path::VfsPath) {
     assert!(hello.modified_ms.is_some());
     let docs = p.stat(&at(root, "docs")).unwrap();
     assert_eq!(docs.kind, EntryKind::Directory);
+    // The zip library writes Unix modes only when it runs on a Unix host.
     let perms = p.permissions(&at(root, "hello.txt")).unwrap();
-    assert_eq!(perms.mode.map(|m| m & 0o777), Some(0o640));
+    if cfg!(unix) {
+        assert_eq!(perms.mode.map(|m| m & 0o777), Some(0o640));
+    } else {
+        assert_eq!(
+            perms.mode,
+            Some(0o644),
+            "no stored mode reads as the default"
+        );
+    }
     // A symlink reads as the file it points at, and says what it holds.
     let link = at(root, "link-to-hello");
     let stat = p.stat(&link).unwrap();
