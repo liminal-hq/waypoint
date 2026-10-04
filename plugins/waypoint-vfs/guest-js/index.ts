@@ -21,6 +21,7 @@ import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/List
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
+import type { TypedLocation } from '@liminal-hq/waypoint-protocol/generated/TypedLocation';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import type { Places } from '@liminal-hq/waypoint-protocol/generated/Places';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
@@ -116,6 +117,14 @@ export function parseLocation(input: string, base: Location): Promise<Location> 
 }
 
 /** The parent and the breadcrumb segments of a location. */
+/**
+ * `parseLocation` for typed text in the path bar: also says whether a password written in a server
+ * address was dropped (it is never kept, D147).
+ */
+export function parseLocationText(input: string, base: Location): Promise<TypedLocation> {
+	return cmd<TypedLocation>('parse_location_text', { input, base });
+}
+
 export function describeLocation(location: Location): Promise<LocationInfo> {
 	return cmd<LocationInfo>('describe_location', { location });
 }
@@ -446,6 +455,7 @@ export type {
 	ListingSnapshot,
 	Location,
 	LocationInfo,
+	TypedLocation,
 	Places,
 	PluginStatus,
 	SelectionSpec,

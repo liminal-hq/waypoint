@@ -440,6 +440,21 @@ pub struct LocationInfo {
     pub parent: Option<Location>,
     /// From the root to the location itself, the last being the location.
     pub segments: Vec<Breadcrumb>,
+    /// The login the location belongs to (`sftp://me@nas.lan`), for a server location or an
+    /// archive on one; absent for a local folder. The tab's remote badge and state follow it, so
+    /// the page never reads a scheme.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub connection: Option<String>,
+}
+
+/// Typed text read into a location, and whether a password written in it was dropped (D147).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct TypedLocation {
+    pub location: Location,
+    pub password_dropped: bool,
 }
 
 /// Which entries of a listing are selected. The selection is a frontend model keyed by `EntryId`

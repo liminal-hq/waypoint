@@ -17,7 +17,7 @@ use waypoint_vfs::{
     Filter, FolderCheck, FolderSizeEvent, Listing, ListingEvent, ListingHandle, ListingLayout,
     ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv, Provider,
     ProviderRegistry, SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo,
-    TrashProvider, TrashSource, VolumeSpace,
+    TrashProvider, TrashSource, TypedLocation, VolumeSpace,
 };
 
 use crate::error::Error;
@@ -233,6 +233,21 @@ impl Vfs {
 
     pub(crate) fn suggestions(&self) -> Option<Suggestions> {
         self.suggestions.clone()
+    }
+
+    /// The breadcrumbs of a location, a server's root labelled with its saved connection's name.
+    pub fn describe(&self, location: &Location) -> Result<LocationInfo, VfsError> {
+        let mut info = waypoint_vfs::describe_location(location)?;
+        let named = match (&self.connections, VfsPath::from_location(location)) {
+            (Some(hub), Ok(path @ VfsPath::Remote(_))) => {
+                path.connection_key().and_then(|key| hub.label_for(&key))
+            }
+            _ => None,
+        };
+        if let (Some(name), Some(root)) = (named, info.segments.first_mut()) {
+            root.label = name;
+        }
+        Ok(info)
     }
 
     /// Tells the connection manager what a call on `path` found.
@@ -483,22 +498,58 @@ pub async fn close_listing<R: Runtime>(
     Ok(())
 }
 
+/// Reads typed text with the server, archive and Git schemes a provider serves (A78).
+fn read_typed(state: &Vfs, input: String, base: Location) -> Result<TypedLocation, VfsError> {
+    let remote = state.remote().clone();
+    let env = PlacesEnv::detect()?;
+    let (location, password_dropped) =
+        waypoint_vfs::parse_location_with(&input, &base, &env.home, &|scheme| {
+            remote.serves(scheme)
+        })?;
+    Ok(TypedLocation {
+        location,
+        password_dropped,
+    })
+}
+
 /// Turns typed text into a `Location`, resolving relative text against `base` and `~` against the
-/// home folder. It does not check that the location exists.
+/// home folder; a server location is read when a provider serves its scheme. It does not check
+/// that the location exists.
 #[tauri::command]
-pub async fn parse_location(input: String, base: Location) -> Result<Location, Error> {
+pub async fn parse_location(
+    state: State<'_, Vfs>,
+    input: String,
+    base: Location,
+) -> Result<Location, Error> {
+    let remote = state.remote().clone();
     blocking(move || {
         let env = PlacesEnv::detect()?;
-        waypoint_vfs::parse_location(&input, &base, &env.home)
+        waypoint_vfs::parse_location_with(&input, &base, &env.home, &|scheme| remote.serves(scheme))
+            .map(|(location, _)| location)
     })
     .await?
     .map_err(Error::from)
 }
 
-/// The parent and breadcrumb segments of a location.
+/// `parse_location` for the path bar: also says whether a password typed in a server address was
+/// dropped, so the bar can say it was not kept (D147).
 #[tauri::command]
-pub async fn describe_location(location: Location) -> Result<LocationInfo, Error> {
-    Ok(waypoint_vfs::describe_location(&location)?)
+pub async fn parse_location_text(
+    state: State<'_, Vfs>,
+    input: String,
+    base: Location,
+) -> Result<TypedLocation, Error> {
+    Ok(read_typed(&state, input, base)?)
+}
+
+/// The parent and breadcrumb segments of a location. A server's root is labelled with the name of
+/// its saved connection, when it has one.
+#[tauri::command]
+pub async fn describe_location(
+    state: State<'_, Vfs>,
+    location: Location,
+) -> Result<LocationInfo, Error> {
+    Ok(state.describe(&location)?)
 }
 
 /// Where an entry of an open listing lives.

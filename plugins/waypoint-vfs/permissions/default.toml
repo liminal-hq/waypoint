@@ -10,6 +10,7 @@ permissions = [
   "allow-close-listing",
   "allow-get-home",
   "allow-parse-location",
+  "allow-parse-location-text",
   "allow-describe-location",
   "allow-entry-location",
   "allow-summarise-selection",

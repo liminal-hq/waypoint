@@ -352,7 +352,11 @@ fn typed_text_becomes_a_location_and_junk_is_rejected() {
     let app = app();
     let base = location(Path::new("/srv/data"));
     let parse = |input: &str| {
-        tauri::async_runtime::block_on(commands::parse_location(input.to_owned(), base.clone()))
+        tauri::async_runtime::block_on(commands::parse_location(
+            app.state::<Vfs>(),
+            input.to_owned(),
+            base.clone(),
+        ))
     };
     assert_eq!(parse("logs").unwrap().display, "/srv/data/logs");
     assert_eq!(parse("/etc").unwrap().uri, "file:///etc");
@@ -370,9 +374,11 @@ fn typed_text_becomes_a_location_and_junk_is_rejected() {
 
 #[test]
 fn a_location_is_described_with_its_breadcrumbs() {
-    let info = tauri::async_runtime::block_on(commands::describe_location(location(Path::new(
-        "/home/a/Music",
-    ))))
+    let app = app();
+    let info = tauri::async_runtime::block_on(commands::describe_location(
+        app.state::<Vfs>(),
+        location(Path::new("/home/a/Music")),
+    ))
     .unwrap();
     assert_eq!(info.segments.len(), 4);
     assert_eq!(info.parent.unwrap().display, "/home/a");
@@ -673,11 +679,16 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
 
 #[test]
 fn the_trash_is_described_and_parsed_like_any_location() {
-    let info =
-        tauri::async_runtime::block_on(commands::describe_location(trash_location())).unwrap();
+    let app = app();
+    let info = tauri::async_runtime::block_on(commands::describe_location(
+        app.state::<Vfs>(),
+        trash_location(),
+    ))
+    .unwrap();
     assert_eq!(info.parent, None);
     assert_eq!(info.segments[0].label, "Trash");
     let parsed = tauri::async_runtime::block_on(commands::parse_location(
+        app.state::<Vfs>(),
         "trash:".to_owned(),
         trash_location(),
     ))
@@ -1123,6 +1134,43 @@ mod connections {
         ))
         .unwrap();
         assert_eq!(remembered, Remembered::Kept);
+    }
+
+    #[test]
+    fn server_text_parses_once_a_provider_serves_it_and_a_saved_name_labels_the_root() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        let app = app_with(&server);
+        let base = location(Path::new("/srv"));
+        let typed = tauri::async_runtime::block_on(commands::parse_location_text(
+            app.state::<Vfs>(),
+            "sftp://me:pw@NAS.lan/srv".into(),
+            base.clone(),
+        ))
+        .unwrap();
+        assert!(typed.password_dropped);
+        assert_eq!(typed.location.uri, "sftp://me@nas.lan/srv");
+        let described = |at: &waypoint_protocol::Location| {
+            tauri::async_runtime::block_on(commands::describe_location(
+                app.state::<Vfs>(),
+                at.clone(),
+            ))
+            .unwrap()
+        };
+        let before = described(&typed.location);
+        assert_eq!(before.segments[0].label, "me@nas.lan");
+        assert_eq!(before.connection.as_deref(), Some("sftp://me@nas.lan"));
+        tauri::async_runtime::block_on(cmd::add_connection(
+            app.state::<Vfs>(),
+            ConnectionDraft {
+                name: "NAS".into(),
+                scheme: "sftp".into(),
+                host: "nas.lan".into(),
+                user: Some("me".into()),
+                ..ConnectionDraft::default()
+            },
+        ))
+        .unwrap();
+        assert_eq!(described(&typed.location).segments[0].label, "NAS");
     }
 
     #[test]

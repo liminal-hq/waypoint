@@ -154,6 +154,7 @@ pub fn describe_location(location: &Location) -> Result<LocationInfo, VfsError> 
                 label: "Overview".to_owned(),
                 location: overview_location(),
             }],
+            connection: None,
         });
     }
     if TrashPath::is_trash_uri(&location.uri) {
@@ -184,13 +185,18 @@ pub fn describe_location(location: &Location) -> Result<LocationInfo, VfsError> 
         0 | 1 => None,
         n => Some(segments[n - 2].location.clone()),
     };
-    Ok(LocationInfo { parent, segments })
+    Ok(LocationInfo {
+        parent,
+        segments,
+        connection: None,
+    })
 }
 
 /// A server, archive or revision location, from the root of its chain of parents: a server's root
 /// is labelled with its login, and an archive's or a revision's breadcrumbs continue from the
 /// folder that holds it.
 fn describe_chain(path: VfsPath) -> LocationInfo {
+    let connection = path.connection_key().map(|key| key.as_str().to_owned());
     let mut segments = Vec::new();
     let mut current = Some(path);
     while let Some(here) = current {
@@ -206,7 +212,11 @@ fn describe_chain(path: VfsPath) -> LocationInfo {
         0 | 1 => None,
         n => Some(segments[n - 2].location.clone()),
     };
-    LocationInfo { parent, segments }
+    LocationInfo {
+        parent,
+        segments,
+        connection,
+    }
 }
 
 /// The Trash is one level: its root, and below that the items.
@@ -220,6 +230,7 @@ fn describe_trash(location: &Location) -> Result<LocationInfo, VfsError> {
         TrashPath::Root => Ok(LocationInfo {
             parent: None,
             segments: vec![root],
+            connection: None,
         }),
         TrashPath::Item(id) => Ok(LocationInfo {
             parent: Some(root.location.clone()),
@@ -230,6 +241,7 @@ fn describe_trash(location: &Location) -> Result<LocationInfo, VfsError> {
                     location: VfsPath::Trash(TrashPath::Item(id)).to_location(),
                 },
             ],
+            connection: None,
         }),
     }
 }
@@ -382,6 +394,9 @@ mod tests {
         let labels: Vec<_> = info.segments.iter().map(|s| s.label.as_str()).collect();
         assert_eq!(labels, ["me@nas:2222", "srv", "media"]);
         assert_eq!(info.parent.unwrap().uri, "sftp://me@nas:2222/srv");
+        assert_eq!(info.connection.as_deref(), Some("sftp://me@nas:2222"));
+        let local = describe_location(&at("/srv")).unwrap();
+        assert_eq!(local.connection, None);
         let root = describe_location(&Location::new("x", "smb://files/")).unwrap();
         assert_eq!(root.parent, None);
         assert_eq!(root.segments[0].label, "files");

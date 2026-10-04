@@ -13,6 +13,7 @@ const COMMANDS: &[&str] = &[
     "close_listing",
     "get_home",
     "parse_location",
+    "parse_location_text",
     "describe_location",
     "entry_location",
     "summarise_selection",

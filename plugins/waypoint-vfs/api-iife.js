@@ -57,6 +57,13 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
         return cmd('parse_location', { input, base });
     }
     /** The parent and the breadcrumb segments of a location. */
+    /**
+     * `parseLocation` for typed text in the path bar: also says whether a password written in a server
+     * address was dropped (it is never kept, D147).
+     */
+    function parseLocationText(input, base) {
+        return cmd('parse_location_text', { input, base });
+    }
     function describeLocation(location) {
         return cmd('describe_location', { location });
     }
@@ -308,6 +315,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     exports.openListing = openListing;
     exports.parseAddress = parseAddress;
     exports.parseLocation = parseLocation;
+    exports.parseLocationText = parseLocationText;
     exports.previewUrl = previewUrl;
     exports.readTextHead = readTextHead;
     exports.removeConnection = removeConnection;

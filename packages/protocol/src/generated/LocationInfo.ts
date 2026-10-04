@@ -14,4 +14,10 @@ parent: Location | null,
 /**
  * From the root to the location itself, the last being the location.
  */
-segments: Array<Breadcrumb>, };
+segments: Array<Breadcrumb>, 
+/**
+ * The login the location belongs to (`sftp://me@nas.lan`), for a server location or an
+ * archive on one; absent for a local folder. The tab's remote badge and state follow it, so
+ * the page never reads a scheme.
+ */
+connection?: string, };
