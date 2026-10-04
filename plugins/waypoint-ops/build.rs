@@ -16,6 +16,7 @@ const COMMANDS: &[&str] = &[
     "dismiss",
     "dismiss_finished",
     "reorder",
+    "set_job_limits",
     "resolve",
     "conflict_preview",
     "resolve_error",

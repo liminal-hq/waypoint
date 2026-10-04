@@ -18,6 +18,7 @@ import type {
 	ConflictPolicy,
 	Decision,
 	JobId,
+	JobPriority,
 	JobProgress,
 	JobRequest,
 	JournalEntrySummary,
@@ -129,6 +130,7 @@ export class FakeOpsClient implements OpsClient {
 		confirmTrash: false,
 		undoDepth: 50,
 		trashExpiryDays: null,
+		speedLimitBps: null,
 	};
 	private recovery: RecoveryReport | null = null;
 	private mute = 0;
@@ -291,6 +293,23 @@ export class FakeOpsClient implements OpsClient {
 			order: this.entries.map((e) => e.snapshot.id),
 			revision: this.revision,
 		});
+	}
+
+	async setJobLimits(
+		job: JobId,
+		speedLimit: number | null,
+		priority: JobPriority | null,
+	): Promise<void> {
+		this.calls.push(['setJobLimits', job, speedLimit, priority]);
+		const entry = this.find(job);
+		if (FINISHED.has(entry.snapshot.state.state)) this.illegal(entry, 'change the limits of');
+		const { options } = entry.snapshot;
+		if (speedLimit === null) delete options.speedLimit;
+		else options.speedLimit = speedLimit;
+		if (priority === null || priority === 'normal') delete options.priority;
+		else options.priority = priority;
+		this.changed(entry);
+		this.startQueued();
 	}
 
 	async resolve(job: JobId, decisions: Resolution[], applyToAll?: ConflictPolicy): Promise<void> {
@@ -758,9 +777,18 @@ export class FakeOpsClient implements OpsClient {
 
 	private startQueued(): void {
 		if (!this.options.autoStart) return;
-		for (const entry of this.entries) {
+		// The highest priority first, and in queue order among equals (the sort is stable).
+		const rank = { low: 0, normal: 1, high: 2 } as const;
+		const queued = this.entries
+			.filter((e) => e.snapshot.state.state === 'queued')
+			.sort(
+				(a, b) =>
+					rank[b.snapshot.options.priority ?? 'normal'] -
+					rank[a.snapshot.options.priority ?? 'normal'],
+			);
+		for (const entry of queued) {
 			if (this.slotsInUse() >= this.options.concurrency) return;
-			if (entry.snapshot.state.state === 'queued') this.start(entry.snapshot.id);
+			this.start(entry.snapshot.id);
 		}
 	}
 

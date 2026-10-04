@@ -493,3 +493,68 @@ fn random_call_sequences_keep_the_invariants() {
         );
     }
 }
+
+fn with_priority(store: &mut OpsStore, name: &str, priority: JobPriority) -> JobId {
+    let id = queued(store, name);
+    store.set_limits(id, None, Some(priority)).unwrap();
+    id
+}
+
+#[test]
+fn a_higher_priority_starts_first_and_equals_keep_the_queue_order() {
+    let (mut s, _, _) = store(1);
+    let low = with_priority(&mut s, "low", JobPriority::Low);
+    let first = queued(&mut s, "first");
+    let high = with_priority(&mut s, "high", JobPriority::High);
+    let second = queued(&mut s, "second");
+    let also_high = with_priority(&mut s, "also-high", JobPriority::High);
+    let mut order = Vec::new();
+    while let Some(id) = s.next_runnable() {
+        s.start(id).unwrap();
+        s.done(id).unwrap();
+        order.push(id);
+    }
+    assert_eq!(order, vec![high, also_high, first, second, low]);
+}
+
+#[test]
+fn changing_a_priority_changes_who_is_next_and_a_running_job_is_never_stopped() {
+    let (mut s, _, _) = store(1);
+    let a = queued(&mut s, "a");
+    let b = queued(&mut s, "b");
+    let running = s.next_runnable().unwrap();
+    assert_eq!(running, a);
+    s.start(a).unwrap();
+    s.set_limits(b, None, Some(JobPriority::High)).unwrap();
+    // Outranking the running job does not take its slot.
+    assert_eq!(s.next_runnable(), None);
+    assert_eq!(state_of(&s, a), "running");
+    s.done(a).unwrap();
+    assert_eq!(s.next_runnable(), Some(b));
+    // Back to normal: the job is as a job that never had one.
+    s.set_limits(b, None, None).unwrap();
+    assert_eq!(s.job(b).unwrap().options, JobOptions::default());
+}
+
+#[test]
+fn limits_change_on_a_running_job_with_an_event_and_not_on_a_finished_one() {
+    let (mut s, _, _) = store(1);
+    let id = queued(&mut s, "a");
+    s.start(id).unwrap();
+    let events = s.set_limits(id, Some(2_000_000), None).unwrap();
+    assert!(matches!(
+        events.as_slice(),
+        [OpsEvent::JobChanged { job, .. }] if job.options.speed_limit == Some(2_000_000)
+    ));
+    // The same values again change nothing and say nothing.
+    assert!(s.set_limits(id, Some(2_000_000), None).unwrap().is_empty());
+    s.done(id).unwrap();
+    assert!(matches!(
+        s.set_limits(id, None, None),
+        Err(QueueError::Illegal { .. })
+    ));
+    assert_eq!(
+        s.set_limits(JobId(99), None, None),
+        Err(QueueError::UnknownJob(JobId(99)))
+    );
+}

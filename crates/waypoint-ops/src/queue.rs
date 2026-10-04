@@ -31,8 +31,9 @@ use waypoint_vfs::CancelToken;
 
 use crate::exec::Resolutions;
 use crate::model::{
-    Counts, JobId, JobKind, JobRequest, JobSnapshot, JobState, OpsError, OpsEvent, OpsSnapshot,
-    PlanTotals, Progress, Resolution, Sources, SourcesSummary, Verification, WaitReason,
+    Counts, JobId, JobKind, JobPriority, JobRequest, JobSnapshot, JobState, OpsError, OpsEvent,
+    OpsSnapshot, PlanTotals, Progress, Resolution, Sources, SourcesSummary, Verification,
+    WaitReason,
 };
 use crate::traits::{Clock, SettingsReader};
 
@@ -392,15 +393,45 @@ impl OpsStore {
         )
     }
 
-    /// The next job a free worker should run: the first queued one, if a slot is free.
+    /// The next job a free worker should run, if a slot is free: the queued job of the highest
+    /// priority, the first in queue order among equals.
     pub fn next_runnable(&self) -> Option<JobId> {
         if self.slots_in_use() >= self.concurrency() {
             return None;
         }
         self.jobs
             .iter()
-            .find(|j| j.snapshot.state == JobState::Queued)
+            .filter(|j| j.snapshot.state == JobState::Queued)
+            // `max_by_key` keeps the last of equals, so the order is reversed to keep the first.
+            .rev()
+            .max_by_key(|j| j.snapshot.options.priority())
             .map(|j| j.snapshot.id)
+    }
+
+    /// Changes a job's speed limit and priority while it waits or runs (D157); a finished job keeps
+    /// what it had.
+    pub fn set_limits(
+        &mut self,
+        id: JobId,
+        speed_limit: Option<u64>,
+        priority: Option<JobPriority>,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        let snapshot = &mut self.jobs[index].snapshot;
+        if snapshot.state.is_finished() {
+            return Err(QueueError::Illegal {
+                id,
+                from: snapshot.state.name(),
+                action: "change the limits of",
+            });
+        }
+        let options = &mut snapshot.options;
+        if options.speed_limit == speed_limit && options.priority == priority {
+            return Ok(Vec::new());
+        }
+        options.speed_limit = speed_limit;
+        options.priority = priority;
+        Ok(vec![self.changed(index)])
     }
 
     /// Starts a queued job on a free slot.

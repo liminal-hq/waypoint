@@ -12,6 +12,7 @@ import type {
 	Decision,
 	DiffLine,
 	JobId,
+	JobPriority,
 	JobProgress,
 	JobRequest,
 	JournalEntrySummary,
@@ -38,6 +39,7 @@ export type {
 	Decision,
 	DiffLine,
 	JobId,
+	JobPriority,
 	JobProgress,
 	JobRequest,
 	JournalEntrySummary,
@@ -73,6 +75,11 @@ export interface OpsClient {
 	dismissFinished(): Promise<void>;
 	/** Moves a queued job to `to` among the queued jobs (0 runs next). */
 	reorder(job: JobId, to: number): Promise<void>;
+	/**
+	 * Sets a queued or running job's own speed limit in bytes a second (`null` for none) and its
+	 * priority (`null` is normal). A running copy obeys the new limit at once.
+	 */
+	setJobLimits(job: JobId, speedLimit: number | null, priority: JobPriority | null): Promise<void>;
 	resolve(job: JobId, decisions: Resolution[], applyToAll?: ConflictPolicy): Promise<void>;
 	/**
 	 * The two files of one clash a waiting job holds (`item` is the clash's source): sizes, times and

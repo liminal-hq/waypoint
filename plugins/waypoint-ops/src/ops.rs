@@ -19,11 +19,12 @@ use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Runtime};
 use waypoint_ops::{
-    plan, preview_batch, BatchPreview, Clock, Decision, ExecEnv, IdSource, JobId, JobKind,
-    JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument, JournalEntrySummary,
-    JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings, OpsSnapshot, OpsStore,
-    PlanCtx, PlanWarning, Prepared, QueueError, RecoveryReport, Resolution, SaveRequest,
-    SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError,
+    plan, preview_batch, BatchPreview, Bucket, Clock, Decision, ExecEnv, IdSource, JobId, JobKind,
+    JobPriority, JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument,
+    JournalEntrySummary, JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings,
+    OpsSnapshot, OpsStore, Pacer, PlanCtx, PlanWarning, Prepared, QueueError, RateCell,
+    RecoveryReport, Resolution, SaveRequest, SelectionResolver, SettingsReader, SimpleCopy,
+    Sources, StorageError, SystemPacer, Throttle,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec};
@@ -41,6 +42,10 @@ pub const MAX_CONCURRENCY: u32 = 16;
 /// The most days the Trash sweep can be set to wait (a hundred years: far more than anyone wants,
 /// and low enough that no day count overflows).
 pub const MAX_TRASH_EXPIRY_DAYS: u32 = 36_500;
+
+/// The fastest limit the settings and a job can ask for: a terabyte a second, which is no limit
+/// anyone means and keeps the arithmetic far from overflowing.
+pub const MAX_SPEED_LIMIT: u64 = 1_000_000_000_000;
 
 /// The most journal entries the settings can ask to keep.
 pub const MAX_UNDO_DEPTH: u32 = 500;
@@ -187,11 +192,14 @@ pub(crate) struct Ctl {
     pub answers: Vec<Resolution>,
     /// The answer to the error the worker waits on.
     pub decision: Option<Decision>,
+    /// The job's own speed limit, which the running copy reads at every piece.
+    pub rate: Arc<RateCell>,
 }
 
 impl Ctl {
-    fn new() -> Self {
+    fn new(limit: Option<u64>) -> Self {
         Self {
+            rate: Arc::new(RateCell::new(limit)),
             stage: Stage::NeedsPlan,
             prepared: None,
             answers: Vec::new(),
@@ -248,6 +256,10 @@ pub(crate) struct Shared<R: Runtime> {
     pub resolver: Arc<dyn SelectionResolver>,
     pub clock: Arc<dyn Clock>,
     pub settings: Arc<SettingsCell>,
+    /// The speed limit of every copy together, and its bucket, which every running copy shares.
+    pub global_rate: Arc<RateCell>,
+    pub global_bucket: Arc<Bucket>,
+    pacer: Arc<SystemPacer>,
     settings_store: Arc<dyn SettingsStorage>,
     storage: Arc<OrderedStorage>,
     on_change: Option<ChangeHook>,
@@ -310,8 +322,14 @@ impl<R: Runtime> Ops<R> {
             copier: Arc::new(SimpleCopy),
         };
         let recovery = report.needs_notice().then_some(report);
+        let pacer = Arc::new(SystemPacer::new());
+        let global_rate = Arc::new(RateCell::new(settings.get().speed_limit_bps));
+        let global_bucket = Arc::new(Bucket::new(global_rate.clone(), pacer.now()));
         let shared = Arc::new(Shared {
             app,
+            global_rate,
+            global_bucket,
+            pacer,
             env,
             resolver: deps.resolver,
             clock: deps.clock,
@@ -394,6 +412,10 @@ impl<R: Runtime> Ops<R> {
 fn clamped(mut settings: OpsSettings) -> OpsSettings {
     settings.concurrency = settings.concurrency.clamp(1, MAX_CONCURRENCY);
     settings.undo_depth = settings.undo_depth.min(MAX_UNDO_DEPTH);
+    // A stored zero means no limit, as it does in the cell that reads it.
+    settings.speed_limit_bps = settings
+        .speed_limit_bps
+        .filter(|limit| (1..=MAX_SPEED_LIMIT).contains(limit));
     // A stored zero or absurd count means no sweep, never "empty everything at every start".
     settings.trash_expiry_days = settings
         .trash_expiry_days
@@ -531,8 +553,9 @@ impl<R: Runtime> Shared<R> {
 
     /// Adds a job and wakes a worker to plan it.
     pub(crate) fn enqueue(self: &Arc<Self>, core: &mut Core, request: JobRequest) -> JobId {
+        let limit = request.options.speed_limit;
         let (id, events) = core.store.add(request);
-        core.ctl.insert(id, Ctl::new());
+        core.ctl.insert(id, Ctl::new(limit));
         self.publish(events);
         self.ensure_workers(core);
         self.cv.notify_all();
@@ -774,7 +797,8 @@ impl<R: Runtime> Ops<R> {
     pub fn retry(&self, id: JobId) -> Result<JobId, Error> {
         let mut core = self.shared.lock();
         let (new, events) = core.store.retry(id)?;
-        core.ctl.insert(new, Ctl::new());
+        let limit = core.store.job(new).and_then(|j| j.options.speed_limit);
+        core.ctl.insert(new, Ctl::new(limit));
         self.shared.publish(events);
         self.shared.ensure_workers(&mut core);
         self.shared.cv.notify_all();
@@ -794,6 +818,40 @@ impl<R: Runtime> Ops<R> {
         let events = core.store.dismiss_finished();
         self.shared.publish(events);
         core.prune();
+    }
+
+    /// Changes a job's own speed limit (bytes a second, `None` for none) and priority while it
+    /// waits or runs. A running copy obeys the new limit within a fraction of a second, and a new
+    /// priority decides which queued job a freed slot goes to.
+    pub fn set_job_limits(
+        &self,
+        id: JobId,
+        speed_limit: Option<u64>,
+        priority: Option<JobPriority>,
+    ) -> Result<(), Error> {
+        if speed_limit.is_some_and(|limit| limit == 0 || limit > MAX_SPEED_LIMIT) {
+            return Err(Error::Invalid(format!(
+                "the speed limit must be between 1 and {MAX_SPEED_LIMIT} bytes a second, or off"
+            )));
+        }
+        let mut core = self.shared.lock();
+        let events = core.store.set_limits(id, speed_limit, priority)?;
+        if let Some(ctl) = core.ctl.get(&id) {
+            ctl.rate.set(speed_limit);
+        }
+        self.shared.publish(events);
+        // A job that outranks the others may now be the one a waiting worker should take.
+        self.shared.cv.notify_all();
+        Ok(())
+    }
+
+    /// The limits a copy that runs now obeys: the queue's and the job's own.
+    pub(crate) fn throttle_for(shared: &Shared<R>, ctl: &Ctl) -> Throttle {
+        let job = Arc::new(Bucket::new(ctl.rate.clone(), shared.pacer.now()));
+        Throttle::new(
+            shared.pacer.clone(),
+            vec![shared.global_bucket.clone(), job],
+        )
     }
 
     pub fn reorder(&self, id: JobId, to: usize) -> Result<(), Error> {
@@ -1002,6 +1060,14 @@ impl<R: Runtime> Ops<R> {
                 "the number of jobs at once must be between 1 and {MAX_CONCURRENCY}"
             )));
         }
+        if settings
+            .speed_limit_bps
+            .is_some_and(|limit| limit == 0 || limit > MAX_SPEED_LIMIT)
+        {
+            return Err(Error::Invalid(format!(
+                "the speed limit must be between 1 and {MAX_SPEED_LIMIT} bytes a second, or off"
+            )));
+        }
         if settings.undo_depth > MAX_UNDO_DEPTH {
             return Err(Error::Invalid(format!(
                 "the undo history can keep at most {MAX_UNDO_DEPTH} entries"
@@ -1027,6 +1093,8 @@ impl<R: Runtime> Ops<R> {
             .save(&settings)
             .map_err(Error::Storage)?;
         self.shared.settings.set(settings);
+        // A running copy reads the limit at its next piece.
+        self.shared.global_rate.set(settings.speed_limit_bps);
         let mut core = self.shared.lock();
         self.shared.ensure_workers(&mut core);
         // A raised concurrency lets queued jobs start.

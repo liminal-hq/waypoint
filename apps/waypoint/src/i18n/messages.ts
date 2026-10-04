@@ -365,6 +365,15 @@ export const enMessages = {
 	'settings.operations.concurrency.label': 'Operations running at once',
 	'settings.operations.concurrency.description':
 		'How many copies, moves and deletes run together; the rest wait in the queue. A change applies to the next operation.',
+	'settings.operations.speedLimit.label': 'Limit copy and move speed',
+	'settings.operations.speedLimit.description':
+		'Keeps every copy and move together under the speed below, which helps on a network or while you work. A change reaches jobs that are already running.',
+	'settings.operations.speedLimitValue.label': 'Speed limit',
+	'settings.operations.speedLimitValue.description':
+		'The most data that copies and moves transfer each second, all together. A job can also have a limit of its own in the Operations window.',
+	'settings.operations.speedLimitValue.needsLimit':
+		'Turn on “Limit copy and move speed” to set this.',
+	'settings.operations.speedLimitValue.unit': 'MB/s',
 	'settings.operations.undoDepth.label': 'Undo history depth',
 	'settings.operations.undoDepth.description': 'How many operations Undo can step back through.',
 	'settings.operations.trashExpiry.label': 'Empty old items from the Trash',
@@ -1284,6 +1293,15 @@ export const enMessages = {
 	'ops.popOut': 'Pop out',
 	'ops.popOut.failed': 'Could not open the Operations window.',
 	'ops.reordered': '{title} moved to position {position}',
+	'ops.speedLimit.label': 'Speed limit',
+	'ops.speedLimit.none': 'No limit',
+	'ops.speedLimit.value': '{speed} MB/s',
+	'ops.speedLimit.announce': 'Speed limit for {title}: {limit}',
+	'ops.priority.label': 'Priority',
+	'ops.priority.high': 'High',
+	'ops.priority.normal': 'Normal',
+	'ops.priority.low': 'Low',
+	'ops.priority.announce': 'Priority of {title}: {priority}',
 	'ops.moveUp': 'Move up',
 	'ops.moveDown': 'Move down',
 	'ops.route': '{from} → {to}',

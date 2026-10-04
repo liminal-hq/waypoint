@@ -40,6 +40,7 @@ use crate::model::{
 use crate::names::{file_name_of, is_within, unique_full_name};
 use crate::plan::{volume_probe, Plan, PlanItem};
 use crate::speed::SpeedEstimator;
+use crate::throttle::Throttle;
 use crate::traits::{Clock, SystemClock};
 use crate::verify::{hex, Manifest};
 
@@ -52,6 +53,8 @@ pub struct RunOptions {
     pub verify: Option<VerifyAlgorithm>,
     pub chunk_bytes: usize,
     pub clock: Arc<dyn Clock>,
+    /// The speed limits to obey (D157); `None` runs as fast as the providers go.
+    pub throttle: Option<Throttle>,
 }
 
 impl Default for RunOptions {
@@ -61,6 +64,7 @@ impl Default for RunOptions {
             verify: None,
             chunk_bytes: CHUNK_BYTES,
             clock: Arc::new(SystemClock),
+            throttle: None,
         }
     }
 }
@@ -241,6 +245,7 @@ struct Transfer<'a> {
     linking: bool,
     verify: Option<VerifyAlgorithm>,
     chunk: usize,
+    throttle: Option<Throttle>,
     resolutions: Resolutions,
     skip_kinds: Vec<Discriminant<OpsError>>,
     meter: Meter,
@@ -279,6 +284,7 @@ pub(super) fn run(
         linking: plan.kind == JobKind::Link,
         verify: options.verify,
         chunk: options.chunk_bytes.max(1),
+        throttle: options.throttle,
         resolutions: options.resolutions,
         skip_kinds: Vec::new(),
         meter: Meter {
@@ -1155,6 +1161,7 @@ impl Transfer<'_> {
             verify: self.verify,
             chunk: self.chunk,
             size_hint: entry.size.unwrap_or(0),
+            throttle: self.throttle.as_ref(),
         };
         let copied = {
             let Transfer {

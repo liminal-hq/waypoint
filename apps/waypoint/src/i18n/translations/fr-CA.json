@@ -1324,6 +1324,36 @@
     "description": "Area: settings.",
     "source": "9fd5e89a"
   },
+  "settings.operations.speedLimit.label": {
+    "message": "Limiter la vitesse des copies et des déplacements",
+    "description": "Area: settings.",
+    "source": "f1fac2cb"
+  },
+  "settings.operations.speedLimit.description": {
+    "message": "Garde l’ensemble des copies et des déplacements sous la vitesse indiquée ci-dessous, ce qui aide sur un réseau ou pendant que vous travaillez. Un changement touche aussi les tâches déjà en cours.",
+    "description": "Area: settings.",
+    "source": "3172f2e9"
+  },
+  "settings.operations.speedLimitValue.label": {
+    "message": "Limite de vitesse",
+    "description": "Area: settings.",
+    "source": "fc141f8a"
+  },
+  "settings.operations.speedLimitValue.description": {
+    "message": "La quantité maximale de données que les copies et les déplacements transfèrent chaque seconde, tous ensemble. Une tâche peut aussi avoir sa propre limite dans la fenêtre Opérations.",
+    "description": "Area: settings.",
+    "source": "636ea90a"
+  },
+  "settings.operations.speedLimitValue.needsLimit": {
+    "message": "Activez « Limiter la vitesse des copies et des déplacements » pour la définir.",
+    "description": "Area: settings.",
+    "source": "9559d7da"
+  },
+  "settings.operations.speedLimitValue.unit": {
+    "message": "Mo/s",
+    "description": "Area: settings.",
+    "source": "15f75205"
+  },
   "settings.operations.undoDepth.label": {
     "message": "Profondeur de l’historique d’annulation",
     "description": "Area: settings.",
@@ -5653,6 +5683,51 @@
     "message": "{title} déplacée à la position {position}",
     "description": "Area: ops. Placeholders, kept exactly as written: {position} is a place in a list or row, a number; {title} is the title of a tab.",
     "source": "911bed8c"
+  },
+  "ops.speedLimit.label": {
+    "message": "Limite de vitesse",
+    "description": "Area: ops.",
+    "source": "fc141f8a"
+  },
+  "ops.speedLimit.none": {
+    "message": "Aucune limite",
+    "description": "Area: ops.",
+    "source": "f7fcff0d"
+  },
+  "ops.speedLimit.value": {
+    "message": "{speed} Mo/s",
+    "description": "Area: ops. Placeholders, kept exactly as written: {speed} is a transfer speed with its unit.",
+    "source": "d19e98ce"
+  },
+  "ops.speedLimit.announce": {
+    "message": "Limite de vitesse de {title} : {limit}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {limit} is a maximum number; {title} is the title of a tab.",
+    "source": "0dfbd261"
+  },
+  "ops.priority.label": {
+    "message": "Priorité",
+    "description": "Area: ops.",
+    "source": "d60dbba0"
+  },
+  "ops.priority.high": {
+    "message": "Élevée",
+    "description": "Area: ops.",
+    "source": "c4ebc6d4"
+  },
+  "ops.priority.normal": {
+    "message": "Normale",
+    "description": "Area: ops.",
+    "source": "a7248eeb"
+  },
+  "ops.priority.low": {
+    "message": "Faible",
+    "description": "Area: ops.",
+    "source": "f793de20"
+  },
+  "ops.priority.announce": {
+    "message": "Priorité de {title} : {priority}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {priority}; {title} is the title of a tab.",
+    "source": "ff227ba0"
   },
   "ops.moveUp": {
     "message": "Monter",

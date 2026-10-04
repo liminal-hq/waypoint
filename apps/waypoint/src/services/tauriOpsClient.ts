@@ -42,6 +42,7 @@ export function createTauriOpsClient(): OpsClient {
 		dismiss: (job) => ops.dismiss(job),
 		dismissFinished: () => ops.dismissFinished(),
 		reorder: (job, to) => ops.reorder(job, to),
+		setJobLimits: (job, speedLimit, priority) => ops.setJobLimits(job, speedLimit, priority),
 		resolve: (job, decisions, applyToAll) => ops.resolve(job, decisions, applyToAll),
 		conflictPreview: (job, item) => ops.conflictPreview(job, item),
 		resolveError: (job, decision) => ops.resolveError(job, decision),

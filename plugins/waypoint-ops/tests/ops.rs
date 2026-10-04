@@ -18,8 +18,8 @@ use tauri_plugin_waypoint_ops::{
     commands, ClipboardMode, ClipboardSource, JobProgress, Ops, MAX_CONCURRENCY,
 };
 use waypoint_ops::{
-    ConflictPolicy, Decision, JobKind, JobState, JournalStorage, OpsError, OpsEvent, OpsSettings,
-    OpsSnapshot, Resolution, VerifyAlgorithm, WaitReason,
+    ConflictPolicy, Decision, JobKind, JobPriority, JobState, JournalStorage, OpsError, OpsEvent,
+    OpsSettings, OpsSnapshot, Resolution, VerifyAlgorithm, WaitReason,
 };
 use waypoint_protocol::VfsError;
 use waypoint_vfs::Provider;
@@ -1672,4 +1672,142 @@ fn a_waiting_job_answers_the_preview_of_its_clash_and_nothing_else() {
     .unwrap();
     env.wait_done(id);
     assert!(preview_clash(&env, id, conflicts[0].source.clone()).is_err());
+}
+
+const MIB: u64 = 1024 * 1024;
+
+/// How many bytes a job has moved, as the queue last heard.
+fn moved(env: &Env, id: waypoint_ops::JobId) -> u64 {
+    env.job(id).progress.bytes_done
+}
+
+#[test]
+fn a_job_limit_holds_a_running_copy_and_lifting_it_takes_effect_at_once() {
+    let env = env();
+    env.write("big.bin", &big(6));
+    env.dir("dst");
+    let mut request = env.copy(&["big.bin"], "dst");
+    request.options.speed_limit = Some(MIB);
+    let started = std::time::Instant::now();
+    let id = env.submit("main-1", request);
+    env.wait_state(id, "running", |s| *s == JobState::Running);
+    env.wait_for("some bytes moved", |e| moved(e, id) > 0);
+    std::thread::sleep(Duration::from_millis(500));
+    assert_eq!(
+        env.state(id),
+        JobState::Running,
+        "6 MiB at 1 MiB/s takes about six seconds"
+    );
+    assert!(moved(&env, id) <= 3 * MIB, "{}", moved(&env, id));
+
+    env.ops().set_job_limits(id, None, None).unwrap();
+    assert_eq!(env.job(id).options.speed_limit, None);
+    env.wait_done(id);
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "lifting the limit sped the rest up: {:?}",
+        started.elapsed()
+    );
+    assert_eq!(env.read("dst/big.bin"), big(6));
+}
+
+#[test]
+fn the_global_limit_applies_to_a_running_job_and_changes_with_the_settings() {
+    let env = env();
+    let ops = env.ops();
+    env.write("big.bin", &big(6));
+    env.dir("dst");
+    ops.set_settings(OpsSettings {
+        speed_limit_bps: Some(MIB),
+        ..ops.settings()
+    })
+    .unwrap();
+    assert_eq!(env.settings.saved().unwrap().speed_limit_bps, Some(MIB));
+    let started = std::time::Instant::now();
+    let id = env.submit("main-1", env.copy(&["big.bin"], "dst"));
+    env.wait_for("some bytes moved", |e| moved(e, id) > 0);
+    std::thread::sleep(Duration::from_millis(500));
+    assert_eq!(env.state(id), JobState::Running);
+    assert!(moved(&env, id) <= 3 * MIB);
+    // Lifted for the whole queue, the running job finishes quickly.
+    ops.set_settings(OpsSettings {
+        speed_limit_bps: None,
+        ..ops.settings()
+    })
+    .unwrap();
+    env.wait_done(id);
+    assert!(
+        started.elapsed() < Duration::from_secs(4),
+        "{:?}",
+        started.elapsed()
+    );
+}
+
+#[test]
+fn limits_are_validated_and_a_finished_job_keeps_what_it_had() {
+    let env = env();
+    let ops = env.ops();
+    for bad in [0, tauri_plugin_waypoint_ops::MAX_SPEED_LIMIT + 1] {
+        assert!(ops
+            .set_settings(OpsSettings {
+                speed_limit_bps: Some(bad),
+                ..ops.settings()
+            })
+            .is_err());
+    }
+    assert_eq!(env.settings.saved(), None, "a refused change saves nothing");
+    env.write("a.txt", b"alpha");
+    env.dir("dst");
+    let id = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    assert!(ops.set_job_limits(id, Some(0), None).is_err());
+    env.wait_done(id);
+    assert!(ops.set_job_limits(id, Some(MIB), None).is_err());
+    assert_eq!(env.job(id).options.speed_limit, None);
+}
+
+#[test]
+fn a_higher_priority_job_is_taken_first_when_a_slot_frees_up() {
+    let env = env();
+    ops_one_at_a_time(&env);
+    for name in ["a", "b", "c", "d"] {
+        env.write(&format!("{name}.txt"), name.as_bytes());
+    }
+    env.dir("dst");
+    env.gate.block_all();
+    let first = env.submit("main-1", env.copy(&["a.txt"], "dst"));
+    env.gate.wait_held(1);
+    let mut low = env.copy(&["b.txt"], "dst");
+    low.options.priority = Some(JobPriority::Low);
+    let low = env.submit("main-1", low);
+    let normal = env.submit("main-1", env.copy(&["c.txt"], "dst"));
+    let high = env.submit("main-1", env.copy(&["d.txt"], "dst"));
+    for id in [low, normal, high] {
+        env.wait_state(id, "queued", |s| *s == JobState::Queued);
+    }
+    // The last to arrive is raised over the others while it waits.
+    env.ops()
+        .set_job_limits(high, None, Some(JobPriority::High))
+        .unwrap();
+    env.gate.open();
+    for id in [first, low, normal, high] {
+        env.wait_done(id);
+    }
+    let started = |id| {
+        env.events_of("main-1")
+            .iter()
+            .position(|e| matches!(e, OpsEvent::JobChanged { job, .. } if job.id == id && job.state == JobState::Running))
+            .expect("the job ran")
+    };
+    assert!(started(first) < started(high));
+    assert!(started(high) < started(normal), "high before normal");
+    assert!(started(normal) < started(low), "normal before low");
+}
+
+fn ops_one_at_a_time(env: &Env) {
+    let ops = env.ops();
+    ops.set_settings(OpsSettings {
+        concurrency: 1,
+        ..ops.settings()
+    })
+    .unwrap();
 }

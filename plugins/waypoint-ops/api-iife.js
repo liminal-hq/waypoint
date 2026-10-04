@@ -71,6 +71,13 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
         return cmd('reorder', { job, to });
     }
     /**
+     * Sets a queued or running job's own speed limit (bytes a second; `null` for none) and priority
+     * (`null` is normal). A running copy obeys the new limit within a fraction of a second.
+     */
+    function setJobLimits(job, speedLimit, priority) {
+        return cmd('set_job_limits', { job, speedLimit, priority });
+    }
+    /**
      * Answers the conflicts a job waits on: each decision settles one source's clash, and
      * `applyToAll` is the policy for every other clash the job meets.
      */
@@ -207,6 +214,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.retry = retry;
     exports.setClipboard = setClipboard;
     exports.setClipboardFromSelection = setClipboardFromSelection;
+    exports.setJobLimits = setJobLimits;
     exports.setSettings = setSettings;
     exports.submit = submit;
     exports.subscribeProgress = subscribeProgress;

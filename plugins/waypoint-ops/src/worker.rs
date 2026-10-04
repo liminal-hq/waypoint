@@ -26,7 +26,7 @@ use waypoint_ops::{
 use waypoint_protocol::Location;
 
 use crate::models::JobJournal;
-use crate::ops::{Core, Shared, Stage, Task};
+use crate::ops::{Core, Ops, Shared, Stage, Task};
 
 /// What a planning worker takes from the journal before it unlocks.
 enum Pre {
@@ -339,6 +339,10 @@ fn run_job<R: Runtime>(shared: &Arc<Shared<R>>, id: JobId) {
     }
     let mut options = RunOptions::for_job(&job_options, &settings, resolutions);
     options.clock = shared.clock.clone();
+    options.throttle = core
+        .ctl
+        .get(&id)
+        .map(|ctl| Ops::<R>::throttle_for(shared, ctl));
     let now = shared.clock.now_ms();
     let record = match &prepared {
         Prepared::Plain(plan) => PendingRecord::for_plan(id, now, &request, plan),

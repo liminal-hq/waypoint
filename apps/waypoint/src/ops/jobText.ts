@@ -7,7 +7,7 @@ import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSna
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import { formatSize } from '../browse/format';
 import { t, tf, tn, type MessageId, type PluralId } from '../i18n/messages';
-import type { Location } from '../services/opsClient';
+import type { JobPriority, Location } from '../services/opsClient';
 import { isFinished, jobFraction, type JobWithProgress } from './opsSelectors';
 
 /** The kinds this area words itself; the others show the title Rust made. */
@@ -42,6 +42,13 @@ export interface JobView {
 	destination: Location | null;
 	undoable: boolean;
 	finished: boolean;
+	/** This job's own speed limit in bytes a second, or `null` for none. */
+	speedLimit: number | null;
+	priority: JobPriority;
+	/** Whether the row offers a speed limit: a copy or move that has not finished. */
+	canLimit: boolean;
+	/** Whether the row offers a priority: a job that still waits for a slot. */
+	canPrioritise: boolean;
 }
 
 export function baseName(display: string): string {
@@ -201,6 +208,10 @@ export function jobViews(items: readonly JobWithProgress[], canShow: boolean): J
 			destination: job.destination,
 			undoable: job.undoable,
 			finished: isFinished(job),
+			speedLimit: job.options.speedLimit ?? null,
+			priority: job.options.priority ?? 'normal',
+			canLimit: !isFinished(job) && (job.kind.kind === 'copy' || job.kind.kind === 'move'),
+			canPrioritise: state === 'planning' || state === 'queued',
 		};
 	});
 }
