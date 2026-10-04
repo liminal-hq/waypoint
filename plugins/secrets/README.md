@@ -1,6 +1,6 @@
 # @liminal-hq/plugin-secrets
 
-Stores, tests for and deletes passwords, passphrases and tokens in the system keyring, so an app never writes one to its own files. On Linux it talks to the Secret Service on the session bus (GNOME Keyring, KWallet through its Secret Service bridge, KeePassXC) and, inside a Flatpak, to the Secret portal, both through [`oo7`](https://crates.io/crates/oo7). Windows Credential Manager is planned.
+Stores, tests for and deletes passwords, passphrases and tokens in the system keyring, so an app never writes one to its own files. On Linux it talks to the Secret Service on the session bus (GNOME Keyring, KWallet through its Secret Service bridge, KeePassXC) and, inside a Flatpak, to the Secret portal, both through [`oo7`](https://crates.io/crates/oo7). On Windows it uses Credential Manager.
 
 The plugin knows nothing about the app around it. It reports what works through `getStatus()` with a typed reason when no keyring runs or it stays locked, so an interface can hide an option and say why.
 

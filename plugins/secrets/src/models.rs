@@ -118,6 +118,8 @@ pub enum Flavour {
     SecretService,
     /// The Secret portal, in a Flatpak: the secrets live in an encrypted file the portal unlocks.
     SecretPortal,
+    /// Windows Credential Manager, the signed-in user's vault.
+    CredentialManager,
     /// Secrets held in memory only, for tests.
     Memory,
     /// No keyring support on this system.

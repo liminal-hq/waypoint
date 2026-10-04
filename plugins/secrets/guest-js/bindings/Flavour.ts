@@ -3,4 +3,4 @@
 /**
  * Which implementation is behind the plugin on this system.
  */
-export type Flavour = "secret-service" | "secret-portal" | "memory" | "unsupported";
+export type Flavour = "secret-service" | "secret-portal" | "credential-manager" | "memory" | "unsupported";
