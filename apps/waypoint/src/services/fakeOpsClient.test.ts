@@ -160,6 +160,23 @@ describe('FakeOpsClient', () => {
 		expect(fake.jobs().map((j) => j.id)).toEqual([a, b, c]);
 	});
 
+	it('sets a job’s limit and priority, refuses a finished job, and starts the highest priority first', async () => {
+		const fake = createFakeOpsClient({ concurrency: 1, autoStart: true });
+		const a = await fake.submit(request(['a']));
+		const b = await fake.submit(request(['b']));
+		const c = await fake.submit(request(['c']));
+		await fake.setJobLimits(a, 5_000_000, null);
+		expect(fake.jobs()[0]!.options.speedLimit).toBe(5_000_000);
+		await fake.setJobLimits(c, null, 'high');
+		await fake.setJobLimits(b, null, 'low');
+		fake.done(a);
+		expect(fake.jobs().map((j) => j.state.state)).toEqual(['done', 'queued', 'running']);
+		await expect(fake.setJobLimits(a, null, null)).rejects.toMatchObject({ kind: 'queue' });
+		// Back to normal removes the field, as Rust does.
+		await fake.setJobLimits(c, null, 'normal');
+		expect(fake.jobs()[2]!.options.priority).toBeUndefined();
+	});
+
 	it('waits on conflicts, keeps the unanswered ones, and runs once all are answered', async () => {
 		const fake = createFakeOpsClient();
 		const id = await fake.submit(request(['a', 'b']));

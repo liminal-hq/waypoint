@@ -40,6 +40,8 @@ export type RowKey =
 	| 'verify'
 	| 'algorithm'
 	| 'concurrency'
+	| 'speedLimit'
+	| 'speedLimitValue'
 	| 'undoDepth'
 	| 'trashExpiry'
 	| 'trashDays'

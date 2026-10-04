@@ -99,6 +99,36 @@ pub struct JobOptions {
     pub conflict: Option<ConflictPolicy>,
     /// Whether to verify copies. `None` takes the setting.
     pub verify: Option<bool>,
+    /// This job's own speed limit in bytes per second, on top of the global one; `None` is no
+    /// limit of its own (D157).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(type = "number | null", optional)]
+    pub speed_limit: Option<u64>,
+    /// Where the job stands when a slot frees up; `None` is `Normal` (D157).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub priority: Option<JobPriority>,
+}
+
+/// How soon a queued job is taken when a slot frees up: the highest first, and in queue order
+/// among equals. A running job is never stopped for a higher one.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS,
+)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum JobPriority {
+    Low,
+    #[default]
+    Normal,
+    High,
+}
+
+impl JobOptions {
+    /// The priority the job runs at.
+    pub fn priority(&self) -> JobPriority {
+        self.priority.unwrap_or_default()
+    }
 }
 
 /// A request to do something: what the frontend sends and the queue keeps, so a failed job can be
@@ -646,6 +676,11 @@ pub struct OpsSettings {
     #[serde(default)]
     #[ts(type = "number | null")]
     pub trash_expiry_days: Option<u32>,
+    /// The speed limit for every copy and move together, in bytes per second; `None` (the default)
+    /// is no limit (D157).
+    #[serde(default)]
+    #[ts(type = "number | null")]
+    pub speed_limit_bps: Option<u64>,
 }
 
 impl Default for OpsSettings {
@@ -657,6 +692,7 @@ impl Default for OpsSettings {
             confirm_trash: false,
             undo_depth: 50,
             trash_expiry_days: None,
+            speed_limit_bps: None,
         }
     }
 }

@@ -167,3 +167,36 @@
 	margin: 8px 0 0;
 	color: var(--wp-text-muted);
 }
+
+.controls {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+	margin-block-start: 4px;
+}
+
+.control {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--wp-text-secondary);
+}
+
+.select {
+	min-height: 28px;
+	padding-inline: 6px;
+	border: 0;
+	border-radius: 6px;
+	background: var(--wp-control-bg);
+	color: var(--wp-text-primary);
+	font: inherit;
+}
+
+.select:hover {
+	background: var(--wp-control-bg-hover);
+}
+
+.select:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}

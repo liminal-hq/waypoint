@@ -53,6 +53,26 @@ describe('the words for creating and renaming', () => {
 	});
 });
 
+describe('limits and priority in a row', () => {
+	it('offer a limit to an unfinished copy or move and a priority to a job that waits', async () => {
+		const fake = createFakeOpsClient({ concurrency: 1, autoStart: true });
+		const a = await fake.submit(request(['a']));
+		const b = await fake.submit(request(['b']));
+		await fake.setJobLimits(b, 2_000_000, 'low');
+		const [running, queued] = views(fake);
+		expect(running).toMatchObject({ canLimit: true, canPrioritise: false, priority: 'normal' });
+		expect(running!.speedLimit).toBeNull();
+		expect(queued).toMatchObject({
+			canLimit: true,
+			canPrioritise: true,
+			priority: 'low',
+			speedLimit: 2_000_000,
+		});
+		fake.done(a);
+		expect(views(fake)[0]).toMatchObject({ canLimit: false, canPrioritise: false });
+	});
+});
+
 describe('job words', () => {
 	it('words a single item by its name and several by their count', async () => {
 		const fake = createFakeOpsClient();

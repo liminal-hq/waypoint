@@ -14,6 +14,7 @@ import type { ConflictPreview } from '@liminal-hq/waypoint-protocol/generated/Co
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
 import type { JobJournal } from '@liminal-hq/waypoint-protocol/generated/JobJournal';
+import type { JobPriority } from '@liminal-hq/waypoint-protocol/generated/JobPriority';
 import type { JobProgress } from '@liminal-hq/waypoint-protocol/generated/JobProgress';
 import type { JobRequest } from '@liminal-hq/waypoint-protocol/generated/JobRequest';
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
@@ -51,6 +52,7 @@ export type {
 	DiffLine,
 	JobId,
 	JobJournal,
+	JobPriority,
 	JobProgress,
 	JobRequest,
 	JournalEntrySummary,
@@ -165,6 +167,18 @@ export function dismissFinished(): Promise<void> {
 /** Moves a queued job to `to` among the queued jobs (0 runs next). */
 export function reorder(job: JobId, to: number): Promise<void> {
 	return cmd<void>('reorder', { job, to });
+}
+
+/**
+ * Sets a queued or running job's own speed limit (bytes a second; `null` for none) and priority
+ * (`null` is normal). A running copy obeys the new limit within a fraction of a second.
+ */
+export function setJobLimits(
+	job: JobId,
+	speedLimit: number | null,
+	priority: JobPriority | null,
+): Promise<void> {
+	return cmd<void>('set_job_limits', { job, speedLimit, priority });
 }
 
 /**

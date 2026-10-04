@@ -9,11 +9,17 @@ import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/Setting
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { t, tf } from '../i18n/messages';
-import { DEFAULT_OPS, DEFAULT_TRASH_EXPIRY_DAYS } from './opsDefaults';
+import {
+	BYTES_PER_MB,
+	DEFAULT_OPS,
+	DEFAULT_SPEED_LIMIT_MBPS,
+	DEFAULT_TRASH_EXPIRY_DAYS,
+} from './opsDefaults';
 import { useSettingsEditor } from './SettingsEditor';
 
 /** The number fields' ranges: narrower than what Rust accepts, for what a person would choose. */
 export const CONCURRENCY_RANGE = { min: 1, max: 8 } as const;
+export const SPEED_LIMIT_RANGE = { min: 1, max: 10_000 } as const;
 export const UNDO_DEPTH_RANGE = { min: 1, max: 200 } as const;
 export const TRASH_DAYS_RANGE = { min: 1, max: 36_500 } as const;
 
@@ -22,6 +28,7 @@ export function OperationsPage() {
 	const current = ops ?? DEFAULT_OPS;
 	const unreadable = ops === null;
 	const sweep = current.trashExpiryDays !== null;
+	const limited = current.speedLimitBps !== null;
 	return (
 		<SettingsSection
 			description={
@@ -65,6 +72,41 @@ export function OperationsPage() {
 					step={1}
 					commitOn="commit"
 					onChange={(concurrency) => changeOps('concurrency', (o) => ({ ...o, concurrency }))}
+				/>
+				<ToggleRow
+					label={t('settings.operations.speedLimit.label')}
+					description={t('settings.operations.speedLimit.description')}
+					error={errors.speedLimit}
+					disabled={unreadable}
+					checked={limited}
+					onChange={(on) =>
+						changeOps('speedLimit', (o) => ({
+							...o,
+							speedLimitBps: on
+								? (o.speedLimitBps ?? DEFAULT_SPEED_LIMIT_MBPS * BYTES_PER_MB)
+								: null,
+						}))
+					}
+				/>
+				<NumberRow
+					label={t('settings.operations.speedLimitValue.label')}
+					description={
+						limited
+							? t('settings.operations.speedLimitValue.description')
+							: `${t('settings.operations.speedLimitValue.description')} ${t('settings.operations.speedLimitValue.needsLimit')}`
+					}
+					error={errors.speedLimitValue}
+					disabled={unreadable || !limited}
+					value={Math.round(
+						(current.speedLimitBps ?? DEFAULT_SPEED_LIMIT_MBPS * BYTES_PER_MB) / BYTES_PER_MB,
+					)}
+					{...SPEED_LIMIT_RANGE}
+					step={1}
+					unit={t('settings.operations.speedLimitValue.unit')}
+					commitOn="commit"
+					onChange={(mb) =>
+						changeOps('speedLimitValue', (o) => ({ ...o, speedLimitBps: mb * BYTES_PER_MB }))
+					}
 				/>
 				<NumberRow
 					label={t('settings.operations.undoDepth.label')}

@@ -13,6 +13,7 @@ permissions = [
   "allow-dismiss",
   "allow-dismiss-finished",
   "allow-reorder",
+  "allow-set-job-limits",
   "allow-resolve",
   "allow-conflict-preview",
   "allow-resolve-error",

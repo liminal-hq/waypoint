@@ -616,6 +616,21 @@ const messages: Catalogue = {
 	// source: 9fd5e89a
 	'settings.operations.concurrency.description':
 		'Le nombre de copies, de déplacements et de suppressions exécutés ensemble; les autres attendent dans la file d’attente. Un changement s’applique à la prochaine opération.',
+	// source: f1fac2cb
+	'settings.operations.speedLimit.label': 'Limiter la vitesse des copies et des déplacements',
+	// source: 3172f2e9
+	'settings.operations.speedLimit.description':
+		'Garde l’ensemble des copies et des déplacements sous la vitesse indiquée ci-dessous, ce qui aide sur un réseau ou pendant que vous travaillez. Un changement touche aussi les tâches déjà en cours.',
+	// source: fc141f8a
+	'settings.operations.speedLimitValue.label': 'Limite de vitesse',
+	// source: 636ea90a
+	'settings.operations.speedLimitValue.description':
+		'La quantité maximale de données que les copies et les déplacements transfèrent chaque seconde, tous ensemble. Une tâche peut aussi avoir sa propre limite dans la fenêtre Opérations.',
+	// source: 9559d7da
+	'settings.operations.speedLimitValue.needsLimit':
+		'Activez « Limiter la vitesse des copies et des déplacements » pour la définir.',
+	// source: 15f75205
+	'settings.operations.speedLimitValue.unit': 'Mo/s',
 	// source: 7f82de8b
 	'settings.operations.undoDepth.label': 'Profondeur de l’historique d’annulation',
 	// source: 39eb28a9
@@ -2417,6 +2432,24 @@ const messages: Catalogue = {
 	'ops.popOut.failed': 'Impossible d’ouvrir la fenêtre des opérations.',
 	// source: 911bed8c
 	'ops.reordered': '{title} déplacée à la position {position}',
+	// source: fc141f8a
+	'ops.speedLimit.label': 'Limite de vitesse',
+	// source: f7fcff0d
+	'ops.speedLimit.none': 'Aucune limite',
+	// source: d19e98ce
+	'ops.speedLimit.value': '{speed} Mo/s',
+	// source: 0dfbd261
+	'ops.speedLimit.announce': 'Limite de vitesse de {title} : {limit}',
+	// source: d60dbba0
+	'ops.priority.label': 'Priorité',
+	// source: c4ebc6d4
+	'ops.priority.high': 'Élevée',
+	// source: a7248eeb
+	'ops.priority.normal': 'Normale',
+	// source: f793de20
+	'ops.priority.low': 'Faible',
+	// source: ff227ba0
+	'ops.priority.announce': 'Priorité de {title} : {priority}',
 	// source: c66feb5e
 	'ops.moveUp': 'Monter',
 	// source: 40bb50da

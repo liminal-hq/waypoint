@@ -13,6 +13,7 @@ use waypoint_protocol::VfsError;
 use waypoint_vfs::{from_io, CancelToken, Provider, WriteOptions};
 
 use crate::model::VerifyAlgorithm;
+use crate::throttle::Throttle;
 use crate::verify::Hasher;
 
 /// The size of one read and write: 8 MiB (A50).
@@ -37,6 +38,9 @@ pub struct FileCopy<'a> {
     pub chunk: usize,
     /// How big the file is believed to be, to size the buffer.
     pub size_hint: u64,
+    /// The speed limits to obey, which cut the loop into paced pieces and keep the fast path out of
+    /// it while one is in force. The bytes copied are the same with or without it.
+    pub throttle: Option<&'a Throttle>,
 }
 
 /// What a finished copy made.
@@ -80,7 +84,8 @@ pub fn copy_file_bytes(
     progress: &mut dyn FnMut(u64),
     cancel: &CancelToken,
 ) -> Result<Copied, VfsError> {
-    if request.same_provider && request.verify.is_none() && !request.durable {
+    let limited = request.throttle.is_some_and(Throttle::is_limited);
+    if request.same_provider && request.verify.is_none() && !request.durable && !limited {
         let attempt = request.src_provider.copy_file_within(
             request.src,
             request.dst,
@@ -128,9 +133,17 @@ fn copy_loop(
             if cancel.is_cancelled() {
                 return Err(VfsError::Cancelled);
             }
-            let read = fill(&mut reader, buffer).map_err(|e| from_io(&e, &src_location))?;
+            // A limited copy moves a piece at a time, sized by the limit as it is now.
+            let piece = request
+                .throttle
+                .map_or(buffer.len(), |t| t.piece(buffer.len()));
+            let read =
+                fill(&mut reader, &mut buffer[..piece]).map_err(|e| from_io(&e, &src_location))?;
             if read == 0 {
                 return Ok(());
+            }
+            if let Some(throttle) = request.throttle {
+                throttle.pace(read, cancel)?;
             }
             if let Some(hasher) = hasher.as_mut() {
                 hasher.update(&buffer[..read]);

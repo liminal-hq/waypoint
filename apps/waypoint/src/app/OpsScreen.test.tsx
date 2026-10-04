@@ -91,6 +91,53 @@ describe('OpsScreen', () => {
 	});
 });
 
+describe('OpsScreen limits and priority', () => {
+	it('sets a running copy’s speed limit from its row and speaks it', async () => {
+		const user = userEvent.setup();
+		const fake = renderScreen();
+		await screen.findByText('Nothing is running.');
+		let id = 0;
+		await act(async () => {
+			id = await fake.submit(request(['a']));
+			fake.start(id);
+		});
+		const select = await screen.findByRole('combobox', { name: 'Speed limit: Copying a' });
+		expect(select).toHaveValue('');
+		expect(screen.queryByRole('combobox', { name: /^Priority/ })).toBeNull();
+		await user.selectOptions(select, '10 MB/s');
+		await waitFor(() => expect(fake.jobs()[0]!.options.speedLimit).toBe(10_000_000));
+		await waitFor(() =>
+			expect(
+				screen
+					.getAllByRole('status')
+					.map((r) => r.textContent)
+					.join('|'),
+			).toContain('Speed limit for Copying a: 10 MB/s'),
+		);
+		await user.selectOptions(select, 'No limit');
+		await waitFor(() => expect(fake.jobs()[0]!.options.speedLimit).toBeUndefined());
+	});
+
+	it('offers a priority only while a job waits, and a higher one starts first', async () => {
+		const user = userEvent.setup();
+		const fake = renderScreen(createFakeOpsClient({ concurrency: 1, autoStart: true }));
+		await screen.findByText('Nothing is running.');
+		const ids: number[] = [];
+		await act(async () => {
+			for (const name of ['a', 'b', 'c']) ids.push(await fake.submit(request([name])));
+		});
+		expect(fake.jobs().map((j) => j.state.state)).toEqual(['running', 'queued', 'queued']);
+		const priority = await screen.findByRole('combobox', { name: 'Priority: Copying c' });
+		expect(screen.queryByRole('combobox', { name: 'Priority: Copying a' })).toBeNull();
+		await user.selectOptions(priority, 'High');
+		await waitFor(() => expect(fake.jobs()[2]!.options.priority).toBe('high'));
+		await act(async () => fake.done(ids[0]!));
+		await waitFor(() =>
+			expect(fake.jobs().map((j) => j.state.state)).toEqual(['done', 'queued', 'running']),
+		);
+	});
+});
+
 describe('OpsScreen resolving', () => {
 	it('opens the conflict dialog from "Resolve…" for a job another window started', async () => {
 		const user = userEvent.setup();

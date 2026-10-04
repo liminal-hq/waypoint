@@ -160,6 +160,19 @@ pub async fn reorder<R: Runtime>(
     ops.reorder(job, to)
 }
 
+/// Changes a job's own speed limit (bytes a second; `None` for none) and priority (`None` is
+/// normal), on a queued or running job.
+#[tauri::command]
+pub async fn set_job_limits<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+    speed_limit: Option<u64>,
+    priority: Option<waypoint_ops::JobPriority>,
+) -> Result<(), Error> {
+    ops.set_job_limits(job, speed_limit, priority)
+}
+
 /// Answers the conflicts a job waits on: `decisions` settle one source's clash each, and
 /// `apply_to_all` is the policy for every other clash the job meets.
 #[tauri::command]

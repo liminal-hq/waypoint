@@ -5,13 +5,17 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { showNotice } from '../app/notices';
-import { t, tf } from '../i18n/messages';
+import { t, tf, type MessageId } from '../i18n/messages';
+import type { JobPriority } from '../services/opsClient';
 import { announce } from '../tabs/announcer';
 import type { JobView, JobAction } from './jobText';
 import { useOps, useOpsViews } from './OpsContext';
 import { OpsDownIcon, OpsPopOutIcon, OpsUpIcon } from './OpsIcons';
 import styles from './OpsPanel.module.css';
 import { requestResolve } from './resolveHook';
+import { speedLimitChoices, speedLimitLabel } from './speedLimits';
+
+const PRIORITIES: readonly JobPriority[] = ['high', 'normal', 'low'];
 
 function failureText(error: unknown): string {
 	if (error && typeof error === 'object' && 'message' in error) {
@@ -95,6 +99,30 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 		refocus.current = view.id;
 		void guard(handle.client.reorder(view.id, to));
 		announce(tf('ops.reordered', { title: view.title, position: to + 1 }));
+	};
+
+	const setLimit = (view: JobView, bytes: number | null) => {
+		void guard(
+			handle.client.setJobLimits(view.id, bytes, view.priority === 'normal' ? null : view.priority),
+		);
+		announce(
+			tf('ops.speedLimit.announce', {
+				title: view.title,
+				limit: speedLimitLabel(bytes),
+			}),
+		);
+	};
+
+	const setPriority = (view: JobView, priority: JobPriority) => {
+		void guard(
+			handle.client.setJobLimits(view.id, view.speedLimit, priority === 'normal' ? null : priority),
+		);
+		announce(
+			tf('ops.priority.announce', {
+				title: view.title,
+				priority: t(`ops.priority.${priority}` as MessageId),
+			}),
+		);
 	};
 
 	const onRowKeyDown = (event: KeyboardEvent<HTMLLIElement>, view: JobView, index: number) => {
@@ -209,6 +237,57 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 											</div>
 										)}
 										{view.detail && <span className={styles.detail}>{view.detail}</span>}
+										{(view.canLimit || view.canPrioritise) && (
+											<div className={styles.controls}>
+												{view.canLimit && (
+													<label className={styles.control}>
+														<span>{t('ops.speedLimit.label')}</span>
+														<select
+															className={styles.select}
+															aria-label={tf('ops.action.for', {
+																action: t('ops.speedLimit.label'),
+																title: view.title,
+															})}
+															value={view.speedLimit ?? ''}
+															onChange={(event) =>
+																setLimit(
+																	view,
+																	event.target.value === '' ? null : Number(event.target.value),
+																)
+															}
+														>
+															{speedLimitChoices(view.speedLimit).map((bytes) => (
+																<option key={bytes ?? 'none'} value={bytes ?? ''}>
+																	{speedLimitLabel(bytes)}
+																</option>
+															))}
+														</select>
+													</label>
+												)}
+												{view.canPrioritise && (
+													<label className={styles.control}>
+														<span>{t('ops.priority.label')}</span>
+														<select
+															className={styles.select}
+															aria-label={tf('ops.action.for', {
+																action: t('ops.priority.label'),
+																title: view.title,
+															})}
+															value={view.priority}
+															onChange={(event) =>
+																setPriority(view, event.target.value as JobPriority)
+															}
+														>
+															{PRIORITIES.map((priority) => (
+																<option key={priority} value={priority}>
+																	{t(`ops.priority.${priority}` as MessageId)}
+																</option>
+															))}
+														</select>
+													</label>
+												)}
+											</div>
+										)}
 									</div>
 									<div className={styles.actions}>
 										{view.queuePosition !== null && (

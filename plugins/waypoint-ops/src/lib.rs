@@ -19,7 +19,7 @@ pub use models::{
     Clipboard, ClipboardMode, ClipboardSource, Error, JobJournal, JobProgress, PlanNote,
     PlanPreview,
 };
-pub use ops::{Ops, MAX_CONCURRENCY, MAX_TRASH_EXPIRY_DAYS, MAX_UNDO_DEPTH};
+pub use ops::{Ops, MAX_CONCURRENCY, MAX_SPEED_LIMIT, MAX_TRASH_EXPIRY_DAYS, MAX_UNDO_DEPTH};
 
 /// The event every change to the queue or the journal is broadcast on, to every window; the
 /// payload is an `OpsEvent` carrying the queue's revision (a `JournalChanged` carries the journal's
@@ -65,6 +65,7 @@ pub fn init_with<R: Runtime>(
             commands::dismiss,
             commands::dismiss_finished,
             commands::reorder,
+            commands::set_job_limits,
             commands::resolve,
             commands::conflict_preview,
             commands::resolve_error,

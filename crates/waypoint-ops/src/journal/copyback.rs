@@ -74,6 +74,7 @@ fn copy_tree(
                     chunk: CHUNK_BYTES,
                     size_hint: entry.size.unwrap_or(0),
                     durable: true,
+                    throttle: None,
                 },
                 buf,
                 &mut |_| {},

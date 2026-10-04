@@ -1043,6 +1043,30 @@
     "message": "How many copies, moves and deletes run together; the rest wait in the queue. A change applies to the next operation.",
     "description": "Area: settings."
   },
+  "settings.operations.speedLimit.label": {
+    "message": "Limit copy and move speed",
+    "description": "Area: settings."
+  },
+  "settings.operations.speedLimit.description": {
+    "message": "Keeps every copy and move together under the speed below, which helps on a network or while you work. A change reaches jobs that are already running.",
+    "description": "Area: settings."
+  },
+  "settings.operations.speedLimitValue.label": {
+    "message": "Speed limit",
+    "description": "Area: settings."
+  },
+  "settings.operations.speedLimitValue.description": {
+    "message": "The most data that copies and moves transfer each second, all together. A job can also have a limit of its own in the Operations window.",
+    "description": "Area: settings."
+  },
+  "settings.operations.speedLimitValue.needsLimit": {
+    "message": "Turn on “Limit copy and move speed” to set this.",
+    "description": "Area: settings."
+  },
+  "settings.operations.speedLimitValue.unit": {
+    "message": "MB/s",
+    "description": "Area: settings."
+  },
   "settings.operations.undoDepth.label": {
     "message": "Undo history depth",
     "description": "Area: settings."
@@ -4414,6 +4438,42 @@
   "ops.reordered": {
     "message": "{title} moved to position {position}",
     "description": "Area: ops. Placeholders, kept exactly as written: {position} is a place in a list or row, a number; {title} is the title of a tab."
+  },
+  "ops.speedLimit.label": {
+    "message": "Speed limit",
+    "description": "Area: ops."
+  },
+  "ops.speedLimit.none": {
+    "message": "No limit",
+    "description": "Area: ops."
+  },
+  "ops.speedLimit.value": {
+    "message": "{speed} MB/s",
+    "description": "Area: ops. Placeholders, kept exactly as written: {speed} is a transfer speed with its unit."
+  },
+  "ops.speedLimit.announce": {
+    "message": "Speed limit for {title}: {limit}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {limit} is a maximum number; {title} is the title of a tab."
+  },
+  "ops.priority.label": {
+    "message": "Priority",
+    "description": "Area: ops."
+  },
+  "ops.priority.high": {
+    "message": "High",
+    "description": "Area: ops."
+  },
+  "ops.priority.normal": {
+    "message": "Normal",
+    "description": "Area: ops."
+  },
+  "ops.priority.low": {
+    "message": "Low",
+    "description": "Area: ops."
+  },
+  "ops.priority.announce": {
+    "message": "Priority of {title}: {priority}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {priority}; {title} is the title of a tab."
   },
   "ops.moveUp": {
     "message": "Move up",

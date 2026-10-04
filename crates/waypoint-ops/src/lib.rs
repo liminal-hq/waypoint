@@ -20,6 +20,7 @@ mod rename_rules;
 mod speed;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
+mod throttle;
 mod traits;
 mod verify;
 
@@ -55,6 +56,7 @@ pub use rename_rules::{
     RenameScope, RenameSpec, RuleError, RulePosition,
 };
 pub use speed::SpeedEstimator;
+pub use throttle::{Bucket, Pacer, RateCell, SystemPacer, Throttle, WAIT_SLICE};
 pub use traits::{
     Clock, CounterIds, IdSource, Protected, Providers, SelectionResolver, SettingsReader,
     StaticSettings, SystemClock, Trash, TrashReceipt,

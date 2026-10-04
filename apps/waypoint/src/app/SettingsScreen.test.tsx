@@ -443,6 +443,26 @@ describe('the Operations page', () => {
 		expect(await ops.getSettings()).toMatchObject({ trashExpiryDays: null });
 	});
 
+	it('turns the speed limit on at a default, sets it in MB/s and off again', async () => {
+		const { opsSaves, ops } = await open();
+		await goTo('Operations');
+		const speed = screen.getByRole('spinbutton', { name: 'Speed limit' });
+		const limit = screen.getByRole('switch', { name: 'Limit copy and move speed' });
+		expect(limit).not.toBeChecked();
+		expect(speed).toBeDisabled();
+		await userEvent.click(limit);
+		await waitFor(() => expect(speed).toBeEnabled());
+		expect(speed).toHaveValue(10);
+		expect(await ops.getSettings()).toMatchObject({ speedLimitBps: 10_000_000 });
+		fireEvent.change(speed, { target: { value: '25' } });
+		fireEvent.blur(speed);
+		await waitFor(() => expect(opsSaves).toHaveLength(2));
+		expect(opsSaves[1]).toMatchObject({ speedLimitBps: 25_000_000 });
+		await userEvent.click(limit);
+		await waitFor(() => expect(speed).toBeDisabled());
+		expect(await ops.getSettings()).toMatchObject({ speedLimitBps: null });
+	});
+
 	it('shows the operations plugin’s refusal under the row and keeps the value in force', async () => {
 		await open({
 			opsApi: (ops) => ({

@@ -25,4 +25,9 @@ undoDepth: number,
  * Empty items that have been in the Trash this many days or more when the app starts; `None`
  * (the default) never empties it by itself.
  */
-trashExpiryDays: number | null, };
+trashExpiryDays: number | null, 
+/**
+ * The speed limit for every copy and move together, in bytes per second; `None` (the default)
+ * is no limit (D157).
+ */
+speedLimitBps: number | null, };
