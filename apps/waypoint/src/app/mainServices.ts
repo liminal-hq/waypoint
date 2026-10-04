@@ -20,6 +20,7 @@ import type { TabsApi } from '../services/tabsApi';
 import type { TearoffClient } from '../services/tearoffClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
 import type { DevicesClient } from '../devices/devicesClient';
+import type { ConnectionsClient } from '../connections/connectionsClient';
 import type { ThumbnailsClient } from '../thumbnails/thumbnailsClient';
 import type { TrashClient } from '../trash/trashClient';
 import type { VfsClient } from '../services/vfsClient';
@@ -48,6 +49,8 @@ export interface MainServices {
 	trash?: TrashClient;
 	/** The drives and volumes behind the sidebar's Devices section; without it the section is not shown. */
 	devices?: DevicesClient;
+	/** The saved connections and the state of every server login; without it there is no Network section and no Connect dialog. */
+	connections?: ConnectionsClient;
 	/** Open With: the default and other applications for a file; without it Open With is not offered. */
 	openWith?: OpenWithClient;
 	/** Thumbnails for the views; without it every view keeps its icons. */
@@ -78,6 +81,7 @@ export interface MainServicesDeps {
 	createNativeDndClient?(): NativeDndClient;
 	createTrashClient?(): TrashClient;
 	createDevicesClient?(): DevicesClient;
+	createConnectionsClient?(): ConnectionsClient;
 	createOpenWithClient?(): OpenWithClient;
 	createThumbnailsClient?(): ThumbnailsClient;
 	createDetailsClient?(): DetailsClient;
@@ -113,6 +117,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		nativeDnd: deps.createNativeDndClient?.(),
 		trash: deps.createTrashClient?.(),
 		devices: deps.createDevicesClient?.(),
+		connections: deps.createConnectionsClient?.(),
 		openWith: deps.createOpenWithClient?.(),
 		thumbnails: deps.createThumbnailsClient?.(),
 		details: deps.createDetailsClient?.(),

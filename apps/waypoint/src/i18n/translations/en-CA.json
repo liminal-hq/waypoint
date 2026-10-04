@@ -847,6 +847,14 @@
     "message": "Remembered folder views",
     "description": "Area: settings."
   },
+  "settings.backup.group.connections": {
+    "message": "Saved connections",
+    "description": "Area: settings."
+  },
+  "settings.backup.group.recent": {
+    "message": "Recent servers",
+    "description": "Area: settings."
+  },
   "settings.backup.warning.unknownKeys.one": {
     "message": "{count} setting in the file is not in this version of Waypoint, so it will be left out.",
     "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.other."

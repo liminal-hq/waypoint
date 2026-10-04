@@ -1064,6 +1064,16 @@
     "description": "Area: settings.",
     "source": "a15aa3b0"
   },
+  "settings.backup.group.connections": {
+    "message": "Connexions enregistrées",
+    "description": "Area: settings.",
+    "source": "0c667864"
+  },
+  "settings.backup.group.recent": {
+    "message": "Serveurs récents",
+    "description": "Area: settings.",
+    "source": "aebd8a03"
+  },
   "settings.backup.warning.unknownKeys.one": {
     "message": "{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.",
     "description": "Area: settings. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are settings.backup.warning.unknownKeys.many, settings.backup.warning.unknownKeys.other.",

@@ -294,6 +294,8 @@ export const enMessages = {
 	'settings.backup.changes.other': '{count} changes',
 	'settings.backup.group.ui': 'Title bar and Action bar',
 	'settings.backup.group.folders': 'Remembered folder views',
+	'settings.backup.group.connections': 'Saved connections',
+	'settings.backup.group.recent': 'Recent servers',
 	'settings.backup.warning.unknownKeys.one':
 		'{count} setting in the file is not in this version of Waypoint, so it will be left out.',
 	'settings.backup.warning.unknownKeys.other':

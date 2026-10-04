@@ -484,6 +484,10 @@ const messages: Catalogue = {
 	'settings.backup.group.ui': 'Barre de titre et barre d’actions',
 	// source: a15aa3b0
 	'settings.backup.group.folders': 'Vues mémorisées des dossiers',
+	// source: 0c667864
+	'settings.backup.group.connections': 'Connexions enregistrées',
+	// source: aebd8a03
+	'settings.backup.group.recent': 'Serveurs récents',
 	// source: 9bee25a4
 	'settings.backup.warning.unknownKeys.one':
 		'{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.',
