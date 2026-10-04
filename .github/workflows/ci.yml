@@ -249,15 +249,18 @@ jobs:
   # with keys the tests generate (no root, no container), and Samba's `smbd` the same way with a
   # private state directory and the runner's own account; `WAYPOINT_SFTP_REQUIRE` and
   # `WAYPOINT_SMB_REQUIRE` make a missing server a failure here, where elsewhere the same tests skip.
+  # The archive provider needs no server, but its tests read archives made by the real `tar`, `zip`
+  # and `7z` tools (encrypted ones included); `WAYPOINT_ARCHIVE_REQUIRE` makes a missing tool a
+  # failure here.
   remote-conformance:
     name: Remote providers against real servers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install the OpenSSH and Samba servers
+      - name: Install the OpenSSH and Samba servers and the archivers
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba zip p7zip-full zstd xz-utils bzip2
           # The package starts system daemons on port 445 that the tests do not use.
           sudo systemctl disable --now smbd nmbd winbind 2>/dev/null || true
       - uses: Swatinem/rust-cache@v2
@@ -274,6 +277,11 @@ jobs:
         env:
           WAYPOINT_SMB_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-smb
+      - name: Run the archive provider against the real archivers
+        id: archive
+        env:
+          WAYPOINT_ARCHIVE_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-archive
 
       - name: Job summary
         if: always()
@@ -284,6 +292,7 @@ jobs:
             echo "|---|---|---|"
             echo "| SFTP | \`${{ steps.sftp.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config\` |"
             echo "| SMB | \`${{ steps.smb.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-smb\` |"
+            echo "| Archives | \`${{ steps.archive.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-archive\` |"
             echo
             bash scripts/junit-summary.sh target/nextest/ci/junit.xml
           } >> "${GITHUB_STEP_SUMMARY}"
