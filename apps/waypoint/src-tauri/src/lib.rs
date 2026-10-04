@@ -167,6 +167,8 @@ pub fn run() {
         .plugin(tauri_plugin_trash::init())
         .plugin(tauri_plugin_thumbnails::init())
         .plugin(tauri_plugin_volumes::init())
+        // The keyring behind saved logins and remembered passphrases. No window may read a secret back; the Settings window only reads its status.
+        .plugin(tauri_plugin_secrets::init())
         .plugin(tauri_plugin_window_effects::init())
         .plugin(tauri_plugin_mime_apps::init())
         .plugin(tauri_plugin_native_dnd::init())

@@ -8,6 +8,7 @@ import {
 	collectServiceStatuses,
 	integrationServiceStatus,
 	mimeAppsServiceStatus,
+	secretsServiceStatus,
 	nativeDndServiceStatus,
 	SERVICE_SOURCES,
 	systemAppearanceServiceStatus,
@@ -25,7 +26,9 @@ const plugins = vi.hoisted(() => ({
 	appearance: vi.fn(),
 	integrations: vi.fn(),
 	mimeApps: vi.fn(),
+	secrets: vi.fn(),
 }));
+vi.mock('@liminal-hq/plugin-secrets', () => ({ getStatus: plugins.secrets }));
 vi.mock('@liminal-hq/plugin-mime-apps', () => ({ getStatus: plugins.mimeApps }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
@@ -334,6 +337,46 @@ describe('the file types status', () => {
 	});
 });
 
+describe('the keyring plugin', () => {
+	const feature = (name: string, message: string | null) => ({
+		name,
+		available: message === null,
+		reason: message === null ? null : 'no-keyring',
+		message,
+	});
+
+	it('lists the features that work and says why none does when no keyring runs', async () => {
+		const message = 'no keyring is running';
+		plugins.secrets.mockResolvedValue({
+			available: false,
+			reason: 'no-keyring',
+			message,
+			flavour: 'unsupported',
+			features: ['store', 'fetch', 'delete'].map((name) => feature(name, message)),
+		});
+		expect(await secretsServiceStatus()).toEqual({
+			available: false,
+			reason: message,
+			features: [],
+		});
+	});
+
+	it('lists every feature when a keyring answers', async () => {
+		plugins.secrets.mockResolvedValue({
+			available: true,
+			reason: null,
+			message: null,
+			flavour: 'secret-service',
+			features: ['store', 'fetch', 'delete'].map((name) => feature(name, null)),
+		});
+		expect(await secretsServiceStatus()).toEqual({
+			available: true,
+			reason: null,
+			features: ['store', 'fetch', 'delete'],
+		});
+	});
+});
+
 describe('the Services panel sources', () => {
 	it('reports trash, native-dnd and waypoint-ops, and one that cannot answer does not hide the others', async () => {
 		expect(Object.keys(SERVICE_SOURCES)).toEqual([
@@ -349,6 +392,7 @@ describe('the Services panel sources', () => {
 			'window-tearoff',
 			'thumbnails',
 			'volumes',
+			'secrets',
 			'window-effects',
 			'mime-apps',
 			'xdg-portal',

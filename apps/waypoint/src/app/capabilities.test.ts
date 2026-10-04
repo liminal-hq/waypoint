@@ -190,14 +190,37 @@ describe('window capabilities', () => {
 		const settings = byId('settings');
 		// The Services panel runs in the Settings window and asks each plugin for its status; a plugin
 		// the window may not call is reported "not allowed by ACL" instead of what it can do.
-		for (const plugin of ['os-prefs', 'trash', 'volumes', 'window-tearoff', 'waypoint-ops']) {
+		for (const plugin of [
+			'os-prefs',
+			'trash',
+			'volumes',
+			'secrets',
+			'window-tearoff',
+			'waypoint-ops',
+		]) {
 			expect(settings.permissions, plugin).toContain(`${plugin}:allow-get-status`);
 		}
-		for (const plugin of ['os-prefs', 'trash', 'volumes', 'window-tearoff']) {
+		for (const plugin of ['os-prefs', 'trash', 'volumes', 'secrets', 'window-tearoff']) {
 			expect(
 				settings.permissions.filter((permission) => permission.startsWith(`${plugin}:`)),
 				plugin,
 			).toEqual([`${plugin}:allow-get-status`]);
 		}
+	});
+
+	it('lets no window read a secret back, and gives the keyring plugin to the Settings window for its status only', () => {
+		for (const capability of capabilities) {
+			expect(
+				capability.permissions.filter(
+					(p) => p === 'secrets:allow-fetch' || p === 'secrets:default',
+				),
+				capability.identifier,
+			).toEqual([]);
+		}
+		expect(
+			capabilities
+				.filter((capability) => capability.permissions.some((p) => p.startsWith('secrets:')))
+				.map((capability) => capability.identifier),
+		).toEqual(['settings']);
 	});
 });

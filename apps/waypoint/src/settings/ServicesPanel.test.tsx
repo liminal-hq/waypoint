@@ -73,6 +73,7 @@ describe('the registered sources', () => {
 			'mime-apps',
 			'native-dnd',
 			'os-prefs',
+			'secrets',
 			'system-appearance',
 			'thumbnails',
 			'trash',

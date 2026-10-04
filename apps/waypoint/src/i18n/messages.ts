@@ -73,6 +73,7 @@ export const enMessages = {
 	'services.name.window-tearoff': 'Tab tear-off',
 	'services.name.thumbnails': 'Thumbnails',
 	'services.name.volumes': 'Drives and volumes',
+	'services.name.secrets': 'Keyring and saved passwords',
 	'services.name.window-effects': 'Window effects',
 	'services.name.mime-apps': 'File types and Open With',
 	'services.name.xdg-portal': 'Desktop portal',

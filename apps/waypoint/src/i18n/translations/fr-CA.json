@@ -254,6 +254,11 @@
     "description": "Area: services.",
     "source": "b15a7fb6"
   },
+  "services.name.secrets": {
+    "message": "Trousseau et mots de passe enregistrés",
+    "description": "Area: services.",
+    "source": "79cd7236"
+  },
   "services.name.window-effects": {
     "message": "Effets de fenêtre",
     "description": "Area: services.",
