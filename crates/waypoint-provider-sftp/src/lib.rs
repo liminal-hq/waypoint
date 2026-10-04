@@ -13,12 +13,14 @@
 //! The provider is synchronous, as the trait is, and runs the asynchronous SSH library on a small
 //! Tokio runtime of its own. Listings keep a window of `readdir` requests in flight and hand each
 //! reply's entries over as they arrive; reads keep a window of 32 KiB requests in flight
-//! (spike #278, `milestone-6-spikes.md`).
+//! (spike #278, `milestone-6-spikes.md`). Writes keep a window of write requests in flight too,
+//! and narrow SFTP version 3's generic failures into the contract's typed errors (A88).
 //!
 //! Nothing here stores a secret: passwords and passphrases come from the `CredentialSource` or the
 //! person's answer for the one connection attempt that needs them.
 
 mod auth;
+mod changes;
 mod client;
 mod errors;
 mod host_keys;
@@ -31,6 +33,7 @@ mod provider;
 mod read;
 mod session;
 mod ssh_config;
+mod write;
 
 pub use host_keys::{HostKeyCheck, KnownHosts, MemoryKnownHosts, ServerKey};
 pub use known_hosts_file::OpenSshKnownHosts;

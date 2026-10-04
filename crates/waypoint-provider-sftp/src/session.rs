@@ -46,9 +46,26 @@ pub(crate) fn host_name(host: &Host) -> String {
     }
 }
 
+/// Which optional requests the server announced.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct Extensions {
+    /// `posix-rename@openssh.com`: a rename that replaces its target atomically.
+    pub posix_rename: bool,
+    /// `fsync@openssh.com`: commit a file's data to storage.
+    pub fsync: bool,
+    /// `lsetstat@openssh.com`: set attributes without following a symlink.
+    pub lsetstat: bool,
+    /// `statvfs@openssh.com`: free and total space.
+    pub statvfs: bool,
+    /// The server is OpenSSH (it announces `@openssh.com` extensions), which takes the two paths
+    /// of `SSH_FXP_SYMLINK` in the opposite order from the draft.
+    pub openssh: bool,
+}
+
 /// An open, logged-in session.
 pub(crate) struct Session {
     pub sftp: RawSftpSession,
+    pub extensions: Extensions,
     pub options: SftpOptions,
     handle: Handle<Client>,
     /// The sessions of the jump hosts this one runs through; dropping them closes it.
@@ -300,13 +317,21 @@ impl Opening<'_> {
             .init()
             .await
             .map_err(|error| from_sftp(&error, location))?;
-        log::debug!(
-            "sftp: version {} with {:?}",
-            version.version,
-            version.extensions.keys()
-        );
+        let announced = |name: &str| version.extensions.contains_key(name);
+        let extensions = Extensions {
+            posix_rename: announced("posix-rename@openssh.com"),
+            fsync: announced("fsync@openssh.com"),
+            lsetstat: announced("lsetstat@openssh.com"),
+            statvfs: announced("statvfs@openssh.com"),
+            openssh: version
+                .extensions
+                .keys()
+                .any(|name| name.ends_with("@openssh.com")),
+        };
+        log::debug!("sftp: version {} with {extensions:?}", version.version);
         Ok(Session {
             sftp,
+            extensions,
             options: self.options,
             handle,
             _hops: hops,

@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::collections::HashMap;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -12,10 +12,12 @@ use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use waypoint_path::{CaseRule, ConnectionKey, RemotePath, VfsPath};
 use waypoint_protocol::{ConnectionState, Location, VfsError};
 use waypoint_vfs::{
-    guess_mime, CancelToken, Capabilities, ConnectAnswer, DetailField, EntryDetails, EntryKind,
-    PermissionModel, Permissions, Provider, ReadStream, RenameSupport, ScannedEntry,
+    guess_mime, validate_name, CancelToken, Capabilities, ConnectAnswer, DetailField, EntryDetails,
+    EntryKind, FileTimes, PermissionModel, Permissions, Provider, ReadStream, RenameSupport,
+    ScannedEntry, VolumeSpace, WriteOptions, WriteStream,
 };
 
+use crate::changes::{self, Rename};
 use crate::client::SessionTrust;
 use crate::errors::{ends_session, from_sftp};
 use crate::listing;
@@ -24,6 +26,7 @@ use crate::paths::{remote, server_path};
 use crate::pool::Pool;
 use crate::read::SftpReader;
 use crate::session::{OpenStop, Opening, Session, Target};
+use crate::write::SftpWriter;
 
 struct Inner {
     config: SftpConfig,
@@ -213,6 +216,29 @@ impl SftpProvider {
         })
     }
 
+    /// Checks the name `path` would create, before anything is sent.
+    fn check_name(path: &VfsPath) -> Result<(), VfsError> {
+        match path.file_name() {
+            Some(name) => validate_name(&name, CaseRule::Sensitive),
+            None => Err(VfsError::InvalidName {
+                name: String::new(),
+                reason: "the root of a server has no name".to_owned(),
+            }),
+        }
+    }
+
+    /// Runs a change on `path`'s session; a change is never retried by itself.
+    fn change<T, F, Fut>(&self, path: &VfsPath, op: F) -> Result<T, VfsError>
+    where
+        F: Fn(Arc<Session>, String, Location) -> Fut,
+        Fut: Future<Output = Result<T, VfsError>>,
+    {
+        let location = path.to_location();
+        self.with_session(path, false, |session, server| {
+            op(session, server, location.clone())
+        })
+    }
+
     fn name_of(path: &VfsPath) -> String {
         path.file_name()
             .map(|name| name.to_string_lossy().into_owned())
@@ -231,12 +257,12 @@ impl Provider for SftpProvider {
         caps.range_read = true;
         caps.permissions = PermissionModel::Unix;
         caps.symlinks = true;
-        caps.rename = RenameSupport::None;
+        caps.write = true;
+        // The draft's rename refuses an existing target, but not every server keeps to it.
+        caps.rename = RenameSupport::Replacing;
+        caps.resume_write = true;
+        caps.set_times = true;
         caps
-    }
-
-    fn read_only(&self) -> bool {
-        true
     }
 
     fn stat(&self, path: &VfsPath) -> Result<ScannedEntry, VfsError> {
@@ -466,6 +492,133 @@ impl Provider for SftpProvider {
                     })
             }
         })
+    }
+
+    fn create_dir(&self, path: &VfsPath) -> Result<(), VfsError> {
+        Self::check_name(path)?;
+        self.change(path, |session, server, location| async move {
+            changes::create_dir(&session, &server, &location).await
+        })
+    }
+
+    fn create_file(&self, path: &VfsPath) -> Result<(), VfsError> {
+        Self::check_name(path)?;
+        self.change(path, |session, server, location| async move {
+            changes::create_file(&session, &server, &location).await
+        })
+    }
+
+    fn rename(&self, from: &VfsPath, to: &VfsPath, overwrite: bool) -> Result<(), VfsError> {
+        Self::check_name(to)?;
+        let target = remote(to)?;
+        if Some(target.connection_key()) != remote(from).ok().map(RemotePath::connection_key) {
+            return Err(VfsError::CrossesDevices {
+                from: from.to_location(),
+                to: to.to_location(),
+            });
+        }
+        let to_server = server_path(target)?;
+        let to_location = to.to_location();
+        self.change(from, |session, server, location| {
+            let (to_server, to_location) = (to_server.clone(), to_location.clone());
+            async move {
+                let rename = Rename {
+                    from: &server,
+                    to: &to_server,
+                    from_location: &location,
+                    to_location: &to_location,
+                    overwrite,
+                };
+                changes::rename(&session, rename).await
+            }
+        })
+    }
+
+    fn remove_file(&self, path: &VfsPath) -> Result<(), VfsError> {
+        self.change(path, |session, server, location| async move {
+            changes::remove_file(&session, &server, &location).await
+        })
+    }
+
+    fn remove_dir(&self, path: &VfsPath) -> Result<(), VfsError> {
+        self.change(path, |session, server, location| async move {
+            changes::remove_dir(&session, &server, &location).await
+        })
+    }
+
+    fn create_write(
+        &self,
+        path: &VfsPath,
+        options: WriteOptions,
+    ) -> Result<Box<dyn WriteStream>, VfsError> {
+        Self::check_name(path)?;
+        let runtime = self.runtime().handle().clone();
+        self.change(path, |session, server, location| {
+            let runtime = runtime.clone();
+            async move {
+                let mut flags = OpenFlags::WRITE | OpenFlags::CREATE;
+                flags |= if options.exclusive {
+                    OpenFlags::EXCLUDE
+                } else {
+                    OpenFlags::TRUNCATE
+                };
+                let handle =
+                    changes::open_for_writing(&session, &server, flags, options.mode, &location)
+                        .await?;
+                let writer = SftpWriter::start(&runtime, session, handle, 0, location);
+                Ok(Box::new(writer) as Box<dyn WriteStream>)
+            }
+        })
+    }
+
+    fn resume_write(&self, path: &VfsPath, offset: u64) -> Result<Box<dyn WriteStream>, VfsError> {
+        let runtime = self.runtime().handle().clone();
+        self.change(path, |session, server, location| {
+            let runtime = runtime.clone();
+            async move {
+                let handle =
+                    changes::open_for_writing(&session, &server, OpenFlags::WRITE, None, &location)
+                        .await?;
+                // Whatever is past the offset was not confirmed and is written again.
+                if let Err(error) = changes::truncate(&session, &handle, offset, &location).await {
+                    let _ = session.sftp.close(handle).await;
+                    return Err(error);
+                }
+                let writer = SftpWriter::start(&runtime, session, handle, offset, location);
+                Ok(Box::new(writer) as Box<dyn WriteStream>)
+            }
+        })
+    }
+
+    fn set_times(&self, path: &VfsPath, times: FileTimes) -> Result<(), VfsError> {
+        self.change(path, |session, server, location| async move {
+            changes::set_times(&session, &server, times, &location).await
+        })
+    }
+
+    fn set_permissions(&self, path: &VfsPath, permissions: Permissions) -> Result<(), VfsError> {
+        self.change(path, |session, server, location| async move {
+            changes::set_permissions(&session, &server, permissions, &location).await
+        })
+    }
+
+    fn symlink(&self, link: &VfsPath, target: &OsStr) -> Result<(), VfsError> {
+        Self::check_name(link)?;
+        let target = target.to_str().ok_or_else(|| VfsError::InvalidName {
+            name: target.to_string_lossy().into_owned(),
+            reason: "SFTP link texts that are not UTF-8 are not supported".to_owned(),
+        })?;
+        self.change(link, |session, server, location| async move {
+            changes::symlink(&session, &server, target, &location).await
+        })
+    }
+
+    fn free_space(&self, path: &VfsPath) -> Option<VolumeSpace> {
+        self.with_session(path, true, |session, server| async move {
+            Ok(changes::free_space(&session, &server).await)
+        })
+        .ok()
+        .flatten()
     }
 
     fn canonicalize(&self, path: &VfsPath) -> Result<VfsPath, VfsError> {
