@@ -1,0 +1,5 @@
+[workspace]
+resolver = "2"
+members = ["proxy", "sftp-russh", "sftp-ssh2", "dav", "s3-aws", "s3-opendal", "s3-rusts3"]
+[profile.release]
+debug = 0

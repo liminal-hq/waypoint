@@ -1,0 +1,8 @@
+[package]
+name = "smb-smb"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+smb = "0.12"
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"

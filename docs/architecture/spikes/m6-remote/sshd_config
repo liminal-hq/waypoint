@@ -1,0 +1,12 @@
+Port 2222
+ListenAddress 127.0.0.1
+HostKey /tmp/claude-1000/spike-remote/ssh/host_ed25519
+AuthorizedKeysFile /tmp/claude-1000/spike-remote/ssh/authorized_keys
+PidFile /tmp/claude-1000/spike-remote/ssh/sshd.pid
+PasswordAuthentication no
+PubkeyAuthentication yes
+KbdInteractiveAuthentication no
+UsePAM no
+StrictModes no
+Subsystem sftp /usr/lib/ssh/sftp-server
+LogLevel ERROR
