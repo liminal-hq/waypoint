@@ -53,6 +53,11 @@ impl ServerKey {
         &self.fingerprint
     }
 
+    /// The key's encoded blob.
+    pub(crate) fn base64(&self) -> &str {
+        &self.base64
+    }
+
     /// The key as `known_hosts` writes it: `algorithm base64`.
     pub fn to_openssh(&self) -> String {
         format!("{} {}", self.algorithm, self.base64)

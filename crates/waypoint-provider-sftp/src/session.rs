@@ -10,14 +10,14 @@ use std::time::Duration;
 
 use russh::client::{self, Handle};
 use russh_sftp::client::RawSftpSession;
-use waypoint_path::{ConnectionKey, Host, RemotePath};
+use waypoint_path::{ConnectionKey, Host};
 use waypoint_protocol::{AuthPrompt, Location, VfsError};
 use waypoint_vfs::{ConnectAnswer, Credential};
 
 use crate::auth::{AuthStop, Login};
 use crate::client::{Client, HostCheck, SessionTrust};
 use crate::errors::{from_connect_io, from_russh, from_sftp};
-use crate::options::{local_user, SftpConfig, SftpOptions};
+use crate::options::{SftpConfig, SftpOptions};
 
 /// Where one SSH hop goes and who logs in there.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,21 +31,6 @@ pub(crate) struct Target {
     pub identity_files: Vec<PathBuf>,
     /// The jump hosts to go through first, in order.
     pub jumps: Vec<Target>,
-}
-
-impl Target {
-    /// The target a location names, with no SSH config applied.
-    pub(crate) fn plain(path: &RemotePath, identity_files: Vec<PathBuf>) -> Self {
-        let authority = path.authority();
-        Self {
-            key: path.connection_key(),
-            host: host_name(&authority.host),
-            port: authority.port.unwrap_or(22),
-            user: authority.user.clone().unwrap_or_else(local_user),
-            identity_files,
-            jumps: Vec::new(),
-        }
-    }
 }
 
 /// A host as a socket address reads it.
@@ -338,7 +323,6 @@ fn auth_required(location: &Location, prompt: AuthPrompt) -> VfsError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use waypoint_path::VfsPath;
 
     #[test]
@@ -346,7 +330,7 @@ mod tests {
         let VfsPath::Remote(path) = VfsPath::from_uri("sftp://me@NAS.lan:2222/srv").unwrap() else {
             panic!()
         };
-        let target = Target::plain(&path, Vec::new());
+        let target = crate::ssh_config::resolve(&path, None, Some(&[]), &Vec::new);
         assert_eq!(target.host, "nas.lan");
         assert_eq!(target.port, 2222);
         assert_eq!(target.user, "me");
@@ -354,7 +338,7 @@ mod tests {
         let VfsPath::Remote(path) = VfsPath::from_uri("sftp://[::1]/").unwrap() else {
             panic!()
         };
-        let target = Target::plain(&path, Vec::new());
+        let target = crate::ssh_config::resolve(&path, None, Some(&[]), &Vec::new);
         assert_eq!(target.host, "::1");
         assert_eq!(target.port, 22);
         assert!(!target.user.is_empty());
