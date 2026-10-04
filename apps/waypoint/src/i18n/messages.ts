@@ -1456,6 +1456,8 @@ export const enMessages = {
 	'ops.problem.message.undoStale': 'This cannot be undone: {reason}',
 	'ops.problem.message.undoUnavailable': '{reason}',
 	'ops.problem.message.io': 'The system reported a problem: {message}',
+	'ops.problem.message.connection':
+		'The connection to the server that holds {location} failed. Retry connects again.',
 	'ops.problem.details': 'Details',
 	'ops.problem.details.expected': 'Expected checksum: {digest}',
 	'ops.problem.details.actual': 'Found checksum: {digest}',

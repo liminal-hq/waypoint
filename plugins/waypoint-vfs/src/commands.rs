@@ -210,6 +210,12 @@ impl Vfs {
                 .ok_or_else(|| VfsError::Unsupported {
                     what: "the Trash cannot be read here".to_owned(),
                 }),
+            // Server, archive and Git providers are registered from milestone 6 on (A85).
+            VfsPath::Remote(_) | VfsPath::Archive(_) | VfsPath::Git(_) => {
+                Err(VfsError::Unsupported {
+                    what: path.scheme().to_owned(),
+                })
+            }
         }
     }
 }

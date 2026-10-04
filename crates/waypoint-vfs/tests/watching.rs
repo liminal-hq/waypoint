@@ -593,10 +593,9 @@ fn a_provider_that_cannot_watch_says_so() {
             "file"
         }
         fn capabilities(&self) -> Capabilities {
-            Capabilities {
-                watch: false,
-                ..self.0.capabilities()
-            }
+            let mut capabilities = self.0.capabilities();
+            capabilities.watch = false;
+            capabilities
         }
         fn stat(&self, path: &VfsPath) -> Result<ScannedEntry, VfsError> {
             self.0.stat(path)

@@ -2804,6 +2804,9 @@ const messages: Catalogue = {
 	'ops.problem.message.undoUnavailable': '{reason}',
 	// source: 89438320
 	'ops.problem.message.io': 'Le système a signalé un problème : {message}',
+	// source: 2fd894ca
+	'ops.problem.message.connection':
+		'La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.',
 	// source: 45989de4
 	'ops.problem.details': 'Détails',
 	// source: f924415e

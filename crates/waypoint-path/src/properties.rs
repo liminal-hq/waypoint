@@ -173,3 +173,76 @@ fn windows_join_then_parent_returns_the_base() {
         assert_eq!(child.parent().unwrap(), base);
     }
 }
+
+const HOSTS: [&str; 8] = [
+    "nas",
+    "NAS.Example.org",
+    "10.0.0.7",
+    "[::1]",
+    "[2001:DB8::0:1]",
+    "[fe80::1%25eth0]",
+    "b%C3%BCcher.example",
+    "h-1.lan",
+];
+
+const USERS: [&str; 5] = ["", "me@", "WORK;me@", "a%40b@", "caf%C3%A9@"];
+
+const SCHEMES: [&str; 5] = ["sftp", "SMB", "dav", "davs", "webdavs"];
+
+fn remote_uri(rng: &mut Rng) -> String {
+    let mut out = format!(
+        "{}://{}{}",
+        SCHEMES[rng.below(SCHEMES.len())],
+        USERS[rng.below(USERS.len())],
+        HOSTS[rng.below(HOSTS.len())]
+    );
+    if rng.below(3) == 0 {
+        out.push_str([":22", ":445", ":8443", ":1"][rng.below(4)]);
+    }
+    for _ in 0..rng.below(5) {
+        out.push('/');
+        let part = BYTE_PARTS[rng.below(BYTE_PARTS.len())];
+        let mut encoded = String::new();
+        crate::encoding::encode_into(&mut encoded, part, &[]);
+        out.push_str(&encoded);
+    }
+    out
+}
+
+#[test]
+fn remote_canonical_forms_are_fixed_points_and_round_trip() {
+    let mut rng = Rng(0x5851_F42D_4C95_7F2D);
+    for _ in 0..CASES {
+        let text = remote_uri(&mut rng);
+        let path = crate::RemotePath::from_uri(&text).unwrap_or_else(|e| panic!("{text}: {e}"));
+        let uri = path.to_uri();
+        assert!(uri.is_ascii(), "{uri}");
+        let again = crate::RemotePath::from_uri(&uri).unwrap();
+        assert_eq!(again, path, "{text} via {uri}");
+        assert_eq!(again.to_uri(), uri, "{text}");
+        // Every parent is a prefix of the path, and joining the name back returns it.
+        if let (Some(parent), Some(name)) = (path.parent(), path.file_name()) {
+            assert_eq!(parent.join(&name).unwrap(), path, "{text}");
+            assert!(
+                uri.starts_with(parent.to_uri().trim_end_matches('/')),
+                "{uri}"
+            );
+        }
+    }
+}
+
+#[test]
+fn archives_of_remotes_round_trip() {
+    let mut rng = Rng(0x2127_599B_F432_5C37);
+    for _ in 0..CASES / 4 {
+        let container = remote_uri(&mut rng) + "/x!.zip";
+        let uri = format!(
+            "archive:{}!/a%21/b",
+            crate::RemotePath::from_uri(&container).unwrap().to_uri()
+        );
+        let path = crate::VfsPath::from_uri(&uri).unwrap_or_else(|e| panic!("{uri}: {e}"));
+        assert_eq!(path.to_uri(), uri);
+        let nested = format!("archive:{uri}!/c");
+        assert_eq!(crate::VfsPath::from_uri(&nested).unwrap().to_uri(), nested);
+    }
+}

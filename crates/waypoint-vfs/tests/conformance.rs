@@ -878,10 +878,7 @@ impl Provider for ReadOnlyProvider {
         "ro"
     }
     fn capabilities(&self) -> waypoint_vfs::Capabilities {
-        waypoint_vfs::Capabilities {
-            watch: false,
-            case_rule: CaseRule::Sensitive,
-        }
+        waypoint_vfs::Capabilities::new(CaseRule::Sensitive)
     }
     fn stat(&self, _: &VfsPath) -> Result<waypoint_vfs::ScannedEntry, VfsError> {
         unreachable!()

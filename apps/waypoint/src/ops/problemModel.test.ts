@@ -35,6 +35,16 @@ const CASES: Array<[OpsError, RegExp]> = [
 	],
 	[{ kind: 'undoUnavailable', reason: 'nothing to undo' }, /nothing to undo/],
 	[{ kind: 'io', message: 'the disk hiccupped' }, /system reported a problem: the disk hiccupped/],
+	[
+		{
+			kind: 'connection',
+			error: {
+				kind: 'disconnected',
+				location: { display: 'sftp://nas/srv', uri: 'sftp://nas/srv' },
+			},
+		},
+		/server that holds sftp:\/\/nas\/srv failed\. Retry connects again/,
+	],
 ];
 
 describe('problemText', () => {
@@ -44,7 +54,7 @@ describe('problemText', () => {
 
 	it('covers every kind of error', () => {
 		const kinds = new Set(CASES.map(([error]) => error.kind));
-		expect(kinds.size).toBe(18);
+		expect(kinds.size).toBe(19);
 	});
 
 	it('keeps the checksums of a failed verification as details, not in the message', () => {

@@ -5071,6 +5071,10 @@
     "message": "The system reported a problem: {message}",
     "description": "Area: ops. Placeholders, kept exactly as written: {message} is a message from the system, which may be in English."
   },
+  "ops.problem.message.connection": {
+    "message": "The connection to the server that holds {location} failed. Retry connects again.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
+  },
   "ops.problem.details": {
     "message": "Details",
     "description": "Area: ops."
