@@ -6,13 +6,19 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::Location;
+use crate::{AuthPrompt, Certificate, HostKey, HostKeyChange, Location, UnreachableReason};
 
 /// Why a listing or location could not be opened or kept up to date. Each variant is something
 /// the UI shows as a distinct state (SPEC 5.3b, 5.5), never a blank view.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+// The trust and login payloads are boxed so the error stays as small as it was before them: it is
+// the `Err` of nearly every call.
 pub enum VfsError {
     /// The location does not exist (any more).
     NotFound { location: Location },
@@ -49,6 +55,48 @@ pub enum VfsError {
     InvalidName { name: String, reason: String },
     /// A file cannot be shown as text because it holds binary data (a NUL byte in its first bytes).
     NotText { location: Location },
+    /// The connection to the location's server is closed or was lost. Reconnecting may help.
+    Disconnected { location: Location },
+    /// Nothing answered at the server's address.
+    Unreachable {
+        location: Location,
+        reason: UnreachableReason,
+    },
+    /// The server stopped answering within the connection's timeout.
+    Timeout { location: Location },
+    /// The location needs a login, or a passphrase, that Waypoint does not have. `prompt` says
+    /// what to ask for; it never holds a secret.
+    AuthRequired {
+        location: Location,
+        prompt: Box<AuthPrompt>,
+    },
+    /// The server refused the credential it was given.
+    AuthFailed { location: Location },
+    /// An SSH server whose key is not known yet: the person decides whether to trust it.
+    HostKeyUnknown {
+        location: Location,
+        key: Box<HostKey>,
+    },
+    /// An SSH server whose key differs from the one recorded for it. It never connects silently:
+    /// only the explicit `TrustChangedHostKey` answer, after a warning that shows both
+    /// fingerprints, replaces the recorded key (D148).
+    HostKeyChanged {
+        location: Location,
+        change: Box<HostKeyChange>,
+    },
+    /// A TLS certificate the system does not trust.
+    CertificateUntrusted {
+        location: Location,
+        certificate: Box<Certificate>,
+    },
+    /// The service asked to slow down. `retry_after_ms` is how long it asked to wait, if it said.
+    RateLimited {
+        location: Location,
+        #[ts(type = "number | null")]
+        retry_after_ms: Option<u64>,
+    },
+    /// The file cannot be read as what it should be: a damaged archive or repository.
+    Corrupt { location: Location },
     /// Any other I/O failure, with the operating system's message.
     Io {
         message: String,
@@ -69,5 +117,23 @@ mod tests {
         })
         .unwrap();
         assert!(json.starts_with(r#"{"kind":"notFound","location":"#));
+    }
+
+    #[test]
+    fn connection_errors_name_their_fields_in_camel_case() {
+        let location = Location::new("sftp://h/", "sftp://h/");
+        let json = serde_json::to_value(VfsError::RateLimited {
+            location: location.clone(),
+            retry_after_ms: Some(1500),
+        })
+        .unwrap();
+        assert_eq!(json["kind"], "rateLimited");
+        assert_eq!(json["retryAfterMs"], 1500);
+        let json = serde_json::to_value(VfsError::Unreachable {
+            location,
+            reason: UnreachableReason::Refused,
+        })
+        .unwrap();
+        assert_eq!(json["reason"], "refused");
     }
 }

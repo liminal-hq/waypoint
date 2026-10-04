@@ -288,10 +288,7 @@ impl Provider for LocalProvider {
     }
 
     fn capabilities(&self) -> Capabilities {
-        Capabilities {
-            watch: true,
-            case_rule: CaseRule::NATIVE,
-        }
+        Capabilities::local()
     }
 
     fn stat(&self, path: &VfsPath) -> Result<ScannedEntry, VfsError> {

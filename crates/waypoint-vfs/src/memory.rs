@@ -25,7 +25,7 @@ use crate::error::InjectedError;
 use crate::icon::group_for_scan;
 use crate::model::{EntryKind, VolumeSpace};
 use crate::names::validate_new_path;
-use crate::provider::{Capabilities, Provider, ScannedEntry};
+use crate::provider::{Capabilities, PermissionModel, Provider, RenameSupport, ScannedEntry};
 use crate::write::{FileTimes, Permissions, ReadStream, VolumeId, WriteOptions, WriteStream};
 use crate::CancelToken;
 
@@ -596,10 +596,16 @@ impl Provider for MemoryProvider {
     }
 
     fn capabilities(&self) -> Capabilities {
-        Capabilities {
-            watch: false,
-            case_rule: self.lock().rule,
-        }
+        let inner = self.lock();
+        let mut capabilities = Capabilities::new(inner.rule);
+        capabilities.write = true;
+        capabilities.rename = RenameSupport::NoReplace;
+        capabilities.server_copy = inner.fast_copy;
+        capabilities.permissions = PermissionModel::Unix;
+        capabilities.symlinks = true;
+        capabilities.set_times = true;
+        capabilities.max_name_len = Some(255);
+        capabilities
     }
 
     fn read_only(&self) -> bool {

@@ -459,7 +459,11 @@ fn a_source_that_is_not_a_location_or_has_no_provider_is_refused() {
         other.sources = Sources::Locations {
             locations: vec![Location::new("x", "sftp://host/x")],
         };
-        assert!(matches!(plan_err(&h, &other), OpsError::Io { .. }));
+        // A server location parses, and no provider serves its scheme here.
+        assert!(matches!(
+            plan_err(&h, &other),
+            OpsError::Unsupported { what } if what.contains("sftp")
+        ));
     });
 }
 

@@ -69,6 +69,12 @@ export function problemText(error: OpsError): ProblemText {
 		case 'io':
 			message = tf(key(error.kind), { message: error.message });
 			break;
+		case 'connection':
+			// Every connection error names the location it was met at.
+			message = tf(key(error.kind), {
+				location: ('location' in error.error && error.error.location?.display) || '',
+			});
+			break;
 		case 'sameFolder':
 		case 'intoItself':
 		case 'cancelled':

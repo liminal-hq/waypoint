@@ -6659,6 +6659,11 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {message} is a message from the system, which may be in English.",
     "source": "89438320"
   },
+  "ops.problem.message.connection": {
+    "message": "La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
+    "source": "2fd894ca"
+  },
   "ops.problem.details": {
     "message": "Détails",
     "description": "Area: ops.",
