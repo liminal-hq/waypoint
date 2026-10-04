@@ -11,9 +11,9 @@ build = "build.rs"
 links = "tauri-plugin-system-appearance"
 
 [package.metadata.platforms.support]
-windows = { level = "partial", notes = "Reports the fixed Windows titlebar layout and actions, and reads the appearance preferences through UISettings, AccessibilitySettings and the registry; type-checked for Windows but not yet run there" }
-linux = { level = "full", notes = "Reads xdg-desktop-portal, kwinrc, kdeglobals, gsettings or xfconf depending on the desktop environment, and watches for changes" }
-macos = { level = "partial", notes = "Reports the fixed macOS traffic-light layout and the double-click action from NSGlobalDomain, and reports every appearance preference as unavailable; changes are not pushed" }
+windows = { level = "partial", notes = "Reports the fixed Windows titlebar layout and actions, and reads the appearance preferences through UISettings, AccessibilitySettings and the registry and the colour palette through UISettings and GetSysColor; type-checked for Windows but not yet run there" }
+linux = { level = "full", notes = "Reads xdg-desktop-portal, kwinrc, kdeglobals, gsettings or xfconf depending on the desktop environment, and the colour palette from kdeglobals or the GTK theme, and watches for changes" }
+macos = { level = "partial", notes = "Reports the fixed macOS traffic-light layout and the double-click action from NSGlobalDomain, and reports every appearance preference and every palette colour as unavailable; changes are not pushed" }
 android = { level = "none", notes = "Desktop window titlebars only" }
 ios = { level = "none", notes = "Desktop window titlebars only" }
 
@@ -33,6 +33,7 @@ ts-rs = "12"
 [target.'cfg(target_os = "linux")'.dependencies]
 ashpd = { version = "0.13", default-features = false, features = ["tokio", "settings"] }
 futures-util = "0.3"
+gtk = "0.18"
 notify = "8"
 
 # Matches the version Tauri resolves.
@@ -42,6 +43,7 @@ windows = { version = "0.62", features = [
   "UI",
   "UI_ViewManagement",
   "Win32_Foundation",
+  "Win32_Graphics_Gdi",
   "Win32_System_Registry",
   "Win32_System_WinRT",
 ] }

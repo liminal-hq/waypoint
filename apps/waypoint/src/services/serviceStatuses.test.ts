@@ -44,6 +44,14 @@ beforeEach(() => {
 
 const feature = (available: boolean, reason: string | null = null) => ({ available, reason });
 
+const noPalette = {
+	available: false,
+	source: null,
+	reason: 'sourceMissing',
+	detail: 'the GTK theme defines none of theme_bg_color',
+};
+const workingPalette = { available: true, source: 'gtkTheme', reason: null, detail: null };
+
 const appearanceFeature = (name: string, available: boolean, detail: string | null = null) => ({
 	feature: name,
 	available,
@@ -63,6 +71,7 @@ describe('the system appearance status', () => {
 				appearanceFeature('colourScheme', true),
 				appearanceFeature('contrast', false, 'no contrast setting'),
 			],
+			palette: noPalette,
 		});
 		expect(await systemAppearanceServiceStatus()).toEqual({
 			available: true,
@@ -81,12 +90,57 @@ describe('the system appearance status', () => {
 				appearanceFeature('colourScheme', true),
 				appearanceFeature('reducedTransparency', false, 'the portal has no such setting'),
 			],
+			palette: noPalette,
 		});
 		expect(await systemAppearanceServiceStatus()).toEqual({
 			available: true,
 			reason: 'the portal has no such setting',
 			features: ['portal', 'colourScheme'],
 		});
+	});
+
+	it('lists the palette among the working features, which "Match the system\'s colours" needs', async () => {
+		plugins.appearance.mockResolvedValue({
+			available: true,
+			reason: null,
+			features: ['portal'],
+			appearanceAvailable: true,
+			appearance: [appearanceFeature('colourScheme', true)],
+			palette: workingPalette,
+		});
+		expect(await systemAppearanceServiceStatus()).toEqual({
+			available: true,
+			reason: null,
+			features: ['portal', 'colourScheme', 'palette'],
+		});
+	});
+
+	it('says why the palette is missing when it is the only thing that is', async () => {
+		plugins.appearance.mockResolvedValue({
+			available: true,
+			reason: null,
+			features: ['portal'],
+			appearanceAvailable: true,
+			appearance: [appearanceFeature('colourScheme', true)],
+			palette: noPalette,
+		});
+		expect(await systemAppearanceServiceStatus()).toEqual({
+			available: true,
+			reason: 'the GTK theme defines none of theme_bg_color',
+			features: ['portal', 'colourScheme'],
+		});
+	});
+
+	it('is available through the palette alone', async () => {
+		plugins.appearance.mockResolvedValue({
+			available: false,
+			reason: 'no portal',
+			features: [],
+			appearanceAvailable: false,
+			appearance: [appearanceFeature('colourScheme', false, 'no source')],
+			palette: workingPalette,
+		});
+		expect((await systemAppearanceServiceStatus()).available).toBe(true);
 	});
 
 	it('is unavailable when nothing works', async () => {
@@ -96,6 +150,7 @@ describe('the system appearance status', () => {
 			features: [],
 			appearanceAvailable: false,
 			appearance: [appearanceFeature('colourScheme', false, 'no source')],
+			palette: noPalette,
 		});
 		expect(await systemAppearanceServiceStatus()).toEqual({
 			available: false,

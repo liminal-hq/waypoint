@@ -246,6 +246,29 @@ const messages: Catalogue = {
 	'settings.appearance.accentColour.label': 'Accent personnalisé',
 	// source: 3f7017b3
 	'settings.appearance.accentColour.description': 'Choisissez la couleur à utiliser.',
+	// source: 07db0824
+	'settings.appearance.systemColours.label': 'Adopter les couleurs du système',
+	// source: b37ee2d6
+	'settings.appearance.systemColours.description':
+		'Dessine les surfaces, le texte et la sélection avec les couleurs du thème de votre bureau plutôt qu’avec celles de Waypoint. L’accent suit toujours son propre réglage, le texte garde un contraste d’au moins 4,5:1 et l’anneau de focus de 3:1, et l’apparence Waypoint n’est qu’à un clic.',
+	// source: 0100f124
+	'settings.appearance.systemColours.lifted':
+		'Pour que tout reste lisible, Waypoint a ajusté {parts} par rapport aux couleurs de votre système.',
+	// source: 41a1f654
+	'settings.appearance.systemColours.part.text': 'le texte',
+	// source: cd418405
+	'settings.appearance.systemColours.part.selection': 'la sélection',
+	// source: 401cb4f7
+	'settings.appearance.systemColours.part.status':
+		'les couleurs d’avertissement, d’erreur et de réussite',
+	// source: c2c23e6d
+	'settings.appearance.systemColours.part.focus': 'l’anneau de focus',
+	// source: a8f1cf41
+	'settings.appearance.systemColours.highContrast':
+		'Le contraste élevé est activé et utilise déjà les couleurs propres au système : ce réglage n’a donc aucun effet pour le moment.',
+	// source: 5e2b42df
+	'settings.appearance.systemColours.otherVariant':
+		'Le mode de couleur ci-dessus est réglé sur une apparence que les couleurs de votre système n’ont pas, alors Waypoint dessine avec ses propres couleurs. Choisissez Système pour utiliser les couleurs du système.',
 	// source: 77a283d6
 	'settings.appearance.density.label': 'Densité',
 	// source: 693b7292

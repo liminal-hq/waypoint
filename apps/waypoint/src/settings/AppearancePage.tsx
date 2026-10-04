@@ -6,16 +6,33 @@
 import { ColourRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ColourRow';
 import { SegmentedRow } from '@liminal-hq/waypoint-chrome/SettingsShell/SegmentedRow';
 import { SelectRow } from '@liminal-hq/waypoint-chrome/SettingsShell/SelectRow';
+import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsGroup';
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import type { AccentChoice } from '@liminal-hq/waypoint-protocol/generated/AccentChoice';
+import { formatLocale } from '../i18n/active';
 import { t, tf } from '../i18n/messages';
 import styles from './AppearancePage.module.css';
 import { resolveIconTheme } from '../icons/iconTheme';
 import { useSystemOffer } from '../icons/systemIcons';
 import { EMBER } from '../theme/accent';
+import type { LiftedColour } from '../theme/palette';
+import { usePaletteReport } from '../theme/paletteReport';
 import { FolderColourRow, IconStyleRow, IconThemeRow } from './IconChoices';
 import { useSettingsEditor } from './SettingsEditor';
+
+/** What the contrast floor moved, in words: one phrase per kind of colour, in a fixed order. */
+function liftedParts(lifted: readonly LiftedColour[]): string {
+	const has = (...tokens: string[]): boolean => lifted.some((one) => tokens.includes(one.token));
+	const parts = [
+		has('text-primary', 'text-secondary', 'text-muted') &&
+			t('settings.appearance.systemColours.part.text'),
+		has('bg-selected') && t('settings.appearance.systemColours.part.selection'),
+		has('danger', 'success', 'warning') && t('settings.appearance.systemColours.part.status'),
+		has('focus-ring') && t('settings.appearance.systemColours.part.focus'),
+	].filter((part): part is string => part !== false);
+	return new Intl.ListFormat(formatLocale(), { style: 'long', type: 'conjunction' }).format(parts);
+}
 
 /** The colour the picker starts at when a person chooses "Choose a colour". */
 const CUSTOM_START = EMBER.light.fill;
@@ -31,6 +48,9 @@ export function AppearancePage() {
 	const system = chosen === 'system' && (offer.loading || offer.offered);
 	const iconTheme = chosen === 'system' && !system ? 'waypoint' : chosen;
 	const portage = iconTheme === 'portage';
+	// Offered only where the system has a palette (the Services panel says why elsewhere); hidden
+	// until the theme has found out.
+	const palette = usePaletteReport();
 	return (
 		<SettingsSection>
 			<SettingsGroup title={t('settings.group.colours')}>
@@ -103,6 +123,35 @@ export function AppearancePage() {
 							}))
 						}
 					/>
+				)}
+				{palette.available === true && (
+					<>
+						<ToggleRow
+							label={t('settings.appearance.systemColours.label')}
+							description={t('settings.appearance.systemColours.description')}
+							error={errors.matchSystemColours}
+							checked={appearance.matchSystemColours}
+							onChange={(matchSystemColours) =>
+								changeSettings('matchSystemColours', (s) => ({
+									...s,
+									appearance: { ...s.appearance, matchSystemColours },
+								}))
+							}
+						/>
+						{palette.state === 'applied' && palette.lifted.length > 0 && (
+							<p className={styles.note} role="status">
+								{tf('settings.appearance.systemColours.lifted', {
+									parts: liftedParts(palette.lifted),
+								})}
+							</p>
+						)}
+						{palette.state === 'high-contrast' && (
+							<p className={styles.note}>{t('settings.appearance.systemColours.highContrast')}</p>
+						)}
+						{palette.state === 'other-variant' && (
+							<p className={styles.note}>{t('settings.appearance.systemColours.otherVariant')}</p>
+						)}
+					</>
 				)}
 			</SettingsGroup>
 			<SettingsGroup title={t('settings.group.layout')}>

@@ -4,4 +4,5 @@ permissions = [
   "allow-get-status",
   "allow-get-titlebar-preferences",
   "allow-get-appearance",
+  "allow-get-palette",
 ]

@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::appearance::models::AppearanceFeatureStatus;
+use crate::{appearance::models::AppearanceFeatureStatus, palette::models::PaletteStatus};
 
 /// A button that can appear in a window titlebar.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
@@ -115,7 +115,8 @@ pub struct TitlebarPreferences {
 /// true when a titlebar source answered, `reason` says why none did, and `features` names the
 /// sources that worked (`portal`, `kwin-config`, ...). The appearance preferences are reported
 /// separately: `appearanceAvailable` is true when any appearance feature works, and `appearance`
-/// reports every appearance feature with its reason when it does not.
+/// reports every appearance feature with its reason when it does not. `palette` says whether the
+/// colour palette (`get_palette`) can be read.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
@@ -125,9 +126,17 @@ pub struct PluginStatus {
     pub features: Vec<String>,
     pub appearance_available: bool,
     pub appearance: Vec<AppearanceFeatureStatus>,
+    /// Whether the colour palette can be read, from where, and why not when it cannot.
+    pub palette: PaletteStatus,
 }
 
 impl PluginStatus {
+    /// Adds the availability of the colour palette to a status.
+    pub fn with_palette(mut self, palette: PaletteStatus) -> Self {
+        self.palette = palette;
+        self
+    }
+
     /// Adds the availability of the appearance features to a titlebar status, leaving the
     /// titlebar part (`available`, `reason` and `features`) as it was.
     pub fn with_appearance(mut self, appearance: Vec<AppearanceFeatureStatus>) -> Self {
@@ -196,6 +205,7 @@ impl Snapshot {
                 features: vec![feature.to_string()],
                 appearance_available: false,
                 appearance: Vec::new(),
+                palette: PaletteStatus::default(),
             },
         }
     }
@@ -210,6 +220,7 @@ impl Snapshot {
                 features: Vec::new(),
                 appearance_available: false,
                 appearance: Vec::new(),
+                palette: PaletteStatus::default(),
             },
         }
     }

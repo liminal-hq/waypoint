@@ -76,6 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		iconStyle: 'regular',
 		iconTheme: 'waypoint',
 		folderColour: 'liminal',
+		matchSystemColours: false,
 	},
 	transparency: {
 		enabled: false,

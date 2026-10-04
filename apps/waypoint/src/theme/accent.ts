@@ -29,7 +29,7 @@ export function parseHex(hex: string): [number, number, number] | null {
 	return [parseInt(match[1]!, 16), parseInt(match[2]!, 16), parseInt(match[3]!, 16)];
 }
 
-function toHex([r, g, b]: [number, number, number]): string {
+export function toHex([r, g, b]: [number, number, number]): string {
 	return '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
 }
 

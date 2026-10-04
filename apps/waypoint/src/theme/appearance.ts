@@ -6,7 +6,9 @@
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
 import { resolveLocale } from '../i18n/locales';
 import { resolveIconTheme, type ResolvedIconTheme } from '../icons/iconTheme';
+import type { Palette } from '../services/osPaletteClient';
 import { resolveAccent } from './accent';
+import { PALETTE_TOKENS, decidePalette, type LiftedColour, type PaletteState } from './palette';
 import { transparencyState, type TransparencyOffReason } from './transparency';
 
 /** What the OS says about the look. `null` means it did not say. */
@@ -90,6 +92,15 @@ export interface ResolvedAppearance {
 	textScale: number;
 	/** Set when the person's accent differs from the brand colour; the tokens carry the brand one. */
 	accent: { fill: string; text: string } | null;
+	/** Whether the OS palette is drawn (D144), and the tokens it sets when it is. */
+	palette: {
+		state: PaletteState;
+		tokens: Record<string, string> | null;
+		/** The colours the contrast floor moved, for the Appearance page's note. */
+		lifted: LiftedColour[];
+		/** Whether the system has a usable palette; `null` until it has said. */
+		available: boolean | null;
+	};
 	lang: string;
 	dir: 'ltr' | 'rtl';
 	iconStyle: Settings['appearance']['iconStyle'];
@@ -125,16 +136,28 @@ export function resolveAppearance(
 		focused?: boolean;
 		/** Whether the platform reports that windows can be see-through: `null` until it has said (default true). */
 		opacityAvailable?: boolean | null;
+		/** The OS palette, or `null` until the plugin has answered or where it cannot. */
+		palette?: Palette | null;
 	},
 ): ResolvedAppearance {
 	const { appearance, accessibility, locale, transparency } = settings;
-	const theme =
-		appearance.mode === 'system'
-			? appearance.themeSource === 'os' || os.scheme !== null
-				? os.scheme
-				: null
-			: appearance.mode;
 	const highContrast = follow(accessibility.highContrast, os.highContrast);
+	const palette = decidePalette({
+		enabled: appearance.matchSystemColours,
+		palette: options.palette ?? null,
+		mode: appearance.mode,
+		highContrast,
+	});
+	// With the palette drawn in "System" mode the variant is the one the palette describes, so the
+	// native parts of the window (scrollbars, form controls) agree with the colours around them.
+	const theme =
+		palette.state === 'applied' && appearance.mode === 'system'
+			? palette.mapped!.variant
+			: appearance.mode === 'system'
+				? appearance.themeSource === 'os' || os.scheme !== null
+					? os.scheme
+					: null
+				: appearance.mode;
 	const reducedMotion = follow(accessibility.reducedMotion, os.reducedMotion);
 	const reducedTransparency = follow(accessibility.reducedTransparency, os.reducedTransparency);
 	const touch =
@@ -168,6 +191,12 @@ export function resolveAppearance(
 			brandAccent || highContrast
 				? null
 				: resolveAccent(appearance.accent, theme ?? 'light', os.accent),
+		palette: {
+			state: palette.state,
+			tokens: palette.mapped?.tokens ?? null,
+			lifted: palette.preview?.lifted ?? [],
+			available: options.palette ? options.palette.status.available : null,
+		},
 		lang: language,
 		dir: locale.direction === 'auto' ? directionFor(language) : locale.direction,
 		iconStyle: appearance.iconStyle,
@@ -204,6 +233,13 @@ export function applyAppearance(root: HTMLElement, look: ResolvedAppearance): vo
 		root.style.removeProperty('--wp-accent-fg');
 		root.style.removeProperty('--wp-accent-contrast');
 	}
+	for (const name of PALETTE_TOKENS) root.style.removeProperty(name);
+	if (look.palette.tokens) {
+		for (const [name, value] of Object.entries(look.palette.tokens)) {
+			root.style.setProperty(name, value);
+		}
+	}
+	set('palette', look.palette.tokens ? 'system' : null);
 	root.lang = look.lang;
 	root.dir = look.dir;
 }

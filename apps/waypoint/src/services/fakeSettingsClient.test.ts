@@ -66,6 +66,7 @@ describe('the milestone 5 sections', () => {
 			iconStyle: 'regular',
 			iconTheme: 'waypoint',
 			folderColour: 'liminal',
+			matchSystemColours: false,
 		});
 		expect(settings.transparency.enabled).toBe(false);
 		expect(settings.accessibility.textSize).toBe(100);

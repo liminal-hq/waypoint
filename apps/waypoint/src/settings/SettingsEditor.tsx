@@ -50,6 +50,7 @@ export type RowKey =
 	| 'themeSource'
 	| 'accent'
 	| 'accentColour'
+	| 'matchSystemColours'
 	| 'density'
 	| 'iconStyle'
 	| 'iconTheme'
