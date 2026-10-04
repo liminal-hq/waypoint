@@ -23,6 +23,12 @@ impl CancelToken {
     pub fn is_cancelled(&self) -> bool {
         self.0.load(Ordering::Relaxed)
     }
+
+    /// The shared flag itself, for a library that takes an `Arc<AtomicBool>` to interrupt its own
+    /// work (`true` means stop).
+    pub fn flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.0)
+    }
 }
 
 #[cfg(test)]
@@ -36,5 +42,13 @@ mod tests {
         assert!(!other.is_cancelled());
         token.cancel();
         assert!(other.is_cancelled());
+    }
+
+    #[test]
+    fn the_flag_is_the_same_one() {
+        let token = CancelToken::new();
+        let flag = token.flag();
+        token.cancel();
+        assert!(flag.load(Ordering::Relaxed));
     }
 }
