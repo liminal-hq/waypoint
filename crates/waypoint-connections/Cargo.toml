@@ -1,0 +1,24 @@
+[package]
+name = "waypoint-connections"
+version = "0.1.0"
+description = "Waypoint's saved connections and connection manager: the versioned document, its store with one writer, credentials from the session and the keyring, and the state of every login"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-settings = { path = "../waypoint-settings" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+[dev-dependencies]
+waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }

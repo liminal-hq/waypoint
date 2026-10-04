@@ -40,6 +40,11 @@ impl ProviderRegistry {
         self.by_scheme.keys().copied()
     }
 
+    /// Every provider, in the order of their schemes.
+    pub fn providers(&self) -> impl Iterator<Item = &Arc<dyn Provider>> + '_ {
+        self.by_scheme.values()
+    }
+
     /// The provider of `path`, or `Unsupported` naming the scheme.
     pub fn for_path(&self, path: &VfsPath) -> Result<Arc<dyn Provider>, VfsError> {
         self.by_scheme

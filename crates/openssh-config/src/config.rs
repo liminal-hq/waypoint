@@ -221,6 +221,26 @@ impl SshConfig {
         }
     }
 
+    /// The host names the file names on its own: each `Host` pattern with no wildcard (`*`, `?`)
+    /// and no negation, once, in the order they are first written. For a list of hosts to offer.
+    pub fn aliases(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for block in &self.blocks {
+            let Condition::Host(patterns) = &block.condition else {
+                continue;
+            };
+            for pattern in patterns {
+                let plain = !pattern.is_empty()
+                    && !pattern.starts_with('!')
+                    && !pattern.contains(['*', '?']);
+                if plain && !out.iter().any(|known| known.eq_ignore_ascii_case(pattern)) {
+                    out.push(pattern.clone());
+                }
+            }
+        }
+        out
+    }
+
     /// The options that apply to `alias` (the host name as written in a location).
     pub fn host(&self, alias: &str) -> HostConfig {
         let mut config = HostConfig::default();
@@ -345,6 +365,15 @@ fn expand_include(pattern: &str, dir: &Path) -> Vec<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn aliases_are_the_plain_host_patterns_once_each() {
+        let config = SshConfig::parse(
+            "Host nas work-*\n  User me\nHost !old bastion NAS ?x\nMatch all\n  Port 2\n",
+            Path::new("/nowhere"),
+        );
+        assert_eq!(config.aliases(), ["nas", "bastion"]);
+    }
 
     #[test]
     fn the_first_value_wins_and_key_files_add_up() {
