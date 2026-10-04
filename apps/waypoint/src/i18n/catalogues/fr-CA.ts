@@ -2258,6 +2258,121 @@ const messages: Catalogue = {
 	'connect.certificate.once': 'Faire confiance une fois',
 	// source: aec527b7
 	'connect.certificate.remember': 'Faire confiance pour cette connexion',
+	// source: 1744b964
+	'sidebar.section.network': 'Réseau',
+	// source: 68d7beb6
+	'network.list': 'Serveurs',
+	// source: 17c3ced0
+	'network.empty': 'Aucun serveur pour l’instant.',
+	// source: aebd8a03
+	'network.recent': 'Serveurs récents',
+	// source: 8f755cb8
+	'network.disconnect': 'Déconnecter {name}',
+	// source: aac6defa
+	'network.menu.label': 'Actions pour {name}',
+	// source: ed077f3d
+	'network.menu.open': 'Ouvrir',
+	// source: 35e74c3a
+	'network.menu.openInNewTab': 'Ouvrir dans un nouvel onglet',
+	// source: 1a2303ed
+	'network.menu.connect': 'Se connecter',
+	// source: acfc5be7
+	'network.menu.disconnect': 'Déconnecter',
+	// source: 2b8a1a00
+	'network.menu.edit': 'Modifier…',
+	// source: 1359626e
+	'network.menu.moveUp': 'Monter',
+	// source: b58330ac
+	'network.menu.moveDown': 'Descendre',
+	// source: 9ce78fe3
+	'network.menu.delete': 'Supprimer…',
+	// source: a5d0d97e
+	'network.menu.save': 'Enregistrer…',
+	// source: a6bd489d
+	'network.menu.forget': 'Oublier',
+	// source: 12191a17
+	'network.announce.state': '{name} : {state}',
+	// source: 63f9679a
+	'network.announce.disconnected': 'Déconnecté de {name}',
+	// source: 6f44c71c
+	'network.announce.moved': '{name} déplacé à la position {position}',
+	// source: e835e6cb
+	'network.announce.forgotten': '{name} oublié',
+	// source: 0303e182
+	'remote.state.idle': 'Non connecté',
+	// source: 72021eb7
+	'remote.state.connecting': 'Connexion…',
+	// source: 22965568
+	'remote.state.connected': 'Connecté',
+	// source: a1794783
+	'remote.state.offline': 'Hors ligne',
+	// source: 31e23ff0
+	'remote.state.signIn': 'Identification requise',
+	// source: 62c1939a
+	'remote.state.trust': 'Clé à vérifier',
+	// source: 54a0e8c1
+	'remote.state.error': 'Erreur',
+	// source: 420a97ee
+	'remote.connecting': 'Connexion à {server}…',
+	// source: bf8a9eab
+	'remote.action.reconnect': 'Se reconnecter',
+	// source: 1b4caa32
+	'remote.action.signIn': 'Se connecter…',
+	// source: aa06c59b
+	'remote.action.review': 'Vérifier…',
+	// source: 72021eb7
+	'remote.action.connecting': 'Connexion…',
+	// source: fc454c50
+	'remote.announce.connected': 'Connecté à {server}',
+	// source: cf1dd99d
+	'remote.disconnected.title': 'Déconnecté de {server}',
+	// source: 3c7680cd
+	'remote.disconnected.detail':
+		'La connexion a été perdue. Reconnectez-vous pour afficher le dossier de nouveau.',
+	// source: 15e54df4
+	'remote.unreachable.title': 'Impossible de joindre {server}',
+	// source: fb727720
+	'remote.unreachable.nameNotResolved':
+		'Le nom d’hôte est introuvable. Vérifiez l’adresse ou votre réseau.',
+	// source: 18a0f89d
+	'remote.unreachable.refused': 'Le serveur a refusé la connexion : rien ne répond sur son port.',
+	// source: 79b11368
+	'remote.unreachable.noRoute': 'Il n’y a pas de route vers le serveur depuis ce réseau.',
+	// source: d6ffcf69
+	'remote.unreachable.offline': 'Cet ordinateur est hors ligne.',
+	// source: 6279ed15
+	'remote.timeout.title': '{server} ne répond pas',
+	// source: 8392b044
+	'remote.timeout.detail': 'Le serveur n’a pas répondu à temps.',
+	// source: f69ee155
+	'remote.signIn.title': 'Se connecter à {server}',
+	// source: dfc5634c
+	'remote.signIn.detail': 'Le serveur demande de vous connecter avant d’afficher ce dossier.',
+	// source: 774f9d0c
+	'remote.signIn.refused': 'Le serveur n’a pas accepté l’identification. Réessayez.',
+	// source: c3209923
+	'remote.hostKey.title': '{server} n’est pas encore approuvé',
+	// source: 22cb7210
+	'remote.hostKey.detail':
+		'Waypoint ne s’est jamais connecté à ce serveur. Vérifiez sa clé avant de lui faire confiance.',
+	// source: 2118f0ba
+	'remote.hostKeyChanged.title': 'La clé de {server} a changé',
+	// source: d2d8a249
+	'remote.hostKeyChanged.detail':
+		'Quelqu’un pourrait se faire passer pour ce serveur. Waypoint ne s’est pas connecté.',
+	// source: 37702fbc
+	'remote.certificate.title': 'Le certificat de {server} n’est pas approuvé',
+	// source: 998b069b
+	'remote.certificate.detail': 'Vérifiez le certificat avant de lui faire confiance.',
+	// source: 2a0ed3de
+	'remote.error.title': 'Impossible d’afficher ce dossier sur {server}',
+	// source: be69cd59
+	'remote.error.detail': 'Un problème est survenu avec la connexion.',
+	// source: 353dab45
+	'tabs.remote': 'Sur un serveur : {state}',
+	// source: c9fa6e7e
+	'nav.path.passwordDropped':
+		'Le mot de passe n’a pas été gardé; Waypoint le demandera à la connexion. Appuyez sur Entrée pour y aller.',
 	// source: 3064d79a
 	'menu.rename': 'Renommer',
 	// source: 298167e2

@@ -4107,6 +4107,226 @@
     "message": "Trust for This Connection",
     "description": "Area: connect."
   },
+  "sidebar.section.network": {
+    "message": "Network",
+    "description": "Area: sidebar."
+  },
+  "network.list": {
+    "message": "Servers",
+    "description": "Area: network."
+  },
+  "network.empty": {
+    "message": "No servers yet.",
+    "description": "Area: network."
+  },
+  "network.recent": {
+    "message": "Recent servers",
+    "description": "Area: network."
+  },
+  "network.disconnect": {
+    "message": "Disconnect {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "network.menu.label": {
+    "message": "Actions for {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "network.menu.open": {
+    "message": "Open",
+    "description": "Area: network."
+  },
+  "network.menu.openInNewTab": {
+    "message": "Open in New Tab",
+    "description": "Area: network."
+  },
+  "network.menu.connect": {
+    "message": "Connect",
+    "description": "Area: network."
+  },
+  "network.menu.disconnect": {
+    "message": "Disconnect",
+    "description": "Area: network."
+  },
+  "network.menu.edit": {
+    "message": "Edit…",
+    "description": "Area: network."
+  },
+  "network.menu.moveUp": {
+    "message": "Move Up",
+    "description": "Area: network."
+  },
+  "network.menu.moveDown": {
+    "message": "Move Down",
+    "description": "Area: network."
+  },
+  "network.menu.delete": {
+    "message": "Delete…",
+    "description": "Area: network."
+  },
+  "network.menu.save": {
+    "message": "Save…",
+    "description": "Area: network."
+  },
+  "network.menu.forget": {
+    "message": "Forget",
+    "description": "Area: network."
+  },
+  "network.announce.state": {
+    "message": "{name}: {state}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {state}."
+  },
+  "network.announce.disconnected": {
+    "message": "Disconnected from {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "network.announce.moved": {
+    "message": "Moved {name} to position {position}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {position} is a place in a list or row, a number."
+  },
+  "network.announce.forgotten": {
+    "message": "Forgot {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "remote.state.idle": {
+    "message": "Not connected",
+    "description": "Area: remote."
+  },
+  "remote.state.connecting": {
+    "message": "Connecting…",
+    "description": "Area: remote."
+  },
+  "remote.state.connected": {
+    "message": "Connected",
+    "description": "Area: remote."
+  },
+  "remote.state.offline": {
+    "message": "Offline",
+    "description": "Area: remote."
+  },
+  "remote.state.signIn": {
+    "message": "Sign-in needed",
+    "description": "Area: remote."
+  },
+  "remote.state.trust": {
+    "message": "Key to review",
+    "description": "Area: remote."
+  },
+  "remote.state.error": {
+    "message": "Error",
+    "description": "Area: remote."
+  },
+  "remote.connecting": {
+    "message": "Connecting to {server}…",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.action.reconnect": {
+    "message": "Reconnect",
+    "description": "Area: remote."
+  },
+  "remote.action.signIn": {
+    "message": "Sign In…",
+    "description": "Area: remote."
+  },
+  "remote.action.review": {
+    "message": "Review…",
+    "description": "Area: remote."
+  },
+  "remote.action.connecting": {
+    "message": "Connecting…",
+    "description": "Area: remote."
+  },
+  "remote.announce.connected": {
+    "message": "Connected to {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.disconnected.title": {
+    "message": "Disconnected from {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.disconnected.detail": {
+    "message": "The connection was lost. Reconnect to show the folder again.",
+    "description": "Area: remote."
+  },
+  "remote.unreachable.title": {
+    "message": "Cannot reach {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.unreachable.nameNotResolved": {
+    "message": "The host name was not found. Check the address, or your network.",
+    "description": "Area: remote."
+  },
+  "remote.unreachable.refused": {
+    "message": "The server refused the connection: nothing is answering on its port.",
+    "description": "Area: remote."
+  },
+  "remote.unreachable.noRoute": {
+    "message": "There is no route to the server from this network.",
+    "description": "Area: remote."
+  },
+  "remote.unreachable.offline": {
+    "message": "This computer is offline.",
+    "description": "Area: remote."
+  },
+  "remote.timeout.title": {
+    "message": "{server} is not answering",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.timeout.detail": {
+    "message": "The server did not answer in time.",
+    "description": "Area: remote."
+  },
+  "remote.signIn.title": {
+    "message": "Sign in to {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.signIn.detail": {
+    "message": "The server needs you to sign in before it shows this folder.",
+    "description": "Area: remote."
+  },
+  "remote.signIn.refused": {
+    "message": "The server did not accept the sign-in. Try again.",
+    "description": "Area: remote."
+  },
+  "remote.hostKey.title": {
+    "message": "{server} is not trusted yet",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.hostKey.detail": {
+    "message": "Waypoint has not connected to this server before. Review its key before you trust it.",
+    "description": "Area: remote."
+  },
+  "remote.hostKeyChanged.title": {
+    "message": "The key of {server} has changed",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.hostKeyChanged.detail": {
+    "message": "Someone may be pretending to be this server. Waypoint did not connect.",
+    "description": "Area: remote."
+  },
+  "remote.certificate.title": {
+    "message": "The certificate of {server} is not trusted",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.certificate.detail": {
+    "message": "Review the certificate before you trust it.",
+    "description": "Area: remote."
+  },
+  "remote.error.title": {
+    "message": "Cannot show this folder on {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
+  },
+  "remote.error.detail": {
+    "message": "Something went wrong with the connection.",
+    "description": "Area: remote."
+  },
+  "tabs.remote": {
+    "message": "On a server: {state}",
+    "description": "Area: tabs. Placeholders, kept exactly as written: {state}."
+  },
+  "nav.path.passwordDropped": {
+    "message": "The password was not kept; Waypoint asks for it when it connects. Press Enter to go.",
+    "description": "Area: nav."
+  },
   "menu.rename": {
     "message": "Rename",
     "description": "Area: menu."

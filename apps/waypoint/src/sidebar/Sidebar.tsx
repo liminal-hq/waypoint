@@ -40,11 +40,15 @@ import {
 	type SidebarView,
 } from './sidebarStore';
 import { usePlaces } from './usePlaces';
+import { useConnections } from '../connections/ConnectionsContext';
+import { NetworkList } from '../connections/NetworkList';
+import { useLocationInfo } from '../nav/locationInfo';
 import styles from './Sidebar.module.css';
 
 const TITLES: Record<SidebarSection, MessageId> = {
 	places: 'sidebar.section.places',
 	devices: 'sidebar.section.devices',
+	network: 'sidebar.section.network',
 	favourites: 'sidebar.section.favourites',
 	workspaces: 'sidebar.section.workspaces',
 };
@@ -154,6 +158,8 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const [announcement, setAnnouncement] = useState('');
 
 	const vfs = useVfsClient();
+	const connections = useConnections();
+	const currentInfo = useLocationInfo(vfs, currentLocation);
 	const devices = useDevices(
 		useDevicesClient(),
 		useMemo(() => ({ announce: setAnnouncement, notice: onNotice }), [onNotice]),
@@ -365,6 +371,17 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 									busy={devices.busy}
 									onActivate={activateDevice}
 									onAction={deviceAction}
+								/>
+							</Section>
+						)}
+						{connections && (
+							<Section section="network">
+								<NetworkList
+									currentConnection={currentInfo?.connection}
+									open={goTo}
+									openInNewTab={(location) => openInNewTab(location)}
+									announce={setAnnouncement}
+									notice={onNotice}
 								/>
 							</Section>
 						)}

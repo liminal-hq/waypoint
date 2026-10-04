@@ -5209,6 +5209,281 @@
     "description": "Area: connect.",
     "source": "aec527b7"
   },
+  "sidebar.section.network": {
+    "message": "Réseau",
+    "description": "Area: sidebar.",
+    "source": "1744b964"
+  },
+  "network.list": {
+    "message": "Serveurs",
+    "description": "Area: network.",
+    "source": "68d7beb6"
+  },
+  "network.empty": {
+    "message": "Aucun serveur pour l’instant.",
+    "description": "Area: network.",
+    "source": "17c3ced0"
+  },
+  "network.recent": {
+    "message": "Serveurs récents",
+    "description": "Area: network.",
+    "source": "aebd8a03"
+  },
+  "network.disconnect": {
+    "message": "Déconnecter {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "8f755cb8"
+  },
+  "network.menu.label": {
+    "message": "Actions pour {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "aac6defa"
+  },
+  "network.menu.open": {
+    "message": "Ouvrir",
+    "description": "Area: network.",
+    "source": "ed077f3d"
+  },
+  "network.menu.openInNewTab": {
+    "message": "Ouvrir dans un nouvel onglet",
+    "description": "Area: network.",
+    "source": "35e74c3a"
+  },
+  "network.menu.connect": {
+    "message": "Se connecter",
+    "description": "Area: network.",
+    "source": "1a2303ed"
+  },
+  "network.menu.disconnect": {
+    "message": "Déconnecter",
+    "description": "Area: network.",
+    "source": "acfc5be7"
+  },
+  "network.menu.edit": {
+    "message": "Modifier…",
+    "description": "Area: network.",
+    "source": "2b8a1a00"
+  },
+  "network.menu.moveUp": {
+    "message": "Monter",
+    "description": "Area: network.",
+    "source": "1359626e"
+  },
+  "network.menu.moveDown": {
+    "message": "Descendre",
+    "description": "Area: network.",
+    "source": "b58330ac"
+  },
+  "network.menu.delete": {
+    "message": "Supprimer…",
+    "description": "Area: network.",
+    "source": "9ce78fe3"
+  },
+  "network.menu.save": {
+    "message": "Enregistrer…",
+    "description": "Area: network.",
+    "source": "a5d0d97e"
+  },
+  "network.menu.forget": {
+    "message": "Oublier",
+    "description": "Area: network.",
+    "source": "a6bd489d"
+  },
+  "network.announce.state": {
+    "message": "{name} : {state}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {state}.",
+    "source": "12191a17"
+  },
+  "network.announce.disconnected": {
+    "message": "Déconnecté de {name}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "63f9679a"
+  },
+  "network.announce.moved": {
+    "message": "{name} déplacé à la position {position}",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {position} is a place in a list or row, a number.",
+    "source": "6f44c71c"
+  },
+  "network.announce.forgotten": {
+    "message": "{name} oublié",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "e835e6cb"
+  },
+  "remote.state.idle": {
+    "message": "Non connecté",
+    "description": "Area: remote.",
+    "source": "0303e182"
+  },
+  "remote.state.connecting": {
+    "message": "Connexion…",
+    "description": "Area: remote.",
+    "source": "72021eb7"
+  },
+  "remote.state.connected": {
+    "message": "Connecté",
+    "description": "Area: remote.",
+    "source": "22965568"
+  },
+  "remote.state.offline": {
+    "message": "Hors ligne",
+    "description": "Area: remote.",
+    "source": "a1794783"
+  },
+  "remote.state.signIn": {
+    "message": "Identification requise",
+    "description": "Area: remote.",
+    "source": "31e23ff0"
+  },
+  "remote.state.trust": {
+    "message": "Clé à vérifier",
+    "description": "Area: remote.",
+    "source": "62c1939a"
+  },
+  "remote.state.error": {
+    "message": "Erreur",
+    "description": "Area: remote.",
+    "source": "54a0e8c1"
+  },
+  "remote.connecting": {
+    "message": "Connexion à {server}…",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "420a97ee"
+  },
+  "remote.action.reconnect": {
+    "message": "Se reconnecter",
+    "description": "Area: remote.",
+    "source": "bf8a9eab"
+  },
+  "remote.action.signIn": {
+    "message": "Se connecter…",
+    "description": "Area: remote.",
+    "source": "1b4caa32"
+  },
+  "remote.action.review": {
+    "message": "Vérifier…",
+    "description": "Area: remote.",
+    "source": "aa06c59b"
+  },
+  "remote.action.connecting": {
+    "message": "Connexion…",
+    "description": "Area: remote.",
+    "source": "72021eb7"
+  },
+  "remote.announce.connected": {
+    "message": "Connecté à {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "fc454c50"
+  },
+  "remote.disconnected.title": {
+    "message": "Déconnecté de {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "cf1dd99d"
+  },
+  "remote.disconnected.detail": {
+    "message": "La connexion a été perdue. Reconnectez-vous pour afficher le dossier de nouveau.",
+    "description": "Area: remote.",
+    "source": "3c7680cd"
+  },
+  "remote.unreachable.title": {
+    "message": "Impossible de joindre {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "15e54df4"
+  },
+  "remote.unreachable.nameNotResolved": {
+    "message": "Le nom d’hôte est introuvable. Vérifiez l’adresse ou votre réseau.",
+    "description": "Area: remote.",
+    "source": "fb727720"
+  },
+  "remote.unreachable.refused": {
+    "message": "Le serveur a refusé la connexion : rien ne répond sur son port.",
+    "description": "Area: remote.",
+    "source": "18a0f89d"
+  },
+  "remote.unreachable.noRoute": {
+    "message": "Il n’y a pas de route vers le serveur depuis ce réseau.",
+    "description": "Area: remote.",
+    "source": "79b11368"
+  },
+  "remote.unreachable.offline": {
+    "message": "Cet ordinateur est hors ligne.",
+    "description": "Area: remote.",
+    "source": "d6ffcf69"
+  },
+  "remote.timeout.title": {
+    "message": "{server} ne répond pas",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "6279ed15"
+  },
+  "remote.timeout.detail": {
+    "message": "Le serveur n’a pas répondu à temps.",
+    "description": "Area: remote.",
+    "source": "8392b044"
+  },
+  "remote.signIn.title": {
+    "message": "Se connecter à {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "f69ee155"
+  },
+  "remote.signIn.detail": {
+    "message": "Le serveur demande de vous connecter avant d’afficher ce dossier.",
+    "description": "Area: remote.",
+    "source": "dfc5634c"
+  },
+  "remote.signIn.refused": {
+    "message": "Le serveur n’a pas accepté l’identification. Réessayez.",
+    "description": "Area: remote.",
+    "source": "774f9d0c"
+  },
+  "remote.hostKey.title": {
+    "message": "{server} n’est pas encore approuvé",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "c3209923"
+  },
+  "remote.hostKey.detail": {
+    "message": "Waypoint ne s’est jamais connecté à ce serveur. Vérifiez sa clé avant de lui faire confiance.",
+    "description": "Area: remote.",
+    "source": "22cb7210"
+  },
+  "remote.hostKeyChanged.title": {
+    "message": "La clé de {server} a changé",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "2118f0ba"
+  },
+  "remote.hostKeyChanged.detail": {
+    "message": "Quelqu’un pourrait se faire passer pour ce serveur. Waypoint ne s’est pas connecté.",
+    "description": "Area: remote.",
+    "source": "d2d8a249"
+  },
+  "remote.certificate.title": {
+    "message": "Le certificat de {server} n’est pas approuvé",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "37702fbc"
+  },
+  "remote.certificate.detail": {
+    "message": "Vérifiez le certificat avant de lui faire confiance.",
+    "description": "Area: remote.",
+    "source": "998b069b"
+  },
+  "remote.error.title": {
+    "message": "Impossible d’afficher ce dossier sur {server}",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "2a0ed3de"
+  },
+  "remote.error.detail": {
+    "message": "Un problème est survenu avec la connexion.",
+    "description": "Area: remote.",
+    "source": "be69cd59"
+  },
+  "tabs.remote": {
+    "message": "Sur un serveur : {state}",
+    "description": "Area: tabs. Placeholders, kept exactly as written: {state}.",
+    "source": "353dab45"
+  },
+  "nav.path.passwordDropped": {
+    "message": "Le mot de passe n’a pas été gardé; Waypoint le demandera à la connexion. Appuyez sur Entrée pour y aller.",
+    "description": "Area: nav.",
+    "source": "c9fa6e7e"
+  },
   "menu.rename": {
     "message": "Renommer",
     "description": "Area: menu.",

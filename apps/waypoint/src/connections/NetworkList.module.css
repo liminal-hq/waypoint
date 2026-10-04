@@ -1,0 +1,100 @@
+.row {
+	display: flex;
+	align-items: center;
+}
+
+.item {
+	flex: 1;
+	align-items: flex-start;
+	min-inline-size: 0;
+	padding-block: 4px;
+}
+
+.iconWrap {
+	position: relative;
+	display: inline-flex;
+}
+
+.dot {
+	position: absolute;
+	inset-block-end: -1px;
+	inset-inline-end: -2px;
+	inline-size: 7px;
+	block-size: 7px;
+	border: 1px solid var(--wp-bg-sidebar);
+	border-radius: 50%;
+	background: var(--wp-text-muted);
+}
+
+.dot[data-tone='connected'] {
+	background: var(--wp-success);
+}
+
+.dot[data-tone='connecting'],
+.dot[data-tone='signIn'],
+.dot[data-tone='trust'] {
+	background: var(--wp-warning);
+}
+
+.dot[data-tone='offline'],
+.dot[data-tone='error'] {
+	background: var(--wp-danger);
+}
+
+.text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+	min-inline-size: 0;
+}
+
+.detail {
+	overflow: hidden;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: var(--wp-hit-target);
+	min-block-size: var(--wp-hit-target);
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--wp-text-secondary);
+}
+
+.action:hover {
+	background: var(--wp-bg-hover);
+	color: var(--wp-text-primary);
+}
+
+.action:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.subheading {
+	padding-block: 6px 2px;
+	padding-inline: 8px;
+	color: var(--wp-text-muted);
+	font-size: 11px;
+	font-weight: 600;
+	list-style: none;
+}
+
+.connect {
+	color: var(--wp-text-secondary);
+}
+
+.check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}

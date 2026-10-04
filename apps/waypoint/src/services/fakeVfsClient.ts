@@ -266,6 +266,15 @@ export interface FakeVfsOptions {
 	home?: string;
 	/** The space every volume reports unless `setFreeSpace` says otherwise; `null` for unknown. */
 	freeSpace?: VolumeSpace | null;
+	/** Server schemes typed text may name (`sftp`); others are `unsupported`, as without a provider. */
+	remoteSchemes?: string[];
+}
+
+/** A server location's login and path, the way `waypoint-path` splits it (plain names only). */
+function splitRemote(uri: string): { key: string; path: string } | null {
+	const match = /^([a-z][a-z0-9+.-]*):\/\/([^/]+)(\/.*)?$/.exec(uri);
+	if (!match || match[1] === 'file') return null;
+	return { key: `${match[1]}://${match[2]}`, path: match[3] ?? '/' };
 }
 
 /**
@@ -334,6 +343,11 @@ export class FakeVfsClient implements VfsClient {
 	/** Makes opening a location fail with this error, to exercise the error states. */
 	failOpening(location: Location, error: VfsError): void {
 		this.failures.set(location.uri, error);
+	}
+
+	/** Lets a location open again after `failOpening`. */
+	succeedOpening(location: Location): void {
+		this.failures.delete(location.uri);
 	}
 
 	/** Sets the space reported for a location's volume (`null` for unknown). */
@@ -471,8 +485,26 @@ export class FakeVfsClient implements VfsClient {
 		return this.snapshot(listing);
 	}
 
+	async parseLocationText(
+		input: string,
+		base: Location,
+	): Promise<{ location: Location; passwordDropped: boolean }> {
+		const text = input.trim();
+		const typed = /^([a-z][a-z0-9+.-]*):\/\/([^:@/]+):[^@/]*@(.*)$/i.exec(text);
+		if (typed && this.options.remoteSchemes?.includes(typed[1]!.toLowerCase())) {
+			const location = await this.parseLocation(`${typed[1]}://${typed[2]}@${typed[3]}`, base);
+			return { location, passwordDropped: true };
+		}
+		return { location: await this.parseLocation(input, base), passwordDropped: false };
+	}
+
 	async parseLocation(input: string, base: Location): Promise<Location> {
 		const text = input.trim();
+		const remote = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text);
+		if (remote && this.options.remoteSchemes?.includes(remote[1]!.toLowerCase())) {
+			const uri = text.includes('/', remote[0].length) ? text : `${text}/`;
+			return { display: uri, uri };
+		}
 		if (text === '' || text.includes('\0'))
 			throw { kind: 'invalidLocation', input } satisfies VfsError;
 		const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text);
@@ -500,6 +532,19 @@ export class FakeVfsClient implements VfsClient {
 		if (location.uri.startsWith('trash:')) {
 			const root = { label: 'Trash', location: { display: 'Trash', uri: 'trash:/' } };
 			return { parent: null, segments: [root] };
+		}
+		const remote = splitRemote(location.uri);
+		if (remote) {
+			const names = remote.path.split('/').filter((part) => part !== '');
+			const at = (count: number): Location => {
+				const uri = `${remote.key}/${names.slice(0, count).join('/')}`;
+				return { display: uri, uri };
+			};
+			const label = remote.key.replace(/^[a-z0-9+.-]+:\/\//, '');
+			const segments: Breadcrumb[] = [{ label, location: at(0) }];
+			names.forEach((name, index) => segments.push({ label: name, location: at(index + 1) }));
+			const parent = segments.length > 1 ? segments[segments.length - 2]!.location : null;
+			return { parent, segments, connection: remote.key };
 		}
 		const path = pathOf(location);
 		const names = path.split('/').filter((part) => part !== '');

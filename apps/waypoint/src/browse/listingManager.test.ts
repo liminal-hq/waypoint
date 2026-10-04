@@ -36,6 +36,24 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 afterEach(() => vi.useRealTimers());
 
 describe('ListingManager', () => {
+	it('opens again only the failed listings on screen that the caller retries', async () => {
+		const { client, manager } = setup();
+		const offline = { kind: 'disconnected' as const, location: A };
+		client.failOpening(A, offline);
+		client.failOpening(B, { kind: 'notFound', location: B });
+		manager.sync([tab(1), tab(2, B), tab(3, A)], new Set([1, 2]));
+		await settle();
+		expect(manager.stateFor(1)).toEqual({ status: 'error', error: offline });
+		client.succeedOpening(A);
+		client.succeedOpening(B);
+		const retried = manager.retryFailed((error) => error.kind === 'disconnected');
+		expect(retried).toBe(1);
+		await settle();
+		expect(manager.stateFor(1)?.status).toBe('ready');
+		expect(manager.stateFor(2)?.status).toBe('error');
+		expect(manager.stateFor(3)).toBeUndefined();
+	});
+
 	it('opens the active tab only, and shows opening before ready', async () => {
 		const { client, manager } = setup();
 		manager.sync([tab(1), tab(2, B)], new Set([1]));

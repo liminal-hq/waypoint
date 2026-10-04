@@ -13,6 +13,7 @@ describe('the sidebar store', () => {
 		expect(state.collapsed).toEqual({
 			places: false,
 			devices: false,
+			network: false,
 			favourites: false,
 			workspaces: false,
 		});
@@ -27,6 +28,7 @@ describe('the sidebar store', () => {
 		expect(store.getState().collapsed).toEqual({
 			places: false,
 			devices: false,
+			network: false,
 			favourites: true,
 			workspaces: false,
 		});

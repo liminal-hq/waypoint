@@ -53,6 +53,9 @@ import type { TearoffClient } from '../services/tearoffClient';
 import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
 import { ConnectHost } from '../connections/ConnectHost';
+import { useConnections } from '../connections/ConnectionsContext';
+import { RetryProvider } from '../connections/RemoteState';
+import { isConnectionError } from '../connections/remoteModel';
 import { createTearCardStore } from '../tabs/tearOffCardModel';
 import { TearOffCard } from '../tabs/TearOffCard';
 import { createTearOff } from '../tabs/tearOff';
@@ -478,140 +481,163 @@ function WorkspaceBody({
 		}
 	};
 
+	// A folder whose server could not be reached opens again once its login is back, wherever it
+	// was reconnected from (the folder's Reconnect, the Network section, the Connect dialog).
+	const retryRemote = useCallback(() => {
+		manager.retryFailed(isConnectionError);
+	}, [manager]);
+	const connections = useConnections();
+	useEffect(() => {
+		if (!connections) return;
+		let before = connections.store.getState().states;
+		return connections.store.subscribe((view) => {
+			const now = view.states;
+			if (now === before) return;
+			let back = false;
+			for (const [key, state] of now) {
+				if (state.kind === 'connected' && before.get(key)?.kind !== 'connected') back = true;
+			}
+			before = now;
+			if (back) retryRemote();
+		});
+	}, [connections, retryRemote]);
+
 	return (
-		<TrashActionsProvider value={trashActions}>
-			<FileCommandsProvider value={commands}>
-				<ClipboardProvider value={clipboard}>
-					<InspectorProvider store={inspectorStore}>
-						<ShelfProvider
-							activeSession={activeSession}
-							{...(shelfWindow ? { windowClient: shelfWindow } : {})}
-						>
-							<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
-								<div className={styles.workspace}>
-									<TabStrip />
-									<NavigationBar />
-									<ActionBar />
-									<div className={styles.middle}>
-										{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
-										<div className={styles.content}>
-											<div
-												className={styles.files}
-												role="tabpanel"
-												id={TAB_PANEL_ID}
-												aria-label={tab ? undefined : t('tabs.panel.label')}
-												aria-labelledby={tab ? tabDomId(tab.id) : undefined}
-											>
-												{panes.length > 0 && (
-													<PaneArea
-														panes={panes}
-														pair={panes.length > 1 ? pair : undefined}
-														active={tab?.id ?? null}
-														stateFor={stateFor}
-														mode={mode}
-														gridSize={gridSize}
-														onFailure={onFailure}
-														onMenu={setMenu}
-													/>
-												)}
+		<RetryProvider retry={retryRemote}>
+			<TrashActionsProvider value={trashActions}>
+				<FileCommandsProvider value={commands}>
+					<ClipboardProvider value={clipboard}>
+						<InspectorProvider store={inspectorStore}>
+							<ShelfProvider
+								activeSession={activeSession}
+								{...(shelfWindow ? { windowClient: shelfWindow } : {})}
+							>
+								<FileDragProvider manager={manager} nativeDnd={nativeDnd}>
+									<div className={styles.workspace}>
+										<TabStrip />
+										<NavigationBar />
+										<ActionBar />
+										<div className={styles.middle}>
+											{sidebarOpen && <Sidebar showHidden={showHidden} onNotice={notify} />}
+											<div className={styles.content}>
+												<div
+													className={styles.files}
+													role="tabpanel"
+													id={TAB_PANEL_ID}
+													aria-label={tab ? undefined : t('tabs.panel.label')}
+													aria-labelledby={tab ? tabDomId(tab.id) : undefined}
+												>
+													{panes.length > 0 && (
+														<PaneArea
+															panes={panes}
+															pair={panes.length > 1 ? pair : undefined}
+															active={tab?.id ?? null}
+															stateFor={stateFor}
+															mode={mode}
+															gridSize={gridSize}
+															onFailure={onFailure}
+															onMenu={setMenu}
+														/>
+													)}
+												</div>
+												<ShelfDock />
 											</div>
-											<ShelfDock />
+											<InspectorDock session={session} location={tab?.location} />
 										</div>
-										<InspectorDock session={session} location={tab?.location} />
-									</div>
-									<StatusBar
-										session={session}
-										location={tab?.location}
-										notice={notice?.text ?? null}
-									>
-										<ViewSwitcher />
-										<ShelfToggle />
-									</StatusBar>
-									<NoticeToast />
-									{commandDialog}
-									<BatchRenameHost api={batchRenameApi} announce={notify} />
-									<ConnectHost />
-									<DestinationHost />
-									<OpenWithHost />
-									<QuickLookHost />
-									{trashDialogs}
-									{menu?.kind === 'background' && (
-										<BackgroundContextMenu
-											session={menu.session}
-											showHidden={showHidden}
-											position={menu.position}
-											keyboard={menu.keyboard}
-											onToggleHidden={() => viewStore.getState().toggleHidden()}
-											onEmptyTrash={
-												trashActions
-													? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
-													: undefined
-											}
-											onClose={() => setMenu(null)}
-											commands={
-												commands
-													? {
-															states: commands.states(menu.session),
-															undoLabel: commands.history().undo?.label ?? null,
-															redoLabel: commands.history().redo?.label ?? null,
-														}
-													: undefined
-											}
-											folderView={
-												remembering && menuFolderKey !== null
-													? remembered.has(menuFolderKey)
-														? 'remembered'
-														: 'default'
-													: undefined
-											}
-											onResetFolderView={() => void folderViews.reset(menuFolderKey)}
-											onCommand={runCommand}
-										/>
-									)}
-									{menu?.kind === 'entry' &&
-										menu.session?.model.layout === 'trash' &&
-										trashActions && (
-											<TrashEntryMenu
+										<StatusBar
+											session={session}
+											location={tab?.location}
+											notice={notice?.text ?? null}
+										>
+											<ViewSwitcher />
+											<ShelfToggle />
+										</StatusBar>
+										<NoticeToast />
+										{commandDialog}
+										<BatchRenameHost api={batchRenameApi} announce={notify} />
+										<ConnectHost />
+										<DestinationHost />
+										<OpenWithHost />
+										<QuickLookHost />
+										{trashDialogs}
+										{menu?.kind === 'background' && (
+											<BackgroundContextMenu
+												session={menu.session}
+												showHidden={showHidden}
 												position={menu.position}
 												keyboard={menu.keyboard}
-												onRestore={() => menu.session && trashActions.restore(menu.session)}
-												onDelete={() =>
-													menu.session && trashActions.deletePermanently(menu.session)
+												onToggleHidden={() => viewStore.getState().toggleHidden()}
+												onEmptyTrash={
+													trashActions
+														? () => trashActions.emptyTrash(menu.session?.model.count ?? 0)
+														: undefined
 												}
 												onClose={() => setMenu(null)}
+												commands={
+													commands
+														? {
+																states: commands.states(menu.session),
+																undoLabel: commands.history().undo?.label ?? null,
+																redoLabel: commands.history().redo?.label ?? null,
+															}
+														: undefined
+												}
+												folderView={
+													remembering && menuFolderKey !== null
+														? remembered.has(menuFolderKey)
+															? 'remembered'
+															: 'default'
+														: undefined
+												}
+												onResetFolderView={() => void folderViews.reset(menuFolderKey)}
+												onCommand={runCommand}
 											/>
 										)}
-									{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
-										<EntryContextMenu
-											entry={menu.entry}
-											handle={menu.handle}
-											position={menu.position}
-											keyboard={menu.keyboard}
-											onClose={() => setMenu(null)}
-											onOpen={menu.openers.open}
-											onOpenInNewTab={menu.openers.openInNewTab}
-											onCopyPath={menu.openers.copyPath}
-											session={menu.session}
-											onAddToFavourites={menu.openers.addToFavourites}
-											commands={commands?.states(menu.session)}
-											batchRename={
-												menu.session
-													? selectedCount(
-															menu.session.store.getState().selection,
-															menu.session.model.count,
-														) > 1
-													: false
-											}
-											propertiesWindow={propertiesWindowAvailable}
-											onCommand={runCommand}
-										/>
-									)}
-								</div>
-							</FileDragProvider>
-						</ShelfProvider>
-					</InspectorProvider>
-				</ClipboardProvider>
-			</FileCommandsProvider>
-		</TrashActionsProvider>
+										{menu?.kind === 'entry' &&
+											menu.session?.model.layout === 'trash' &&
+											trashActions && (
+												<TrashEntryMenu
+													position={menu.position}
+													keyboard={menu.keyboard}
+													onRestore={() => menu.session && trashActions.restore(menu.session)}
+													onDelete={() =>
+														menu.session && trashActions.deletePermanently(menu.session)
+													}
+													onClose={() => setMenu(null)}
+												/>
+											)}
+										{menu?.kind === 'entry' && menu.session?.model.layout !== 'trash' && (
+											<EntryContextMenu
+												entry={menu.entry}
+												handle={menu.handle}
+												position={menu.position}
+												keyboard={menu.keyboard}
+												onClose={() => setMenu(null)}
+												onOpen={menu.openers.open}
+												onOpenInNewTab={menu.openers.openInNewTab}
+												onCopyPath={menu.openers.copyPath}
+												session={menu.session}
+												onAddToFavourites={menu.openers.addToFavourites}
+												commands={commands?.states(menu.session)}
+												batchRename={
+													menu.session
+														? selectedCount(
+																menu.session.store.getState().selection,
+																menu.session.model.count,
+															) > 1
+														: false
+												}
+												propertiesWindow={propertiesWindowAvailable}
+												onCommand={runCommand}
+											/>
+										)}
+									</div>
+								</FileDragProvider>
+							</ShelfProvider>
+						</InspectorProvider>
+					</ClipboardProvider>
+				</FileCommandsProvider>
+			</TrashActionsProvider>
+		</RetryProvider>
 	);
 }
