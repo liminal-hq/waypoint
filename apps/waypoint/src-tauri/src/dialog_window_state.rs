@@ -42,15 +42,30 @@ fn is_managed(key: &str) -> bool {
     key == SETTINGS_LABEL || key == PROPERTIES_KEY || key == OPS_LABEL
 }
 
-/// Applies the remembered place again once the window is shown. The plugin restores a window as it
-/// is created, hidden, which is enough on Windows; on X11 a position set while the window is
-/// hidden is lost when it maps, so it is set once more now that it is on screen. The plugin has
-/// no say in showing the window (the visible flag is off), so this changes nothing else.
+/// Applies the remembered place again once the window is shown, on the platforms that need it.
+/// The plugin restores a window as it is created, hidden, which is enough on Windows and is all
+/// that happens there. On X11 a position set while the window is hidden is lost when it maps, so it
+/// is set once more now that it is on screen.
+///
+/// That second restore runs on the main thread, never on the thread that built the window: the
+/// plugin's restore holds its cache lock while it waits for the main thread to move the window,
+/// and its own move handler (which `show()` sets off) takes that lock on the main thread, so a
+/// restore from any other thread can deadlock the whole application.
+#[cfg(not(windows))]
 pub fn restore_after_show<R: Runtime>(window: &WebviewWindow<R>) {
-    if let Err(error) = window.restore_state(flags()) {
-        log::warn!("could not restore the place of {}: {error}", window.label());
-    }
+    use tauri::Manager;
+    let window = window.clone();
+    let app = window.app_handle().clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Err(error) = window.restore_state(flags()) {
+            log::warn!("could not restore the place of {}: {error}", window.label());
+        }
+    });
 }
+
+/// Windows needs nothing after `show()`: the plugin's restore at creation already placed the window.
+#[cfg(windows)]
+pub fn restore_after_show<R: Runtime>(_window: &WebviewWindow<R>) {}
 
 /// The plugin, restoring a dialog window as it is created and saving it as the app exits.
 /// `denylist` carries the labels another plugin needs left alone (the tear-off ghost).
