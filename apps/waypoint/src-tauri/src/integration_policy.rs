@@ -1572,7 +1572,12 @@ mod tests {
 
     #[test]
     fn a_refusal_makes_prevent_sleep_unavailable_with_the_reason() {
-        let fine = availability(Platform::Linux, &portal(true, true), &desktop(&[]));
+        let fine = availability(
+            Platform::Linux,
+            &portal(true, true),
+            &desktop(&[]),
+            Availability::yes(),
+        );
         assert!(
             with_refused_inhibit(fine.clone(), false)
                 .prevent_sleep
