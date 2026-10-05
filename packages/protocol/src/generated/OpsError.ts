@@ -15,4 +15,4 @@ expected: string,
 /**
  * The digest of what was read back, in hex.
  */
-actual: string, } | { "kind": "cannotReplace", location: Location, } | { "kind": "undoStale", location: Location, reason: StaleReason, } | { "kind": "undoUnavailable", reason: string, } | { "kind": "archiveLimit", location: Location, limit: ArchiveLimit, } | { "kind": "connection", error: VfsError, } | { "kind": "io", message: string, };
+actual: string, } | { "kind": "cannotReplace", location: Location, } | { "kind": "undoStale", location: Location, reason: StaleReason, } | { "kind": "undoUnavailable", reason: string, } | { "kind": "archiveLimit", location: Location, limit: ArchiveLimit, } | { "kind": "connection", error: VfsError, } | { "kind": "archived", location: Location, } | { "kind": "clockSkew", skewMs: number | null, } | { "kind": "io", message: string, };

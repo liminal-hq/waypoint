@@ -64,6 +64,7 @@ mod tests {
             modified_ms: Some(7),
             hidden: false,
             trashed: None,
+            attributes: None,
         };
         let details = from_scanned(&entry);
         assert_eq!(details.size, Some(42));

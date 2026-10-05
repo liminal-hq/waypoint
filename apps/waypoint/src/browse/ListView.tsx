@@ -61,6 +61,8 @@ import {
 	type OpenInNewHandler,
 } from './useListInteractions';
 import { formatLocale } from '../i18n/active';
+import { hasStorageClasses } from './storageClass';
+import { StorageClassCell } from './StorageClassCell';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
@@ -68,7 +70,7 @@ const OVERSCAN = 12;
 /** A column of the header. One with no `sort` is not a sort key (where an item was trashed from). */
 interface Column {
 	/** Names the column for the row cells and the container queries that hide it when narrow. */
-	id: 'name' | 'size' | 'modified' | 'kind' | 'original' | 'deleted' | 'git';
+	id: 'name' | 'size' | 'modified' | 'kind' | 'original' | 'deleted' | 'git' | 'storageClass';
 	sort?: SortKey;
 	label: MessageId;
 }
@@ -84,6 +86,13 @@ const FOLDER_COLUMNS: Column[] = [
 const GIT_FOLDER_COLUMNS: Column[] = [
 	FOLDER_COLUMNS[0]!,
 	{ id: 'git', sort: 'git', label: 'browse.column.git' },
+	...FOLDER_COLUMNS.slice(1),
+];
+
+/** In a folder on S3 the Storage class column, when the person has shown it, sits beside Name as the Git column does (a folder is never both). It is not a sort key: the class is a fact to read, not an order to work in. */
+const STORAGE_FOLDER_COLUMNS: Column[] = [
+	FOLDER_COLUMNS[0]!,
+	{ id: 'storageClass', label: 'browse.column.storageClass' },
 	...FOLDER_COLUMNS.slice(1),
 ];
 
@@ -103,6 +112,8 @@ interface ListViewProps {
 }
 
 const selectGitColumn = (settings: { ui: { gitColumn: boolean } }) => settings.ui.gitColumn;
+const selectStorageClassColumn = (settings: { ui: { storageClassColumn: boolean } }) =>
+	settings.ui.storageClassColumn;
 
 /** Opens the listing of `location` itself; a host that manages listings uses `ListingView`. */
 export function ListView({ location, onOpen }: ListViewProps) {
@@ -236,22 +247,44 @@ function ListingBody({
 	const gitColumnWanted = useSettings(selectGitColumn);
 	const settingsHandle = useSettingsHandle();
 	const showGit = repository !== null && gitColumnWanted;
-	const columns = trash ? TRASH_COLUMNS : showGit ? GIT_FOLDER_COLUMNS : FOLDER_COLUMNS;
+	// On S3 the rows carry each object's storage class; the column is the person's to show (hidden by default).
+	const storageClassWanted = useSettings(selectStorageClassColumn);
+	const onS3 = !trash && hasStorageClasses(model.location.uri);
+	const showStorageClass = onS3 && storageClassWanted;
+	const columns = trash
+		? TRASH_COLUMNS
+		: showGit
+			? GIT_FOLDER_COLUMNS
+			: showStorageClass
+				? STORAGE_FOLDER_COLUMNS
+				: FOLDER_COLUMNS;
 	const [headerMenu, setHeaderMenu] = useState<{
 		position: { x: number; y: number };
 		keyboard: boolean;
 	} | null>(null);
-	const headerMenuItems: MenuItem[] = repository
-		? [
-				{
-					type: 'checkbox',
-					id: 'git',
-					label: t('git.column.show'),
-					icon: <GitIcon />,
-					checked: gitColumnWanted,
-				},
-			]
-		: [];
+	const headerMenuItems: MenuItem[] = [
+		...(repository
+			? [
+					{
+						type: 'checkbox' as const,
+						id: 'git',
+						label: t('git.column.show'),
+						icon: <GitIcon />,
+						checked: gitColumnWanted,
+					},
+				]
+			: []),
+		...(onS3
+			? [
+					{
+						type: 'checkbox' as const,
+						id: 'storageClass',
+						label: t('browse.column.storageClass.show'),
+						checked: storageClassWanted,
+					},
+				]
+			: []),
+	];
 	useLayoutEffect(() => {
 		if (scroller.current) setRowHeight(measureRowHeight(scroller.current));
 	}, [empty]);
@@ -428,6 +461,7 @@ function ListingBody({
 			className={styles.view}
 			data-layout={model.layout}
 			data-git={showGit ? '' : undefined}
+			data-storage={showStorageClass ? '' : undefined}
 			style={withPictures ? ({ '--wp-list-icon': `${pictureSize}px` } as CSSProperties) : undefined}
 		>
 			<div
@@ -496,10 +530,17 @@ function ListingBody({
 					onClose={() => setHeaderMenu(null)}
 					onSelect={(item) => {
 						setHeaderMenu(null);
-						if (item.id !== 'git') return;
-						settingsHandle?.saveUi({ gitColumn: !gitColumnWanted }).catch((error: unknown) => {
-							console.warn('could not save the Git column choice', error);
-						});
+						if (item.id === 'git') {
+							settingsHandle?.saveUi({ gitColumn: !gitColumnWanted }).catch((error: unknown) => {
+								console.warn('could not save the Git column choice', error);
+							});
+						} else if (item.id === 'storageClass') {
+							settingsHandle
+								?.saveUi({ storageClassColumn: !storageClassWanted })
+								.catch((error: unknown) => {
+									console.warn('could not save the Storage class column choice', error);
+								});
+						}
 					}}
 				/>
 			)}
@@ -668,6 +709,7 @@ function ListingBody({
 															<GitMarkView mark={entry.git} variant="column" />
 														</span>
 													)}
+													{showStorageClass && <StorageClassCell entry={entry} />}
 													<span className={styles.cell} data-column="size">
 														{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
 													</span>

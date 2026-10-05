@@ -201,6 +201,7 @@ fn entry_of(item: &TrashedItem) -> ScannedEntry {
             original_path: item.original_path.clone(),
             deleted_ms: item.deleted_ms,
         })),
+        attributes: None,
     }
 }
 
@@ -216,6 +217,7 @@ fn root_entry() -> ScannedEntry {
         modified_ms: None,
         hidden: false,
         trashed: None,
+        attributes: None,
     }
 }
 

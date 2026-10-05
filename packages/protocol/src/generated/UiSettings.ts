@@ -25,4 +25,10 @@ menuBar: boolean,
  * Whether the list shows the Git column in a folder of a working tree (the header menu's
  * choice; off, the marks on the rows and the branch stay).
  */
-gitColumn: boolean, };
+gitColumn: boolean, 
+/**
+ * Whether the list shows the Storage class column in a folder on S3 (the header menu's
+ * choice; off by default, since most folders are not on S3 and most people need the class
+ * only now and then).
+ */
+storageClassColumn: boolean, };

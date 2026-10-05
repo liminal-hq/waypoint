@@ -93,6 +93,51 @@
 	}
 }
 
+/* On S3 the Storage class column follows Name, as Git's does. Each breakpoint is the one for the plain columns plus the column and its gap (140px), and it gives way last of the four. */
+.view[data-storage] .columns {
+	grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px 88px 168px 96px;
+}
+
+@container list (max-width: 711px) {
+	.view[data-storage] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px 88px 168px;
+	}
+
+	.view[data-storage] .columns [data-column='kind'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 603px) {
+	.view[data-storage] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px 88px;
+	}
+
+	.view[data-storage] .columns [data-column='modified'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 423px) {
+	.view[data-storage] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px;
+	}
+
+	.view[data-storage] .columns [data-column='size'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 283px) {
+	.view[data-storage] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr);
+	}
+
+	.view[data-storage] .columns [data-column='storageClass'] {
+		display: none;
+	}
+}
+
 /* The Trash lists where an item was and when it was trashed in place of Modified and Kind: Name, Original location, Date deleted, Size. */
 .view[data-layout='trash'] .columns {
 	grid-template-columns: minmax(var(--wp-name-min), 1.2fr) minmax(120px, 1fr) 168px 88px;

@@ -1,0 +1,24 @@
+[package]
+name = "waypoint-provider-s3"
+version = "0.1.0"
+description = "Waypoint's S3 provider: buckets and keys as folders and files, through the AWS SDK for S3"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+aws-sdk-s3 = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest", "http-1x"] }
+aws-smithy-http-client = { version = "1", default-features = false, features = ["rustls-ring"] }
+bytes = "1"
+log = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+[dev-dependencies]
+tempfile = "3"
+waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }

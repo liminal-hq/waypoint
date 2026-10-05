@@ -99,6 +99,17 @@ pub enum VfsError {
         #[ts(type = "number | null")]
         retry_after_ms: Option<u64>,
     },
+    /// The object is in an archive storage class (S3 Glacier Flexible Retrieval, Deep Archive) and
+    /// needs a restore before it can be read. Waypoint never starts a restore by itself.
+    Archived { location: Location },
+    /// The service refused a signed request because this computer's clock and its own differ too
+    /// much. `skew_ms` is how far this clock is ahead (positive) or behind (negative) the service's,
+    /// when the service said.
+    ClockSkew {
+        location: Location,
+        #[ts(type = "number | null")]
+        skew_ms: Option<i64>,
+    },
     /// The file cannot be read as what it should be: a damaged archive or repository.
     Corrupt { location: Location },
     /// Any other I/O failure, with the operating system's message.

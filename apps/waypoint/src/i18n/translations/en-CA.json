@@ -1915,6 +1915,62 @@
     "message": "{location} is a file, not a folder.",
     "description": "Area: browse. Placeholders, kept exactly as written: {location} is a folder or path."
   },
+  "browse.column.storageClass": {
+    "message": "Storage class",
+    "description": "Area: browse."
+  },
+  "browse.column.storageClass.show": {
+    "message": "Show Storage Class",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.standard": {
+    "message": "Standard",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.standardIa": {
+    "message": "Standard-IA",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.onezoneIa": {
+    "message": "One Zone-IA",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.intelligentTiering": {
+    "message": "Intelligent-Tiering",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.reducedRedundancy": {
+    "message": "Reduced redundancy",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.glacierIr": {
+    "message": "Glacier Instant Retrieval",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.glacier": {
+    "message": "Glacier Flexible Retrieval",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.deepArchive": {
+    "message": "Glacier Deep Archive",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.expressOnezone": {
+    "message": "Express One Zone",
+    "description": "Area: browse."
+  },
+  "browse.storageClass.restoreNote": {
+    "message": "archived: needs a restore before it can be read",
+    "description": "Area: browse."
+  },
+  "browse.error.archived.title": {
+    "message": "This file is archived",
+    "description": "Area: browse."
+  },
+  "browse.error.archived.detail": {
+    "message": "{location} is in an archive storage class and needs a restore before it can be opened. Restore it with the service’s own tools; Waypoint never starts a restore.",
+    "description": "Area: browse. Placeholders, kept exactly as written: {location} is a folder or path."
+  },
   "browse.error.other.title": {
     "message": "This folder could not be shown",
     "description": "Area: browse."
@@ -3947,6 +4003,14 @@
     "message": "Not connected: this computer is offline.",
     "description": "Area: connect."
   },
+  "connect.error.clockSkew": {
+    "message": "Not connected: this computer’s clock is off, so the service refused the request.",
+    "description": "Area: connect."
+  },
+  "connect.error.archived": {
+    "message": "That file is archived and needs a restore first.",
+    "description": "Area: connect."
+  },
   "connect.error.timeout": {
     "message": "Not connected: the server did not answer in time.",
     "description": "Area: connect."
@@ -4298,6 +4362,14 @@
   "remote.unreachable.offline": {
     "message": "This computer is offline.",
     "description": "Area: remote."
+  },
+  "remote.clockSkew.title": {
+    "message": "The clock on this computer is off",
+    "description": "Area: remote."
+  },
+  "remote.clockSkew.detail": {
+    "message": "{server} refused the request because this computer’s clock differs from its own. Set the date and time automatically, then reconnect.",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}."
   },
   "remote.timeout.title": {
     "message": "{server} is not answering",
@@ -6286,6 +6358,22 @@
   "ops.problem.message.undoUnavailable": {
     "message": "{reason}",
     "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
+  "ops.problem.message.archived": {
+    "message": "{location} is archived and needs a restore before it can be read. Restore it with the service’s own tools, then retry; Waypoint never starts a restore.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
+  },
+  "ops.problem.message.clockSkew": {
+    "message": "The service refused the request because this computer’s clock is off. Set the date and time automatically, then retry.",
+    "description": "Area: ops."
+  },
+  "ops.problem.message.clockSkew.ahead": {
+    "message": "The service refused the request because this computer’s clock is about {minutes} minutes ahead of its own. Set the date and time automatically, then retry.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {minutes}."
+  },
+  "ops.problem.message.clockSkew.behind": {
+    "message": "The service refused the request because this computer’s clock is about {minutes} minutes behind its own. Set the date and time automatically, then retry.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {minutes}."
   },
   "ops.problem.message.io": {
     "message": "The system reported a problem: {message}",

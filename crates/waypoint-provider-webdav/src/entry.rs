@@ -38,6 +38,7 @@ pub(crate) fn entry(name: &[u8], props: &Props, folder_hint: bool) -> ScannedEnt
         modified_ms: props.modified.as_deref().and_then(modified_ms),
         hidden: name.starts_with(b"."),
         trashed: None,
+        attributes: None,
     }
 }
 

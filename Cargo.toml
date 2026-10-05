@@ -7,6 +7,7 @@ members = [
   "crates/waypoint-settings",
   "crates/waypoint-vfs",
   "crates/waypoint-provider-sftp",
+  "crates/waypoint-provider-s3",
   "crates/waypoint-provider-smb",
   "crates/waypoint-provider-archive",
   "crates/waypoint-connections",

@@ -1100,6 +1100,35 @@ const messages: Catalogue = {
 	'browse.error.notADirectory.title': 'Pas un dossier',
 	// source: 565902db
 	'browse.error.notADirectory.detail': '{location} est un fichier, pas un dossier.',
+	// source: 31f72a24
+	'browse.column.storageClass': 'Classe de stockage',
+	// source: 574c7a90
+	'browse.column.storageClass.show': 'Afficher la classe de stockage',
+	// source: ef669154
+	'browse.storageClass.standard': 'Standard',
+	// source: 8139ea3a
+	'browse.storageClass.standardIa': 'Standard-IA',
+	// source: 5935b09f
+	'browse.storageClass.onezoneIa': 'One Zone-IA',
+	// source: 3ffe3450
+	'browse.storageClass.intelligentTiering': 'Intelligent-Tiering',
+	// source: e9e6bc18
+	'browse.storageClass.reducedRedundancy': 'Redondance réduite',
+	// source: f101b09b
+	'browse.storageClass.glacierIr': 'Glacier Instant Retrieval',
+	// source: f7a5dcb0
+	'browse.storageClass.glacier': 'Glacier Flexible Retrieval',
+	// source: 67ebe3a1
+	'browse.storageClass.deepArchive': 'Glacier Deep Archive',
+	// source: 92eee78c
+	'browse.storageClass.expressOnezone': 'Express One Zone',
+	// source: 28451b00
+	'browse.storageClass.restoreNote': 'archivé : doit être restauré avant de pouvoir être lu',
+	// source: 73da082d
+	'browse.error.archived.title': 'Ce fichier est archivé',
+	// source: 24c235f6
+	'browse.error.archived.detail':
+		'{location} se trouve dans une classe de stockage d’archives et doit être restauré avant de pouvoir être ouvert. Restaurez-le avec les outils du service; Waypoint ne lance jamais de restauration.',
 	// source: fb86171c
 	'browse.error.other.title': 'Ce dossier n’a pas pu être affiché',
 	// source: dc6a434c
@@ -2174,6 +2203,11 @@ const messages: Catalogue = {
 	'connect.error.noRoute': 'Non connecté : il n’y a pas de route vers le serveur.',
 	// source: 48014f6e
 	'connect.error.offline': 'Non connecté : cet ordinateur est hors ligne.',
+	// source: ed4a8264
+	'connect.error.clockSkew':
+		'Non connecté : l’horloge de cet ordinateur est inexacte, donc le service a refusé la requête.',
+	// source: 4ce5e64c
+	'connect.error.archived': 'Ce fichier est archivé et doit d’abord être restauré.',
 	// source: 2bdde388
 	'connect.error.timeout': 'Non connecté : le serveur n’a pas répondu à temps.',
 	// source: 7c6bac9a
@@ -2357,6 +2391,11 @@ const messages: Catalogue = {
 	'remote.unreachable.noRoute': 'Il n’y a pas de route vers le serveur depuis ce réseau.',
 	// source: d6ffcf69
 	'remote.unreachable.offline': 'Cet ordinateur est hors ligne.',
+	// source: f8c15c83
+	'remote.clockSkew.title': 'L’horloge de cet ordinateur est inexacte',
+	// source: 339bc34e
+	'remote.clockSkew.detail':
+		'{server} a refusé la requête parce que l’horloge de cet ordinateur diffère de la sienne. Réglez la date et l’heure automatiquement, puis reconnectez-vous.',
 	// source: 6279ed15
 	'remote.timeout.title': '{server} ne répond pas',
 	// source: 8392b044
@@ -3481,6 +3520,18 @@ const messages: Catalogue = {
 	'ops.problem.message.undoStale': 'Cette action ne peut pas être annulée : {reason}',
 	// source: a4ba81b6
 	'ops.problem.message.undoUnavailable': '{reason}',
+	// source: d72bcf52
+	'ops.problem.message.archived':
+		'{location} est archivé et doit être restauré avant de pouvoir être lu. Restaurez-le avec les outils du service, puis réessayez; Waypoint ne lance jamais de restauration.',
+	// source: dcbc5e23
+	'ops.problem.message.clockSkew':
+		'Le service a refusé la requête parce que l’horloge de cet ordinateur est inexacte. Réglez la date et l’heure automatiquement, puis réessayez.',
+	// source: 8f11c96b
+	'ops.problem.message.clockSkew.ahead':
+		'Le service a refusé la requête parce que l’horloge de cet ordinateur avance d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.',
+	// source: 18524504
+	'ops.problem.message.clockSkew.behind':
+		'Le service a refusé la requête parce que l’horloge de cet ordinateur retarde d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.',
 	// source: 89438320
 	'ops.problem.message.io': 'Le système a signalé un problème : {message}',
 	// source: 2fd894ca

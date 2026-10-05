@@ -40,6 +40,11 @@ originalPath?: string,
  */
 deletedMs?: number | null, 
 /**
+ * Extra facts the entry's provider has, keyed `provider.name` (`s3.storageClass`), for the
+ * plugin columns that know them; bounded (`EntryAttributes`).
+ */
+attributes?: { [key in string]: string }, 
+/**
  * What Git says about the entry, in a folder of a working tree with the overlay on.
  */
 git?: GitMark, };

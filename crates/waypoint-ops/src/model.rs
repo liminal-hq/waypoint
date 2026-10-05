@@ -440,6 +440,15 @@ pub enum OpsError {
     /// connection (A80). One kind, so Skip all covers every connection failure; Retry reconnects.
     #[error("connection problem: {error:?}")]
     Connection { error: VfsError },
+    /// The object is in an archive storage class and needs a restore before it can be read.
+    #[error("{} is archived and needs a restore", .location.display)]
+    Archived { location: Location },
+    /// The service refused a signed request because this computer's clock is off.
+    #[error("the clock is off by {skew_ms:?} ms")]
+    ClockSkew {
+        #[ts(type = "number | null")]
+        skew_ms: Option<i64>,
+    },
     #[error("{message}")]
     Io { message: String },
 }
@@ -517,6 +526,8 @@ impl From<VfsError> for OpsError {
             VfsError::StaleHandle => OpsError::Io {
                 message: "the listing was closed".to_owned(),
             },
+            VfsError::Archived { location } => OpsError::Archived { location },
+            VfsError::ClockSkew { skew_ms, .. } => OpsError::ClockSkew { skew_ms },
             VfsError::Corrupt { location } => OpsError::Io {
                 message: format!("{} is damaged", location.display),
             },

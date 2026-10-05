@@ -35,6 +35,11 @@ function errorMessages(error: VfsError): { title: MessageId; detail: MessageId }
 				title: 'browse.error.unsupported.title',
 				detail: 'browse.error.unsupported.detail',
 			};
+		case 'archived':
+			return {
+				title: 'browse.error.archived.title',
+				detail: 'browse.error.archived.detail',
+			};
 		default:
 			return { title: 'browse.error.other.title', detail: 'browse.error.other.detail' };
 	}
@@ -51,7 +56,8 @@ export function ErrorState({ error }: { error: VfsError }) {
 		error.kind === 'notFound' ||
 		error.kind === 'permissionDenied' ||
 		error.kind === 'notADirectory' ||
-		error.kind === 'corrupt'
+		error.kind === 'corrupt' ||
+		error.kind === 'archived'
 			? error.location.display
 			: '';
 	const what = error.kind === 'unsupported' ? error.what : '';

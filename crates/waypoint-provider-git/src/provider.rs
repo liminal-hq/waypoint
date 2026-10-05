@@ -241,6 +241,7 @@ impl GitProvider {
             modified_ms: view.time_ms,
             hidden: name.first() == Some(&b'.'),
             trashed: None,
+            attributes: None,
         })
     }
 

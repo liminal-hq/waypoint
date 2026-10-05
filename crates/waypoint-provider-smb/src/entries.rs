@@ -21,5 +21,6 @@ pub(crate) fn folder(name: &str) -> ScannedEntry {
         modified_ms: None,
         hidden: false,
         trashed: None,
+        attributes: None,
     }
 }

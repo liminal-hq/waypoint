@@ -24,6 +24,7 @@ export function problemText(error: OpsError): ProblemText {
 	switch (error.kind) {
 		case 'notFound':
 		case 'permissionDenied':
+		case 'archived':
 		case 'nameInUse':
 		case 'protected':
 		case 'changedSince':
@@ -106,6 +107,20 @@ export function problemText(error: OpsError): ProblemText {
 				location: ('location' in error.error && error.error.location?.display) || '',
 			});
 			break;
+		case 'clockSkew': {
+			// The skew is this clock less the service's: positive is ahead.
+			const minutes = error.skewMs === null ? 0 : Math.round(Math.abs(error.skewMs) / 60_000);
+			message =
+				error.skewMs === null || minutes === 0
+					? t('ops.problem.message.clockSkew')
+					: tf(
+							error.skewMs > 0
+								? 'ops.problem.message.clockSkew.ahead'
+								: 'ops.problem.message.clockSkew.behind',
+							{ minutes: String(minutes) },
+						);
+			break;
+		}
 		case 'sameFolder':
 		case 'intoItself':
 		case 'cancelled':

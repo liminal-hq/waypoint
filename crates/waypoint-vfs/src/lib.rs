@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod archive;
+mod attributes;
 mod cancel;
 #[cfg(any(test, feature = "testing"))]
 pub mod conformance;
@@ -52,6 +53,7 @@ pub use archive::{
     ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind, ArchiveWriters, EntryAttrs,
     UnsafeName,
 };
+pub use attributes::{EntryAttributes, MAX_ATTRIBUTES, MAX_KEY_BYTES, MAX_VALUE_BYTES};
 pub use cancel::CancelToken;
 pub use details::*;
 pub use dirscan::*;
