@@ -31,6 +31,8 @@ import { createTauriDirScanClient } from '../services/tauriDirScanClient';
 import { HomeScanProvider } from '../overview/HomeScanContext';
 import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
+import { ArchiveClientProvider } from '../archives/ArchiveContext';
+import { createTauriArchiveClient } from '../archives/tauriArchiveClient';
 import { ConnectionsProvider } from '../connections/ConnectionsContext';
 import { createTauriConnectionsClient } from '../connections/tauriConnectionsClient';
 import { createTauriOpenWithClient } from '../openWith/tauriOpenWithClient';
@@ -115,6 +117,8 @@ export function MainScreen() {
 	// What the menu, the Action bar and the keys' commands read: the workspace and the window publish into it.
 	const [bridge] = useState(createCommandBridge);
 	const [startup, setStartup] = useState<Startup>({ state: 'starting' });
+	// The archive provider's password command and slow-listing notice; the demo has no provider to ask.
+	const [archiveClient] = useState(() => (wantsDemo() ? null : createTauriArchiveClient()));
 	// React runs effects twice in development; starting twice would open a second tab.
 	const started = useRef(false);
 	useEffect(() => {
@@ -151,52 +155,54 @@ export function MainScreen() {
 							<TimeFormatProvider client={startup.services.timeFormat}>
 								<TrashClientProvider client={startup.services.trash}>
 									<DevicesClientProvider client={startup.services.devices}>
-										<ConnectionsProvider client={startup.services.connections}>
-											<OpenWithProvider client={startup.services.openWith}>
-												<ThumbnailsProvider client={startup.services.thumbnails}>
-													<DetailsClientProvider client={startup.services.details}>
-														<PropertiesWindowProvider client={startup.services.propertiesWindow}>
-															<HomeScanProvider client={startup.services.dirScan}>
-																<TabsProvider
-																	api={startup.services.tabsApi}
-																	home={startup.services.home}
-																>
-																	<main className={styles.content}>
-																		{DevLiveControls && startup.services.demo && (
-																			<Suspense fallback={null}>
-																				<DevLiveControls
-																					client={startup.services.demo.client}
-																					location={startup.services.home}
-																				/>
-																			</Suspense>
-																		)}
-																		<MainOps
-																			client={startup.services.ops}
-																			osClipboard={startup.services.osClipboard}
-																		>
-																			<FolderViewsProvider client={startup.services.folderViews}>
-																				<GitProvider client={startup.services.git}>
-																					<Workspace
-																						startup={{
-																							view: startup.services.view,
-																							notice: startup.services.notice,
-																						}}
-																						tearoff={startup.services.tearoff}
-																						nativeDnd={startup.services.nativeDnd}
+										<ArchiveClientProvider client={archiveClient}>
+											<ConnectionsProvider client={startup.services.connections}>
+												<OpenWithProvider client={startup.services.openWith}>
+													<ThumbnailsProvider client={startup.services.thumbnails}>
+														<DetailsClientProvider client={startup.services.details}>
+															<PropertiesWindowProvider client={startup.services.propertiesWindow}>
+																<HomeScanProvider client={startup.services.dirScan}>
+																	<TabsProvider
+																		api={startup.services.tabsApi}
+																		home={startup.services.home}
+																	>
+																		<main className={styles.content}>
+																			{DevLiveControls && startup.services.demo && (
+																				<Suspense fallback={null}>
+																					<DevLiveControls
+																						client={startup.services.demo.client}
+																						location={startup.services.home}
 																					/>
-																				</GitProvider>
-																			</FolderViewsProvider>
-																		</MainOps>
-																		<CommandPaletteHost />
-																		<HelpHost appInfo={startup.services.appInfo} />
-																	</main>
-																</TabsProvider>
-															</HomeScanProvider>
-														</PropertiesWindowProvider>
-													</DetailsClientProvider>
-												</ThumbnailsProvider>
-											</OpenWithProvider>
-										</ConnectionsProvider>
+																				</Suspense>
+																			)}
+																			<MainOps
+																				client={startup.services.ops}
+																				osClipboard={startup.services.osClipboard}
+																			>
+																				<FolderViewsProvider client={startup.services.folderViews}>
+																					<GitProvider client={startup.services.git}>
+																						<Workspace
+																							startup={{
+																								view: startup.services.view,
+																								notice: startup.services.notice,
+																							}}
+																							tearoff={startup.services.tearoff}
+																							nativeDnd={startup.services.nativeDnd}
+																						/>
+																					</GitProvider>
+																				</FolderViewsProvider>
+																			</MainOps>
+																			<CommandPaletteHost />
+																			<HelpHost appInfo={startup.services.appInfo} />
+																		</main>
+																	</TabsProvider>
+																</HomeScanProvider>
+															</PropertiesWindowProvider>
+														</DetailsClientProvider>
+													</ThumbnailsProvider>
+												</OpenWithProvider>
+											</ConnectionsProvider>
+										</ArchiveClientProvider>
 									</DevicesClientProvider>
 								</TrashClientProvider>
 							</TimeFormatProvider>

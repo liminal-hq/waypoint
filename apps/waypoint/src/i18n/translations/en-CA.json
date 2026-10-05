@@ -1923,6 +1923,22 @@
     "message": "Something went wrong while reading the folder.",
     "description": "Area: browse."
   },
+  "browse.error.corrupt.title": {
+    "message": "This archive is damaged",
+    "description": "Area: browse."
+  },
+  "browse.error.corrupt.detail": {
+    "message": "{location} cannot be read as an archive. It may be cut short or damaged.",
+    "description": "Area: browse. Placeholders, kept exactly as written: {location} is a folder or path."
+  },
+  "browse.error.unsupported.title": {
+    "message": "This cannot be shown as a folder",
+    "description": "Area: browse."
+  },
+  "browse.error.unsupported.detail": {
+    "message": "Waypoint cannot open this here: {what}",
+    "description": "Area: browse. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
+  },
   "browse.selection.none": {
     "message": "No items selected",
     "description": "Area: browse."
@@ -3113,6 +3129,26 @@
   },
   "menu.duplicate": {
     "message": "Duplicate",
+    "description": "Area: menu."
+  },
+  "menu.extractHere": {
+    "message": "Extract Here",
+    "description": "Area: menu."
+  },
+  "menu.extractTo": {
+    "message": "Extract To…",
+    "description": "Area: menu."
+  },
+  "menu.extractAll": {
+    "message": "Extract All",
+    "description": "Area: menu."
+  },
+  "menu.compress": {
+    "message": "Compress…",
+    "description": "Area: menu. Makes an archive file (a .zip, say) from the selected items; “Compress” as in a file manager’s menu, not squeezing a picture."
+  },
+  "menu.openAsFolder": {
+    "message": "Open as Folder",
     "description": "Area: menu."
   },
   "menu.cut": {
@@ -4475,6 +4511,42 @@
     "message": "This location cannot be changed.",
     "description": "Area: files."
   },
+  "files.extract.nothing": {
+    "message": "None of the selected items is an archive.",
+    "description": "Area: files."
+  },
+  "files.extract.limit.title": {
+    "message": "Extract a very large archive?",
+    "description": "Area: files."
+  },
+  "files.extract.limit.message": {
+    "message": "{name} is larger than the archive limits allow ({reason}). Extracting it could fill the disk.",
+    "description": "Area: files. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words."
+  },
+  "files.extract.limit.action": {
+    "message": "Extract anyway",
+    "description": "Area: files."
+  },
+  "files.extract.leftOut.one": {
+    "message": "{count} entry of the archive was left out: its name or link was unsafe.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.other."
+  },
+  "files.extract.leftOut.other": {
+    "message": "{count} entries of the archive were left out: their names or links were unsafe.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.one."
+  },
+  "files.extract.unlockFailed": {
+    "message": "The archive’s password could not be given: {reason}",
+    "description": "Area: files. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
+  "files.extract.stillLocked": {
+    "message": "The archive is still locked.",
+    "description": "Area: files."
+  },
+  "files.compress.nothing": {
+    "message": "Select something to compress first.",
+    "description": "Area: files."
+  },
   "files.nothingSelected": {
     "message": "Nothing is selected.",
     "description": "Area: files."
@@ -4609,6 +4681,22 @@
   },
   "destination.copy": {
     "message": "Copy",
+    "description": "Area: destination."
+  },
+  "destination.title.extract.one": {
+    "message": "Extract {count} archive to…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are destination.title.extract.other."
+  },
+  "destination.title.extract.other": {
+    "message": "Extract {count} archives to…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are destination.title.extract.one."
+  },
+  "destination.title.extractAll": {
+    "message": "Extract {name} to…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "destination.extract": {
+    "message": "Extract",
     "description": "Area: destination."
   },
   "destination.move": {
@@ -5571,6 +5659,54 @@
     "message": "Restored {name}",
     "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
   },
+  "ops.title.extract.one": {
+    "message": "Extracting {count} archive",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.extract.other."
+  },
+  "ops.title.extract.other": {
+    "message": "Extracting {count} archives",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.extract.one."
+  },
+  "ops.title.extract.named": {
+    "message": "Extracting {name}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.done.extract.one": {
+    "message": "Extracted {count} archive",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.extract.other."
+  },
+  "ops.done.extract.other": {
+    "message": "Extracted {count} archives",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.extract.one."
+  },
+  "ops.done.extract.named": {
+    "message": "Extracted {name}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.title.compress.one": {
+    "message": "Compressing {count} item",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.compress.other."
+  },
+  "ops.title.compress.other": {
+    "message": "Compressing {count} items",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.compress.one."
+  },
+  "ops.title.compress.named": {
+    "message": "Compressing {name}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.done.compress.one": {
+    "message": "Compressed {count} item",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.compress.other."
+  },
+  "ops.done.compress.other": {
+    "message": "Compressed {count} items",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.compress.one."
+  },
+  "ops.done.compress.named": {
+    "message": "Compressed {name}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
   "ops.done.delete.one": {
     "message": "Deleted {count} item",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.delete.other."
@@ -6281,6 +6417,14 @@
   },
   "ops.error.cannotReplace": {
     "message": "{name} cannot be replaced by an entry of another kind",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.connection": {
+    "message": "A server could not be reached, or asked for a login.",
+    "description": "Area: ops."
+  },
+  "ops.error.archiveLimit": {
+    "message": "{name} is larger than the archive limits allow",
     "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
   },
   "ops.error.undoStale.missing": {
@@ -7231,6 +7375,10 @@
     "message": "Select something first",
     "description": "Area: cmd."
   },
+  "cmd.reason.notAnArchive": {
+    "message": "Select an archive first",
+    "description": "Area: cmd."
+  },
   "cmd.reason.nothingFocused": {
     "message": "Select an item to rename",
     "description": "Area: cmd."
@@ -7297,6 +7445,10 @@
   },
   "actionBar.delete": {
     "message": "Delete",
+    "description": "Area: actionBar."
+  },
+  "actionBar.extractAll": {
+    "message": "Extract all",
     "description": "Area: actionBar."
   },
   "actionBar.more": {
@@ -8982,5 +9134,101 @@
   "connect.problem.domainUser": {
     "message": "Give the user name that goes with the domain.",
     "description": "Area: connect."
+  },
+  "compress.title": {
+    "message": "Compress",
+    "description": "Area: compress."
+  },
+  "compress.description": {
+    "message": "Packs the selection into one new archive in this folder.",
+    "description": "Area: compress."
+  },
+  "compress.name": {
+    "message": "Archive name",
+    "description": "Area: compress."
+  },
+  "compress.format": {
+    "message": "Format",
+    "description": "Area: compress."
+  },
+  "compress.format.zip": {
+    "message": "Zip (.zip)",
+    "description": "Area: compress."
+  },
+  "compress.format.tarGz": {
+    "message": "Tar, gzip (.tar.gz)",
+    "description": "Area: compress."
+  },
+  "compress.format.tarXz": {
+    "message": "Tar, xz (.tar.xz)",
+    "description": "Area: compress."
+  },
+  "compress.format.tarBz2": {
+    "message": "Tar, bzip2 (.tar.bz2)",
+    "description": "Area: compress."
+  },
+  "compress.format.tar": {
+    "message": "Tar, uncompressed (.tar)",
+    "description": "Area: compress."
+  },
+  "compress.format.sevenZ": {
+    "message": "7z (.7z)",
+    "description": "Area: compress."
+  },
+  "compress.confirm": {
+    "message": "Compress",
+    "description": "Area: compress."
+  },
+  "compress.cancel": {
+    "message": "Cancel",
+    "description": "Area: compress."
+  },
+  "compress.default": {
+    "message": "Archive",
+    "description": "Area: compress."
+  },
+  "compress.error.empty": {
+    "message": "Give the archive a name.",
+    "description": "Area: compress."
+  },
+  "compress.error.invalid": {
+    "message": "A name cannot hold a slash.",
+    "description": "Area: compress."
+  },
+  "archive.locked.title": {
+    "message": "{name} is locked",
+    "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "archive.locked.detail": {
+    "message": "This archive is encrypted. Enter its password to open it.",
+    "description": "Area: archive."
+  },
+  "archive.locked.refused": {
+    "message": "That password was not accepted. Enter it again to open the archive.",
+    "description": "Area: archive."
+  },
+  "archive.locked.action": {
+    "message": "Enter password",
+    "description": "Area: archive."
+  },
+  "archive.locked.checking": {
+    "message": "Checking…",
+    "description": "Area: archive."
+  },
+  "archive.locked.announce": {
+    "message": "{name} unlocked",
+    "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "archive.locked.dialogDescription": {
+    "message": "Waypoint keeps the password only until it quits, and never saves it.",
+    "description": "Area: archive."
+  },
+  "archive.locked.failed": {
+    "message": "The password could not be given to the archive.",
+    "description": "Area: archive."
+  },
+  "archive.slow": {
+    "message": "Reading {name}. A {format} archive has no index, so opening it takes a while.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {format}; {name} is the name of a file, folder, tab or other item."
   }
 }

@@ -7,6 +7,7 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useMemo } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { archiveTopUri, isArchiveEntry } from '../archives/archiveNames';
 import { useAddFavourite } from '../sidebar/useAddFavourite';
 import { useTabActions } from '../tabs/tabActions';
 import { useWindowActions } from '../tabs/windowActions';
@@ -31,8 +32,13 @@ const ACTION_TEXT: Record<EntryAction, string> = {
 const ignoreFailure = (): void => {};
 
 export interface EntryOpeners {
-	/** Enter and double-click: a folder navigates the tab, a file opens in its default application. */
+	/**
+	 * Enter and double-click: a folder navigates the tab, an archive opens as a folder in a new tab
+	 * (D24), and any other file opens in its default application.
+	 */
 	open: (entry: Entry, handle: ListingHandle) => void;
+	/** Open as Folder: an archive shows its contents in this tab, as a folder does. */
+	openAsFolder: (entry: Entry, handle: ListingHandle) => void;
 	/**
 	 * Middle-click and the menu: a folder opens in a tab beside this one, or in a new window when
 	 * `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
@@ -57,17 +63,27 @@ export function useOpenEntry(
 	const addFavourite = useAddFavourite();
 	const tabs = useTabActions();
 	const { goTo } = navigation;
-	const { openInBackground } = tabs;
+	const { openInBackground, openInForeground } = tabs;
 	const { openInNewWindow } = useWindowActions();
 	return useMemo(() => {
 		const fail = (entry: Entry, action: EntryAction) => (error: unknown) => {
 			console.warn(`could not ${ACTION_TEXT[action]} the entry`, error);
 			onFailure(entry, action);
 		};
+		/** The location of the top of the archive `entry` is. */
+		const archiveOf = (entry: Entry, handle: ListingHandle) =>
+			client
+				.entryLocation(handle, entry.id)
+				.then((file) => client.parseLocation(archiveTopUri(file), file));
 		return {
+			openAsFolder: (entry, handle) => {
+				if (isArchiveEntry(entry)) archiveOf(entry, handle).then(goTo, fail(entry, 'open'));
+			},
 			open: (entry, handle) => {
 				if (isFolder(entry)) {
 					client.entryLocation(handle, entry.id).then(goTo, fail(entry, 'open'));
+				} else if (isArchiveEntry(entry)) {
+					archiveOf(entry, handle).then(openInForeground, fail(entry, 'open'));
 				} else {
 					client.openEntry(handle, entry.id).catch(fail(entry, 'open'));
 				}
@@ -90,5 +106,5 @@ export function useOpenEntry(
 				client.entryLocation(handle, entry.id).then(addFavourite).catch(fail(entry, 'favourite'));
 			},
 		};
-	}, [client, addFavourite, goTo, openInBackground, openInNewWindow, onFailure]);
+	}, [client, addFavourite, goTo, openInBackground, openInForeground, openInNewWindow, onFailure]);
 }

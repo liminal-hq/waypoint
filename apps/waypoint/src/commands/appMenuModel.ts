@@ -166,6 +166,7 @@ export function appMenuItems(
 		rows('newFolder', 'newFile'),
 		rows('openWith'),
 		rows('rename', 'batchRename', 'duplicate'),
+		rows('extractHere', 'extractTo', 'extractAll', 'compress'),
 		rows('moveToTrash', 'deletePermanently'),
 		rows('pauseAll', 'resumeAll'),
 		rows('settings'),

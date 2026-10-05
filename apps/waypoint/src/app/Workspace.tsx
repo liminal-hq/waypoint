@@ -87,6 +87,7 @@ import { useFileCommandsHost } from '../ops/useFileCommandsHost';
 import { FileCommandsProvider } from '../ops/FileCommandsContext';
 import { useFileShortcuts } from '../ops/useFileShortcuts';
 import { ClipboardProvider } from '../ops/ClipboardContext';
+import { CompressHost } from '../ops/CompressHost';
 import { DestinationHost } from '../ops/DestinationHost';
 import { otherPaneSession } from '../ops/otherPane';
 import { createTauriBatchRenameApi } from '../ops/batchRename/tauriBatchRenameApi';
@@ -454,6 +455,12 @@ function WorkspaceBody({
 			}
 			case 'duplicate':
 				return void commands.duplicate(from);
+			case 'extractHere':
+				return void commands.extractHere(from);
+			case 'extractTo':
+				return void commands.extractTo(from);
+			case 'compress':
+				return void commands.compress(from);
 			case 'cut':
 				return void commands.cut(from);
 			case 'copy':
@@ -557,6 +564,7 @@ function WorkspaceBody({
 										<BatchRenameHost api={batchRenameApi} announce={notify} />
 										<ConnectHost />
 										<DestinationHost />
+										<CompressHost />
 										<OpenWithHost />
 										<QuickLookHost />
 										{trashDialogs}
@@ -615,6 +623,7 @@ function WorkspaceBody({
 												onClose={() => setMenu(null)}
 												onOpen={menu.openers.open}
 												onOpenInNewTab={menu.openers.openInNewTab}
+												onOpenAsFolder={menu.openers.openAsFolder}
 												onCopyPath={menu.openers.copyPath}
 												session={menu.session}
 												onAddToFavourites={menu.openers.addToFavourites}

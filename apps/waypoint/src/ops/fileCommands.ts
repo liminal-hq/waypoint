@@ -31,10 +31,16 @@ import type {
 	OpsCommandError,
 } from '../services/opsClient';
 import type { VfsClient } from '../services/vfsClient';
+import { isArchiveEntry, isArchiveLocation } from '../archives/archiveNames';
+import type { ArchiveClient } from '../archives/archiveClient';
+import type { Answered } from '../connections/connectFlow';
+import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import { normaliseUri, pastedUris, pasteRefusal, pasteRequest } from './clipboardRules';
 import type { ClipboardService } from './clipboardService';
 import { pickDestination, type DestinationOptions } from './destinationStore';
 import { errorText } from './jobText';
+import { createArchiveCommands } from './archiveCommands';
+import type { CompressChoice, CompressOptions } from './compressStore';
 import { commandErrorText, runRedo, runUndo } from './opsNotices';
 import type { OpsHandle } from './opsStore';
 
@@ -55,6 +61,10 @@ export type FileCommandId =
 	| 'moveTo'
 	| 'copyToOtherPane'
 	| 'moveToOtherPane'
+	| 'extractHere'
+	| 'extractTo'
+	| 'extractAll'
+	| 'compress'
 	| 'undo'
 	| 'redo';
 
@@ -86,6 +96,10 @@ export interface CommandContext {
 	paired?: boolean;
 	/** The other pane's folder can be written to. */
 	otherPaneWritable?: boolean;
+	/** The entry the keyboard is on is an archive, so Extract has something to extract. */
+	archive?: boolean;
+	/** The listing is a place inside an archive, so Extract All has an archive to extract. */
+	inArchive?: boolean;
 }
 
 /** Whether new items can be made in a listing: its provider says it writes. */
@@ -125,6 +139,11 @@ export function commandStates(context: CommandContext): Record<FileCommandId, Co
 		moveTo: state(writes, selected),
 		copyToOtherPane: state(reads && paired, selected && otherWrites),
 		moveToOtherPane: state(writes && paired, selected && otherWrites),
+		// Extract Here writes beside the archive; Extract To… only reads it; Extract All is for the archive the pane is in.
+		extractHere: state(writes && context.archive === true, selected),
+		extractTo: state(reads && context.archive === true, selected),
+		extractAll: state(reads && context.inArchive === true, true),
+		compress: state(writes, selected),
 		undo: state(context.queue, context.undo !== null),
 		redo: state(context.queue, context.redo !== null),
 	};
@@ -245,12 +264,21 @@ export interface FileCommandDeps {
 	otherPane?: (session: ListingSession) => ListingSession | null;
 	/** Asks where to copy or move to, in the destination dialog; `null` when the person cancels. */
 	pickDestination?: (options: DestinationOptions) => Promise<Location | null>;
+	/** Gives an archive its password; without it a locked archive stays locked. */
+	archives?: ArchiveClient | null;
+	/** Asks the question a lock asks (the window's question dialogs). */
+	askQuestion?: (error: VfsError) => Promise<Answered | null>;
+	/** Asks for an archive's name and format, in the compress dialog. */
+	pickCompression?: (options: CompressOptions) => Promise<CompressChoice | null>;
 }
+
+/** The commands that make an archive's contents or an archive (`archiveCommands`). */
+type ArchiveCommandsApi = ReturnType<typeof createArchiveCommands>;
 
 /** How one step of the history went: done, or why the engine would not (in plain words). */
 export type HistoryStepOutcome = { ok: true } | { ok: false; reason: string };
 
-export interface FileCommands {
+export interface FileCommands extends ArchiveCommandsApi {
 	/** Which commands to offer for `session` (the active pane's when omitted). */
 	states(session?: ListingSession | null): Record<FileCommandId, CommandState>;
 	/** The history's newest entries, for the menu labels. */
@@ -394,6 +422,12 @@ function focusedEntry(session: ListingSession): Entry | undefined {
 	return focus === null ? undefined : session.model.entryAt(focus);
 }
 
+/** Whether the keyboard is on an archive file. */
+function archiveFocused(session: ListingSession): boolean {
+	const entry = focusedEntry(session);
+	return entry !== undefined && isArchiveEntry(entry);
+}
+
 export function createFileCommands(deps: FileCommandDeps): FileCommands {
 	const { ops, vfs, windowLabel, say } = deps;
 
@@ -416,6 +450,8 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			readOnly: session?.model.readOnly ?? false,
 			selected: session && state ? selectedCount(state.selection, session.model.count) : 0,
 			focused: session !== null && focusedEntry(session) !== undefined,
+			archive: session !== null && archiveFocused(session),
+			inArchive: session !== null && isArchiveLocation(session.model.location),
 			undo,
 			redo,
 		};
@@ -647,7 +683,23 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		await transfer(kind, found, other.model.location);
 	};
 
+	const archiveCommands = createArchiveCommands({
+		ops,
+		vfs,
+		windowLabel,
+		say,
+		confirm: deps.confirm,
+		readable: (session) => target(session),
+		writable,
+		run,
+		archives: deps.archives ?? null,
+		...(deps.askQuestion ? { ask: deps.askQuestion } : {}),
+		...(deps.pickDestination ? { pickDestination: deps.pickDestination } : {}),
+		...(deps.pickCompression ? { pickCompression: deps.pickCompression } : {}),
+	});
+
 	return {
+		...archiveCommands,
 		states: (session) =>
 			commandStates(contextFor(session === undefined ? deps.activeSession() : session)),
 		history,

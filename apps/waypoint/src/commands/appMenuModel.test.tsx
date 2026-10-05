@@ -78,6 +78,7 @@ describe('the menus', () => {
 			'rename',
 			'batchRename',
 			'duplicate',
+			'compress',
 			'moveToTrash',
 			'deletePermanently',
 			'pauseAll',

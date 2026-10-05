@@ -22,6 +22,11 @@ import styles from './RemoteState.module.css';
 /** Opens again the folders on screen whose connection failed; the Workspace supplies it. */
 const RetryContext = createContext<() => void>(() => {});
 
+/** Opens the folders on screen whose connection failed again; what a state that has been answered calls. */
+export function useRetryRemote(): () => void {
+	return useContext(RetryContext);
+}
+
 export function RetryProvider({ retry, children }: { retry: () => void; children: ReactNode }) {
 	return <RetryContext.Provider value={retry}>{children}</RetryContext.Provider>;
 }

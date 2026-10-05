@@ -25,6 +25,8 @@ import { SettingsProvider } from '../settings/SettingsContext';
 import { TabsProvider } from '../tabs/TabsContext';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
 import type { DevicesClient } from '../devices/devicesClient';
+import type { ArchiveClient } from '../archives/archiveClient';
+import { ArchiveClientProvider } from '../archives/ArchiveContext';
 import { ConnectionsProvider } from '../connections/ConnectionsContext';
 import type { ConnectionsClient } from '../connections/connectionsClient';
 import type { TrashClient } from '../trash/trashClient';
@@ -89,6 +91,8 @@ export async function renderWorkspace(
 		details?: DetailsClient;
 		/** The Properties windows service (Alt+Enter and the item menu offer none when omitted). */
 		propertiesWindow?: PropertiesWindowClient;
+		/** The archive provider's password command and slow-listing notice. */
+		archives?: ArchiveClient;
 		/** The directory-size scan behind Overview's biggest folders in Home (Overview offers no measurement when omitted). */
 		dirScan?: DirScanClient;
 	} = {},
@@ -134,18 +138,20 @@ export async function renderWorkspace(
 			<PlacesClientProvider client={places}>
 				<TrashClientProvider client={options.trash}>
 					<DevicesClientProvider client={options.devices}>
-						<ConnectionsProvider client={options.connections}>
-							<HomeScanProvider client={options.dirScan}>
-								{options.ops ? (
-									<OpsProvider client={options.ops} windowLabel="main-1">
-										{workspace}
-										<OpsResolverHost />
-									</OpsProvider>
-								) : (
-									workspace
-								)}
-							</HomeScanProvider>
-						</ConnectionsProvider>
+						<ArchiveClientProvider client={options.archives ?? null}>
+							<ConnectionsProvider client={options.connections}>
+								<HomeScanProvider client={options.dirScan}>
+									{options.ops ? (
+										<OpsProvider client={options.ops} windowLabel="main-1">
+											{workspace}
+											<OpsResolverHost />
+										</OpsProvider>
+									) : (
+										workspace
+									)}
+								</HomeScanProvider>
+							</ConnectionsProvider>
+						</ArchiveClientProvider>
 					</DevicesClientProvider>
 				</TrashClientProvider>
 			</PlacesClientProvider>

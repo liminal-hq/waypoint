@@ -506,6 +506,9 @@ export class FakeVfsClient implements VfsClient {
 
 	async parseLocation(input: string, base: Location): Promise<Location> {
 		const text = input.trim();
+		// An archive location (`archive:{file}!/{inside}`) is served as it is written, as Rust's provider would.
+		if (/^archive:/i.test(text))
+			return { display: text, uri: text.includes('!') ? text : `${text}!/` };
 		const remote = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text);
 		if (remote && this.options.remoteSchemes?.includes(remote[1]!.toLowerCase())) {
 			const uri = text.includes('/', remote[0].length) ? text : `${text}/`;
@@ -541,6 +544,27 @@ export class FakeVfsClient implements VfsClient {
 		if (location.uri.startsWith('trash:')) {
 			const root = { label: 'Trash', location: { display: 'Trash', uri: 'trash:/' } };
 			return { parent: null, segments: [root] };
+		}
+		if (location.uri.startsWith('archive:')) {
+			// The breadcrumbs of an archive: its file's name, then what is inside; Up from its top leaves it.
+			const at = location.uri.lastIndexOf('!');
+			const container = location.uri.slice('archive:'.length, at);
+			const inner = location.uri
+				.slice(at + 1)
+				.split('/')
+				.filter((part) => part !== '');
+			const file = container.split('/').pop() ?? container;
+			const place = (count: number): Location => {
+				const uri = `archive:${container}!/${inner.slice(0, count).join('/')}`;
+				return { display: uri, uri };
+			};
+			const segments: Breadcrumb[] = [{ label: file, location: place(0) }];
+			inner.forEach((name, index) => segments.push({ label: name, location: place(index + 1) }));
+			const beside = fileLocation(
+				normalisePath(`${pathOf({ display: container, uri: container })}/..`),
+			);
+			const parent = segments.length > 1 ? segments[segments.length - 2]!.location : beside;
+			return { parent, segments };
 		}
 		const remote = splitRemote(location.uri);
 		if (remote) {

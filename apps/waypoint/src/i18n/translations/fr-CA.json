@@ -2429,6 +2429,26 @@
     "description": "Area: browse.",
     "source": "dc6a434c"
   },
+  "browse.error.corrupt.title": {
+    "message": "Cette archive est endommagée",
+    "description": "Area: browse.",
+    "source": "3ff1d728"
+  },
+  "browse.error.corrupt.detail": {
+    "message": "{location} ne peut pas être lue comme une archive. Elle est peut-être tronquée ou endommagée.",
+    "description": "Area: browse. Placeholders, kept exactly as written: {location} is a folder or path.",
+    "source": "330e6a0c"
+  },
+  "browse.error.unsupported.title": {
+    "message": "Impossible de l’afficher comme un dossier",
+    "description": "Area: browse.",
+    "source": "20f01ff9"
+  },
+  "browse.error.unsupported.detail": {
+    "message": "Waypoint ne peut pas l’ouvrir ici : {what}",
+    "description": "Area: browse. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
+    "source": "1a3bff82"
+  },
   "browse.selection.none": {
     "message": "Aucun élément sélectionné",
     "description": "Area: browse.",
@@ -3958,6 +3978,31 @@
     "message": "Dupliquer",
     "description": "Area: menu.",
     "source": "02cdaabf"
+  },
+  "menu.extractHere": {
+    "message": "Extraire ici",
+    "description": "Area: menu.",
+    "source": "f0064f1d"
+  },
+  "menu.extractTo": {
+    "message": "Extraire vers…",
+    "description": "Area: menu.",
+    "source": "b9baace5"
+  },
+  "menu.extractAll": {
+    "message": "Tout extraire",
+    "description": "Area: menu.",
+    "source": "564208dc"
+  },
+  "menu.compress": {
+    "message": "Compresser…",
+    "description": "Area: menu. Makes an archive file (a .zip, say) from the selected items; “Compress” as in a file manager’s menu, not squeezing a picture.",
+    "source": "66b9d2cf"
+  },
+  "menu.openAsFolder": {
+    "message": "Ouvrir comme dossier",
+    "description": "Area: menu.",
+    "source": "ade99ded"
   },
   "menu.cut": {
     "message": "Couper",
@@ -5669,6 +5714,56 @@
     "description": "Area: files.",
     "source": "8fcfae1d"
   },
+  "files.extract.nothing": {
+    "message": "Aucun des éléments sélectionnés n’est une archive.",
+    "description": "Area: files.",
+    "source": "84adb9fa"
+  },
+  "files.extract.limit.title": {
+    "message": "Extraire une très grosse archive?",
+    "description": "Area: files.",
+    "source": "034bb0fb"
+  },
+  "files.extract.limit.message": {
+    "message": "{name} dépasse les limites prévues pour les archives ({reason}). L’extraire pourrait remplir le disque.",
+    "description": "Area: files. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words.",
+    "source": "54549af9"
+  },
+  "files.extract.limit.action": {
+    "message": "Extraire quand même",
+    "description": "Area: files.",
+    "source": "05f8be5b"
+  },
+  "files.extract.leftOut.one": {
+    "message": "{count} entrée de l’archive a été laissée de côté : son nom ou son lien n’était pas sûr.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.many, files.extract.leftOut.other.",
+    "source": "3608510b"
+  },
+  "files.extract.leftOut.many": {
+    "message": "{count} d’entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.one, files.extract.leftOut.other.",
+    "source": "a82b46a4"
+  },
+  "files.extract.leftOut.other": {
+    "message": "{count} entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.one, files.extract.leftOut.many.",
+    "source": "a82b46a4"
+  },
+  "files.extract.unlockFailed": {
+    "message": "Le mot de passe de l’archive n’a pas pu être transmis : {reason}",
+    "description": "Area: files. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "b5351143"
+  },
+  "files.extract.stillLocked": {
+    "message": "L’archive est toujours verrouillée.",
+    "description": "Area: files.",
+    "source": "d92e94e8"
+  },
+  "files.compress.nothing": {
+    "message": "Sélectionnez d’abord ce qu’il faut compresser.",
+    "description": "Area: files.",
+    "source": "1097d4a6"
+  },
   "files.nothingSelected": {
     "message": "Rien n’est sélectionné.",
     "description": "Area: files.",
@@ -5873,6 +5968,31 @@
     "message": "Copier",
     "description": "Area: destination.",
     "source": "e21f935f"
+  },
+  "destination.title.extract.one": {
+    "message": "Extraire {count} archive vers…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are destination.title.extract.many, destination.title.extract.other.",
+    "source": "cb97201b"
+  },
+  "destination.title.extract.many": {
+    "message": "Extraire {count} d’archives vers…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are destination.title.extract.one, destination.title.extract.other.",
+    "source": "3260b12c"
+  },
+  "destination.title.extract.other": {
+    "message": "Extraire {count} archives vers…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are destination.title.extract.one, destination.title.extract.many.",
+    "source": "3260b12c"
+  },
+  "destination.title.extractAll": {
+    "message": "Extraire {name} vers…",
+    "description": "Area: destination. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "00740d34"
+  },
+  "destination.extract": {
+    "message": "Extraire",
+    "description": "Area: destination.",
+    "source": "c15301c0"
   },
   "destination.move": {
     "message": "Déplacer",
@@ -7169,6 +7289,86 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
     "source": "b7ceb1cf"
   },
+  "ops.title.extract.one": {
+    "message": "Extraction de {count} archive",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.extract.many, ops.title.extract.other.",
+    "source": "d1b1a8da"
+  },
+  "ops.title.extract.many": {
+    "message": "Extraction de {count} d’archives",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.extract.one, ops.title.extract.other.",
+    "source": "9322402d"
+  },
+  "ops.title.extract.other": {
+    "message": "Extraction de {count} archives",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.extract.one, ops.title.extract.many.",
+    "source": "9322402d"
+  },
+  "ops.title.extract.named": {
+    "message": "Extraction de {name}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "5ebe3d1b"
+  },
+  "ops.done.extract.one": {
+    "message": "{count} archive extraite",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.extract.many, ops.done.extract.other.",
+    "source": "533f2790"
+  },
+  "ops.done.extract.many": {
+    "message": "{count} d’archives extraites",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.extract.one, ops.done.extract.other.",
+    "source": "5f005fd1"
+  },
+  "ops.done.extract.other": {
+    "message": "{count} archives extraites",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.extract.one, ops.done.extract.many.",
+    "source": "5f005fd1"
+  },
+  "ops.done.extract.named": {
+    "message": "{name} extraite",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "18b944ce"
+  },
+  "ops.title.compress.one": {
+    "message": "Compression de {count} élément",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.compress.many, ops.title.compress.other.",
+    "source": "3a469567"
+  },
+  "ops.title.compress.many": {
+    "message": "Compression de {count} d’éléments",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.compress.one, ops.title.compress.other.",
+    "source": "d86ab739"
+  },
+  "ops.title.compress.other": {
+    "message": "Compression de {count} éléments",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.title.compress.one, ops.title.compress.many.",
+    "source": "d86ab739"
+  },
+  "ops.title.compress.named": {
+    "message": "Compression de {name}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "7718f8d1"
+  },
+  "ops.done.compress.one": {
+    "message": "{count} élément compressé",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.compress.many, ops.done.compress.other.",
+    "source": "362021f1"
+  },
+  "ops.done.compress.many": {
+    "message": "{count} d’éléments compressés",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.compress.one, ops.done.compress.other.",
+    "source": "2e049436"
+  },
+  "ops.done.compress.other": {
+    "message": "{count} éléments compressés",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.compress.one, ops.done.compress.many.",
+    "source": "2e049436"
+  },
+  "ops.done.compress.named": {
+    "message": "{name} compressé",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "8d6d5320"
+  },
   "ops.done.delete.one": {
     "message": "{count} élément supprimé",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.done.delete.many, ops.done.delete.other.",
@@ -8108,6 +8308,16 @@
     "message": "{name} ne peut pas être remplacé par une entrée d’un autre genre",
     "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
     "source": "4897a77f"
+  },
+  "ops.error.connection": {
+    "message": "Un serveur est injoignable ou demande une connexion.",
+    "description": "Area: ops.",
+    "source": "dd236500"
+  },
+  "ops.error.archiveLimit": {
+    "message": "{name} dépasse les limites prévues pour les archives",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "afa7bb0a"
   },
   "ops.error.undoStale.missing": {
     "message": "{name} n’est plus à son emplacement",
@@ -9349,6 +9559,11 @@
     "description": "Area: cmd.",
     "source": "a869446a"
   },
+  "cmd.reason.notAnArchive": {
+    "message": "Sélectionnez d’abord une archive",
+    "description": "Area: cmd.",
+    "source": "d09370ec"
+  },
   "cmd.reason.nothingFocused": {
     "message": "Sélectionnez un élément à renommer",
     "description": "Area: cmd.",
@@ -9433,6 +9648,11 @@
     "message": "Supprimer",
     "description": "Area: actionBar.",
     "source": "e2d0a549"
+  },
+  "actionBar.extractAll": {
+    "message": "Tout extraire",
+    "description": "Area: actionBar.",
+    "source": "5998f3f9"
   },
   "actionBar.more": {
     "message": "Plus",
@@ -11623,5 +11843,125 @@
     "message": "Indiquez le nom d’utilisateur qui accompagne le domaine.",
     "description": "Area: connect.",
     "source": "64a4a301"
+  },
+  "compress.title": {
+    "message": "Compresser",
+    "description": "Area: compress.",
+    "source": "033fc044"
+  },
+  "compress.description": {
+    "message": "Regroupe la sélection dans une nouvelle archive, dans ce dossier.",
+    "description": "Area: compress.",
+    "source": "6f8d5512"
+  },
+  "compress.name": {
+    "message": "Nom de l’archive",
+    "description": "Area: compress.",
+    "source": "80c2a46d"
+  },
+  "compress.format": {
+    "message": "Format",
+    "description": "Area: compress.",
+    "source": "2f343666"
+  },
+  "compress.format.zip": {
+    "message": "Zip (.zip)",
+    "description": "Area: compress.",
+    "source": "541cdce2"
+  },
+  "compress.format.tarGz": {
+    "message": "Tar, gzip (.tar.gz)",
+    "description": "Area: compress.",
+    "source": "04f9fef5"
+  },
+  "compress.format.tarXz": {
+    "message": "Tar, xz (.tar.xz)",
+    "description": "Area: compress.",
+    "source": "c8ad4c9c"
+  },
+  "compress.format.tarBz2": {
+    "message": "Tar, bzip2 (.tar.bz2)",
+    "description": "Area: compress.",
+    "source": "53feccbd"
+  },
+  "compress.format.tar": {
+    "message": "Tar, sans compression (.tar)",
+    "description": "Area: compress.",
+    "source": "63aa5aca"
+  },
+  "compress.format.sevenZ": {
+    "message": "7z (.7z)",
+    "description": "Area: compress.",
+    "source": "54ed0473"
+  },
+  "compress.confirm": {
+    "message": "Compresser",
+    "description": "Area: compress.",
+    "source": "033fc044"
+  },
+  "compress.cancel": {
+    "message": "Annuler",
+    "description": "Area: compress.",
+    "source": "19766ed6"
+  },
+  "compress.default": {
+    "message": "Archive",
+    "description": "Area: compress.",
+    "source": "66f4804e"
+  },
+  "compress.error.empty": {
+    "message": "Donnez un nom à l’archive.",
+    "description": "Area: compress.",
+    "source": "b839bf5a"
+  },
+  "compress.error.invalid": {
+    "message": "Un nom ne peut pas contenir de barre oblique.",
+    "description": "Area: compress.",
+    "source": "6889e47e"
+  },
+  "archive.locked.title": {
+    "message": "{name} est verrouillée",
+    "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "8b274afe"
+  },
+  "archive.locked.detail": {
+    "message": "Cette archive est chiffrée. Entrez son mot de passe pour l’ouvrir.",
+    "description": "Area: archive.",
+    "source": "9ff4dfa1"
+  },
+  "archive.locked.refused": {
+    "message": "Ce mot de passe n’a pas été accepté. Entrez-le de nouveau pour ouvrir l’archive.",
+    "description": "Area: archive.",
+    "source": "fdff224b"
+  },
+  "archive.locked.action": {
+    "message": "Entrer le mot de passe",
+    "description": "Area: archive.",
+    "source": "7014aff1"
+  },
+  "archive.locked.checking": {
+    "message": "Vérification…",
+    "description": "Area: archive.",
+    "source": "ec963ffc"
+  },
+  "archive.locked.announce": {
+    "message": "{name} déverrouillée",
+    "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "3e0d95e3"
+  },
+  "archive.locked.dialogDescription": {
+    "message": "Waypoint ne garde le mot de passe que jusqu’à sa fermeture et ne l’enregistre jamais.",
+    "description": "Area: archive.",
+    "source": "82f299da"
+  },
+  "archive.locked.failed": {
+    "message": "Le mot de passe n’a pas pu être transmis à l’archive.",
+    "description": "Area: archive.",
+    "source": "5a6220d3"
+  },
+  "archive.slow": {
+    "message": "Lecture de {name}. Une archive {format} n’a pas d’index; son ouverture prend donc un moment.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {format}; {name} is the name of a file, folder, tab or other item.",
+    "source": "ecbd22c9"
   }
 }

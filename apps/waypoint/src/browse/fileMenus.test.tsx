@@ -47,6 +47,91 @@ function shape(items: readonly MenuItem[]): string[] {
 	);
 }
 
+describe('the entry menu on an archive', () => {
+	const archive = { id: 5, name: 'a.zip', kind: 'file', linkTarget: null } as unknown as Entry;
+	const onArchive = commandStates({ ...base, archive: true });
+
+	it('offers Open as Folder after Open, and Extract Here and Extract To… as a section of their own', () => {
+		const ids = shape(entryMenuItems(archive, onArchive));
+		expect(ids.slice(0, 3)).toEqual(['open', 'openAsFolder', '|']);
+		const at = ids.indexOf('extractHere');
+		expect(ids.slice(at - 1, at + 3)).toEqual(['|', 'extractHere', 'extractTo', '|']);
+		expect(ids).toContain('compress');
+		expectEveryItemHasIcon(entryMenuItems(archive, onArchive));
+	});
+
+	it('keeps Extract To… where it only reads, and drops Extract Here and Compress', () => {
+		const reading = commandStates({ ...base, archive: true, readOnly: true });
+		const ids = shape(entryMenuItems(archive, reading));
+		expect(ids).toContain('openAsFolder');
+		expect(ids).toContain('extractTo');
+		expect(ids).not.toContain('extractHere');
+		expect(ids).not.toContain('compress');
+	});
+
+	it('offers none of it on a file that is not an archive, or on a folder named like one', () => {
+		const folderZip = {
+			id: 6,
+			name: 'a.zip',
+			kind: 'directory',
+			linkTarget: null,
+		} as unknown as Entry;
+		for (const entry of [file, folderZip]) {
+			const ids = shape(entryMenuItems(entry, writable));
+			expect(ids).not.toContain('openAsFolder');
+			expect(ids).not.toContain('extractHere');
+			expect(ids).not.toContain('extractTo');
+		}
+	});
+
+	it('runs Open as Folder and the extract commands from the rendered menu', () => {
+		const onOpenAsFolder = vi.fn();
+		const onCommand = vi.fn();
+		render(
+			<EntryContextMenu
+				entry={archive}
+				handle={7}
+				position={{ x: 0, y: 0 }}
+				keyboard={false}
+				onClose={() => {}}
+				onOpen={() => {}}
+				onOpenInNewTab={() => {}}
+				onCopyPath={() => {}}
+				onAddToFavourites={() => {}}
+				onOpenAsFolder={onOpenAsFolder}
+				commands={onArchive}
+				onCommand={onCommand}
+			/>,
+		);
+		fireEvent.click(screen.getByRole('menuitem', { name: /Open as Folder/ }));
+		expect(onOpenAsFolder).toHaveBeenCalledWith(archive, 7);
+	});
+
+	it('runs Extract Here and Compress… on the entry', () => {
+		const onCommand = vi.fn();
+		for (const name of [/Extract Here/, /Compress…/]) {
+			render(
+				<EntryContextMenu
+					entry={archive}
+					handle={7}
+					position={{ x: 0, y: 0 }}
+					keyboard={false}
+					onClose={() => {}}
+					onOpen={() => {}}
+					onOpenInNewTab={() => {}}
+					onCopyPath={() => {}}
+					onAddToFavourites={() => {}}
+					commands={onArchive}
+					onCommand={onCommand}
+				/>,
+			);
+			fireEvent.click(screen.getByRole('menuitem', { name }));
+			cleanup();
+		}
+		expect(onCommand.mock.calls.map((call) => call[0])).toEqual(['extractHere', 'compress']);
+	});
+});
+
 describe('the entry menu', () => {
 	it('keeps its current order and gains no write items without commands', () => {
 		expect(shape(entryMenuItems(file))).toEqual([
@@ -82,6 +167,7 @@ describe('the entry menu', () => {
 			'|',
 			'rename',
 			'duplicate',
+			'compress',
 			'|',
 			'copyTo',
 			'moveTo',
@@ -156,7 +242,7 @@ describe('the entry menu', () => {
 			'rename',
 			'batchRename',
 			'duplicate',
-			'|',
+			'compress',
 		]);
 		const item = entryMenuItems(file, writable, true).find(
 			(candidate) => candidate.type === 'action' && candidate.id === 'batchRename',

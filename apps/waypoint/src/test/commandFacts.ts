@@ -19,6 +19,10 @@ export interface WindowState {
 	clipboardItems?: number;
 	paired?: boolean;
 	otherPaneWritable?: boolean;
+	/** The entry the keyboard is on is an archive. */
+	archive?: boolean;
+	/** The listing is a place inside an archive. */
+	inArchive?: boolean;
 	undo?: JournalEntrySummary | null;
 	redo?: JournalEntrySummary | null;
 }
@@ -73,6 +77,8 @@ export function factsFor(state: WindowState = {}, extra: Partial<CommandFacts> =
 			clipboardItems: state.clipboardItems ?? 0,
 			paired: state.paired ?? false,
 			otherPaneWritable: state.otherPaneWritable ?? false,
+			archive: state.archive ?? false,
+			inArchive: state.inArchive ?? false,
 		}),
 		selected,
 		listing,
