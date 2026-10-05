@@ -11,7 +11,7 @@ build = "build.rs"
 links = "tauri-plugin-system-appearance"
 
 [package.metadata.platforms.support]
-windows = { level = "partial", notes = "Reports the fixed Windows titlebar layout and actions, and reads the appearance preferences through UISettings, AccessibilitySettings and the registry and the colour palette through UISettings and GetSysColor; type-checked for Windows but not yet run there" }
+windows = { level = "partial", notes = "Reports the fixed Windows titlebar layout and actions, and reads the appearance preferences through UISettings, AccessibilitySettings and the registry and the colour palette through UISettings, the registry and GetSysColor; type-checked for Windows but not yet run there, except the title bar colour, which has been neither compiled nor run on Windows" }
 linux = { level = "full", notes = "Reads xdg-desktop-portal, kwinrc, kdeglobals, gsettings or xfconf depending on the desktop environment, and the colour palette from kdeglobals or the GTK theme, and watches for changes" }
 macos = { level = "partial", notes = "Reports the fixed macOS traffic-light layout and the double-click action from NSGlobalDomain, and reports every appearance preference and every palette colour as unavailable; changes are not pushed" }
 android = { level = "none", notes = "Desktop window titlebars only" }

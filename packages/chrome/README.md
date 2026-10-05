@@ -133,7 +133,7 @@ The bar is a three-column CSS grid, `minmax(0, 1fr) auto minmax(0, 1fr)`, holdin
 
 ## Focus
 
-The provider follows window focus through the adapter's optional `isFocused` and `onFocusChange`. An unfocused title bar dims its text and controls (`--wp-text-muted`, and `--wp-bg-chrome-unfocused` if set), and an unfocused frame lightens its shadow. A host that cannot report focus is treated as always focused. The context menu dismisses when the window goes from focused to unfocused, never merely because the window was already unfocused when the menu opened; without a provider it falls back to the DOM `blur` event.
+The provider follows window focus through the adapter's optional `isFocused` and `onFocusChange`. An unfocused title bar dims its text and controls (`--wp-text-muted`, and `--wp-bg-chrome-unfocused` if set). The title bar draws a top-to-bottom gradient of `--wp-title-bar-top` and `--wp-title-bar-bottom` (the `-unfocused` pair when unfocused), each defaulting to the flat chrome colour, so a host that sets none gets a flat bar, and an unfocused frame lightens its shadow. A host that cannot report focus is treated as always focused. The context menu dismisses when the window goes from focused to unfocused, never merely because the window was already unfocused when the menu opened; without a provider it falls back to the DOM `blur` event.
 
 ## Context menu
 

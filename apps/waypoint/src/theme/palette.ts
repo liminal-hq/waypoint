@@ -53,6 +53,10 @@ export const PALETTE_TOKENS: readonly string[] = [
 	'--wp-success',
 	'--wp-warning',
 	'--wp-focus-ring',
+	'--wp-title-bar-top',
+	'--wp-title-bar-bottom',
+	'--wp-title-bar-top-unfocused',
+	'--wp-title-bar-bottom-unfocused',
 ];
 
 /** The colour of an entry, if it has a usable one. */
@@ -118,7 +122,7 @@ export function liftToContrast(colour: string, others: readonly string[], min: n
  * border are derived from them, and the status and focus colours are the OS's where it has them
  * and Waypoint's own where it has not. Then every pair is held to the floor: text 4.5:1 on every
  * surface it sits on, the selected row's background 4.5:1 against its text, status colours (drawn
- * as text and icons) 4.5:1 and the focus ring 3:1 against the surfaces. A colour that fails moves
+ * as text and icons) 4.5:1 and the focus ring 3:1 against the surfaces, and the title bar's colours 4.5:1 against the title's text. A colour that fails moves
  * to the nearest one that passes and is listed in `lifted`.
  */
 export function mapPalette(palette: Palette): MappedPalette | null {
@@ -166,10 +170,41 @@ export function mapPalette(palette: Palette): MappedPalette | null {
 		GRAPHIC_CONTRAST,
 	);
 
+	// The title bar: the OS's two tones where it reports a top colour, or none of these tokens, so
+	// the chrome's own flat `--wp-bg-chrome` stays. A bottom colour with no top is ignored, and a
+	// top with no bottom draws flat. The title text (primary, or muted in an unfocused window)
+	// must read on both ends; an unfocused bar is the focused one mixed halfway to the window.
+	const titleBar: Record<string, string> = {};
+	const titleTop = colourOf(palette.titleBarBackground);
+	if (titleTop) {
+		const top = hold('title-bar-top', titleTop, [primary], TEXT_CONTRAST);
+		const bottom = hold(
+			'title-bar-bottom',
+			colourOf(palette.titleBarBackgroundEnd) ?? titleTop,
+			[primary],
+			TEXT_CONTRAST,
+		);
+		titleBar['--wp-title-bar-top'] = top;
+		titleBar['--wp-title-bar-bottom'] = bottom;
+		titleBar['--wp-title-bar-top-unfocused'] = hold(
+			'title-bar-top-unfocused',
+			mixHex(top, window, 0.5),
+			[muted],
+			TEXT_CONTRAST,
+		);
+		titleBar['--wp-title-bar-bottom-unfocused'] = hold(
+			'title-bar-bottom-unfocused',
+			mixHex(bottom, window, 0.5),
+			[muted],
+			TEXT_CONTRAST,
+		);
+	}
+
 	return {
 		variant,
 		lifted,
 		tokens: {
+			...titleBar,
 			'--wp-solid-window': window,
 			'--wp-solid-sidebar': sidebar,
 			'--wp-solid-content': content,

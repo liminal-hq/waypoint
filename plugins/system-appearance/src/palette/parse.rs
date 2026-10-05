@@ -17,7 +17,7 @@ pub type Rgba = (f64, f64, f64, f64);
 /// The `theme_*` names exist in every GTK 3 theme; `popover_bg_color`, `accent_bg_color` and the
 /// status colours come from libadwaita-style themes (and Adwaita's own), so a theme without them
 /// is a miss rather than a guess.
-pub const GTK_NAMES: [(PaletteColour, &[&str]); 12] = [
+pub const GTK_NAMES: [(PaletteColour, &[&str]); 14] = [
     (PaletteColour::WindowBackground, &["theme_bg_color"]),
     (PaletteColour::WindowForeground, &["theme_fg_color"]),
     (PaletteColour::ViewBackground, &["theme_base_color"]),
@@ -39,6 +39,13 @@ pub const GTK_NAMES: [(PaletteColour, &[&str]); 12] = [
     (PaletteColour::Warning, &["warning_color"]),
     (PaletteColour::Error, &["error_color"]),
     (PaletteColour::Success, &["success_color"]),
+    (PaletteColour::TitleBarBackground, &["headerbar_bg_color"]),
+    // libadwaita-style themes shade the header bar with a translucent black laid over its
+    // colour; it is flattened over the title bar colour (not the window's) to give the bottom.
+    (
+        PaletteColour::TitleBarBackgroundEnd,
+        &["headerbar_shade_color", "headerbar_darker_shade_color"],
+    ),
 ];
 
 fn channel(value: f64) -> u8 {
@@ -83,8 +90,23 @@ pub fn gtk_palette(lookup: impl Fn(&str) -> Option<Rgba>) -> PaletteColours {
         .map(|(red, green, blue, _)| (channel(red), channel(green), channel(blue)));
     for (colour, names) in GTK_NAMES {
         let found = names.iter().find_map(|name| lookup(name));
+        // The title bar's bottom lies on its top, so it needs that colour to be flattened.
+        let backdrop = if colour == PaletteColour::TitleBarBackgroundEnd {
+            colours
+                .title_bar_background
+                .colour
+                .as_deref()
+                .and_then(parse_hex)
+        } else {
+            window
+        };
+        let found = if colour == PaletteColour::TitleBarBackgroundEnd && backdrop.is_none() {
+            None
+        } else {
+            found
+        };
         *colours.entry_mut(colour) = match found {
-            Some(rgba) => PaletteEntry::found(flatten(rgba, window), PaletteSource::GtkTheme),
+            Some(rgba) => PaletteEntry::found(flatten(rgba, backdrop), PaletteSource::GtkTheme),
             None => PaletteEntry::missing(
                 UnavailableReason::SourceMissing,
                 format!("the GTK theme defines none of {}", names.join(", ")),
@@ -96,7 +118,7 @@ pub fn gtk_palette(lookup: impl Fn(&str) -> Option<Rgba>) -> PaletteColours {
 
 /// The `kdeglobals` section and key that supply each palette colour. `None` is a colour the file
 /// has no counterpart for.
-const KDE_KEYS: [(PaletteColour, Option<(&str, &str)>); 12] = [
+const KDE_KEYS: [(PaletteColour, Option<(&str, &str)>); 14] = [
     (
         PaletteColour::WindowBackground,
         Some(("Colors:Window", "BackgroundNormal")),
@@ -141,6 +163,14 @@ const KDE_KEYS: [(PaletteColour, Option<(&str, &str)>); 12] = [
     (
         PaletteColour::Success,
         Some(("Colors:View", "ForegroundPositive")),
+    ),
+    (
+        PaletteColour::TitleBarBackground,
+        Some(("Colors:Header", "BackgroundNormal")),
+    ),
+    (
+        PaletteColour::TitleBarBackgroundEnd,
+        Some(("Colors:Header", "BackgroundAlternate")),
     ),
 ];
 
@@ -235,6 +265,46 @@ mod tests {
     }
 
     #[test]
+    fn a_theme_with_a_header_bar_colour_and_shade_gives_two_tones() {
+        let lookup = table(&[
+            ("theme_bg_color", (1.0, 1.0, 1.0, 1.0)),
+            ("theme_fg_color", (0.0, 0.0, 0.0, 1.0)),
+            ("headerbar_bg_color", (1.0, 1.0, 1.0, 1.0)),
+            ("headerbar_shade_color", (0.0, 0.0, 0.0, 0.5)),
+        ]);
+        let colours = gtk_palette(lookup);
+        assert_eq!(
+            colours.title_bar_background.colour.as_deref(),
+            Some("#ffffff")
+        );
+        // Half black over white, not over the window colour, is mid grey.
+        assert_eq!(
+            colours.title_bar_background_end.colour.as_deref(),
+            Some("#808080")
+        );
+    }
+
+    #[test]
+    fn a_theme_without_header_bar_names_reports_a_miss_for_both() {
+        let colours = gtk_palette(adwaita_dark());
+        assert_eq!(colours.title_bar_background.colour, None);
+        assert_eq!(
+            colours.title_bar_background.reason,
+            Some(UnavailableReason::SourceMissing)
+        );
+        assert_eq!(colours.title_bar_background_end.colour, None);
+    }
+
+    #[test]
+    fn a_shade_without_a_header_bar_colour_is_not_drawn() {
+        let lookup = table(&[
+            ("theme_bg_color", (1.0, 1.0, 1.0, 1.0)),
+            ("headerbar_shade_color", (0.0, 0.0, 0.0, 0.5)),
+        ]);
+        assert_eq!(gtk_palette(lookup).title_bar_background_end.colour, None);
+    }
+
+    #[test]
     fn a_translucent_border_is_flattened_over_the_window_background() {
         let colours = gtk_palette(adwaita_dark());
         // Half black over #242424 is #121212.
@@ -324,6 +394,34 @@ ForegroundNormal=252,252,252
             colours.window_background.source,
             Some(PaletteSource::KdeGlobals)
         );
+    }
+
+    #[test]
+    fn kdeglobals_header_section_gives_the_title_bar_tones() {
+        let text = format!(
+            "{BREEZE_DARK}\n[Colors:Header]\nBackgroundNormal=32,35,38\nBackgroundAlternate=27,30,32\n"
+        );
+        let colours = kde_palette(&text);
+        assert_eq!(
+            colours.title_bar_background.colour.as_deref(),
+            Some("#202326")
+        );
+        assert_eq!(
+            colours.title_bar_background_end.colour.as_deref(),
+            Some("#1b1e20")
+        );
+        assert_eq!(
+            colours.title_bar_background.source,
+            Some(PaletteSource::KdeGlobals)
+        );
+    }
+
+    #[test]
+    fn a_kdeglobals_without_a_header_section_has_no_title_bar_colour() {
+        let colours = kde_palette(BREEZE_DARK);
+        assert_eq!(colours.title_bar_background.colour, None);
+        let detail = colours.title_bar_background.detail.unwrap();
+        assert!(detail.contains("[Colors:Header]"), "{detail}");
     }
 
     #[test]

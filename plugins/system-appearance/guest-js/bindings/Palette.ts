@@ -35,4 +35,14 @@ selectionForeground: PaletteEntry, border: PaletteEntry,
 /**
  * The focus ring or focus decoration.
  */
-focus: PaletteEntry, warning: PaletteEntry, error: PaletteEntry, success: PaletteEntry, };
+focus: PaletteEntry, warning: PaletteEntry, error: PaletteEntry, success: PaletteEntry, 
+/**
+ * The top of the title bar (a GTK theme's `headerbar_bg_color`, KDE's header background). A
+ * platform or theme with no title bar colour reports a miss, and the title bar stays flat.
+ */
+titleBarBackground: PaletteEntry, 
+/**
+ * The bottom of the title bar, where the theme shades it in two tones. Only present with a
+ * top colour.
+ */
+titleBarBackgroundEnd: PaletteEntry, };

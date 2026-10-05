@@ -48,6 +48,8 @@ function adwaitaDark(change: Partial<Palette> = {}): Palette {
 		warning: found('#cd9309'),
 		error: found('#c01c28'),
 		success: found('#26a269'),
+		titleBarBackground: missing,
+		titleBarBackgroundEnd: missing,
 		...change,
 	};
 }
@@ -118,9 +120,61 @@ describe('mapPalette', () => {
 		expect(mapPalette(adwaitaLight())!.variant).toBe('light');
 	});
 
-	it('sets every token it owns, and only those', () => {
+	const isTitleBarToken = (token: string): boolean => token.startsWith('--wp-title-bar-');
+
+	it('sets every token it owns, and only those, leaving the title bar flat with no title bar colour', () => {
 		const mapped = mapPalette(adwaitaDark())!;
-		expect(Object.keys(mapped.tokens).sort()).toEqual([...PALETTE_TOKENS].sort());
+		expect(Object.keys(mapped.tokens).sort()).toEqual(
+			PALETTE_TOKENS.filter((token) => !isTitleBarToken(token)).sort(),
+		);
+	});
+
+	describe('the title bar', () => {
+		const shaded = (): Palette =>
+			adwaitaDark({
+				titleBarBackground: found('#303030'),
+				titleBarBackgroundEnd: found('#262626'),
+			});
+
+		it('sets its two tones and their unfocused pair when the OS reports a top colour', () => {
+			const mapped = mapPalette(shaded())!;
+			expect(Object.keys(mapped.tokens).sort()).toEqual([...PALETTE_TOKENS].sort());
+			expect(mapped.tokens['--wp-title-bar-top']).toBe('#303030');
+			expect(mapped.tokens['--wp-title-bar-bottom']).toBe('#262626');
+		});
+
+		it('draws a flat bar when only the top colour is given', () => {
+			const mapped = mapPalette(adwaitaDark({ titleBarBackground: found('#303030') }))!;
+			expect(mapped.tokens['--wp-title-bar-bottom']).toBe('#303030');
+		});
+
+		it('ignores a bottom colour that has no top', () => {
+			const mapped = mapPalette(adwaitaDark({ titleBarBackgroundEnd: found('#262626') }))!;
+			expect(Object.keys(mapped.tokens).some(isTitleBarToken)).toBe(false);
+		});
+
+		it('keeps the title text at 4.5:1 on every tone, focused or not', () => {
+			const { tokens } = mapPalette(shaded())!;
+			for (const token of ['--wp-title-bar-top', '--wp-title-bar-bottom']) {
+				expect(contrastRatio(tokens['--wp-text-primary']!, tokens[token]!)).toBeGreaterThanOrEqual(
+					TEXT_CONTRAST,
+				);
+			}
+			for (const token of ['--wp-title-bar-top-unfocused', '--wp-title-bar-bottom-unfocused']) {
+				expect(contrastRatio(tokens['--wp-text-muted']!, tokens[token]!)).toBeGreaterThanOrEqual(
+					TEXT_CONTRAST,
+				);
+			}
+		});
+
+		it('lifts a title bar colour the title text cannot be read on, and says so', () => {
+			const mapped = mapPalette(adwaitaDark({ titleBarBackground: found('#d0d0d0') }))!;
+			const lifted = mapped.lifted.find((entry) => entry.token === 'title-bar-top')!;
+			expect(lifted.from).toBe('#d0d0d0');
+			expect(contrastRatio(mapped.tokens['--wp-text-primary']!, lifted.to)).toBeGreaterThanOrEqual(
+				TEXT_CONTRAST,
+			);
+		});
 	});
 
 	it('is null when the palette has no window colours', () => {
