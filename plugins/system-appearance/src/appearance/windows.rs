@@ -13,7 +13,7 @@ use windows::{
         Foundation::ERROR_SUCCESS,
         System::{
             Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD},
-            WinRT::{RoInitialize, RO_INIT_MULTITHREADED},
+            WinRT::{RoInitialize, RO_INIT_MULTITHREADED, RO_INIT_SINGLETHREADED, RO_INIT_TYPE},
         },
     },
     UI::ViewManagement::{
@@ -33,7 +33,12 @@ use crate::service::Readiness;
 const POLL_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Joins the apartment of a thread that will call WinRT. A thread that already has one keeps it.
-fn ensure_winrt() {
+///
+/// `read_blocking` runs on a tokio blocking-pool thread with no message loop, so it joins the
+/// multithreaded apartment; `watch` runs on the application's main thread, which `tao` later
+/// initialises single-threaded for its window, so it must join that same apartment first or
+/// `tao`'s `OleInitialize` fails with `RPC_E_CHANGED_MODE`.
+fn ensure_winrt(model: RO_INIT_TYPE) {
     thread_local! {
         static DONE: Cell<bool> = const { Cell::new(false) };
     }
@@ -41,7 +46,7 @@ fn ensure_winrt() {
         if !done.get() {
             // SAFETY: initialises COM for the calling thread only; a thread that already did so
             // with another model makes this fail, which leaves its own apartment in place.
-            let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
+            let _ = unsafe { RoInitialize(model) };
             done.set(true);
         }
     });
@@ -159,7 +164,7 @@ fn registry() -> SourceReading {
 }
 
 fn read_blocking() -> Resolution {
-    ensure_winrt();
+    ensure_winrt(RO_INIT_MULTITHREADED);
     resolve(&[registry(), ui_settings(), accessibility()])
 }
 
@@ -260,7 +265,7 @@ fn watch_accessibility(
 }
 
 pub fn watch(changed: UnboundedSender<()>) -> Watcher {
-    ensure_winrt();
+    ensure_winrt(RO_INIT_SINGLETHREADED);
     let ui = watch_ui(&changed)
         .map_err(|error| log::warn!("cannot listen to UISettings changes: {error}"))
         .ok();
