@@ -163,6 +163,7 @@ fn build(
         modified_ms: shown.as_ref().and_then(|m| m.modified().ok()).map(to_ms),
         hidden,
         trashed: None,
+        attributes: None,
     }
 }
 

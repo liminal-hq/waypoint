@@ -9,6 +9,7 @@ use std::ffi::{OsStr, OsString};
 
 use waypoint_protocol::EntryId;
 
+use crate::attributes::EntryAttributes;
 use crate::group::{runs_of, GroupClock};
 use crate::icon::extension;
 use crate::model::{
@@ -43,6 +44,8 @@ pub(crate) struct Record {
     hidden: bool,
     /// Set for an item in the Trash, whose `name` is an id and whose sort key is its original name.
     trashed: Option<Box<TrashedMeta>>,
+    /// Provider attributes (`ScannedEntry::attributes`).
+    attributes: Option<Box<EntryAttributes>>,
     /// What an overlay says about the entry (`Index::set_marks`); never part of a scan.
     git: Option<GitMark>,
 }
@@ -74,6 +77,7 @@ impl From<ScannedEntry> for Record {
             modified_ms: entry.modified_ms,
             hidden: entry.hidden,
             trashed: entry.trashed,
+            attributes: entry.attributes,
             git: None,
         }
     }
@@ -169,6 +173,10 @@ impl Record {
             hidden: self.hidden,
             original_path: self.trashed.as_ref().map(|t| t.original_path.clone()),
             deleted_ms: self.trashed.as_ref().map(|t| t.deleted_ms),
+            attributes: self
+                .attributes
+                .as_ref()
+                .map(|attributes| attributes.as_ref().clone().into_map()),
             git: self.git,
         }
     }
@@ -185,6 +193,7 @@ impl Record {
             modified_ms: self.modified_ms,
             hidden: self.hidden,
             trashed: self.trashed.clone(),
+            attributes: self.attributes.clone(),
         }
     }
 }
@@ -797,6 +806,7 @@ mod tests {
             modified_ms: Some(0),
             hidden: name.starts_with('.'),
             trashed: None,
+            attributes: None,
         }
     }
 
@@ -850,6 +860,39 @@ mod tests {
             .enumerate()
             .map(|(i, slot)| slot.unwrap_or_else(|| after[i].clone()))
             .collect()
+    }
+
+    #[test]
+    fn provider_attributes_reach_the_entry_and_a_change_to_one_is_an_update() {
+        let with = |class: &str| ScannedEntry {
+            attributes: Some(Box::new(
+                EntryAttributes::new().with("s3.storageClass", class),
+            )),
+            ..file("a.bin", 1)
+        };
+        let mut index = loaded(&[with("STANDARD"), file("plain", 1)]);
+        let entries = index.range(0, u32::MAX);
+        let a = entries.iter().find(|e| e.name == "a.bin").unwrap();
+        assert_eq!(
+            a.attributes
+                .as_ref()
+                .unwrap()
+                .get("s3.storageClass")
+                .map(String::as_str),
+            Some("STANDARD")
+        );
+        assert!(entries
+            .iter()
+            .find(|e| e.name == "plain")
+            .unwrap()
+            .attributes
+            .is_none());
+        let changes = index.diff(vec![with("GLACIER"), file("plain", 1)]);
+        let patch = index.apply(changes);
+        assert!(
+            patch.iter().any(|op| matches!(op, PatchOp::Update { .. })),
+            "{patch:?}"
+        );
     }
 
     #[test]

@@ -152,6 +152,11 @@ pub struct Entry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(type = "number | null", optional)]
     pub deleted_ms: Option<i64>,
+    /// Extra facts the entry's provider has, keyed `provider.name` (`s3.storageClass`), for the
+    /// plugin columns that know them; bounded (`EntryAttributes`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub attributes: Option<std::collections::BTreeMap<String, String>>,
     /// What Git says about the entry, in a folder of a working tree with the overlay on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

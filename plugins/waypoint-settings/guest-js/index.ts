@@ -75,6 +75,7 @@ export interface UiSettingsChange {
 	actionBar?: boolean;
 	actionBarLabels?: boolean;
 	gitColumn?: boolean;
+	storageClassColumn?: boolean;
 }
 
 /**

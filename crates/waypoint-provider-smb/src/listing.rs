@@ -44,6 +44,7 @@ pub(crate) fn entry(name: &str, is_directory: bool, size: u64, modified: FileTim
         modified_ms: millis(modified),
         hidden: name.starts_with('.'),
         trashed: None,
+        attributes: None,
     }
 }
 

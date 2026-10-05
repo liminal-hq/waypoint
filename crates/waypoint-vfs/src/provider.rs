@@ -44,6 +44,9 @@ pub struct ScannedEntry {
     pub hidden: bool,
     /// What only an item in the Trash has; `None` for every other entry.
     pub trashed: Option<Box<TrashedMeta>>,
+    /// Extra facts only this provider has (an S3 object's storage class), for plugin columns;
+    /// `None` for an entry with none, which is nearly every entry.
+    pub attributes: Option<Box<crate::EntryAttributes>>,
 }
 
 /// What a trashed item adds to its entry: the name it had before it was trashed (the entry's own

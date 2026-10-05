@@ -235,6 +235,28 @@ fn storage_classes_are_listed_and_an_archived_object_needs_a_restore() {
     assert_eq!(class("ia.txt").storage_class, StorageClass::StandardIa);
     assert_eq!(class("glacier.txt").storage_class, StorageClass::Glacier);
     assert!(class("glacier.txt").archived() && class("deep.txt").archived());
+    // The same facts ride on the entry itself, for the column.
+    let glacier = listed
+        .iter()
+        .find(|l| l.entry.name == "glacier.txt")
+        .unwrap();
+    assert_eq!(
+        glacier
+            .entry
+            .attributes
+            .as_ref()
+            .unwrap()
+            .get("s3.storageClass"),
+        Some("GLACIER")
+    );
+    let (entry, _) = env
+        .provider
+        .stat_with_attributes(&env.at("cold", "ia.txt"))
+        .unwrap();
+    assert_eq!(
+        entry.attributes.as_ref().unwrap().get("s3.storageClass"),
+        Some("STANDARD_IA")
+    );
     assert!(!class("ir.txt").archived());
     // HEAD says it too.
     let (_, head) = env
@@ -246,11 +268,13 @@ fn storage_classes_are_listed_and_an_archived_object_needs_a_restore() {
     // Archived objects are listed and can be seen, but reading them is a typed error, and nothing
     // asks the service to restore anything.
     for name in ["glacier.txt", "deep.txt"] {
-        let Err(VfsError::Unsupported { what }) = env.provider.open_read(&env.at("cold", name))
-        else {
-            panic!("reading {name} should say a restore is needed");
-        };
-        assert!(what.contains("restore"), "{what}");
+        assert!(
+            matches!(
+                env.provider.open_read(&env.at("cold", name)),
+                Err(VfsError::Archived { .. })
+            ),
+            "reading {name} should say a restore is needed"
+        );
     }
     assert_eq!(read_all(&env.provider, &env.at("cold", "ir.txt"), 0), b"r");
     assert!(env.fake.log().iter().all(|l| !l.contains("restore")));
@@ -261,7 +285,7 @@ fn storage_classes_are_listed_and_an_archived_object_needs_a_restore() {
         &mut |_| {},
         &CancelToken::new(),
     );
-    assert!(matches!(copied, Some(Err(VfsError::Unsupported { .. }))));
+    assert!(matches!(copied, Some(Err(VfsError::Archived { .. }))));
     assert!(!env.fake.keys("cold").contains(&"copy.txt".to_owned()));
 }
 
@@ -552,7 +576,7 @@ fn a_skewed_clock_and_a_refused_signature_are_told_apart() {
         times: 1,
     });
     match list(&env.provider, &root) {
-        Err(VfsError::Io { message, .. }) => assert!(message.contains("clock"), "{message}"),
+        Err(VfsError::ClockSkew { skew_ms: None, .. }) => {}
         other => panic!("expected a clock error, got {other:?}"),
     }
     env.fake.inject(Injected {

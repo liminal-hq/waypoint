@@ -281,6 +281,10 @@ export function connectionErrorText(error: unknown): string {
 			return t('connect.error.hostKeyChanged');
 		case 'certificateUntrusted':
 			return t('connect.error.certificate');
+		case 'clockSkew':
+			return t('connect.error.clockSkew');
+		case 'archived':
+			return t('connect.error.archived');
 		case 'unsupported':
 			return tf('connect.error.unsupported', { what: error.what });
 		case 'protocolOff':

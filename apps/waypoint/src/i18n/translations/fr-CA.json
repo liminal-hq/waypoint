@@ -2419,6 +2419,76 @@
     "description": "Area: browse. Placeholders, kept exactly as written: {location} is a folder or path.",
     "source": "565902db"
   },
+  "browse.column.storageClass": {
+    "message": "Classe de stockage",
+    "description": "Area: browse.",
+    "source": "31f72a24"
+  },
+  "browse.column.storageClass.show": {
+    "message": "Afficher la classe de stockage",
+    "description": "Area: browse.",
+    "source": "574c7a90"
+  },
+  "browse.storageClass.standard": {
+    "message": "Standard",
+    "description": "Area: browse.",
+    "source": "ef669154"
+  },
+  "browse.storageClass.standardIa": {
+    "message": "Standard-IA",
+    "description": "Area: browse.",
+    "source": "8139ea3a"
+  },
+  "browse.storageClass.onezoneIa": {
+    "message": "One Zone-IA",
+    "description": "Area: browse.",
+    "source": "5935b09f"
+  },
+  "browse.storageClass.intelligentTiering": {
+    "message": "Intelligent-Tiering",
+    "description": "Area: browse.",
+    "source": "3ffe3450"
+  },
+  "browse.storageClass.reducedRedundancy": {
+    "message": "Redondance réduite",
+    "description": "Area: browse.",
+    "source": "e9e6bc18"
+  },
+  "browse.storageClass.glacierIr": {
+    "message": "Glacier Instant Retrieval",
+    "description": "Area: browse.",
+    "source": "f101b09b"
+  },
+  "browse.storageClass.glacier": {
+    "message": "Glacier Flexible Retrieval",
+    "description": "Area: browse.",
+    "source": "f7a5dcb0"
+  },
+  "browse.storageClass.deepArchive": {
+    "message": "Glacier Deep Archive",
+    "description": "Area: browse.",
+    "source": "67ebe3a1"
+  },
+  "browse.storageClass.expressOnezone": {
+    "message": "Express One Zone",
+    "description": "Area: browse.",
+    "source": "92eee78c"
+  },
+  "browse.storageClass.restoreNote": {
+    "message": "archivé : doit être restauré avant de pouvoir être lu",
+    "description": "Area: browse.",
+    "source": "28451b00"
+  },
+  "browse.error.archived.title": {
+    "message": "Ce fichier est archivé",
+    "description": "Area: browse.",
+    "source": "73da082d"
+  },
+  "browse.error.archived.detail": {
+    "message": "{location} se trouve dans une classe de stockage d’archives et doit être restauré avant de pouvoir être ouvert. Restaurez-le avec les outils du service; Waypoint ne lance jamais de restauration.",
+    "description": "Area: browse. Placeholders, kept exactly as written: {location} is a folder or path.",
+    "source": "24c235f6"
+  },
   "browse.error.other.title": {
     "message": "Ce dossier n’a pas pu être affiché",
     "description": "Area: browse.",
@@ -5009,6 +5079,16 @@
     "description": "Area: connect.",
     "source": "48014f6e"
   },
+  "connect.error.clockSkew": {
+    "message": "Non connecté : l’horloge de cet ordinateur est inexacte, donc le service a refusé la requête.",
+    "description": "Area: connect.",
+    "source": "ed4a8264"
+  },
+  "connect.error.archived": {
+    "message": "Ce fichier est archivé et doit d’abord être restauré.",
+    "description": "Area: connect.",
+    "source": "4ce5e64c"
+  },
   "connect.error.timeout": {
     "message": "Non connecté : le serveur n’a pas répondu à temps.",
     "description": "Area: connect.",
@@ -5448,6 +5528,16 @@
     "message": "Cet ordinateur est hors ligne.",
     "description": "Area: remote.",
     "source": "d6ffcf69"
+  },
+  "remote.clockSkew.title": {
+    "message": "L’horloge de cet ordinateur est inexacte",
+    "description": "Area: remote.",
+    "source": "f8c15c83"
+  },
+  "remote.clockSkew.detail": {
+    "message": "{server} a refusé la requête parce que l’horloge de cet ordinateur diffère de la sienne. Réglez la date et l’heure automatiquement, puis reconnectez-vous.",
+    "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
+    "source": "339bc34e"
   },
   "remote.timeout.title": {
     "message": "{server} ne répond pas",
@@ -8143,6 +8233,26 @@
     "message": "{reason}",
     "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
     "source": "a4ba81b6"
+  },
+  "ops.problem.message.archived": {
+    "message": "{location} est archivé et doit être restauré avant de pouvoir être lu. Restaurez-le avec les outils du service, puis réessayez; Waypoint ne lance jamais de restauration.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
+    "source": "d72bcf52"
+  },
+  "ops.problem.message.clockSkew": {
+    "message": "Le service a refusé la requête parce que l’horloge de cet ordinateur est inexacte. Réglez la date et l’heure automatiquement, puis réessayez.",
+    "description": "Area: ops.",
+    "source": "dcbc5e23"
+  },
+  "ops.problem.message.clockSkew.ahead": {
+    "message": "Le service a refusé la requête parce que l’horloge de cet ordinateur avance d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {minutes}.",
+    "source": "8f11c96b"
+  },
+  "ops.problem.message.clockSkew.behind": {
+    "message": "Le service a refusé la requête parce que l’horloge de cet ordinateur retarde d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {minutes}.",
+    "source": "18524504"
   },
   "ops.problem.message.io": {
     "message": "Le système a signalé un problème : {message}",

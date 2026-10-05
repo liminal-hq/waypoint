@@ -28,7 +28,8 @@
 //! the person's answer to `Provider::connect`; the AWS environment and `~/.aws` files are read
 //! only when the app turns `S3Config::with_ambient_credentials` on, and only for AWS endpoints.
 //! The storage class and ETag of each object are on `ListedEntry` (`list_batches_with_attributes`)
-//! for a column that shows them.
+//! and, as the `s3.storageClass` and `s3.etag` attributes, on every `ScannedEntry` the provider
+//! lists or stats, so the Storage class column reads them from the listing.
 
 mod address;
 pub mod ambient;
@@ -43,7 +44,7 @@ mod storage_class;
 mod writer;
 
 pub use errors::{classify_response, xml_text, Response, S3Error};
-pub use ops::{BucketInfo, ListedEntry};
+pub use ops::{BucketInfo, ListedEntry, ETAG_ATTRIBUTE, STORAGE_CLASS_ATTRIBUTE};
 pub use options::{S3Config, S3Options, DEFAULT_PART_SIZE, MIN_PART_SIZE};
 pub use presets::Preset;
 pub use provider::S3Provider;

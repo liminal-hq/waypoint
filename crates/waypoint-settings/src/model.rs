@@ -132,6 +132,10 @@ pub struct UiSettings {
     /// Whether the list shows the Git column in a folder of a working tree (the header menu's
     /// choice; off, the marks on the rows and the branch stay).
     pub git_column: bool,
+    /// Whether the list shows the Storage class column in a folder on S3 (the header menu's
+    /// choice; off by default, since most folders are not on S3 and most people need the class
+    /// only now and then).
+    pub storage_class_column: bool,
 }
 
 impl Default for UiSettings {
@@ -142,6 +146,7 @@ impl Default for UiSettings {
             app_name_in_title: false,
             menu_bar: false,
             git_column: true,
+            storage_class_column: false,
         }
     }
 }
@@ -775,6 +780,7 @@ mod tests {
                 app_name_in_title: true,
                 menu_bar: true,
                 git_column: false,
+                storage_class_column: true,
             },
             ..Settings::default()
         };
@@ -792,6 +798,18 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Settings::default()).unwrap()["ui"]["gitColumn"],
             true
+        );
+    }
+
+    #[test]
+    fn the_storage_class_column_defaults_off_and_follows_the_header_menu() {
+        let old: Settings = serde_json::from_str(r#"{"ui":{"gitColumn":false}}"#).unwrap();
+        assert!(!old.ui.storage_class_column);
+        let on: Settings = serde_json::from_str(r#"{"ui":{"storageClassColumn":true}}"#).unwrap();
+        assert!(on.ui.storage_class_column);
+        assert_eq!(
+            serde_json::to_value(Settings::default()).unwrap()["ui"]["storageClassColumn"],
+            false
         );
     }
 

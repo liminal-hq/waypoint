@@ -219,7 +219,7 @@ fn an_archived_object_is_a_typed_error_not_a_download() {
     let (provider, canned) = replayed(vec![archived]);
     let result = provider.open_read(&at(&canned, "cold.bin"));
     assert!(
-        matches!(&result, Err(VfsError::Unsupported { what }) if what.contains("restore")),
+        matches!(&result, Err(VfsError::Archived { .. })),
         "{:?}",
         result.err()
     );

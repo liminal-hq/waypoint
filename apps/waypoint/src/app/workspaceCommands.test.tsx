@@ -163,6 +163,7 @@ describe('hiding the bar and its labels', () => {
 			appNameInTitle: false,
 			menuBar: false,
 			gitColumn: true,
+			storageClassColumn: false,
 		});
 		await waitFor(() => expect(barButton('Cut')).toHaveTextContent(''));
 	});
@@ -197,6 +198,7 @@ describe('hiding the bar and its labels', () => {
 					appNameInTitle: false,
 					menuBar: false,
 					gitColumn: true,
+					storageClassColumn: false,
 				},
 			});
 		});
@@ -216,6 +218,7 @@ describe('hiding the bar and its labels', () => {
 				appNameInTitle: false,
 				menuBar: false,
 				gitColumn: true,
+				storageClassColumn: false,
 			},
 		});
 		render(

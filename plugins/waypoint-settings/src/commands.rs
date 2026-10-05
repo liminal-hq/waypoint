@@ -98,6 +98,7 @@ pub struct UiChange {
     pub action_bar: Option<bool>,
     pub action_bar_labels: Option<bool>,
     pub git_column: Option<bool>,
+    pub storage_class_column: Option<bool>,
 }
 
 /// Changes only the `ui` settings named in `change`, on top of what is in force now, and
@@ -118,6 +119,9 @@ pub async fn set_ui_settings<R: Runtime>(
         }
         if let Some(shown) = change.git_column {
             ui.git_column = shown;
+        }
+        if let Some(shown) = change.storage_class_column {
+            ui.storage_class_column = shown;
         }
     })
 }

@@ -27,7 +27,11 @@ pub enum S3Error {
     ExpiredToken,
     /// This computer's clock and the service's differ by more than the service allows (15
     /// minutes on AWS), so every signed request is refused.
-    ClockSkew,
+    ClockSkew {
+        /// How far this computer's clock is ahead (positive) or behind the service's, when the
+        /// service said both times.
+        skew_ms: Option<i64>,
+    },
     /// `SlowDown`, throttling or a 503: the service asked to wait. `retry_after_ms` is its
     /// `Retry-After`, if it sent one.
     Throttled {
@@ -72,12 +76,7 @@ impl S3Error {
             Self::InvalidAccessKey | Self::SignatureMismatch | Self::ExpiredToken => {
                 VfsError::AuthFailed { location }
             }
-            Self::ClockSkew => VfsError::Io {
-                message: "the service refused the request because this computer's clock and the \
-                          service's differ by more than 15 minutes; set the clock and try again"
-                    .to_owned(),
-                location: Some(location),
-            },
+            Self::ClockSkew { skew_ms } => VfsError::ClockSkew { location, skew_ms },
             Self::Throttled { retry_after_ms } => VfsError::RateLimited {
                 location,
                 retry_after_ms,
@@ -89,9 +88,7 @@ impl S3Error {
                 },
                 location: Some(location),
             },
-            Self::Archived => VfsError::Unsupported {
-                what: "reading an archived object, which needs a restore first".to_owned(),
-            },
+            Self::Archived => VfsError::Archived { location },
             Self::PreconditionFailed | Self::AlreadyExists => VfsError::AlreadyExists { location },
             Self::InvalidRange => VfsError::Io {
                 message: "the service refused the byte range".to_owned(),
@@ -149,6 +146,8 @@ pub struct Response {
     pub bucket_region: Option<String>,
     /// The `<Region>` of the error body.
     pub body_region: Option<String>,
+    /// This clock less the service's, from the `<RequestTime>` and `<ServerTime>` of the body.
+    pub skew_ms: Option<i64>,
 }
 
 /// Classifies a response by its status and the error code in its body.
@@ -173,7 +172,11 @@ pub fn classify_response(response: &Response) -> S3Error {
         Some("ExpiredToken" | "InvalidToken" | "TokenRefreshRequired") => {
             return S3Error::ExpiredToken
         }
-        Some("RequestTimeTooSkewed" | "RequestExpired") => return S3Error::ClockSkew,
+        Some("RequestTimeTooSkewed" | "RequestExpired") => {
+            return S3Error::ClockSkew {
+                skew_ms: response.skew_ms,
+            }
+        }
         Some(
             "PermanentRedirect" | "Redirect" | "TemporaryRedirect" | "AuthorizationHeaderMalformed",
         ) if status != Some(200) => {
@@ -239,6 +242,39 @@ fn region_in_message(message: &str) -> Option<String> {
     (!region.is_empty()).then(|| region.to_owned())
 }
 
+/// Seconds since the Unix epoch of an ISO 8601 time: extended (`2026-10-05T07:00:00.000Z`) or
+/// basic (`20261005T070000Z`), as AWS writes `<ServerTime>` and `<RequestTime>`.
+fn parse_iso(text: &str) -> Option<i64> {
+    let text: String = text
+        .trim()
+        .chars()
+        .filter(|c| *c != '-' && *c != ':')
+        .collect();
+    let text = text.split('.').next()?.trim_end_matches('Z').to_owned();
+    let (date, time) = text.split_once('T')?;
+    if date.len() != 8 || time.len() != 6 {
+        return None;
+    }
+    let num = |s: &str| s.parse::<i64>().ok();
+    let (y, m, day) = (num(&date[0..4])?, num(&date[4..6])?, num(&date[6..8])?);
+    let (h, mi, s) = (num(&time[0..2])?, num(&time[2..4])?, num(&time[4..6])?);
+    // Days from civil (Howard Hinnant's algorithm).
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y.rem_euclid(400);
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(days * 86_400 + h * 3600 + mi * 60 + s)
+}
+
+/// The request time less the server time, in milliseconds, from a `RequestTimeTooSkewed` body.
+fn skew_in_body(body: &str) -> Option<i64> {
+    let request = parse_iso(&xml_text(body, "RequestTime")?)?;
+    let server = parse_iso(&xml_text(body, "ServerTime")?)?;
+    Some((request - server) * 1000)
+}
+
 /// The text between `<tag>` and `</tag>` in a (tiny, flat) XML error body.
 pub fn xml_text(body: &str, tag: &str) -> Option<String> {
     let open = format!("<{tag}>");
@@ -280,6 +316,7 @@ where
             retry_after_secs: header("retry-after").and_then(|v| v.trim().parse().ok()),
             bucket_region: header("x-amz-bucket-region"),
             body_region: xml_text(body, "Region"),
+            skew_ms: skew_in_body(body),
         };
         log::debug!(
             "s3: {:?} {:?} {:?}",
@@ -365,6 +402,7 @@ mod tests {
             retry_after_secs: None,
             bucket_region: None,
             body_region: xml_text(body, "Region"),
+            skew_ms: skew_in_body(body),
         })
     }
 
@@ -379,7 +417,7 @@ mod tests {
     const BAD_SIGNATURE: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <Error><Code>SignatureDoesNotMatch</Code><Message>The request signature we calculated does not match the signature you provided.</Message></Error>"#;
     const SKEW: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
-<Error><Code>RequestTimeTooSkewed</Code><Message>The difference between the request time and the current time is too large.</Message><MaxAllowedSkewMilliseconds>900000</MaxAllowedSkewMilliseconds></Error>"#;
+<Error><Code>RequestTimeTooSkewed</Code><Message>The difference between the request time and the current time is too large.</Message><RequestTime>20261005T072000Z</RequestTime><ServerTime>2026-10-05T07:00:00Z</ServerTime><MaxAllowedSkewMilliseconds>900000</MaxAllowedSkewMilliseconds></Error>"#;
     const SLOW_DOWN: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <Error><Code>SlowDown</Code><Message>Please reduce your request rate.</Message></Error>"#;
     const WRONG_REGION: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -398,7 +436,12 @@ mod tests {
         assert_eq!(parse(403, ACCESS_DENIED), S3Error::AccessDenied);
         assert_eq!(parse(403, BAD_KEY), S3Error::InvalidAccessKey);
         assert_eq!(parse(403, BAD_SIGNATURE), S3Error::SignatureMismatch);
-        assert_eq!(parse(403, SKEW), S3Error::ClockSkew);
+        assert_eq!(
+            parse(403, SKEW),
+            S3Error::ClockSkew {
+                skew_ms: Some(1_200_000)
+            }
+        );
         assert_eq!(
             parse(503, SLOW_DOWN),
             S3Error::Throttled {
@@ -485,12 +528,15 @@ mod tests {
         ));
         assert!(matches!(
             S3Error::Archived.into_vfs(&here),
-            VfsError::Unsupported { .. }
+            VfsError::Archived { .. }
         ));
-        let VfsError::Io { message, .. } = S3Error::ClockSkew.into_vfs(&here) else {
-            panic!("clock skew is an I/O error with its own wording");
-        };
-        assert!(message.contains("clock"));
+        assert!(matches!(
+            S3Error::ClockSkew { skew_ms: Some(5) }.into_vfs(&here),
+            VfsError::ClockSkew {
+                skew_ms: Some(5),
+                ..
+            }
+        ));
         assert!(S3Error::InvalidAccessKey.is_credential_failure());
         assert!(!S3Error::AccessDenied.is_credential_failure());
         assert!(S3Error::Timeout.ends_session());

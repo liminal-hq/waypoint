@@ -655,6 +655,7 @@ fn scanned_entry(
         size: entry.size,
         modified_ms: entry.modified_ms,
         trashed: None,
+        attributes: None,
     }
 }
 

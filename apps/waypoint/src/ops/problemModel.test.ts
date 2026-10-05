@@ -55,6 +55,25 @@ const CASES: Array<[OpsError, RegExp]> = [
 	],
 ];
 
+describe('archived objects and clock skew', () => {
+	it('says an archived object needs a restore, and what to do about it', () => {
+		const { message } = problemText({ kind: 'archived', location: at });
+		expect(message).toMatch(/\/home\/a\/x\.txt is archived and needs a restore/);
+		expect(message).toMatch(/never starts a restore/);
+	});
+
+	it('says which way the clock is off when it is known, and that it is off when it is not', () => {
+		expect(problemText({ kind: 'clockSkew', skewMs: 1_200_000 }).message).toMatch(
+			/about 20 minutes ahead/,
+		);
+		expect(problemText({ kind: 'clockSkew', skewMs: -600_000 }).message).toMatch(
+			/about 10 minutes behind/,
+		);
+		expect(problemText({ kind: 'clockSkew', skewMs: null }).message).toMatch(/clock is off\./);
+		expect(problemText({ kind: 'clockSkew', skewMs: 5_000 }).message).toMatch(/clock is off\./);
+	});
+});
+
 describe('problemText', () => {
 	it.each(CASES)('words %j', (error, message) => {
 		expect(problemText(error).message).toMatch(message);

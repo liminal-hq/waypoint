@@ -61,6 +61,13 @@ describe('refusals and errors', () => {
 		expect(draftProblem({ kind: 'unreachable' })).toBeNull();
 	});
 
+	it('words a skewed clock and an archived file', () => {
+		expect(connectionErrorText({ kind: 'clockSkew', location: at, skewMs: null })).toMatch(
+			/clock is off/,
+		);
+		expect(connectionErrorText({ kind: 'archived', location: at })).toMatch(/needs a restore/);
+	});
+
 	it('words every reason a server could not be reached', () => {
 		expect(
 			connectionErrorText({ kind: 'unreachable', location: at, reason: 'nameNotResolved' }),

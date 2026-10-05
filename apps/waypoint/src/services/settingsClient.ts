@@ -69,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		appNameInTitle: false,
 		menuBar: false,
 		gitColumn: true,
+		storageClassColumn: false,
 	},
 	appearance: {
 		mode: 'system',

@@ -17,6 +17,7 @@ const CONNECTION_KINDS: ReadonlySet<VfsError['kind']> = new Set([
 	'hostKeyUnknown',
 	'hostKeyChanged',
 	'certificateUntrusted',
+	'clockSkew',
 ]);
 
 export function isConnectionError(error: VfsError): boolean {
@@ -123,6 +124,12 @@ export function remoteStateText(error: VfsError): RemoteStateText {
 				title: 'remote.certificate.title',
 				detail: 'remote.certificate.detail',
 				action: 'review',
+			};
+		case 'clockSkew':
+			return {
+				title: 'remote.clockSkew.title',
+				detail: 'remote.clockSkew.detail',
+				action: 'reconnect',
 			};
 		default:
 			return { title: 'remote.error.title', detail: 'remote.error.detail', action: 'reconnect' };

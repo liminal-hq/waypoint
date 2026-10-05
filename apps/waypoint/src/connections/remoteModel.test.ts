@@ -15,6 +15,16 @@ describe('remote states', () => {
 		expect(isConnectionError({ kind: 'notFound', location: at })).toBe(false);
 	});
 
+	it('treats a skewed clock as a connection problem with its own words', () => {
+		const error = { kind: 'clockSkew' as const, location: at, skewMs: null };
+		expect(isConnectionError(error)).toBe(true);
+		expect(remoteStateText(error)).toMatchObject({
+			title: 'remote.clockSkew.title',
+			action: 'reconnect',
+		});
+		expect(stateTone({ kind: 'failed', error })).toBe('error');
+	});
+
 	it('puts every state in words as well as a tone', () => {
 		expect(stateWords({ kind: 'connected' })).toBe('Connected');
 		expect(stateWords({ kind: 'idle' })).toBe('Not connected');

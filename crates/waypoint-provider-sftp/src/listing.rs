@@ -72,6 +72,7 @@ pub(crate) fn entry(name: &str, kind: EntryKind, attrs: &FileAttributes) -> Scan
         modified_ms: attrs.mtime.map(|secs| i64::from(secs) * 1000),
         hidden: name.starts_with('.'),
         trashed: None,
+        attributes: None,
     }
 }
 

@@ -448,6 +448,7 @@ impl MemoryProvider {
             modified_ms: Some(to_ms(shown.modified)),
             hidden: name.as_encoded_bytes().first() == Some(&b'.'),
             trashed: None,
+            attributes: None,
         }
     }
 

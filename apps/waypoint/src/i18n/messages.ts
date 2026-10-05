@@ -626,6 +626,21 @@ export const enMessages = {
 	'browse.error.permissionDenied.detail': 'You do not have permission to open {location}.',
 	'browse.error.notADirectory.title': 'Not a folder',
 	'browse.error.notADirectory.detail': '{location} is a file, not a folder.',
+	'browse.column.storageClass': 'Storage class',
+	'browse.column.storageClass.show': 'Show Storage Class',
+	'browse.storageClass.standard': 'Standard',
+	'browse.storageClass.standardIa': 'Standard-IA',
+	'browse.storageClass.onezoneIa': 'One Zone-IA',
+	'browse.storageClass.intelligentTiering': 'Intelligent-Tiering',
+	'browse.storageClass.reducedRedundancy': 'Reduced redundancy',
+	'browse.storageClass.glacierIr': 'Glacier Instant Retrieval',
+	'browse.storageClass.glacier': 'Glacier Flexible Retrieval',
+	'browse.storageClass.deepArchive': 'Glacier Deep Archive',
+	'browse.storageClass.expressOnezone': 'Express One Zone',
+	'browse.storageClass.restoreNote': 'archived: needs a restore before it can be read',
+	'browse.error.archived.title': 'This file is archived',
+	'browse.error.archived.detail':
+		'{location} is in an archive storage class and needs a restore before it can be opened. Restore it with the service’s own tools; Waypoint never starts a restore.',
 	'browse.error.other.title': 'This folder could not be shown',
 	'browse.error.other.detail': 'Something went wrong while reading the folder.',
 	'browse.error.corrupt.title': 'This archive is damaged',
@@ -1174,6 +1189,9 @@ export const enMessages = {
 	'connect.error.refused': 'Not connected: the server refused the connection.',
 	'connect.error.noRoute': 'Not connected: there is no route to the server.',
 	'connect.error.offline': 'Not connected: this computer is offline.',
+	'connect.error.clockSkew':
+		'Not connected: this computer’s clock is off, so the service refused the request.',
+	'connect.error.archived': 'That file is archived and needs a restore first.',
 	'connect.error.timeout': 'Not connected: the server did not answer in time.',
 	'connect.error.disconnected': 'The connection was lost.',
 	'connect.error.authRequired': 'Not connected: the server needs you to sign in.',
@@ -1267,6 +1285,9 @@ export const enMessages = {
 		'The server refused the connection: nothing is answering on its port.',
 	'remote.unreachable.noRoute': 'There is no route to the server from this network.',
 	'remote.unreachable.offline': 'This computer is offline.',
+	'remote.clockSkew.title': 'The clock on this computer is off',
+	'remote.clockSkew.detail':
+		'{server} refused the request because this computer’s clock differs from its own. Set the date and time automatically, then reconnect.',
 	'remote.timeout.title': '{server} is not answering',
 	'remote.timeout.detail': 'The server did not answer in time.',
 	'remote.signIn.title': 'Sign in to {server}',
@@ -1811,6 +1832,14 @@ export const enMessages = {
 		'{location} cannot be replaced by an entry of another kind. Keeping both or skipping it will work.',
 	'ops.problem.message.undoStale': 'This cannot be undone: {reason}',
 	'ops.problem.message.undoUnavailable': '{reason}',
+	'ops.problem.message.archived':
+		'{location} is archived and needs a restore before it can be read. Restore it with the service’s own tools, then retry; Waypoint never starts a restore.',
+	'ops.problem.message.clockSkew':
+		'The service refused the request because this computer’s clock is off. Set the date and time automatically, then retry.',
+	'ops.problem.message.clockSkew.ahead':
+		'The service refused the request because this computer’s clock is about {minutes} minutes ahead of its own. Set the date and time automatically, then retry.',
+	'ops.problem.message.clockSkew.behind':
+		'The service refused the request because this computer’s clock is about {minutes} minutes behind its own. Set the date and time automatically, then retry.',
 	'ops.problem.message.io': 'The system reported a problem: {message}',
 	'ops.problem.message.connection':
 		'The connection to the server that holds {location} failed. Retry connects again.',

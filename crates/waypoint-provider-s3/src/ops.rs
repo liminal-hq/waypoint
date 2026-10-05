@@ -9,7 +9,7 @@ use std::ffi::OsString;
 use aws_sdk_s3::primitives::DateTime;
 use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart, EncodingType};
 use waypoint_protocol::VfsError;
-use waypoint_vfs::{group_for_scan, CancelToken, EntryKind, ScannedEntry};
+use waypoint_vfs::{group_for_scan, CancelToken, EntryAttributes, EntryKind, ScannedEntry};
 
 use crate::address::Address;
 use crate::errors::S3Error;
@@ -51,7 +51,22 @@ fn millis(time: Option<&DateTime>) -> Option<i64> {
     time.and_then(|time| time.to_millis().ok())
 }
 
-pub(crate) fn file_entry(name: &str, size: u64, modified_ms: Option<i64>) -> ScannedEntry {
+/// The attribute that carries an object's storage class (`STANDARD`, `GLACIER`) to the listing.
+pub const STORAGE_CLASS_ATTRIBUTE: &str = "s3.storageClass";
+/// The attribute that carries an object's ETag.
+pub const ETAG_ATTRIBUTE: &str = "s3.etag";
+
+pub(crate) fn file_entry(
+    name: &str,
+    size: u64,
+    modified_ms: Option<i64>,
+    attributes: &ObjectAttributes,
+) -> ScannedEntry {
+    let mut extra =
+        EntryAttributes::new().with(STORAGE_CLASS_ATTRIBUTE, attributes.storage_class.api_name());
+    if let Some(etag) = &attributes.etag {
+        extra = extra.with(ETAG_ATTRIBUTE, etag.trim_matches('"'));
+    }
     ScannedEntry {
         name: OsString::from(name),
         kind: EntryKind::File,
@@ -63,6 +78,7 @@ pub(crate) fn file_entry(name: &str, size: u64, modified_ms: Option<i64>) -> Sca
         modified_ms,
         hidden: name.starts_with('.'),
         trashed: None,
+        attributes: Some(Box::new(extra)),
     }
 }
 
@@ -78,6 +94,7 @@ pub(crate) fn dir_entry(name: &str, modified_ms: Option<i64>) -> ScannedEntry {
         modified_ms,
         hidden: name.starts_with('.'),
         trashed: None,
+        attributes: None,
     }
 }
 
@@ -230,7 +247,12 @@ impl Inner {
         }
         if let Some(meta) = self.head(address).await? {
             return Ok((
-                file_entry(address.name(), meta.size, meta.modified_ms),
+                file_entry(
+                    address.name(),
+                    meta.size,
+                    meta.modified_ms,
+                    &meta.attributes,
+                ),
                 Some(meta.attributes),
             ));
         }
@@ -304,16 +326,17 @@ impl Inner {
                 }
                 let size = object.size().unwrap_or(0).max(0) as u64;
                 last_file = Some(name.to_owned());
+                let attributes = ObjectAttributes {
+                    storage_class: object
+                        .storage_class()
+                        .map_or(StorageClass::Standard, |class| {
+                            StorageClass::from_api_name(class.as_str())
+                        }),
+                    etag: object.e_tag().map(str::to_owned),
+                };
                 batch.push(ListedEntry {
-                    entry: file_entry(name, size, millis(object.last_modified())),
-                    attributes: Some(ObjectAttributes {
-                        storage_class: object
-                            .storage_class()
-                            .map_or(StorageClass::Standard, |class| {
-                                StorageClass::from_api_name(class.as_str())
-                            }),
-                        etag: object.e_tag().map(str::to_owned),
-                    }),
+                    entry: file_entry(name, size, millis(object.last_modified()), &attributes),
+                    attributes: Some(attributes),
                 });
             }
             for common in page.common_prefixes() {
@@ -615,7 +638,14 @@ mod tests {
 
     #[test]
     fn entries_know_their_names_and_kinds() {
-        let file = file_entry(".env", 12, Some(5));
+        let attributes = ObjectAttributes {
+            storage_class: StorageClass::Glacier,
+            etag: Some("\"abc\"".to_owned()),
+        };
+        let file = file_entry(".env", 12, Some(5), &attributes);
+        let carried = file.attributes.as_ref().unwrap();
+        assert_eq!(carried.get(STORAGE_CLASS_ATTRIBUTE), Some("GLACIER"));
+        assert_eq!(carried.get(ETAG_ATTRIBUTE), Some("abc"));
         assert_eq!(file.kind, EntryKind::File);
         assert!(file.hidden);
         assert_eq!(file.size, Some(12));
