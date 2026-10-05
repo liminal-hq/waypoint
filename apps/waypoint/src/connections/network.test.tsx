@@ -52,6 +52,9 @@ describe('the Network section', () => {
 		expect(
 			within(group).getByRole('button', { name: /sftp:\/\/pi\/.*Not connected/ }),
 		).toBeVisible();
+		// A server row takes files dropped on it, into the folder it opens at (D151).
+		expect(nas).toHaveAttribute('data-drop', 'place');
+		expect(nas.getAttribute('data-drop-ref')).toMatch(/^sftp:\/\/me@nas\.lan/);
 		act(() => connections.emitState('sftp://me@nas.lan', { kind: 'connected' }));
 		await waitFor(() => expect(nas).toHaveAccessibleName(/NAS.*Connected/));
 		expect(sidebarStatus()).toHaveTextContent('NAS: Connected');

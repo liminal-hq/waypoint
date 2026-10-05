@@ -23,8 +23,9 @@ use waypoint_ops::{
     JobPriority, JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument,
     JournalEntrySummary, JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings,
     OpsSnapshot, OpsStore, Pacer, PlanCtx, PlanWarning, Prepared, QueueError, RateCell,
-    RecoveryReport, Resolution, SaveRequest, Schedule, ScheduledRecord, SelectionResolver,
-    SettingsReader, SimpleCopy, Sources, StorageError, SystemPacer, Throttle,
+    RecoveryReport, Resolution, ResumableRecord, ResumePoint, SaveRequest, Schedule,
+    ScheduledRecord, SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError,
+    SystemPacer, Throttle,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec};
@@ -203,6 +204,11 @@ pub(crate) struct Ctl {
     pub decision: Option<Decision>,
     /// The job's own speed limit, which the running copy reads at every piece.
     pub rate: Arc<RateCell>,
+    /// Partial files an earlier run kept, which this one continues (D165).
+    pub resume: Vec<ResumePoint>,
+    /// The job (and when it was made) whose kept partial files this one continues; its record is
+    /// forgotten once this one ends, which records what it keeps itself.
+    pub resumed_from: Option<(JobId, i64)>,
 }
 
 impl Ctl {
@@ -213,6 +219,8 @@ impl Ctl {
             prepared: None,
             answers: Vec::new(),
             decision: None,
+            resume: Vec::new(),
+            resumed_from: None,
         }
     }
 }
@@ -276,6 +284,16 @@ impl Core {
 }
 
 /// Everything the workers and the commands share.
+/// The refusal for a transfer that is no longer offered (resumed or discarded already).
+fn gone() -> Error {
+    Error::Ops(OpsError::UndoUnavailable {
+        reason: "that transfer can no longer be resumed".to_owned(),
+    })
+}
+
+/// The folder of the app's cache that holds files downloaded for a drag out of the window.
+const STAGE_FOLDER: &str = "drag-out";
+
 pub(crate) struct Shared<R: Runtime> {
     pub app: AppHandle<R>,
     pub env: ExecEnv,
@@ -290,6 +308,7 @@ pub(crate) struct Shared<R: Runtime> {
     storage: Arc<OrderedStorage>,
     on_change: Option<ChangeHook>,
     exit_wait: Duration,
+    pub reconnect_wait: crate::deps::ReconnectWait,
     pub core: Mutex<Core>,
     pub cv: Condvar,
 }
@@ -364,6 +383,7 @@ impl<R: Runtime> Ops<R> {
             storage,
             on_change: deps.on_change,
             exit_wait: deps.exit_wait,
+            reconnect_wait: deps.reconnect_wait,
             core: Mutex::new(Core {
                 store,
                 journal,
@@ -719,6 +739,7 @@ impl<R: Runtime> Shared<R> {
             items: planned.total_items,
             bytes: planned.total_bytes,
             same_volume: planned.same_volume,
+            ends: planned.ends.clone(),
             conflicts: planned.conflicts.clone(),
             notes: planned
                 .warnings
@@ -902,9 +923,18 @@ impl<R: Runtime> Ops<R> {
 
     pub fn retry(&self, id: JobId) -> Result<JobId, Error> {
         let mut core = self.shared.lock();
+        let made_at = core.store.job(id).map(|job| job.created_ms);
         let (new, events) = core.store.retry(id)?;
         let limit = core.store.job(new).and_then(|j| j.options.speed_limit);
-        core.ctl.insert(new, Ctl::new(limit));
+        let mut ctl = Ctl::new(limit);
+        // The partial files the failed job kept are continued, not sent again (D165).
+        if let Some(at_ms) = made_at {
+            if let Some(record) = core.journal.resumable().iter().find(|r| r.is(id, at_ms)) {
+                ctl.resume = record.points.clone();
+                ctl.resumed_from = Some((id, at_ms));
+            }
+        }
+        core.ctl.insert(new, ctl);
         self.shared.publish(events);
         self.shared.ensure_workers(&mut core);
         self.shared.cv.notify_all();
@@ -913,17 +943,114 @@ impl<R: Runtime> Ops<R> {
 
     pub fn dismiss(&self, id: JobId) -> Result<(), Error> {
         let mut core = self.shared.lock();
+        let made_at = core.store.job(id).map(|job| job.created_ms);
         let events = core.store.dismiss(id)?;
         self.shared.publish(events);
+        // Dismissing a job gives up what it kept to continue: its partial files go (D165).
+        let dropped = made_at.and_then(|at_ms| core.journal.take_resumable(id, at_ms));
         core.prune();
+        drop(core);
+        if let Some(record) = dropped {
+            self.discard_partials(record.points);
+        }
         Ok(())
     }
 
     pub fn dismiss_finished(&self) {
         let mut core = self.shared.lock();
+        let before: Vec<(JobId, i64)> = core
+            .store
+            .snapshot()
+            .jobs
+            .iter()
+            .map(|j| (j.id, j.created_ms))
+            .collect();
         let events = core.store.dismiss_finished();
         self.shared.publish(events);
+        let mut dropped = Vec::new();
+        for (id, at_ms) in before {
+            if core.store.job(id).is_none() {
+                dropped.extend(core.journal.take_resumable(id, at_ms).map(|r| r.points));
+            }
+        }
         core.prune();
+        drop(core);
+        self.discard_partials(dropped.into_iter().flatten().collect());
+    }
+
+    /// The transfers a lost connection stopped that no job in the list stands for (an earlier
+    /// run's, D165), oldest first, each with Resume and Discard in the page.
+    pub fn interrupted(&self) -> Vec<ResumableRecord> {
+        let core = self.shared.lock();
+        core.journal
+            .resumable()
+            .iter()
+            .filter(|record| {
+                let listed = core
+                    .store
+                    .job(record.job)
+                    .is_some_and(|job| job.created_ms == record.at_ms);
+                // A transfer being resumed is the resuming job's now.
+                let resuming = core
+                    .ctl
+                    .values()
+                    .any(|ctl| ctl.resumed_from == Some((record.job, record.at_ms)));
+                !listed && !resuming
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Runs again a transfer that stopped on a lost connection (`interrupted`): its request,
+    /// continuing the partial files it kept. Nothing resumes by itself.
+    pub fn resume_interrupted(&self, job: JobId, at_ms: i64) -> Result<JobId, Error> {
+        let mut core = self.shared.lock();
+        let record = core
+            .journal
+            .resumable()
+            .iter()
+            .find(|r| r.is(job, at_ms))
+            .cloned()
+            .ok_or_else(gone)?;
+        let (new, events) = core.store.add(record.request.clone());
+        let mut ctl = Ctl::new(record.request.options.speed_limit);
+        ctl.resume = record.points;
+        ctl.resumed_from = Some((job, at_ms));
+        core.ctl.insert(new, ctl);
+        self.shared.publish(events);
+        self.shared.ensure_workers(&mut core);
+        self.shared.cv.notify_all();
+        Ok(new)
+    }
+
+    /// Gives up such a transfer: its partial files are removed and the record is forgotten.
+    pub fn discard_interrupted(&self, job: JobId, at_ms: i64) -> Result<(), Error> {
+        let record = self
+            .shared
+            .lock()
+            .journal
+            .take_resumable(job, at_ms)
+            .ok_or_else(gone)?;
+        self.discard_partials(record.points);
+        Ok(())
+    }
+
+    /// Removes partial files nothing will continue, on a thread of their own: a server may be slow
+    /// or away, and what cannot be removed now is left.
+    fn discard_partials(&self, points: Vec<ResumePoint>) {
+        if points.is_empty() {
+            return;
+        }
+        let providers = self.shared.env.providers.clone();
+        std::thread::spawn(move || {
+            for point in points {
+                if let Ok((path, provider)) = providers.for_location(&point.partial) {
+                    if let Err(e) = provider.remove_file(&path) {
+                        log::info!("left a partial file that could not be removed: {e:?}");
+                    }
+                }
+            }
+        });
     }
 
     /// Changes a job's own speed limit (bytes a second, `None` for none) and priority while it
@@ -1152,6 +1279,32 @@ impl<R: Runtime> Ops<R> {
             }));
         }
         Ok(items)
+    }
+
+    /// Downloads files dragged from a server into a folder of the app's cache, so a drag out of the
+    /// window can hand another application local files (D151), and returns where they are. Each
+    /// drag replaces the last one's copies; what another application took is its own by then.
+    pub fn stage_for_drag(&self, items: &[Location]) -> Result<Vec<Location>, Error> {
+        use tauri::Manager;
+        let cache = self
+            .shared
+            .app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| Error::Internal(e.to_string()))?;
+        let folder = cache.join(STAGE_FOLDER);
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).map_err(|e| Error::Internal(e.to_string()))?;
+        let path = waypoint_path::FilePath::from_path(&folder)
+            .map(waypoint_path::VfsPath::File)
+            .map_err(|_| Error::Internal("the cache folder is not a usable path".to_owned()))?;
+        Ok(waypoint_ops::stage_files(
+            &self.shared.env.providers,
+            items,
+            &path,
+            waypoint_ops::STAGE_LIMIT_BYTES,
+            &waypoint_vfs::CancelToken::new(),
+        )?)
     }
 
     /// The unfinished jobs that read from, write into, or remove something that holds `location`.

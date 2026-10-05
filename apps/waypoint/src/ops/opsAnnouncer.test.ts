@@ -76,6 +76,21 @@ describe('the ops announcer', () => {
 		expect(said).toEqual(['Copying a is waiting for you']);
 	});
 
+	it('says once that a job lost its server, however many times it tries again', async () => {
+		const { fake, said } = await setup();
+		const a = await fake.submit(request(['a']));
+		fake.start(a);
+		said.length = 0;
+		const lost = {
+			kind: 'connection' as const,
+			error: { kind: 'disconnected' as const, location: fileLocation('/srv/a') },
+		};
+		fake.offline(a, lost, fileLocation('/a'), 1);
+		fake.online(a);
+		fake.offline(a, lost, fileLocation('/a'), 2);
+		expect(said).toEqual(['Copying a lost its connection and will try again by itself']);
+	});
+
 	it('speaks 25, 50 and 75 % of a long job only, at most one message per update', async () => {
 		const { fake, handle, said, advance } = await setup();
 		const a = await fake.submit(request(['a', 'b', 'c', 'd']));

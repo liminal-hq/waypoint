@@ -161,6 +161,29 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function resolveSelection(handle, spec) {
         return cmd('resolve_selection', { handle, spec });
     }
+    /**
+     * Downloads files dragged from a server into the app's cache and returns their local locations, so
+     * a drag out of the window can hand them to another application. A location already local comes
+     * back as it is. Rejects (`unsupported`) for a folder from a server or more than the drag allows.
+     */
+    function stageForDrag(items) {
+        return cmd('stage_for_drag', { items });
+    }
+    /** The transfers a lost connection stopped in an earlier run, to resume or discard (D165). */
+    function interruptedTransfers() {
+        return cmd('interrupted_transfers');
+    }
+    /**
+     * Runs again a transfer that stopped on a lost connection, continuing the partial files it kept;
+     * resolves to the new job. `job` and `atMs` name it as `ResumableRecord` does.
+     */
+    function resumeInterrupted(job, atMs) {
+        return cmd('resume_interrupted', { job, atMs });
+    }
+    /** Gives up such a transfer: its partial files are removed and it is no longer offered. */
+    function discardInterrupted(job, atMs) {
+        return cmd('discard_interrupted', { job, atMs });
+    }
     function getClipboard() {
         return cmd('get_clipboard');
     }
@@ -205,12 +228,14 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.RECOVERED_EVENT = RECOVERED_EVENT;
     exports.cancel = cancel;
     exports.conflictPreview = conflictPreview;
+    exports.discardInterrupted = discardInterrupted;
     exports.dismiss = dismiss;
     exports.dismissFinished = dismissFinished;
     exports.getClipboard = getClipboard;
     exports.getSettings = getSettings;
     exports.getSnapshot = getSnapshot;
     exports.getStatus = getStatus;
+    exports.interruptedTransfers = interruptedTransfers;
     exports.jobsTargeting = jobsTargeting;
     exports.journalEntryOf = journalEntryOf;
     exports.journalSummaries = journalSummaries;
@@ -228,12 +253,14 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.resolveSelection = resolveSelection;
     exports.resume = resume;
     exports.resumeAll = resumeAll;
+    exports.resumeInterrupted = resumeInterrupted;
     exports.retry = retry;
     exports.setClipboard = setClipboard;
     exports.setClipboardFromSelection = setClipboardFromSelection;
     exports.setJobLimits = setJobLimits;
     exports.setJobSchedule = setJobSchedule;
     exports.setSettings = setSettings;
+    exports.stageForDrag = stageForDrag;
     exports.submit = submit;
     exports.subscribeProgress = subscribeProgress;
     exports.takeRecoveryReport = takeRecoveryReport;

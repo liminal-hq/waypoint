@@ -61,7 +61,15 @@ use tauri_plugin_thumbnails::ThumbnailsExt;
 let ticket = app.thumbnails().request(items, std::sync::Arc::new(|event| { /* … */ }));
 app.thumbnails().cancel(ticket);
 app.thumbnails().set_max_file_bytes(20 * 1024 * 1024);
+
+// A file the plugin cannot open (one on a server, read by the app itself): from its bytes.
+let event = app
+    .thumbnails()
+    .cached_from_bytes("row-7", "sftp://me@nas.lan/a.jpg", mtime_ms, size)
+    .unwrap_or_else(|| app.thumbnails().from_bytes("row-7", "sftp://me@nas.lan/a.jpg", mtime_ms, size, &bytes));
 ```
+
+`from_bytes(key, uri, mtime_ms, size, bytes)` makes a thumbnail from bytes the caller read (a whole image, or an image embedded in a file) with the built-in decoders, and `cached_from_bytes` answers from what it made before for the same `uri` and time, so a caller asks first and reads nothing when it is known. These thumbnails are kept in a memory cache of their own (`Config::bytes_cache_bytes`, 32 MB), never in the shared cache folder, and are served by the same `thumb://` scheme. Both are Rust only: bytes do not cross IPC.
 
 ## API
 

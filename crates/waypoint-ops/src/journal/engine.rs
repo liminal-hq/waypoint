@@ -23,10 +23,13 @@ use waypoint_protocol::Location;
 
 use super::model::{
     EntryState, ForwardSpec, InverseStep, JournalBody, JournalDocument, JournalEntry,
-    JournalEntrySummary, JournalId, JournalSnapshot, PendingRecord, ScheduledRecord,
+    JournalEntrySummary, JournalId, JournalSnapshot, PendingRecord, ResumableRecord,
+    ScheduledRecord,
 };
 use super::storage::{JournalStorage, SaveRequest, StorageError};
-use crate::model::{JobId, JobKind, JobOptions, JobRequest, OpsError, OpsEvent, Sources};
+use crate::model::{
+    JobId, JobKind, JobOptions, JobRequest, OpsError, OpsEvent, ResumePoint, Sources,
+};
 use crate::traits::{Clock, SettingsReader};
 
 /// What the journal reaches the world through.
@@ -229,6 +232,63 @@ impl Journal {
     /// The jobs held by a schedule now.
     pub fn scheduled(&self) -> &[ScheduledRecord] {
         &self.body.scheduled
+    }
+
+    /// Records that `job` kept the partial file `point` on a lost connection, before anything else
+    /// happens, synchronously like the write-ahead record: a restart while the job waits still
+    /// knows it can continue (D165). A point for a file already recorded replaces it.
+    pub fn keep_partial(
+        &mut self,
+        job: JobId,
+        label: &str,
+        at_ms: i64,
+        request: &JobRequest,
+        point: ResumePoint,
+    ) -> Result<(), StorageError> {
+        match self.body.resumable.iter_mut().find(|r| r.is(job, at_ms)) {
+            Some(record) => {
+                record.points.retain(|p| p.target != point.target);
+                record.points.push(point);
+            }
+            None => self.body.resumable.push(ResumableRecord {
+                job,
+                label: label.to_owned(),
+                at_ms,
+                request: request.clone(),
+                points: vec![point],
+            }),
+        }
+        self.dirty = true;
+        self.flush()
+    }
+
+    /// Sets what `job` (made at `at_ms`) keeps for a later run to the partial files it ended with:
+    /// none forgets it.
+    pub fn set_partials(&mut self, job: JobId, at_ms: i64, points: Vec<ResumePoint>) {
+        let at = self.body.resumable.iter().position(|r| r.is(job, at_ms));
+        match (at, points.is_empty()) {
+            (Some(at), true) => {
+                self.body.resumable.remove(at);
+            }
+            (Some(at), false) if self.body.resumable[at].points != points => {
+                self.body.resumable[at].points = points;
+            }
+            _ => return,
+        }
+        self.touched();
+    }
+
+    /// The transfers that can continue partial files, oldest first.
+    pub fn resumable(&self) -> &[ResumableRecord] {
+        &self.body.resumable
+    }
+
+    /// Takes the record of `job` (made at `at_ms`) out, to discard its partial files.
+    pub fn take_resumable(&mut self, job: JobId, at_ms: i64) -> Option<ResumableRecord> {
+        let at = self.body.resumable.iter().position(|r| r.is(job, at_ms))?;
+        let record = self.body.resumable.remove(at);
+        self.touched();
+        Some(record)
     }
 
     /// Drops the record of a job that wrote nothing.

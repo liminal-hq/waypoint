@@ -99,9 +99,16 @@ pub fn recover(storage: &dyn JournalStorage, providers: &Providers) -> Recovery 
     }
     let mut body = document.body;
     repair(&mut body, &mut report.repairs);
+    // The partial files a resumable transfer kept are what resuming continues: never swept.
+    let kept: HashSet<String> = body
+        .resumable
+        .iter()
+        .flat_map(|record| record.points.iter().map(|point| point.partial.uri.clone()))
+        .collect();
     for record in std::mem::take(&mut body.pending) {
-        report.interrupted.push(sweep(providers, &record));
+        report.interrupted.push(sweep(providers, &record, &kept));
     }
+    report.resumable = body.resumable.clone();
     Recovery { body, report }
 }
 
@@ -127,7 +134,7 @@ fn partial_rest<'a>(name: &'a str, prefix: &str) -> Option<&'a str> {
     after[digits..].strip_prefix('-')
 }
 
-fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
+fn sweep(providers: &Providers, record: &PendingRecord, kept: &HashSet<String>) -> InterruptedJob {
     let mut done = InterruptedJob {
         job: record.job,
         kind: record.kind,
@@ -149,6 +156,12 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
         };
         let rule = provider.capabilities().case_rule;
         if visited.iter().any(|v| same_path(v, &path, rule)) {
+            continue;
+        }
+        // A folder on a server is not looked at: start-up never connects to a server (D146), so
+        // what a job left there is reported, not removed.
+        if provider.connection_key(&path).is_some() {
+            done.left.push(folder.clone());
             continue;
         }
         visited.push(path.clone());
@@ -187,6 +200,9 @@ fn sweep(providers: &Providers, record: &PendingRecord) -> InterruptedJob {
                 continue;
             };
             let location = child.to_location();
+            if kept.contains(&location.uri) {
+                continue;
+            }
             match put_back(provider.as_ref(), record, &path, &child, rest) {
                 Some(Ok(original)) => done.restored.push(original),
                 Some(Err(())) => done.left.push(location),

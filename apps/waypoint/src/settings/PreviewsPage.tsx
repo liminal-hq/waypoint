@@ -10,6 +10,7 @@ import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { t, tf } from '../i18n/messages';
 import { PREVIEW_MAX_MB_MAX, PREVIEW_MAX_MB_MIN } from '../services/settingsClient';
 import { useSettingsEditor } from './SettingsEditor';
+import { ServerPreviewsGroup } from './ServerPreviews';
 
 /**
  * Thumbnails over the `previews` settings. Where the plugin reports itself unavailable the options
@@ -65,6 +66,7 @@ export function PreviewsPage() {
 					/>
 				</SettingsGroup>
 			)}
+			{!unavailable && <ServerPreviewsGroup />}
 			<SettingsGroup title={t('settings.group.overview')}>
 				<ToggleRow
 					label={t('settings.previews.measureHome.label')}

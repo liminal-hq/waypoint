@@ -79,6 +79,8 @@ const PLACEHOLDERS: Record<string, MessageId> = {
 	s3: 'connect.address.placeholderS3',
 };
 
+/** The preview choices a connection offers, in order (D166). */
+const THUMBNAIL_CHOICES = ['off', 'smallFiles', 'always'] as const;
 export interface ConnectDialogProps {
 	client: ConnectionsClient;
 	request: ConnectRequest;
@@ -160,6 +162,8 @@ export function ConnectDialog({
 		s3Region: useId(),
 		s3PathStyle: useId(),
 		sessionToken: useId(),
+		thumbnails: useId(),
+		thumbnailMax: useId(),
 		password: useId(),
 		remember: useId(),
 		hosts: useId(),
@@ -918,15 +922,38 @@ export function ConnectDialog({
 								text('refreshSeconds', ids.refresh, form.refreshSeconds, true),
 								'connect.field.refreshHint',
 							)}
-							<label className={styles.check}>
-								<input
-									type="checkbox"
-									checked={form.thumbnails}
+							<div className={styles.field}>
+								<label className={styles.label} htmlFor={ids.thumbnails}>
+									{t('connect.field.thumbnails')}
+								</label>
+								<select
+									id={ids.thumbnails}
+									className={styles.input}
+									value={form.thumbnails}
 									disabled={working}
-									onChange={(event) => change('thumbnails', event.target.checked)}
-								/>
-								{t('connect.field.thumbnails')}
-							</label>
+									aria-describedby={`${ids.thumbnails}-hint`}
+									onChange={(event) =>
+										change('thumbnails', event.target.value as ConnectForm['thumbnails'])
+									}
+								>
+									{THUMBNAIL_CHOICES.map((choice) => (
+										<option key={choice} value={choice}>
+											{t(`connect.thumbnails.${choice}`)}
+										</option>
+									))}
+								</select>
+								<p id={`${ids.thumbnails}-hint`} className={styles.hint}>
+									{t('connect.field.thumbnailsHint')}
+								</p>
+							</div>
+							{form.thumbnails !== 'off' &&
+								field(
+									'thumbnailMaxMb',
+									ids.thumbnailMax,
+									'connect.field.thumbnailMaxMb',
+									text('thumbnailMaxMb', ids.thumbnailMax, form.thumbnailMaxMb, true),
+									'connect.field.thumbnailMaxMbHint',
+								)}
 						</details>
 						<p id={ids.result} className={styles.result} role="status" data-tone={result?.tone}>
 							{busy === 'test' || busy === 'connect'

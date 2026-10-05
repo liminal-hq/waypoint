@@ -19,6 +19,7 @@ import {
 	type KeyboardEvent,
 	type MouseEvent,
 } from 'react';
+import { dropAttributes } from '../dnd/dropTargets';
 import { t, tf } from '../i18n/messages';
 import { ITEM_ATTRIBUTE, moveFocusInList } from '../sidebar/itemList';
 import sidebar from '../sidebar/Sidebar.module.css';
@@ -276,6 +277,7 @@ export function NetworkList({
 					}}
 					onContextMenu={(event) => openMenu(row, event)}
 					onKeyDown={onRowKey(row)}
+					{...dropAttributes('place', location.uri, label)}
 				>
 					<span className={styles.iconWrap}>
 						<ServerIcon className={sidebar.itemIcon} />

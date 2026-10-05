@@ -23,6 +23,57 @@ pub const TIMEOUT_SECONDS_MAX: u32 = 600;
 pub const REQUESTS_MAX: u32 = 1024;
 pub const WINDOW_KIB_MIN: u32 = 64;
 pub const WINDOW_KIB_MAX: u32 = 64 * 1024;
+/// The largest file a connection may read whole for a thumbnail, in megabytes, and its default.
+pub const THUMBNAIL_MAX_MB_MAX: u32 = 100;
+pub const THUMBNAIL_MAX_MB_DEFAULT: u32 = 2;
+
+/// Whether thumbnails are made of a server's files (D14, D166). Making one reads the file from
+/// the server, so it is off unless the connection turns it on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum RemoteThumbnails {
+    /// None: nothing is read for a preview.
+    #[default]
+    Off,
+    /// Images no larger than the connection's size cap, read whole.
+    SmallFiles,
+    /// Those, and of a larger photo the small preview it carries at its start, read alone; a
+    /// larger file without one has none.
+    Always,
+}
+
+/// Reads the thumbnails choice as it is written now, or as the `true` or `false` an older build
+/// wrote (on was small files only).
+impl<'de> Deserialize<'de> for RemoteThumbnails {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        enum Choice {
+            Off,
+            SmallFiles,
+            Always,
+        }
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Either {
+            Flag(bool),
+            Choice(Choice),
+        }
+        Ok(match Either::deserialize(deserializer)? {
+            Either::Flag(true) | Either::Choice(Choice::SmallFiles) => RemoteThumbnails::SmallFiles,
+            Either::Flag(false) | Either::Choice(Choice::Off) => RemoteThumbnails::Off,
+            Either::Choice(Choice::Always) => RemoteThumbnails::Always,
+        })
+    }
+}
+
+impl ConnectionOptions {
+    /// The largest file read whole for a thumbnail, in bytes.
+    pub fn thumbnail_max_bytes(&self) -> u64 {
+        u64::from(self.thumbnail_max_mb.unwrap_or(THUMBNAIL_MAX_MB_DEFAULT)) * 1024 * 1024
+    }
+}
 
 /// How a connection logs in. Whatever is chosen, the SSH agent and key files are never used for
 /// anything but SSH, and no secret is part of the choice.
@@ -75,8 +126,10 @@ pub enum DavPreset {
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub struct ConnectionOptions {
-    /// Previews of the server's files (off by default, D14).
-    pub thumbnails: bool,
+    /// Previews of the server's files (off by default, D14, D166).
+    pub thumbnails: RemoteThumbnails,
+    /// The largest file read whole for a thumbnail, in megabytes (2 by default).
+    pub thumbnail_max_mb: Option<u32>,
     /// Refresh a shown folder every so many seconds; `None` refreshes only by the rules of D150.
     pub refresh_seconds: Option<u32>,
     /// How long a request or connecting may go unanswered (30 s by default).
@@ -321,6 +374,12 @@ fn check_options(options: &ConnectionOptions) -> Result<(), DraftError> {
         WINDOW_KIB_MIN,
         WINDOW_KIB_MAX,
         "windowKib",
+    )?;
+    check_range(
+        options.thumbnail_max_mb,
+        1,
+        THUMBNAIL_MAX_MB_MAX,
+        "thumbnailMaxMb",
     )?;
     Ok(())
 }
@@ -779,7 +838,7 @@ mod tests {
     fn a_document_from_before_the_webdav_options_reads_them_as_the_defaults() {
         let old: ConnectionOptions = serde_json::from_str(r#"{"thumbnails":true}"#).unwrap();
         assert_eq!((old.dav_auth, old.dav_preset), (None, None));
-        assert!(old.thumbnails);
+        assert_eq!(old.thumbnails, RemoteThumbnails::SmallFiles);
     }
 
     #[test]
@@ -889,5 +948,43 @@ mod tests {
         ));
         assert!(matches!(check_draft(&s3("")), Err(DraftError::Host)));
         assert!(matches!(check_draft(&s3("a/b")), Err(DraftError::Host)));
+    }
+}
+
+#[cfg(test)]
+mod thumbnail_tests {
+    use super::*;
+
+    #[test]
+    fn the_thumbnails_choice_reads_as_written_now_and_as_an_older_build_wrote_it() {
+        let read = |json: &str| -> ConnectionOptions { serde_json::from_str(json).unwrap() };
+        assert_eq!(
+            read(r#"{"thumbnails":true}"#).thumbnails,
+            RemoteThumbnails::SmallFiles
+        );
+        assert_eq!(
+            read(r#"{"thumbnails":false}"#).thumbnails,
+            RemoteThumbnails::Off
+        );
+        assert_eq!(
+            read(r#"{"thumbnails":"always"}"#).thumbnails,
+            RemoteThumbnails::Always
+        );
+        assert_eq!(read("{}").thumbnails, RemoteThumbnails::Off);
+        let written = serde_json::to_string(&ConnectionOptions {
+            thumbnails: RemoteThumbnails::SmallFiles,
+            ..ConnectionOptions::default()
+        })
+        .unwrap();
+        assert!(
+            written.contains(r#""thumbnails":"smallFiles""#),
+            "{written}"
+        );
+        assert_eq!(read("{}").thumbnail_max_bytes(), 2 * 1024 * 1024);
+        assert!(check_options(&ConnectionOptions {
+            thumbnail_max_mb: Some(0),
+            ..ConnectionOptions::default()
+        })
+        .is_err());
     }
 }

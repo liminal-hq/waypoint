@@ -73,6 +73,8 @@ export const enMessages = {
 	'services.name.window-manager': 'Window manager',
 	'services.name.window-tearoff': 'Tab tear-off',
 	'services.name.thumbnails': 'Thumbnails',
+	'services.note.thumbnails':
+		'Files on servers get previews only where their saved server turns them on (Settings → Previews & thumbnails), read through Waypoint’s own connection and kept in memory, never in the shared thumbnail folder.',
 	'services.name.volumes': 'Drives and volumes',
 	'services.name.secrets': 'Keyring and saved passwords',
 	'services.name.window-effects': 'Window effects',
@@ -126,6 +128,7 @@ export const enMessages = {
 	'settings.group.motion': 'Motion and transparency',
 	'settings.group.touch': 'Touch',
 	'settings.group.thumbnails': 'Thumbnails',
+	'settings.group.serverPreviews': 'Files on servers',
 	'settings.group.language': 'Language and formats',
 	'settings.group.direction': 'Layout direction',
 	'settings.group.overview': 'Overview',
@@ -433,6 +436,10 @@ export const enMessages = {
 	'settings.previews.max.description':
 		'A larger file keeps its icon, so a huge image does not slow a folder down. Thumbnails already made are shared with other file managers and shown whatever the size.',
 	'settings.previews.max.unit': 'MB',
+	'settings.previews.servers.none':
+		'No saved servers. Previews of a server’s files are set for each saved server; a server that is not saved shows none.',
+	'settings.previews.servers.changed': 'Previews of {server}: {choice}',
+	'settings.previews.servers.failed': 'The server’s previews could not be changed.',
 	'settings.previews.measureHome.label': 'Measure Home when Overview opens',
 	'settings.previews.measureHome.description':
 		'Overview measures your home folder to list its biggest folders and to fill in "Your files" on the volume that holds it. A measurement less than an hour old is reused. Turn this off to measure only when you choose Measure now.',
@@ -728,6 +735,11 @@ export const enMessages = {
 	'dnd.drag.items.other': 'Dragging {count} items',
 	'dnd.pill.copy': 'Copy {what} to {target}',
 	'dnd.pill.move': 'Move {what} to {target}',
+	'dnd.pill.upload': 'Upload {what} to {target} on {server}',
+	'dnd.pill.download': 'Download {what} from {server} to {target}',
+	'dnd.pill.across': 'Copy {what} to {target} on {server}',
+	'dnd.pill.moveTo': 'Move {what} to {target} on {server}',
+	'dnd.pill.moveFrom': 'Move {what} from {server} to {target}',
 	'dnd.pill.moveOrCopy': 'Move or copy {what} to {target}',
 	'dnd.pill.link': 'Link {what} in {target}',
 	'dnd.pill.ask': 'Choose what to do with {what} in {target}',
@@ -757,6 +769,9 @@ export const enMessages = {
 	'dnd.verb.open': 'open in a new tab',
 	'dnd.verb.shelf': 'add to the Shelf',
 	'dnd.announce.over': 'Over {target}: will {action}',
+	'dnd.announce.upload': 'Over {target} on {server}: will upload',
+	'dnd.announce.download': 'Over {target}: will download from {server}',
+	'dnd.announce.across': 'Over {target} on {server}: will copy',
 	'dnd.announce.blocked': 'Over {target}: not allowed, {reason}',
 	'dnd.announce.sprungFolder': 'Opened {target}',
 	'dnd.announce.sprungTab': 'Showing {target}',
@@ -772,6 +787,8 @@ export const enMessages = {
 	'dnd.out.failed': 'The drag out of the window failed: {reason}',
 	'dnd.out.refused': 'Could not drag {what} out of the window, so the drag stays here',
 	'dnd.out.unsupported': '{what} cannot be dragged out of the window',
+	'dnd.out.downloading': 'Downloading {what} for the drag',
+	'dnd.out.downloadFailed': '{what} could not be downloaded for the drag: {reason}',
 	'dnd.picker.label': 'Drop action',
 	'dnd.picker.copy': 'Copy Here',
 	'dnd.picker.move': 'Move Here',
@@ -1126,6 +1143,14 @@ export const enMessages = {
 	'connect.field.refreshHint':
 		'Leave empty to refresh only when a folder is shown, on F5 and after Waypoint writes to it.',
 	'connect.field.thumbnails': 'Show previews of this server’s files',
+	'connect.field.thumbnailsHint':
+		'Making a preview reads the file from the server, so previews are off unless you turn them on.',
+	'connect.thumbnails.off': 'Off',
+	'connect.thumbnails.smallFiles': 'Small files only',
+	'connect.thumbnails.always': 'Always (a large photo’s own small preview)',
+	'connect.field.thumbnailMaxMb': 'Largest file to read for a preview (MB)',
+	'connect.field.thumbnailMaxMbHint':
+		'From 1 to 100; empty for 2 MB. A larger file is never read whole for a preview.',
 	// translator: Sign-in method: the SSH agent and key files first, then ask.
 	'connect.auth.auto': 'Automatically',
 	'connect.auth.autoHint': 'Tries the SSH agent and your key files, then asks for a password.',
@@ -1183,6 +1208,7 @@ export const enMessages = {
 	'connect.problem.jumpHost': 'Write the jump host as user@host:port.',
 	'connect.problem.startFolder': 'The start folder is a path on the server starting with /.',
 	'connect.problem.refresh': 'Refresh every 10 to 3600 seconds, or leave it empty.',
+	'connect.problem.thumbnailMaxMb': 'Read at most 1 to 100 MB for a preview, or leave it empty.',
 	'connect.problem.tooMany': 'No more connections can be saved.',
 	'connect.problem.gone': 'This connection is no longer saved.',
 	'connect.error.nameNotResolved': 'Not connected: the host name was not found.',
@@ -1452,6 +1478,7 @@ export const enMessages = {
 	'destination.choices.label': 'Places to choose from',
 	'destination.section.places': 'Places',
 	'destination.section.favourites': 'Favourites',
+	'destination.section.servers': 'Servers',
 	'destination.section.tabs': 'Open tabs',
 	'destination.section.recent': 'Recent',
 	'destination.newFolder': 'New Folder…',
@@ -1613,6 +1640,21 @@ export const enMessages = {
 	'ops.list.label': 'Jobs',
 	'ops.list.empty': 'Nothing is running.',
 	'ops.list.hint': 'Alt+Up and Alt+Down move a queued job',
+	'ops.interrupted.heading': 'Interrupted transfers',
+	'ops.interrupted.detail.one':
+		'Stopped when its connection was lost; {count} file was partly sent',
+	'ops.interrupted.detail.other':
+		'Stopped when its connection was lost; {count} files were partly sent',
+	'ops.interrupted.discard': 'Discard',
+	'ops.interrupted.discardEllipsis': 'Discard…',
+	'ops.interrupted.discard.title': 'Discard “{label}”?',
+	'ops.interrupted.discard.message.one':
+		'What was sent of this file is removed from the server, and the transfer can no longer be resumed.',
+	'ops.interrupted.discard.message.other':
+		'What was sent of these {count} files is removed from the server, and the transfer can no longer be resumed.',
+	'ops.interrupted.resumed': 'Resumed: {label}',
+	'ops.interrupted.discarded': 'Discarded: {label}',
+	'ops.interrupted.discardFailed': 'The transfer could not be discarded: {reason}',
 	'ops.clearFinished': 'Clear finished',
 	'ops.popOut': 'Pop out',
 	'ops.popOut.failed': 'Could not open the Operations window.',
@@ -1652,6 +1694,14 @@ export const enMessages = {
 	'ops.moveUp': 'Move up',
 	'ops.moveDown': 'Move down',
 	'ops.route': '{from} → {to}',
+	'ops.server.to': 'To {server}',
+	'ops.server.from': 'From {server}',
+	'ops.server.on': 'On {server}',
+	'ops.server.between': 'From {from} to {to}',
+	'ops.dropped.modifiedTimes': 'Modification times not kept: the destination cannot hold them',
+	'ops.dropped.permissions': 'Permissions not kept: the destination has none',
+	'ops.dropped.both':
+		'Modification times and permissions not kept: the destination cannot hold them',
 	'ops.sources.one': '{count} item',
 	'ops.sources.other': '{count} items',
 	'ops.title.copy.one': 'Copying {count} item',
@@ -1717,6 +1767,7 @@ export const enMessages = {
 	'ops.state.cancelled': 'Cancelled',
 	'ops.state.done': 'Done',
 	'ops.state.failed': 'Failed: {reason}',
+	'ops.state.offline': 'Connection lost, trying again by itself (try {attempt}): {reason}',
 	'ops.state.waiting.conflicts.one': 'Waiting for you: {count} name is taken',
 	'ops.state.waiting.conflicts.other': 'Waiting for you: {count} names are taken',
 	'ops.state.waiting.error': 'Waiting for you: {reason}',
@@ -1848,6 +1899,11 @@ export const enMessages = {
 	'ops.problem.title.parent': 'The original folder is gone',
 	'ops.problem.item': 'Item: {item}',
 	'ops.problem.job': 'Job: {title}',
+	'ops.problem.partial.resume': 'Retry continues {name} from where it stopped.',
+	'ops.problem.partial.resumeFrom':
+		'Retry continues {name} from where it stopped ({size} already sent).',
+	'ops.problem.partial.restart':
+		'Retry starts {name} again: this server cannot continue a file part way.',
 	'ops.problem.message.notFound': '{location} was not found. It may have been moved or deleted.',
 	'ops.problem.message.permissionDenied':
 		'Permission denied for {location}. Check its permissions, and those of the folder it is in or going to.',
@@ -1882,8 +1938,7 @@ export const enMessages = {
 	'ops.problem.message.clockSkew.behind':
 		'The service refused the request because this computer’s clock is about {minutes} minutes behind its own. Set the date and time automatically, then retry.',
 	'ops.problem.message.io': 'The system reported a problem: {message}',
-	'ops.problem.message.connection':
-		'The connection to the server that holds {location} failed. Retry connects again.',
+	'ops.problem.message.connection': '{reason} This stopped at {location}. Retry connects again.',
 	'ops.problem.message.archiveLimit':
 		'{location} is larger than the archive limits allow, so extracting it was stopped. The limits are in Settings, under Operations.',
 	'ops.problem.details.archiveEntries': 'It holds {found} entries; the limit is {max}.',
@@ -1929,6 +1984,7 @@ export const enMessages = {
 	'ops.announce.finished': 'Finished: {title}',
 	'ops.announce.failed': 'Failed: {title}. {reason}',
 	'ops.announce.waiting': '{title} is waiting for you',
+	'ops.announce.offline': '{title} lost its connection and will try again by itself',
 	'ops.announce.cancelled': 'Cancelled: {title}',
 	'ops.announce.milestone': '{title}: {percent}% done, {done} of {total} items',
 	'ops.announce.remaining.one': '{count} operation still in progress',
@@ -1944,6 +2000,12 @@ export const enMessages = {
 	'ops.done.rename.named': 'Renamed {name}',
 	'ops.recovery.one': 'An operation was interrupted: {label}',
 	'ops.recovery.other': '{count} operations were interrupted, including: {label}',
+	'ops.recovery.resumable':
+		'A transfer stopped when its connection was lost: {label}. Resume carries on from where it stopped.',
+	'ops.recovery.resumableOf':
+		'A transfer stopped when its connection was lost ({n} of {count}): {label}. Resume carries on from where it stopped.',
+	'ops.recovery.resume': 'Resume',
+	'ops.recovery.resumeFailed': 'The transfer could not be resumed: {reason}',
 	'ops.recovery.unnamed': 'An operation was interrupted.',
 	'chrome.move': 'Move',
 	'chrome.alwaysOnTop': 'Always on Top',

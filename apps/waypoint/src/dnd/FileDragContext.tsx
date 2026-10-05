@@ -16,6 +16,8 @@ import { frameMargin, outsideVisibleWindow } from '../app/frameMargin';
 import { showNotice } from '../app/notices';
 import type { ListingManager } from '../browse/listingManager';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { useConnectionsView } from '../connections/ConnectionsContext';
+import { serverLabel } from '../connections/connectionsModel';
 import { t } from '../i18n/messages';
 import { useFileCommands } from '../ops/FileCommandsContext';
 import { useOps } from '../ops/OpsContext';
@@ -90,6 +92,7 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 	const separate = useSeparateSession();
 	const rule = useSettings((settings) => settings.dnd.defaultActionRule);
 	const springMs = useSettings((settings) => settings.dnd.springLoadMs);
+	const connections = useConnectionsView((view) => view);
 	const [picker, setPicker] = useState<PickerRequest | null>(null);
 	// What the plugin can do here, read once; the drag asks as it runs.
 	const features = useRef<NativeDndAvailability>(NO_NATIVE_DND);
@@ -106,8 +109,21 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 		rule,
 		springMs,
 		manager,
+		connections,
 	});
-	latest.current = { api, snapshot, vfs, ops, trash, commands, shelf, rule, springMs, manager };
+	latest.current = {
+		api,
+		snapshot,
+		vfs,
+		ops,
+		trash,
+		commands,
+		shelf,
+		rule,
+		springMs,
+		manager,
+		connections,
+	};
 
 	const [drag] = useState<FileDrag>(() => {
 		const now = () => latest.current;
@@ -168,6 +184,7 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 				}),
 			openPicker: setPicker,
 			trashAvailable: () => now().trash !== null,
+			serverName: (login) => serverLabel(now().connections, login),
 			...(nativeDnd
 				? {
 						outbound: {
@@ -182,6 +199,12 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 								const queue = now().ops;
 								return queue
 									? queue.handle.client.resolveSelection(handle, spec)
+									: Promise.reject(new Error('no queue'));
+							},
+							stage: (locations) => {
+								const queue = now().ops;
+								return queue
+									? queue.handle.client.stageForDrag(locations)
 									: Promise.reject(new Error('no queue'));
 							},
 							start: (request) => nativeDnd.startDrag(request),

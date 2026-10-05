@@ -12,6 +12,8 @@ import { announce } from '../tabs/announcer';
 import type { JobView, JobAction } from './jobText';
 import { useOps, useOpsPaused, useOpsViews } from './OpsContext';
 import { OpsDownIcon, OpsPopOutIcon, OpsUpIcon } from './OpsIcons';
+import { useConfirm } from './ConfirmHost';
+import { InterruptedTransfers } from './InterruptedTransfers';
 import styles from './OpsPanel.module.css';
 import { requestResolve } from './resolveHook';
 import { scheduleText } from './scheduleModel';
@@ -54,6 +56,7 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 	const [current, setCurrent] = useState<number | null>(null);
 	const refocus = useRef<number | null>(null);
 
+	const { confirm, dialog: confirmDialog } = useConfirm();
 	const active = views.find((v) => v.id === current) ?? views[0];
 
 	// Focus the first row when the panel opens as a popover.
@@ -228,6 +231,12 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 					{t('ops.pausedAll.note')}
 				</p>
 			)}
+			<InterruptedTransfers
+				client={handle.client}
+				confirm={confirm}
+				revision={views.map((view) => `${view.id}:${view.state}`).join(',')}
+			/>
+			{confirmDialog}
 			{views.length === 0 ? (
 				<p className={styles.empty}>{t('ops.list.empty')}</p>
 			) : (
@@ -261,6 +270,7 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 											{view.title}
 										</span>
 										{view.route && <span className={styles.route}>{view.route}</span>}
+										{view.server && <span className={styles.route}>{view.server}</span>}
 										<span id={stateId} className={styles.state}>
 											{view.schedule && view.state === 'queued'
 												? scheduleText(view.schedule, undefined, hourCycle)

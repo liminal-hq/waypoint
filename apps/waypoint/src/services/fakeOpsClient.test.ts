@@ -354,7 +354,13 @@ describe('FakeOpsClient', () => {
 
 	it('hands over the recovery report once', async () => {
 		const fake = createFakeOpsClient();
-		fake.setRecoveryReport({ interrupted: [], discarded: null, fromPrevious: false, repairs: [] });
+		fake.setRecoveryReport({
+			interrupted: [],
+			discarded: null,
+			fromPrevious: false,
+			repairs: [],
+			resumable: [],
+		});
 		expect(await fake.takeRecoveryReport()).not.toBeNull();
 		expect(await fake.takeRecoveryReport()).toBeNull();
 	});

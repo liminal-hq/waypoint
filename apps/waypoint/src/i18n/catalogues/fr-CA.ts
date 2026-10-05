@@ -114,6 +114,9 @@ const messages: Catalogue = {
 	'services.name.window-tearoff': 'Détachement d’onglets',
 	// source: f82d6466
 	'services.name.thumbnails': 'Miniatures',
+	// source: fc504ce5
+	'services.note.thumbnails':
+		'Les fichiers sur des serveurs n’ont d’aperçus que si leur serveur enregistré les active (Paramètres → Aperçus et miniatures); ils sont lus par la connexion de Waypoint et gardés en mémoire, jamais dans le dossier de miniatures partagé.',
 	// source: b15a7fb6
 	'services.name.volumes': 'Lecteurs et volumes',
 	// source: 79cd7236
@@ -218,6 +221,8 @@ const messages: Catalogue = {
 	'settings.group.touch': 'Tactile',
 	// source: f82d6466
 	'settings.group.thumbnails': 'Miniatures',
+	// source: 1c25dd0e
+	'settings.group.serverPreviews': 'Fichiers sur les serveurs',
 	// source: 15c08445
 	'settings.group.language': 'Langue et formats',
 	// source: 734e6606
@@ -740,6 +745,13 @@ const messages: Catalogue = {
 		'Un fichier plus gros garde son icône, afin qu’une image énorme ne ralentisse pas un dossier. Les miniatures déjà créées sont partagées avec d’autres gestionnaires de fichiers et s’affichent quelle que soit la taille.',
 	// source: 1d09f6fa
 	'settings.previews.max.unit': 'Mo',
+	// source: cb2f4ea0
+	'settings.previews.servers.none':
+		'Aucun serveur enregistré. Les aperçus des fichiers d’un serveur se règlent pour chaque serveur enregistré; un serveur non enregistré n’en montre aucun.',
+	// source: eabb2460
+	'settings.previews.servers.changed': 'Aperçus de {server} : {choice}',
+	// source: 2403a012
+	'settings.previews.servers.failed': 'Les aperçus du serveur n’ont pas pu être changés.',
 	// source: f76a11c3
 	'settings.previews.measureHome.label':
 		'Mesurer le dossier personnel à l’ouverture de la Vue d’ensemble',
@@ -1304,6 +1316,16 @@ const messages: Catalogue = {
 	'dnd.pill.copy': 'Copier {what} vers {target}',
 	// source: 81ea6d06
 	'dnd.pill.move': 'Déplacer {what} vers {target}',
+	// source: 35f0f1dd
+	'dnd.pill.upload': 'Téléverser {what} vers {target} sur {server}',
+	// source: 3624414d
+	'dnd.pill.download': 'Télécharger {what} de {server} vers {target}',
+	// source: dd04625f
+	'dnd.pill.across': 'Copier {what} vers {target} sur {server}',
+	// source: fefb5e6a
+	'dnd.pill.moveTo': 'Déplacer {what} vers {target} sur {server}',
+	// source: e77fecea
+	'dnd.pill.moveFrom': 'Déplacer {what} de {server} vers {target}',
 	// source: b23b3ae7
 	'dnd.pill.moveOrCopy': 'Déplacer ou copier {what} vers {target}',
 	// source: baa189b1
@@ -1362,6 +1384,12 @@ const messages: Catalogue = {
 	'dnd.verb.shelf': 'ajouter à l’Étagère',
 	// source: fc52c665
 	'dnd.announce.over': 'Au-dessus de {target} : action prévue, {action}',
+	// source: 308a1926
+	'dnd.announce.upload': 'Au-dessus de {target} sur {server} : action prévue, téléverser',
+	// source: 1a77d5bb
+	'dnd.announce.download': 'Au-dessus de {target} : action prévue, télécharger de {server}',
+	// source: 67062914
+	'dnd.announce.across': 'Au-dessus de {target} sur {server} : action prévue, copier',
 	// source: 35d3078f
 	'dnd.announce.blocked': 'Au-dessus de {target} : non autorisé, {reason}',
 	// source: 76fa68e4
@@ -1393,6 +1421,10 @@ const messages: Catalogue = {
 		'Impossible de faire glisser {what} hors de la fenêtre; le glissement reste ici',
 	// source: c9cc358e
 	'dnd.out.unsupported': '{what} ne peut pas être glissé hors de la fenêtre',
+	// source: deba875b
+	'dnd.out.downloading': 'Téléchargement de {what} pour le glissement',
+	// source: e8e2cb79
+	'dnd.out.downloadFailed': '{what} n’a pas pu être téléchargé pour le glissement : {reason}',
 	// source: 9cb5f3d4
 	'dnd.picker.label': 'Action de dépôt',
 	// source: 48f1b5e6
@@ -2081,6 +2113,20 @@ const messages: Catalogue = {
 		'Laissez vide pour actualiser seulement quand un dossier est affiché, avec F5 et après que Waypoint y écrit.',
 	// source: 2ea0c143
 	'connect.field.thumbnails': 'Afficher les aperçus des fichiers de ce serveur',
+	// source: 118f5907
+	'connect.field.thumbnailsHint':
+		'Un aperçu lit le fichier sur le serveur : les aperçus sont donc désactivés à moins que vous les activiez.',
+	// source: ca7981b4
+	'connect.thumbnails.off': 'Désactivés',
+	// source: 00ec8850
+	'connect.thumbnails.smallFiles': 'Petits fichiers seulement',
+	// source: b5115ac8
+	'connect.thumbnails.always': 'Toujours (le petit aperçu intégré d’une grande photo)',
+	// source: 3086c263
+	'connect.field.thumbnailMaxMb': 'Plus grand fichier lu pour un aperçu (Mo)',
+	// source: 14e659cc
+	'connect.field.thumbnailMaxMbHint':
+		'De 1 à 100; vide pour 2 Mo. Un fichier plus grand n’est jamais lu en entier pour un aperçu.',
 	// source: a15c6adf
 	'connect.auth.auto': 'Automatiquement',
 	// source: 78a4438c
@@ -2191,6 +2237,9 @@ const messages: Catalogue = {
 		'Le dossier de départ est un chemin sur le serveur commençant par /.',
 	// source: 9c534aa8
 	'connect.problem.refresh': 'Actualisez toutes les 10 à 3600 secondes, ou laissez vide.',
+	// source: bf2b151c
+	'connect.problem.thumbnailMaxMb':
+		'Lisez au plus de 1 à 100 Mo pour un aperçu, ou laissez le champ vide.',
 	// source: 09d0d5fd
 	'connect.problem.tooMany': 'Aucune autre connexion ne peut être enregistrée.',
 	// source: c2ccccde
@@ -2717,6 +2766,8 @@ const messages: Catalogue = {
 	'destination.section.places': 'Emplacements',
 	// source: d97d51d3
 	'destination.section.favourites': 'Favoris',
+	// source: 68d7beb6
+	'destination.section.servers': 'Serveurs',
 	// source: 33c2eb40
 	'destination.section.tabs': 'Onglets ouverts',
 	// source: 690dbe9d
@@ -3039,6 +3090,38 @@ const messages: Catalogue = {
 	'ops.list.empty': 'Rien n’est en cours.',
 	// source: 00d0cb7f
 	'ops.list.hint': 'Alt+Haut et Alt+Bas déplacent une tâche en file d’attente',
+	// source: 07d08fca
+	'ops.interrupted.heading': 'Transferts interrompus',
+	// source: 086924f6
+	'ops.interrupted.detail.one':
+		'Arrêté quand sa connexion a été perdue; {count} fichier a été envoyé en partie',
+	// source: 33c7320f
+	'ops.interrupted.detail.many':
+		'Arrêté quand sa connexion a été perdue; {count} de fichiers ont été envoyés en partie',
+	// source: 33c7320f
+	'ops.interrupted.detail.other':
+		'Arrêté quand sa connexion a été perdue; {count} fichiers ont été envoyés en partie',
+	// source: eb1a70e3
+	'ops.interrupted.discard': 'Abandonner',
+	// source: b163bbda
+	'ops.interrupted.discardEllipsis': 'Abandonner…',
+	// source: c78ba562
+	'ops.interrupted.discard.title': 'Abandonner « {label} »?',
+	// source: af085c53
+	'ops.interrupted.discard.message.one':
+		'Ce qui a été envoyé de ce fichier est supprimé du serveur, et le transfert ne pourra plus reprendre.',
+	// source: 9d989d98
+	'ops.interrupted.discard.message.many':
+		'Ce qui a été envoyé de ces {count} de fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.',
+	// source: 9d989d98
+	'ops.interrupted.discard.message.other':
+		'Ce qui a été envoyé de ces {count} fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.',
+	// source: 4054474b
+	'ops.interrupted.resumed': 'Repris : {label}',
+	// source: eb85027b
+	'ops.interrupted.discarded': 'Abandonné : {label}',
+	// source: 4b458481
+	'ops.interrupted.discardFailed': 'Le transfert n’a pas pu être abandonné : {reason}',
 	// source: 2a16b4f8
 	'ops.clearFinished': 'Effacer les terminées',
 	// source: 7bdde36a
@@ -3117,6 +3200,22 @@ const messages: Catalogue = {
 	'ops.moveDown': 'Descendre',
 	// source: 0bcc686f
 	'ops.route': '{from} → {to}',
+	// source: 825b82e6
+	'ops.server.to': 'Vers {server}',
+	// source: bd07c630
+	'ops.server.from': 'De {server}',
+	// source: 3de93538
+	'ops.server.on': 'Sur {server}',
+	// source: 6eeb9b3a
+	'ops.server.between': 'De {from} vers {to}',
+	// source: 26cb7e63
+	'ops.dropped.modifiedTimes':
+		'Dates de modification non conservées : la destination ne peut pas les garder',
+	// source: 38476048
+	'ops.dropped.permissions': 'Permissions non conservées : la destination n’en a pas',
+	// source: 362a0767
+	'ops.dropped.both':
+		'Dates de modification et permissions non conservées : la destination ne peut pas les garder',
 	// source: 208a19d5
 	'ops.sources.one': '{count} élément',
 	// source: f65216b3
@@ -3285,6 +3384,8 @@ const messages: Catalogue = {
 	'ops.state.done': 'Terminé',
 	// source: 7ba32522
 	'ops.state.failed': 'Échec : {reason}',
+	// source: 4c1046f0
+	'ops.state.offline': 'Connexion perdue, nouvel essai automatique (essai {attempt}) : {reason}',
 	// source: 202a0714
 	'ops.state.waiting.conflicts.one': 'En attente de vous : {count} nom est déjà pris',
 	// source: 558b9905
@@ -3551,6 +3652,14 @@ const messages: Catalogue = {
 	'ops.problem.item': 'Élément : {item}',
 	// source: 74b185f5
 	'ops.problem.job': 'Tâche : {title}',
+	// source: 0f63d5cb
+	'ops.problem.partial.resume': 'Réessayer reprend {name} là où il s’est arrêté.',
+	// source: 1bc9da44
+	'ops.problem.partial.resumeFrom':
+		'Réessayer reprend {name} là où il s’est arrêté ({size} déjà envoyés).',
+	// source: 8436ebbb
+	'ops.problem.partial.restart':
+		'Réessayer recommence {name} : ce serveur ne peut pas reprendre un fichier en cours.',
 	// source: b25ec662
 	'ops.problem.message.notFound':
 		'{location} est introuvable. Il a peut-être été déplacé ou supprimé.',
@@ -3609,9 +3718,9 @@ const messages: Catalogue = {
 		'Le service a refusé la requête parce que l’horloge de cet ordinateur retarde d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.',
 	// source: 89438320
 	'ops.problem.message.io': 'Le système a signalé un problème : {message}',
-	// source: 2fd894ca
+	// source: 79bc82df
 	'ops.problem.message.connection':
-		'La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.',
+		'{reason} L’arrêt s’est produit à {location}. Réessayer rétablit la connexion.',
 	// source: c24681d1
 	'ops.problem.message.archiveLimit':
 		'{location} dépasse les limites prévues pour les archives; son extraction a donc été arrêtée. Les limites se règlent dans les paramètres, sous Opérations.',
@@ -3699,6 +3808,8 @@ const messages: Catalogue = {
 	'ops.announce.failed': 'Échec : {title}. {reason}',
 	// source: 9b511a8c
 	'ops.announce.waiting': '{title} attend votre réponse',
+	// source: 4c66b528
+	'ops.announce.offline': '{title} a perdu sa connexion et réessaiera automatiquement',
 	// source: 37d03e99
 	'ops.announce.cancelled': 'Annulé : {title}',
 	// source: 2f8caff2
@@ -3733,6 +3844,16 @@ const messages: Catalogue = {
 	'ops.recovery.many': '{count} d’opérations ont été interrompues, dont : {label}',
 	// source: 126885d4
 	'ops.recovery.other': '{count} opérations ont été interrompues, dont : {label}',
+	// source: a046a810
+	'ops.recovery.resumable':
+		'Un transfert s’est arrêté quand sa connexion a été perdue : {label}. Reprendre le poursuit là où il s’est arrêté.',
+	// source: 85dbc7b0
+	'ops.recovery.resumableOf':
+		'Un transfert s’est arrêté quand sa connexion a été perdue ({n} sur {count}) : {label}. Reprendre le poursuit là où il s’est arrêté.',
+	// source: d640c742
+	'ops.recovery.resume': 'Reprendre',
+	// source: a3611297
+	'ops.recovery.resumeFailed': 'Le transfert n’a pas pu reprendre : {reason}',
 	// source: 3b7f0324
 	'ops.recovery.unnamed': 'Une opération a été interrompue.',
 	// source: 6ecc3df6

@@ -81,6 +81,7 @@ const planOf = (sameVolume: boolean): PlanPreview => ({
 	items: 1,
 	bytes: 1,
 	sameVolume,
+	ends: { from: [], to: null },
 	conflicts: [],
 	notes: [],
 });
@@ -107,6 +108,8 @@ export interface NativeHarness {
 		outside: (point: { x: number; y: number }) => boolean;
 		outboundAvailable: boolean;
 		resolve: () => Promise<Location[]>;
+		/** Downloads a server's files for a drag out; `undefined` leaves the drag without it. */
+		stage: ((locations: Location[]) => Promise<Location[]>) | undefined;
 		start: (request: OutboundRequest) => Promise<OutboundStarted>;
 	};
 	started: OutboundRequest[];
@@ -172,6 +175,7 @@ export async function nativeHarness(
 		outside: (point) => point.x < 0 || point.x >= 800 || point.y < 0 || point.y >= 600,
 		outboundAvailable: options.outbound ?? true,
 		resolve: async () => [fileLocation('/home/test/notes.txt')],
+		stage: undefined,
 		start: async (request) => {
 			started.push(request);
 			return { id: started.length, ended: null };
@@ -181,6 +185,11 @@ export async function nativeHarness(
 		available: () => state.outboundAvailable,
 		outside: (point) => state.outside(point),
 		resolve: () => state.resolve(),
+		// Read when the drag asks, so a test can give the harness a stage after making it.
+		get stage() {
+			const stage = state.stage;
+			return stage ? (locations: Location[]) => stage(locations) : undefined;
+		},
 		start: (request) => state.start(request),
 	};
 	const navigate = vi.fn(async () => {});

@@ -111,5 +111,13 @@ fn start(config: &Config, env: Env) -> Thumbnails {
     let limits = Arc::new(Limits::new(config.max_file_bytes, config.external_timeout));
     let platform = platform::Platform::new(env, config, Arc::clone(&mem), Arc::clone(&limits));
     let engine = Engine::new(config.worker_count(), platform.processor());
-    Thumbnails::new(engine, platform.store(), mem, limits, platform.status())
+    let bytes_mem = Arc::new(MemCache::new(config.bytes_cache_bytes));
+    Thumbnails::new(
+        engine,
+        platform.store(),
+        mem,
+        bytes_mem,
+        limits,
+        platform.status(),
+    )
 }

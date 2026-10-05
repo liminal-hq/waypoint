@@ -21,7 +21,21 @@ function nameOf(key: string): string {
 	return t(id) === id ? key : t(id);
 }
 
-function Service({ name, status }: { name: string; status: PluginStatus }) {
+/** What the panel adds about a plugin beyond its state (how it treats files on servers), when it has a note. */
+function noteOf(key: string): string | null {
+	const id = `services.note.${key}` as MessageId;
+	return t(id) === id ? null : t(id);
+}
+
+function Service({
+	name,
+	status,
+	note,
+}: {
+	name: string;
+	status: PluginStatus;
+	note: string | null;
+}) {
 	const state = status.available
 		? status.reason
 			? t('services.state.partial')
@@ -42,6 +56,7 @@ function Service({ name, status }: { name: string; status: PluginStatus }) {
 				</p>
 			)}
 			{status.reason && <p className={styles.detail}>{status.reason}</p>}
+			{note && <p className={styles.detail}>{note}</p>}
 		</li>
 	);
 }
@@ -75,7 +90,7 @@ export function ServicesPanel({ load = collectServiceStatuses }: ServicesPanelPr
 					{Object.entries(statuses)
 						.sort(([a], [b]) => nameOf(a).localeCompare(nameOf(b)))
 						.map(([key, status]) => (
-							<Service key={key} name={nameOf(key)} status={status} />
+							<Service key={key} name={nameOf(key)} status={status} note={noteOf(key)} />
 						))}
 				</ul>
 			)}

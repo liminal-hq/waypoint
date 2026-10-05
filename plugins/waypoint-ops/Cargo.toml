@@ -26,6 +26,7 @@ tauri = { workspace = true }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 waypoint-ops = { path = "../../crates/waypoint-ops" }
+waypoint-path = { path = "../../crates/waypoint-path" }
 waypoint-protocol = { path = "../../crates/waypoint-protocol" }
 waypoint-vfs = { path = "../../crates/waypoint-vfs" }
 
@@ -37,5 +38,4 @@ serde_json = { workspace = true }
 tauri = { workspace = true, features = ["test"] }
 tempfile = "3"
 waypoint-ops = { path = "../../crates/waypoint-ops", features = ["testing"] }
-waypoint-path = { path = "../../crates/waypoint-path" }
 waypoint-vfs = { path = "../../crates/waypoint-vfs", features = ["testing"] }

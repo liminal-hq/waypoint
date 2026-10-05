@@ -79,7 +79,7 @@ openssh-config = { path = "../../../crates/openssh-config", optional = true }
 [dev-dependencies]
 tauri = { workspace = true, features = ["test"] }
 tempfile = "3"
-# The fake remote provider, for the tests of the protocol gate.
+# The fake remote provider, for the tests of the protocol gate and of remote thumbnails.
 waypoint-vfs = { path = "../../../crates/waypoint-vfs", features = ["testing"] }
 
 # Debug-only automation bridge, registered under `#[cfg(all(debug_assertions, not(windows)))]` in

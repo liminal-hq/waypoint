@@ -11,6 +11,7 @@ import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSna
 import type { JobState } from '@liminal-hq/waypoint-protocol/generated/JobState';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import type { Progress } from '@liminal-hq/waypoint-protocol/generated/Progress';
+import type { ResumableRecord } from '@liminal-hq/waypoint-protocol/generated/ResumableRecord';
 import type {
 	Clipboard,
 	ClipboardMode,
@@ -44,9 +45,10 @@ import type {
 export const LEGAL_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
 	planning: ['queued', 'failed', 'cancelled'],
 	queued: ['running', 'cancelled'],
-	running: ['paused', 'waiting', 'done', 'failed', 'cancelling'],
+	running: ['paused', 'waiting', 'offline', 'done', 'failed', 'cancelling'],
 	paused: ['running', 'cancelling'],
 	waiting: ['running', 'cancelling'],
+	offline: ['running', 'cancelling'],
 	cancelling: ['cancelled', 'done', 'failed'],
 	cancelled: [],
 	done: [],
@@ -138,6 +140,8 @@ export class FakeOpsClient implements OpsClient {
 		archiveRatioFloorBytes: 1024 ** 3,
 	};
 	private recovery: RecoveryReport | null = null;
+	/** The interrupted transfers Rust would still offer to resume. */
+	private resumable: ResumableRecord[] = [];
 	private paused = false;
 	private mute = 0;
 	private readonly options: Required<Omit<FakeOpsOptions, 'totals' | 'resolveSelection'>> &
@@ -209,6 +213,7 @@ export class FakeOpsClient implements OpsClient {
 			items: totals.items,
 			bytes: totals.bytes,
 			sameVolume: true,
+			ends: { from: [], to: null },
 			conflicts: [],
 			notes: [],
 		};
@@ -504,6 +509,50 @@ export class FakeOpsClient implements OpsClient {
 		return this.setClipboard(mode, items, 'app');
 	}
 
+	async interruptedTransfers(): Promise<ResumableRecord[]> {
+		this.calls.push(['interruptedTransfers']);
+		return [...this.resumable];
+	}
+
+	/** Resumes an interrupted transfer: its request is submitted again, as Rust would. */
+	async resumeInterrupted(job: JobId, atMs: number): Promise<JobId> {
+		this.calls.push(['resumeInterrupted', job, atMs]);
+		const record = this.take(job, atMs);
+		return this.submit(record.request);
+	}
+
+	async discardInterrupted(job: JobId, atMs: number): Promise<void> {
+		this.calls.push(['discardInterrupted', job, atMs]);
+		this.take(job, atMs);
+	}
+
+	private take(job: JobId, atMs: number): ResumableRecord {
+		const record = this.resumable.find((r) => r.job === job && r.atMs === atMs);
+		if (!record) {
+			throw refusal('that transfer can no longer be resumed', 'ops', {
+				kind: 'undoUnavailable',
+				reason: 'that transfer can no longer be resumed',
+			});
+		}
+		this.resumable = this.resumable.filter((r) => r !== record);
+		return record;
+	}
+
+	/** Offers interrupted transfers, as a restart would. */
+	setInterrupted(records: ResumableRecord[]): void {
+		this.resumable = [...records];
+	}
+
+	/** Files "downloaded" for a drag out: a server's file comes back under `file:///cache/drag-out/`. */
+	async stageForDrag(items: Location[]): Promise<Location[]> {
+		this.calls.push(['stageForDrag', items]);
+		return items.map((item) => {
+			if (item.uri.startsWith('file:')) return item;
+			const name = item.uri.split('/').filter(Boolean).pop() ?? 'file';
+			return { display: `/cache/drag-out/${name}`, uri: `file:///cache/drag-out/${name}` };
+		});
+	}
+
 	async resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]> {
 		this.calls.push(['resolveSelection', handle, spec]);
 		const items = (await this.options.resolveSelection?.(handle, spec)) ?? [];
@@ -668,6 +717,19 @@ export class FakeOpsClient implements OpsClient {
 		this.go(this.find(job), { state: 'waiting', reason: { kind: 'error', error, item } }, 'wait');
 	}
 
+	/** The job lost its server and waits to try again by itself (D165); `online` ends the wait. */
+	offline(job: JobId, error: OpsError, item: Location, attempt = 1): void {
+		this.go(
+			this.find(job),
+			{ state: 'offline', error, item, attempt, retryAtMs: this.options.now() + 1000 },
+			'wait for the connection',
+		);
+	}
+
+	online(job: JobId): void {
+		this.go(this.find(job), { state: 'running' }, 'try again');
+	}
+
 	/** A cancelling job finished unwinding. */
 	settleCancel(job: JobId): void {
 		const entry = this.find(job);
@@ -679,6 +741,7 @@ export class FakeOpsClient implements OpsClient {
 	/** Leaves a report for `takeRecoveryReport` to hand over once. */
 	setRecoveryReport(report: RecoveryReport | null): void {
 		this.recovery = report;
+		this.resumable = [...(report?.resumable ?? [])];
 	}
 
 	/** Sends the report on the broadcast event, as the plugin does at start-up. */

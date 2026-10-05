@@ -17,6 +17,7 @@ import {
 	sameFileTarget,
 	subjectText,
 	TARGET_PATHS,
+	transferOf,
 	type EvaluateInput,
 	type FileDragSource,
 	type SelectionDragSource,
@@ -278,5 +279,68 @@ describe('the paths without a pointer', () => {
 		expect(Object.keys(TARGET_PATHS).sort()).toEqual(
 			['chip', 'crumb', 'folder', 'pane', 'place', 'plus', 'shelf', 'tab', 'trash'].sort(),
 		);
+	});
+});
+
+describe('drops that reach a server (D151)', () => {
+	const name = (login: string) => (login === 'sftp://me@nas.lan' ? 'NAS' : login);
+
+	it('reads which way the files go from the logins the planner found', () => {
+		expect(transferOf({ from: [], to: 'sftp://me@nas.lan' }, name)).toEqual({
+			way: 'upload',
+			server: 'NAS',
+		});
+		expect(transferOf({ from: ['sftp://me@nas.lan'], to: null }, name)).toEqual({
+			way: 'download',
+			server: 'NAS',
+		});
+		expect(transferOf({ from: ['dav://x'], to: 'sftp://me@nas.lan' }, name)).toEqual({
+			way: 'across',
+			server: 'NAS',
+		});
+		expect(transferOf({ from: [], to: null }, name)).toBeUndefined();
+		expect(transferOf(undefined, name)).toBeUndefined();
+	});
+
+	it('says Upload, Download, or where a move goes, and reads it out', () => {
+		const upload: PlanFact = {
+			volume: 'different',
+			error: null,
+			transfer: { way: 'upload', server: 'NAS' },
+		};
+		const copy = evaluate({ plan: upload });
+		expect(copy.outcome).toBe('copy');
+		const pill = pillFor({ count: 3, name: null }, copy);
+		expect(pill.text).toBe('Upload 3 items to Docs on NAS');
+		expect(pill.announce).toBe('Over Docs on NAS: will upload');
+
+		const download = evaluate({
+			plan: { volume: 'different', error: null, transfer: { way: 'download', server: 'NAS' } },
+		});
+		expect(pillFor({ count: 1, name: 'a.txt' }, download).text).toBe(
+			'Download a.txt from NAS to Docs',
+		);
+
+		const moved = evaluate({
+			plan: upload,
+			modifiers: { ctrl: false, shift: true, alt: false },
+		});
+		expect(moved.outcome).toBe('move');
+		expect(pillFor({ count: 1, name: 'a.txt' }, moved).text).toBe('Move a.txt to Docs on NAS');
+
+		const across = evaluate({
+			plan: { volume: 'different', error: null, transfer: { way: 'across', server: 'NAS' } },
+		});
+		expect(pillFor({ count: 1, name: 'a.txt' }, across).text).toBe('Copy a.txt to Docs on NAS');
+	});
+
+	it('keeps the plain words for a drop between local folders and while the planner thinks', () => {
+		expect(pillFor({ count: 1, name: 'a.txt' }, evaluate({ plan: null })).text).toBe(
+			'Move or copy a.txt to Docs',
+		);
+		expect(
+			pillFor({ count: 1, name: 'a.txt' }, evaluate({ plan: { volume: 'different', error: null } }))
+				.text,
+		).toBe('Copy a.txt to Docs');
 	});
 });

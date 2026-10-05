@@ -69,7 +69,13 @@ pub struct OpsDeps {
     pub save_delay: Duration,
     /// How long quitting waits for cancelled jobs to unwind before the journal is written.
     pub exit_wait: Duration,
+    /// How long a job waits for a server that stopped answering before it tries again, by the
+    /// error and the try (from 0), and `None` to ask the person (D165).
+    pub reconnect_wait: ReconnectWait,
 }
+
+/// How long to wait before trying a server again; `waypoint_ops::reconnect_delay_ms` by default.
+pub type ReconnectWait = fn(&waypoint_ops::OpsError, u32) -> Option<u64>;
 
 impl OpsDeps {
     /// The given seams with no hook and the default delays.
@@ -93,6 +99,7 @@ impl OpsDeps {
             on_change: None,
             save_delay: SAVE_DELAY,
             exit_wait: EXIT_WAIT,
+            reconnect_wait: waypoint_ops::reconnect_delay_ms,
         }
     }
 }

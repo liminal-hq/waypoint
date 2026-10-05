@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_protocol::Location;
 
-use crate::model::{JobId, JobKind, JobRequest};
+use crate::model::{JobId, JobKind, JobRequest, ResumePoint};
 use crate::traits::TrashReceipt;
 
 /// The document format this build writes and reads.
@@ -232,6 +232,33 @@ pub struct ScheduledRecord {
     pub request: JobRequest,
 }
 
+/// A transfer that stopped on a lost connection with partial files on a server that a later run
+/// can continue (D165). It is kept until it is resumed, discarded or dismissed, across restarts:
+/// start-up recovery leaves its partial files alone and offers it, and never resumes it by itself.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ResumableRecord {
+    /// The job that stopped; ids restart with the app, so after a restart it only names the record.
+    pub job: JobId,
+    /// What the job did, for the notice ("Copy 3 items to NAS").
+    pub label: String,
+    #[ts(type = "number")]
+    pub at_ms: i64,
+    /// The request to run again, its sources as locations.
+    pub request: JobRequest,
+    /// The partial files kept, one for each file that stopped part way.
+    pub points: Vec<ResumePoint>,
+}
+
+impl ResumableRecord {
+    /// Whether this is the record of `job` made at `at_ms`. Job ids start again with the app, so a
+    /// record is known by both: a job of this run never takes over one an earlier run left.
+    pub fn is(&self, job: JobId, at_ms: i64) -> bool {
+        self.job == job && self.at_ms == at_ms
+    }
+}
+
 /// Everything the journal keeps. Entries are oldest first.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -248,6 +275,9 @@ pub struct JournalBody {
     /// Jobs waiting for their schedule.
     #[serde(default)]
     pub scheduled: Vec<ScheduledRecord>,
+    /// Transfers that can continue the partial files a lost connection left (D165).
+    #[serde(default)]
+    pub resumable: Vec<ResumableRecord>,
 }
 
 /// The journal as a file: a version so a later build can migrate, and the body.
@@ -332,11 +362,18 @@ pub struct RecoveryReport {
     pub from_previous: bool,
     /// Repairs made to a document that read but was inconsistent.
     pub repairs: Vec<String>,
+    /// Transfers that stopped on a lost connection and can continue where they were (D165), which
+    /// the notice offers to resume; nothing resumes by itself.
+    #[serde(default)]
+    pub resumable: Vec<ResumableRecord>,
 }
 
 impl RecoveryReport {
     /// Whether there is anything to tell the person.
     pub fn needs_notice(&self) -> bool {
-        !self.interrupted.is_empty() || self.discarded.is_some() || self.from_previous
+        !self.interrupted.is_empty()
+            || self.discarded.is_some()
+            || self.from_previous
+            || !self.resumable.is_empty()
     }
 }

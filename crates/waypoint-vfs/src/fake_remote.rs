@@ -61,7 +61,12 @@ struct State {
     connects: usize,
     batch: usize,
     poll: Option<Duration>,
+    /// Edits what the server claims, and so what it does (`set_capabilities`).
+    tweak: Option<Tweak>,
 }
+
+/// An edit of the capabilities the server reports.
+type Tweak = Arc<dyn Fn(&mut Capabilities) + Send + Sync>;
 
 /// An in-memory server. Cloning shares it.
 #[derive(Clone)]
@@ -143,6 +148,7 @@ impl FakeRemoteProvider {
                 connects: 0,
                 batch: 2,
                 poll: None,
+                tweak: None,
             })),
             credentials: Arc::new(NoCredentials),
         }
@@ -215,6 +221,25 @@ impl FakeRemoteProvider {
     /// Opts in to watching by polling every `interval` (a connection's "refresh every N seconds").
     pub fn set_poll(&self, interval: Option<Duration>) {
         self.lock().poll = interval;
+    }
+
+    /// Makes the server claim other capabilities, and keep to them: no rename when `rename` is
+    /// `None` (a move is then a copy and a delete), a written file that appears only when its
+    /// stream finishes with `atomic_write`, and `Unsupported` for resumed writes, times,
+    /// permissions or links it no longer claims. A server copy also needs `memory().enable_fast_copy`.
+    pub fn set_capabilities(&self, tweak: impl Fn(&mut Capabilities) + Send + Sync + 'static) {
+        self.lock().tweak = Some(Arc::new(tweak));
+    }
+
+    /// Refuses a call the capabilities do not claim, as a server without the feature would.
+    fn claims(&self, claimed: bool, what: &str) -> Result<(), VfsError> {
+        if claimed {
+            Ok(())
+        } else {
+            Err(VfsError::Unsupported {
+                what: format!("{what} on this server"),
+            })
+        }
     }
 
     /// The memory tree behind the server, for seeding files and injecting failures.
@@ -454,6 +479,41 @@ impl WriteStream for Resumed {
     }
 }
 
+/// A write that shows nothing under its name until `finish`, as an object store's upload does.
+struct Atomic {
+    memory: MemoryProvider,
+    local: VfsPath,
+    remote: Location,
+    options: WriteOptions,
+    data: Vec<u8>,
+}
+
+impl Write for Atomic {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.data.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl WriteStream for Atomic {
+    fn finish(self: Box<Self>, sync: bool) -> Result<(), VfsError> {
+        let remote = self.remote.clone();
+        let relocated = |error: VfsError| relocate(error, &|_| remote.clone());
+        let mut stream = self
+            .memory
+            .create_write(&self.local, self.options)
+            .map_err(relocated)?;
+        stream
+            .write_all(&self.data)
+            .map_err(|error| crate::from_io(&error, &self.remote))?;
+        stream.finish(sync).map_err(relocated)
+    }
+}
+
 impl Provider for FakeRemoteProvider {
     fn scheme(&self) -> &'static str {
         self.scheme.as_str()
@@ -472,6 +532,9 @@ impl Provider for FakeRemoteProvider {
         capabilities.symlinks = memory.symlinks;
         capabilities.set_times = memory.set_times;
         capabilities.max_name_len = memory.max_name_len;
+        if let Some(tweak) = self.lock().tweak.clone() {
+            tweak(&mut capabilities);
+        }
         capabilities
     }
 
@@ -623,6 +686,10 @@ impl Provider for FakeRemoteProvider {
     }
 
     fn rename(&self, from: &VfsPath, to: &VfsPath, overwrite: bool) -> Result<(), VfsError> {
+        self.claims(
+            self.capabilities().rename != crate::provider::RenameSupport::None,
+            "renaming",
+        )?;
         if self.key_of(from)? != self.key_of(to)? {
             return Err(VfsError::CrossesDevices {
                 from: from.to_location(),
@@ -652,10 +719,28 @@ impl Provider for FakeRemoteProvider {
         path: &VfsPath,
         options: WriteOptions,
     ) -> Result<Box<dyn WriteStream>, VfsError> {
+        if self.capabilities().atomic_write {
+            // Nothing shows under the name until the stream finishes, as an object store does.
+            return self.run(path, |local| {
+                if options.exclusive && self.memory.stat(local).is_ok() {
+                    return Err(VfsError::AlreadyExists {
+                        location: local.to_location(),
+                    });
+                }
+                Ok(Box::new(Atomic {
+                    memory: self.memory.clone(),
+                    local: local.clone(),
+                    remote: path.to_location(),
+                    options,
+                    data: Vec::new(),
+                }) as Box<dyn WriteStream>)
+            });
+        }
         self.run(path, |local| self.memory.create_write(local, options))
     }
 
     fn resume_write(&self, path: &VfsPath, offset: u64) -> Result<Box<dyn WriteStream>, VfsError> {
+        self.claims(self.capabilities().resume_write, "resuming a write")?;
         self.run(path, |local| {
             let mut kept = Vec::new();
             self.memory
@@ -678,20 +763,30 @@ impl Provider for FakeRemoteProvider {
     }
 
     fn set_times(&self, path: &VfsPath, times: FileTimes) -> Result<(), VfsError> {
+        self.claims(self.capabilities().set_times, "setting times")?;
         self.run(path, |local| self.memory.set_times(local, times))
     }
 
     fn permissions(&self, path: &VfsPath) -> Result<Permissions, VfsError> {
+        self.claims(
+            self.capabilities().permissions != crate::provider::PermissionModel::None,
+            "permissions",
+        )?;
         self.run(path, |local| self.memory.permissions(local))
     }
 
     fn set_permissions(&self, path: &VfsPath, permissions: Permissions) -> Result<(), VfsError> {
+        self.claims(
+            self.capabilities().permissions != crate::provider::PermissionModel::None,
+            "permissions",
+        )?;
         self.run(path, |local| {
             self.memory.set_permissions(local, permissions)
         })
     }
 
     fn symlink(&self, link: &VfsPath, target: &OsStr) -> Result<(), VfsError> {
+        self.claims(self.capabilities().symlinks, "links")?;
         self.run(link, |local| self.memory.symlink(local, target))
     }
 
@@ -715,7 +810,11 @@ impl Provider for FakeRemoteProvider {
         progress: &mut dyn FnMut(u64),
         cancel: &CancelToken,
     ) -> Option<Result<u64, VfsError>> {
-        if !self.memory.capabilities().server_copy {
+        if !self.memory.capabilities().server_copy || !self.capabilities().server_copy {
+            return None;
+        }
+        // A server copies only within one login.
+        if self.key_of(src).ok()? != self.key_of(dst).ok()? {
             return None;
         }
         let target = match self.local(dst) {

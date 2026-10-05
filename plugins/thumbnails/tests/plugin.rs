@@ -309,3 +309,57 @@ fn the_unsupported_platform_reports_every_feature_unavailable() {
         }
     );
 }
+
+#[test]
+fn bytes_the_caller_read_become_a_thumbnail_kept_in_memory_only() {
+    let fx = fixture();
+    let thumbnails = fx.app.thumbnails();
+    let uri = "sftp://me@nas.lan/photos/a.png";
+    assert_eq!(
+        thumbnails.cached_from_bytes("k", uri, 5_000, ThumbSize::Normal),
+        None
+    );
+    let event = thumbnails.from_bytes("k", uri, 5_000, ThumbSize::Normal, &png(400, 200));
+    let ThumbEvent::Ready { key, url } = event else {
+        panic!("{event:?}");
+    };
+    assert_eq!(key, "k");
+    // Served by the scheme like any other thumbnail, and never written to the shared folder.
+    let response = respond(thumbnails, &Method::GET, url_path(&url));
+    assert_eq!(response.status(), StatusCode::OK);
+    let made = image::load_from_memory(response.body()).unwrap();
+    assert_eq!((made.width(), made.height()), (128, 64));
+    let cache_root = fs::canonicalize(fx.tmp.path())
+        .unwrap()
+        .join("cache/thumbnails");
+    let written = fs::read_dir(cache_root.join("normal")).map_or(0, |dir| dir.count());
+    assert_eq!(written, 0);
+    // Known for the same version, not for another.
+    assert_eq!(
+        thumbnails.cached_from_bytes("again", uri, 5_400, ThumbSize::Normal),
+        Some(ThumbEvent::Ready {
+            key: "again".into(),
+            url: url.clone()
+        })
+    );
+    assert_eq!(
+        thumbnails.cached_from_bytes("k", uri, 9_000, ThumbSize::Normal),
+        None
+    );
+    // What is not an image is skipped; a file over the size cap is not decoded.
+    assert_eq!(
+        thumbnails.from_bytes("x", uri, 1, ThumbSize::Normal, b"not an image"),
+        ThumbEvent::Skipped {
+            key: "x".into(),
+            why: SkipWhy::NoGenerator
+        }
+    );
+    thumbnails.set_max_file_bytes(10);
+    assert_eq!(
+        thumbnails.from_bytes("y", uri, 1, ThumbSize::Normal, &png(4, 4)),
+        ThumbEvent::Skipped {
+            key: "y".into(),
+            why: SkipWhy::TooLarge
+        }
+    );
+}

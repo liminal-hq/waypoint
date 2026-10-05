@@ -23,6 +23,8 @@ export interface DestinationChoice {
 export interface DestinationChoices {
 	places: DestinationChoice[];
 	favourites: DestinationChoice[];
+	/** The saved connections and recent servers, each at the folder it opens at. */
+	servers?: DestinationChoice[];
 	tabs: DestinationChoice[];
 	recent: DestinationChoice[];
 }
@@ -48,6 +50,7 @@ type Status =
 const SECTIONS: Array<{ key: keyof DestinationChoices; label: MessageId }> = [
 	{ key: 'places', label: 'destination.section.places' },
 	{ key: 'favourites', label: 'destination.section.favourites' },
+	{ key: 'servers', label: 'destination.section.servers' },
 	{ key: 'tabs', label: 'destination.section.tabs' },
 	{ key: 'recent', label: 'destination.section.recent' },
 ];
@@ -224,11 +227,11 @@ export function DestinationDialog({
 					{message}
 				</p>
 				<div className={styles.choices} role="group" aria-label={t('destination.choices.label')}>
-					{SECTIONS.filter(({ key }) => choices[key].length > 0).map(({ key, label }) => (
+					{SECTIONS.filter(({ key }) => (choices[key]?.length ?? 0) > 0).map(({ key, label }) => (
 						<section key={key} className={styles.section} aria-label={t(label)}>
 							<h3 className={styles.heading}>{t(label)}</h3>
 							<ul className={styles.list}>
-								{choices[key].map((choice) => (
+								{(choices[key] ?? []).map((choice) => (
 									<li key={choice.location.uri}>
 										<button
 											type="button"

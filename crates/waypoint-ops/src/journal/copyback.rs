@@ -15,7 +15,7 @@ use std::io::Read;
 
 use waypoint_path::VfsPath;
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{CancelToken, EntryKind, Provider, ScannedEntry};
+use waypoint_vfs::{CancelToken, EntryKind, Provider, ScannedEntry, WriteOptions};
 
 use super::apply::{aside_path, remove_entry};
 use super::fingerprint::verify_excluding;
@@ -69,12 +69,17 @@ fn copy_tree(
                     src,
                     dst_provider: dp,
                     dst,
+                    options: WriteOptions::exclusive(),
+                    atomic: false,
                     same_provider,
+                    server_copy: false,
                     verify: Some(VerifyAlgorithm::Blake3),
                     chunk: CHUNK_BYTES,
                     size_hint: entry.size.unwrap_or(0),
                     durable: true,
                     throttle: None,
+                    offset: 0,
+                    resumable: false,
                 },
                 buf,
                 &mut |_| {},

@@ -6,7 +6,15 @@ import type { WaitReason } from "./WaitReason";
 /**
  * Where a job is in its life.
  */
-export type JobState = { "state": "planning" } | { "state": "queued" } | { "state": "running" } | { "state": "paused" } | { "state": "waiting", reason: WaitReason, } | { "state": "cancelling" } | { "state": "cancelled" } | { "state": "done" } | { "state": "failed", error: OpsError, 
+export type JobState = { "state": "planning" } | { "state": "queued" } | { "state": "running" } | { "state": "paused" } | { "state": "waiting", reason: WaitReason, } | { "state": "offline", error: OpsError, item: Location, 
+/**
+ * How many times it has tried again so far.
+ */
+attempt: number, 
+/**
+ * When it tries next, in milliseconds since the Unix epoch.
+ */
+retryAtMs: number, } | { "state": "cancelling" } | { "state": "cancelled" } | { "state": "done" } | { "state": "failed", error: OpsError, 
 /**
  * The item that failed, when one did.
  */

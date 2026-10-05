@@ -203,6 +203,10 @@
     "message": "Thumbnails",
     "description": "Area: services."
   },
+  "services.note.thumbnails": {
+    "message": "Files on servers get previews only where their saved server turns them on (Settings → Previews & thumbnails), read through Waypoint’s own connection and kept in memory, never in the shared thumbnail folder.",
+    "description": "Area: services."
+  },
   "services.name.volumes": {
     "message": "Drives and volumes",
     "description": "Area: services."
@@ -373,6 +377,10 @@
   },
   "settings.group.thumbnails": {
     "message": "Thumbnails",
+    "description": "Area: settings."
+  },
+  "settings.group.serverPreviews": {
+    "message": "Files on servers",
     "description": "Area: settings."
   },
   "settings.group.language": {
@@ -1245,6 +1253,18 @@
   },
   "settings.previews.max.unit": {
     "message": "MB",
+    "description": "Area: settings."
+  },
+  "settings.previews.servers.none": {
+    "message": "No saved servers. Previews of a server’s files are set for each saved server; a server that is not saved shows none.",
+    "description": "Area: settings."
+  },
+  "settings.previews.servers.changed": {
+    "message": "Previews of {server}: {choice}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {choice} is the name of a choice; {server}."
+  },
+  "settings.previews.servers.failed": {
+    "message": "The server’s previews could not be changed.",
     "description": "Area: settings."
   },
   "settings.previews.measureHome.label": {
@@ -2291,6 +2311,26 @@
     "message": "Move {what} to {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
   },
+  "dnd.pill.upload": {
+    "message": "Upload {what} to {target} on {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.download": {
+    "message": "Download {what} from {server} to {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.across": {
+    "message": "Copy {what} to {target} on {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.moveTo": {
+    "message": "Move {what} to {target} on {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.moveFrom": {
+    "message": "Move {what} from {server} to {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
   "dnd.pill.moveOrCopy": {
     "message": "Move or copy {what} to {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
@@ -2407,6 +2447,18 @@
     "message": "Over {target}: will {action}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {action} is a verb such as “eject” or “copy”; {target} is where something is being dropped or sent."
   },
+  "dnd.announce.upload": {
+    "message": "Over {target} on {server}: will upload",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent."
+  },
+  "dnd.announce.download": {
+    "message": "Over {target}: will download from {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent."
+  },
+  "dnd.announce.across": {
+    "message": "Over {target} on {server}: will copy",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent."
+  },
   "dnd.announce.blocked": {
     "message": "Over {target}: not allowed, {reason}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {target} is where something is being dropped or sent."
@@ -2466,6 +2518,14 @@
   "dnd.out.unsupported": {
     "message": "{what} cannot be dragged out of the window",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.out.downloading": {
+    "message": "Downloading {what} for the drag",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.out.downloadFailed": {
+    "message": "{what} could not be downloaded for the drag: {reason}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {what} is what is being dragged, such as “3 items”."
   },
   "dnd.picker.label": {
     "message": "Drop action",
@@ -3783,6 +3843,30 @@
     "message": "Show previews of this server’s files",
     "description": "Area: connect."
   },
+  "connect.field.thumbnailsHint": {
+    "message": "Making a preview reads the file from the server, so previews are off unless you turn them on.",
+    "description": "Area: connect."
+  },
+  "connect.thumbnails.off": {
+    "message": "Off",
+    "description": "Area: connect."
+  },
+  "connect.thumbnails.smallFiles": {
+    "message": "Small files only",
+    "description": "Area: connect."
+  },
+  "connect.thumbnails.always": {
+    "message": "Always (a large photo’s own small preview)",
+    "description": "Area: connect."
+  },
+  "connect.field.thumbnailMaxMb": {
+    "message": "Largest file to read for a preview (MB)",
+    "description": "Area: connect."
+  },
+  "connect.field.thumbnailMaxMbHint": {
+    "message": "From 1 to 100; empty for 2 MB. A larger file is never read whole for a preview.",
+    "description": "Area: connect."
+  },
   "connect.auth.auto": {
     "message": "Automatically",
     "description": "Area: connect. Sign-in method: the SSH agent and key files first, then ask."
@@ -3977,6 +4061,10 @@
   },
   "connect.problem.refresh": {
     "message": "Refresh every 10 to 3600 seconds, or leave it empty.",
+    "description": "Area: connect."
+  },
+  "connect.problem.thumbnailMaxMb": {
+    "message": "Read at most 1 to 100 MB for a preview, or leave it empty.",
     "description": "Area: connect."
   },
   "connect.problem.tooMany": {
@@ -4931,6 +5019,10 @@
     "message": "Favourites",
     "description": "Area: destination."
   },
+  "destination.section.servers": {
+    "message": "Servers",
+    "description": "Area: destination."
+  },
   "destination.section.tabs": {
     "message": "Open tabs",
     "description": "Area: destination."
@@ -5535,6 +5627,50 @@
     "message": "Alt+Up and Alt+Down move a queued job",
     "description": "Area: ops."
   },
+  "ops.interrupted.heading": {
+    "message": "Interrupted transfers",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.detail.one": {
+    "message": "Stopped when its connection was lost; {count} file was partly sent",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.other."
+  },
+  "ops.interrupted.detail.other": {
+    "message": "Stopped when its connection was lost; {count} files were partly sent",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.one."
+  },
+  "ops.interrupted.discard": {
+    "message": "Discard",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.discardEllipsis": {
+    "message": "Discard…",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.discard.title": {
+    "message": "Discard “{label}”?",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.interrupted.discard.message.one": {
+    "message": "What was sent of this file is removed from the server, and the transfer can no longer be resumed.",
+    "description": "Area: ops. Plural: one of a group; the other forms are ops.interrupted.discard.message.other."
+  },
+  "ops.interrupted.discard.message.other": {
+    "message": "What was sent of these {count} files is removed from the server, and the transfer can no longer be resumed.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.discard.message.one."
+  },
+  "ops.interrupted.resumed": {
+    "message": "Resumed: {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.interrupted.discarded": {
+    "message": "Discarded: {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.interrupted.discardFailed": {
+    "message": "The transfer could not be discarded: {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
   "ops.clearFinished": {
     "message": "Clear finished",
     "description": "Area: ops."
@@ -5690,6 +5826,34 @@
   "ops.route": {
     "message": "{from} → {to}",
     "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value."
+  },
+  "ops.server.to": {
+    "message": "To {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}."
+  },
+  "ops.server.from": {
+    "message": "From {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}."
+  },
+  "ops.server.on": {
+    "message": "On {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}."
+  },
+  "ops.server.between": {
+    "message": "From {from} to {to}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value."
+  },
+  "ops.dropped.modifiedTimes": {
+    "message": "Modification times not kept: the destination cannot hold them",
+    "description": "Area: ops."
+  },
+  "ops.dropped.permissions": {
+    "message": "Permissions not kept: the destination has none",
+    "description": "Area: ops."
+  },
+  "ops.dropped.both": {
+    "message": "Modification times and permissions not kept: the destination cannot hold them",
+    "description": "Area: ops."
   },
   "ops.sources.one": {
     "message": "{count} item",
@@ -5950,6 +6114,10 @@
   "ops.state.failed": {
     "message": "Failed: {reason}",
     "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
+  "ops.state.offline": {
+    "message": "Connection lost, trying again by itself (try {attempt}): {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {attempt}; {reason} is why something failed, in the system’s own words."
   },
   "ops.state.waiting.conflicts.one": {
     "message": "Waiting for you: {count} name is taken",
@@ -6419,6 +6587,18 @@
     "message": "Job: {title}",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
   },
+  "ops.problem.partial.resume": {
+    "message": "Retry continues {name} from where it stopped.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.problem.partial.resumeFrom": {
+    "message": "Retry continues {name} from where it stopped ({size} already sent).",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {size} is a file or disk size with its unit."
+  },
+  "ops.problem.partial.restart": {
+    "message": "Retry starts {name} again: this server cannot continue a file part way.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
   "ops.problem.message.notFound": {
     "message": "{location} was not found. It may have been moved or deleted.",
     "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
@@ -6512,8 +6692,8 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {message} is a message from the system, which may be in English."
   },
   "ops.problem.message.connection": {
-    "message": "The connection to the server that holds {location} failed. Retry connects again.",
-    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
+    "message": "{reason} This stopped at {location}. Retry connects again.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path; {reason} is why something failed, in the system’s own words."
   },
   "ops.problem.message.archiveLimit": {
     "message": "{location} is larger than the archive limits allow, so extracting it was stopped. The limits are in Settings, under Operations.",
@@ -6683,6 +6863,10 @@
     "message": "{title} is waiting for you",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
   },
+  "ops.announce.offline": {
+    "message": "{title} lost its connection and will try again by itself",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
+  },
   "ops.announce.cancelled": {
     "message": "Cancelled: {title}",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
@@ -6742,6 +6926,22 @@
   "ops.recovery.other": {
     "message": "{count} operations were interrupted, including: {label}",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo. Plural: one of a group; the other forms are ops.recovery.one."
+  },
+  "ops.recovery.resumable": {
+    "message": "A transfer stopped when its connection was lost: {label}. Resume carries on from where it stopped.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.recovery.resumableOf": {
+    "message": "A transfer stopped when its connection was lost ({n} of {count}): {label}. Resume carries on from where it stopped.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo; {n} is a number."
+  },
+  "ops.recovery.resume": {
+    "message": "Resume",
+    "description": "Area: ops."
+  },
+  "ops.recovery.resumeFailed": {
+    "message": "The transfer could not be resumed: {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
   },
   "ops.recovery.unnamed": {
     "message": "An operation was interrupted.",

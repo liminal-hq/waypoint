@@ -10,6 +10,7 @@ import { isSelected, selectedCount, selectOnly } from '../browse/selection';
 import type { ListingSession } from '../browse/useListingSession';
 import { t, tf } from '../i18n/messages';
 import { normaliseUri } from '../ops/clipboardRules';
+import { errorText } from '../ops/jobText';
 import { selectionSpec } from '../ops/fileCommands';
 import type {
 	JobRequest,
@@ -61,6 +62,7 @@ import {
 	type FileDropTarget,
 	type LocationsDragSource,
 	type PlanFact,
+	transferOf,
 	type SelectionDragSource,
 } from './fileDragModel';
 import { externalSource, sameUris } from './nativeDropModel';
@@ -147,8 +149,17 @@ export interface OutboundDeps {
 	outside(point: Point): boolean;
 	/** The lossless locations of a selection of a listing this window opened. */
 	resolve(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]>;
+	/**
+	 * Downloads files from a server into a local folder and resolves to the copies, since another
+	 * application can only take local files (D151). Without it a drag of a server's files stays in
+	 * the page.
+	 */
+	stage?(locations: Location[]): Promise<Location[]>;
 	start(request: OutboundRequest): Promise<OutboundStarted>;
 }
+
+const isLocal = (locations: readonly Location[]) =>
+	locations.every((location) => location.uri.startsWith('file:'));
 
 /** Files that came from outside the window, as the plugin reports them. */
 export interface NativeFiles {
@@ -214,6 +225,8 @@ export interface FileDragDeps {
 	openFolders(request: OpenFoldersRequest): Promise<void>;
 	openPicker(request: PickerRequest): void;
 	trashAvailable(): boolean;
+	/** What the person calls a server's login (`sftp://me@nas.lan`): its saved name, or its address. */
+	serverName?: (login: string) => string;
 	/** Hands a drag that leaves the window to the system; without it such a drag stays in the page. */
 	outbound?: OutboundDeps;
 	/** The document's hit test, or a stand-in. */
@@ -267,6 +280,13 @@ function commandFailure(error: unknown): OpsError | null {
 	const inner = (error as Partial<OpsCommandError> | null)?.error ?? error;
 	const kind = (inner as { kind?: unknown } | null)?.kind;
 	return typeof kind === 'string' ? (inner as OpsError) : null;
+}
+
+/** Why a command failed, in words: the engine's own error where it gave one. */
+function errorWords(error: unknown): string {
+	const failure = commandFailure(error);
+	if (failure) return errorText(failure);
+	return (error as { message?: string } | null)?.message ?? String(error);
 }
 
 /** The icons of the stack: the pressed row's, then plain pages for the rest, up to three. */
@@ -335,6 +355,9 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	let handedOver = false;
 	let handOffFailed = false;
 	let prefetch: Promise<Location[]> | null = null;
+	// A server's files, downloading for a drag out as soon as the drag starts, so the copies are
+	// ready (or nearly) by the time the pointer leaves the window.
+	let staging: Promise<Location[]> | null = null;
 	let own: OwnDrag | null = null;
 	let ownTimer: unknown = null;
 	let pendingEnded: DragEnded | null = null;
@@ -420,7 +443,12 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			.plan(request)
 			.then(
 				(preview) => {
-					facts.set(key, { volume: preview.sameVolume ? 'same' : 'different', error: null });
+					const transfer = transferOf(preview.ends, (login) => deps.serverName?.(login) ?? login);
+					facts.set(key, {
+						volume: preview.sameVolume ? 'same' : 'different',
+						error: null,
+						...(transfer ? { transfer } : {}),
+					});
 				},
 				(error: unknown) => {
 					facts.set(key, { volume: 'unknown', error: commandFailure(error) });
@@ -680,6 +708,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		handing = false;
 		handOffFailed = false;
 		prefetch = null;
+		staging = null;
 	};
 
 	const releaseSource = () => {
@@ -803,6 +832,11 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		prefetch = out.resolve(source.handle, source.spec);
 		// A failure is reported when the drag leaves the window and asks again.
 		prefetch.catch(() => {});
+		const stage = out.stage?.bind(out);
+		if (stage) {
+			staging = prefetch.then((locations) => (isLocal(locations) ? locations : stage(locations)));
+			staging.catch(() => {});
+		}
 	};
 
 	const wantsToLeave = (source: FileDragSource, point: Point): boolean => {
@@ -888,15 +922,34 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			handing = false;
 			return;
 		}
+		// A server's files go out as copies downloaded for the drag; the originals stay where they are.
+		const remote = locations.length > 0 && !isLocal(locations);
+		if (remote && out.stage) {
+			try {
+				deps.announce(tf('dnd.out.downloading', { what }));
+				locations = await (staging ?? out.stage(locations));
+			} catch (error) {
+				console.warn('could not download the dragged items', error);
+				return fail(
+					tf('dnd.out.downloadFailed', { what: capitalise(what), reason: errorWords(error) }),
+				);
+			}
+			if (!dragging(control)) {
+				handing = false;
+				return;
+			}
+		}
 		const uris = locations.map((location) => location.uri);
 		if (uris.length === 0 || !uris.every((uri) => uri.startsWith('file:'))) {
 			return fail(tf('dnd.out.unsupported', { what: capitalise(what) }));
 		}
-		const actions: DragAction[] = [
-			'copy',
-			...(source.readOnly ? [] : (['move'] as const)),
-			...(canLinkSource(source) ? (['link'] as const) : []),
-		];
+		const actions: DragAction[] = remote
+			? ['copy']
+			: [
+					'copy',
+					...(source.readOnly ? [] : (['move'] as const)),
+					...(canLinkSource(source) ? (['link'] as const) : []),
+				];
 		let started: OutboundStarted;
 		try {
 			started = await out.start({ uris, actions });

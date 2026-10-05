@@ -11,6 +11,7 @@ import type { Location, OpsClient } from '../services/opsClient';
 import type { OsClipboardClient } from '../services/osClipboardClient';
 import { announce } from '../tabs/announcer';
 import { useActiveTab, useTabsApi } from '../tabs/TabsContext';
+import { useConfirm } from './ConfirmHost';
 import { OpsProvider } from './OpsContext';
 import { OpsResolverHost } from './OpsResolverHost';
 import { startOpsAnnouncer } from './opsAnnouncer';
@@ -60,10 +61,11 @@ export function MainOps({ client, osClipboard, children }: MainOpsProps) {
 		},
 		[windowLabel],
 	);
+	const { confirm, dialog } = useConfirm();
 	// Asked once per window start; Rust hands the report to the first window that asks.
 	useEffect(() => {
-		if (client) void showRecoveryNotice(client);
-	}, [client]);
+		if (client) void showRecoveryNotice(client, showNotice, confirm);
+	}, [client, confirm]);
 
 	if (!client) return <>{children}</>;
 	return (
@@ -77,6 +79,7 @@ export function MainOps({ client, osClipboard, children }: MainOpsProps) {
 		>
 			{children}
 			<OpsResolverHost />
+			{dialog}
 		</OpsProvider>
 	);
 }

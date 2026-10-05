@@ -19,6 +19,7 @@ mod rename_clash;
 mod rename_rules;
 mod schedule;
 mod speed;
+mod stage;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 mod throttle;
@@ -29,8 +30,9 @@ pub use checksum::{
     checksum_reader, run_checksum, ChecksumEvent, REPORT_EVERY as CHECKSUM_REPORT_EVERY,
 };
 pub use exec::{
-    action_for, remove_all, Action, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport,
-    ExecSink, Executor, NullSink, Resolutions, RunOptions, SimpleCopy, TransferReport, CHUNK_BYTES,
+    action_for, is_transient, reconnect_delay_ms, remove_all, Action, CopyFile, CopyRequest,
+    ExecEnv, ExecFailure, ExecReport, ExecSink, Executor, NullSink, Resolutions, RunOptions,
+    SimpleCopy, TransferReport, CHUNK_BYTES, RECONNECT_ATTEMPTS,
 };
 pub use journal::*;
 pub use model::*;
@@ -58,6 +60,7 @@ pub use rename_rules::{
 };
 pub use schedule::Schedule;
 pub use speed::SpeedEstimator;
+pub use stage::{stage_files, STAGE_LIMIT_BYTES};
 pub use throttle::{Bucket, Pacer, RateCell, SystemPacer, Throttle, WAIT_SLICE};
 pub use traits::{
     Clock, CounterIds, IdSource, Protected, Providers, SelectionResolver, SettingsReader,

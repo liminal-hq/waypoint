@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import { request } from '../test/opsHarness';
-import { errorText, jobDoneText, jobTitle, jobViews } from './jobText';
+import { errorText, jobDoneText, jobTitle, jobViews, serverText, stateText } from './jobText';
 import { withProgress } from './opsSelectors';
 
 const views = (fake: ReturnType<typeof createFakeOpsClient>, canShow = true) =>
@@ -176,4 +176,75 @@ describe('every worded kind', () => {
 			}
 		},
 	);
+});
+
+describe('jobs that reach a server', () => {
+	const name = (login: string) => (login === 'sftp://me@nas.lan' ? 'NAS' : login);
+
+	it('say which server they upload to, download from or copy between', async () => {
+		const fake = createFakeOpsClient();
+		await fake.submit(request(['a']));
+		const job = fake.jobs()[0]!;
+		expect(serverText(job, name)).toBe('');
+		expect(serverText({ ...job, ends: { from: [], to: 'sftp://me@nas.lan' } }, name)).toBe(
+			'To NAS',
+		);
+		expect(serverText({ ...job, ends: { from: ['sftp://me@nas.lan'], to: null } }, name)).toBe(
+			'From NAS',
+		);
+		expect(
+			serverText({ ...job, ends: { from: ['sftp://me@nas.lan'], to: 'sftp://me@nas.lan' } }, name),
+		).toBe('On NAS');
+		expect(
+			serverText({ ...job, ends: { from: ['sftp://me@nas.lan'], to: 'dav://box' } }, name),
+		).toBe('From NAS to dav://box');
+		const row = jobViews(
+			[withProgress({ ...job, ends: { from: [], to: 'sftp://me@nas.lan' } }, 0, undefined)],
+			true,
+			name,
+		)[0]!;
+		expect(row.server).toBe('To NAS');
+	});
+
+	it('say what the copies could not keep once done', async () => {
+		const fake = createFakeOpsClient();
+		await fake.submit(request(['a']));
+		const job = { ...fake.jobs()[0]!, state: { state: 'done' as const } };
+		expect(stateText({ ...job, dropped: ['modifiedTimes'] })).toBe(
+			'Done · Modification times not kept: the destination cannot hold them',
+		);
+		expect(stateText({ ...job, dropped: ['permissions'] })).toBe(
+			'Done · Permissions not kept: the destination has none',
+		);
+		expect(stateText({ ...job, dropped: ['modifiedTimes', 'permissions'] })).toMatch(
+			/times and permissions not kept/,
+		);
+	});
+
+	it('word a lost connection as a server tab does', () => {
+		expect(
+			errorText({
+				kind: 'connection',
+				error: { kind: 'disconnected', location: { display: 'x', uri: 'sftp://h/x' } },
+			}),
+		).toBe('The connection was lost.');
+	});
+});
+
+describe('a job waiting for its server', () => {
+	it('says it lost its connection and is trying again, and offers only Cancel', async () => {
+		const fake = createFakeOpsClient({ autoStart: true });
+		const id = await fake.submit(request(['a']));
+		fake.offline(
+			id,
+			{ kind: 'connection', error: { kind: 'timeout', location: fileLocation('/srv/a') } },
+			fileLocation('/a'),
+			3,
+		);
+		const job = fake.jobs()[0]!;
+		expect(stateText(job)).toMatch(/^Connection lost, trying again by itself \(try 3\): /);
+		const row = views(fake)[0]!;
+		expect(row.actions).toEqual(['cancel']);
+		expect(row.showProgress).toBe(true);
+	});
 });

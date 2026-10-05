@@ -6,7 +6,7 @@
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import { formatSize } from '../browse/format';
-import { schemeLabel } from '../connections/connectModel';
+import { connectionErrorText, schemeLabel } from '../connections/connectModel';
 import { t, tf, type MessageId } from '../i18n/messages';
 
 export interface ProblemText {
@@ -102,8 +102,9 @@ export function problemText(error: OpsError): ProblemText {
 			message = tf(key(error.kind), { message: error.message });
 			break;
 		case 'connection':
-			// Every connection error names the location it was met at.
+			// The reason in the words a server's tab uses, then where it was met: every connection error names the location.
 			message = tf(key(error.kind), {
+				reason: connectionErrorText(error.error),
 				location: ('location' in error.error && error.error.location?.display) || '',
 			});
 			break;

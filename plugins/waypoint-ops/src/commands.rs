@@ -358,6 +358,50 @@ pub async fn resolve_selection<R: Runtime>(
         .map_err(|e| Error::Internal(e.to_string()))?
 }
 
+/// The transfers a lost connection stopped in an earlier run, to resume or discard (D165).
+#[tauri::command]
+pub async fn interrupted_transfers<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+) -> Result<Vec<waypoint_ops::ResumableRecord>, Error> {
+    Ok(ops.interrupted())
+}
+
+/// Runs again a transfer that stopped on a lost connection, continuing its partial files (D165).
+#[tauri::command]
+pub async fn resume_interrupted<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+    at_ms: i64,
+) -> Result<JobId, Error> {
+    ops.resume_interrupted(job, at_ms)
+}
+
+/// Gives up a transfer that stopped on a lost connection: its partial files are removed.
+#[tauri::command]
+pub async fn discard_interrupted<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+    at_ms: i64,
+) -> Result<(), Error> {
+    ops.discard_interrupted(job, at_ms)
+}
+
+/// Downloads files dragged from a server so a drag out of the window can hand them over (D151).
+#[tauri::command]
+pub async fn stage_for_drag<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    items: Vec<Location>,
+) -> Result<Vec<Location>, Error> {
+    let ops = ops.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || ops.stage_for_drag(&items))
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?
+}
+
 #[tauri::command]
 pub async fn get_clipboard<R: Runtime>(
     _window: WebviewWindow<R>,

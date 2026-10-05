@@ -3,6 +3,7 @@ import type { Conflict } from "./Conflict";
 import type { JobKind } from "./JobKind";
 import type { PlanNote } from "./PlanNote";
 import type { SourcesSummary } from "./SourcesSummary";
+import type { TransferEnds } from "./TransferEnds";
 
 /**
  * What a request would do, found without writing anything: for the drag's default action (a move
@@ -16,4 +17,9 @@ items: number, bytes: number,
 /**
  * Every source is known to be on the destination's volume.
  */
-sameVolume: boolean, conflicts: Array<Conflict>, notes: Array<PlanNote>, };
+sameVolume: boolean, conflicts: Array<Conflict>, notes: Array<PlanNote>, 
+/**
+ * The servers the job would read from and write to, so a drop can say it uploads or
+ * downloads (A84).
+ */
+ends: TransferEnds, };

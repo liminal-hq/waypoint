@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "settings",
-	"description": "Lets the settings window read and change the application settings, including the operations settings the operations plugin owns, export them to a file and import them from one (the file dialogs open from Rust and the page never holds a path or a document to apply, so it is granted no dialog or file system permission), and ask the native drag and drop plugin what works so the Drag & drop page can explain what is unavailable, and the thumbnails plugin's status for the Previews & thumbnails page. It may also read the status, and nothing else, of the plugins the Integrations page's Services panel reports on that no other capability gives it (the system preferences, trash, volumes, secrets, tab tear-off, operations and Git plugins, and which server protocols the file system plugin serves). Nothing else of those plugins. For the Integrations page's default file manager row it may read the file types plugin's status and who opens folders, set the default for a type, and open the system's Default apps page; it cannot open or choose files.",
+	"description": "Lets the settings window read and change the application settings, including the operations settings the operations plugin owns, export them to a file and import them from one (the file dialogs open from Rust and the page never holds a path or a document to apply, so it is granted no dialog or file system permission), and ask the native drag and drop plugin what works so the Drag & drop page can explain what is unavailable, and the thumbnails plugin's status for the Previews & thumbnails page. It may also read the status, and nothing else, of the plugins the Integrations page's Services panel reports on that no other capability gives it (the system preferences, trash, volumes, secrets, tab tear-off, operations and Git plugins, and which server protocols the file system plugin serves). For the Previews & thumbnails page it may list the saved connections and change one (each connection's previews choice); it cannot connect, read a password or remove one. Nothing else of those plugins. For the Integrations page's default file manager row it may read the file types plugin's status and who opens folders, set the default for a type, and open the system's Default apps page; it cannot open or choose files.",
 	"windows": ["settings"],
 	"permissions": [
 		"waypoint-settings:default",
@@ -17,6 +17,8 @@
 		"volumes:allow-get-status",
 		"secrets:allow-get-status",
 		"waypoint-vfs:allow-connection-support",
+		"waypoint-vfs:allow-list-connections",
+		"waypoint-vfs:allow-update-connection",
 		"window-tearoff:allow-get-status",
 		"waypoint-ops:allow-get-status",
 		"waypoint-git:allow-get-status",

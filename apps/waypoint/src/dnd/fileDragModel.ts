@@ -5,6 +5,7 @@
 
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
+import type { TransferEnds } from '@liminal-hq/waypoint-protocol/generated/TransferEnds';
 import type { ListingSession } from '../browse/useListingSession';
 import { t, tf, tn } from '../i18n/messages';
 import { normaliseUri } from '../ops/clipboardRules';
@@ -114,6 +115,37 @@ export interface FileDropTarget {
 	volume: VolumeRelation;
 	/** The outcome is a guess until the planner says which volume the target is on. */
 	pending: boolean;
+	/**
+	 * The drop sends the files to a server or brings them from one (D151), with the server's name,
+	 * so the pill can say "Upload" or "Download"; absent between local folders, or until the
+	 * planner has answered.
+	 */
+	transfer?: Transfer | undefined;
+}
+
+/** Which way a drop sends files between this computer and a server, and the server it names. */
+export interface Transfer {
+	way: 'upload' | 'download' | 'across';
+	server: string;
+}
+
+/**
+ * Which way the files go, from the logins the planner found (`TransferEnds`): onto a server from
+ * elsewhere is an upload, from a server to a local folder a download, and from one server to
+ * another (or to another place on the same one) a copy across. `name` turns a login into what the
+ * person calls it.
+ */
+export function transferOf(
+	ends: TransferEnds | null | undefined,
+	name: (login: string) => string,
+): Transfer | undefined {
+	if (!ends) return undefined;
+	if (ends.to !== null) {
+		const local = ends.from.length === 0;
+		return { way: local ? 'upload' : 'across', server: name(ends.to) };
+	}
+	const from = ends.from[0];
+	return from === undefined ? undefined : { way: 'download', server: name(from) };
 }
 
 export function sameFileTarget(a: FileDropTarget, b: FileDropTarget): boolean {
@@ -124,6 +156,8 @@ export function sameFileTarget(a: FileDropTarget, b: FileDropTarget): boolean {
 		a.outcome === b.outcome &&
 		a.pending === b.pending &&
 		a.location?.uri === b.location?.uri &&
+		a.transfer?.way === b.transfer?.way &&
+		a.transfer?.server === b.transfer?.server &&
 		JSON.stringify(a.blocked) === JSON.stringify(b.blocked)
 	);
 }
@@ -133,6 +167,8 @@ export interface PlanFact {
 	volume: VolumeRelation;
 	/** A refusal the planner gave (into itself, permission denied, …). */
 	error: OpsError | null;
+	/** Which way the files would go between this computer and a server, when they would. */
+	transfer?: Transfer | undefined;
 }
 
 export interface EvaluateInput {
@@ -242,7 +278,13 @@ export function evaluateTarget(input: EvaluateInput): FileDropTarget {
 		foreign: source.external !== undefined && !source.external.own,
 	});
 	if (here && choice.verb === 'move') return block({ kind: 'sameFolder' });
-	return { ...base, volume, outcome: choice.verb, pending: choice.pending };
+	return {
+		...base,
+		volume,
+		outcome: choice.verb,
+		pending: choice.pending,
+		...(plan?.transfer && !here ? { transfer: plan.transfer } : {}),
+	};
 }
 
 // --- Words -----------------------------------------------------------------------------------
@@ -331,13 +373,37 @@ export function pillFor(
 		};
 	}
 	const announce = tf('dnd.announce.over', { target: name, action: verbWord(target) });
+	const transfer = target.transfer;
 	switch (target.outcome) {
 		case 'copy':
-			return target.pending
-				? { text: tf('dnd.pill.moveOrCopy', { what, target: name }), kind: 'pending', announce }
-				: { text: tf('dnd.pill.copy', { what, target: name }), kind: 'copy', announce };
+			if (target.pending) {
+				return {
+					text: tf('dnd.pill.moveOrCopy', { what, target: name }),
+					kind: 'pending',
+					announce,
+				};
+			}
+			return {
+				text: transfer
+					? tf(`dnd.pill.${transfer.way}`, { what, target: name, server: transfer.server })
+					: tf('dnd.pill.copy', { what, target: name }),
+				kind: 'copy',
+				announce: transfer
+					? tf(`dnd.announce.${transfer.way}`, { target: name, server: transfer.server })
+					: announce,
+			};
 		case 'move':
-			return { text: tf('dnd.pill.move', { what, target: name }), kind: 'move', announce };
+			return {
+				text: transfer
+					? tf(transfer.way === 'download' ? 'dnd.pill.moveFrom' : 'dnd.pill.moveTo', {
+							what,
+							target: name,
+							server: transfer.server,
+						})
+					: tf('dnd.pill.move', { what, target: name }),
+				kind: 'move',
+				announce,
+			};
 		case 'link':
 			return { text: tf('dnd.pill.link', { what, target: name }), kind: 'link', announce };
 		case 'ask':

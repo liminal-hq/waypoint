@@ -70,6 +70,7 @@ const planOf = (sameVolume: boolean): PlanPreview => ({
 	items: 1,
 	bytes: 1,
 	sameVolume,
+	ends: { from: [], to: null },
 	conflicts: [],
 	notes: [],
 });

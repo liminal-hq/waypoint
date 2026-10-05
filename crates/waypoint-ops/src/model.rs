@@ -574,6 +574,17 @@ pub enum JobState {
     Waiting {
         reason: WaitReason,
     },
+    /// A server stopped answering part way: the job keeps its worker and tries again by itself
+    /// when the wait is over, and asks only once it has tried long enough (D165).
+    Offline {
+        error: OpsError,
+        item: Location,
+        /// How many times it has tried again so far.
+        attempt: u32,
+        /// When it tries next, in milliseconds since the Unix epoch.
+        #[ts(type = "number")]
+        retry_at_ms: i64,
+    },
     /// Asked to stop; unwinding what it started.
     Cancelling,
     Cancelled,
@@ -597,6 +608,7 @@ impl JobState {
             JobState::Running => "running",
             JobState::Paused => "paused",
             JobState::Waiting { .. } => "waiting",
+            JobState::Offline { .. } => "offline",
             JobState::Cancelling => "cancelling",
             JobState::Cancelled => "cancelled",
             JobState::Done => "done",
@@ -617,7 +629,11 @@ impl JobState {
     pub fn holds_slot(&self) -> bool {
         matches!(
             self,
-            JobState::Running | JobState::Paused | JobState::Waiting { .. } | JobState::Cancelling
+            JobState::Running
+                | JobState::Paused
+                | JobState::Waiting { .. }
+                | JobState::Offline { .. }
+                | JobState::Cancelling
         )
     }
 }
@@ -674,6 +690,20 @@ pub struct JobSnapshot {
     /// What verification recorded, once a verified copy or move has checked at least one file
     /// (A51); `None` when the job did not verify.
     pub verified: Option<Verification>,
+    /// The servers the job reads from and writes to, once it is planned; `None` for a job that
+    /// touches no server (A84).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ends: Option<TransferEnds>,
+    /// What the copies could not keep because the destination cannot hold it, once the job ends;
+    /// `None` when they kept everything.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub dropped: Option<Vec<DroppedDetail>>,
+    /// The file a lost connection stopped part way, and what Retry does with it (D165).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub partial: Option<PartialNote>,
 }
 
 /// The whole queue at one revision, in queue order.
@@ -950,6 +980,79 @@ pub struct PlanTotals {
     pub touches: Vec<Location>,
     /// The entries the job removes or moves, which the guard also covers below.
     pub trees: Vec<Location>,
+    /// The servers the job reads from and writes to (A84).
+    pub ends: TransferEnds,
+}
+
+/// The servers a job reads from and writes to, by login (`sftp://me@nas.lan`), so a list of jobs
+/// can say which connection each one uses and a drop can say it uploads or downloads (A84). Both
+/// are empty for a job between local folders.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct TransferEnds {
+    /// The logins the sources are on, each once, in the order met.
+    pub from: Vec<String>,
+    /// The login the destination is on, when it is on a server.
+    pub to: Option<String>,
+}
+
+impl TransferEnds {
+    /// Whether the job reads or writes no server.
+    pub fn is_local(&self) -> bool {
+        self.from.is_empty() && self.to.is_none()
+    }
+}
+
+/// A file a transfer had partly written to a server when the connection failed, kept so the copy
+/// can continue from where it stopped (D62, D165): Retry, the offline wait and a resumed job carry
+/// on from the partial file's length instead of sending its bytes again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ResumePoint {
+    /// The file being copied.
+    pub source: Location,
+    /// Where it is going.
+    pub target: Location,
+    /// The partial file that holds what was sent.
+    pub partial: Location,
+    /// The source as it was, so a source that changed since is copied whole again.
+    #[ts(type = "number | null")]
+    pub source_size: Option<u64>,
+    #[ts(type = "number | null")]
+    pub source_modified_ms: Option<i64>,
+    /// How many bytes the server held when the point was taken (the next attempt asks again).
+    #[ts(type = "number")]
+    pub offset: u64,
+}
+
+/// What a transfer that stopped on a lost connection did with the file it was writing, so the
+/// error dialog can say what Retry will do (D165).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct PartialNote {
+    /// The file that was being copied.
+    pub item: Location,
+    /// Retry continues the file from what was sent; `false` when the destination cannot continue a
+    /// file part way, so Retry starts it again.
+    pub resumes: bool,
+    /// How many bytes the server said it holds, when it could say.
+    #[ts(type = "number | null")]
+    pub kept: Option<u64>,
+}
+
+/// A detail of a file that a copy could not keep because the destination cannot hold it (A84):
+/// the copy is made, without it, and the job says so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum DroppedDetail {
+    /// Modification times: the copies carry the time they were written.
+    ModifiedTimes,
+    /// Permissions (mode bits or the read-only state).
+    Permissions,
 }
 
 #[cfg(test)]

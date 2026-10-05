@@ -17,6 +17,7 @@ mod copy_engine;
 mod copy_job;
 mod copy_resolve;
 mod extract;
+mod reconnect;
 mod remove;
 
 use std::ffi::OsStr;
@@ -34,9 +35,13 @@ pub(crate) use copy_engine::{copy_file_bytes, FileCopy};
 pub(crate) use copy_job::copy_metadata;
 pub use copy_job::{RunOptions, TransferReport};
 pub use copy_resolve::{action_for, Action, Resolutions};
+pub use reconnect::{is_transient, reconnect_delay_ms, RECONNECT_ATTEMPTS};
 
 use crate::journal::InverseStep;
-use crate::model::{Conflict, Counts, Decision, JobId, JobKind, OpsError, Progress, Resolution};
+use crate::model::{
+    Conflict, Counts, Decision, JobId, JobKind, OpsError, PartialNote, Progress, Resolution,
+    ResumePoint,
+};
 use crate::names::{file_name_of, unique_full_name};
 use crate::plan::{conflict_kind, Plan, PlanItem};
 use crate::traits::{IdSource, Protected, Providers, Trash, TrashReceipt};
@@ -76,6 +81,33 @@ pub trait ExecSink {
 
     /// Called before each top-level item, where a paused job parks.
     fn between_items(&mut self) {}
+
+    /// A server stopped answering (`is_transient`) at `item` for the `attempt`th time in a row (from
+    /// 0). `true` means the wait for it is over and the step is to be tried again; `false` asks
+    /// (`on_error`) at once. The worker waits `reconnect_delay_ms` and shows the job offline
+    /// meanwhile (D165); the default asks at once.
+    fn offline(&mut self, item: &Location, error: &OpsError, attempt: u32) -> bool {
+        let _ = (item, error, attempt);
+        false
+    }
+
+    /// Whether a cancel keeps the partial files kept for a later run (the app is quitting, which
+    /// is not giving up) rather than removing them. Default: a cancel removes them.
+    fn keep_on_cancel(&self) -> bool {
+        false
+    }
+
+    /// A file stopped part way on a lost connection was kept at `point` so the copy can continue
+    /// from it: the worker records it before anything else happens, so a restart still knows it.
+    fn kept_partial(&mut self, point: &ResumePoint) {
+        let _ = point;
+    }
+
+    /// What a lost connection did with the file being written, for the error dialog; `None` once
+    /// that file is in place or given up.
+    fn partial(&mut self, note: Option<&PartialNote>) {
+        let _ = note;
+    }
 }
 
 /// A sink that listens to nothing.

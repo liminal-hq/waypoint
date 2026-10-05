@@ -9151,6 +9151,7 @@ dependencies = [
  "russh-sftp",
  "tempfile",
  "tokio",
+ "waypoint-ops",
  "waypoint-path",
  "waypoint-protocol",
  "waypoint-vfs",

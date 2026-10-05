@@ -254,6 +254,11 @@
     "description": "Area: services.",
     "source": "f82d6466"
   },
+  "services.note.thumbnails": {
+    "message": "Les fichiers sur des serveurs n’ont d’aperçus que si leur serveur enregistré les active (Paramètres → Aperçus et miniatures); ils sont lus par la connexion de Waypoint et gardés en mémoire, jamais dans le dossier de miniatures partagé.",
+    "description": "Area: services.",
+    "source": "fc504ce5"
+  },
   "services.name.volumes": {
     "message": "Lecteurs et volumes",
     "description": "Area: services.",
@@ -468,6 +473,11 @@
     "message": "Miniatures",
     "description": "Area: settings.",
     "source": "f82d6466"
+  },
+  "settings.group.serverPreviews": {
+    "message": "Fichiers sur les serveurs",
+    "description": "Area: settings.",
+    "source": "1c25dd0e"
   },
   "settings.group.language": {
     "message": "Langue et formats",
@@ -1578,6 +1588,21 @@
     "message": "Mo",
     "description": "Area: settings.",
     "source": "1d09f6fa"
+  },
+  "settings.previews.servers.none": {
+    "message": "Aucun serveur enregistré. Les aperçus des fichiers d’un serveur se règlent pour chaque serveur enregistré; un serveur non enregistré n’en montre aucun.",
+    "description": "Area: settings.",
+    "source": "cb2f4ea0"
+  },
+  "settings.previews.servers.changed": {
+    "message": "Aperçus de {server} : {choice}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {choice} is the name of a choice; {server}.",
+    "source": "eabb2460"
+  },
+  "settings.previews.servers.failed": {
+    "message": "Les aperçus du serveur n’ont pas pu être changés.",
+    "description": "Area: settings.",
+    "source": "2403a012"
   },
   "settings.previews.measureHome.label": {
     "message": "Mesurer le dossier personnel à l’ouverture de la Vue d’ensemble",
@@ -2914,6 +2939,31 @@
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
     "source": "81ea6d06"
   },
+  "dnd.pill.upload": {
+    "message": "Téléverser {what} vers {target} sur {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "35f0f1dd"
+  },
+  "dnd.pill.download": {
+    "message": "Télécharger {what} de {server} vers {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "3624414d"
+  },
+  "dnd.pill.across": {
+    "message": "Copier {what} vers {target} sur {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "dd04625f"
+  },
+  "dnd.pill.moveTo": {
+    "message": "Déplacer {what} vers {target} sur {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "fefb5e6a"
+  },
+  "dnd.pill.moveFrom": {
+    "message": "Déplacer {what} de {server} vers {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "e77fecea"
+  },
   "dnd.pill.moveOrCopy": {
     "message": "Déplacer ou copier {what} vers {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
@@ -3059,6 +3109,21 @@
     "description": "Area: dnd. Placeholders, kept exactly as written: {action} is a verb such as “eject” or “copy”; {target} is where something is being dropped or sent.",
     "source": "fc52c665"
   },
+  "dnd.announce.upload": {
+    "message": "Au-dessus de {target} sur {server} : action prévue, téléverser",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent.",
+    "source": "308a1926"
+  },
+  "dnd.announce.download": {
+    "message": "Au-dessus de {target} : action prévue, télécharger de {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent.",
+    "source": "1a77d5bb"
+  },
+  "dnd.announce.across": {
+    "message": "Au-dessus de {target} sur {server} : action prévue, copier",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent.",
+    "source": "67062914"
+  },
   "dnd.announce.blocked": {
     "message": "Au-dessus de {target} : non autorisé, {reason}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {target} is where something is being dropped or sent.",
@@ -3133,6 +3198,16 @@
     "message": "{what} ne peut pas être glissé hors de la fenêtre",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
     "source": "c9cc358e"
+  },
+  "dnd.out.downloading": {
+    "message": "Téléchargement de {what} pour le glissement",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
+    "source": "deba875b"
+  },
+  "dnd.out.downloadFailed": {
+    "message": "{what} n’a pas pu être téléchargé pour le glissement : {reason}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {what} is what is being dragged, such as “3 items”.",
+    "source": "e8e2cb79"
   },
   "dnd.picker.label": {
     "message": "Action de dépôt",
@@ -4804,6 +4879,36 @@
     "description": "Area: connect.",
     "source": "2ea0c143"
   },
+  "connect.field.thumbnailsHint": {
+    "message": "Un aperçu lit le fichier sur le serveur : les aperçus sont donc désactivés à moins que vous les activiez.",
+    "description": "Area: connect.",
+    "source": "118f5907"
+  },
+  "connect.thumbnails.off": {
+    "message": "Désactivés",
+    "description": "Area: connect.",
+    "source": "ca7981b4"
+  },
+  "connect.thumbnails.smallFiles": {
+    "message": "Petits fichiers seulement",
+    "description": "Area: connect.",
+    "source": "00ec8850"
+  },
+  "connect.thumbnails.always": {
+    "message": "Toujours (le petit aperçu intégré d’une grande photo)",
+    "description": "Area: connect.",
+    "source": "b5115ac8"
+  },
+  "connect.field.thumbnailMaxMb": {
+    "message": "Plus grand fichier lu pour un aperçu (Mo)",
+    "description": "Area: connect.",
+    "source": "3086c263"
+  },
+  "connect.field.thumbnailMaxMbHint": {
+    "message": "De 1 à 100; vide pour 2 Mo. Un fichier plus grand n’est jamais lu en entier pour un aperçu.",
+    "description": "Area: connect.",
+    "source": "14e659cc"
+  },
   "connect.auth.auto": {
     "message": "Automatiquement",
     "description": "Area: connect. Sign-in method: the SSH agent and key files first, then ask.",
@@ -5048,6 +5153,11 @@
     "message": "Actualisez toutes les 10 à 3600 secondes, ou laissez vide.",
     "description": "Area: connect.",
     "source": "9c534aa8"
+  },
+  "connect.problem.thumbnailMaxMb": {
+    "message": "Lisez au plus de 1 à 100 Mo pour un aperçu, ou laissez le champ vide.",
+    "description": "Area: connect.",
+    "source": "bf2b151c"
   },
   "connect.problem.tooMany": {
     "message": "Aucune autre connexion ne peut être enregistrée.",
@@ -6284,6 +6394,11 @@
     "description": "Area: destination.",
     "source": "d97d51d3"
   },
+  "destination.section.servers": {
+    "message": "Serveurs",
+    "description": "Area: destination.",
+    "source": "68d7beb6"
+  },
   "destination.section.tabs": {
     "message": "Onglets ouverts",
     "description": "Area: destination.",
@@ -7064,6 +7179,71 @@
     "description": "Area: ops.",
     "source": "00d0cb7f"
   },
+  "ops.interrupted.heading": {
+    "message": "Transferts interrompus",
+    "description": "Area: ops.",
+    "source": "07d08fca"
+  },
+  "ops.interrupted.detail.one": {
+    "message": "Arrêté quand sa connexion a été perdue; {count} fichier a été envoyé en partie",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.many, ops.interrupted.detail.other.",
+    "source": "086924f6"
+  },
+  "ops.interrupted.detail.many": {
+    "message": "Arrêté quand sa connexion a été perdue; {count} de fichiers ont été envoyés en partie",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.one, ops.interrupted.detail.other.",
+    "source": "33c7320f"
+  },
+  "ops.interrupted.detail.other": {
+    "message": "Arrêté quand sa connexion a été perdue; {count} fichiers ont été envoyés en partie",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.one, ops.interrupted.detail.many.",
+    "source": "33c7320f"
+  },
+  "ops.interrupted.discard": {
+    "message": "Abandonner",
+    "description": "Area: ops.",
+    "source": "eb1a70e3"
+  },
+  "ops.interrupted.discardEllipsis": {
+    "message": "Abandonner…",
+    "description": "Area: ops.",
+    "source": "b163bbda"
+  },
+  "ops.interrupted.discard.title": {
+    "message": "Abandonner « {label} »?",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "c78ba562"
+  },
+  "ops.interrupted.discard.message.one": {
+    "message": "Ce qui a été envoyé de ce fichier est supprimé du serveur, et le transfert ne pourra plus reprendre.",
+    "description": "Area: ops. Plural: one of a group; the other forms are ops.interrupted.discard.message.many, ops.interrupted.discard.message.other.",
+    "source": "af085c53"
+  },
+  "ops.interrupted.discard.message.many": {
+    "message": "Ce qui a été envoyé de ces {count} de fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.discard.message.one, ops.interrupted.discard.message.other.",
+    "source": "9d989d98"
+  },
+  "ops.interrupted.discard.message.other": {
+    "message": "Ce qui a été envoyé de ces {count} fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.discard.message.one, ops.interrupted.discard.message.many.",
+    "source": "9d989d98"
+  },
+  "ops.interrupted.resumed": {
+    "message": "Repris : {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "4054474b"
+  },
+  "ops.interrupted.discarded": {
+    "message": "Abandonné : {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "eb85027b"
+  },
+  "ops.interrupted.discardFailed": {
+    "message": "Le transfert n’a pas pu être abandonné : {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "4b458481"
+  },
   "ops.clearFinished": {
     "message": "Effacer les terminées",
     "description": "Area: ops.",
@@ -7258,6 +7438,41 @@
     "message": "{from} → {to}",
     "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value.",
     "source": "0bcc686f"
+  },
+  "ops.server.to": {
+    "message": "Vers {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}.",
+    "source": "825b82e6"
+  },
+  "ops.server.from": {
+    "message": "De {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}.",
+    "source": "bd07c630"
+  },
+  "ops.server.on": {
+    "message": "Sur {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}.",
+    "source": "3de93538"
+  },
+  "ops.server.between": {
+    "message": "De {from} vers {to}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value.",
+    "source": "6eeb9b3a"
+  },
+  "ops.dropped.modifiedTimes": {
+    "message": "Dates de modification non conservées : la destination ne peut pas les garder",
+    "description": "Area: ops.",
+    "source": "26cb7e63"
+  },
+  "ops.dropped.permissions": {
+    "message": "Permissions non conservées : la destination n’en a pas",
+    "description": "Area: ops.",
+    "source": "38476048"
+  },
+  "ops.dropped.both": {
+    "message": "Dates de modification et permissions non conservées : la destination ne peut pas les garder",
+    "description": "Area: ops.",
+    "source": "362a0767"
   },
   "ops.sources.one": {
     "message": "{count} élément",
@@ -7678,6 +7893,11 @@
     "message": "Échec : {reason}",
     "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
     "source": "7ba32522"
+  },
+  "ops.state.offline": {
+    "message": "Connexion perdue, nouvel essai automatique (essai {attempt}) : {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {attempt}; {reason} is why something failed, in the system’s own words.",
+    "source": "4c1046f0"
   },
   "ops.state.waiting.conflicts.one": {
     "message": "En attente de vous : {count} nom est déjà pris",
@@ -8309,6 +8529,21 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
     "source": "74b185f5"
   },
+  "ops.problem.partial.resume": {
+    "message": "Réessayer reprend {name} là où il s’est arrêté.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "0f63d5cb"
+  },
+  "ops.problem.partial.resumeFrom": {
+    "message": "Réessayer reprend {name} là où il s’est arrêté ({size} déjà envoyés).",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {size} is a file or disk size with its unit.",
+    "source": "1bc9da44"
+  },
+  "ops.problem.partial.restart": {
+    "message": "Réessayer recommence {name} : ce serveur ne peut pas reprendre un fichier en cours.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "8436ebbb"
+  },
   "ops.problem.message.notFound": {
     "message": "{location} est introuvable. Il a peut-être été déplacé ou supprimé.",
     "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
@@ -8425,9 +8660,9 @@
     "source": "89438320"
   },
   "ops.problem.message.connection": {
-    "message": "La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.",
-    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
-    "source": "2fd894ca"
+    "message": "{reason} L’arrêt s’est produit à {location}. Réessayer rétablit la connexion.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path; {reason} is why something failed, in the system’s own words.",
+    "source": "79bc82df"
   },
   "ops.problem.message.archiveLimit": {
     "message": "{location} dépasse les limites prévues pour les archives; son extraction a donc été arrêtée. Les limites se règlent dans les paramètres, sous Opérations.",
@@ -8639,6 +8874,11 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
     "source": "9b511a8c"
   },
+  "ops.announce.offline": {
+    "message": "{title} a perdu sa connexion et réessaiera automatiquement",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
+    "source": "4c66b528"
+  },
   "ops.announce.cancelled": {
     "message": "Annulé : {title}",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
@@ -8723,6 +8963,26 @@
     "message": "{count} opérations ont été interrompues, dont : {label}",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo. Plural: one of a group; the other forms are ops.recovery.one, ops.recovery.many.",
     "source": "126885d4"
+  },
+  "ops.recovery.resumable": {
+    "message": "Un transfert s’est arrêté quand sa connexion a été perdue : {label}. Reprendre le poursuit là où il s’est arrêté.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "a046a810"
+  },
+  "ops.recovery.resumableOf": {
+    "message": "Un transfert s’est arrêté quand sa connexion a été perdue ({n} sur {count}) : {label}. Reprendre le poursuit là où il s’est arrêté.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo; {n} is a number.",
+    "source": "85dbc7b0"
+  },
+  "ops.recovery.resume": {
+    "message": "Reprendre",
+    "description": "Area: ops.",
+    "source": "d640c742"
+  },
+  "ops.recovery.resumeFailed": {
+    "message": "Le transfert n’a pas pu reprendre : {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "a3611297"
   },
   "ops.recovery.unnamed": {
     "message": "Une opération a été interrompue.",

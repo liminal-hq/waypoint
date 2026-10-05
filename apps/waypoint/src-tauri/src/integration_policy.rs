@@ -384,6 +384,8 @@ pub fn facts(job: &JobSnapshot) -> JobFacts {
         JobState::Queued => (Phase::Queued, None),
         JobState::Running => (Phase::Running, None),
         JobState::Paused => (Phase::Paused, None),
+        // Waiting for its server by itself (D165): held, as a paused job is, with nothing to ask.
+        JobState::Offline { .. } => (Phase::Paused, None),
         JobState::Waiting { .. } => (Phase::Waiting, None),
         JobState::Cancelling => (Phase::Cancelling, None),
         JobState::Cancelled => (Phase::Cancelled, None),
@@ -1950,6 +1952,9 @@ mod tests {
             finished_ms: None,
             undoable: false,
             verified: None,
+            ends: None,
+            dropped: None,
+            partial: None,
         }
     }
 

@@ -13,6 +13,7 @@ import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/Con
 import type { ConflictPreview } from '@liminal-hq/waypoint-protocol/generated/ConflictPreview';
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
+import type { ResumableRecord } from '@liminal-hq/waypoint-protocol/generated/ResumableRecord';
 import type { JobJournal } from '@liminal-hq/waypoint-protocol/generated/JobJournal';
 import type { JobPriority } from '@liminal-hq/waypoint-protocol/generated/JobPriority';
 import type { JobProgress } from '@liminal-hq/waypoint-protocol/generated/JobProgress';
@@ -293,6 +294,33 @@ export function setClipboardFromSelection(
  */
 export function resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]> {
 	return cmd<Location[]>('resolve_selection', { handle, spec });
+}
+
+/**
+ * Downloads files dragged from a server into the app's cache and returns their local locations, so
+ * a drag out of the window can hand them to another application. A location already local comes
+ * back as it is. Rejects (`unsupported`) for a folder from a server or more than the drag allows.
+ */
+export function stageForDrag(items: Location[]): Promise<Location[]> {
+	return cmd<Location[]>('stage_for_drag', { items });
+}
+
+/** The transfers a lost connection stopped in an earlier run, to resume or discard (D165). */
+export function interruptedTransfers(): Promise<ResumableRecord[]> {
+	return cmd<ResumableRecord[]>('interrupted_transfers');
+}
+
+/**
+ * Runs again a transfer that stopped on a lost connection, continuing the partial files it kept;
+ * resolves to the new job. `job` and `atMs` name it as `ResumableRecord` does.
+ */
+export function resumeInterrupted(job: JobId, atMs: number): Promise<JobId> {
+	return cmd<JobId>('resume_interrupted', { job, atMs });
+}
+
+/** Gives up such a transfer: its partial files are removed and it is no longer offered. */
+export function discardInterrupted(job: JobId, atMs: number): Promise<void> {
+	return cmd<void>('discard_interrupted', { job, atMs });
 }
 
 export function getClipboard(): Promise<Clipboard> {

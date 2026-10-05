@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { ResumableRecord } from '@liminal-hq/waypoint-protocol/generated/ResumableRecord';
 import type {
 	Clipboard,
 	ClipboardMode,
@@ -132,6 +133,21 @@ export interface OpsClient {
 	 * drag of the selection out of the window. The clipboard is left alone; a selection of nothing is refused.
 	 */
 	resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]>;
+	/**
+	 * Downloads files dragged from a server into the app's cache and resolves to their local
+	 * locations, for a drag out of the window (D151); local locations come back as they are. Refuses
+	 * a folder from a server, or more than a drag may download.
+	 */
+	stageForDrag(items: Location[]): Promise<Location[]>;
+	/** The transfers a lost connection stopped in an earlier run, oldest first, to resume or discard (D165). */
+	interruptedTransfers(): Promise<ResumableRecord[]>;
+	/**
+	 * Runs again an interrupted transfer (by its `job` and `atMs`), continuing its partial files;
+	 * resolves to the new job.
+	 */
+	resumeInterrupted(job: JobId, atMs: number): Promise<JobId>;
+	/** Gives up an interrupted transfer: its partial files are removed and it is no longer offered. */
+	discardInterrupted(job: JobId, atMs: number): Promise<void>;
 	getSettings(): Promise<OpsSettings>;
 	setSettings(settings: OpsSettings): Promise<OpsSettings>;
 	/** What start-up recovery found, once; `null` when there was nothing to tell and after the first call. */

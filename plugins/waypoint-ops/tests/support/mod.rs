@@ -263,6 +263,12 @@ pub struct Setup {
     pub storage: Option<Arc<dyn JournalStorage>>,
     /// Runs on the work folder before the plugin starts (a stale partial file, say).
     pub prepare: Prepare,
+    /// The folder to work in, to start again over what an earlier app left; a new one otherwise.
+    pub dir: Option<tempfile::TempDir>,
+    /// A fake server served beside the local folders.
+    pub remote: Option<waypoint_vfs::FakeRemoteProvider>,
+    /// How long a job waits for a server that stopped answering; the plugin's default otherwise.
+    pub reconnect_wait: Option<tauri_plugin_waypoint_ops::ReconnectWait>,
 }
 
 impl Default for Setup {
@@ -273,6 +279,9 @@ impl Default for Setup {
             save_delay: Duration::from_millis(30),
             storage: None,
             prepare: Box::new(|_, _| {}),
+            dir: None,
+            remote: None,
+            reconnect_wait: None,
         }
     }
 }
@@ -281,8 +290,11 @@ pub fn env() -> Env {
     env_with(Setup::default())
 }
 
-pub fn env_with(setup: Setup) -> Env {
-    let dir = tempfile::tempdir().unwrap();
+pub fn env_with(mut setup: Setup) -> Env {
+    let dir = setup
+        .dir
+        .take()
+        .unwrap_or_else(|| tempfile::tempdir().unwrap());
     let base = VfsPath::File(FilePath::from_path(dir.path()).unwrap());
     let sandbox = SandboxProvider::new(LocalProvider::new(), &base);
     let gate = Arc::new(Gate::new());
@@ -291,7 +303,9 @@ pub fn env_with(setup: Setup) -> Env {
         gate: gate.clone(),
     });
     let work = base.join("work").unwrap();
-    fs.create_dir(&work).unwrap();
+    if fs.stat(&work).is_err() {
+        fs.create_dir(&work).unwrap();
+    }
     let trash = Arc::new(FakeTrash::new(
         fs.clone(),
         base.join("trash").unwrap(),
@@ -301,8 +315,12 @@ pub fn env_with(setup: Setup) -> Env {
     (setup.prepare)(&work, &fs);
 
     let resolver = Arc::new(FixedResolver::default());
+    let mut providers = Providers::single(fs.clone());
+    if let Some(remote) = &setup.remote {
+        providers.register(Arc::new(remote.clone()));
+    }
     let mut deps = OpsDeps::new(
-        Providers::single(fs.clone()),
+        providers,
         trash.clone(),
         resolver.clone(),
         setup
@@ -315,6 +333,9 @@ pub fn env_with(setup: Setup) -> Env {
     );
     deps.save_delay = setup.save_delay;
     deps.exit_wait = Duration::from_secs(5);
+    if let Some(wait) = setup.reconnect_wait {
+        deps.reconnect_wait = wait;
+    }
 
     let recovered: Arc<Mutex<Vec<RecoveryReport>>> = Arc::default();
     let heard = recovered.clone();

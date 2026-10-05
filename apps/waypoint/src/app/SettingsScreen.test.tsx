@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { createServerPreviewsClient, type ServerPreviewsClient } from '../settings/ServerPreviews';
+import { draft, FakeConnectionsClient } from '../connections/fakeConnectionsClient';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -92,6 +94,7 @@ async function open(
 		thumbnails?: PluginStatus | Error;
 		effects?: WindowEffectsStatus | Error;
 		opsApi?: (ops: FakeOpsClient) => OpsSettingsApi;
+		servers?: ServerPreviewsClient | null;
 	} = {},
 ): Promise<Rig> {
 	const settings = createFakeSettingsClient(options.settings);
@@ -119,6 +122,7 @@ async function open(
 				windowEffectsStatus={() =>
 					effects instanceof Error ? Promise.reject(effects) : Promise.resolve(effects)
 				}
+				servers={options.servers ?? null}
 			/>
 		</WindowChromeProvider>,
 	);
@@ -1297,5 +1301,27 @@ describe('the Transparency page', () => {
 		await open({ effects: { ...status, flavour: 'windows' } });
 		await goTo('Transparency');
 		expect(screen.queryByText('Experimental', { selector: '.badge' })).toBeNull();
+	});
+});
+
+describe('previews of files on servers', () => {
+	it('lists each saved server with its choice and saves a change at once', async () => {
+		const connections = new FakeConnectionsClient({
+			connections: [draft({ host: 'nas.lan', user: 'me', name: 'NAS' })],
+		});
+		await open({ servers: createServerPreviewsClient(connections) });
+		await goTo('Previews & thumbnails');
+		const choice = await screen.findByRole('combobox', { name: 'NAS' });
+		expect(choice).toHaveValue('off');
+		await userEvent.selectOptions(choice, 'smallFiles');
+		await waitFor(() => expect(choice).toHaveValue('smallFiles'));
+		const saved = (await connections.list()).connections.connections[0]!;
+		expect(saved.connection.options.thumbnails).toBe('smallFiles');
+	});
+
+	it('says how to get previews when no server is saved', async () => {
+		await open({ servers: createServerPreviewsClient(new FakeConnectionsClient({})) });
+		await goTo('Previews & thumbnails');
+		expect(await screen.findByText(/No saved servers/)).toBeInTheDocument();
 	});
 });

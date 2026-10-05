@@ -52,7 +52,8 @@ export function draft(fields: Partial<ConnectionDraft> = {}): ConnectionDraft {
 		jumpHost: null,
 		startFolder: null,
 		options: {
-			thumbnails: false,
+			thumbnails: 'off',
+			thumbnailMaxMb: null,
 			refreshSeconds: null,
 			timeoutSeconds: null,
 			listingRequests: null,
