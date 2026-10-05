@@ -267,6 +267,23 @@ jobs:
           # The packages start system daemons (Samba on port 445, Apache on port 80) that the tests do not
           # use; the tests run their own, as the runner's user.
           sudo systemctl disable --now smbd nmbd winbind apache2 2>/dev/null || true
+      # The S3 provider's real servers. rclone (the distribution's is too old to have `serve s3`) is a
+      # single binary the tests start as the runner's user. MinIO runs as a container, pinned by digest:
+      # MinIO's own images and binaries are no longer public, so this is Chainguard's build of it
+      # (`docker.io/chainguard/minio`), whose root credentials are the tests' fixed key and secret.
+      - name: Download rclone and start MinIO for the S3 provider
+        run: |
+          curl -fsSL https://downloads.rclone.org/rclone-current-linux-amd64.zip -o "${RUNNER_TEMP}/rclone.zip"
+          unzip -q -j "${RUNNER_TEMP}/rclone.zip" '*/rclone' -d "${RUNNER_TEMP}/rclone-bin"
+          chmod +x "${RUNNER_TEMP}/rclone-bin/rclone"
+          docker run --detach --name minio --publish 127.0.0.1:9000:9000 \
+            --env MINIO_ROOT_USER=waypoint-test --env MINIO_ROOT_PASSWORD=waypoint-test-secret \
+            docker.io/chainguard/minio@sha256:4cf4831a2bbcf13ddca09c1cbcc9faff716dd3c4247e0babc32864b8ee8e0034 \
+            server /data --address :9000 --console-address :9001
+          {
+            echo "WAYPOINT_RCLONE=${RUNNER_TEMP}/rclone-bin/rclone"
+            echo "WAYPOINT_MINIO_URL=http://127.0.0.1:9000"
+          } >> "${GITHUB_ENV}"
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
 
@@ -283,7 +300,7 @@ jobs:
         env:
           WAYPOINT_SMB_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-smb
-      - name: Run the S3 provider against rclone
+      - name: Run the S3 provider against rclone and MinIO
         id: s3
         env:
           WAYPOINT_S3_REQUIRE: '1'

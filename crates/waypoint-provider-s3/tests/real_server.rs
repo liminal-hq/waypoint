@@ -110,7 +110,12 @@ fn lists_stats_and_reads_buckets_prefixes_and_keys() {
             EntryKind::Directory
         );
         assert_eq!(provider.stat(&at("2026/two.jpg")).unwrap().size, Some(3));
-        assert_eq!(provider.stat(&bucket).unwrap().name, "photos");
+        assert!(provider
+            .stat(&bucket)
+            .unwrap()
+            .name
+            .to_string_lossy()
+            .starts_with("photos"));
         assert!(matches!(
             provider.stat(&at("nothing")),
             Err(VfsError::NotFound { .. })
@@ -412,8 +417,102 @@ fn the_buckets_of_a_service_are_listed() {
             .map(|b| b.name)
             .collect();
         assert!(
-            found.contains("alpha") && found.contains("beta"),
+            found.iter().any(|n| n.starts_with("alpha"))
+                && found.iter().any(|n| n.starts_with("beta")),
             "{found:?}"
         );
+    }
+}
+
+#[test]
+fn a_folder_is_a_marker_that_goes_with_its_last_entry() {
+    for server in Server::start_all() {
+        if server.kind == Kind::Rclone {
+            eprintln!("skipping on rclone, which cannot hold a folder marker");
+            continue;
+        }
+        let bucket = server.bucket("markers");
+        let provider = server.provider();
+        let folder = bucket.join("empty folder").unwrap();
+        provider.create_dir(&folder).unwrap();
+        assert_eq!(
+            names(&list(&provider, &bucket).unwrap()),
+            set(&["empty folder"])
+        );
+        assert!(list(&provider, &folder).unwrap().is_empty());
+        assert_eq!(provider.stat(&folder).unwrap().kind, EntryKind::Directory);
+        assert!(matches!(
+            provider.create_dir(&folder),
+            Err(VfsError::AlreadyExists { .. })
+        ));
+        put(&provider, &folder.join("a").unwrap(), b"x");
+        assert!(matches!(
+            provider.remove_dir(&folder),
+            Err(VfsError::NotEmpty { .. })
+        ));
+        provider.remove_file(&folder.join("a").unwrap()).unwrap();
+        provider.remove_dir(&folder).unwrap();
+        assert!(matches!(
+            provider.stat(&folder),
+            Err(VfsError::NotFound { .. })
+        ));
+    }
+}
+
+#[test]
+fn a_write_resumes_from_an_offset() {
+    for server in Server::start_all() {
+        if server.kind == Kind::Rclone {
+            eprintln!(
+                "skipping on rclone, whose CreateMultipartUpload answer has the wrong XML root"
+            );
+            continue;
+        }
+        let bucket = server.bucket("resume");
+        let provider = server.provider_with(S3Options {
+            part_size: Some(5 * 1024 * 1024),
+            ..S3Options::default()
+        });
+        let path = bucket.join("partial.bin").unwrap();
+        let head = pattern(7 * 1024 * 1024);
+        put(&provider, &path, &head);
+        let offset = 6 * 1024 * 1024;
+        let mut stream = provider.resume_write(&path, offset as u64).unwrap();
+        stream.write_all(b"the tail").unwrap();
+        stream.finish(true).unwrap();
+        let mut wanted = head[..offset].to_vec();
+        wanted.extend_from_slice(b"the tail");
+        assert_eq!(read_all(&provider, &path, 0), wanted);
+        assert!(matches!(
+            provider
+                .resume_write(&bucket.join("none").unwrap(), 0)
+                .map(|_| ()),
+            Err(VfsError::NotFound { .. })
+        ));
+    }
+}
+
+#[test]
+fn a_big_object_is_copied_in_parts() {
+    for server in Server::start_all() {
+        if server.kind == Kind::Rclone {
+            eprintln!("skipping on rclone, which has no multipart upload");
+            continue;
+        }
+        let bucket = server.bucket("copyparts");
+        let provider = server.provider_with(S3Options {
+            copy_part_threshold: Some(1024 * 1024),
+            ..S3Options::default()
+        });
+        let src = bucket.join("src.bin").unwrap();
+        let bytes = pattern(6 * 1024 * 1024);
+        put(&provider, &src, &bytes);
+        let dst = bucket.join("dst.bin").unwrap();
+        let size = provider
+            .copy_file_within(&src, &dst, &mut |_| {}, &CancelToken::new())
+            .expect("handled")
+            .unwrap();
+        assert_eq!(size, bytes.len() as u64);
+        assert_eq!(read_all(&provider, &dst, 0), bytes);
     }
 }

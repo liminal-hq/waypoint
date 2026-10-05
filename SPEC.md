@@ -293,7 +293,7 @@ Full rules are in `docs/interactions.md` §3. Summary:
 | SFTP/SSH     | `sftp://user@host:port/path`                                                   | Key agent, known-hosts prompt, jump host, "Open terminal here" over SSH                        |
 | SMB          | `smb://domain;user@host/share/path`                                            | Domain auth, share browser (`smb://host/` lists the shares)                                    |
 | WebDAV       | `davs://host/path` (`dav://` for HTTP)                                         | Nextcloud preset (`remote.php/dav/files/<id>/`, app passwords); Digest, Basic or token sign-in |
-| S3           | `s3://bucket/prefix`                                                           | Endpoint preset (AWS, MinIO, R2), storage class column                                         |
+| S3           | `s3://bucket/prefix`                                                           | Endpoint preset (AWS, MinIO, R2, B2, Wasabi, Spaces), storage class column                     |
 | Git          | `git+file:///repo!/path?rev=main` or a local repo overlay                      | Status column, branch in the status bar, stage and commit actions (plugin)                     |
 | Archives     | `archive:{archive's location}!/path`, opened from `*.zip`, `*.tar.*` or `*.7z` | Read-only, or read/write where the format allows; archives inside archives and on servers too  |
 | Cloud drives | Plugin-provided                                                                | Nextcloud and Google Drive samples                                                             |

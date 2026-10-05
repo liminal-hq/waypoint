@@ -83,7 +83,7 @@ pub enum Kind {
 
 pub struct Server {
     pub kind: Kind,
-    child: Child,
+    child: Option<Child>,
     pub port: u16,
     /// The folder that is served: for rclone its folders are the buckets.
     pub data: PathBuf,
@@ -98,10 +98,10 @@ fn unavailable(why: &str) {
     eprintln!("skipping: {why}");
 }
 
-fn wait_for(port: u16, what: &str, child: &mut Child) -> bool {
+fn wait_for(port: u16, what: &str, mut child: Option<&mut Child>) -> bool {
     let start = Instant::now();
     while TcpStream::connect(("127.0.0.1", port)).is_err() {
-        if let Ok(Some(status)) = child.try_wait() {
+        if let Some(Ok(Some(status))) = child.as_mut().map(|child| child.try_wait()) {
             unavailable(&format!(
                 "{what} exited with {status} (rclone needs 1.65 or later for `serve s3`)"
             ));
@@ -163,15 +163,37 @@ impl Server {
             .expect("rclone starts");
         let mut server = Self {
             kind: Kind::Rclone,
-            child,
+            child: Some(child),
             port,
             data,
             _dir: dir,
         };
-        wait_for(port, "rclone", &mut server.child).then_some(server)
+        wait_for(port, "rclone", server.child.as_mut()).then_some(server)
     }
 
+    /// MinIO already running (a container: `WAYPOINT_MINIO_URL=http://127.0.0.1:9000`, with
+    /// `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` set to this file's key and secret), or started
+    /// from the binary `WAYPOINT_MINIO` names.
     fn start_minio() -> Option<Self> {
+        if let Some(url) = std::env::var("WAYPOINT_MINIO_URL")
+            .ok()
+            .filter(|u| !u.is_empty())
+        {
+            let port: u16 = url
+                .rsplit(':')
+                .next()
+                .and_then(|p| p.trim_end_matches('/').parse().ok())?;
+            let dir = temp_dir();
+            let data = dir.path().to_owned();
+            let server = Self {
+                kind: Kind::Minio,
+                child: None,
+                port,
+                data,
+                _dir: dir,
+            };
+            return wait_for(port, "minio", None).then_some(server);
+        }
         let minio = std::env::var_os("WAYPOINT_MINIO")?;
         let dir = temp_dir();
         let data = dir.path().join("data");
@@ -192,12 +214,12 @@ impl Server {
             .expect("minio starts");
         let mut server = Self {
             kind: Kind::Minio,
-            child,
+            child: Some(child),
             port,
             data,
             _dir: dir,
         };
-        wait_for(port, "minio", &mut server.child).then_some(server)
+        wait_for(port, "minio", server.child.as_mut()).then_some(server)
     }
 
     pub fn name(&self) -> &'static str {
@@ -213,6 +235,19 @@ impl Server {
 
     /// Makes a bucket and returns its root location.
     pub fn bucket(&self, name: &str) -> VfsPath {
+        // A MinIO that outlives a test run (a container) is shared, and the conformance suite wants
+        // an empty bucket: every call makes a fresh one.
+        let unique;
+        let name = match self.kind {
+            Kind::Minio => {
+                let nanos = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_nanos());
+                unique = format!("{name}{}{}", std::process::id(), nanos % 1_000_000_000);
+                unique.as_str()
+            }
+            Kind::Rclone => name,
+        };
         let location = self.location(name);
         match self.kind {
             Kind::Rclone => fs::create_dir_all(self.data.join(name)).unwrap(),
@@ -260,7 +295,9 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        if let Some(child) = self.child.as_mut() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
     }
 }
