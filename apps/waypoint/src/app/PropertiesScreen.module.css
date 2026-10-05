@@ -45,7 +45,9 @@
 	font-size: calc(12px * var(--wp-text-scale));
 }
 
+/* The one scroll container. It is positioned so the screen-reader-only live regions inside (absolutely positioned) belong to it and scroll with it; otherwise they sit against the window and make the page scroll as well. */
 .body {
+	position: relative;
 	display: flex;
 	flex: 1;
 	min-block-size: 0;
