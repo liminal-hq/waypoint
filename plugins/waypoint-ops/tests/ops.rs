@@ -2241,10 +2241,20 @@ fn a_transfer_stopped_by_a_lost_connection_is_offered_after_a_restart_and_resume
     .expect("a report");
     assert_eq!(report.resumable.len(), 1);
     let writes = server.memory().calls(waypoint_vfs::MemOp::Write);
+    let offered = tauri::async_runtime::block_on(commands::interrupted_transfers(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+    ))
+    .unwrap();
+    assert_eq!(
+        offered, report.resumable,
+        "the Operations list offers it too"
+    );
     let resumed = tauri::async_runtime::block_on(commands::resume_interrupted(
         env.window("main-1"),
         env.app.state::<Ops<MockRuntime>>(),
         report.resumable[0].job,
+        report.resumable[0].at_ms,
     ))
     .unwrap();
     env.wait_done(resumed);
@@ -2270,4 +2280,76 @@ fn a_transfer_stopped_by_a_lost_connection_is_offered_after_a_restart_and_resume
         .map(|e| e.name.to_string_lossy().into_owned())
         .collect();
     assert_eq!(left, ["big.bin"]);
+}
+
+#[test]
+fn discarding_an_interrupted_transfer_removes_its_partial_file_and_stops_offering_it() {
+    let server = waypoint_vfs::FakeRemoteProvider::sftp();
+    let up = server.root("me@fake.test").join("up").unwrap();
+    server.put_dir(&up);
+    let journal = Arc::new(waypoint_ops::testing::journal_storage::MemoryJournalStorage::new());
+    let setup = |dir| Setup {
+        journal: journal.clone(),
+        remote: Some(server.clone()),
+        reconnect_wait: Some(quick_reconnect),
+        dir,
+        ..Setup::default()
+    };
+    let env = env_with(setup(None));
+    env.write("big.bin", &big(20));
+    lose_connection_at_write(&server, 2);
+    for _ in 0..2 {
+        server.memory().fail_next(
+            waypoint_vfs::MemOp::OpenRead,
+            VfsError::Disconnected {
+                location: server.root("me@fake.test").to_location(),
+            },
+        );
+    }
+    let stopped = env.submit("main-1", upload_to(&env, &server, &["big.bin"]));
+    env.wait_state(stopped, "asking", |s| matches!(s, JobState::Waiting { .. }));
+    tauri_plugin_waypoint_ops::on_exit(env.app.handle());
+    let Env { dir, .. } = env;
+
+    let env = env_with(setup(Some(dir)));
+    let ops = env.app.state::<Ops<MockRuntime>>();
+    let offered = tauri::async_runtime::block_on(commands::interrupted_transfers(
+        env.window("main-1"),
+        ops.clone(),
+    ))
+    .unwrap();
+    assert_eq!(offered.len(), 1);
+    let names = || -> Vec<String> {
+        server
+            .list(&up, &waypoint_vfs::CancelToken::new(), 0, &mut |_| {})
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name.to_string_lossy().into_owned())
+            .collect()
+    };
+    assert_eq!(names().len(), 1, "the partial file is there");
+    tauri::async_runtime::block_on(commands::discard_interrupted(
+        env.window("main-1"),
+        ops.clone(),
+        offered[0].job,
+        offered[0].at_ms,
+    ))
+    .unwrap();
+    env.wait_for("the partial file to go", |_| names().is_empty());
+    let after = tauri::async_runtime::block_on(commands::interrupted_transfers(
+        env.window("main-1"),
+        ops.clone(),
+    ))
+    .unwrap();
+    assert!(after.is_empty());
+    // Twice is refused: it is no longer offered.
+    assert!(
+        tauri::async_runtime::block_on(commands::discard_interrupted(
+            env.window("main-1"),
+            ops,
+            offered[0].job,
+            offered[0].at_ms,
+        ))
+        .is_err()
+    );
 }

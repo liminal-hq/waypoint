@@ -15,6 +15,16 @@ export interface Notice {
 	id: number;
 	text: string;
 	action?: NoticeAction;
+	/** Further buttons after `action` (Resume, then Discard…). */
+	more?: NoticeAction[];
+	/** Called once when the notice goes away by itself or is dismissed (not when another replaces it). */
+	onClose?: () => void;
+}
+
+/** More of a notice: further buttons, and what to do once it has gone. */
+export interface NoticeExtras {
+	more?: NoticeAction[];
+	onClose?: () => void;
 }
 
 let current: Notice | null = null;
@@ -26,9 +36,15 @@ function emit(): void {
 }
 
 /** Shows `text` (replacing any notice already up) with an optional action button. */
-export function showNotice(text: string, action?: NoticeAction): number {
+export function showNotice(text: string, action?: NoticeAction, extras: NoticeExtras = {}): number {
 	counter += 1;
-	current = { id: counter, text, ...(action ? { action } : {}) };
+	current = {
+		id: counter,
+		text,
+		...(action ? { action } : {}),
+		...(extras.more ? { more: extras.more } : {}),
+		...(extras.onClose ? { onClose: extras.onClose } : {}),
+	};
 	emit();
 	return current.id;
 }
@@ -36,8 +52,10 @@ export function showNotice(text: string, action?: NoticeAction): number {
 /** Hides the notice, or only the one numbered `id` (so a late timer cannot hide a newer message). */
 export function dismissNotice(id?: number): void {
 	if (current === null || (id !== undefined && current.id !== id)) return;
+	const closed = current;
 	current = null;
 	emit();
+	closed.onClose?.();
 }
 
 export function useNotice(): Notice | null {

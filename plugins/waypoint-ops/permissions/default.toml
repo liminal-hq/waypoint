@@ -30,6 +30,7 @@ permissions = [
   "allow-set-clipboard-from-selection",
   "allow-resolve-selection",
   "allow-stage-for-drag",
+  "allow-interrupted-transfers",
   "allow-resume-interrupted",
   "allow-discard-interrupted",
   "allow-get-clipboard",

@@ -509,10 +509,25 @@ export class FakeOpsClient implements OpsClient {
 		return this.setClipboard(mode, items, 'app');
 	}
 
+	async interruptedTransfers(): Promise<ResumableRecord[]> {
+		this.calls.push(['interruptedTransfers']);
+		return [...this.resumable];
+	}
+
 	/** Resumes an interrupted transfer: its request is submitted again, as Rust would. */
-	async resumeInterrupted(job: JobId): Promise<JobId> {
-		this.calls.push(['resumeInterrupted', job]);
-		const record = this.resumable.find((r) => r.job === job);
+	async resumeInterrupted(job: JobId, atMs: number): Promise<JobId> {
+		this.calls.push(['resumeInterrupted', job, atMs]);
+		const record = this.take(job, atMs);
+		return this.submit(record.request);
+	}
+
+	async discardInterrupted(job: JobId, atMs: number): Promise<void> {
+		this.calls.push(['discardInterrupted', job, atMs]);
+		this.take(job, atMs);
+	}
+
+	private take(job: JobId, atMs: number): ResumableRecord {
+		const record = this.resumable.find((r) => r.job === job && r.atMs === atMs);
 		if (!record) {
 			throw refusal('that transfer can no longer be resumed', 'ops', {
 				kind: 'undoUnavailable',
@@ -520,12 +535,12 @@ export class FakeOpsClient implements OpsClient {
 			});
 		}
 		this.resumable = this.resumable.filter((r) => r !== record);
-		return this.submit(record.request);
+		return record;
 	}
 
-	async discardInterrupted(job: JobId): Promise<void> {
-		this.calls.push(['discardInterrupted', job]);
-		this.resumable = this.resumable.filter((r) => r.job !== job);
+	/** Offers interrupted transfers, as a restart would. */
+	setInterrupted(records: ResumableRecord[]): void {
+		this.resumable = [...records];
 	}
 
 	/** Files "downloaded" for a drag out: a server's file comes back under `file:///cache/drag-out/`. */

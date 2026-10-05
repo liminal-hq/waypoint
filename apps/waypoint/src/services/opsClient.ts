@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { ResumableRecord } from '@liminal-hq/waypoint-protocol/generated/ResumableRecord';
 import type {
 	Clipboard,
 	ClipboardMode,
@@ -138,13 +139,15 @@ export interface OpsClient {
 	 * a folder from a server, or more than a drag may download.
 	 */
 	stageForDrag(items: Location[]): Promise<Location[]>;
+	/** The transfers a lost connection stopped in an earlier run, oldest first, to resume or discard (D165). */
+	interruptedTransfers(): Promise<ResumableRecord[]>;
 	/**
-	 * Runs again a transfer that stopped on a lost connection, offered by `RecoveryReport.resumable`
-	 * after a restart, continuing its partial files (D165); resolves to the new job.
+	 * Runs again an interrupted transfer (by its `job` and `atMs`), continuing its partial files;
+	 * resolves to the new job.
 	 */
-	resumeInterrupted(job: JobId): Promise<JobId>;
-	/** Gives up such a transfer: its partial files are removed and it is no longer offered. */
-	discardInterrupted(job: JobId): Promise<void>;
+	resumeInterrupted(job: JobId, atMs: number): Promise<JobId>;
+	/** Gives up an interrupted transfer: its partial files are removed and it is no longer offered. */
+	discardInterrupted(job: JobId, atMs: number): Promise<void>;
 	getSettings(): Promise<OpsSettings>;
 	setSettings(settings: OpsSettings): Promise<OpsSettings>;
 	/** What start-up recovery found, once; `null` when there was nothing to tell and after the first call. */

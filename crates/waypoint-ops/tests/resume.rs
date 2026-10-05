@@ -404,6 +404,10 @@ fn a_kept_partial_survives_a_restart_and_is_offered_never_resumed() {
     assert_eq!(report.resumable[0].points, [point]);
     assert_eq!(report.resumable[0].request, request);
     // Taking it hands it over once, and it is gone after the next restart.
-    assert!(h.journal.take_resumable(JobId(7)).is_some());
+    assert!(
+        h.journal.take_resumable(JobId(7), 2).is_none(),
+        "another job 7"
+    );
+    assert!(h.journal.take_resumable(JobId(7), 1).is_some());
     assert!(h.journal.resumable().is_empty());
 }

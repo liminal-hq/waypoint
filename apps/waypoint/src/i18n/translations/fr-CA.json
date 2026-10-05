@@ -7119,6 +7119,71 @@
     "description": "Area: ops.",
     "source": "00d0cb7f"
   },
+  "ops.interrupted.heading": {
+    "message": "Transferts interrompus",
+    "description": "Area: ops.",
+    "source": "07d08fca"
+  },
+  "ops.interrupted.detail.one": {
+    "message": "Arrêté quand sa connexion a été perdue; {count} fichier a été envoyé en partie",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.many, ops.interrupted.detail.other.",
+    "source": "086924f6"
+  },
+  "ops.interrupted.detail.many": {
+    "message": "Arrêté quand sa connexion a été perdue; {count} de fichiers ont été envoyés en partie",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.one, ops.interrupted.detail.other.",
+    "source": "33c7320f"
+  },
+  "ops.interrupted.detail.other": {
+    "message": "Arrêté quand sa connexion a été perdue; {count} fichiers ont été envoyés en partie",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.one, ops.interrupted.detail.many.",
+    "source": "33c7320f"
+  },
+  "ops.interrupted.discard": {
+    "message": "Abandonner",
+    "description": "Area: ops.",
+    "source": "eb1a70e3"
+  },
+  "ops.interrupted.discardEllipsis": {
+    "message": "Abandonner…",
+    "description": "Area: ops.",
+    "source": "b163bbda"
+  },
+  "ops.interrupted.discard.title": {
+    "message": "Abandonner « {label} »?",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "c78ba562"
+  },
+  "ops.interrupted.discard.message.one": {
+    "message": "Ce qui a été envoyé de ce fichier est supprimé du serveur, et le transfert ne pourra plus reprendre.",
+    "description": "Area: ops. Plural: one of a group; the other forms are ops.interrupted.discard.message.many, ops.interrupted.discard.message.other.",
+    "source": "af085c53"
+  },
+  "ops.interrupted.discard.message.many": {
+    "message": "Ce qui a été envoyé de ces {count} de fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.discard.message.one, ops.interrupted.discard.message.other.",
+    "source": "9d989d98"
+  },
+  "ops.interrupted.discard.message.other": {
+    "message": "Ce qui a été envoyé de ces {count} fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.discard.message.one, ops.interrupted.discard.message.many.",
+    "source": "9d989d98"
+  },
+  "ops.interrupted.resumed": {
+    "message": "Repris : {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "4054474b"
+  },
+  "ops.interrupted.discarded": {
+    "message": "Abandonné : {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "eb85027b"
+  },
+  "ops.interrupted.discardFailed": {
+    "message": "Le transfert n’a pas pu être abandonné : {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "4b458481"
+  },
   "ops.clearFinished": {
     "message": "Effacer les terminées",
     "description": "Area: ops.",
@@ -8843,6 +8908,11 @@
     "message": "Un transfert s’est arrêté quand sa connexion a été perdue : {label}. Reprendre le poursuit là où il s’est arrêté.",
     "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
     "source": "a046a810"
+  },
+  "ops.recovery.resumableOf": {
+    "message": "Un transfert s’est arrêté quand sa connexion a été perdue ({n} sur {count}) : {label}. Reprendre le poursuit là où il s’est arrêté.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo; {n} is a number.",
+    "source": "85dbc7b0"
   },
   "ops.recovery.resume": {
     "message": "Reprendre",

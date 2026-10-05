@@ -169,16 +169,20 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function stageForDrag(items) {
         return cmd('stage_for_drag', { items });
     }
+    /** The transfers a lost connection stopped in an earlier run, to resume or discard (D165). */
+    function interruptedTransfers() {
+        return cmd('interrupted_transfers');
+    }
     /**
-     * Runs again a transfer that stopped on a lost connection and was offered after a restart,
-     * continuing the partial files it kept (`RecoveryReport.resumable`); resolves to the new job.
+     * Runs again a transfer that stopped on a lost connection, continuing the partial files it kept;
+     * resolves to the new job. `job` and `atMs` name it as `ResumableRecord` does.
      */
-    function resumeInterrupted(job) {
-        return cmd('resume_interrupted', { job });
+    function resumeInterrupted(job, atMs) {
+        return cmd('resume_interrupted', { job, atMs });
     }
     /** Gives up such a transfer: its partial files are removed and it is no longer offered. */
-    function discardInterrupted(job) {
-        return cmd('discard_interrupted', { job });
+    function discardInterrupted(job, atMs) {
+        return cmd('discard_interrupted', { job, atMs });
     }
     function getClipboard() {
         return cmd('get_clipboard');
@@ -231,6 +235,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.getSettings = getSettings;
     exports.getSnapshot = getSnapshot;
     exports.getStatus = getStatus;
+    exports.interruptedTransfers = interruptedTransfers;
     exports.jobsTargeting = jobsTargeting;
     exports.journalEntryOf = journalEntryOf;
     exports.journalSummaries = journalSummaries;

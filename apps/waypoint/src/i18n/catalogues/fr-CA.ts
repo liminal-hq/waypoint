@@ -3061,6 +3061,38 @@ const messages: Catalogue = {
 	'ops.list.empty': 'Rien n’est en cours.',
 	// source: 00d0cb7f
 	'ops.list.hint': 'Alt+Haut et Alt+Bas déplacent une tâche en file d’attente',
+	// source: 07d08fca
+	'ops.interrupted.heading': 'Transferts interrompus',
+	// source: 086924f6
+	'ops.interrupted.detail.one':
+		'Arrêté quand sa connexion a été perdue; {count} fichier a été envoyé en partie',
+	// source: 33c7320f
+	'ops.interrupted.detail.many':
+		'Arrêté quand sa connexion a été perdue; {count} de fichiers ont été envoyés en partie',
+	// source: 33c7320f
+	'ops.interrupted.detail.other':
+		'Arrêté quand sa connexion a été perdue; {count} fichiers ont été envoyés en partie',
+	// source: eb1a70e3
+	'ops.interrupted.discard': 'Abandonner',
+	// source: b163bbda
+	'ops.interrupted.discardEllipsis': 'Abandonner…',
+	// source: c78ba562
+	'ops.interrupted.discard.title': 'Abandonner « {label} »?',
+	// source: af085c53
+	'ops.interrupted.discard.message.one':
+		'Ce qui a été envoyé de ce fichier est supprimé du serveur, et le transfert ne pourra plus reprendre.',
+	// source: 9d989d98
+	'ops.interrupted.discard.message.many':
+		'Ce qui a été envoyé de ces {count} de fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.',
+	// source: 9d989d98
+	'ops.interrupted.discard.message.other':
+		'Ce qui a été envoyé de ces {count} fichiers est supprimé du serveur, et le transfert ne pourra plus reprendre.',
+	// source: 4054474b
+	'ops.interrupted.resumed': 'Repris : {label}',
+	// source: eb85027b
+	'ops.interrupted.discarded': 'Abandonné : {label}',
+	// source: 4b458481
+	'ops.interrupted.discardFailed': 'Le transfert n’a pas pu être abandonné : {reason}',
 	// source: 2a16b4f8
 	'ops.clearFinished': 'Effacer les terminées',
 	// source: 7bdde36a
@@ -3786,6 +3818,9 @@ const messages: Catalogue = {
 	// source: a046a810
 	'ops.recovery.resumable':
 		'Un transfert s’est arrêté quand sa connexion a été perdue : {label}. Reprendre le poursuit là où il s’est arrêté.',
+	// source: 85dbc7b0
+	'ops.recovery.resumableOf':
+		'Un transfert s’est arrêté quand sa connexion a été perdue ({n} sur {count}) : {label}. Reprendre le poursuit là où il s’est arrêté.',
 	// source: d640c742
 	'ops.recovery.resume': 'Reprendre',
 	// source: a3611297

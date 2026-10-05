@@ -5579,6 +5579,50 @@
     "message": "Alt+Up and Alt+Down move a queued job",
     "description": "Area: ops."
   },
+  "ops.interrupted.heading": {
+    "message": "Interrupted transfers",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.detail.one": {
+    "message": "Stopped when its connection was lost; {count} file was partly sent",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.other."
+  },
+  "ops.interrupted.detail.other": {
+    "message": "Stopped when its connection was lost; {count} files were partly sent",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.detail.one."
+  },
+  "ops.interrupted.discard": {
+    "message": "Discard",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.discardEllipsis": {
+    "message": "Discard…",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.discard.title": {
+    "message": "Discard “{label}”?",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.interrupted.discard.message.one": {
+    "message": "What was sent of this file is removed from the server, and the transfer can no longer be resumed.",
+    "description": "Area: ops. Plural: one of a group; the other forms are ops.interrupted.discard.message.other."
+  },
+  "ops.interrupted.discard.message.other": {
+    "message": "What was sent of these {count} files is removed from the server, and the transfer can no longer be resumed.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.interrupted.discard.message.one."
+  },
+  "ops.interrupted.resumed": {
+    "message": "Resumed: {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.interrupted.discarded": {
+    "message": "Discarded: {label}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.interrupted.discardFailed": {
+    "message": "The transfer could not be discarded: {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
   "ops.clearFinished": {
     "message": "Clear finished",
     "description": "Area: ops."
@@ -6838,6 +6882,10 @@
   "ops.recovery.resumable": {
     "message": "A transfer stopped when its connection was lost: {label}. Resume carries on from where it stopped.",
     "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.recovery.resumableOf": {
+    "message": "A transfer stopped when its connection was lost ({n} of {count}): {label}. Resume carries on from where it stopped.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo; {n} is a number."
   },
   "ops.recovery.resume": {
     "message": "Resume",

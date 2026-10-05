@@ -613,9 +613,11 @@ fn finish<R: Runtime>(
             );
             // What the run kept to continue later replaces what it recorded on the way, and the
             // job whose partial files it continued is done with (D165).
-            core.journal.set_partials(id, report.transfer.kept.clone());
-            if let Some(from) = core.ctl.get(&id).and_then(|ctl| ctl.resumed_from) {
-                core.journal.set_partials(from, Vec::new());
+            let made_at = core.store.job(id).map_or(0, |job| job.created_ms);
+            core.journal
+                .set_partials(id, made_at, report.transfer.kept.clone());
+            if let Some((from, at_ms)) = core.ctl.get(&id).and_then(|ctl| ctl.resumed_from) {
+                core.journal.set_partials(from, at_ms, Vec::new());
             }
             match failure {
                 None => store_events.extend(core.store.done(id).unwrap_or_default()),

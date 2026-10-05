@@ -23,8 +23,9 @@ use waypoint_ops::{
     JobPriority, JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument,
     JournalEntrySummary, JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings,
     OpsSnapshot, OpsStore, Pacer, PlanCtx, PlanWarning, Prepared, QueueError, RateCell,
-    RecoveryReport, Resolution, ResumePoint, SaveRequest, Schedule, ScheduledRecord,
-    SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError, SystemPacer, Throttle,
+    RecoveryReport, Resolution, ResumableRecord, ResumePoint, SaveRequest, Schedule,
+    ScheduledRecord, SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError,
+    SystemPacer, Throttle,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec};
@@ -205,9 +206,9 @@ pub(crate) struct Ctl {
     pub rate: Arc<RateCell>,
     /// Partial files an earlier run kept, which this one continues (D165).
     pub resume: Vec<ResumePoint>,
-    /// The job whose kept partial files this one continues; its record is forgotten once this
-    /// one ends, which records what it keeps itself.
-    pub resumed_from: Option<JobId>,
+    /// The job (and when it was made) whose kept partial files this one continues; its record is
+    /// forgotten once this one ends, which records what it keeps itself.
+    pub resumed_from: Option<(JobId, i64)>,
 }
 
 impl Ctl {
@@ -283,6 +284,13 @@ impl Core {
 }
 
 /// Everything the workers and the commands share.
+/// The refusal for a transfer that is no longer offered (resumed or discarded already).
+fn gone() -> Error {
+    Error::Ops(OpsError::UndoUnavailable {
+        reason: "that transfer can no longer be resumed".to_owned(),
+    })
+}
+
 /// The folder of the app's cache that holds files downloaded for a drag out of the window.
 const STAGE_FOLDER: &str = "drag-out";
 
@@ -915,13 +923,16 @@ impl<R: Runtime> Ops<R> {
 
     pub fn retry(&self, id: JobId) -> Result<JobId, Error> {
         let mut core = self.shared.lock();
+        let made_at = core.store.job(id).map(|job| job.created_ms);
         let (new, events) = core.store.retry(id)?;
         let limit = core.store.job(new).and_then(|j| j.options.speed_limit);
         let mut ctl = Ctl::new(limit);
         // The partial files the failed job kept are continued, not sent again (D165).
-        if let Some(record) = core.journal.resumable().iter().find(|r| r.job == id) {
-            ctl.resume = record.points.clone();
-            ctl.resumed_from = Some(id);
+        if let Some(at_ms) = made_at {
+            if let Some(record) = core.journal.resumable().iter().find(|r| r.is(id, at_ms)) {
+                ctl.resume = record.points.clone();
+                ctl.resumed_from = Some((id, at_ms));
+            }
         }
         core.ctl.insert(new, ctl);
         self.shared.publish(events);
@@ -932,10 +943,11 @@ impl<R: Runtime> Ops<R> {
 
     pub fn dismiss(&self, id: JobId) -> Result<(), Error> {
         let mut core = self.shared.lock();
+        let made_at = core.store.job(id).map(|job| job.created_ms);
         let events = core.store.dismiss(id)?;
         self.shared.publish(events);
         // Dismissing a job gives up what it kept to continue: its partial files go (D165).
-        let dropped = core.journal.take_resumable(id);
+        let dropped = made_at.and_then(|at_ms| core.journal.take_resumable(id, at_ms));
         core.prune();
         drop(core);
         if let Some(record) = dropped {
@@ -946,13 +958,19 @@ impl<R: Runtime> Ops<R> {
 
     pub fn dismiss_finished(&self) {
         let mut core = self.shared.lock();
-        let before: Vec<JobId> = core.store.snapshot().jobs.iter().map(|j| j.id).collect();
+        let before: Vec<(JobId, i64)> = core
+            .store
+            .snapshot()
+            .jobs
+            .iter()
+            .map(|j| (j.id, j.created_ms))
+            .collect();
         let events = core.store.dismiss_finished();
         self.shared.publish(events);
         let mut dropped = Vec::new();
-        for id in before {
+        for (id, at_ms) in before {
             if core.store.job(id).is_none() {
-                dropped.extend(core.journal.take_resumable(id).map(|r| r.points));
+                dropped.extend(core.journal.take_resumable(id, at_ms).map(|r| r.points));
             }
         }
         core.prune();
@@ -960,25 +978,44 @@ impl<R: Runtime> Ops<R> {
         self.discard_partials(dropped.into_iter().flatten().collect());
     }
 
-    /// Runs again a transfer that stopped on a lost connection and was offered after a restart
-    /// (D165): its request, continuing the partial files it kept. Nothing resumes by itself.
-    pub fn resume_interrupted(&self, job: JobId) -> Result<JobId, Error> {
+    /// The transfers a lost connection stopped that no job in the list stands for (an earlier
+    /// run's, D165), oldest first, each with Resume and Discard in the page.
+    pub fn interrupted(&self) -> Vec<ResumableRecord> {
+        let core = self.shared.lock();
+        core.journal
+            .resumable()
+            .iter()
+            .filter(|record| {
+                let listed = core
+                    .store
+                    .job(record.job)
+                    .is_some_and(|job| job.created_ms == record.at_ms);
+                // A transfer being resumed is the resuming job's now.
+                let resuming = core
+                    .ctl
+                    .values()
+                    .any(|ctl| ctl.resumed_from == Some((record.job, record.at_ms)));
+                !listed && !resuming
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Runs again a transfer that stopped on a lost connection (`interrupted`): its request,
+    /// continuing the partial files it kept. Nothing resumes by itself.
+    pub fn resume_interrupted(&self, job: JobId, at_ms: i64) -> Result<JobId, Error> {
         let mut core = self.shared.lock();
         let record = core
             .journal
             .resumable()
             .iter()
-            .find(|r| r.job == job)
+            .find(|r| r.is(job, at_ms))
             .cloned()
-            .ok_or_else(|| {
-                Error::Ops(OpsError::UndoUnavailable {
-                    reason: "that transfer can no longer be resumed".to_owned(),
-                })
-            })?;
+            .ok_or_else(gone)?;
         let (new, events) = core.store.add(record.request.clone());
         let mut ctl = Ctl::new(record.request.options.speed_limit);
         ctl.resume = record.points;
-        ctl.resumed_from = Some(job);
+        ctl.resumed_from = Some((job, at_ms));
         core.ctl.insert(new, ctl);
         self.shared.publish(events);
         self.shared.ensure_workers(&mut core);
@@ -986,13 +1023,16 @@ impl<R: Runtime> Ops<R> {
         Ok(new)
     }
 
-    /// Gives up a transfer offered after a restart: its partial files are removed and the record
-    /// is forgotten.
-    pub fn discard_interrupted(&self, job: JobId) {
-        let record = self.shared.lock().journal.take_resumable(job);
-        if let Some(record) = record {
-            self.discard_partials(record.points);
-        }
+    /// Gives up such a transfer: its partial files are removed and the record is forgotten.
+    pub fn discard_interrupted(&self, job: JobId, at_ms: i64) -> Result<(), Error> {
+        let record = self
+            .shared
+            .lock()
+            .journal
+            .take_resumable(job, at_ms)
+            .ok_or_else(gone)?;
+        self.discard_partials(record.points);
+        Ok(())
     }
 
     /// Removes partial files nothing will continue, on a thread of their own: a server may be slow

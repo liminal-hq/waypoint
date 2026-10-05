@@ -87,6 +87,7 @@ pub fn init_with<R: Runtime>(
             commands::set_clipboard_from_selection,
             commands::resolve_selection,
             commands::stage_for_drag,
+            commands::interrupted_transfers,
             commands::resume_interrupted,
             commands::discard_interrupted,
             commands::get_clipboard,

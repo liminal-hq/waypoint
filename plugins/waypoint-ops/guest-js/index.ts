@@ -13,6 +13,7 @@ import type { ConflictPolicy } from '@liminal-hq/waypoint-protocol/generated/Con
 import type { ConflictPreview } from '@liminal-hq/waypoint-protocol/generated/ConflictPreview';
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { JobId } from '@liminal-hq/waypoint-protocol/generated/JobId';
+import type { ResumableRecord } from '@liminal-hq/waypoint-protocol/generated/ResumableRecord';
 import type { JobJournal } from '@liminal-hq/waypoint-protocol/generated/JobJournal';
 import type { JobPriority } from '@liminal-hq/waypoint-protocol/generated/JobPriority';
 import type { JobProgress } from '@liminal-hq/waypoint-protocol/generated/JobProgress';
@@ -304,17 +305,22 @@ export function stageForDrag(items: Location[]): Promise<Location[]> {
 	return cmd<Location[]>('stage_for_drag', { items });
 }
 
+/** The transfers a lost connection stopped in an earlier run, to resume or discard (D165). */
+export function interruptedTransfers(): Promise<ResumableRecord[]> {
+	return cmd<ResumableRecord[]>('interrupted_transfers');
+}
+
 /**
- * Runs again a transfer that stopped on a lost connection and was offered after a restart,
- * continuing the partial files it kept (`RecoveryReport.resumable`); resolves to the new job.
+ * Runs again a transfer that stopped on a lost connection, continuing the partial files it kept;
+ * resolves to the new job. `job` and `atMs` name it as `ResumableRecord` does.
  */
-export function resumeInterrupted(job: JobId): Promise<JobId> {
-	return cmd<JobId>('resume_interrupted', { job });
+export function resumeInterrupted(job: JobId, atMs: number): Promise<JobId> {
+	return cmd<JobId>('resume_interrupted', { job, atMs });
 }
 
 /** Gives up such a transfer: its partial files are removed and it is no longer offered. */
-export function discardInterrupted(job: JobId): Promise<void> {
-	return cmd<void>('discard_interrupted', { job });
+export function discardInterrupted(job: JobId, atMs: number): Promise<void> {
+	return cmd<void>('discard_interrupted', { job, atMs });
 }
 
 export function getClipboard(): Promise<Clipboard> {

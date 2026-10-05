@@ -245,7 +245,7 @@ impl Journal {
         request: &JobRequest,
         point: ResumePoint,
     ) -> Result<(), StorageError> {
-        match self.body.resumable.iter_mut().find(|r| r.job == job) {
+        match self.body.resumable.iter_mut().find(|r| r.is(job, at_ms)) {
             Some(record) => {
                 record.points.retain(|p| p.target != point.target);
                 record.points.push(point);
@@ -262,9 +262,10 @@ impl Journal {
         self.flush()
     }
 
-    /// Sets what `job` keeps for a later run to the partial files it ended with: none forgets it.
-    pub fn set_partials(&mut self, job: JobId, points: Vec<ResumePoint>) {
-        let at = self.body.resumable.iter().position(|r| r.job == job);
+    /// Sets what `job` (made at `at_ms`) keeps for a later run to the partial files it ended with:
+    /// none forgets it.
+    pub fn set_partials(&mut self, job: JobId, at_ms: i64, points: Vec<ResumePoint>) {
+        let at = self.body.resumable.iter().position(|r| r.is(job, at_ms));
         match (at, points.is_empty()) {
             (Some(at), true) => {
                 self.body.resumable.remove(at);
@@ -282,9 +283,9 @@ impl Journal {
         &self.body.resumable
     }
 
-    /// Takes the record of `job` out, to resume it or discard its partial files.
-    pub fn take_resumable(&mut self, job: JobId) -> Option<ResumableRecord> {
-        let at = self.body.resumable.iter().position(|r| r.job == job)?;
+    /// Takes the record of `job` (made at `at_ms`) out, to discard its partial files.
+    pub fn take_resumable(&mut self, job: JobId, at_ms: i64) -> Option<ResumableRecord> {
+        let at = self.body.resumable.iter().position(|r| r.is(job, at_ms))?;
         let record = self.body.resumable.remove(at);
         self.touched();
         Some(record)

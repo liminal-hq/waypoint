@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import type { NoticeAction } from '../app/notices';
+import type { NoticeAction, NoticeExtras } from '../app/notices';
+import type { ConfirmSpec } from './fileCommands';
 import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import type { RecoveryReport } from '../services/opsClient';
@@ -269,5 +270,65 @@ describe('a transfer a lost connection stopped', () => {
 		shown[0]?.action?.run();
 		await vi.waitFor(() => expect(fake.jobs()).toHaveLength(1));
 		expect(fake.calls.some(([name, id]) => name === 'resumeInterrupted' && id === 4)).toBe(true);
+	});
+
+	it('offers each one in turn, with Resume and Discard…, and Discard asks first', async () => {
+		const fake = createFakeOpsClient();
+		const point = (name: string) => ({
+			source: fileLocation(`/home/test/${name}`),
+			target: { display: `sftp://nas/up/${name}`, uri: `sftp://nas/up/${name}` },
+			partial: { display: 'p', uri: `sftp://nas/up/.waypoint-partial-1-1-${name}` },
+			sourceSize: 10,
+			sourceModifiedMs: 1,
+			offset: 4,
+		});
+		const records = [
+			{ job: 1, label: 'Copying a', atMs: 10, request: request(['a']), points: [point('a')] },
+			{
+				job: 2,
+				label: 'Copying b',
+				atMs: 20,
+				request: request(['b']),
+				points: [point('b'), point('c')],
+			},
+		];
+		fake.setRecoveryReport({ ...report([]), resumable: records });
+		const shown: Array<{ text: string; action?: NoticeAction; extras?: NoticeExtras }> = [];
+		const asked: ConfirmSpec[] = [];
+		let answer = false;
+		await showRecoveryNotice(
+			fake,
+			(text, action, extras) => {
+				shown.push({ text, action, extras });
+			},
+			async (spec) => {
+				asked.push(spec);
+				return answer;
+			},
+		);
+		expect(shown).toHaveLength(1);
+		expect(shown[0]?.text).toContain('(1 of 2): Copying a');
+		expect(shown[0]?.extras?.more?.map((more) => more.label)).toEqual(['Discard…']);
+		// The next comes when this one goes.
+		shown[0]?.extras?.onClose?.();
+		expect(shown[1]?.text).toContain('(2 of 2): Copying b');
+		// Discard names what goes and does nothing on Cancel.
+		shown[1]?.extras?.more?.[0]?.run();
+		await vi.waitFor(() => expect(asked).toHaveLength(1));
+		expect(asked[0]).toMatchObject({
+			title: 'Discard “Copying b”?',
+			items: ['sftp://nas/up/b', 'sftp://nas/up/c'],
+			danger: true,
+		});
+		expect(asked[0]?.message).toMatch(/these 2 files is removed from the server/);
+		expect(fake.calls.some(([name]) => name === 'discardInterrupted')).toBe(false);
+		answer = true;
+		shown[1]?.extras?.more?.[0]?.run();
+		await vi.waitFor(() =>
+			expect(
+				fake.calls.some(([name, id, at]) => name === 'discardInterrupted' && id === 2 && at === 20),
+			).toBe(true),
+		);
+		expect(await fake.interruptedTransfers()).toEqual([records[0]]);
 	});
 });

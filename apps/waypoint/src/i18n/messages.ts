@@ -1624,6 +1624,21 @@ export const enMessages = {
 	'ops.list.label': 'Jobs',
 	'ops.list.empty': 'Nothing is running.',
 	'ops.list.hint': 'Alt+Up and Alt+Down move a queued job',
+	'ops.interrupted.heading': 'Interrupted transfers',
+	'ops.interrupted.detail.one':
+		'Stopped when its connection was lost; {count} file was partly sent',
+	'ops.interrupted.detail.other':
+		'Stopped when its connection was lost; {count} files were partly sent',
+	'ops.interrupted.discard': 'Discard',
+	'ops.interrupted.discardEllipsis': 'Discard…',
+	'ops.interrupted.discard.title': 'Discard “{label}”?',
+	'ops.interrupted.discard.message.one':
+		'What was sent of this file is removed from the server, and the transfer can no longer be resumed.',
+	'ops.interrupted.discard.message.other':
+		'What was sent of these {count} files is removed from the server, and the transfer can no longer be resumed.',
+	'ops.interrupted.resumed': 'Resumed: {label}',
+	'ops.interrupted.discarded': 'Discarded: {label}',
+	'ops.interrupted.discardFailed': 'The transfer could not be discarded: {reason}',
 	'ops.clearFinished': 'Clear finished',
 	'ops.popOut': 'Pop out',
 	'ops.popOut.failed': 'Could not open the Operations window.',
@@ -1971,6 +1986,8 @@ export const enMessages = {
 	'ops.recovery.other': '{count} operations were interrupted, including: {label}',
 	'ops.recovery.resumable':
 		'A transfer stopped when its connection was lost: {label}. Resume carries on from where it stopped.',
+	'ops.recovery.resumableOf':
+		'A transfer stopped when its connection was lost ({n} of {count}): {label}. Resume carries on from where it stopped.',
 	'ops.recovery.resume': 'Resume',
 	'ops.recovery.resumeFailed': 'The transfer could not be resumed: {reason}',
 	'ops.recovery.unnamed': 'An operation was interrupted.',

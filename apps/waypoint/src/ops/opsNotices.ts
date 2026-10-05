@@ -3,13 +3,17 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { showNotice, type NoticeAction } from '../app/notices';
+import type { ResumableRecord } from '@liminal-hq/waypoint-protocol/generated/ResumableRecord';
+import { showNotice, type NoticeAction, type NoticeExtras } from '../app/notices';
 import { t, tf } from '../i18n/messages';
 import type { OpsClient, OpsCommandError, RecoveryReport } from '../services/opsClient';
+import type { ConfirmSpec } from './fileCommands';
+import { discardInterrupted, resumeInterrupted } from './interrupted';
 import { errorText, jobDoneText } from './jobText';
 import type { OpsHandle } from './opsStore';
 
 type Show = (text: string, action?: NoticeAction) => unknown;
+type ShowWith = (text: string, action?: NoticeAction, extras?: NoticeExtras) => unknown;
 
 /** The words for a rejected command: the engine's own typed reason when it gave one, its message otherwise. */
 export function commandErrorText(error: unknown): string {
@@ -139,48 +143,61 @@ export function recoveryText(report: RecoveryReport): string | null {
 }
 
 /**
- * The sentence for a transfer that stopped on a lost connection and can carry on (D165), with
- * Resume, or `null` when there is none. Only the first is offered; the others wait for the next
- * start, as nothing resumes by itself.
+ * Offers each transfer a lost connection stopped (D165), one notice after another: "A transfer
+ * stopped when its connection was lost: … (1 of 2)" with Resume and Discard…. The next comes when
+ * the one before is acted on or goes; the Operations list offers them all as well.
  */
-export function resumableNotice(
-	client: Pick<OpsClient, 'resumeInterrupted'>,
-	report: RecoveryReport,
-	show: Show,
-): { text: string; action: NoticeAction } | null {
-	const [first] = report.resumable ?? [];
-	if (!first) return null;
-	return {
-		text: tf('ops.recovery.resumable', { label: first.label }),
-		action: {
+export function offerInterrupted(
+	client: Pick<OpsClient, 'resumeInterrupted' | 'discardInterrupted'>,
+	records: readonly ResumableRecord[],
+	show: ShowWith,
+	confirm: (spec: ConfirmSpec) => Promise<boolean>,
+	at = 0,
+): boolean {
+	const record = records[at];
+	if (!record) return false;
+	const next = () => void offerInterrupted(client, records, show, confirm, at + 1);
+	const text =
+		records.length === 1
+			? tf('ops.recovery.resumable', { label: record.label })
+			: tf('ops.recovery.resumableOf', {
+					label: record.label,
+					n: at + 1,
+					count: records.length,
+				});
+	show(
+		text,
+		{
 			label: t('ops.recovery.resume'),
-			run: () =>
-				void client
-					.resumeInterrupted(first.job)
-					.catch((error: unknown) =>
-						show(tf('ops.recovery.resumeFailed', { reason: commandErrorText(error) })),
-					),
+			run: () => void resumeInterrupted(client, record, (message) => show(message)),
 		},
-	};
+		{
+			more: [
+				{
+					label: t('ops.interrupted.discardEllipsis'),
+					run: () => void discardInterrupted(client, record, confirm, (message) => show(message)),
+				},
+			],
+			onClose: next,
+		},
+	);
+	return true;
 }
 
 /**
  * Asks Rust for the recovery report (it hands it over once, to whichever window asks first) and
- * shows "An operation was interrupted: …" when there is one, or, for a transfer a lost connection
- * stopped, the offer to resume it. The Main window calls it as it starts.
+ * shows "An operation was interrupted: …" when there is one, or, for transfers a lost connection
+ * stopped, the offer to resume or discard each. The Main window calls it as it starts.
  */
 export async function showRecoveryNotice(
 	client: OpsClient,
-	show: Show = showNotice,
+	show: ShowWith = showNotice,
+	confirm: (spec: ConfirmSpec) => Promise<boolean> = async () => false,
 ): Promise<void> {
 	try {
 		const report = await client.takeRecoveryReport();
 		if (!report) return;
-		const resumable = resumableNotice(client, report, show);
-		if (resumable) {
-			show(resumable.text, resumable.action);
-			return;
-		}
+		if (offerInterrupted(client, report.resumable ?? [], show, confirm)) return;
 		const text = recoveryText(report);
 		if (text) show(text);
 	} catch (error) {

@@ -68,6 +68,19 @@ export function NoticeToast() {
 							{notice.action.label}
 						</button>
 					) : null}
+					{notice.more?.map((more) => (
+						<button
+							key={more.label}
+							type="button"
+							className={styles.action}
+							onClick={() => {
+								more.run();
+								dismissNotice(notice.id);
+							}}
+						>
+							{more.label}
+						</button>
+					))}
 					<button
 						type="button"
 						className={styles.dismiss}
