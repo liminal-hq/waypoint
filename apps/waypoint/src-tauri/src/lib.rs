@@ -14,6 +14,7 @@ mod ops;
 mod ops_window;
 mod persistence;
 mod properties_window;
+mod remote_thumbnails;
 mod settings;
 mod settings_transfer;
 mod settings_window;

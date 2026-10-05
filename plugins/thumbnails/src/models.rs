@@ -246,6 +246,9 @@ pub struct Config {
     pub workers: Option<usize>,
     /// The size of the in-memory cache of encoded thumbnails, in bytes (64 MB).
     pub memory_cache_bytes: u64,
+    /// The size of the cache of thumbnails made from bytes the caller read itself
+    /// ([`crate::Thumbnails::from_bytes`]), in bytes (32 MB). They are kept in memory only, apart from the shared cache folder.
+    pub bytes_cache_bytes: u64,
     /// A file larger than this is never decoded by the built-in generator (50 MiB).
     pub max_file_bytes: u64,
     /// How long an external thumbnailer may run (10 seconds).
@@ -260,6 +263,7 @@ impl Default for Config {
         Config {
             workers: None,
             memory_cache_bytes: 64 * 1_000_000,
+            bytes_cache_bytes: 32 * 1_000_000,
             max_file_bytes: 50 * 1024 * 1024,
             external_timeout: Duration::from_secs(10),
             app_name: "tauri-plugin-thumbnails".to_string(),

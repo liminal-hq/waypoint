@@ -11,7 +11,9 @@
 // two listings) that each number their entries from zero never share a job; the events are turned
 // back into the page's own keys before they cross the channel. Cancelling and reprioritising go
 // through here too, because the page only knows its own keys. The size cap in the settings is kept
-// in force on the plugin (`wire`).
+// in force on the plugin (`wire`). A file on a server has no path: it goes to `remote_thumbnails`,
+// which reads it through its provider as far as its connection allows (D166), under the same
+// ticket, so the page cancels both with one call.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -27,10 +29,13 @@ use tauri_plugin_thumbnails::{
 };
 use tauri_plugin_waypoint_settings::SettingsStore;
 use tauri_plugin_waypoint_vfs::Vfs;
+use waypoint_connections::ConnectionsHub;
 use waypoint_path::VfsPath;
 use waypoint_protocol::{EntryId, Location};
 use waypoint_settings::Settings;
-use waypoint_vfs::ListingHandle;
+use waypoint_vfs::{CancelToken, ListingHandle, ProviderRegistry};
+
+use crate::remote_thumbnails::{run_batch, Maker, Policy, Remote, Servers};
 
 /// The queue behind the bridge. The plugin's `Thumbnails` is one; a test supplies its own.
 pub trait Queue: Send + Sync {
@@ -121,6 +126,8 @@ impl TicketKeys {
 #[derive(Default, Clone)]
 pub struct ThumbnailBridge {
     tickets: Arc<Mutex<HashMap<Ticket, Arc<TicketKeys>>>>,
+    /// The server files of each batch still being read, which a cancel stops.
+    remote: Arc<Mutex<HashMap<Ticket, CancelToken>>>,
 }
 
 /// One thing the page wants a thumbnail of, resolved as far as this window can: a path, or why not.
@@ -216,9 +223,53 @@ impl ThumbnailBridge {
         ticket
     }
 
+    /// Reads the thumbnails of a batch's server files on a thread of their own, under `ticket`,
+    /// sending each result to `send` until the batch is cancelled (D166).
+    pub fn submit_remote(
+        &self,
+        ticket: Ticket,
+        servers: Arc<dyn Servers>,
+        maker: Arc<dyn Maker>,
+        items: Vec<Remote>,
+        size: ThumbSize,
+        send: Arc<dyn Fn(ThumbEvent) + Send + Sync>,
+    ) {
+        if items.is_empty() {
+            return;
+        }
+        let cancel = CancelToken::new();
+        self.remote
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(ticket, cancel.clone());
+        let remote = Arc::clone(&self.remote);
+        std::thread::spawn(move || {
+            run_batch(
+                servers.as_ref(),
+                maker.as_ref(),
+                items,
+                size,
+                &cancel,
+                &|event| send(event),
+            );
+            remote
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove(&ticket);
+        });
+    }
+
     /// Withdraws a batch.
     pub fn cancel(&self, queue: &dyn Queue, ticket: Ticket) -> bool {
         self.forget(ticket);
+        let remote = self
+            .remote
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&ticket);
+        if let Some(cancel) = remote {
+            cancel.cancel();
+        }
         queue.cancel(ticket)
     }
 
@@ -247,6 +298,41 @@ impl ThumbnailBridge {
 }
 
 // ---- resolving what the page names ----
+
+/// Whether a location is on a server, whose thumbnail is read through its provider (D166).
+fn on_server(location: &Location) -> bool {
+    VfsPath::from_location(location).is_ok_and(|path| path.connection_key().is_some())
+}
+
+/// The providers and the saved connections, as the vfs plugin holds them.
+struct AppServers {
+    providers: Arc<ProviderRegistry>,
+    connections: Option<Arc<ConnectionsHub>>,
+}
+
+impl Servers for AppServers {
+    fn provider(&self, path: &VfsPath) -> Option<Arc<dyn waypoint_vfs::Provider>> {
+        self.providers.for_path(path).ok()
+    }
+
+    fn policy(&self, path: &VfsPath) -> Policy {
+        // A server that is not saved has no choice of its own: off, as for every server (D14).
+        path.connection_key()
+            .and_then(|key| self.connections.as_ref()?.for_key(&key))
+            .map_or(Policy::OFF, |entry| {
+                Policy::of(&entry.connection.draft.options)
+            })
+    }
+}
+
+/// The server half of a batch: what reads it, or `None` where the app has no providers.
+fn servers_of<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<dyn Servers>> {
+    let vfs = app.try_state::<Vfs>()?;
+    Some(Arc::new(AppServers {
+        providers: Arc::clone(vfs.remote()),
+        connections: vfs.connections().cloned(),
+    }))
+}
 
 /// The local path of a location, or why it has none here.
 fn path_of_location(location: &Location) -> Result<PathBuf, String> {
@@ -298,24 +384,29 @@ pub async fn thumbnails_request_entries<R: Runtime>(
             .map_err(|e| format!("{e:?}")),
         None => Err("listings are not available".to_owned()),
     };
-    let wanted = items
-        .into_iter()
-        .enumerate()
-        .map(|(index, item)| {
-            let path = match &located {
-                Err(reason) => Err(reason.clone()),
-                Ok(locations) => match locations.get(index) {
-                    Some(Some(location)) => path_of_location(location),
-                    _ => Err("no longer in the listing".to_owned()),
-                },
-            };
-            Wanted {
-                key: item.key,
-                path,
-            }
-        })
-        .collect::<Vec<_>>();
-    Ok(submit_off_thread(&app, bridge.inner().clone(), wanted, size, on_event).await)
+    let mut wanted = Vec::new();
+    let mut remote = Vec::new();
+    for (index, item) in items.into_iter().enumerate() {
+        let path = match &located {
+            Err(reason) => Err(reason.clone()),
+            Ok(locations) => match locations.get(index) {
+                Some(Some(location)) if on_server(location) => {
+                    remote.push(Remote {
+                        key: item.key,
+                        location: location.clone(),
+                    });
+                    continue;
+                }
+                Some(Some(location)) => path_of_location(location),
+                _ => Err("no longer in the listing".to_owned()),
+            },
+        };
+        wanted.push(Wanted {
+            key: item.key,
+            path,
+        });
+    }
+    Ok(submit_off_thread(&app, bridge.inner().clone(), wanted, remote, size, on_event).await)
 }
 
 /// Queues thumbnails for locations the window shows (the Shelf's items).
@@ -328,14 +419,24 @@ pub async fn thumbnails_request_locations<R: Runtime>(
     on_event: Channel<ThumbEvent>,
 ) -> Result<Ticket, String> {
     let app = window.app_handle().clone();
-    let wanted = items
+    let (remote, local): (Vec<_>, Vec<_>) = items
+        .into_iter()
+        .partition(|item| on_server(&item.location));
+    let wanted = local
         .into_iter()
         .map(|item| Wanted {
             path: path_of_location(&item.location),
             key: item.key,
         })
         .collect();
-    Ok(submit_off_thread(&app, bridge.inner().clone(), wanted, size, on_event).await)
+    let remote = remote
+        .into_iter()
+        .map(|item| Remote {
+            key: item.key,
+            location: item.location,
+        })
+        .collect();
+    Ok(submit_off_thread(&app, bridge.inner().clone(), wanted, remote, size, on_event).await)
 }
 
 /// Reading each file's modified time touches the disk, so it is done off the main thread.
@@ -343,15 +444,56 @@ async fn submit_off_thread<R: Runtime>(
     app: &AppHandle<R>,
     bridge: ThumbnailBridge,
     wanted: Vec<Wanted>,
+    remote: Vec<Remote>,
     size: ThumbSize,
     on_event: Channel<ThumbEvent>,
 ) -> Ticket {
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        bridge.submit(app.thumbnails(), wanted, size, channel_sender(on_event))
+        let send = channel_sender(on_event);
+        let ticket = bridge.submit(app.thumbnails(), wanted, size, Arc::clone(&send));
+        match (servers_of(&app), app.try_state::<Thumbnails>()) {
+            (Some(servers), Some(_)) => {
+                let maker: Arc<dyn Maker> = Arc::new(PluginMaker(app.clone()));
+                bridge.submit_remote(ticket, servers, maker, remote, size, send);
+            }
+            _ => {
+                for item in remote {
+                    send(ThumbEvent::Skipped {
+                        key: item.key,
+                        why: SkipWhy::Remote,
+                    });
+                }
+            }
+        }
+        ticket
     })
     .await
     .unwrap_or(Ticket(0))
+}
+
+/// The plugin's thumbnails, reached through the app handle from the thread a batch runs on.
+struct PluginMaker<R: Runtime>(AppHandle<R>);
+
+impl<R: Runtime> Maker for PluginMaker<R> {
+    fn cached(&self, key: &str, uri: &str, mtime_ms: i64, size: ThumbSize) -> Option<ThumbEvent> {
+        self.0
+            .thumbnails()
+            .cached_from_bytes(key, uri, mtime_ms, size)
+    }
+
+    fn make(
+        &self,
+        key: &str,
+        uri: &str,
+        mtime_ms: i64,
+        size: ThumbSize,
+        bytes: &[u8],
+    ) -> ThumbEvent {
+        self.0
+            .thumbnails()
+            .from_bytes(key, uri, mtime_ms, size, bytes)
+    }
 }
 
 /// Withdraws a batch: nothing more is sent to it.

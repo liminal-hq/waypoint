@@ -28,7 +28,8 @@ pub use manager::{
 };
 pub use model::{
     check_draft, AuthMethod, Checked, ConnectionDraft, ConnectionEntry, ConnectionOptions, DavAuth,
-    DavPreset, DraftError, RecentServer, SavedConnection, MAX_FIELD_BYTES, MAX_NAME_CHARS,
+    DavPreset, DraftError, RecentServer, RemoteThumbnails, SavedConnection, MAX_FIELD_BYTES,
+    MAX_NAME_CHARS, THUMBNAIL_MAX_MB_DEFAULT, THUMBNAIL_MAX_MB_MAX,
 };
 pub use storage::{
     plan_connections, ConnectionStorage, ConnectionsPersistence, MemoryConnections,
