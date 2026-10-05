@@ -1,6 +1,7 @@
 /*
- * One cell is the icon plus 12 px of padding each side, and a two-line name under it. The numbers
- * repeat `cellFor` in `gridLayout.ts`, which the virtualiser uses, so change them together.
+ * One cell is the icon plus 12 px each side, and a two-line name under it. The numbers repeat
+ * `cellFor` in `gridLayout.ts`, which the virtualiser uses, so change them together. The name has
+ * more room than the icon: it sits 4 px from the cell's edges, and the icon is centred in the rest.
  */
 .view {
 	display: flex;
@@ -64,7 +65,7 @@
 	align-items: center;
 	gap: 6px;
 	box-sizing: border-box;
-	padding: 12px 12px 0;
+	padding: 12px 4px 0;
 	border-radius: 8px;
 	cursor: default;
 	user-select: none;
@@ -128,7 +129,8 @@
 	font-size: 12px;
 	line-height: 16px;
 	text-align: center;
-	overflow-wrap: anywhere;
+	/* A word splits only when it cannot fit a line of its own, so a name that nearly fits is not cut. */
+	overflow-wrap: break-word;
 }
 
 .skeleton {
