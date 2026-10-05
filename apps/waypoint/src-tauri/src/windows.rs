@@ -377,7 +377,9 @@ pub fn build_main_window<R: Runtime>(
     // ghost is the one window that must not accept drops, and `window-tearoff` builds it with the
     // handler off.
     let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
-        .title("Waypoint")
+        // The page names the window after its active tab's folder as soon as it starts; the app switcher
+        // never shows the app's name as a title.
+        .title("")
         .inner_size(DEFAULT_SIZE.0, DEFAULT_SIZE.1)
         .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
         .resizable(true)

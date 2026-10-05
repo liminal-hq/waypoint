@@ -111,7 +111,7 @@ fn bring_to_front<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), String> {
 /// shared chrome draws it.
 fn build<R: Runtime>(app: &AppHandle<R>, label: &str) -> Result<WebviewWindow<R>, String> {
     let window = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
-        .title("Waypoint — Properties")
+        .title("Properties")
         .inner_size(SIZE.0, SIZE.1)
         .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
         .resizable(true)

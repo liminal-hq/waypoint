@@ -40,6 +40,7 @@ import { TabDragProvider } from '../tabs/TabDragContext';
 import { announce, useAnnouncement } from '../tabs/announcer';
 import { TabsProvider } from '../tabs/TabsContext';
 import { AppTitleBar } from './AppTitleBar';
+import { useWindowTitle } from './useWindowTitle';
 import { NoticeToast } from './NoticeToast';
 import styles from './ShelfScreen.module.css';
 import { WindowCommands } from './WindowCommands';
@@ -161,6 +162,7 @@ export function ShelfScreen({ services }: { services?: ShelfScreenServices }) {
 			active = false;
 		};
 	}, [services]);
+	useWindowTitle(t('window.shelf.title'));
 	const announcement = useAnnouncement();
 	const onHandle = useCallback((handle: OpsHandle) => startOpsAnnouncer(handle, { announce }), []);
 	const windowLabel = useMemo(currentWindowLabel, []);

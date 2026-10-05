@@ -22,7 +22,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, String> 
     }
     // The same frameless, transparent window the main windows are, so the shared chrome draws it.
     let window = WebviewWindowBuilder::new(app, OPS_LABEL, WebviewUrl::App("index.html".into()))
-        .title("Waypoint — Operations")
+        .title("Operations")
         .inner_size(SIZE.0, SIZE.1)
         .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
         .resizable(true)

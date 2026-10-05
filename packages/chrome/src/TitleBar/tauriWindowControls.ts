@@ -14,6 +14,7 @@ export function createTauriWindowControls(): WindowControls {
 		toggleMaximize: () => getCurrentWindow().toggleMaximize(),
 		close: () => getCurrentWindow().close(),
 		startDragging: () => getCurrentWindow().startDragging(),
+		setTitle: (title) => getCurrentWindow().setTitle(title),
 		setAlwaysOnTop: (value) => getCurrentWindow().setAlwaysOnTop(value),
 		isAlwaysOnTop: () => getCurrentWindow().isAlwaysOnTop(),
 		isMaximized: () => getCurrentWindow().isMaximized(),

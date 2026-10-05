@@ -36,6 +36,7 @@ import { createTauriVfsClient } from '../services/tauriVfsClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
 import type { VfsClient } from '../services/vfsClient';
 import { AppTitleBar } from './AppTitleBar';
+import { useWindowTitle } from './useWindowTitle';
 import { NoticeToast } from './NoticeToast';
 import styles from './PropertiesScreen.module.css';
 
@@ -163,9 +164,7 @@ function Body({
 				: subject.status === 'root'
 					? baseName(subject.location.display)
 					: '';
-	useEffect(() => {
-		document.title = name ? tf('properties.window.label', { name }) : t('window.properties.title');
-	}, [name]);
+	useWindowTitle(name ? tf('properties.window.label', { name }) : t('window.properties.title'));
 
 	let content: ReactNode;
 	let icon: ReactNode = null;

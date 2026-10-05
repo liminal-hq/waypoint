@@ -35,7 +35,7 @@ pub fn build<R: Runtime>(
 ) -> Result<WebviewWindow<R>, WindowError> {
     let fail = |e: tauri::Error| WindowError::Failed(e.to_string());
     let window = WebviewWindowBuilder::new(app, SHELF_LABEL, WebviewUrl::App("index.html".into()))
-        .title("Waypoint — Shelf")
+        .title("Shelf")
         .inner_size(SIZE.0, SIZE.1)
         .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
         .resizable(true)
