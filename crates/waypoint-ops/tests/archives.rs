@@ -715,3 +715,25 @@ fn the_limits_are_the_ones_in_the_settings() {
     assert!(h.plan(&allowed).is_ok());
     let _ = &mut h;
 }
+
+#[test]
+fn an_archive_inside_an_archive_can_be_extracted_by_itself() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &tree(&[("out/", "")]));
+    let inner = raw_zip(&[("note.txt", b"nested note", 11)]);
+    put(
+        &h,
+        "outer.zip",
+        &raw_zip(&[("inner.zip", &inner, inner.len() as u32)]),
+    );
+    // The source is the file `inner.zip` as it is seen inside `outer.zip`.
+    let outer = waypoint_path::ArchivePath::new(h.path("outer.zip")).unwrap();
+    let nested = VfsPath::Archive(outer.join("inner.zip").unwrap()).to_location();
+    let mut request = extract(&h, &[], Some("out"), ExtractLayout::Folder);
+    request.sources = Sources::Locations {
+        locations: vec![nested],
+    };
+    ok(&h.run_journalled(request));
+    let tree = jwork(&h);
+    assert_eq!(tree.get("out/inner/note.txt"), Some(&file("nested note")));
+}

@@ -257,17 +257,14 @@ impl Planner<'_, '_> {
         for (source, provider) in sources {
             check(self.ctx.cancel)?;
             let (archive, container) = match &source {
-                VfsPath::Archive(top) if top.is_root() => {
-                    (source.clone(), top.container().clone())
-                }
-                VfsPath::Archive(_) => {
-                    return Err(failure(
-                        "extract an archive's entries by copying them; extraction takes the archive itself",
-                    ))
-                }
+                VfsPath::Archive(top) if top.is_root() => (source.clone(), top.container().clone()),
+                // A file inside another archive is an archive of its own (they nest).
                 other => {
                     let top = ArchivePath::new(other.clone()).map_err(|_| {
-                        failure(format!("{} cannot be opened as an archive", other.display()))
+                        failure(format!(
+                            "{} cannot be opened as an archive",
+                            other.display()
+                        ))
                     })?;
                     (VfsPath::Archive(top), other.clone())
                 }
@@ -287,7 +284,7 @@ impl Planner<'_, '_> {
                 }
             })?;
             let file_size = match &source {
-                VfsPath::Archive(_) => self
+                VfsPath::Archive(top) if top.is_root() => self
                     .ctx
                     .providers
                     .for_path(&container)
@@ -296,7 +293,9 @@ impl Planner<'_, '_> {
                     .and_then(|e| e.size),
                 _ => file.size,
             };
-            if file.kind == EntryKind::Directory && !matches!(source, VfsPath::Archive(_)) {
+            if file.kind == EntryKind::Directory
+                && !matches!(&source, VfsPath::Archive(top) if top.is_root())
+            {
                 return Err(failure(format!(
                     "{} is a folder, not an archive",
                     source.display()
