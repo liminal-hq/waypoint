@@ -141,16 +141,24 @@ describe('window capabilities', () => {
 		}
 	});
 
-	it('lets the Properties windows read which application opens a file and the clock setting, and nothing that opens one or changes a default', () => {
+	it('lets the Properties windows read which application opens a file, the clock setting and the settings, and nothing that opens one, changes a default or changes a setting', () => {
 		const capability = byId('properties');
 		expect(capability.permissions).toEqual([
 			'mime-apps:allow-get-status',
 			'mime-apps:allow-handlers',
 			'os-prefs:allow-get-time-format',
+			'waypoint-settings:allow-get-settings',
 		]);
 		expect(covers(capability, 'properties-3')).toBe(true);
 		for (const label of ['main-1', 'settings', 'ops', 'tear-ghost', 'mystery']) {
 			expect(covers(capability, label), label).toBe(false);
+		}
+		for (const capability of capabilities) {
+			if (!covers(capability, 'properties-3')) continue;
+			expect(
+				capability.permissions.filter((p) => /set-(ui-)?settings|set_settings/.test(p)),
+				capability.identifier,
+			).toEqual([]);
 		}
 	});
 
