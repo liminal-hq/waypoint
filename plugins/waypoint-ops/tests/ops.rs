@@ -2104,3 +2104,170 @@ fn the_archive_limits_have_defaults_bounds_and_an_old_document_gets_the_defaults
     assert_eq!(ops.set_settings(ends).unwrap(), ends);
     assert_eq!(env.settings.saved(), Some(ends));
 }
+
+/// Tries a server again after 20 ms, twice, so the offline wait is quick to test.
+fn quick_reconnect(error: &OpsError, attempt: u32) -> Option<u64> {
+    (waypoint_ops::is_transient(error) && attempt < 2).then_some(20)
+}
+
+fn upload_to(
+    env: &Env,
+    server: &waypoint_vfs::FakeRemoteProvider,
+    sources: &[&str],
+) -> waypoint_ops::JobRequest {
+    let mut request = env.request(JobKind::Copy, sources, None, None);
+    request.destination = Some(
+        server
+            .root("me@fake.test")
+            .join("up")
+            .unwrap()
+            .to_location(),
+    );
+    request
+}
+
+fn server_bytes(server: &waypoint_vfs::FakeRemoteProvider, name: &str) -> Vec<u8> {
+    let mut out = Vec::new();
+    let path = server
+        .root("me@fake.test")
+        .join("up")
+        .unwrap()
+        .join(name)
+        .unwrap();
+    std::io::Read::read_to_end(&mut server.open_read(&path).unwrap(), &mut out).unwrap();
+    out
+}
+
+fn lose_connection_at_write(server: &waypoint_vfs::FakeRemoteProvider, n: usize) {
+    server.memory().fail_nth(
+        waypoint_vfs::MemOp::Write,
+        n,
+        VfsError::Disconnected {
+            location: server.root("me@fake.test").to_location(),
+        },
+    );
+}
+
+#[test]
+fn a_lost_connection_waits_offline_and_carries_on_from_what_the_server_holds() {
+    let server = waypoint_vfs::FakeRemoteProvider::sftp();
+    server.put_dir(&server.root("me@fake.test").join("up").unwrap());
+    let env = env_with(Setup {
+        remote: Some(server.clone()),
+        reconnect_wait: Some(quick_reconnect),
+        ..Setup::default()
+    });
+    let content = big(20);
+    env.write("big.bin", &content);
+    lose_connection_at_write(&server, 2);
+    let id = env.submit("main-1", upload_to(&env, &server, &["big.bin"]));
+    env.wait_done(id);
+    assert_eq!(server_bytes(&server, "big.bin"), content);
+    // The job was offline for a moment, said so, and ran on by itself.
+    let offline = env.events_of("main-1").into_iter().any(|event| {
+        matches!(
+            event,
+            OpsEvent::JobChanged { job, .. } if matches!(job.state, JobState::Offline { attempt: 1, .. })
+        )
+    });
+    assert!(offline, "the job showed it was offline");
+    // One 8 MiB chunk went, the second failed, and the rest went once: 20 MiB in three chunks,
+    // plus the fake's own rewrite of what it kept.
+    assert_eq!(
+        server.memory().calls(waypoint_vfs::MemOp::Write),
+        1 + 1 + 1 + 2
+    );
+}
+
+#[test]
+fn a_transfer_stopped_by_a_lost_connection_is_offered_after_a_restart_and_resumes() {
+    let server = waypoint_vfs::FakeRemoteProvider::sftp();
+    server.put_dir(&server.root("me@fake.test").join("up").unwrap());
+    let journal = Arc::new(waypoint_ops::testing::journal_storage::MemoryJournalStorage::new());
+    let setup = |dir| Setup {
+        journal: journal.clone(),
+        remote: Some(server.clone()),
+        reconnect_wait: Some(quick_reconnect),
+        dir,
+        ..Setup::default()
+    };
+    let env = env_with(setup(None));
+    let content = big(20);
+    env.write("big.bin", &content);
+    // The connection drops after the first chunk and the server stays away: after its tries the
+    // job asks, and the app quits while it waits.
+    lose_connection_at_write(&server, 2);
+    // Each try again fails as it reopens the partial file.
+    for _ in 0..2 {
+        server.memory().fail_next(
+            waypoint_vfs::MemOp::OpenRead,
+            VfsError::Disconnected {
+                location: server.root("me@fake.test").to_location(),
+            },
+        );
+    }
+    let stopped = env.submit("main-1", upload_to(&env, &server, &["big.bin"]));
+    let state = env.wait_state(stopped, "asking", |s| matches!(s, JobState::Waiting { .. }));
+    let JobState::Waiting {
+        reason: WaitReason::Error { error, .. },
+    } = state
+    else {
+        panic!("{state:?}");
+    };
+    assert!(matches!(error, OpsError::Connection { .. }), "{error:?}");
+    let note = env
+        .job(stopped)
+        .partial
+        .expect("the dialog can say what Retry does");
+    assert!(note.resumes);
+    tauri_plugin_waypoint_ops::on_exit(env.app.handle());
+    let document = journal.current_document().expect("the journal was written");
+    assert_eq!(document.body.resumable.len(), 1, "kept for the next start");
+    let Env { dir, .. } = env;
+
+    // The next start offers it and touches nothing on the server; Resume continues it.
+    let connects = server.connects();
+    let env = env_with(setup(Some(dir)));
+    assert_eq!(
+        server.connects(),
+        connects,
+        "start-up does not connect to a server"
+    );
+    let report = tauri::async_runtime::block_on(commands::take_recovery_report(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+    ))
+    .unwrap()
+    .expect("a report");
+    assert_eq!(report.resumable.len(), 1);
+    let writes = server.memory().calls(waypoint_vfs::MemOp::Write);
+    let resumed = tauri::async_runtime::block_on(commands::resume_interrupted(
+        env.window("main-1"),
+        env.app.state::<Ops<MockRuntime>>(),
+        report.resumable[0].job,
+    ))
+    .unwrap();
+    env.wait_done(resumed);
+    assert_eq!(server_bytes(&server, "big.bin"), content);
+    // The 8 MiB the server held were not sent again: the fake's rewrite, then two chunks.
+    assert_eq!(
+        server.memory().calls(waypoint_vfs::MemOp::Write) - writes,
+        1 + 2
+    );
+    // The record is gone once the resumed job is done, and so is the partial file.
+    tauri_plugin_waypoint_ops::on_exit(env.app.handle());
+    let document = journal.current_document().expect("the journal was written");
+    assert!(document.body.resumable.is_empty());
+    let left: Vec<_> = server
+        .list(
+            &server.root("me@fake.test").join("up").unwrap(),
+            &waypoint_vfs::CancelToken::new(),
+            0,
+            &mut |_| {},
+        )
+        .unwrap()
+        .into_iter()
+        .map(|e| e.name.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(left, ["big.bin"]);
+}

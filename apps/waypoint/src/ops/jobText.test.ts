@@ -230,3 +230,21 @@ describe('jobs that reach a server', () => {
 		).toBe('The connection was lost.');
 	});
 });
+
+describe('a job waiting for its server', () => {
+	it('says it lost its connection and is trying again, and offers only Cancel', async () => {
+		const fake = createFakeOpsClient({ autoStart: true });
+		const id = await fake.submit(request(['a']));
+		fake.offline(
+			id,
+			{ kind: 'connection', error: { kind: 'timeout', location: fileLocation('/srv/a') } },
+			fileLocation('/a'),
+			3,
+		);
+		const job = fake.jobs()[0]!;
+		expect(stateText(job)).toMatch(/^Connection lost, trying again by itself \(try 3\): /);
+		const row = views(fake)[0]!;
+		expect(row.actions).toEqual(['cancel']);
+		expect(row.showProgress).toBe(true);
+	});
+});

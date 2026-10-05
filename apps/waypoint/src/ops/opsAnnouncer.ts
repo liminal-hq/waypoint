@@ -29,6 +29,8 @@ interface Seen {
 	startedAt: number | null;
 	/** The highest milestone already passed (spoken or too early to speak). */
 	milestone: number;
+	/** The job has been said to be offline: its tries again are not each read out. */
+	offlineSaid?: boolean;
 }
 
 /**
@@ -74,6 +76,9 @@ export function startOpsAnnouncer(handle: OpsHandle, options: OpsAnnouncerOption
 					options.announce(tf('ops.announce.started', { title: jobTitle(job) }) + remaining(job));
 				} else if (state === 'waiting') {
 					options.announce(tf('ops.announce.waiting', { title: jobTitle(job) }));
+				} else if (state === 'offline' && !entry.offlineSaid) {
+					entry.offlineSaid = true;
+					options.announce(tf('ops.announce.offline', { title: jobTitle(job) }));
 				} else if (job.state.state === 'failed') {
 					options.announce(
 						tf('ops.announce.failed', {

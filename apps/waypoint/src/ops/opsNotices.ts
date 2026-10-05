@@ -139,8 +139,35 @@ export function recoveryText(report: RecoveryReport): string | null {
 }
 
 /**
+ * The sentence for a transfer that stopped on a lost connection and can carry on (D165), with
+ * Resume, or `null` when there is none. Only the first is offered; the others wait for the next
+ * start, as nothing resumes by itself.
+ */
+export function resumableNotice(
+	client: Pick<OpsClient, 'resumeInterrupted'>,
+	report: RecoveryReport,
+	show: Show,
+): { text: string; action: NoticeAction } | null {
+	const [first] = report.resumable ?? [];
+	if (!first) return null;
+	return {
+		text: tf('ops.recovery.resumable', { label: first.label }),
+		action: {
+			label: t('ops.recovery.resume'),
+			run: () =>
+				void client
+					.resumeInterrupted(first.job)
+					.catch((error: unknown) =>
+						show(tf('ops.recovery.resumeFailed', { reason: commandErrorText(error) })),
+					),
+		},
+	};
+}
+
+/**
  * Asks Rust for the recovery report (it hands it over once, to whichever window asks first) and
- * shows "An operation was interrupted: …" when there is one. The Main window calls it as it starts.
+ * shows "An operation was interrupted: …" when there is one, or, for a transfer a lost connection
+ * stopped, the offer to resume it. The Main window calls it as it starts.
  */
 export async function showRecoveryNotice(
 	client: OpsClient,
@@ -148,7 +175,13 @@ export async function showRecoveryNotice(
 ): Promise<void> {
 	try {
 		const report = await client.takeRecoveryReport();
-		const text = report ? recoveryText(report) : null;
+		if (!report) return;
+		const resumable = resumableNotice(client, report, show);
+		if (resumable) {
+			show(resumable.text, resumable.action);
+			return;
+		}
+		const text = recoveryText(report);
 		if (text) show(text);
 	} catch (error) {
 		console.warn('could not read the recovery report', error);

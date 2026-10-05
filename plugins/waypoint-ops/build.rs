@@ -33,6 +33,8 @@ const COMMANDS: &[&str] = &[
     "set_clipboard_from_selection",
     "resolve_selection",
     "stage_for_drag",
+    "resume_interrupted",
+    "discard_interrupted",
     "get_clipboard",
     "jobs_targeting",
     "get_settings",

@@ -6023,6 +6023,10 @@
     "message": "Failed: {reason}",
     "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
   },
+  "ops.state.offline": {
+    "message": "Connection lost, trying again by itself (try {attempt}): {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {attempt}; {reason} is why something failed, in the system’s own words."
+  },
   "ops.state.waiting.conflicts.one": {
     "message": "Waiting for you: {count} name is taken",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.state.waiting.conflicts.other."
@@ -6491,6 +6495,18 @@
     "message": "Job: {title}",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
   },
+  "ops.problem.partial.resume": {
+    "message": "Retry continues {name} from where it stopped.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.problem.partial.resumeFrom": {
+    "message": "Retry continues {name} from where it stopped ({size} already sent).",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {size} is a file or disk size with its unit."
+  },
+  "ops.problem.partial.restart": {
+    "message": "Retry starts {name} again: this server cannot continue a file part way.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
   "ops.problem.message.notFound": {
     "message": "{location} was not found. It may have been moved or deleted.",
     "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
@@ -6755,6 +6771,10 @@
     "message": "{title} is waiting for you",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
   },
+  "ops.announce.offline": {
+    "message": "{title} lost its connection and will try again by itself",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
+  },
   "ops.announce.cancelled": {
     "message": "Cancelled: {title}",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab."
@@ -6814,6 +6834,18 @@
   "ops.recovery.other": {
     "message": "{count} operations were interrupted, including: {label}",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo. Plural: one of a group; the other forms are ops.recovery.one."
+  },
+  "ops.recovery.resumable": {
+    "message": "A transfer stopped when its connection was lost: {label}. Resume carries on from where it stopped.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
+  },
+  "ops.recovery.resume": {
+    "message": "Resume",
+    "description": "Area: ops."
+  },
+  "ops.recovery.resumeFailed": {
+    "message": "The transfer could not be resumed: {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
   },
   "ops.recovery.unnamed": {
     "message": "An operation was interrupted.",

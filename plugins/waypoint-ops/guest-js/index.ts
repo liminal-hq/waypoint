@@ -304,6 +304,19 @@ export function stageForDrag(items: Location[]): Promise<Location[]> {
 	return cmd<Location[]>('stage_for_drag', { items });
 }
 
+/**
+ * Runs again a transfer that stopped on a lost connection and was offered after a restart,
+ * continuing the partial files it kept (`RecoveryReport.resumable`); resolves to the new job.
+ */
+export function resumeInterrupted(job: JobId): Promise<JobId> {
+	return cmd<JobId>('resume_interrupted', { job });
+}
+
+/** Gives up such a transfer: its partial files are removed and it is no longer offered. */
+export function discardInterrupted(job: JobId): Promise<void> {
+	return cmd<void>('discard_interrupted', { job });
+}
+
 export function getClipboard(): Promise<Clipboard> {
 	return cmd<Clipboard>('get_clipboard');
 }

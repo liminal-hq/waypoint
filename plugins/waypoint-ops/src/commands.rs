@@ -358,6 +358,27 @@ pub async fn resolve_selection<R: Runtime>(
         .map_err(|e| Error::Internal(e.to_string()))?
 }
 
+/// Runs again a transfer that stopped on a lost connection, continuing its partial files (D165).
+#[tauri::command]
+pub async fn resume_interrupted<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+) -> Result<JobId, Error> {
+    ops.resume_interrupted(job)
+}
+
+/// Gives up a transfer that stopped on a lost connection: its partial files are removed.
+#[tauri::command]
+pub async fn discard_interrupted<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    job: JobId,
+) -> Result<(), Error> {
+    ops.discard_interrupted(job);
+    Ok(())
+}
+
 /// Downloads files dragged from a server so a drag out of the window can hand them over (D151).
 #[tauri::command]
 pub async fn stage_for_drag<R: Runtime>(

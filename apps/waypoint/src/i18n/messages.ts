@@ -1736,6 +1736,7 @@ export const enMessages = {
 	'ops.state.cancelled': 'Cancelled',
 	'ops.state.done': 'Done',
 	'ops.state.failed': 'Failed: {reason}',
+	'ops.state.offline': 'Connection lost, trying again by itself (try {attempt}): {reason}',
 	'ops.state.waiting.conflicts.one': 'Waiting for you: {count} name is taken',
 	'ops.state.waiting.conflicts.other': 'Waiting for you: {count} names are taken',
 	'ops.state.waiting.error': 'Waiting for you: {reason}',
@@ -1867,6 +1868,11 @@ export const enMessages = {
 	'ops.problem.title.parent': 'The original folder is gone',
 	'ops.problem.item': 'Item: {item}',
 	'ops.problem.job': 'Job: {title}',
+	'ops.problem.partial.resume': 'Retry continues {name} from where it stopped.',
+	'ops.problem.partial.resumeFrom':
+		'Retry continues {name} from where it stopped ({size} already sent).',
+	'ops.problem.partial.restart':
+		'Retry starts {name} again: this server cannot continue a file part way.',
 	'ops.problem.message.notFound': '{location} was not found. It may have been moved or deleted.',
 	'ops.problem.message.permissionDenied':
 		'Permission denied for {location}. Check its permissions, and those of the folder it is in or going to.',
@@ -1947,6 +1953,7 @@ export const enMessages = {
 	'ops.announce.finished': 'Finished: {title}',
 	'ops.announce.failed': 'Failed: {title}. {reason}',
 	'ops.announce.waiting': '{title} is waiting for you',
+	'ops.announce.offline': '{title} lost its connection and will try again by itself',
 	'ops.announce.cancelled': 'Cancelled: {title}',
 	'ops.announce.milestone': '{title}: {percent}% done, {done} of {total} items',
 	'ops.announce.remaining.one': '{count} operation still in progress',
@@ -1962,6 +1969,10 @@ export const enMessages = {
 	'ops.done.rename.named': 'Renamed {name}',
 	'ops.recovery.one': 'An operation was interrupted: {label}',
 	'ops.recovery.other': '{count} operations were interrupted, including: {label}',
+	'ops.recovery.resumable':
+		'A transfer stopped when its connection was lost: {label}. Resume carries on from where it stopped.',
+	'ops.recovery.resume': 'Resume',
+	'ops.recovery.resumeFailed': 'The transfer could not be resumed: {reason}',
 	'ops.recovery.unnamed': 'An operation was interrupted.',
 	'chrome.move': 'Move',
 	'chrome.alwaysOnTop': 'Always on Top',

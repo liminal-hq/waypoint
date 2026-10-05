@@ -3323,6 +3323,8 @@ const messages: Catalogue = {
 	'ops.state.done': 'Terminé',
 	// source: 7ba32522
 	'ops.state.failed': 'Échec : {reason}',
+	// source: 4c1046f0
+	'ops.state.offline': 'Connexion perdue, nouvel essai automatique (essai {attempt}) : {reason}',
 	// source: 202a0714
 	'ops.state.waiting.conflicts.one': 'En attente de vous : {count} nom est déjà pris',
 	// source: 558b9905
@@ -3589,6 +3591,14 @@ const messages: Catalogue = {
 	'ops.problem.item': 'Élément : {item}',
 	// source: 74b185f5
 	'ops.problem.job': 'Tâche : {title}',
+	// source: 0f63d5cb
+	'ops.problem.partial.resume': 'Réessayer reprend {name} là où il s’est arrêté.',
+	// source: 1bc9da44
+	'ops.problem.partial.resumeFrom':
+		'Réessayer reprend {name} là où il s’est arrêté ({size} déjà envoyés).',
+	// source: 8436ebbb
+	'ops.problem.partial.restart':
+		'Réessayer recommence {name} : ce serveur ne peut pas reprendre un fichier en cours.',
 	// source: b25ec662
 	'ops.problem.message.notFound':
 		'{location} est introuvable. Il a peut-être été déplacé ou supprimé.',
@@ -3737,6 +3747,8 @@ const messages: Catalogue = {
 	'ops.announce.failed': 'Échec : {title}. {reason}',
 	// source: 9b511a8c
 	'ops.announce.waiting': '{title} attend votre réponse',
+	// source: 4c66b528
+	'ops.announce.offline': '{title} a perdu sa connexion et réessaiera automatiquement',
 	// source: 37d03e99
 	'ops.announce.cancelled': 'Annulé : {title}',
 	// source: 2f8caff2
@@ -3771,6 +3783,13 @@ const messages: Catalogue = {
 	'ops.recovery.many': '{count} d’opérations ont été interrompues, dont : {label}',
 	// source: 126885d4
 	'ops.recovery.other': '{count} opérations ont été interrompues, dont : {label}',
+	// source: a046a810
+	'ops.recovery.resumable':
+		'Un transfert s’est arrêté quand sa connexion a été perdue : {label}. Reprendre le poursuit là où il s’est arrêté.',
+	// source: d640c742
+	'ops.recovery.resume': 'Reprendre',
+	// source: a3611297
+	'ops.recovery.resumeFailed': 'Le transfert n’a pas pu reprendre : {reason}',
 	// source: 3b7f0324
 	'ops.recovery.unnamed': 'Une opération a été interrompue.',
 	// source: 6ecc3df6

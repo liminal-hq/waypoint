@@ -23,8 +23,8 @@ use waypoint_ops::{
     JobPriority, JobRequest, JobSnapshot, JobState, Journal, JournalDeps, JournalDocument,
     JournalEntrySummary, JournalId, JournalStorage, Loaded, OpsError, OpsEvent, OpsSettings,
     OpsSnapshot, OpsStore, Pacer, PlanCtx, PlanWarning, Prepared, QueueError, RateCell,
-    RecoveryReport, Resolution, SaveRequest, Schedule, ScheduledRecord, SelectionResolver,
-    SettingsReader, SimpleCopy, Sources, StorageError, SystemPacer, Throttle,
+    RecoveryReport, Resolution, ResumePoint, SaveRequest, Schedule, ScheduledRecord,
+    SelectionResolver, SettingsReader, SimpleCopy, Sources, StorageError, SystemPacer, Throttle,
 };
 use waypoint_protocol::Location;
 use waypoint_vfs::{CancelToken, ListingHandle, SelectionSpec};
@@ -203,6 +203,11 @@ pub(crate) struct Ctl {
     pub decision: Option<Decision>,
     /// The job's own speed limit, which the running copy reads at every piece.
     pub rate: Arc<RateCell>,
+    /// Partial files an earlier run kept, which this one continues (D165).
+    pub resume: Vec<ResumePoint>,
+    /// The job whose kept partial files this one continues; its record is forgotten once this
+    /// one ends, which records what it keeps itself.
+    pub resumed_from: Option<JobId>,
 }
 
 impl Ctl {
@@ -213,6 +218,8 @@ impl Ctl {
             prepared: None,
             answers: Vec::new(),
             decision: None,
+            resume: Vec::new(),
+            resumed_from: None,
         }
     }
 }
@@ -293,6 +300,7 @@ pub(crate) struct Shared<R: Runtime> {
     storage: Arc<OrderedStorage>,
     on_change: Option<ChangeHook>,
     exit_wait: Duration,
+    pub reconnect_wait: crate::deps::ReconnectWait,
     pub core: Mutex<Core>,
     pub cv: Condvar,
 }
@@ -367,6 +375,7 @@ impl<R: Runtime> Ops<R> {
             storage,
             on_change: deps.on_change,
             exit_wait: deps.exit_wait,
+            reconnect_wait: deps.reconnect_wait,
             core: Mutex::new(Core {
                 store,
                 journal,
@@ -908,7 +917,13 @@ impl<R: Runtime> Ops<R> {
         let mut core = self.shared.lock();
         let (new, events) = core.store.retry(id)?;
         let limit = core.store.job(new).and_then(|j| j.options.speed_limit);
-        core.ctl.insert(new, Ctl::new(limit));
+        let mut ctl = Ctl::new(limit);
+        // The partial files the failed job kept are continued, not sent again (D165).
+        if let Some(record) = core.journal.resumable().iter().find(|r| r.job == id) {
+            ctl.resume = record.points.clone();
+            ctl.resumed_from = Some(id);
+        }
+        core.ctl.insert(new, ctl);
         self.shared.publish(events);
         self.shared.ensure_workers(&mut core);
         self.shared.cv.notify_all();
@@ -919,15 +934,83 @@ impl<R: Runtime> Ops<R> {
         let mut core = self.shared.lock();
         let events = core.store.dismiss(id)?;
         self.shared.publish(events);
+        // Dismissing a job gives up what it kept to continue: its partial files go (D165).
+        let dropped = core.journal.take_resumable(id);
         core.prune();
+        drop(core);
+        if let Some(record) = dropped {
+            self.discard_partials(record.points);
+        }
         Ok(())
     }
 
     pub fn dismiss_finished(&self) {
         let mut core = self.shared.lock();
+        let before: Vec<JobId> = core.store.snapshot().jobs.iter().map(|j| j.id).collect();
         let events = core.store.dismiss_finished();
         self.shared.publish(events);
+        let mut dropped = Vec::new();
+        for id in before {
+            if core.store.job(id).is_none() {
+                dropped.extend(core.journal.take_resumable(id).map(|r| r.points));
+            }
+        }
         core.prune();
+        drop(core);
+        self.discard_partials(dropped.into_iter().flatten().collect());
+    }
+
+    /// Runs again a transfer that stopped on a lost connection and was offered after a restart
+    /// (D165): its request, continuing the partial files it kept. Nothing resumes by itself.
+    pub fn resume_interrupted(&self, job: JobId) -> Result<JobId, Error> {
+        let mut core = self.shared.lock();
+        let record = core
+            .journal
+            .resumable()
+            .iter()
+            .find(|r| r.job == job)
+            .cloned()
+            .ok_or_else(|| {
+                Error::Ops(OpsError::UndoUnavailable {
+                    reason: "that transfer can no longer be resumed".to_owned(),
+                })
+            })?;
+        let (new, events) = core.store.add(record.request.clone());
+        let mut ctl = Ctl::new(record.request.options.speed_limit);
+        ctl.resume = record.points;
+        ctl.resumed_from = Some(job);
+        core.ctl.insert(new, ctl);
+        self.shared.publish(events);
+        self.shared.ensure_workers(&mut core);
+        self.shared.cv.notify_all();
+        Ok(new)
+    }
+
+    /// Gives up a transfer offered after a restart: its partial files are removed and the record
+    /// is forgotten.
+    pub fn discard_interrupted(&self, job: JobId) {
+        let record = self.shared.lock().journal.take_resumable(job);
+        if let Some(record) = record {
+            self.discard_partials(record.points);
+        }
+    }
+
+    /// Removes partial files nothing will continue, on a thread of their own: a server may be slow
+    /// or away, and what cannot be removed now is left.
+    fn discard_partials(&self, points: Vec<ResumePoint>) {
+        if points.is_empty() {
+            return;
+        }
+        let providers = self.shared.env.providers.clone();
+        std::thread::spawn(move || {
+            for point in points {
+                if let Ok((path, provider)) = providers.for_location(&point.partial) {
+                    if let Err(e) = provider.remove_file(&path) {
+                        log::info!("left a partial file that could not be removed: {e:?}");
+                    }
+                }
+            }
+        });
     }
 
     /// Changes a job's own speed limit (bytes a second, `None` for none) and priority while it

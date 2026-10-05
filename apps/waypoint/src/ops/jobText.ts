@@ -201,6 +201,9 @@ export function stateText(job: JobSnapshot): string {
 				: tf('ops.state.waiting.error', { reason: errorText(state.reason.error) });
 		case 'failed':
 			return tf('ops.state.failed', { reason: errorText(state.error) });
+		case 'offline':
+			// A lost server is waited for and tried again by itself (D165): say so, and which try it is.
+			return tf('ops.state.offline', { reason: errorText(state.error), attempt: state.attempt });
 		case 'done': {
 			const skipped = job.counts.skipped;
 			const dropped = droppedText(job);
@@ -226,6 +229,8 @@ function actionsFor(job: JobSnapshot, canShow: boolean): JobAction[] {
 			return ['resume', 'cancel'];
 		case 'waiting':
 			return ['resolve', 'cancel'];
+		case 'offline':
+			return ['cancel'];
 		case 'cancelling':
 			return [];
 		case 'done':
@@ -259,7 +264,8 @@ export function jobViews(
 			route: from && to ? tf('ops.route', { from, to }) : from || to,
 			stateText: stateText(job),
 			fraction: jobFraction(progress),
-			showProgress: state === 'running' || state === 'paused' || state === 'waiting',
+			showProgress:
+				state === 'running' || state === 'paused' || state === 'waiting' || state === 'offline',
 			detail: isFinished(job) || state === 'queued' ? '' : detailText(item),
 			actions: actionsFor(job, canShow),
 			canMoveUp: queuePosition !== null && queuePosition > 0,

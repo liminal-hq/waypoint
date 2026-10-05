@@ -138,6 +138,13 @@ export interface OpsClient {
 	 * a folder from a server, or more than a drag may download.
 	 */
 	stageForDrag(items: Location[]): Promise<Location[]>;
+	/**
+	 * Runs again a transfer that stopped on a lost connection, offered by `RecoveryReport.resumable`
+	 * after a restart, continuing its partial files (D165); resolves to the new job.
+	 */
+	resumeInterrupted(job: JobId): Promise<JobId>;
+	/** Gives up such a transfer: its partial files are removed and it is no longer offered. */
+	discardInterrupted(job: JobId): Promise<void>;
 	getSettings(): Promise<OpsSettings>;
 	setSettings(settings: OpsSettings): Promise<OpsSettings>;
 	/** What start-up recovery found, once; `null` when there was nothing to tell and after the first call. */

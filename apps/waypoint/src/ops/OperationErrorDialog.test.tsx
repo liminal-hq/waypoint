@@ -12,7 +12,7 @@ import { connectStore } from '../connections/connectStore';
 import { FakeConnectionsClient, serverLocation } from '../connections/fakeConnectionsClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import { fakeJobSnapshot } from '../trash/fakeTrashClient';
-import { OperationErrorDialog } from './OperationErrorDialog';
+import { OperationErrorDialog, partialText } from './OperationErrorDialog';
 
 afterEach(cleanup);
 
@@ -216,5 +216,20 @@ describe('a server that wants a login', () => {
 		});
 		expect(screen.queryByRole('button', { name: 'Sign In…' })).toBeNull();
 		expect(buttons()).toContain('Retry');
+	});
+});
+
+describe('what Retry does with a file stopped part way', () => {
+	const item = fileLocation('/src/big.iso');
+	it('says it continues, with what was sent when the server said', () => {
+		expect(partialText({ item, resumes: true, kept: 3_200_000 })).toBe(
+			'Retry continues big.iso from where it stopped (3.2 MB already sent).',
+		);
+		expect(partialText({ item, resumes: true, kept: null })).toBe(
+			'Retry continues big.iso from where it stopped.',
+		);
+		expect(partialText({ item, resumes: false, kept: null })).toBe(
+			'Retry starts big.iso again: this server cannot continue a file part way.',
+		);
 	});
 });

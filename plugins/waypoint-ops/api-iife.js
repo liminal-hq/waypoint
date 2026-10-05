@@ -169,6 +169,17 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function stageForDrag(items) {
         return cmd('stage_for_drag', { items });
     }
+    /**
+     * Runs again a transfer that stopped on a lost connection and was offered after a restart,
+     * continuing the partial files it kept (`RecoveryReport.resumable`); resolves to the new job.
+     */
+    function resumeInterrupted(job) {
+        return cmd('resume_interrupted', { job });
+    }
+    /** Gives up such a transfer: its partial files are removed and it is no longer offered. */
+    function discardInterrupted(job) {
+        return cmd('discard_interrupted', { job });
+    }
     function getClipboard() {
         return cmd('get_clipboard');
     }
@@ -213,6 +224,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.RECOVERED_EVENT = RECOVERED_EVENT;
     exports.cancel = cancel;
     exports.conflictPreview = conflictPreview;
+    exports.discardInterrupted = discardInterrupted;
     exports.dismiss = dismiss;
     exports.dismissFinished = dismissFinished;
     exports.getClipboard = getClipboard;
@@ -236,6 +248,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.resolveSelection = resolveSelection;
     exports.resume = resume;
     exports.resumeAll = resumeAll;
+    exports.resumeInterrupted = resumeInterrupted;
     exports.retry = retry;
     exports.setClipboard = setClipboard;
     exports.setClipboardFromSelection = setClipboardFromSelection;

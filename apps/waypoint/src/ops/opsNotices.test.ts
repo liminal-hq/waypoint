@@ -40,6 +40,7 @@ const report = (labels: string[]): RecoveryReport => ({
 	discarded: null,
 	fromPrevious: false,
 	repairs: [],
+	resumable: [],
 });
 
 describe('the undo toast', () => {
@@ -241,5 +242,32 @@ describe('the undo toast names its own job', () => {
 		expect(await undoJob(handle, show, 9999)).toBeNull();
 		expect(shown[0]!.text).toContain('no longer in the history');
 		expect(fake.calls.some((c) => c[0] === 'undo')).toBe(false);
+	});
+});
+
+describe('a transfer a lost connection stopped', () => {
+	it('is offered after a restart with Resume, which runs it again', async () => {
+		const { fake, shown, show } = await setup();
+		const job = request(['big.iso']);
+		fake.setRecoveryReport({
+			...report([]),
+			resumable: [
+				{
+					job: 4,
+					label: 'Copying big.iso',
+					atMs: 0,
+					request: job,
+					points: [],
+				},
+			],
+		});
+		await showRecoveryNotice(fake, show);
+		expect(shown[0]?.text).toBe(
+			'A transfer stopped when its connection was lost: Copying big.iso. Resume carries on from where it stopped.',
+		);
+		expect(shown[0]?.action?.label).toBe('Resume');
+		shown[0]?.action?.run();
+		await vi.waitFor(() => expect(fake.jobs()).toHaveLength(1));
+		expect(fake.calls.some(([name, id]) => name === 'resumeInterrupted' && id === 4)).toBe(true);
 	});
 });

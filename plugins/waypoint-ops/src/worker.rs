@@ -21,8 +21,9 @@ use std::time::Duration;
 use tauri::{Emitter, Runtime};
 use waypoint_ops::{
     fingerprint_steps, plan_with_progress, prepare_redo, prepare_undo, Conflict, Counts, Decision,
-    ExecFailure, ExecReport, ExecSink, Executor, JobId, JobKind, JobState, OpsError, PendingRecord,
-    PlanCtx, PlanProgress, Prepared, Progress, Recorded, Resolution, RunOptions, WaitReason,
+    ExecFailure, ExecReport, ExecSink, Executor, JobId, JobKind, JobState, OpsError, PartialNote,
+    PendingRecord, PlanCtx, PlanProgress, Prepared, Progress, Recorded, Resolution, ResumePoint,
+    RunOptions, WaitReason,
 };
 use waypoint_protocol::Location;
 
@@ -249,6 +250,86 @@ impl<R: Runtime> ExecSink for Sink<'_, R> {
         core.ctl.get_mut(&self.id).and_then(|c| c.decision.take())
     }
 
+    fn offline(&mut self, item: &Location, error: &OpsError, attempt: u32) -> bool {
+        let Some(wait) = (self.shared.reconnect_wait)(error, attempt) else {
+            return false;
+        };
+        let core = self.shared.lock();
+        let mut core = self
+            .shared
+            .park(core, self.id, |s| matches!(s, JobState::Paused));
+        if Self::cancelled(&core, self.id) {
+            return false;
+        }
+        let retry_at = self.shared.clock.now_ms() + wait as i64;
+        match core
+            .store
+            .offline(self.id, error.clone(), item.clone(), attempt + 1, retry_at)
+        {
+            Ok(events) => self.shared.publish(events),
+            Err(e) => {
+                log::warn!("job {} could not wait for its server: {e}", self.id.0);
+                return false;
+            }
+        }
+        // Wait out the delay, waking early for a cancel (D165).
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(wait);
+        loop {
+            if Self::cancelled(&core, self.id) {
+                break;
+            }
+            let now = std::time::Instant::now();
+            if now >= deadline {
+                break;
+            }
+            core = self
+                .shared
+                .cv
+                .wait_timeout(core, deadline - now)
+                .map(|(guard, _)| guard)
+                .unwrap_or_else(|e| e.into_inner().0);
+        }
+        let cancelled = Self::cancelled(&core, self.id);
+        if core
+            .store
+            .job(self.id)
+            .is_some_and(|j| matches!(j.state, JobState::Offline { .. }))
+        {
+            if let Ok(events) = core.store.online(self.id) {
+                self.shared.publish(events);
+            }
+        }
+        !cancelled
+    }
+
+    fn keep_on_cancel(&self) -> bool {
+        // Quitting is not giving up: what a lost connection left is kept for the next start.
+        self.shared.lock().shutdown
+    }
+
+    fn kept_partial(&mut self, point: &ResumePoint) {
+        let mut core = self.shared.lock();
+        let Some(job) = core.store.job(self.id).cloned() else {
+            return;
+        };
+        let Some(request) = core.store.request(self.id).cloned() else {
+            return;
+        };
+        if let Err(e) =
+            core.journal
+                .keep_partial(self.id, &job.title, job.created_ms, &request, point.clone())
+        {
+            log::warn!("could not record a partial file of job {}: {e}", self.id.0);
+        }
+    }
+
+    fn partial(&mut self, note: Option<&PartialNote>) {
+        let mut core = self.shared.lock();
+        if let Ok(events) = core.store.set_partial(self.id, note.cloned()) {
+            self.shared.publish(events);
+        }
+    }
+
     fn on_conflict(&mut self, conflict: &Conflict) -> Option<Resolution> {
         let core = self.shared.lock();
         let mut core = self
@@ -354,6 +435,11 @@ fn run_job<R: Runtime>(shared: &Arc<Shared<R>>, id: JobId) {
     }
     let mut options = RunOptions::for_job(&job_options, &settings, resolutions);
     options.clock = shared.clock.clone();
+    options.resume = core
+        .ctl
+        .get(&id)
+        .map(|ctl| ctl.resume.clone())
+        .unwrap_or_default();
     options.throttle = core
         .ctl
         .get(&id)
@@ -525,6 +611,12 @@ fn finish<R: Runtime>(
                     .set_dropped(id, report.transfer.dropped.clone())
                     .unwrap_or_default(),
             );
+            // What the run kept to continue later replaces what it recorded on the way, and the
+            // job whose partial files it continued is done with (D165).
+            core.journal.set_partials(id, report.transfer.kept.clone());
+            if let Some(from) = core.ctl.get(&id).and_then(|ctl| ctl.resumed_from) {
+                core.journal.set_partials(from, Vec::new());
+            }
             match failure {
                 None => store_events.extend(core.store.done(id).unwrap_or_default()),
                 Some(failure) => end_failed(

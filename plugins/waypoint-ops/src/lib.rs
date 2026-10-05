@@ -14,7 +14,9 @@ use tauri::{
     Manager, RunEvent, Runtime, WindowEvent,
 };
 
-pub use deps::{ChangeHook, MemorySettings, OpsDeps, SettingsStorage, EXIT_WAIT, SAVE_DELAY};
+pub use deps::{
+    ChangeHook, MemorySettings, OpsDeps, ReconnectWait, SettingsStorage, EXIT_WAIT, SAVE_DELAY,
+};
 pub use models::{
     Clipboard, ClipboardMode, ClipboardSource, Error, JobJournal, JobProgress, PlanNote,
     PlanPreview,
@@ -85,6 +87,8 @@ pub fn init_with<R: Runtime>(
             commands::set_clipboard_from_selection,
             commands::resolve_selection,
             commands::stage_for_drag,
+            commands::resume_interrupted,
+            commands::discard_interrupted,
             commands::get_clipboard,
             commands::jobs_targeting,
             commands::get_settings,

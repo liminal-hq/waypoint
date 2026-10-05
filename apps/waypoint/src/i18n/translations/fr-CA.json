@@ -7769,6 +7769,11 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
     "source": "7ba32522"
   },
+  "ops.state.offline": {
+    "message": "Connexion perdue, nouvel essai automatique (essai {attempt}) : {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {attempt}; {reason} is why something failed, in the system’s own words.",
+    "source": "4c1046f0"
+  },
   "ops.state.waiting.conflicts.one": {
     "message": "En attente de vous : {count} nom est déjà pris",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.state.waiting.conflicts.many, ops.state.waiting.conflicts.other.",
@@ -8399,6 +8404,21 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
     "source": "74b185f5"
   },
+  "ops.problem.partial.resume": {
+    "message": "Réessayer reprend {name} là où il s’est arrêté.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "0f63d5cb"
+  },
+  "ops.problem.partial.resumeFrom": {
+    "message": "Réessayer reprend {name} là où il s’est arrêté ({size} déjà envoyés).",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {size} is a file or disk size with its unit.",
+    "source": "1bc9da44"
+  },
+  "ops.problem.partial.restart": {
+    "message": "Réessayer recommence {name} : ce serveur ne peut pas reprendre un fichier en cours.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "8436ebbb"
+  },
   "ops.problem.message.notFound": {
     "message": "{location} est introuvable. Il a peut-être été déplacé ou supprimé.",
     "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
@@ -8729,6 +8749,11 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
     "source": "9b511a8c"
   },
+  "ops.announce.offline": {
+    "message": "{title} a perdu sa connexion et réessaiera automatiquement",
+    "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
+    "source": "4c66b528"
+  },
   "ops.announce.cancelled": {
     "message": "Annulé : {title}",
     "description": "Area: ops. Placeholders, kept exactly as written: {title} is the title of a tab.",
@@ -8813,6 +8838,21 @@
     "message": "{count} opérations ont été interrompues, dont : {label}",
     "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {label} is the name of an action or item, such as what Undo would undo. Plural: one of a group; the other forms are ops.recovery.one, ops.recovery.many.",
     "source": "126885d4"
+  },
+  "ops.recovery.resumable": {
+    "message": "Un transfert s’est arrêté quand sa connexion a été perdue : {label}. Reprendre le poursuit là où il s’est arrêté.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
+    "source": "a046a810"
+  },
+  "ops.recovery.resume": {
+    "message": "Reprendre",
+    "description": "Area: ops.",
+    "source": "d640c742"
+  },
+  "ops.recovery.resumeFailed": {
+    "message": "Le transfert n’a pas pu reprendre : {reason}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "a3611297"
   },
   "ops.recovery.unnamed": {
     "message": "Une opération a été interrompue.",

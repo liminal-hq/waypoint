@@ -9,6 +9,8 @@ import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision'
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
+import type { PartialNote } from '@liminal-hq/waypoint-protocol/generated/PartialNote';
+import { formatSize } from '../browse/format';
 import { useState } from 'react';
 import { connectAnswering } from '../connections/connectFlow';
 import { useConnections } from '../connections/ConnectionsContext';
@@ -17,7 +19,7 @@ import { askQuestion } from '../connections/connectStore';
 import { remoteStateText } from '../connections/remoteModel';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { announce } from '../tabs/announcer';
-import { jobTitle } from './jobText';
+import { baseName, jobTitle } from './jobText';
 import styles from './OperationErrorDialog.module.css';
 import { decisionsFor, problemText } from './problemModel';
 
@@ -116,6 +118,9 @@ export function OperationErrorDialog({
 				<p className={styles.fact} data-selectable="">
 					{tf('ops.problem.job', { title: jobTitle(job) })}
 				</p>
+				{error.kind === 'connection' && job.partial && (
+					<p className={styles.fact}>{partialText(job.partial)}</p>
+				)}
 				{details.length > 0 && (
 					<details className={styles.details}>
 						<summary>{t('ops.problem.details')}</summary>
@@ -187,4 +192,13 @@ function useSignIn(error: OpsError, onDecide: (decision: Decision) => void): Sig
 			}
 		},
 	};
+}
+
+/** What Retry does with the file a lost connection stopped part way (D165). */
+export function partialText(note: PartialNote): string {
+	const name = baseName(note.item.display);
+	if (!note.resumes) return tf('ops.problem.partial.restart', { name });
+	return note.kept === null
+		? tf('ops.problem.partial.resume', { name })
+		: tf('ops.problem.partial.resumeFrom', { name, size: formatSize(note.kept) });
 }
