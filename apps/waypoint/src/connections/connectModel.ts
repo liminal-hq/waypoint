@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { RemoteThumbnails } from '@liminal-hq/waypoint-protocol/generated/RemoteThumbnails';
 import type { AuthMethod } from '@liminal-hq/waypoint-protocol/generated/AuthMethod';
 import type { DavAuth } from '@liminal-hq/waypoint-protocol/generated/DavAuth';
 import type { ConnectionDraft } from '@liminal-hq/waypoint-protocol/generated/ConnectionDraft';
@@ -28,8 +29,10 @@ export interface ConnectForm {
 	keyFile: string;
 	jumpHost: string;
 	startFolder: string;
-	/** Previews of the server's files (off by default, D14). */
-	thumbnails: boolean;
+	/** Previews of the server's files (off by default, D14, D166). */
+	thumbnails: RemoteThumbnails;
+	/** The largest file read whole for a preview, in MB; blank for the default. */
+	thumbnailMaxMb: string;
 	/** Refresh every so many seconds; blank for never. */
 	refreshSeconds: string;
 	/** SMB: the domain the user belongs to; it is joined to the user as `domain;user`. */
@@ -62,7 +65,8 @@ export type FormField =
 	| 'refreshSeconds'
 	| 'domain'
 	| 's3Value'
-	| 's3Region';
+	| 's3Region'
+	| 'thumbnailMaxMb';
 
 export function emptyForm(scheme = 'sftp'): ConnectForm {
 	return {
@@ -75,7 +79,8 @@ export function emptyForm(scheme = 'sftp'): ConnectForm {
 		keyFile: '',
 		jumpHost: '',
 		startFolder: '',
-		thumbnails: false,
+		thumbnails: 'off',
+		thumbnailMaxMb: '',
 		refreshSeconds: '',
 		domain: '',
 		davAuth: 'auto',
@@ -158,6 +163,8 @@ export function formOf(draft: ConnectionDraft | SavedConnection, keep?: ConnectF
 		jumpHost: draft.jumpHost ?? keep?.jumpHost ?? '',
 		startFolder: draft.startFolder ?? '',
 		thumbnails: draft.options.thumbnails,
+		thumbnailMaxMb:
+			draft.options.thumbnailMaxMb === null ? '' : String(draft.options.thumbnailMaxMb),
 		refreshSeconds:
 			draft.options.refreshSeconds === null ? '' : String(draft.options.refreshSeconds),
 		s3Preset: s3 ? s3.preset : 'aws',
@@ -186,6 +193,7 @@ export function draftOf(form: ConnectForm): ConnectionDraft {
 	const domain = blank(form.domain);
 	const s3 = family === 's3';
 	const endpoint = s3 ? s3Endpoint(form.s3Preset, form.s3Value) : null;
+	const thumbnailMax = count(form.thumbnailMaxMb);
 	return {
 		name: form.name.trim(),
 		scheme: form.scheme,
@@ -199,6 +207,7 @@ export function draftOf(form: ConnectForm): ConnectionDraft {
 		startFolder: blank(form.startFolder),
 		options: {
 			thumbnails: form.thumbnails,
+			thumbnailMaxMb: thumbnailMax === null ? null : Number.isNaN(thumbnailMax) ? 0 : thumbnailMax,
 			refreshSeconds: refresh === null ? null : Number.isNaN(refresh) ? 0 : refresh,
 			timeoutSeconds: null,
 			listingRequests: null,
@@ -272,6 +281,10 @@ export function draftProblem(error: unknown): { field: FormField; message: strin
 	const refusal = error.error;
 	switch (refusal.kind) {
 		case 'draft':
+			// The one option with a field of its own besides the refresh interval is the preview size cap.
+			if (refusal.error.kind === 'option' && refusal.error.option === 'thumbnailMaxMb') {
+				return { field: 'thumbnailMaxMb', message: t('connect.problem.thumbnailMaxMb') };
+			}
 			return {
 				field: DRAFT_FIELDS[refusal.error.kind],
 				message: t(DRAFT_MESSAGES[refusal.error.kind]),

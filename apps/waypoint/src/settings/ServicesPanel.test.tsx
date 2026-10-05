@@ -42,6 +42,22 @@ describe('ServicesPanel', () => {
 		expect(text('System appearance')).toHaveTextContent('no portal');
 	});
 
+	it('says how thumbnails treat files on servers', async () => {
+		render(
+			<ServicesPanel
+				load={() =>
+					Promise.resolve({
+						thumbnails: { available: true, reason: null, features: ['cache', 'builtin'] },
+					})
+				}
+			/>,
+		);
+		const list = await screen.findByRole('list', { name: 'Services' });
+		expect(within(list).getByRole('listitem')).toHaveTextContent(
+			/Files on servers get previews only where their saved server turns them on/,
+		);
+	});
+
 	it('lists the plugins alphabetically by the name shown', async () => {
 		render(
 			<ServicesPanel

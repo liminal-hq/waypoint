@@ -254,6 +254,11 @@
     "description": "Area: services.",
     "source": "f82d6466"
   },
+  "services.note.thumbnails": {
+    "message": "Les fichiers sur des serveurs n’ont d’aperçus que si leur serveur enregistré les active (Paramètres → Aperçus et miniatures); ils sont lus par la connexion de Waypoint et gardés en mémoire, jamais dans le dossier de miniatures partagé.",
+    "description": "Area: services.",
+    "source": "fc504ce5"
+  },
   "services.name.volumes": {
     "message": "Lecteurs et volumes",
     "description": "Area: services.",
@@ -468,6 +473,11 @@
     "message": "Miniatures",
     "description": "Area: settings.",
     "source": "f82d6466"
+  },
+  "settings.group.serverPreviews": {
+    "message": "Fichiers sur les serveurs",
+    "description": "Area: settings.",
+    "source": "1c25dd0e"
   },
   "settings.group.language": {
     "message": "Langue et formats",
@@ -1578,6 +1588,21 @@
     "message": "Mo",
     "description": "Area: settings.",
     "source": "1d09f6fa"
+  },
+  "settings.previews.servers.none": {
+    "message": "Aucun serveur enregistré. Les aperçus des fichiers d’un serveur se règlent pour chaque serveur enregistré; un serveur non enregistré n’en montre aucun.",
+    "description": "Area: settings.",
+    "source": "cb2f4ea0"
+  },
+  "settings.previews.servers.changed": {
+    "message": "Aperçus de {server} : {choice}",
+    "description": "Area: settings. Placeholders, kept exactly as written: {choice} is the name of a choice; {server}.",
+    "source": "eabb2460"
+  },
+  "settings.previews.servers.failed": {
+    "message": "Les aperçus du serveur n’ont pas pu être changés.",
+    "description": "Area: settings.",
+    "source": "2403a012"
   },
   "settings.previews.measureHome.label": {
     "message": "Mesurer le dossier personnel à l’ouverture de la Vue d’ensemble",
@@ -4854,6 +4879,36 @@
     "description": "Area: connect.",
     "source": "2ea0c143"
   },
+  "connect.field.thumbnailsHint": {
+    "message": "Un aperçu lit le fichier sur le serveur : les aperçus sont donc désactivés à moins que vous les activiez.",
+    "description": "Area: connect.",
+    "source": "118f5907"
+  },
+  "connect.thumbnails.off": {
+    "message": "Désactivés",
+    "description": "Area: connect.",
+    "source": "ca7981b4"
+  },
+  "connect.thumbnails.smallFiles": {
+    "message": "Petits fichiers seulement",
+    "description": "Area: connect.",
+    "source": "00ec8850"
+  },
+  "connect.thumbnails.always": {
+    "message": "Toujours (le petit aperçu intégré d’une grande photo)",
+    "description": "Area: connect.",
+    "source": "b5115ac8"
+  },
+  "connect.field.thumbnailMaxMb": {
+    "message": "Plus grand fichier lu pour un aperçu (Mo)",
+    "description": "Area: connect.",
+    "source": "3086c263"
+  },
+  "connect.field.thumbnailMaxMbHint": {
+    "message": "De 1 à 100; vide pour 2 Mo. Un fichier plus grand n’est jamais lu en entier pour un aperçu.",
+    "description": "Area: connect.",
+    "source": "14e659cc"
+  },
   "connect.auth.auto": {
     "message": "Automatiquement",
     "description": "Area: connect. Sign-in method: the SSH agent and key files first, then ask.",
@@ -5098,6 +5153,11 @@
     "message": "Actualisez toutes les 10 à 3600 secondes, ou laissez vide.",
     "description": "Area: connect.",
     "source": "9c534aa8"
+  },
+  "connect.problem.thumbnailMaxMb": {
+    "message": "Lisez au plus de 1 à 100 Mo pour un aperçu, ou laissez le champ vide.",
+    "description": "Area: connect.",
+    "source": "bf2b151c"
   },
   "connect.problem.tooMany": {
     "message": "Aucune autre connexion ne peut être enregistrée.",

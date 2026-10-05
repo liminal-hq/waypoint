@@ -73,6 +73,8 @@ export const enMessages = {
 	'services.name.window-manager': 'Window manager',
 	'services.name.window-tearoff': 'Tab tear-off',
 	'services.name.thumbnails': 'Thumbnails',
+	'services.note.thumbnails':
+		'Files on servers get previews only where their saved server turns them on (Settings → Previews & thumbnails), read through Waypoint’s own connection and kept in memory, never in the shared thumbnail folder.',
 	'services.name.volumes': 'Drives and volumes',
 	'services.name.secrets': 'Keyring and saved passwords',
 	'services.name.window-effects': 'Window effects',
@@ -126,6 +128,7 @@ export const enMessages = {
 	'settings.group.motion': 'Motion and transparency',
 	'settings.group.touch': 'Touch',
 	'settings.group.thumbnails': 'Thumbnails',
+	'settings.group.serverPreviews': 'Files on servers',
 	'settings.group.language': 'Language and formats',
 	'settings.group.direction': 'Layout direction',
 	'settings.group.overview': 'Overview',
@@ -433,6 +436,10 @@ export const enMessages = {
 	'settings.previews.max.description':
 		'A larger file keeps its icon, so a huge image does not slow a folder down. Thumbnails already made are shared with other file managers and shown whatever the size.',
 	'settings.previews.max.unit': 'MB',
+	'settings.previews.servers.none':
+		'No saved servers. Previews of a server’s files are set for each saved server; a server that is not saved shows none.',
+	'settings.previews.servers.changed': 'Previews of {server}: {choice}',
+	'settings.previews.servers.failed': 'The server’s previews could not be changed.',
 	'settings.previews.measureHome.label': 'Measure Home when Overview opens',
 	'settings.previews.measureHome.description':
 		'Overview measures your home folder to list its biggest folders and to fill in "Your files" on the volume that holds it. A measurement less than an hour old is reused. Turn this off to measure only when you choose Measure now.',
@@ -1136,6 +1143,14 @@ export const enMessages = {
 	'connect.field.refreshHint':
 		'Leave empty to refresh only when a folder is shown, on F5 and after Waypoint writes to it.',
 	'connect.field.thumbnails': 'Show previews of this server’s files',
+	'connect.field.thumbnailsHint':
+		'Making a preview reads the file from the server, so previews are off unless you turn them on.',
+	'connect.thumbnails.off': 'Off',
+	'connect.thumbnails.smallFiles': 'Small files only',
+	'connect.thumbnails.always': 'Always (a large photo’s own small preview)',
+	'connect.field.thumbnailMaxMb': 'Largest file to read for a preview (MB)',
+	'connect.field.thumbnailMaxMbHint':
+		'From 1 to 100; empty for 2 MB. A larger file is never read whole for a preview.',
 	// translator: Sign-in method: the SSH agent and key files first, then ask.
 	'connect.auth.auto': 'Automatically',
 	'connect.auth.autoHint': 'Tries the SSH agent and your key files, then asks for a password.',
@@ -1193,6 +1208,7 @@ export const enMessages = {
 	'connect.problem.jumpHost': 'Write the jump host as user@host:port.',
 	'connect.problem.startFolder': 'The start folder is a path on the server starting with /.',
 	'connect.problem.refresh': 'Refresh every 10 to 3600 seconds, or leave it empty.',
+	'connect.problem.thumbnailMaxMb': 'Read at most 1 to 100 MB for a preview, or leave it empty.',
 	'connect.problem.tooMany': 'No more connections can be saved.',
 	'connect.problem.gone': 'This connection is no longer saved.',
 	'connect.error.nameNotResolved': 'Not connected: the host name was not found.',

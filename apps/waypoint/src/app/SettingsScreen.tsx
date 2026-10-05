@@ -19,6 +19,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocaleVersion } from '../i18n/active';
 import { t } from '../i18n/messages';
+import { createTauriConnectionsClient } from '../connections/tauriConnectionsClient';
 import type { DefaultFileManagerClient } from '../services/defaultFileManagerClient';
 import type { IntegrationsClient } from '../services/integrationsClient';
 import { createTauriDefaultFileManagerClient } from '../services/tauriDefaultFileManagerClient';
@@ -36,6 +37,11 @@ import {
 	type OpsSettingsApi,
 	type ProtocolSupport,
 } from '../settings/SettingsEditor';
+import {
+	createServerPreviewsClient,
+	ServerPreviewsProvider,
+	type ServerPreviewsClient,
+} from '../settings/ServerPreviews';
 import { settingsSections, type SectionId } from '../settings/settingsSections';
 import { AppTitleBar } from './AppTitleBar';
 import { NoticeToast } from './NoticeToast';
@@ -62,6 +68,8 @@ interface SettingsScreenProps {
 	fileManager?: DefaultFileManagerClient;
 	/** Export and import of the settings; the settings plugin's unless a test supplies its own. */
 	transfer?: SettingsTransferClient;
+	/** The saved connections' previews choices; the connections plugin's unless a test supplies its own (`null` for none). */
+	servers?: ServerPreviewsClient | null;
 }
 
 /** The native drag and drop plugin's status in the shape the page needs. */
@@ -131,6 +139,7 @@ function Editor({
 	initialSection,
 	fileManager,
 	transfer,
+	servers,
 }: Pick<
 	SettingsScreenProps,
 	| 'ops'
@@ -142,12 +151,16 @@ function Editor({
 	| 'initialSection'
 	| 'fileManager'
 	| 'transfer'
+	| 'servers'
 >) {
 	const handle = useSettingsHandle();
 	const [ownOps] = useState<OpsSettingsApi>(() => ops ?? createTauriOpsClient());
 	const [ownIntegrations] = useState(() => integrations ?? createTauriIntegrationsClient());
 	const [ownFileManager] = useState(() => fileManager ?? createTauriDefaultFileManagerClient());
 	const [ownTransfer] = useState(() => transfer ?? createTauriSettingsTransferClient());
+	const [ownServers] = useState(() =>
+		servers === undefined ? createServerPreviewsClient(createTauriConnectionsClient()) : servers,
+	);
 	if (!handle) return null;
 	return (
 		<SettingsEditorProvider
@@ -161,7 +174,9 @@ function Editor({
 			fileManager={ownFileManager}
 			transfer={ownTransfer}
 		>
-			<Pages initialSection={initialSection} />
+			<ServerPreviewsProvider client={ownServers}>
+				<Pages initialSection={initialSection} />
+			</ServerPreviewsProvider>
 		</SettingsEditorProvider>
 	);
 }
@@ -182,6 +197,7 @@ export function SettingsScreen({
 	initialSection,
 	fileManager,
 	transfer,
+	servers,
 }: SettingsScreenProps) {
 	const [own] = useState(() => client ?? createTauriSettingsClient());
 	// The title bar and the pages render their messages themselves, so a new language needs a render.
@@ -201,6 +217,7 @@ export function SettingsScreen({
 						initialSection={initialSection}
 						fileManager={fileManager}
 						transfer={transfer}
+						servers={servers}
 					/>
 				</SettingsProvider>
 			</main>

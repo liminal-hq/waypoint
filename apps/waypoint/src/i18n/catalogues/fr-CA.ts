@@ -114,6 +114,9 @@ const messages: Catalogue = {
 	'services.name.window-tearoff': 'Détachement d’onglets',
 	// source: f82d6466
 	'services.name.thumbnails': 'Miniatures',
+	// source: fc504ce5
+	'services.note.thumbnails':
+		'Les fichiers sur des serveurs n’ont d’aperçus que si leur serveur enregistré les active (Paramètres → Aperçus et miniatures); ils sont lus par la connexion de Waypoint et gardés en mémoire, jamais dans le dossier de miniatures partagé.',
 	// source: b15a7fb6
 	'services.name.volumes': 'Lecteurs et volumes',
 	// source: 79cd7236
@@ -218,6 +221,8 @@ const messages: Catalogue = {
 	'settings.group.touch': 'Tactile',
 	// source: f82d6466
 	'settings.group.thumbnails': 'Miniatures',
+	// source: 1c25dd0e
+	'settings.group.serverPreviews': 'Fichiers sur les serveurs',
 	// source: 15c08445
 	'settings.group.language': 'Langue et formats',
 	// source: 734e6606
@@ -740,6 +745,13 @@ const messages: Catalogue = {
 		'Un fichier plus gros garde son icône, afin qu’une image énorme ne ralentisse pas un dossier. Les miniatures déjà créées sont partagées avec d’autres gestionnaires de fichiers et s’affichent quelle que soit la taille.',
 	// source: 1d09f6fa
 	'settings.previews.max.unit': 'Mo',
+	// source: cb2f4ea0
+	'settings.previews.servers.none':
+		'Aucun serveur enregistré. Les aperçus des fichiers d’un serveur se règlent pour chaque serveur enregistré; un serveur non enregistré n’en montre aucun.',
+	// source: eabb2460
+	'settings.previews.servers.changed': 'Aperçus de {server} : {choice}',
+	// source: 2403a012
+	'settings.previews.servers.failed': 'Les aperçus du serveur n’ont pas pu être changés.',
 	// source: f76a11c3
 	'settings.previews.measureHome.label':
 		'Mesurer le dossier personnel à l’ouverture de la Vue d’ensemble',
@@ -2101,6 +2113,20 @@ const messages: Catalogue = {
 		'Laissez vide pour actualiser seulement quand un dossier est affiché, avec F5 et après que Waypoint y écrit.',
 	// source: 2ea0c143
 	'connect.field.thumbnails': 'Afficher les aperçus des fichiers de ce serveur',
+	// source: 118f5907
+	'connect.field.thumbnailsHint':
+		'Un aperçu lit le fichier sur le serveur : les aperçus sont donc désactivés à moins que vous les activiez.',
+	// source: ca7981b4
+	'connect.thumbnails.off': 'Désactivés',
+	// source: 00ec8850
+	'connect.thumbnails.smallFiles': 'Petits fichiers seulement',
+	// source: b5115ac8
+	'connect.thumbnails.always': 'Toujours (le petit aperçu intégré d’une grande photo)',
+	// source: 3086c263
+	'connect.field.thumbnailMaxMb': 'Plus grand fichier lu pour un aperçu (Mo)',
+	// source: 14e659cc
+	'connect.field.thumbnailMaxMbHint':
+		'De 1 à 100; vide pour 2 Mo. Un fichier plus grand n’est jamais lu en entier pour un aperçu.',
 	// source: a15c6adf
 	'connect.auth.auto': 'Automatiquement',
 	// source: 78a4438c
@@ -2211,6 +2237,9 @@ const messages: Catalogue = {
 		'Le dossier de départ est un chemin sur le serveur commençant par /.',
 	// source: 9c534aa8
 	'connect.problem.refresh': 'Actualisez toutes les 10 à 3600 secondes, ou laissez vide.',
+	// source: bf2b151c
+	'connect.problem.thumbnailMaxMb':
+		'Lisez au plus de 1 à 100 Mo pour un aperçu, ou laissez le champ vide.',
 	// source: 09d0d5fd
 	'connect.problem.tooMany': 'Aucune autre connexion ne peut être enregistrée.',
 	// source: c2ccccde

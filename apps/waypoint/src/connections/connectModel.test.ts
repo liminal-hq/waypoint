@@ -280,3 +280,24 @@ describe('the S3 form', () => {
 		expect(draftProblem(refused('region'))).toMatchObject({ field: 's3Region' });
 	});
 });
+
+describe('previews of a server’s files', () => {
+	it('start off, and carry the choice and the size cap both ways', () => {
+		expect(emptyForm().thumbnails).toBe('off');
+		const sent = draftOf({ ...emptyForm(), thumbnails: 'always', thumbnailMaxMb: '8' });
+		expect(sent.options.thumbnails).toBe('always');
+		expect(sent.options.thumbnailMaxMb).toBe(8);
+		expect(draftOf({ ...emptyForm(), thumbnailMaxMb: 'lots' }).options.thumbnailMaxMb).toBe(0);
+		expect(draftOf(emptyForm()).options.thumbnailMaxMb).toBeNull();
+		const back = formOf(draft({ options: sent.options }));
+		expect([back.thumbnails, back.thumbnailMaxMb]).toEqual(['always', '8']);
+	});
+
+	it('puts a refused size cap under its own field', () => {
+		const problem = draftProblem({
+			kind: 'connections',
+			error: { kind: 'draft', error: { kind: 'option', option: 'thumbnailMaxMb' } },
+		});
+		expect(problem?.field).toBe('thumbnailMaxMb');
+	});
+});
