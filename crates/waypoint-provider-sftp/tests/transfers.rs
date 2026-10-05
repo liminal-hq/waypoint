@@ -195,3 +195,95 @@ fn undoing_an_upload_removes_it_and_refuses_once_it_changed() {
     );
     let _ = e.h.provider.stat(&e.h.path("a.txt")).unwrap();
 }
+
+/// Cuts the connection once the copy has sent `after` bytes, tries again at once when it is lost,
+/// and notes what the engine kept.
+struct Severing<'a> {
+    proxy: &'a support::Proxy,
+    after: u64,
+    severed: bool,
+    offline: u32,
+    kept: Vec<waypoint_ops::ResumePoint>,
+    asked: Vec<OpsError>,
+}
+
+impl waypoint_ops::ExecSink for Severing<'_> {
+    fn progress(&mut self, progress: &waypoint_ops::Progress, _: &waypoint_ops::Counts) {
+        if !self.severed && progress.bytes_done >= self.after {
+            self.severed = true;
+            self.proxy.sever();
+        }
+    }
+
+    fn offline(&mut self, _: &waypoint_protocol::Location, _: &OpsError, attempt: u32) -> bool {
+        self.offline += 1;
+        attempt < 3
+    }
+
+    fn kept_partial(&mut self, point: &waypoint_ops::ResumePoint) {
+        self.kept.push(point.clone());
+    }
+
+    fn on_error(
+        &mut self,
+        _: &waypoint_protocol::Location,
+        error: &OpsError,
+    ) -> Option<waypoint_ops::Decision> {
+        self.asked.push(error.clone());
+        None
+    }
+}
+
+#[test]
+fn an_upload_cut_part_way_continues_from_what_the_server_holds() {
+    let Some(server) = Sshd::start() else { return };
+    let proxy = support::Proxy::start(server.port, Duration::from_millis(4));
+    let dir = temp_dir();
+    let base = VfsPath::File(FilePath::from_path(dir.path()).unwrap());
+    let mut h = waypoint_ops::testing::harness::Harness::new(LocalProvider::new(), base);
+    h.env.providers.register(Arc::new(
+        server.provider_with(proxy.port, Default::default()),
+    ));
+    let work = dir.path().join("work");
+    let content: Vec<u8> = (0..12_000_000u32).map(|n| (n * 17 % 241) as u8).collect();
+    fs::write(work.join("big.bin"), &content).unwrap();
+    let up = server.location(proxy.port, &server.data);
+    let request = request(JobKind::Copy, &[h.path("big.bin")], &up);
+    let plan = h.plan(&request).unwrap();
+    let mut sink = Severing {
+        proxy: &proxy,
+        after: 4 * 1024 * 1024,
+        severed: false,
+        offline: 0,
+        kept: Vec::new(),
+        asked: Vec::new(),
+    };
+    let options = waypoint_ops::RunOptions {
+        chunk_bytes: 1024 * 1024,
+        verify: Some(waypoint_ops::VerifyAlgorithm::Blake3),
+        ..Default::default()
+    };
+    let result = waypoint_ops::Executor::new(h.env.clone()).run_with(
+        waypoint_ops::JobId(1),
+        &plan,
+        &waypoint_vfs::CancelToken::new(),
+        &mut sink,
+        options,
+    );
+    assert!(
+        result.is_ok(),
+        "{:?}; asked {:?}",
+        result.err().map(|f| f.error),
+        sink.asked
+    );
+    assert!(sink.severed);
+    assert!(sink.offline >= 1, "the cut was waited out");
+    assert_eq!(sink.kept.len(), 1, "the partial file was kept");
+    assert_eq!(fs::read(server.data.join("big.bin")).unwrap(), content);
+    let names: Vec<_> = fs::read_dir(&server.data)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, ["big.bin"]);
+    assert!(proxy.connections() >= 2, "it connected again");
+}

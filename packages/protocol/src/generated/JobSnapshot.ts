@@ -6,6 +6,7 @@ import type { JobKind } from "./JobKind";
 import type { JobOptions } from "./JobOptions";
 import type { JobState } from "./JobState";
 import type { Location } from "./Location";
+import type { PartialNote } from "./PartialNote";
 import type { Progress } from "./Progress";
 import type { SourcesSummary } from "./SourcesSummary";
 import type { TransferEnds } from "./TransferEnds";
@@ -39,4 +40,8 @@ ends?: TransferEnds,
  * What the copies could not keep because the destination cannot hold it, once the job ends;
  * `None` when they kept everything.
  */
-dropped?: Array<DroppedDetail>, };
+dropped?: Array<DroppedDetail>, 
+/**
+ * The file a lost connection stopped part way, and what Retry does with it (D165).
+ */
+partial?: PartialNote, };

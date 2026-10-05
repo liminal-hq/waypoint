@@ -13,14 +13,15 @@
 //
 //   planning   -> queued | failed | cancelled
 //   queued     -> running | cancelled
-//   running    -> paused | waiting | done | failed | cancelling
+//   running    -> paused | waiting | offline | done | failed | cancelling
 //   paused     -> running | cancelling
 //   waiting    -> running | cancelling
+//   offline    -> running | cancelling
 //   cancelling -> cancelled | done | failed
 //
 // `done`, `failed` and `cancelled` are final; `dismiss` removes the job from the list and `retry`
 // makes a new job from the same request. A job holds one of the worker slots from `running` until
-// it ends, including while it is paused, waiting or cancelling, because a worker is parked on it.
+// it ends, including while it is paused, waiting, offline or cancelling, because a worker is parked on it.
 
 use std::sync::Arc;
 
@@ -32,8 +33,8 @@ use waypoint_vfs::CancelToken;
 use crate::exec::Resolutions;
 use crate::model::{
     Counts, DroppedDetail, JobId, JobKind, JobPriority, JobRequest, JobSnapshot, JobState,
-    OpsError, OpsEvent, OpsSnapshot, PlanTotals, Progress, Resolution, Sources, SourcesSummary,
-    Verification, WaitReason,
+    OpsError, OpsEvent, OpsSnapshot, PartialNote, PlanTotals, Progress, Resolution, Sources,
+    SourcesSummary, Verification, WaitReason,
 };
 use crate::schedule::Schedule;
 use crate::traits::{Clock, SettingsReader};
@@ -62,9 +63,10 @@ pub fn is_legal(from: &JobState, to: &JobState) -> bool {
             | (Queued, Running | Cancelled)
             | (
                 Running,
-                Paused | Waiting { .. } | Done | Failed { .. } | Cancelling
+                Paused | Waiting { .. } | Offline { .. } | Done | Failed { .. } | Cancelling
             )
             | (Paused, Running | Cancelling)
+            | (Offline { .. }, Running | Cancelling)
             | (Waiting { .. }, Running | Cancelling)
             | (Cancelling, Cancelled | Done | Failed { .. })
     )
@@ -300,6 +302,7 @@ impl OpsStore {
             verified: None,
             ends: None,
             dropped: None,
+            partial: None,
         };
         let mut touches = Vec::new();
         touches.extend(request.destination.clone());
@@ -660,6 +663,46 @@ impl OpsStore {
             return Ok(Vec::new());
         }
         self.jobs[index].snapshot.dropped = dropped;
+        Ok(vec![self.changed(index)])
+    }
+
+    /// A server stopped answering: the running job waits for it and tries again by itself (D165).
+    pub fn offline(
+        &mut self,
+        id: JobId,
+        error: OpsError,
+        item: Location,
+        attempt: u32,
+        retry_at_ms: i64,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        self.go(
+            id,
+            JobState::Offline {
+                error,
+                item,
+                attempt,
+                retry_at_ms,
+            },
+            "wait for the connection",
+        )
+    }
+
+    /// The offline wait is over: the job runs again (and tries the item once more).
+    pub fn online(&mut self, id: JobId) -> Result<Vec<OpsEvent>, QueueError> {
+        self.go(id, JobState::Running, "try again")
+    }
+
+    /// Records what a lost connection did with the file a job was writing (D165), or clears it.
+    pub fn set_partial(
+        &mut self,
+        id: JobId,
+        partial: Option<PartialNote>,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        if self.jobs[index].snapshot.partial == partial {
+            return Ok(Vec::new());
+        }
+        self.jobs[index].snapshot.partial = partial;
         Ok(vec![self.changed(index)])
     }
 

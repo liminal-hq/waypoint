@@ -78,6 +78,8 @@ fn copy_tree(
                     size_hint: entry.size.unwrap_or(0),
                     durable: true,
                     throttle: None,
+                    offset: 0,
+                    resumable: false,
                 },
                 buf,
                 &mut |_| {},

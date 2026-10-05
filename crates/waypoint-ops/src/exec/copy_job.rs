@@ -20,7 +20,7 @@
 // a thousand does not end the job. Conflicts are decided per clash, by the answers the job holds
 // (`Resolutions`) and by asking the sink for the rest.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::ffi::{OsStr, OsString};
 use std::mem::{discriminant, Discriminant};
 use std::sync::Arc;
@@ -32,13 +32,15 @@ use waypoint_vfs::{
     WriteOptions,
 };
 
-use super::copy_engine::{copy_file_bytes, hash_file, FileCopy, CHUNK_BYTES};
+use super::copy_engine::{copy_file_bytes, hash_file, is_lost, FileCopy, CHUNK_BYTES};
 use super::copy_resolve::{action_for, Action, Resolutions};
+use super::reconnect::is_transient;
 use super::{remove::remove_tree, ExecEnv, ExecFailure, ExecReport, ExecSink};
 use crate::journal::InverseStep;
 use crate::model::{
     Conflict, ConflictKind, ConflictPolicy, Counts, Decision, DroppedDetail, JobId, JobKind,
-    JobOptions, OpsError, OpsSettings, Progress, Resolution, Verification, VerifyAlgorithm,
+    JobOptions, OpsError, OpsSettings, PartialNote, Progress, Resolution, ResumePoint,
+    Verification, VerifyAlgorithm,
 };
 use crate::names::{file_name_of, is_within, unique_full_name};
 use crate::plan::{renames_between, same_connection, volume_probe, Plan, PlanItem};
@@ -58,6 +60,9 @@ pub struct RunOptions {
     pub clock: Arc<dyn Clock>,
     /// The speed limits to obey (D157); `None` runs as fast as the providers go.
     pub throttle: Option<Throttle>,
+    /// Partial files an earlier run of the same request left on a lost connection, to continue
+    /// rather than send again (D165).
+    pub resume: Vec<ResumePoint>,
 }
 
 impl Default for RunOptions {
@@ -68,6 +73,7 @@ impl Default for RunOptions {
             chunk_bytes: CHUNK_BYTES,
             clock: Arc::new(SystemClock),
             throttle: None,
+            resume: Vec::new(),
         }
     }
 }
@@ -111,6 +117,9 @@ pub struct TransferReport {
     pub unjournalled: Option<String>,
     /// What the copies could not keep because the destination cannot hold it (A84), each once.
     pub dropped: Vec<DroppedDetail>,
+    /// Partial files a lost connection left that a later run can continue (D165): what a job that
+    /// failed hands over to its Retry.
+    pub kept: Vec<ResumePoint>,
 }
 
 /// How a unit came to be at its target, which decides how an undo reverses it.
@@ -270,6 +279,10 @@ struct Transfer<'a> {
     copied: Option<Vec<(VfsPath, ScannedEntry)>>,
     /// What the copies could not keep, so far.
     dropped: BTreeSet<DroppedDetail>,
+    /// Partial files kept on a lost connection, by the URI of the file they become.
+    kept: HashMap<String, ResumePoint>,
+    /// A lost connection's note is showing, to clear once the file is in place.
+    noted: bool,
 }
 
 /// Runs a copy or move plan.
@@ -311,6 +324,12 @@ pub(super) fn run(
         placed: HashSet::new(),
         copied: None,
         dropped: BTreeSet::new(),
+        kept: options
+            .resume
+            .into_iter()
+            .map(|point| (point.target.uri.clone(), point))
+            .collect(),
+        noted: false,
     };
     let mut done = 0u64;
     for item in &plan.items {
@@ -323,7 +342,14 @@ pub(super) fn run(
         }
         let outcome = match result {
             Ok(outcome) => outcome,
-            Err(Flow::Cancelled) => return Err(t.fail(OpsError::Cancelled, Some(at), done)),
+            Err(Flow::Cancelled) => {
+                // Cancel removes what was written, kept partial files too, unless the app is
+                // quitting, which keeps them for the next start (D165).
+                if !t.sink.keep_on_cancel() {
+                    t.drop_kept();
+                }
+                return Err(t.fail(OpsError::Cancelled, Some(at), done));
+            }
             Err(Flow::Fatal(error, location)) => return Err(t.fail(*error, Some(*location), done)),
             Err(Flow::Item(error)) => return Err(t.fail(*error, Some(at), done)),
         };
@@ -332,6 +358,8 @@ pub(super) fn run(
         }
         t.meter.emit(t.sink);
     }
+    // A partial file kept for an item that was then skipped, or renamed away, is not needed.
+    t.drop_kept();
     t.finish_report();
     Ok(t.report)
 }
@@ -368,6 +396,9 @@ impl Transfer<'_> {
         self.report.counts = self.meter.counts;
         self.report.transfer.policy = self.resolutions.all();
         self.report.transfer.dropped = self.dropped.iter().copied().collect();
+        let mut kept: Vec<ResumePoint> = self.kept.values().cloned().collect();
+        kept.sort_by(|a, b| a.target.uri.cmp(&b.target.uri));
+        self.report.transfer.kept = kept;
         self.report.inverse = self.inverse_steps();
         self.report.transfer.unjournalled =
             (!self.report.transfer.replaced.is_empty()).then(|| {
@@ -460,12 +491,19 @@ impl Transfer<'_> {
         at: &Location,
         mut step: impl FnMut(&mut Self) -> R<T>,
     ) -> R<Option<T>> {
+        let mut offline = 0u32;
         loop {
             self.check()?;
             match step(self) {
                 Ok(value) => return Ok(Some(value)),
                 Err(Flow::Item(error)) => {
                     let error = *error;
+                    // A server that stopped answering is waited for and tried again (D165), as
+                    // long as the worker is willing; then the person is asked.
+                    if is_transient(&error) && self.sink.offline(at, &error, offline) {
+                        offline += 1;
+                        continue;
+                    }
                     let kind = discriminant(&error);
                     if self.skip_kinds.contains(&kind) {
                         self.fail_item(at, error);
@@ -633,6 +671,33 @@ impl Transfer<'_> {
     fn writes_in_place(dp: &dyn Provider) -> bool {
         let caps = dp.capabilities();
         caps.atomic_write || caps.rename == RenameSupport::None
+    }
+
+    /// Removes every partial file kept for a later run, which nothing will continue now. One the
+    /// server cannot be asked to remove (it is still away) stays kept, so the job reports it and
+    /// it can be removed later.
+    fn drop_kept(&mut self) {
+        for (key, point) in std::mem::take(&mut self.kept) {
+            let Ok((path, provider)) = self.env.providers.for_location(&point.partial) else {
+                continue;
+            };
+            match provider.remove_file(&path) {
+                Err(error) if is_lost(&error) => {
+                    self.kept.insert(key, point);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Tells the sink what a lost connection did with the file being written, and remembers that
+    /// a note is showing.
+    fn note_partial(&mut self, note: Option<PartialNote>) {
+        if note.is_none() && !self.noted {
+            return;
+        }
+        self.noted = note.is_some();
+        self.sink.partial(note.as_ref());
     }
 
     /// Notes the details a copy could not keep.
@@ -1038,7 +1103,9 @@ impl Transfer<'_> {
             }
         }
 
-        let partial = self.sibling("partial", target)?;
+        let resumable =
+            entry.kind == EntryKind::File && !self.linking && dp.capabilities().resume_write;
+        let (partial, offset) = self.partial_for(dp.as_ref(), src, target, entry, resumable)?;
         let base = self.meter.progress.bytes_done;
         if let Err(error) = self.write_partial(
             sp.as_ref(),
@@ -1049,11 +1116,44 @@ impl Transfer<'_> {
             entry,
             same_provider,
             WriteOptions::exclusive(),
+            offset,
         ) {
-            self.discard(dp.as_ref(), &partial);
             self.meter.progress.bytes_done = base;
+            let lost = matches!(&error, Flow::Item(e) if is_transient(e));
+            if lost && resumable {
+                // Kept, so Retry, the offline wait or a later run continues it (D165). The server
+                // is likely gone just now, so the length it holds is asked again when the copy
+                // continues; this is only what it said, if it said.
+                let held = dp.stat(&partial).ok().and_then(|held| held.size);
+                let point = ResumePoint {
+                    source: src.to_location(),
+                    target: target.to_location(),
+                    partial: partial.to_location(),
+                    source_size: entry.size,
+                    source_modified_ms: entry.modified_ms,
+                    offset: held.unwrap_or(0),
+                };
+                self.sink.kept_partial(&point);
+                self.note_partial(Some(PartialNote {
+                    item: src.to_location(),
+                    resumes: true,
+                    kept: held,
+                }));
+                self.kept.insert(point.target.uri.clone(), point);
+                return Err(error);
+            }
+            if lost && dp.capabilities().remote && entry.kind == EntryKind::File {
+                // This server cannot continue a file part way: Retry starts it again, and says so.
+                self.note_partial(Some(PartialNote {
+                    item: src.to_location(),
+                    resumes: false,
+                    kept: None,
+                }));
+            }
+            self.discard(dp.as_ref(), &partial);
             return Err(error);
         }
+        self.note_partial(None);
         if existing.is_some() {
             match self.set_aside(dp.as_ref(), target) {
                 Ok(moved) => aside = Some(moved),
@@ -1096,6 +1196,46 @@ impl Transfer<'_> {
         Ok(())
     }
 
+    /// The partial name a file is written under, and the offset to continue from: a partial file an
+    /// earlier attempt kept for `target`, when the destination can continue it and the source is
+    /// still what was copied (the offset being what the server holds now, D165), otherwise a new
+    /// name and 0. A kept partial that cannot be continued is removed.
+    fn partial_for(
+        &mut self,
+        dp: &dyn Provider,
+        src: &VfsPath,
+        target: &VfsPath,
+        entry: &ScannedEntry,
+        resumable: bool,
+    ) -> R<(VfsPath, u64)> {
+        if let Some(point) = self.kept.remove(&target.to_uri()) {
+            let path = VfsPath::from_location(&point.partial).ok();
+            let unchanged = point.source == src.to_location()
+                && point.source_size == entry.size
+                && point.source_modified_ms == entry.modified_ms;
+            if let (Some(path), true, true) = (path.clone(), resumable, unchanged) {
+                match dp.stat(&path) {
+                    Ok(held) => {
+                        let offset = held.size.unwrap_or(0);
+                        if offset > 0 && entry.size.is_none_or(|size| offset <= size) {
+                            return Ok((path, offset));
+                        }
+                    }
+                    Err(VfsError::NotFound { .. }) => {}
+                    Err(error) => {
+                        // Not known now: keep the point for the next try.
+                        self.kept.insert(point.target.uri.clone(), point);
+                        return Err(error.into());
+                    }
+                }
+            }
+            if let Some(path) = path {
+                let _ = dp.remove_file(&path);
+            }
+        }
+        Ok((self.sibling("partial", target)?, 0))
+    }
+
     /// Places a file at `target` on a destination that writes in place (`writes_in_place`): the
     /// bytes go straight to the final name, created exclusively, or replacing what is there when the
     /// destination shows the new file only once it is whole. Where it would show a half-written
@@ -1133,6 +1273,7 @@ impl Transfer<'_> {
             entry,
             same_provider,
             options,
+            0,
         ) {
             self.meter.progress.bytes_done = base;
             return Err(error);
@@ -1217,6 +1358,7 @@ impl Transfer<'_> {
         entry: &ScannedEntry,
         same_provider: bool,
         options: WriteOptions,
+        offset: u64,
     ) -> R<()> {
         self.check()?;
         if self.linking {
@@ -1250,6 +1392,10 @@ impl Transfer<'_> {
             chunk: self.chunk,
             size_hint: entry.size.unwrap_or(0),
             throttle: self.throttle.as_ref(),
+            offset,
+            resumable: dp.capabilities().resume_write
+                && entry.kind == EntryKind::File
+                && partial != target,
         };
         let copied = {
             let Transfer {
@@ -1269,8 +1415,22 @@ impl Transfer<'_> {
                 cancel,
             )?
         };
+        // A continued copy hashed only what it sent: the source is read whole for its digest, and
+        // the copy read back against it as for any other (D165).
+        let digest = match (self.verify, copied.digest) {
+            (Some(algorithm), None) if offset > 0 => Some(hash_file(
+                sp,
+                src,
+                algorithm,
+                self.chunk,
+                entry.size.unwrap_or(0),
+                &mut self.buf,
+                self.cancel,
+            )?),
+            (_, digest) => digest,
+        };
         let checked = (|| -> R<()> {
-            if let (Some(algorithm), Some(expected)) = (self.verify, copied.digest.as_deref()) {
+            if let (Some(algorithm), Some(expected)) = (self.verify, digest.as_deref()) {
                 self.verify_copy(
                     sp,
                     src,

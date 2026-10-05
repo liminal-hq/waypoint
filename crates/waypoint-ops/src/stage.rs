@@ -93,6 +93,8 @@ pub fn stage_files(
                     chunk: CHUNK_BYTES,
                     size_hint: entry.size.unwrap_or(0),
                     throttle: None,
+                    offset: 0,
+                    resumable: false,
                 },
                 &mut buf,
                 &mut |_| {},

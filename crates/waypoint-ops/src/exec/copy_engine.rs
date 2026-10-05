@@ -51,6 +51,13 @@ pub struct FileCopy<'a> {
     /// The speed limits to obey, which cut the loop into paced pieces and keep the fast path out of
     /// it while one is in force. The bytes copied are the same with or without it.
     pub throttle: Option<&'a Throttle>,
+    /// Continue a partial `dst` that holds the first `offset` bytes of the source (D165): the
+    /// source is read from there and the destination written on with `resume_write`. Nothing is
+    /// hashed while copying, so a verified copy reads the whole file back afterwards. 0 starts afresh.
+    pub offset: u64,
+    /// `dst` is kept when the copy stops on a lost connection, so it can be continued: the caller
+    /// records it instead of the engine removing it.
+    pub resumable: bool,
 }
 
 /// What a finished copy made.
@@ -96,6 +103,7 @@ pub fn copy_file_bytes(
 ) -> Result<Copied, VfsError> {
     let limited = request.throttle.is_some_and(Throttle::is_limited);
     let fast = request.same_provider
+        && request.offset == 0
         && request.verify.is_none()
         && (!request.durable || request.server_copy)
         && request.options.exclusive
@@ -136,13 +144,27 @@ fn copy_loop(
 ) -> Result<Copied, VfsError> {
     let src_location = request.src.to_location();
     let dst_location = request.dst.to_location();
-    let mut reader = request.src_provider.open_read(request.src)?;
-    let mut writer = request
-        .dst_provider
-        .create_write(request.dst, request.options)?;
+    let resuming = request.offset > 0;
+    let mut reader = if resuming {
+        request
+            .src_provider
+            .open_read_at(request.src, request.offset)?
+    } else {
+        request.src_provider.open_read(request.src)?
+    };
+    let opened = if resuming {
+        request
+            .dst_provider
+            .resume_write(request.dst, request.offset)
+    } else {
+        request
+            .dst_provider
+            .create_write(request.dst, request.options)
+    };
+    let mut writer = opened?;
     let buffer = buffer_for(buf, request.chunk, request.size_hint);
-    let mut hasher = request.verify.map(Hasher::new);
-    let mut copied = 0u64;
+    let mut hasher = request.verify.filter(|_| !resuming).map(Hasher::new);
+    let mut copied = request.offset;
     let result = (|| -> Result<(), VfsError> {
         loop {
             if cancel.is_cancelled() {
@@ -185,12 +207,25 @@ fn copy_loop(
             digest: hasher.map(Hasher::finish),
         }),
         Err(error) => {
-            if !request.atomic {
+            let keep = request.atomic || (request.resumable && is_lost(&error));
+            if !keep {
                 let _ = request.dst_provider.remove_file(request.dst);
             }
             Err(error)
         }
     }
+}
+
+/// Whether a copy stopped because the connection went away, which leaves a partial file worth
+/// continuing.
+pub(crate) fn is_lost(error: &VfsError) -> bool {
+    matches!(
+        error,
+        VfsError::Disconnected { .. }
+            | VfsError::Unreachable { .. }
+            | VfsError::Timeout { .. }
+            | VfsError::RateLimited { .. }
+    )
 }
 
 /// Reads a file through and returns its digest (the read-back of a verified copy, and the second

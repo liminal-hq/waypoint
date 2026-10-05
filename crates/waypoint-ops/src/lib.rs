@@ -30,8 +30,9 @@ pub use checksum::{
     checksum_reader, run_checksum, ChecksumEvent, REPORT_EVERY as CHECKSUM_REPORT_EVERY,
 };
 pub use exec::{
-    action_for, remove_all, Action, CopyFile, CopyRequest, ExecEnv, ExecFailure, ExecReport,
-    ExecSink, Executor, NullSink, Resolutions, RunOptions, SimpleCopy, TransferReport, CHUNK_BYTES,
+    action_for, is_transient, reconnect_delay_ms, remove_all, Action, CopyFile, CopyRequest,
+    ExecEnv, ExecFailure, ExecReport, ExecSink, Executor, NullSink, Resolutions, RunOptions,
+    SimpleCopy, TransferReport, CHUNK_BYTES, RECONNECT_ATTEMPTS,
 };
 pub use journal::*;
 pub use model::*;
