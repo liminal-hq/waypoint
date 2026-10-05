@@ -352,7 +352,11 @@ fn typed_text_becomes_a_location_and_junk_is_rejected() {
     let app = app();
     let base = location(Path::new("/srv/data"));
     let parse = |input: &str| {
-        tauri::async_runtime::block_on(commands::parse_location(input.to_owned(), base.clone()))
+        tauri::async_runtime::block_on(commands::parse_location(
+            app.state::<Vfs>(),
+            input.to_owned(),
+            base.clone(),
+        ))
     };
     assert_eq!(parse("logs").unwrap().display, "/srv/data/logs");
     assert_eq!(parse("/etc").unwrap().uri, "file:///etc");
@@ -370,9 +374,11 @@ fn typed_text_becomes_a_location_and_junk_is_rejected() {
 
 #[test]
 fn a_location_is_described_with_its_breadcrumbs() {
-    let info = tauri::async_runtime::block_on(commands::describe_location(location(Path::new(
-        "/home/a/Music",
-    ))))
+    let app = app();
+    let info = tauri::async_runtime::block_on(commands::describe_location(
+        app.state::<Vfs>(),
+        location(Path::new("/home/a/Music")),
+    ))
     .unwrap();
     assert_eq!(info.segments.len(), 4);
     assert_eq!(info.parent.unwrap().display, "/home/a");
@@ -673,11 +679,16 @@ fn a_trash_listing_serves_items_by_their_original_names_and_reads_only() {
 
 #[test]
 fn the_trash_is_described_and_parsed_like_any_location() {
-    let info =
-        tauri::async_runtime::block_on(commands::describe_location(trash_location())).unwrap();
+    let app = app();
+    let info = tauri::async_runtime::block_on(commands::describe_location(
+        app.state::<Vfs>(),
+        trash_location(),
+    ))
+    .unwrap();
     assert_eq!(info.parent, None);
     assert_eq!(info.segments[0].label, "Trash");
     let parsed = tauri::async_runtime::block_on(commands::parse_location(
+        app.state::<Vfs>(),
         "trash:".to_owned(),
         trash_location(),
     ))
@@ -1015,5 +1026,203 @@ mod dir_scan {
         ))
         .unwrap();
         assert!(token.is_cancelled());
+    }
+}
+
+mod connections {
+    //! The connection commands over a fake server: lazy connecting through a listing, the person's
+    //! answers, the saved connections and the events every window hears.
+
+    use std::sync::Arc;
+
+    use waypoint_connections::{
+        AnswerInput, ConnectionDraft, ConnectionStatus, ConnectionsChanged, Credentials,
+        MemorySecrets, Remembered,
+    };
+    use waypoint_path::{CaseRule, RemoteScheme};
+    use waypoint_protocol::ConnectionState;
+    use waypoint_vfs::FakeRemoteProvider;
+
+    use super::*;
+    use crate::connections::{self as cmd, CONNECTIONS_EVENT, CONNECTION_STATE_EVENT};
+    use crate::{init_with, Options};
+
+    fn app_with(server: &FakeRemoteProvider) -> tauri::App<MockRuntime> {
+        let credentials = Arc::new(Credentials::new(Arc::new(MemorySecrets::new())));
+        let server = server.clone().with_credentials(credentials.clone());
+        let app = mock_builder()
+            .plugin(init_with(Options {
+                providers: vec![Arc::new(server)],
+                credentials: Some(credentials),
+                storage: None,
+                suggestions: Some(Arc::new(|| vec!["nas".to_owned()])),
+            }))
+            .build(mock_context(noop_assets()))
+            .expect("the mock app builds");
+        WebviewWindowBuilder::new(&app, "main", WebviewUrl::App("index.html".into()))
+            .build()
+            .expect("the mock window opens");
+        app
+    }
+
+    fn states(app: &tauri::App<MockRuntime>) -> Receiver<ConnectionStatus> {
+        let (sender, receiver) = channel();
+        app.listen_any(CONNECTION_STATE_EVENT, move |event| {
+            let _ = sender.send(serde_json::from_str(event.payload()).expect("a state"));
+        });
+        receiver
+    }
+
+    #[test]
+    fn a_listing_connects_lazily_and_holds_the_login_until_it_closes() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        let root = server.root("me@nas.lan");
+        server.put_file(&root.join("a.txt").unwrap(), b"x");
+        let app = app_with(&server);
+        let heard = states(&app);
+        let snapshot = open(&app, "main", root.to_location()).unwrap();
+        let first = heard
+            .recv_timeout(Duration::from_secs(10))
+            .expect("a state event");
+        assert_eq!(first.key, "sftp://me@nas.lan");
+        assert_eq!(first.state, ConnectionState::Connected);
+        tauri::async_runtime::block_on(commands::close_listing(
+            window(&app, "main"),
+            app.state::<Vfs>(),
+            snapshot.handle,
+        ))
+        .unwrap();
+        let state = tauri::async_runtime::block_on(cmd::connection_state(
+            app.state::<Vfs>(),
+            root.to_location(),
+        ))
+        .unwrap()
+        .unwrap();
+        assert_eq!(state.state, ConnectionState::Connected);
+        // A local folder has no login.
+        let home = location(Path::new("/"));
+        assert!(
+            tauri::async_runtime::block_on(cmd::connection_state(app.state::<Vfs>(), home))
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_login_is_answered_through_connect_and_remembered() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        server.require_password(Some("me"), "hunter2");
+        let app = app_with(&server);
+        let at = server.root("me@nas.lan").to_location();
+        let refused = tauri::async_runtime::block_on(cmd::connect(
+            app.state::<Vfs>(),
+            at.clone(),
+            None,
+            None,
+        ))
+        .unwrap_err();
+        let json = serde_json::to_value(&refused).unwrap();
+        assert_eq!(json["kind"], "authRequired");
+        let answer: AnswerInput =
+            serde_json::from_str(r#"{"kind":"password","user":"me","password":"hunter2"}"#)
+                .unwrap();
+        let remembered = tauri::async_runtime::block_on(cmd::connect(
+            app.state::<Vfs>(),
+            at,
+            Some(answer),
+            Some(true),
+        ))
+        .unwrap();
+        assert_eq!(remembered, Remembered::Kept);
+    }
+
+    #[test]
+    fn server_text_parses_once_a_provider_serves_it_and_a_saved_name_labels_the_root() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        let app = app_with(&server);
+        let base = location(Path::new("/srv"));
+        let typed = tauri::async_runtime::block_on(commands::parse_location_text(
+            app.state::<Vfs>(),
+            "sftp://me:pw@NAS.lan/srv".into(),
+            base.clone(),
+        ))
+        .unwrap();
+        assert!(typed.password_dropped);
+        assert_eq!(typed.location.uri, "sftp://me@nas.lan/srv");
+        let described = |at: &waypoint_protocol::Location| {
+            tauri::async_runtime::block_on(commands::describe_location(
+                app.state::<Vfs>(),
+                at.clone(),
+            ))
+            .unwrap()
+        };
+        let before = described(&typed.location);
+        assert_eq!(before.segments[0].label, "me@nas.lan");
+        assert_eq!(before.connection.as_deref(), Some("sftp://me@nas.lan"));
+        tauri::async_runtime::block_on(cmd::add_connection(
+            app.state::<Vfs>(),
+            ConnectionDraft {
+                name: "NAS".into(),
+                scheme: "sftp".into(),
+                host: "nas.lan".into(),
+                user: Some("me".into()),
+                ..ConnectionDraft::default()
+            },
+        ))
+        .unwrap();
+        assert_eq!(described(&typed.location).segments[0].label, "NAS");
+    }
+
+    #[test]
+    fn saved_connections_are_edited_and_every_window_hears_it() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        let app = app_with(&server);
+        let (sender, heard) = channel();
+        app.listen_any(CONNECTIONS_EVENT, move |event| {
+            let change: ConnectionsChanged =
+                serde_json::from_str(event.payload()).expect("a change");
+            let _ = sender.send(change);
+        });
+        let entry = tauri::async_runtime::block_on(cmd::add_connection(
+            app.state::<Vfs>(),
+            ConnectionDraft {
+                name: "NAS".into(),
+                scheme: "sftp".into(),
+                host: "nas.lan".into(),
+                user: Some("me".into()),
+                ..ConnectionDraft::default()
+            },
+        ))
+        .unwrap();
+        assert_eq!(entry.location.uri, "sftp://me@nas.lan/");
+        let change = heard.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(change.revision, 1);
+        let refused = tauri::async_runtime::block_on(cmd::add_connection(
+            app.state::<Vfs>(),
+            ConnectionDraft {
+                scheme: "sftp".into(),
+                ..ConnectionDraft::default()
+            },
+        ))
+        .unwrap_err();
+        assert_eq!(
+            serde_json::to_value(&refused).unwrap()["kind"],
+            "connections"
+        );
+        let overview =
+            tauri::async_runtime::block_on(cmd::list_connections(app.state::<Vfs>())).unwrap();
+        assert_eq!(overview.connections.connections.len(), 1);
+        let support =
+            tauri::async_runtime::block_on(cmd::connection_support(app.state::<Vfs>())).unwrap();
+        assert_eq!(support.schemes, ["sftp"]);
+        assert_eq!(support.keyring, None);
+        let suggested =
+            tauri::async_runtime::block_on(cmd::suggested_servers(app.state::<Vfs>())).unwrap();
+        assert_eq!(suggested[0].location.uri, "sftp://nas/");
+        let parsed = tauri::async_runtime::block_on(cmd::parse_address_text(
+            app.state::<Vfs>(),
+            "smb://files/share".into(),
+        ));
+        assert!(parsed.is_err(), "no provider serves smb here");
     }
 }

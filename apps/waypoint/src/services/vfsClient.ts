@@ -11,6 +11,7 @@ import type { ListingEvent } from '@liminal-hq/waypoint-protocol/generated/Listi
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import type { TypedLocation } from '@liminal-hq/waypoint-protocol/generated/TypedLocation';
 import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
 import type { SelectionSummary } from '@liminal-hq/waypoint-protocol/generated/SelectionSummary';
@@ -51,6 +52,11 @@ export interface VfsClient {
 	 * is found (and shown as its own state) when the listing opens.
 	 */
 	parseLocation(input: string, base: Location): Promise<Location>;
+	/**
+	 * `parseLocation` for the path bar, also saying whether a password typed in a server address
+	 * was dropped (D147). Optional: a client without it never drops one.
+	 */
+	parseLocationText?(input: string, base: Location): Promise<TypedLocation>;
 	/** The parent and the breadcrumb segments of a location; Rust splits the path, never the UI. */
 	describeLocation(location: Location): Promise<LocationInfo>;
 	/** Where an entry of an open listing lives, so a folder can be opened and its path copied. */

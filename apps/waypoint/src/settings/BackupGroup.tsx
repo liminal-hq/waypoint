@@ -29,6 +29,8 @@ const GROUP_LABELS: Record<string, MessageId> = {
 	locale: 'settings.section.language',
 	ui: 'settings.backup.group.ui',
 	folders: 'settings.backup.group.folders',
+	connections: 'settings.backup.group.connections',
+	recent: 'settings.backup.group.recent',
 };
 
 const REASON_MESSAGES: Record<string, MessageId> = {

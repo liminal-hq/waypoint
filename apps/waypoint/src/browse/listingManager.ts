@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
@@ -72,6 +73,8 @@ export class ListingManager {
 	private hinted = new Set<TabId>();
 	/** The latest hidden-files choice, applied to listings that become ready after it was made. */
 	private wantedHidden: boolean | null = null;
+	/** The tabs of the last `sync`, so a failed listing can be opened again. */
+	private tabs = new Map<TabId, TabSnapshot>();
 	/** Sessions someone holds on to (a file drag's sources), by session, with how many hold each. */
 	private retained = new Map<ListingSession, Held>();
 
@@ -99,6 +102,7 @@ export class ListingManager {
 	 * every pane of the active tab's pair. Each visible tab has a live listing of its own.
 	 */
 	sync(tabs: readonly TabSnapshot[], visible: ReadonlySet<TabId>): void {
+		this.tabs = new Map(tabs.map((tab) => [tab.id, tab]));
 		const live = new Set(tabs.map((tab) => tab.id));
 		for (const id of [...this.slots.keys()]) {
 			if (!live.has(id)) this.release(id);
@@ -197,6 +201,29 @@ export class ListingManager {
 		if (current === this.wantedHidden) return;
 		slot.requestedHidden = this.wantedHidden;
 		void model.setFilter({ showHidden: this.wantedHidden });
+	}
+
+	/**
+	 * Opens again every listing on screen that could not open, or failed once open, with an error
+	 * `retry` accepts (a server's connection that is back). The others are left as they are. Returns
+	 * how many were opened again.
+	 */
+	retryFailed(retry: (error: VfsError) => boolean): number {
+		let count = 0;
+		for (const [id, slot] of [...this.slots]) {
+			if (slot.background) continue;
+			const error =
+				slot.state.status === 'error'
+					? slot.state.error
+					: slot.state.status === 'ready'
+						? slot.state.session.model.error
+						: null;
+			const tab = this.tabs.get(id);
+			if (!error || !tab || tab.location.uri !== slot.uri || !retry(error)) continue;
+			this.open(tab);
+			count += 1;
+		}
+		return count;
 	}
 
 	/** Closes every listing. The manager can be used again: the next `sync` reopens what is shown. */

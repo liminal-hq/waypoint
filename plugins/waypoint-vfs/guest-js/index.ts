@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { Channel, convertFileSrc, invoke } from '@tauri-apps/api/core';
-import type { UnlistenFn } from '@tauri-apps/api/event';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { DirScanEvent } from '@liminal-hq/waypoint-protocol/generated/DirScanEvent';
 import type { DirScanOptions } from '@liminal-hq/waypoint-protocol/generated/DirScanOptions';
@@ -21,6 +21,7 @@ import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/List
 import type { ListingSnapshot } from '@liminal-hq/waypoint-protocol/generated/ListingSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { LocationInfo } from '@liminal-hq/waypoint-protocol/generated/LocationInfo';
+import type { TypedLocation } from '@liminal-hq/waypoint-protocol/generated/TypedLocation';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import type { Places } from '@liminal-hq/waypoint-protocol/generated/Places';
 import type { SelectionSpec } from '@liminal-hq/waypoint-protocol/generated/SelectionSpec';
@@ -33,9 +34,23 @@ import type { GroupBy } from '@liminal-hq/waypoint-protocol/generated/GroupBy';
 import type { GroupKey } from '@liminal-hq/waypoint-protocol/generated/GroupKey';
 import type { GroupRun } from '@liminal-hq/waypoint-protocol/generated/GroupRun';
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
+import type { AnswerInput } from '@liminal-hq/waypoint-protocol/generated/AnswerInput';
+import type { ConnectionDraft } from '@liminal-hq/waypoint-protocol/generated/ConnectionDraft';
+import type { ConnectionEntry } from '@liminal-hq/waypoint-protocol/generated/ConnectionEntry';
+import type { ConnectionStatus } from '@liminal-hq/waypoint-protocol/generated/ConnectionStatus';
+import type { ConnectionSupport } from '@liminal-hq/waypoint-protocol/generated/ConnectionSupport';
+import type { ConnectionsChanged } from '@liminal-hq/waypoint-protocol/generated/ConnectionsChanged';
+import type { ConnectionsOverview } from '@liminal-hq/waypoint-protocol/generated/ConnectionsOverview';
+import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated/KeyringUnavailable';
+import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/ParsedAddress';
+import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
+import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
+import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
 
 const PREFIX = 'plugin:waypoint-vfs|';
 const LISTING_EVENT = 'waypoint-vfs://listing';
+const CONNECTIONS_EVENT = 'waypoint-vfs://connections';
+const CONNECTION_STATE_EVENT = 'waypoint-vfs://connection-state';
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -102,6 +117,14 @@ export function parseLocation(input: string, base: Location): Promise<Location> 
 }
 
 /** The parent and the breadcrumb segments of a location. */
+/**
+ * `parseLocation` for typed text in the path bar: also says whether a password written in a server
+ * address was dropped (it is never kept, D147).
+ */
+export function parseLocationText(input: string, base: Location): Promise<TypedLocation> {
+	return cmd<TypedLocation>('parse_location_text', { input, base });
+}
+
 export function describeLocation(location: Location): Promise<LocationInfo> {
 	return cmd<LocationInfo>('describe_location', { location });
 }
@@ -286,7 +309,133 @@ export function onListingEvent(handler: (_event: ListingEvent) => void): Promise
 	);
 }
 
+/** The saved connections and recent servers, with the state of every login Rust knows. */
+export function listConnections(): Promise<ConnectionsOverview> {
+	return cmd<ConnectionsOverview>('list_connections');
+}
+
+/**
+ * The server protocols a provider serves here, and why a login cannot be remembered in the keyring
+ * (`null` when it can). Never asks the keyring to unlock.
+ */
+export function connectionSupport(): Promise<ConnectionSupport> {
+	return cmd<ConnectionSupport>('connection_support');
+}
+
+/** Hosts of `~/.ssh/config` to offer in the Connect dialog. */
+export function suggestedServers(): Promise<SuggestedServer[]> {
+	return cmd<SuggestedServer[]>('suggested_servers');
+}
+
+/**
+ * Reads a typed server address into the dialog's fields, saying whether a password written in it
+ * was dropped. Rejects with a `VfsError` (`invalidLocation`, or `unsupported` for a protocol no
+ * provider serves).
+ */
+export function parseAddress(text: string): Promise<ParsedAddress> {
+	return cmd<ParsedAddress>('parse_address_text', { text });
+}
+
+/** Saves a new connection. Rejects with `{ kind: 'connections', error }` naming the bad field. */
+export function addConnection(draft: ConnectionDraft): Promise<ConnectionEntry> {
+	return cmd<ConnectionEntry>('add_connection', { draft });
+}
+
+/** Changes a saved connection. */
+export function updateConnection(id: string, draft: ConnectionDraft): Promise<ConnectionEntry> {
+	return cmd<ConnectionEntry>('update_connection', { id, draft });
+}
+
+/** Saves a copy of a connection right after it, under `name`. */
+export function duplicateConnection(id: string, name: string): Promise<ConnectionEntry> {
+	return cmd<ConnectionEntry>('duplicate_connection', { id, name });
+}
+
+/**
+ * Forgets a saved connection; with `forgetLogin` its remembered secrets go too. Resolves with why
+ * the keyring could not forget them, or `null`.
+ */
+export function removeConnection(
+	id: string,
+	forgetLogin: boolean,
+): Promise<KeyringUnavailable | null> {
+	return cmd<KeyringUnavailable | null>('remove_connection', { id, forgetLogin });
+}
+
+/** Moves a saved connection to position `to`. */
+export function moveConnection(id: string, to: number): Promise<void> {
+	return cmd<void>('move_connection', { id, to });
+}
+
+/** Forgets one recent server by its login, or all of them with `null`. */
+export function forgetRecentServer(key: string | null): Promise<void> {
+	return cmd<void>('forget_recent_server', { key });
+}
+
+/** Forgets the remembered secrets of a server's login. Resolves with why it could not, or `null`. */
+export function forgetLogin(location: Location): Promise<KeyringUnavailable | null> {
+	return cmd<KeyringUnavailable | null>('forget_login', { location });
+}
+
+/**
+ * Connects a server's login now, with the person's answer to the question its last attempt asked
+ * (none retries, as Reconnect does). The answer, which may hold a secret, is sent once and never
+ * comes back. Rejects with the `VfsError` that says what is still needed.
+ */
+export function connect(
+	location: Location,
+	answer: AnswerInput | null = null,
+	remember = false,
+): Promise<Remembered> {
+	return cmd<Remembered>('connect', { location, answer, remember });
+}
+
+/** Tries a draft's server without saving it, as `connect` does, and says where the draft opens. */
+export function testConnection(
+	draft: ConnectionDraft,
+	answer: AnswerInput | null = null,
+	remember = false,
+): Promise<TestedConnection> {
+	return cmd<TestedConnection>('test_connection', { draft, answer, remember });
+}
+
+/** Closes a server's login; its listings show the disconnected state. */
+export function disconnect(location: Location): Promise<void> {
+	return cmd<void>('disconnect', { location });
+}
+
+/** The state of the login a location belongs to, or `null` for one with no login. */
+export function connectionState(location: Location): Promise<ConnectionStatus | null> {
+	return cmd<ConnectionStatus | null>('connection_state', { location });
+}
+
+/** Hears every change to the saved connections and recent servers, in any window. */
+export function onConnectionsChanged(
+	handler: (_change: ConnectionsChanged) => void,
+): Promise<UnlistenFn> {
+	return listen<ConnectionsChanged>(CONNECTIONS_EVENT, (event) => handler(event.payload));
+}
+
+/** Hears every change of a login's state. */
+export function onConnectionState(
+	handler: (_status: ConnectionStatus) => void,
+): Promise<UnlistenFn> {
+	return listen<ConnectionStatus>(CONNECTION_STATE_EVENT, (event) => handler(event.payload));
+}
+
 export type {
+	AnswerInput,
+	ConnectionDraft,
+	ConnectionEntry,
+	ConnectionStatus,
+	ConnectionSupport,
+	ConnectionsChanged,
+	ConnectionsOverview,
+	KeyringUnavailable,
+	ParsedAddress,
+	Remembered,
+	SuggestedServer,
+	TestedConnection,
 	DirScanEvent,
 	DirScanOptions,
 	DirScanResult,
@@ -306,6 +455,7 @@ export type {
 	ListingSnapshot,
 	Location,
 	LocationInfo,
+	TypedLocation,
 	Places,
 	PluginStatus,
 	SelectionSpec,

@@ -9,6 +9,7 @@ members = [
   "crates/waypoint-provider-sftp",
   "crates/waypoint-provider-smb",
   "crates/waypoint-provider-archive",
+  "crates/waypoint-connections",
   "crates/openssh-config",
   "crates/wayland-toplevel-drag",
   "apps/waypoint/src-tauri",

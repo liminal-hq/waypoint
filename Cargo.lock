@@ -6214,6 +6214,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tempfile",
  "thiserror 2.0.21",
+ "waypoint-connections",
  "waypoint-path",
  "waypoint-protocol",
  "waypoint-vfs",
@@ -7165,6 +7166,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "log",
+ "openssh-config",
  "serde",
  "serde_json",
  "tauri",
@@ -7195,10 +7197,27 @@ dependencies = [
  "tauri-plugin-xdg-portal",
  "tempfile",
  "tokio",
+ "waypoint-connections",
  "waypoint-ops",
  "waypoint-path",
  "waypoint-protocol",
+ "waypoint-provider-sftp",
  "waypoint-session",
+ "waypoint-settings",
+ "waypoint-vfs",
+]
+
+[[package]]
+name = "waypoint-connections"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ts-rs",
+ "waypoint-path",
+ "waypoint-protocol",
  "waypoint-settings",
  "waypoint-vfs",
 ]

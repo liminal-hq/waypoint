@@ -73,6 +73,8 @@ export interface CommandFacts {
 	inspectorOpen: boolean;
 	/** Properties windows can be opened from here (the service exists). */
 	propertiesWindow: boolean;
+	/** Saved connections and the Connect dialog are available here (the service exists). */
+	connections: boolean;
 	/**
 	 * What the folder the active tab shows remembers about its view, sort and grouping:
 	 * `unavailable` where remembering is off or the folder cannot remember (the Trash, Overview),
@@ -100,6 +102,8 @@ export interface CommandActions {
 	redoEntry(id: number): void;
 	newWindow(): void;
 	newTab(): void;
+	/** Opens the Connect dialog. */
+	connectToServer(): void;
 	closeTab(): void;
 	reopenClosedTab(): void;
 	duplicateTab(): void;
@@ -185,6 +189,7 @@ export function emptyFacts(): CommandFacts {
 		shelfUndocked: false,
 		inspectorOpen: false,
 		propertiesWindow: false,
+		connections: false,
 		folderView: 'unavailable',
 	};
 }
@@ -205,6 +210,7 @@ export function idleActions(): CommandActions {
 		undoEntry: nothing,
 		redoEntry: nothing,
 		newWindow: nothing,
+		connectToServer: nothing,
 		newTab: nothing,
 		closeTab: nothing,
 		reopenClosedTab: nothing,

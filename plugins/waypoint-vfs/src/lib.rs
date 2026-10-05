@@ -4,16 +4,25 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod commands;
+mod connections;
 mod error;
 mod registry;
 mod wpfile;
 
+use std::sync::Arc;
+
 use tauri::{
     plugin::{Builder, TauriPlugin},
-    Manager, RunEvent, Runtime, WindowEvent,
+    AppHandle, Manager, RunEvent, Runtime, WindowEvent,
 };
+use waypoint_connections::{
+    ConnectionManager, ConnectionStorage, ConnectionsHub, Credentials, MemoryConnections,
+    NoKeyring, SWEEP_EVERY,
+};
+use waypoint_vfs::{Provider, ProviderRegistry};
 
-pub use commands::{OpenOptions, Vfs, LISTING_EVENT};
+pub use commands::{OpenOptions, Suggestions, Vfs, LISTING_EVENT};
+pub use connections::{CONNECTIONS_EVENT, CONNECTION_STATE_EVENT};
 pub use error::Error;
 pub use wpfile::SCHEME as PREVIEW_SCHEME;
 
@@ -39,7 +48,46 @@ fn on_run_event<R: Runtime>(app: &tauri::AppHandle<R>, event: &RunEvent) {
     }
 }
 
+/// Makes the storage of the saved connections once the app exists.
+pub type StorageFactory<R> = Box<dyn FnOnce(&AppHandle<R>) -> Arc<dyn ConnectionStorage> + Send>;
+
+/// What the app gives the plugin (A85, A81): the server, archive and Git providers it registers,
+/// the credential source those providers were built with (so a login the person answers reaches
+/// them), where the saved connections are kept, and the SSH hosts to suggest. The plugin calls no
+/// other plugin: the keyring is behind `credentials`, and the storage is the app's.
+pub struct Options<R: Runtime> {
+    pub providers: Vec<Arc<dyn Provider>>,
+    pub credentials: Option<Arc<Credentials>>,
+    pub storage: Option<StorageFactory<R>>,
+    pub suggestions: Option<Suggestions>,
+}
+
+impl<R: Runtime> Default for Options<R> {
+    fn default() -> Self {
+        Self {
+            providers: Vec::new(),
+            credentials: None,
+            storage: None,
+            suggestions: None,
+        }
+    }
+}
+
+/// The plugin with local folders and the Trash only: no remote provider, and saved connections
+/// kept in memory with no keyring.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
+    init_with(Options::default())
+}
+
+/// The plugin with the app's providers and connections.
+pub fn init_with<R: Runtime>(options: Options<R>) -> TauriPlugin<R> {
+    let Options {
+        providers,
+        credentials,
+        storage,
+        suggestions,
+    } = options;
+    let mut storage = Some(storage);
     Builder::new("waypoint-vfs")
         .invoke_handler(tauri::generate_handler![
             commands::get_status,
@@ -51,6 +99,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::close_listing,
             commands::get_home,
             commands::parse_location,
+            commands::parse_location_text,
             commands::describe_location,
             commands::entry_location,
             commands::summarise_selection,
@@ -69,6 +118,21 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::remove_favourite,
             commands::rename_favourite,
             commands::move_favourite,
+            connections::list_connections,
+            connections::connection_support,
+            connections::suggested_servers,
+            connections::parse_address_text,
+            connections::add_connection,
+            connections::update_connection,
+            connections::duplicate_connection,
+            connections::remove_connection,
+            connections::move_connection,
+            connections::forget_recent_server,
+            connections::forget_login,
+            connections::connect,
+            connections::test_connection,
+            connections::disconnect,
+            connections::connection_state,
         ])
         .register_asynchronous_uri_scheme_protocol(wpfile::SCHEME, |ctx, request, responder| {
             let app = ctx.app_handle().clone();
@@ -90,8 +154,24 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
                 responder.respond(wpfile::into_response(served));
             });
         })
-        .setup(|app, _api| {
-            app.manage(Vfs::default());
+        .setup(move |app, _api| {
+            let mut registry = ProviderRegistry::new();
+            for provider in &providers {
+                registry.register(provider.clone());
+            }
+            let registry = Arc::new(registry);
+            let credentials = credentials
+                .clone()
+                .unwrap_or_else(|| Arc::new(Credentials::new(Arc::new(NoKeyring))));
+            let storage: Arc<dyn ConnectionStorage> = match storage.take().flatten() {
+                Some(make) => make(app),
+                None => Arc::new(MemoryConnections::default()),
+            };
+            let manager = Arc::new(ConnectionManager::new(registry.clone(), credentials));
+            manager.spawn_sweeper(SWEEP_EVERY);
+            let hub = Arc::new(ConnectionsHub::new(storage, manager));
+            connections::wire_events(app, &hub);
+            app.manage(Vfs::new(registry, Some(hub), suggestions.clone()));
             Ok(())
         })
         .on_event(on_run_event)

@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use waypoint_protocol::VfsError;
 use waypoint_vfs::{CancelToken, Listing, ListingHandle, WatchState};
@@ -17,9 +17,30 @@ use waypoint_vfs::{CancelToken, Listing, ListingHandle, WatchState};
 pub struct Registry {
     next: AtomicU32,
     listings: Mutex<HashMap<ListingHandle, (String, Arc<Listing>)>>,
+    on_close: RwLock<Option<OnClose>>,
 }
 
+/// Told about every listing that closes (the connection manager counts the listings on a login).
+pub type OnClose = Arc<dyn Fn(&Listing) + Send + Sync>;
+
 impl Registry {
+    /// Calls `hook` with each listing as it closes.
+    pub fn set_on_close(&self, hook: OnClose) {
+        *self.on_close.write().unwrap_or_else(|e| e.into_inner()) = Some(hook);
+    }
+
+    fn closed(&self, listing: &Listing) {
+        listing.close();
+        let hook = self
+            .on_close
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        if let Some(hook) = hook {
+            hook(listing);
+        }
+    }
+
     /// The next handle. Numbering starts at 1 and is per registry, so per plugin instance.
     pub fn allocate(&self) -> ListingHandle {
         ListingHandle(self.next.fetch_add(1, Ordering::Relaxed) + 1)
@@ -50,7 +71,7 @@ impl Registry {
             }
         };
         if let Some((_, listing)) = removed {
-            listing.close();
+            self.closed(&listing);
         }
     }
 
@@ -69,7 +90,7 @@ impl Registry {
                 .collect()
         };
         for (_, listing) in &closing {
-            listing.close();
+            self.closed(listing);
         }
         closing.len()
     }

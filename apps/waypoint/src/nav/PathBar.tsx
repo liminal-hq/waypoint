@@ -9,12 +9,14 @@ import {
 	useEffect,
 	useId,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState,
 	type FocusEvent,
 	type FormEvent,
 	type KeyboardEvent,
 } from 'react';
+import { useConnectionsView } from '../connections/ConnectionsContext';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { dropAttributes } from '../dnd/dropTargets';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
@@ -147,7 +149,22 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 	const field = useRef<HTMLInputElement | null>(null);
 	const [text, setText] = useState(location.display);
 	const [problem, setProblem] = useState<string | null>(null);
+	const [note, setNote] = useState<string | null>(null);
 	const problemId = useId();
+	const noteId = useId();
+	const listId = useId();
+	// Saved servers and recent ones are offered as the text is typed.
+	const saved = useConnectionsView((view) => view.connections);
+	const recent = useConnectionsView((view) => view.recent);
+	const servers = useMemo(
+		() => [
+			...new Set([
+				...saved.map((entry) => entry.location.display),
+				...recent.map((server) => server.location.display),
+			]),
+		],
+		[saved, recent],
+	);
 	// A reply that arrives after the editor was closed or re-submitted must do nothing.
 	const attempt = useRef(0);
 
@@ -163,8 +180,18 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 		event.preventDefault();
 		const mine = ++attempt.current;
 		try {
-			const target = await client.parseLocation(text, location);
+			const typed = client.parseLocationText
+				? await client.parseLocationText(text, location)
+				: { location: await client.parseLocation(text, location), passwordDropped: false };
 			if (mine !== attempt.current) return;
+			const target = typed.location;
+			// A password typed in a server address is never kept (D147): the bar shows the address
+			// without it and says so, and the next Enter goes there.
+			if (typed.passwordDropped) {
+				setText(target.display);
+				setNote(t('nav.path.passwordDropped'));
+				return;
+			}
 			onClose();
 			if (target.uri !== location.uri) await onNavigate(target);
 			onCommitted?.();
@@ -197,17 +224,31 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 				autoComplete="off"
 				aria-label={t('nav.path.input')}
 				aria-invalid={problem ? true : undefined}
-				aria-describedby={problem ? problemId : undefined}
+				aria-describedby={problem ? problemId : note ? noteId : undefined}
+				list={servers.length > 0 ? listId : undefined}
 				value={text}
 				onChange={(event) => {
 					setText(event.target.value);
 					setProblem(null);
+					setNote(null);
 				}}
 				onKeyDown={onKeyDown}
 			/>
+			{servers.length > 0 && (
+				<datalist id={listId}>
+					{servers.map((server) => (
+						<option key={server} value={server} />
+					))}
+				</datalist>
+			)}
 			{problem && (
 				<p id={problemId} className={styles.problem} role="alert">
 					{problem}
+				</p>
+			)}
+			{note && !problem && (
+				<p id={noteId} className={styles.problem} role="status" data-tone="note">
+					{note}
 				</p>
 			)}
 		</form>

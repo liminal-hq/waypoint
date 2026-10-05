@@ -484,6 +484,10 @@ const messages: Catalogue = {
 	'settings.backup.group.ui': 'Barre de titre et barre d’actions',
 	// source: a15aa3b0
 	'settings.backup.group.folders': 'Vues mémorisées des dossiers',
+	// source: 0c667864
+	'settings.backup.group.connections': 'Connexions enregistrées',
+	// source: aebd8a03
+	'settings.backup.group.recent': 'Serveurs récents',
 	// source: 9bee25a4
 	'settings.backup.warning.unknownKeys.one':
 		'{count} paramètre du fichier n’existe pas dans cette version de Waypoint; il sera ignoré.',
@@ -1962,6 +1966,413 @@ const messages: Catalogue = {
 		'Le volume se déverrouille ensuite de lui-même lorsqu’il est branché. Oubliez la phrase secrète depuis la ligne du volume.',
 	// source: cf1068ce
 	'devices.unlock.rememberUnavailable': 'La phrase secrète ne peut pas être mémorisée : {reason}.',
+	// source: 62de0ed6
+	'connect.title': 'Se connecter à un serveur',
+	// source: 33756c40
+	'connect.titleEdit': 'Modifier la connexion',
+	// source: 444cc5d6
+	'connect.description':
+		'Tapez l’adresse d’un serveur ou remplissez les champs. Tester l’essaie sans l’enregistrer; Enregistrer le garde dans la section Réseau.',
+	// source: 19766ed6
+	'connect.cancel': 'Annuler',
+	// source: 532eaabd
+	'connect.test': 'Tester',
+	// source: 407b7a04
+	'connect.testing': 'Test en cours…',
+	// source: 1509f561
+	'connect.save': 'Enregistrer',
+	// source: 35322b5b
+	'connect.saveChanges': 'Enregistrer les modifications',
+	// source: 1a2303ed
+	'connect.connect': 'Se connecter',
+	// source: 72021eb7
+	'connect.connecting': 'Connexion…',
+	// source: bc79cdff
+	'connect.more': 'Plus d’options',
+	// source: 83ad538b
+	'connect.copyName': '{name} (copie)',
+	// source: 56ef8f20
+	'connect.field.address': 'Adresse',
+	// source: cf088334
+	'connect.field.protocol': 'Protocole',
+	// source: 4a823118
+	'connect.field.host': 'Hôte',
+	// source: 72e9a59f
+	'connect.field.port': 'Port',
+	// source: b512d97e
+	'connect.field.user': 'Utilisateur',
+	// source: dcd1d522
+	'connect.field.name': 'Nom',
+	// source: 103475d6
+	'connect.field.nameHint':
+		'Le nom affiché dans la section Réseau. Laissez vide pour utiliser l’adresse.',
+	// source: 11aaa142
+	'connect.field.auth': 'Se connecter avec',
+	// source: 33c7999c
+	'connect.field.keyFile': 'Fichier de clé',
+	// source: f1b38adb
+	'connect.field.keyFileHint':
+		'La clé privée, par exemple ~/.ssh/id_ed25519. Sa phrase secrète est demandée au besoin.',
+	// source: e7cf3ef4
+	'connect.field.password': 'Mot de passe',
+	// source: 2cc09793
+	'connect.field.passwordHint':
+		'Laissez vide pour qu’il soit demandé à la connexion. Il n’est jamais enregistré avec la connexion.',
+	// source: ce98d52f
+	'connect.field.jumpHost': 'Hôte de rebond',
+	// source: 6e97954f
+	'connect.field.jumpHostHint':
+		'Un serveur SSH par lequel passer d’abord, sous la forme utilisateur@hôte:port.',
+	// source: ef05c31f
+	'connect.field.startFolder': 'Dossier de départ',
+	// source: ab9ceac3
+	'connect.field.startFolderHint':
+		'Le dossier ouvert au départ, par exemple /srv/media. Laissez vide pour le haut du serveur.',
+	// source: 6daccb23
+	'connect.field.refresh': 'Actualiser toutes les (secondes)',
+	// source: 395edb9c
+	'connect.field.refreshHint':
+		'Laissez vide pour actualiser seulement quand un dossier est affiché, avec F5 et après que Waypoint y écrit.',
+	// source: 2ea0c143
+	'connect.field.thumbnails': 'Afficher les aperçus des fichiers de ce serveur',
+	// source: a15c6adf
+	'connect.auth.auto': 'Automatiquement',
+	// source: 78a4438c
+	'connect.auth.autoHint':
+		'Essaie l’agent SSH et vos fichiers de clé, puis demande un mot de passe.',
+	// source: e7cf3ef4
+	'connect.auth.password': 'Mot de passe',
+	// source: 394dd92f
+	'connect.auth.passwordHint':
+		'Se connecte avec un mot de passe, tapé ci-dessous ou demandé à la connexion.',
+	// source: 33c7999c
+	'connect.auth.keyFile': 'Fichier de clé',
+	// source: c696dab1
+	'connect.auth.keyFileHint': 'Se connecte avec le fichier de clé indiqué ci-dessous.',
+	// source: cc3e0a54
+	'connect.address.placeholder': 'sftp://utilisateur@hôte/dossier',
+	// source: 30d79ebe
+	'connect.address.hint':
+		'Par exemple sftp://moi@nas.lan/srv. Les champs ci-dessous se remplissent pendant la saisie.',
+	// source: f72619c9
+	'connect.address.invalid': 'Ce n’est pas une adresse de serveur.',
+	// source: 1a93af13
+	'connect.address.unsupported': 'Waypoint ne peut pas se connecter aux serveurs {scheme} ici.',
+	// source: be690623
+	'connect.address.passwordDropped':
+		'Le mot de passe de l’adresse n’a pas été gardé. Waypoint le demandera à la connexion.',
+	// source: 0c667864
+	'connect.saved.heading': 'Connexions enregistrées',
+	// source: 729bceee
+	'connect.saved.new': 'Nouvelle connexion',
+	// source: 54aec582
+	'connect.saved.empty': 'Aucune connexion n’est encore enregistrée.',
+	// source: 2313fe21
+	'connect.saved.edit': 'Modifier {name}',
+	// source: fe06d16b
+	'connect.saved.duplicate': 'Dupliquer {name}',
+	// source: 02cdaabf
+	'connect.saved.duplicateShort': 'Dupliquer',
+	// source: 3cf8146e
+	'connect.saved.remove': 'Supprimer {name}',
+	// source: e2d0a549
+	'connect.saved.removeShort': 'Supprimer',
+	// source: 8e13216a
+	'connect.forget.title': 'Supprimer « {name} »?',
+	// source: f7097bc0
+	'connect.forget.message':
+		'La connexion est retirée de la section Réseau. Les onglets ouverts sur elle restent ouverts.',
+	// source: 13f05d64
+	'connect.forget.login': 'Oublier aussi son mot de passe enregistré',
+	// source: e2d0a549
+	'connect.forget.confirm': 'Supprimer',
+	// source: c5e2885f
+	'connect.remember.label': 'Mémoriser dans le trousseau',
+	// source: f1830e4c
+	'connect.remember.hint': 'Gardé seulement une fois accepté par le serveur.',
+	// source: 56d20db3
+	'connect.remember.unavailable':
+		'Il ne peut pas être mémorisé : {reason}. Il dure jusqu’à la fermeture de Waypoint.',
+	// source: 0327fb97
+	'connect.remembered.kept': 'Le mot de passe est mémorisé dans le trousseau.',
+	// source: 3646093f
+	'connect.remembered.sessionOnly':
+		'Le mot de passe n’a pas été mémorisé : {reason}. Il dure jusqu’à la fermeture de Waypoint.',
+	// source: 6a7e0a0d
+	'connect.keyring.noKeyring': 'aucun trousseau n’est en cours d’exécution',
+	// source: 1027e3ca
+	'connect.keyring.locked': 'le trousseau est verrouillé',
+	// source: 9ffe6ac1
+	'connect.keyring.failed': 'le trousseau n’a pas répondu',
+	// source: 72021eb7
+	'connect.result.trying': 'Connexion…',
+	// source: bb4d8e69
+	'connect.result.connected': 'Connecté à {server}.',
+	// source: 7fee582f
+	'connect.result.cancelled': 'Non connecté : annulé.',
+	// source: 9148a257
+	'connect.result.saved': '{name} enregistré.',
+	// source: 5b076ba3
+	'connect.result.updated': 'Modifications de {name} enregistrées.',
+	// source: a0799a8a
+	'connect.result.duplicated': 'Dupliqué sous le nom {name}.',
+	// source: 1f9ebcfd
+	'connect.result.removed': '{name} supprimé.',
+	// source: fc25578d
+	'connect.result.removedKeyring':
+		'{name} supprimé. Son mot de passe n’a pas pu être oublié : {reason}.',
+	// source: e34bd4c0
+	'connect.problem.name':
+		'Le nom est trop long ou contient des caractères qui ne peuvent pas être utilisés.',
+	// source: c2a061d0
+	'connect.problem.scheme': 'Choisissez un protocole avec lequel Waypoint peut se connecter.',
+	// source: 5b7270d8
+	'connect.problem.host': 'Tapez un nom d’hôte ou une adresse IP.',
+	// source: 11014c22
+	'connect.problem.user': 'Ce nom d’utilisateur ne peut pas être utilisé.',
+	// source: 74289d15
+	'connect.problem.password':
+		'Un mot de passe n’a pas sa place dans l’adresse; Waypoint le demande à la connexion.',
+	// source: 3475f551
+	'connect.problem.port': 'Le port est un nombre de 1 à 65535.',
+	// source: a6c60678
+	'connect.problem.keyFile':
+		'Indiquez le chemin complet du fichier de clé, ou un chemin commençant par ~/.',
+	// source: ca592d84
+	'connect.problem.jumpHost': 'Écrivez l’hôte de rebond sous la forme utilisateur@hôte:port.',
+	// source: 70d04aac
+	'connect.problem.startFolder':
+		'Le dossier de départ est un chemin sur le serveur commençant par /.',
+	// source: 9c534aa8
+	'connect.problem.refresh': 'Actualisez toutes les 10 à 3600 secondes, ou laissez vide.',
+	// source: 09d0d5fd
+	'connect.problem.tooMany': 'Aucune autre connexion ne peut être enregistrée.',
+	// source: c2ccccde
+	'connect.problem.gone': 'Cette connexion n’est plus enregistrée.',
+	// source: 98105ab5
+	'connect.error.nameNotResolved': 'Non connecté : le nom d’hôte est introuvable.',
+	// source: 7dca0896
+	'connect.error.refused': 'Non connecté : le serveur a refusé la connexion.',
+	// source: e0ad0a93
+	'connect.error.noRoute': 'Non connecté : il n’y a pas de route vers le serveur.',
+	// source: 48014f6e
+	'connect.error.offline': 'Non connecté : cet ordinateur est hors ligne.',
+	// source: 2bdde388
+	'connect.error.timeout': 'Non connecté : le serveur n’a pas répondu à temps.',
+	// source: 7c6bac9a
+	'connect.error.disconnected': 'La connexion a été perdue.',
+	// source: 8af7408f
+	'connect.error.authRequired': 'Non connecté : le serveur demande de vous connecter.',
+	// source: 188fa9bb
+	'connect.error.authFailed': 'Non connecté : le serveur n’a pas accepté l’identification.',
+	// source: 72b3aa0e
+	'connect.error.hostKeyUnknown': 'Non connecté : la clé du serveur n’a pas été approuvée.',
+	// source: 52b64e99
+	'connect.error.hostKeyChanged': 'Non connecté : la clé du serveur a changé.',
+	// source: d6521db1
+	'connect.error.certificate': 'Non connecté : le certificat du serveur n’est pas approuvé.',
+	// source: 341f2ec5
+	'connect.error.unsupported':
+		'Non connecté : Waypoint ne peut pas se connecter aux serveurs {what} ici.',
+	// source: 673f0784
+	'connect.error.invalid': 'Non connecté : ce n’est pas une adresse de serveur.',
+	// source: a9a569e1
+	'connect.error.permissionDenied': 'Connecté, mais le dossier de départ ne peut pas être lu.',
+	// source: 1f459ea8
+	'connect.error.notFound': 'Connecté, mais le dossier de départ n’existe pas.',
+	// source: 7fee582f
+	'connect.error.cancelled': 'Non connecté : annulé.',
+	// source: fc4e7217
+	'connect.error.other': 'Non connecté : {detail}',
+	// source: ad90c9b7
+	'connect.scheme.sftp': 'SFTP (SSH)',
+	// source: 12ba6a49
+	'connect.scheme.smb': 'Partage Windows (SMB)',
+	// source: fa3f6715
+	'connect.scheme.davs': 'WebDAV (HTTPS)',
+	// source: 26519330
+	'connect.scheme.dav': 'WebDAV (HTTP, non chiffré)',
+	// source: 80b078ca
+	'connect.scheme.s3': 'Stockage S3',
+	// source: f69ee155
+	'connect.signIn.title': 'Se connecter à {server}',
+	// source: 33215114
+	'connect.signIn.passphraseTitle': 'Déverrouiller {subject}',
+	// source: 023242f8
+	'connect.signIn.description': 'Le serveur demande de vous connecter.',
+	// source: 7adfac1b
+	'connect.signIn.refused': 'Le serveur n’a pas accepté ces informations. Réessayez.',
+	// source: e7cf3ef4
+	'connect.signIn.password': 'Mot de passe',
+	// source: e7611f05
+	'connect.signIn.passphrase': 'Phrase secrète',
+	// source: 14eb0f96
+	'connect.signIn.keyId': 'ID de clé d’accès',
+	// source: f47a99eb
+	'connect.signIn.secretKey': 'Clé secrète',
+	// source: bcc0bcc9
+	'connect.signIn.confirm': 'Se connecter',
+	// source: 2018c997
+	'connect.hostKey.title': 'Faire confiance à {host}?',
+	// source: 71c653f7
+	'connect.hostKey.description':
+		'Waypoint ne s’est jamais connecté à ce serveur. Comparez l’empreinte avec celle que vous donne l’administrateur du serveur avant de lui faire confiance.',
+	// source: 4a823118
+	'connect.hostKey.host': 'Hôte',
+	// source: 90bb1f8c
+	'connect.hostKey.algorithm': 'Type de clé',
+	// source: ba7af0b7
+	'connect.hostKey.fingerprint': 'Empreinte',
+	// source: 3dc0fb22
+	'connect.hostKey.once': 'Faire confiance une fois',
+	// source: fe4435d5
+	'connect.hostKey.remember': 'Faire confiance et mémoriser',
+	// source: 726596c3
+	'connect.hostKeyChanged.title': 'La clé de {host} a changé',
+	// source: 75e4def7
+	'connect.hostKeyChanged.description':
+		'Le serveur présente une clé différente de celle enregistrée pour lui.',
+	// source: 18777d45
+	'connect.hostKeyChanged.warningTitle': 'Quelqu’un pourrait se faire passer pour ce serveur.',
+	// source: e744fedf
+	'connect.hostKeyChanged.warning':
+		'Une clé modifiée peut signifier que le serveur a été réinstallé, ou que la connexion est interceptée. Ne vous connectez pas sans que l’administrateur du serveur confirme la nouvelle empreinte.',
+	// source: d99646ed
+	'connect.hostKeyChanged.recorded': 'Clé enregistrée',
+	// source: 83d15e0f
+	'connect.hostKeyChanged.offered': 'Clé présentée maintenant',
+	// source: 31797dce
+	'connect.hostKeyChanged.trust': 'Faire confiance à la nouvelle clé',
+	// source: c1e1e958
+	'connect.certificate.title': 'Faire confiance au certificat de {server}?',
+	// source: 7c5ab765
+	'connect.certificate.description':
+		'Cet ordinateur ne fait pas confiance au certificat du serveur.',
+	// source: 17b043ed
+	'connect.certificate.subject': 'Délivré à',
+	// source: 5f06f118
+	'connect.certificate.issuer': 'Délivré par',
+	// source: ed17874e
+	'connect.certificate.reason': 'Raison du refus',
+	// source: 3dc0fb22
+	'connect.certificate.once': 'Faire confiance une fois',
+	// source: aec527b7
+	'connect.certificate.remember': 'Faire confiance pour cette connexion',
+	// source: 1744b964
+	'sidebar.section.network': 'Réseau',
+	// source: 68d7beb6
+	'network.list': 'Serveurs',
+	// source: 17c3ced0
+	'network.empty': 'Aucun serveur pour l’instant.',
+	// source: aebd8a03
+	'network.recent': 'Serveurs récents',
+	// source: 8f755cb8
+	'network.disconnect': 'Déconnecter {name}',
+	// source: aac6defa
+	'network.menu.label': 'Actions pour {name}',
+	// source: ed077f3d
+	'network.menu.open': 'Ouvrir',
+	// source: 35e74c3a
+	'network.menu.openInNewTab': 'Ouvrir dans un nouvel onglet',
+	// source: 1a2303ed
+	'network.menu.connect': 'Se connecter',
+	// source: acfc5be7
+	'network.menu.disconnect': 'Déconnecter',
+	// source: 2b8a1a00
+	'network.menu.edit': 'Modifier…',
+	// source: 1359626e
+	'network.menu.moveUp': 'Monter',
+	// source: b58330ac
+	'network.menu.moveDown': 'Descendre',
+	// source: 9ce78fe3
+	'network.menu.delete': 'Supprimer…',
+	// source: a5d0d97e
+	'network.menu.save': 'Enregistrer…',
+	// source: a6bd489d
+	'network.menu.forget': 'Oublier',
+	// source: 12191a17
+	'network.announce.state': '{name} : {state}',
+	// source: 63f9679a
+	'network.announce.disconnected': 'Déconnecté de {name}',
+	// source: 6f44c71c
+	'network.announce.moved': '{name} déplacé à la position {position}',
+	// source: e835e6cb
+	'network.announce.forgotten': '{name} oublié',
+	// source: 0303e182
+	'remote.state.idle': 'Non connecté',
+	// source: 72021eb7
+	'remote.state.connecting': 'Connexion…',
+	// source: 22965568
+	'remote.state.connected': 'Connecté',
+	// source: a1794783
+	'remote.state.offline': 'Hors ligne',
+	// source: 31e23ff0
+	'remote.state.signIn': 'Identification requise',
+	// source: 62c1939a
+	'remote.state.trust': 'Clé à vérifier',
+	// source: 54a0e8c1
+	'remote.state.error': 'Erreur',
+	// source: 420a97ee
+	'remote.connecting': 'Connexion à {server}…',
+	// source: bf8a9eab
+	'remote.action.reconnect': 'Se reconnecter',
+	// source: 1b4caa32
+	'remote.action.signIn': 'Se connecter…',
+	// source: aa06c59b
+	'remote.action.review': 'Vérifier…',
+	// source: 72021eb7
+	'remote.action.connecting': 'Connexion…',
+	// source: fc454c50
+	'remote.announce.connected': 'Connecté à {server}',
+	// source: cf1dd99d
+	'remote.disconnected.title': 'Déconnecté de {server}',
+	// source: 3c7680cd
+	'remote.disconnected.detail':
+		'La connexion a été perdue. Reconnectez-vous pour afficher le dossier de nouveau.',
+	// source: 15e54df4
+	'remote.unreachable.title': 'Impossible de joindre {server}',
+	// source: fb727720
+	'remote.unreachable.nameNotResolved':
+		'Le nom d’hôte est introuvable. Vérifiez l’adresse ou votre réseau.',
+	// source: 18a0f89d
+	'remote.unreachable.refused': 'Le serveur a refusé la connexion : rien ne répond sur son port.',
+	// source: 79b11368
+	'remote.unreachable.noRoute': 'Il n’y a pas de route vers le serveur depuis ce réseau.',
+	// source: d6ffcf69
+	'remote.unreachable.offline': 'Cet ordinateur est hors ligne.',
+	// source: 6279ed15
+	'remote.timeout.title': '{server} ne répond pas',
+	// source: 8392b044
+	'remote.timeout.detail': 'Le serveur n’a pas répondu à temps.',
+	// source: f69ee155
+	'remote.signIn.title': 'Se connecter à {server}',
+	// source: dfc5634c
+	'remote.signIn.detail': 'Le serveur demande de vous connecter avant d’afficher ce dossier.',
+	// source: 774f9d0c
+	'remote.signIn.refused': 'Le serveur n’a pas accepté l’identification. Réessayez.',
+	// source: c3209923
+	'remote.hostKey.title': '{server} n’est pas encore approuvé',
+	// source: 22cb7210
+	'remote.hostKey.detail':
+		'Waypoint ne s’est jamais connecté à ce serveur. Vérifiez sa clé avant de lui faire confiance.',
+	// source: 2118f0ba
+	'remote.hostKeyChanged.title': 'La clé de {server} a changé',
+	// source: d2d8a249
+	'remote.hostKeyChanged.detail':
+		'Quelqu’un pourrait se faire passer pour ce serveur. Waypoint ne s’est pas connecté.',
+	// source: 37702fbc
+	'remote.certificate.title': 'Le certificat de {server} n’est pas approuvé',
+	// source: 998b069b
+	'remote.certificate.detail': 'Vérifiez le certificat avant de lui faire confiance.',
+	// source: 2a0ed3de
+	'remote.error.title': 'Impossible d’afficher ce dossier sur {server}',
+	// source: be69cd59
+	'remote.error.detail': 'Un problème est survenu avec la connexion.',
+	// source: 353dab45
+	'tabs.remote': 'Sur un serveur : {state}',
+	// source: c9fa6e7e
+	'nav.path.passwordDropped':
+		'Le mot de passe n’a pas été gardé; Waypoint le demandera à la connexion. Appuyez sur Entrée pour y aller.',
 	// source: 3064d79a
 	'menu.rename': 'Renommer',
 	// source: 298167e2
@@ -3430,6 +3841,8 @@ const messages: Catalogue = {
 	'cmd.newWindow': 'Nouvelle fenêtre',
 	// source: b2f8fd63
 	'cmd.newTab': 'Nouvel onglet',
+	// source: 661cc7f7
+	'cmd.connectToServer': 'Se connecter à un serveur…',
 	// source: c75ba807
 	'cmd.newFolder': 'Nouveau dossier',
 	// source: d23b5dc6

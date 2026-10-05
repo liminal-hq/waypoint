@@ -162,6 +162,7 @@ export function appMenuItems(
 
 	const file = menuSections(
 		rows('newWindow', 'newTab'),
+		rows('connectToServer'),
 		rows('newFolder', 'newFile'),
 		rows('openWith'),
 		rows('rename', 'batchRename', 'duplicate'),

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod checksum;
+mod connections;
 mod effects;
 mod integration_policy;
 mod integrations;
@@ -127,6 +128,8 @@ fn forget_properties_window<R: tauri::Runtime>(window: &tauri::Window<R>) {
 pub fn run() {
     let saver = Arc::new(Saver::new());
     let (volume_passphrases, volume_passphrases_app) = volume_passphrases::store();
+    let mut composed = connections::compose();
+    let vfs_options = std::mem::take(&mut composed.options);
     let geometry = GeometryCapture::default();
 
     #[allow(unused_mut)]
@@ -184,7 +187,8 @@ pub fn run() {
         // `desktop-integration` registers through the Tauri plugin, which the app must add.
         .plugin(tauri_plugin_xdg_portal::init())
         .plugin(tauri_plugin_desktop_integration::init())
-        .plugin(tauri_plugin_waypoint_vfs::init())
+        // The server providers, the saved connections and the keyring behind their logins (`connections`).
+        .plugin(tauri_plugin_waypoint_vfs::init_with(vfs_options))
         // After the store plugin it saves through; the session reads its choices (start-up, the view
         // of a new window) from it in `setup`.
         .plugin(tauri_plugin_waypoint_settings::init_with_folder_views(
@@ -226,6 +230,7 @@ pub fn run() {
             let saver = Arc::clone(&saver);
             move |app| {
                 let _ = volume_passphrases_app.set(app.handle().clone());
+                composed.wire(app.handle());
                 settings::wire(app.handle());
                 settings_transfer::wire(app.handle());
                 effects::wire(app.handle());

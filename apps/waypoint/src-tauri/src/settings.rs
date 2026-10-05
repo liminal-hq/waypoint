@@ -25,7 +25,7 @@ use crate::ops::SETTINGS_FILE;
 use crate::storage::FileKeyValue;
 
 /// The settings file's key-value view: the app's own file adapter under the crate's trait.
-struct SettingsFile(FileKeyValue<Wry>);
+pub(crate) struct SettingsFile(pub(crate) FileKeyValue<Wry>);
 
 impl KeyValue for SettingsFile {
     fn get(&self, key: &str) -> Option<Value> {

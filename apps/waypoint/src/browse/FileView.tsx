@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { RemoteOpening } from '../connections/RemoteState';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { KeyboardEvent } from 'react';
 import { TrashFrame } from '../trash/TrashFrame';
@@ -62,6 +63,9 @@ export function FileView({
 	};
 	const body =
 		mode === 'grid' ? <GridView {...shared} size={gridSize} /> : <ListingView {...shared} />;
+	// A server folder whose login is still connecting says so.
+	if (state.status === 'opening' && location)
+		return <RemoteOpening location={location} fallback={body} />;
 	if (!session || !inTrash) return body;
 
 	const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

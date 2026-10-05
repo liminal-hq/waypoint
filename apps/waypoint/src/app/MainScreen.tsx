@@ -29,6 +29,8 @@ import { createTauriDirScanClient } from '../services/tauriDirScanClient';
 import { HomeScanProvider } from '../overview/HomeScanContext';
 import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
 import { DevicesClientProvider } from '../devices/DevicesClientContext';
+import { ConnectionsProvider } from '../connections/ConnectionsContext';
+import { createTauriConnectionsClient } from '../connections/tauriConnectionsClient';
 import { createTauriOpenWithClient } from '../openWith/tauriOpenWithClient';
 import { DetailsClientProvider } from '../inspector/DetailsClientContext';
 import { PropertiesWindowProvider } from '../inspector/PropertiesWindowContext';
@@ -88,6 +90,7 @@ function start(): Promise<MainServices> {
 		createNativeDndClient: createTauriNativeDndClient,
 		createTrashClient: createTauriTrashClient,
 		createDevicesClient: createTauriDevicesClient,
+		createConnectionsClient: createTauriConnectionsClient,
 		createOpenWithClient: createTauriOpenWithClient,
 		createThumbnailsClient: createTauriThumbnailsClient,
 		createDetailsClient: createTauriDetailsClient,
@@ -145,48 +148,50 @@ export function MainScreen() {
 							<TimeFormatProvider client={startup.services.timeFormat}>
 								<TrashClientProvider client={startup.services.trash}>
 									<DevicesClientProvider client={startup.services.devices}>
-										<OpenWithProvider client={startup.services.openWith}>
-											<ThumbnailsProvider client={startup.services.thumbnails}>
-												<DetailsClientProvider client={startup.services.details}>
-													<PropertiesWindowProvider client={startup.services.propertiesWindow}>
-														<HomeScanProvider client={startup.services.dirScan}>
-															<TabsProvider
-																api={startup.services.tabsApi}
-																home={startup.services.home}
-															>
-																<main className={styles.content}>
-																	{DevLiveControls && startup.services.demo && (
-																		<Suspense fallback={null}>
-																			<DevLiveControls
-																				client={startup.services.demo.client}
-																				location={startup.services.home}
-																			/>
-																		</Suspense>
-																	)}
-																	<MainOps
-																		client={startup.services.ops}
-																		osClipboard={startup.services.osClipboard}
-																	>
-																		<FolderViewsProvider client={startup.services.folderViews}>
-																			<Workspace
-																				startup={{
-																					view: startup.services.view,
-																					notice: startup.services.notice,
-																				}}
-																				tearoff={startup.services.tearoff}
-																				nativeDnd={startup.services.nativeDnd}
-																			/>
-																		</FolderViewsProvider>
-																	</MainOps>
-																	<CommandPaletteHost />
-																	<HelpHost appInfo={startup.services.appInfo} />
-																</main>
-															</TabsProvider>
-														</HomeScanProvider>
-													</PropertiesWindowProvider>
-												</DetailsClientProvider>
-											</ThumbnailsProvider>
-										</OpenWithProvider>
+										<ConnectionsProvider client={startup.services.connections}>
+											<OpenWithProvider client={startup.services.openWith}>
+												<ThumbnailsProvider client={startup.services.thumbnails}>
+													<DetailsClientProvider client={startup.services.details}>
+														<PropertiesWindowProvider client={startup.services.propertiesWindow}>
+															<HomeScanProvider client={startup.services.dirScan}>
+																<TabsProvider
+																	api={startup.services.tabsApi}
+																	home={startup.services.home}
+																>
+																	<main className={styles.content}>
+																		{DevLiveControls && startup.services.demo && (
+																			<Suspense fallback={null}>
+																				<DevLiveControls
+																					client={startup.services.demo.client}
+																					location={startup.services.home}
+																				/>
+																			</Suspense>
+																		)}
+																		<MainOps
+																			client={startup.services.ops}
+																			osClipboard={startup.services.osClipboard}
+																		>
+																			<FolderViewsProvider client={startup.services.folderViews}>
+																				<Workspace
+																					startup={{
+																						view: startup.services.view,
+																						notice: startup.services.notice,
+																					}}
+																					tearoff={startup.services.tearoff}
+																					nativeDnd={startup.services.nativeDnd}
+																				/>
+																			</FolderViewsProvider>
+																		</MainOps>
+																		<CommandPaletteHost />
+																		<HelpHost appInfo={startup.services.appInfo} />
+																	</main>
+																</TabsProvider>
+															</HomeScanProvider>
+														</PropertiesWindowProvider>
+													</DetailsClientProvider>
+												</ThumbnailsProvider>
+											</OpenWithProvider>
+										</ConnectionsProvider>
 									</DevicesClientProvider>
 								</TrashClientProvider>
 							</TimeFormatProvider>

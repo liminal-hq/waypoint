@@ -114,3 +114,8 @@
 	color: var(--wp-danger);
 	font-size: 12px;
 }
+
+.problem[data-tone='note'] {
+	border-color: var(--wp-border-subtle);
+	color: var(--wp-text-primary);
+}

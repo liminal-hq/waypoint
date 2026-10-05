@@ -54,6 +54,12 @@ import { locationLabel } from './tabTitle';
 import { PlusMenu, TabContextMenu } from './TabMenus';
 import { TabSwitcher } from './TabSwitcher';
 import { useTabTitle } from './tabTitle';
+import { useVfsClient } from '../browse/VfsClientContext';
+import { ServerIcon } from '../connections/ConnectionIcons';
+import { useConnectionsView } from '../connections/ConnectionsContext';
+import { stateOf } from '../connections/connectionsModel';
+import { stateTone, stateWords } from '../connections/remoteModel';
+import { useLocationInfo } from '../nav/locationInfo';
 import { useClosedTabs } from './useClosedTabs';
 import styles from './TabStrip.module.css';
 
@@ -678,8 +684,12 @@ function TabButton({
 	onKeyDown,
 }: TabButtonProps) {
 	const title = useTabTitle(tab);
-	// The colour and the pin are words as well as marks, so neither is conveyed by appearance alone.
+	const connection = useLocationInfo(useVfsClient(), tab.location)?.connection;
+	const remote = useConnectionsView((view) => (connection ? stateOf(view, connection) : null));
+	// The colour and the pin are words as well as marks, so neither is conveyed by appearance alone;
+	// nor is a server's state, which the badge shows.
 	const details = [
+		remote ? tf('tabs.remote', { state: stateWords(remote) }) : null,
 		pairLabel ?? null,
 		groupName === undefined ? null : tf('groups.tab.member', { name: groupName }),
 		tab.pinned ? t('tabs.pinned') : null,
@@ -702,7 +712,13 @@ function TabButton({
 				onFocus={onFocus}
 				onKeyDown={onKeyDown}
 			>
-				<FolderTabIcon className={styles.icon} />
+				{remote ? (
+					<span className={styles.remoteIcon} data-tone={stateTone(remote)}>
+						<ServerIcon className={styles.icon} />
+					</span>
+				) : (
+					<FolderTabIcon className={styles.icon} />
+				)}
 				{tab.pinned ? <PinIcon className={styles.pinBadge} width={10} height={10} /> : null}
 				{tab.pinned ? null : <span className={styles.title}>{title}</span>}
 			</div>
