@@ -19,10 +19,16 @@ import {
 	type CSSProperties,
 } from 'react';
 import { useStore } from 'zustand';
+import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
+import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
+import { useRepository } from '../git/GitContext';
+import { GitMarkView } from '../git/GitMarkView';
+import { GitIcon } from '../icons/MenuIcons';
+import { useSettingsHandle, useSettings } from '../settings/SettingsContext';
 import { Thumbnail } from '../thumbnails/Thumbnail';
 import { devicePixelRatio, useEntryThumbnailLoader } from '../thumbnails/ThumbnailsContext';
 import {
@@ -62,7 +68,7 @@ const OVERSCAN = 12;
 /** A column of the header. One with no `sort` is not a sort key (where an item was trashed from). */
 interface Column {
 	/** Names the column for the row cells and the container queries that hide it when narrow. */
-	id: 'name' | 'size' | 'modified' | 'kind' | 'original' | 'deleted';
+	id: 'name' | 'size' | 'modified' | 'kind' | 'original' | 'deleted' | 'git';
 	sort?: SortKey;
 	label: MessageId;
 }
@@ -72,6 +78,13 @@ const FOLDER_COLUMNS: Column[] = [
 	{ id: 'size', sort: 'size', label: 'browse.column.size' },
 	{ id: 'modified', sort: 'modified', label: 'browse.column.modified' },
 	{ id: 'kind', sort: 'kind', label: 'browse.column.kind' },
+];
+
+/** In a folder of a Git working tree the Git column sits beside Name, where it is read first and last to give way. */
+const GIT_FOLDER_COLUMNS: Column[] = [
+	FOLDER_COLUMNS[0]!,
+	{ id: 'git', sort: 'git', label: 'browse.column.git' },
+	...FOLDER_COLUMNS.slice(1),
 ];
 
 /** The Trash shows where each item came from and when it was trashed in place of Modified and Kind. */
@@ -88,6 +101,8 @@ interface ListViewProps {
 	/** Enter and double-click on an entry. Navigation and opening belong to the caller. */
 	onOpen?: (entry: Entry, handle: ListingHandle) => void;
 }
+
+const selectGitColumn = (settings: { ui: { gitColumn: boolean } }) => settings.ui.gitColumn;
 
 /** Opens the listing of `location` itself; a host that manages listings uses `ListingView`. */
 export function ListView({ location, onOpen }: ListViewProps) {
@@ -213,7 +228,27 @@ function ListingBody({
 	const scanning = model.phase === 'scanning' || model.phase === 'rescanning';
 	const empty = model.count === 0 && !scanning;
 	const trash = model.layout === 'trash';
-	const columns = trash ? TRASH_COLUMNS : FOLDER_COLUMNS;
+	// In a folder of a working tree (and with Git on) the rows carry Git's marks; the column is the person's to hide.
+	const repository = useRepository(trash ? undefined : model.location);
+	const gitColumnWanted = useSettings(selectGitColumn);
+	const settingsHandle = useSettingsHandle();
+	const showGit = repository !== null && gitColumnWanted;
+	const columns = trash ? TRASH_COLUMNS : showGit ? GIT_FOLDER_COLUMNS : FOLDER_COLUMNS;
+	const [headerMenu, setHeaderMenu] = useState<{
+		position: { x: number; y: number };
+		keyboard: boolean;
+	} | null>(null);
+	const headerMenuItems: MenuItem[] = repository
+		? [
+				{
+					type: 'checkbox',
+					id: 'git',
+					label: t('git.column.show'),
+					icon: <GitIcon />,
+					checked: gitColumnWanted,
+				},
+			]
+		: [];
 	useLayoutEffect(() => {
 		if (scroller.current) setRowHeight(measureRowHeight(scroller.current));
 	}, [empty]);
@@ -389,12 +424,25 @@ function ListingBody({
 		<div
 			className={styles.view}
 			data-layout={model.layout}
+			data-git={showGit ? '' : undefined}
 			style={withPictures ? ({ '--wp-list-icon': `${pictureSize}px` } as CSSProperties) : undefined}
 		>
 			<div
 				className={`${styles.columns} ${styles.header}`}
 				role="group"
 				aria-label={t('browse.columns.label')}
+				onContextMenu={(event) => {
+					if (headerMenuItems.length === 0) return;
+					event.preventDefault();
+					setHeaderMenu({ position: { x: event.clientX, y: event.clientY }, keyboard: false });
+				}}
+				onKeyDown={(event) => {
+					const menuKey = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+					if (!menuKey || headerMenuItems.length === 0) return;
+					event.preventDefault();
+					const box = (event.target as HTMLElement).getBoundingClientRect();
+					setHeaderMenu({ position: { x: box.left, y: box.bottom }, keyboard: true });
+				}}
 			>
 				{columns.map((column, index) => {
 					const { sort } = column;
@@ -436,6 +484,22 @@ function ListingBody({
 				})}
 			</div>
 
+			{headerMenu && headerMenuItems.length > 0 && (
+				<ContextMenu
+					items={headerMenuItems}
+					position={headerMenu.position}
+					ariaLabel={t('browse.columns.menu.label')}
+					openedWithKeyboard={headerMenu.keyboard}
+					onClose={() => setHeaderMenu(null)}
+					onSelect={(item) => {
+						setHeaderMenu(null);
+						if (item.id !== 'git') return;
+						settingsHandle?.saveUi({ gitColumn: !gitColumnWanted }).catch((error: unknown) => {
+							console.warn('could not save the Git column choice', error);
+						});
+					}}
+				/>
+			)}
 			{scanning && (
 				<div className={styles.notice} role="status" data-notice="scanning">
 					{tf('browse.scanning', {
@@ -526,6 +590,7 @@ function ListingBody({
 									data-placeholder={entry ? undefined : ''}
 									data-selected={selected ? '' : undefined}
 									data-cut={entry && cut.has(entry.name) ? '' : undefined}
+									data-ignored={entry?.git?.unstaged === 'ignored' ? '' : undefined}
 									data-active={focus === position && headerGroup < 0 ? '' : undefined}
 									{...(entry ? entryDropAttributes(entry, model) : undefined)}
 									onPointerDown={(event) => onItemPointerDown(event, position, entry)}
@@ -552,10 +617,16 @@ function ListingBody({
 														thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
 														group={entry.group}
 														name={entry.name}
+														badge={entry.git?.repository ? 'git' : undefined}
 														className={styles.thumbnail}
 													/>
 												) : (
-													<FileIcon group={entry.group} special={entry.special} name={entry.name} />
+													<FileIcon
+														group={entry.group}
+														special={entry.special}
+														name={entry.name}
+														badge={entry.git?.repository ? 'git' : undefined}
+													/>
 												)}
 												{commands && renaming === entry.id ? (
 													<InlineRename
@@ -589,6 +660,11 @@ function ListingBody({
 												</>
 											) : (
 												<>
+													{showGit && (
+														<span className={styles.cell} data-column="git">
+															<GitMarkView mark={entry.git} variant="column" />
+														</span>
+													)}
 													<span className={styles.cell} data-column="size">
 														{entry.size === null ? t('browse.value.none') : formatSize(entry.size)}
 													</span>

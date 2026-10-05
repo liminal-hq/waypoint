@@ -52,6 +52,47 @@
 	}
 }
 
+/* In a folder of a Git working tree the Git column follows Name. Each breakpoint is the one above plus the column and its gap (100px), and it gives way last of the three. */
+.view[data-git] .columns {
+	grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px 88px 168px 96px;
+}
+
+@container list (max-width: 671px) {
+	.view[data-git] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px 88px 168px;
+	}
+}
+
+@container list (max-width: 563px) {
+	.view[data-git] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px 88px;
+	}
+
+	.view[data-git] .columns [data-column='modified'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 383px) {
+	.view[data-git] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px;
+	}
+
+	.view[data-git] .columns [data-column='size'] {
+		display: none;
+	}
+}
+
+@container list (max-width: 239px) {
+	.view[data-git] .columns {
+		grid-template-columns: minmax(var(--wp-name-min), 1fr);
+	}
+
+	.view[data-git] .columns [data-column='git'] {
+		display: none;
+	}
+}
+
 /* The Trash lists where an item was and when it was trashed in place of Modified and Kind: Name, Original location, Date deleted, Size. */
 .view[data-layout='trash'] .columns {
 	grid-template-columns: minmax(var(--wp-name-min), 1.2fr) minmax(120px, 1fr) 168px 88px;
@@ -204,6 +245,11 @@
 
 .row:hover {
 	background: var(--wp-bg-hover);
+}
+
+/* Git's ignored paths are dimmed; the "!" in the Git column says it too. */
+.row[data-ignored] .nameText {
+	opacity: 0.6;
 }
 
 /* A cut waits on the clipboard to be moved: its row is dimmed until it is pasted or replaced. */

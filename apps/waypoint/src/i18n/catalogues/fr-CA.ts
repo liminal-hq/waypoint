@@ -4654,6 +4654,171 @@ const messages: Catalogue = {
 	'shelf.copyFailed': 'Impossible de copier depuis l’Étagère : {reason}',
 	// source: 8cbe0b65
 	'shelf.reveal.failed': 'Impossible d’ouvrir le dossier de {name}',
+	// source: b949c922
+	'browse.column.git': 'Git',
+	// source: 53aade77
+	'browse.columns.menu.label': 'Colonnes',
+	// source: 591239c6
+	'git.column.show': 'État Git',
+	// source: 591239c6
+	'menu.sort.git': 'État Git',
+	// source: e8ce5dca
+	'git.change.modified': 'Modifié',
+	// source: 6b02e0d3
+	'git.change.added': 'Ajouté',
+	// source: b48ff39c
+	'git.change.deleted': 'Supprimé',
+	// source: 05487af3
+	'git.change.renamed': 'Renommé',
+	// source: a949ceb1
+	'git.change.typeChanged': 'Type modifié',
+	// source: c7ba5477
+	'git.change.untracked': 'Non suivi',
+	// source: 7d648f5b
+	'git.change.ignored': 'Ignoré',
+	// source: 014659ab
+	'git.change.conflicted': 'Conflit',
+	// source: 08691509
+	'git.side.staged': '{change}, indexé',
+	// source: 58ea04df
+	'git.side.unstaged': '{change}, non indexé',
+	// source: fe8dcd07
+	'git.mark.repository': 'Dépôt Git',
+	// source: 21aea620
+	'git.mark.inside.one': '{count} élément modifié à l’intérieur',
+	// source: cd26c1b8
+	'git.mark.inside.many': '{count} d’éléments modifiés à l’intérieur',
+	// source: cd26c1b8
+	'git.mark.inside.other': '{count} éléments modifiés à l’intérieur',
+	// source: 85f656d3
+	'git.mark.insideConflicts.one': '{count} en conflit',
+	// source: 85f656d3
+	'git.mark.insideConflicts.many': '{count} en conflit',
+	// source: 85f656d3
+	'git.mark.insideConflicts.other': '{count} en conflit',
+	// source: 778e8537
+	'git.head.detached': 'Tête détachée à {commit}',
+	// source: e36dc64a
+	'git.head.unborn': '{branch} (aucun commit)',
+	// source: 5a336012
+	'git.words.branch': 'Dépôt Git {repository}, sur la branche {branch}',
+	// source: ffc19087
+	'git.words.detached': 'Dépôt Git {repository}, tête détachée au commit {commit}',
+	// source: 5f861e70
+	'git.words.unborn': 'Dépôt Git {repository}, sur la branche {branch}, sans commit pour l’instant',
+	// source: 4f382b2a
+	'git.words.upToDate': 'À jour avec {upstream}',
+	// source: e8da486e
+	'git.words.ahead.one': '{count} commit en avance sur la branche amont',
+	// source: 769261dd
+	'git.words.ahead.many': '{count} de commits en avance sur la branche amont',
+	// source: 769261dd
+	'git.words.ahead.other': '{count} commits en avance sur la branche amont',
+	// source: 51f7ded9
+	'git.words.behind.one': '{count} commit en retard sur la branche amont',
+	// source: a7ac331e
+	'git.words.behind.many': '{count} de commits en retard sur la branche amont',
+	// source: a7ac331e
+	'git.words.behind.other': '{count} commits en retard sur la branche amont',
+	// source: c699aa00
+	'git.words.clean': 'Aucune modification',
+	// source: 568f313a
+	'git.operation.merge': 'Une fusion est en cours',
+	// source: 58130307
+	'git.operation.rebase': 'Un rebasage est en cours',
+	// source: d6de27a6
+	'git.operation.cherryPick': 'Un cherry-pick est en cours',
+	// source: 0ef11abf
+	'git.operation.revert': 'Une annulation (revert) est en cours',
+	// source: d30ed5e6
+	'git.operation.bisect': 'Une recherche par bissection est en cours',
+	// source: 85f656d3
+	'git.count.conflicted.one': '{count} en conflit',
+	// source: 85f656d3
+	'git.count.conflicted.many': '{count} en conflit',
+	// source: 85f656d3
+	'git.count.conflicted.other': '{count} en conflit',
+	// source: 3fddc533
+	'git.count.staged.one': '{count} indexé',
+	// source: 3fddc533
+	'git.count.staged.many': '{count} indexés',
+	// source: 3fddc533
+	'git.count.staged.other': '{count} indexés',
+	// source: 1c6bf5e9
+	'git.count.unstaged.one': '{count} non indexé',
+	// source: 1c6bf5e9
+	'git.count.unstaged.many': '{count} non indexés',
+	// source: 1c6bf5e9
+	'git.count.unstaged.other': '{count} non indexés',
+	// source: 822e45d9
+	'git.count.untracked.one': '{count} non suivi',
+	// source: 822e45d9
+	'git.count.untracked.many': '{count} non suivis',
+	// source: 822e45d9
+	'git.count.untracked.other': '{count} non suivis',
+	// source: 903136bd
+	'git.status.label': 'Branche Git',
+	// source: 5843dc29
+	'settings.general.gitDecorations.label': 'Afficher l’état Git',
+	// source: 78869e3d
+	'settings.general.gitDecorations.description':
+		'Dans un dossier d’une copie de travail Git, signale les fichiers et les dossiers modifiés, ajoute une colonne Git à la liste et affiche la branche dans la barre d’état et dans l’Inspecteur. Waypoint ne fait que lire le dépôt et ne le modifie jamais. Désactivé, Waypoint ne lit rien des dépôts.',
+	// source: 591239c6
+	'services.name.waypoint-git': 'État Git',
+	// source: b949c922
+	'inspector.tab.git': 'Git',
+	// source: 13d6ff07
+	'git.pane.repository': 'Dépôt',
+	// source: 52656e81
+	'git.pane.branch': 'Branche',
+	// source: 94adc696
+	'git.pane.upstream': 'Branche amont',
+	// source: bbd4b6a8
+	'git.pane.changes': 'Modifications',
+	// source: c1f88e9d
+	'git.pane.operation': 'En cours',
+	// source: abb8fd53
+	'git.pane.item': 'Élément sélectionné',
+	// source: 920e413c
+	'git.pane.status': 'État',
+	// source: c699aa00
+	'git.pane.clean': 'Aucune modification',
+	// source: 924fd54d
+	'git.pane.sinceCommit': 'Depuis le dernier commit',
+	// source: 9c46d354
+	'git.pane.diff.files.one': '{count} fichier modifié',
+	// source: 959e8066
+	'git.pane.diff.files.many': '{count} de fichiers modifiés',
+	// source: 959e8066
+	'git.pane.diff.files.other': '{count} fichiers modifiés',
+	// source: aeb400b3
+	'git.pane.diff.lines': '+{added} −{removed} lignes',
+	// source: d51a439b
+	'git.pane.diff.binary.one': '{count} fichier binaire',
+	// source: f3603cb4
+	'git.pane.diff.binary.many': '{count} de fichiers binaires',
+	// source: f3603cb4
+	'git.pane.diff.binary.other': '{count} fichiers binaires',
+	// source: 29e3ab3d
+	'git.pane.diff.partial': 'Certains fichiers n’ont pas été lus : ces nombres sont des minimums.',
+	// source: 24a1708d
+	'git.pane.commits': 'Commits récents',
+	// source: c435448b
+	'git.pane.loading': 'Lecture de l’historique…',
+	// source: d267a85e
+	'git.pane.noCommits': 'Aucun commit n’a encore modifié cet élément.',
+	// source: 3e22d058
+	'git.pane.truncated':
+		'Il peut exister des commits plus anciens : seuls les plus récents ont été examinés.',
+	// source: 52df9b88
+	'git.pane.failed': 'Impossible de lire l’historique.',
+	// source: dd689975
+	'git.pane.commit.by': '{author}, {date}',
+	// source: b003a54b
+	'git.pane.many':
+		'L’historique s’affiche pour un seul élément à la fois. Sélectionnez un élément pour le voir.',
+	// source: 46053dfe
+	'git.pane.repositoryName': 'Dépôt Git {name}',
 };
 
 export default messages;

@@ -25,6 +25,7 @@
         "@liminal-hq/plugin-window-manager": "workspace:*",
         "@liminal-hq/plugin-window-tearoff": "workspace:*",
         "@liminal-hq/waypoint-chrome": "workspace:*",
+        "@liminal-hq/waypoint-plugin-git": "workspace:*",
         "@liminal-hq/waypoint-plugin-ops": "workspace:*",
         "@liminal-hq/waypoint-plugin-session": "workspace:*",
         "@liminal-hq/waypoint-plugin-settings": "workspace:*",
@@ -178,6 +179,20 @@
       "name": "@liminal-hq/plugin-volumes",
       "version": "0.1.0",
       "dependencies": {
+        "@tauri-apps/api": "^2.10.0",
+      },
+      "devDependencies": {
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.59.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "plugins/waypoint-git": {
+      "name": "@liminal-hq/waypoint-plugin-git",
+      "version": "0.0.0",
+      "dependencies": {
+        "@liminal-hq/waypoint-protocol": "workspace:*",
         "@tauri-apps/api": "^2.10.0",
       },
       "devDependencies": {
@@ -413,6 +428,8 @@
     "@liminal-hq/waypoint": ["@liminal-hq/waypoint@workspace:apps/waypoint"],
 
     "@liminal-hq/waypoint-chrome": ["@liminal-hq/waypoint-chrome@workspace:packages/chrome"],
+
+    "@liminal-hq/waypoint-plugin-git": ["@liminal-hq/waypoint-plugin-git@workspace:plugins/waypoint-git"],
 
     "@liminal-hq/waypoint-plugin-ops": ["@liminal-hq/waypoint-plugin-ops@workspace:plugins/waypoint-ops"],
 

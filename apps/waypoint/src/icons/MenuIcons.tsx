@@ -192,6 +192,16 @@ export const TagIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+/** A branch: two lines that part, with a dot at each end. Git's status and branch. */
+export const GitIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path d="M5 4.5v7M5 9c0-2.5 6-1 6-4" />
+		<circle data-fill cx="5" cy="3" r="1.5" />
+		<circle data-fill cx="5" cy="13" r="1.5" />
+		<circle data-fill cx="11" cy="3.5" r="1.5" />
+	</Glyph>
+);
+
 export const DriveIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<rect data-fill x="2" y="8" width="12" height="4.5" rx="1.2" />

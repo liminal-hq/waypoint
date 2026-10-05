@@ -9,6 +9,7 @@ import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { FolderViewsProvider } from '../browse/FolderViewsContext';
+import { GitProvider } from '../git/GitContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { t } from '../i18n/messages';
 import { useSettings } from '../settings/SettingsContext';
@@ -25,6 +26,7 @@ import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
 import { createTauriVfsClient } from '../services/tauriVfsClient';
 import { createTauriFolderViewsClient } from '../services/tauriFolderViewsClient';
+import { createTauriGitClient } from '../services/tauriGitClient';
 import { createTauriDirScanClient } from '../services/tauriDirScanClient';
 import { HomeScanProvider } from '../overview/HomeScanContext';
 import { createTauriDevicesClient } from '../devices/tauriDevicesClient';
@@ -98,6 +100,7 @@ function start(): Promise<MainServices> {
 		createDirScanClient: createTauriDirScanClient,
 		createAppInfoClient: createTauriAppInfoClient,
 		createFolderViewsClient: createTauriFolderViewsClient,
+		createGitClient: createTauriGitClient,
 	});
 }
 
@@ -172,14 +175,16 @@ export function MainScreen() {
 																			osClipboard={startup.services.osClipboard}
 																		>
 																			<FolderViewsProvider client={startup.services.folderViews}>
-																				<Workspace
-																					startup={{
-																						view: startup.services.view,
-																						notice: startup.services.notice,
-																					}}
-																					tearoff={startup.services.tearoff}
-																					nativeDnd={startup.services.nativeDnd}
-																				/>
+																				<GitProvider client={startup.services.git}>
+																					<Workspace
+																						startup={{
+																							view: startup.services.view,
+																							notice: startup.services.notice,
+																						}}
+																						tearoff={startup.services.tearoff}
+																						nativeDnd={startup.services.nativeDnd}
+																					/>
+																				</GitProvider>
 																			</FolderViewsProvider>
 																		</MainOps>
 																		<CommandPaletteHost />

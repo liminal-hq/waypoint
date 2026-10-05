@@ -293,6 +293,7 @@ describe('the General page', () => {
 			startup: 'home',
 			showHiddenDefault: true,
 			rememberFolderViews: true,
+			gitDecorations: true,
 		});
 	});
 
@@ -311,6 +312,22 @@ describe('the General page', () => {
 		await userEvent.click(row);
 		await waitFor(() => expect(row).toBeChecked());
 		expect(settings.current().settings.general.rememberFolderViews).toBe(true);
+	});
+
+	it('shows the Git status switch on, says what it does, and turns it off and on again', async () => {
+		const { settings } = await open();
+		const row = screen.getByRole('switch', { name: 'Show Git status' });
+		expect(row).toBeChecked();
+		expect(row).toHaveAccessibleDescription(/never changes it/);
+		await userEvent.click(row);
+		await waitFor(() => expect(row).not.toBeChecked());
+		expect(settings.current().settings).toEqual({
+			...DEFAULT_SETTINGS,
+			general: { ...DEFAULT_SETTINGS.general, gitDecorations: false },
+		});
+		await userEvent.click(row);
+		await waitFor(() => expect(row).toBeChecked());
+		expect(settings.current().settings.general.gitDecorations).toBe(true);
 	});
 
 	it('shows the menu bar row under Title bar, off by default, and saves it', async () => {

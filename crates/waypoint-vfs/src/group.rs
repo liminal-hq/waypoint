@@ -306,6 +306,7 @@ mod tests {
             size: Some(1),
             modified_ms: ms,
             deleted_ms: None,
+            git_rank: 0,
         };
         group_key(GroupBy::Modified, &clock, &sortable)
     }

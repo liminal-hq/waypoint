@@ -6,6 +6,7 @@
 mod checksum;
 mod connections;
 mod effects;
+mod git;
 mod integration_policy;
 mod integrations;
 mod ops;
@@ -189,6 +190,8 @@ pub fn run() {
         .plugin(tauri_plugin_desktop_integration::init())
         // The server providers, the saved connections and the keyring behind their logins (`connections`).
         .plugin(tauri_plugin_waypoint_vfs::init_with(vfs_options))
+        // The Git status, put on the listings by `git::wire`; it calls no other plugin.
+        .plugin(tauri_plugin_waypoint_git::init())
         // After the store plugin it saves through; the session reads its choices (start-up, the view
         // of a new window) from it in `setup`.
         .plugin(tauri_plugin_waypoint_settings::init_with_folder_views(
@@ -235,6 +238,7 @@ pub fn run() {
                 settings_transfer::wire(app.handle());
                 effects::wire(app.handle());
                 thumbnails::wire(app.handle());
+                git::wire(app.handle());
                 integrations::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())

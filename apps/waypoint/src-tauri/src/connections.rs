@@ -167,6 +167,9 @@ pub fn compose() -> Composed {
         providers.push(Arc::new(sftp.provider.clone()));
         sftp
     };
+    // A revision of a local repository browses read-only like any other location (A85).
+    #[cfg(feature = "git")]
+    providers.push(Arc::new(waypoint_provider_git::GitProvider::new()));
     let storage: tauri_plugin_waypoint_vfs::StorageFactory<Wry> = Box::new(storage);
     Composed {
         options: tauri_plugin_waypoint_vfs::Options {

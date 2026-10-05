@@ -2410,6 +2410,91 @@ export const enMessages = {
 	'shelf.copied.other': 'Copied {count} items from the Shelf',
 	'shelf.copyFailed': 'Could not copy from the Shelf: {reason}',
 	'shelf.reveal.failed': 'Could not open the folder of {name}',
+
+	// translator: The column of the file list that says what Git thinks of each file and folder (changed, new, ignored…). “Git” is the program’s name and stays “Git”.
+	'browse.column.git': 'Git',
+	'browse.columns.menu.label': 'Columns',
+	// translator: A checkbox in the menu of the list’s column header: show or hide the Git column. “Git” stays “Git”.
+	'git.column.show': 'Git status',
+	// translator: Sorting the file list by what Git says about each item (conflicts first, then changes, then new files, then clean ones). “Git” stays “Git”.
+	'menu.sort.git': 'Git status',
+	'git.change.modified': 'Modified',
+	'git.change.added': 'Added',
+	'git.change.deleted': 'Deleted',
+	'git.change.renamed': 'Renamed',
+	'git.change.typeChanged': 'Type changed',
+	'git.change.untracked': 'Untracked',
+	'git.change.ignored': 'Ignored',
+	// translator: A file with a merge conflict, which Git cannot settle by itself.
+	'git.change.conflicted': 'Conflict',
+	// translator: {change} is a word such as “Modified”. “Staged” is Git’s word for a change chosen to go into the next commit.
+	'git.side.staged': '{change}, staged',
+	// translator: {change} is a word such as “Modified”. A change that is not yet chosen to go into the next commit.
+	'git.side.unstaged': '{change}, not staged',
+	'git.mark.repository': 'Git repository',
+	'git.mark.inside.one': '{count} changed item inside',
+	'git.mark.inside.other': '{count} changed items inside',
+	'git.mark.insideConflicts.one': '{count} in conflict',
+	'git.mark.insideConflicts.other': '{count} in conflict',
+	// translator: {commit} is an abbreviated commit identifier; HEAD is on a commit that no branch names.
+	'git.head.detached': 'Detached at {commit}',
+	// translator: {branch} is a branch name; a branch with no commits yet.
+	'git.head.unborn': '{branch} (no commits yet)',
+	'git.words.branch': 'Git repository {repository}, on branch {branch}',
+	'git.words.detached': 'Git repository {repository}, detached at commit {commit}',
+	'git.words.unborn': 'Git repository {repository}, on branch {branch}, with no commits yet',
+	'git.words.upToDate': 'Up to date with {upstream}',
+	'git.words.ahead.one': '{count} commit ahead of the upstream branch',
+	'git.words.ahead.other': '{count} commits ahead of the upstream branch',
+	'git.words.behind.one': '{count} commit behind the upstream branch',
+	'git.words.behind.other': '{count} commits behind the upstream branch',
+	'git.words.clean': 'No changes',
+	'git.operation.merge': 'A merge is in progress',
+	'git.operation.rebase': 'A rebase is in progress',
+	'git.operation.cherryPick': 'A cherry-pick is in progress',
+	'git.operation.revert': 'A revert is in progress',
+	'git.operation.bisect': 'A bisect is in progress',
+	'git.count.conflicted.one': '{count} in conflict',
+	'git.count.conflicted.other': '{count} in conflict',
+	'git.count.staged.one': '{count} staged',
+	'git.count.staged.other': '{count} staged',
+	'git.count.unstaged.one': '{count} not staged',
+	'git.count.unstaged.other': '{count} not staged',
+	'git.count.untracked.one': '{count} untracked',
+	'git.count.untracked.other': '{count} untracked',
+	'git.status.label': 'Git branch',
+	'settings.general.gitDecorations.label': 'Show Git status',
+	'settings.general.gitDecorations.description':
+		'In a folder of a Git working tree, mark changed files and folders, add a Git column to the list, and show the branch in the status bar and the Inspector. Waypoint only reads the repository and never changes it. Off, Waypoint reads nothing from repositories.',
+	'services.name.waypoint-git': 'Git status',
+
+	// translator: A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.
+	'inspector.tab.git': 'Git',
+	'git.pane.repository': 'Repository',
+	'git.pane.branch': 'Branch',
+	'git.pane.upstream': 'Upstream',
+	'git.pane.changes': 'Changes',
+	'git.pane.operation': 'In progress',
+	'git.pane.item': 'Selected item',
+	'git.pane.status': 'Status',
+	'git.pane.clean': 'No changes',
+	'git.pane.sinceCommit': 'Since the last commit',
+	'git.pane.diff.files.one': '{count} file changed',
+	'git.pane.diff.files.other': '{count} files changed',
+	// translator: {added} lines added and {removed} lines removed, as in a diff summary.
+	'git.pane.diff.lines': '+{added} −{removed} lines',
+	'git.pane.diff.binary.one': '{count} binary file',
+	'git.pane.diff.binary.other': '{count} binary files',
+	'git.pane.diff.partial': 'Some files were not read, so these counts are a minimum.',
+	'git.pane.commits': 'Recent commits',
+	'git.pane.loading': 'Reading the history…',
+	'git.pane.noCommits': 'No commit has changed this yet.',
+	'git.pane.truncated': 'Older commits may exist: only the most recent ones were searched.',
+	'git.pane.failed': 'Could not read the history.',
+	// translator: {author} is a person’s name and {date} the date and time of a commit.
+	'git.pane.commit.by': '{author}, {date}',
+	'git.pane.many': 'The history shows for one item at a time. Select a single item to see it.',
+	'git.pane.repositoryName': 'Git repository {name}',
 } as const;
 
 export type MessageId = keyof typeof enMessages;

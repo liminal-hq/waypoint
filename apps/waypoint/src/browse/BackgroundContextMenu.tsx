@@ -9,11 +9,13 @@ import type { ReactNode } from 'react';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import { FolderTabIcon } from '../icons/AppIcons';
+import { useRepository } from '../git/GitContext';
 import { PropertiesIcon } from '../inspector/InspectorIcons';
 import {
 	ArrowDownIcon,
 	ClockIcon,
 	EyeIcon,
+	GitIcon,
 	NewFileIcon,
 	NewFolderIcon,
 	PasteIcon,
@@ -36,6 +38,7 @@ const SORT_KEYS: Array<{ key: SortKey; label: MessageId; icon: ReactNode }> = [
 	{ key: 'modified', label: 'menu.sort.modified', icon: <ClockIcon /> },
 	{ key: 'kind', label: 'menu.sort.kind', icon: <TagIcon /> },
 	{ key: 'deleted', label: 'menu.sort.deleted', icon: <ClockIcon /> },
+	{ key: 'git', label: 'menu.sort.git', icon: <GitIcon /> },
 ];
 
 /** The columns the Trash sorts by: its items have no modified time or kind of their own to show. */
@@ -162,6 +165,8 @@ export interface BackgroundExtras {
 	 * can remember) leaves it out.
 	 */
 	folderView?: 'default' | 'remembered' | undefined;
+	/** The folder is in a Git working tree, so Git status is one of the sort keys. */
+	git?: boolean | undefined;
 }
 
 /**
@@ -172,10 +177,10 @@ export interface BackgroundExtras {
 export function backgroundMenuItems(
 	sort: SortSpec | undefined,
 	showHidden: boolean,
-	{ trash = null, commands, folderView }: BackgroundExtras = {},
+	{ trash = null, commands, folderView, git = false }: BackgroundExtras = {},
 ): MenuItem[] {
 	const keys = SORT_KEYS.filter(({ key }) =>
-		trash ? TRASH_SORT_KEYS.includes(key) : key !== 'deleted',
+		trash ? TRASH_SORT_KEYS.includes(key) : key !== 'deleted' && (key !== 'git' || git),
 	);
 	const items: MenuItem[] = [
 		...(commands && !trash ? commandItems(commands) : []),
@@ -281,10 +286,12 @@ export function BackgroundContextMenu({
 	onCommand,
 }: BackgroundContextMenuProps) {
 	const inTrash = session?.model.layout === 'trash';
+	const repository = useRepository(inTrash ? undefined : session?.model.location);
 	const items = backgroundMenuItems(session?.model.sort, showHidden, {
 		trash: inTrash ? { count: session.model.count } : null,
 		commands: inTrash ? undefined : commands,
 		folderView: inTrash ? undefined : folderView,
+		git: repository !== null,
 	});
 
 	return (

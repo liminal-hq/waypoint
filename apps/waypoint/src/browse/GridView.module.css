@@ -58,6 +58,7 @@
 }
 
 .cell {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -67,6 +68,17 @@
 	border-radius: 8px;
 	cursor: default;
 	user-select: none;
+}
+
+/* What Git says about an item sits at the cell's corner, beside the icon; a clean one has none. */
+.gitChip {
+	position: absolute;
+	inset-block-start: 4px;
+	inset-inline-end: 4px;
+}
+
+.cell[data-ignored] .label {
+	opacity: 0.6;
 }
 
 .cell:hover {

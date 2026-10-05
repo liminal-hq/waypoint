@@ -252,6 +252,8 @@ jobs:
   # The archive provider needs no server, but its tests read archives made by the real `tar`, `zip`
   # and `7z` tools (encrypted ones included); `WAYPOINT_ARCHIVE_REQUIRE` makes a missing tool a
   # failure here.
+  # The Git provider needs no server, but its tests build repositories with the real `git` (never run by
+  # the provider itself), and `WAYPOINT_GIT_REQUIRE` makes a missing `git` a failure here.
   remote-conformance:
     name: Remote providers against real servers
     runs-on: ubuntu-latest
@@ -282,6 +284,11 @@ jobs:
         env:
           WAYPOINT_ARCHIVE_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-archive
+      - name: Run the Git provider against repositories made by the real `git`
+        id: git
+        env:
+          WAYPOINT_GIT_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-git
 
       - name: Job summary
         if: always()
@@ -293,6 +300,7 @@ jobs:
             echo "| SFTP | \`${{ steps.sftp.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config\` |"
             echo "| SMB | \`${{ steps.smb.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-smb\` |"
             echo "| Archives | \`${{ steps.archive.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-archive\` |"
+            echo "| Git | \`${{ steps.git.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-git\` |"
             echo
             bash scripts/junit-summary.sh target/nextest/ci/junit.xml
           } >> "${GITHUB_STEP_SUMMARY}"

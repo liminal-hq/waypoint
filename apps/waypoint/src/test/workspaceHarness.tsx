@@ -6,6 +6,8 @@
 import { fireEvent, render } from '@testing-library/react';
 import { Workspace } from '../app/Workspace';
 import { FolderViewsProvider } from '../browse/FolderViewsContext';
+import { GitProvider } from '../git/GitContext';
+import type { GitClient } from '../services/gitClient';
 import type { FolderViewsClient } from '../services/folderViewsClient';
 import { VfsClientProvider } from '../browse/VfsClientContext';
 import { FakeTabsApi } from '../services/fakeTabsApi';
@@ -79,6 +81,8 @@ export async function renderWorkspace(
 		shelfWindow?: ShelfWindowClient;
 		/** What each folder remembers about its view (every folder shows the window's when omitted). */
 		folderViews?: FolderViewsClient;
+		/** What Git says about the folders shown (the window shows no Git when omitted). */
+		git?: GitClient;
 		/** The thumbnails service (the views keep their icons when omitted). */
 		thumbnails?: ThumbnailsClient;
 		/** Entry details, folder sizes and previews for the Inspector. */
@@ -93,11 +97,13 @@ export async function renderWorkspace(
 	const tabbed = (
 		<TabsProvider api={tabs} home={HOME}>
 			<FolderViewsProvider client={options.folderViews}>
-				<Workspace
-					tearoff={options.tearoff}
-					nativeDnd={options.nativeDnd}
-					shelfWindow={options.shelfWindow}
-				/>
+				<GitProvider client={options.git}>
+					<Workspace
+						tearoff={options.tearoff}
+						nativeDnd={options.nativeDnd}
+						shelfWindow={options.shelfWindow}
+					/>
+				</GitProvider>
 			</FolderViewsProvider>
 		</TabsProvider>
 	);

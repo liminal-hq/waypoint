@@ -156,6 +156,24 @@ describe('availability', () => {
 		expect(read(result.showHidden)).toBe('enabled');
 	});
 
+	it('offers the Git status sort only in a folder of a working tree, never in the Trash', () => {
+		expect(read(states().sortGit)).toBe('hidden');
+		expect(read(states(factsFor({}, { git: true })).sortGit)).toBe('enabled');
+		const trash = states(factsFor({ readOnly: true, trash: true }, { git: true }));
+		expect(read(trash.sortGit)).toBe('hidden');
+		expect(read(states(factsFor({ listing: false }, { git: true })).sortGit)).toBe('hidden');
+		// A new key starts ascending, and the current one stays as it is.
+		const changes: unknown[] = [];
+		const actions = {
+			...idleActions(),
+			changeSort: (change: (sort: { key: string; descending: boolean }) => unknown) =>
+				changes.push(change({ key: 'name', descending: true })),
+		} as never;
+		expect(runCommand('sortGit', actions, factsFor({}, { git: true }))).toBe(true);
+		expect(runCommand('sortGit', actions, factsFor({}))).toBe(false);
+		expect(changes).toEqual([{ key: 'git', descending: false }]);
+	});
+
 	it('offers the other-pane commands only in a pair, and says when the other pane cannot be written to', () => {
 		expect(read(states(factsFor({ selected: 1 })).copyToOtherPane)).toBe('hidden');
 		const writable = states(factsFor({ selected: 1, paired: true, otherPaneWritable: true }));

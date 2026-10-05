@@ -16,4 +16,10 @@ showHiddenDefault: boolean, startup: StartupMode, defaultView: DefaultView, clic
  * Whether a folder remembers its own view, sort and grouping (SPEC 5.3b). Off, every folder
  * shows the window's view; what was remembered is kept for when it is turned on again.
  */
-rememberFolderViews: boolean, };
+rememberFolderViews: boolean, 
+/**
+ * Whether the Git status shows in a working tree: the Git column, the marks on folders, the
+ * branch in the status bar and the Inspector's Git tab (D161). On by default; off, Waypoint
+ * reads nothing from the repository and the Services panel says it is switched off.
+ */
+gitDecorations: boolean, };

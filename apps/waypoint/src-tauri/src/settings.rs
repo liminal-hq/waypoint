@@ -149,6 +149,8 @@ mod tests {
             click_mode: ClickMode::Single,
             // Not a view choice either: the page applies each folder's own view over it.
             remember_folder_views: false,
+            // Not a view choice either: the Git plugin reads it.
+            git_decorations: true,
         });
         let view = view_for(&settings);
         assert_eq!(view.mode, ViewMode::Grid);

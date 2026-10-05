@@ -1,0 +1,38 @@
+[package]
+name = "tauri-plugin-waypoint-git"
+version = "0.1.0"
+description = "Waypoint's Git plugin: the status of the working trees folders are in, as marks on listings, a branch for the status bar and a summary for the Inspector, over the waypoint-provider-git crate"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+publish = false
+build = "build.rs"
+links = "tauri-plugin-waypoint-git"
+
+[package.metadata.platforms.support]
+linux = { level = "full", notes = "Pure Rust (gitoxide); the working tree is watched with inotify, one folder at a time" }
+windows = { level = "partial", notes = "Builds and is checked for the Windows target in CI; not yet run on Windows 11 (the watch uses ReadDirectoryChangesW through notify)" }
+
+[lib]
+name = "tauri_plugin_waypoint_git"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+log = { workspace = true }
+serde = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+waypoint-path = { path = "../../crates/waypoint-path" }
+waypoint-protocol = { path = "../../crates/waypoint-protocol" }
+waypoint-provider-git = { path = "../../crates/waypoint-provider-git" }
+waypoint-vfs = { path = "../../crates/waypoint-vfs" }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tauri = { workspace = true, features = ["test"] }
+tempfile = "3"

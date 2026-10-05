@@ -8,7 +8,9 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { FileIcon } from '../browse/FileIcon';
 import { t } from '../i18n/messages';
+import type { GitBadge } from '../services/gitClient';
 import { itemGestures, type ItemActions } from './itemGestures';
+import { SidebarGitMark } from './SidebarGitMark';
 import { ITEM_ATTRIBUTE, moveFocusInList } from './itemList';
 import styles from './Sidebar.module.css';
 
@@ -26,6 +28,8 @@ interface FavouriteListProps {
 	onMove(location: Location, to: number): void;
 	/** Whether F2 renames a row; the favourites of a workspace have no labels to edit. */
 	canRename?: boolean;
+	/** What changed inside each favourite that is in a Git working tree, by `uri`. */
+	gitBadges?: ReadonlyMap<string, GitBadge> | undefined;
 }
 
 export function FavouriteList({
@@ -38,6 +42,7 @@ export function FavouriteList({
 	onRenameCancel,
 	onMove,
 	canRename = true,
+	gitBadges,
 }: FavouriteListProps) {
 	const [dragging, setDragging] = useState<string | null>(null);
 	const [dropOn, setDropOn] = useState<string | null>(null);
@@ -142,6 +147,7 @@ export function FavouriteList({
 						>
 							<FileIcon group="folder" special={favourite.special} />
 							<span className={styles.label}>{favourite.label}</span>
+							<SidebarGitMark badge={gitBadges?.get(uri)} />
 						</button>
 					</li>
 				);

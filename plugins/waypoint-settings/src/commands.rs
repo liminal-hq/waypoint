@@ -97,6 +97,7 @@ pub async fn apply_settings_import<R: Runtime>(
 pub struct UiChange {
     pub action_bar: Option<bool>,
     pub action_bar_labels: Option<bool>,
+    pub git_column: Option<bool>,
 }
 
 /// Changes only the `ui` settings named in `change`, on top of what is in force now, and
@@ -114,6 +115,9 @@ pub async fn set_ui_settings<R: Runtime>(
         }
         if let Some(shown) = change.action_bar_labels {
             ui.action_bar_labels = shown;
+        }
+        if let Some(shown) = change.git_column {
+            ui.git_column = shown;
         }
     })
 }

@@ -389,6 +389,7 @@ describe('the Services panel sources', () => {
 			'window-manager',
 			'waypoint-ops',
 			'waypoint-session',
+			'waypoint-git',
 			'waypoint-settings',
 			'os-prefs',
 			'system-appearance',

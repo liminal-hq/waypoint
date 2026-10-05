@@ -1226,3 +1226,60 @@ mod connections {
         assert!(parsed.is_err(), "no provider serves smb here");
     }
 }
+
+/// An overlay that marks `b.txt` modified as soon as a listing is attached, and again later.
+struct MarkB {
+    sink: std::sync::Mutex<Option<waypoint_vfs::MarkSink>>,
+}
+
+struct NoGuard;
+
+impl waypoint_vfs::OverlayGuard for NoGuard {}
+
+impl waypoint_vfs::FolderOverlay for MarkB {
+    fn attach(
+        &self,
+        _folder: &waypoint_path::VfsPath,
+        sink: waypoint_vfs::MarkSink,
+    ) -> Option<Box<dyn waypoint_vfs::OverlayGuard>> {
+        let mark = waypoint_vfs::GitMark {
+            unstaged: Some(waypoint_vfs::GitChange::Modified),
+            ..Default::default()
+        };
+        sink(waypoint_vfs::FolderMarks {
+            default: None,
+            names: [(std::ffi::OsString::from("b.txt"), mark)].into(),
+        });
+        *self.sink.lock().unwrap() = Some(sink);
+        Some(Box::new(NoGuard))
+    }
+}
+
+#[test]
+fn an_overlay_the_app_gave_decorates_the_listings_it_opens() {
+    let dir = folder_with(&["a.txt", "b.txt"]);
+    let app = app();
+    let overlay = std::sync::Arc::new(MarkB {
+        sink: Default::default(),
+    });
+    app.state::<Vfs>().set_overlay(overlay.clone());
+    let received = events(&window(&app, "main"));
+    let snapshot = open(&app, "main", location(dir.path())).unwrap();
+    wait_for(&received, is_ready);
+    let entries = range(&app, "main", snapshot.handle, 0, 10).unwrap();
+    assert!(entries[0].git.is_none());
+    assert_eq!(
+        entries[1].git.unwrap().unstaged,
+        Some(waypoint_vfs::GitChange::Modified)
+    );
+    // A later change of marks reaches the window as a patch.
+    let send = overlay.sink.lock().unwrap().clone().unwrap();
+    send(waypoint_vfs::FolderMarks::default());
+    let changed = wait_for(&received, |event| {
+        matches!(event, ListingEvent::Changed { .. })
+    });
+    assert!(matches!(changed, ListingEvent::Changed { .. }));
+    assert!(range(&app, "main", snapshot.handle, 0, 10).unwrap()[1]
+        .git
+        .is_none());
+}

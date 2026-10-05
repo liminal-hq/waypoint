@@ -21,6 +21,7 @@ import {
 	ActionBarIcon,
 	ArrowDownIcon,
 	ClockIcon,
+	GitIcon,
 	ColumnsIcon,
 	CommandPaletteIcon,
 	CopyIcon,
@@ -93,6 +94,7 @@ export type CommandId =
 	| 'sortModified'
 	| 'sortKind'
 	| 'sortDeleted'
+	| 'sortGit'
 	| 'sortDescending'
 	| 'sortFoldersFirst'
 	| 'groupNone'
@@ -222,12 +224,14 @@ function needs(has: (facts: CommandFacts) => boolean, reason: MessageId): Comman
 }
 
 /** The sort keys each kind of listing offers (the Trash has no modified time or kind, only when it was deleted). */
-const SORT_KEYS: Record<SortKey, 'all' | 'trash' | 'folder'> = {
+const SORT_KEYS: Record<SortKey, 'all' | 'trash' | 'folder' | 'git'> = {
 	name: 'all',
 	size: 'all',
 	modified: 'folder',
 	kind: 'folder',
 	deleted: 'trash',
+	// Only in a folder of a working tree, where Git has something to say.
+	git: 'git',
 };
 
 function sortByKey(
@@ -244,6 +248,7 @@ function sortByKey(
 		when: (facts) => {
 			if (!facts.sort) return HIDDEN;
 			const offered = SORT_KEYS[key];
+			if (offered === 'git') return facts.git && !facts.trash ? SHOWN : HIDDEN;
 			return offered === 'all' || (offered === 'trash') === facts.trash ? SHOWN : HIDDEN;
 		},
 		checked: (facts) => facts.sort?.key === key,
@@ -655,6 +660,7 @@ export const COMMANDS: readonly CommandDef[] = [
 	sortByKey('modified', 'sortModified', 'menu.sort.modified', ClockIcon),
 	sortByKey('kind', 'sortKind', 'menu.sort.kind', TagIcon),
 	sortByKey('deleted', 'sortDeleted', 'menu.sort.deleted', ClockIcon),
+	sortByKey('git', 'sortGit', 'menu.sort.git', GitIcon),
 	{
 		id: 'sortDescending',
 		label: 'menu.sort.descending',

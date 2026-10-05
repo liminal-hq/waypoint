@@ -14,6 +14,7 @@ use crate::model::{
     Entry, Filter, GroupBy, GroupRun, ListingEvent, ListingHandle, ListingLayout, ListingPhase,
     ListingSnapshot, PatchOp, SortSpec,
 };
+use crate::overlay::{FolderOverlay, OverlayGuard};
 use crate::provider::{Change, Provider, Watch, WatchEvent, WatchSink};
 use crate::CancelToken;
 
@@ -93,6 +94,8 @@ pub struct Listing {
     watch: Mutex<Option<Box<dyn Watch>>>,
     watch_state: Mutex<WatchState>,
     held: Mutex<Held>,
+    /// Keeps an overlay's marks coming; dropped by `close`.
+    overlay: Mutex<Option<Box<dyn OverlayGuard>>>,
 }
 
 impl Listing {
@@ -137,6 +140,7 @@ impl Listing {
             watch: Mutex::new(None),
             watch_state: Mutex::new(WatchState::Off),
             held: Mutex::new(Held::default()),
+            overlay: Mutex::new(None),
         })
     }
 
@@ -183,6 +187,12 @@ impl Listing {
         self.cancel.cancel();
         let watch = self.watch.lock().unwrap_or_else(|e| e.into_inner()).take();
         drop(watch);
+        let overlay = self
+            .overlay
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        drop(overlay);
         *self.watch_state.lock().unwrap_or_else(|e| e.into_inner()) = WatchState::Off;
     }
 
@@ -429,6 +439,47 @@ impl Listing {
         };
         self.emit(event);
         ops
+    }
+
+    /// Replaces the marks an overlay puts on the entries (the Git status, D161) and raises one
+    /// `Changed` event if any row changed. Marks for names the listing does not hold yet wait for
+    /// them, and a name that arrives later takes its mark.
+    pub fn set_marks(&self, marks: crate::FolderMarks) -> Vec<PatchOp> {
+        let _turn = self.serialise();
+        let (ops, event) = {
+            let mut state = self.write();
+            let mut moved = Vec::new();
+            let ops = state.index.set_marks(marks, &mut moved);
+            if ops.is_empty() {
+                return ops;
+            }
+            state.revision += 1;
+            let event = ListingEvent::Changed {
+                handle: self.handle,
+                revision: state.revision,
+                count: state.index.count(),
+                ops: ops.clone(),
+                moved: moved.into_iter().map(EntryId).collect(),
+                groups: Self::groups_of(&state),
+            };
+            (ops, event)
+        };
+        self.emit(event);
+        ops
+    }
+
+    /// Lets `overlay` decorate this listing until it closes: its marks arrive through `set_marks`.
+    /// The listing is held weakly, so an overlay that outlives it does no harm.
+    pub fn attach_overlay(self: &Arc<Self>, overlay: &dyn FolderOverlay) {
+        let weak = Arc::downgrade(self);
+        let sink: crate::MarkSink = Arc::new(move |marks| {
+            if let Some(listing) = weak.upgrade() {
+                listing.set_marks(marks);
+            }
+        });
+        if let Some(guard) = overlay.attach(&self.path, sink) {
+            *self.overlay.lock().unwrap_or_else(|e| e.into_inner()) = Some(guard);
+        }
     }
 
     /// Starts keeping this listing up to date through the provider's watcher. Call it before

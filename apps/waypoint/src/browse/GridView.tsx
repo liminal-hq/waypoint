@@ -19,6 +19,7 @@ import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
 import { useFileCommands } from '../ops/FileCommandsContext';
+import { GitMarkView } from '../git/GitMarkView';
 import { Thumbnail } from '../thumbnails/Thumbnail';
 import { devicePixelRatio, useEntryThumbnailLoader } from '../thumbnails/ThumbnailsContext';
 import { entryThumbKey, thumbSizeFor, wantsThumbnail } from '../thumbnails/thumbnailModel';
@@ -436,6 +437,7 @@ function GridBody({
 												data-placeholder={entry ? undefined : ''}
 												data-selected={selected ? '' : undefined}
 												data-cut={entry && cut.has(entry.name) ? '' : undefined}
+												data-ignored={entry?.git?.unstaged === 'ignored' ? '' : undefined}
 												data-active={focus === position && headerGroup < 0 ? '' : undefined}
 												{...(entry ? entryDropAttributes(entry, model) : undefined)}
 												onPointerDown={(event) => onItemPointerDown(event, position, entry)}
@@ -462,9 +464,15 @@ function GridBody({
 															name={entry.name}
 															iconSize={size}
 															special={entry.special}
+															badge={entry.git?.repository ? 'git' : undefined}
 															className={styles.thumbnail}
 															iconClassName={styles.glyph}
 														/>
+														{entry.git && (
+															<span className={styles.gitChip}>
+																<GitMarkView mark={entry.git} variant="chip" />
+															</span>
+														)}
 														{commands && renaming === entry.id ? (
 															<InlineRename
 																entry={entry}

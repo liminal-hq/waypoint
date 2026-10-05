@@ -1,0 +1,27 @@
+[package]
+name = "waypoint-provider-git"
+version = "0.1.0"
+description = "Waypoint's Git provider: repository revisions browsed as read-only folders, and the status of working trees, through gitoxide"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# Pure Rust (no `libgit2`, no C compiler, no `git` binary): the default features minus the network
+# client, the credential helpers, blame, merge, archive and worktree-mutation code a file manager
+# never runs. `max-performance-safe` is the parallel, cached object database without `unsafe`
+# extras.
+gix = { version = "0.88", default-features = false, features = ["max-performance-safe", "sha1", "basic", "status", "dirwalk", "excludes", "attributes"] }
+log = { workspace = true }
+thiserror = { workspace = true }
+notify = "8"
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+[dev-dependencies]
+tempfile = "3"
+waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }

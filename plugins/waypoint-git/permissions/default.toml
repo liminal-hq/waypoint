@@ -1,0 +1,3 @@
+[default]
+description = "Default permissions for the waypoint-git plugin"
+permissions = ["allow-get-status", "allow-git-watch", "allow-git-unwatch", "allow-git-badges", "allow-git-path-info"]

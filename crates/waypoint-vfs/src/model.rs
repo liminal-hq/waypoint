@@ -152,6 +152,97 @@ pub struct Entry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(type = "number | null", optional)]
     pub deleted_ms: Option<i64>,
+    /// What Git says about the entry, in a folder of a working tree with the overlay on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub git: Option<GitMark>,
+}
+
+/// One kind of difference Git sees in a path (D161).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum GitChange {
+    Modified,
+    Added,
+    Deleted,
+    Renamed,
+    TypeChanged,
+    Untracked,
+    Ignored,
+    Conflicted,
+}
+
+/// What Git says about one entry of a listing: the change staged for the next commit, the change
+/// not staged, and, for a folder, how much changed inside it. An entry Git has nothing to say
+/// about has no mark at all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct GitMark {
+    /// `HEAD` against the index: what a commit now would contain.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub staged: Option<GitChange>,
+    /// The index against the files: what is not staged. Untracked, ignored and conflicted paths
+    /// have only this side.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub unstaged: Option<GitChange>,
+    /// For a folder, how many changed paths are inside it at any depth (ignored files not
+    /// counted); 0 for a file and for a folder with nothing changed.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub inside: u32,
+    /// How many of those are conflicted.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub conflicted_inside: u32,
+    /// The folder is itself the top of a repository (it has a `.git`), which an icon set may draw
+    /// as a badge on the folder.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub repository: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
+}
+
+impl GitMark {
+    /// The loudest of the two sides: what the Git column's one letter says.
+    pub fn primary(&self) -> Option<GitChange> {
+        self.staged.max(self.unstaged)
+    }
+
+    /// Whether anything but being ignored is the matter with the entry or, for a folder, with
+    /// something inside it.
+    pub fn is_changed(&self) -> bool {
+        self.inside > 0
+            || self.staged.is_some()
+            || matches!(self.unstaged, Some(change) if change != GitChange::Ignored)
+    }
+
+    /// Where an entry sorts under the Git column: conflicts first, then edits, then new files,
+    /// then entries with a change inside, then clean ones, then ignored ones last.
+    pub fn sort_rank(mark: Option<&GitMark>) -> u8 {
+        let Some(mark) = mark else { return 7 };
+        // A folder that is only a repository has nothing to say about a change.
+        match mark.primary() {
+            Some(GitChange::Conflicted) => 0,
+            Some(GitChange::Modified) => 1,
+            Some(GitChange::Deleted) => 2,
+            Some(GitChange::Added) => 3,
+            Some(GitChange::Renamed) => 4,
+            Some(GitChange::TypeChanged) => 5,
+            Some(GitChange::Untracked) => 6,
+            Some(GitChange::Ignored) if mark.inside == 0 => 8,
+            _ if mark.conflicted_inside > 0 => 0,
+            _ if mark.inside > 0 => 6,
+            _ => 7,
+        }
+    }
 }
 
 /// The column a listing is sorted by.
@@ -165,6 +256,8 @@ pub enum SortKey {
     Kind,
     /// When an item was trashed (Trash listings only; elsewhere every entry ties).
     Deleted,
+    /// What Git says about it (`GitMark::sort_rank`); outside a repository every entry ties.
+    Git,
 }
 
 /// What a listing is divided into headed groups by. A group is a contiguous run of the sorted rows,

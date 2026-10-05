@@ -78,6 +78,7 @@ describe('the registered sources', () => {
 			'thumbnails',
 			'trash',
 			'volumes',
+			'waypoint-git',
 			'waypoint-ops',
 			'waypoint-session',
 			'waypoint-settings',

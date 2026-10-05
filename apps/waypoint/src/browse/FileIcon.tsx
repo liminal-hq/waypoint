@@ -6,6 +6,7 @@
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import { useIconLook, type ResolvedIconTheme } from '../icons/iconTheme';
+import type { PortageFolderBadge } from '../icons/portage/portageFolderArt';
 import type { FolderColour, FolderTone } from '../icons/portage/portagePalette';
 import { PortageIcon } from '../icons/PortageIcon';
 import { WAYPOINT_FILE_GLYPHS, WAYPOINT_FOLDER_GLYPHS } from '../icons/waypointFileIcons';
@@ -28,10 +29,12 @@ interface FileIconProps {
 	colour?: FolderColour;
 	/** The Portage tone to draw, instead of the window's. */
 	tone?: FolderTone;
+	/** A sticker the Portage set draws on a folder (the Git mark of a repository); the other sets draw none. */
+	badge?: PortageFolderBadge | undefined;
 }
 
 /**
- * The icon for an entry's group. Decorative: the row's name carries the meaning. The set follows the
+ * The icon for an entry's group (a folder may carry a badge in the Portage set). Decorative: the row's name carries the meaning. The set follows the
  * window's icon theme live (Portage in the chosen folder colour and the window's tone, the Waypoint
  * glyphs, or the icons the system draws for the entry's type, with the Waypoint glyph while they load
  * and wherever the system has none); `className` sizes any of them.
@@ -42,6 +45,7 @@ export function FileIcon({
 	name,
 	size = 16,
 	className,
+	badge,
 	...override
 }: FileIconProps) {
 	const look = useIconLook();
@@ -55,6 +59,7 @@ export function FileIcon({
 				special={special}
 				colour={colour}
 				tone={tone}
+				badge={badge}
 				className={className}
 			/>
 		);

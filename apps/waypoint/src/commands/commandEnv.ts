@@ -31,6 +31,8 @@ export interface CommandFacts {
 	trash: boolean;
 	/** The active pane lists a folder on this computer, which is what a link can point at. */
 	local: boolean;
+	/** The active pane lists a folder in a Git working tree, so it can be sorted by Git status. */
+	git: boolean;
 	/** The platform can make links without a privilege the person may not hold (not Windows). */
 	linkSupported: boolean;
 	/** The mime-apps plugin can list applications or has a chooser of its own, so Open With… can work here. */
@@ -162,6 +164,7 @@ export function emptyFacts(): CommandFacts {
 		selected: 0,
 		listing: false,
 		trash: false,
+		git: false,
 		local: false,
 		linkSupported: true,
 		openWith: false,

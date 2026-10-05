@@ -28,6 +28,7 @@ import { FavouriteList } from './FavouriteList';
 import { bookmarksSource, workspaceSource } from './favouritesSource';
 import { FolderTree } from './FolderTree';
 import type { ItemActions, ItemMenuRequest } from './itemGestures';
+import { useGitBadges, useGitVersion } from '../git/GitContext';
 import { PlaceList } from './PlaceList';
 import { usePlacesClient } from './PlacesClientContext';
 import { SidebarMenu } from './SidebarMenu';
@@ -216,6 +217,19 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 		[api, activeWorkspace, placesClient, bookmarks],
 	);
 	const favourites = source.favourites;
+
+	// What changed inside the favourites and places that are in a working tree, for the dot beside each.
+	const gitVersion = useGitVersion();
+	const gitLocations = useMemo(
+		() => [
+			...source.favourites.map((favourite) => favourite.location),
+			...(places?.places ?? [])
+				.filter((place) => place.kind !== 'trash' && place.kind !== 'overview')
+				.map((place) => place.location),
+		],
+		[source.favourites, places],
+	);
+	const gitBadges = useGitBadges(gitLocations, gitVersion);
 	const fail = useCallback(
 		(error: unknown) => {
 			console.warn('could not change the favourites', error);
@@ -361,6 +375,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 								currentUri={currentUri}
 								actions={actions}
 								trash={trashInfo}
+								gitBadges={gitBadges}
 							/>
 						</Section>
 						{devices.available && (
@@ -407,6 +422,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 									}}
 									onRenameCancel={() => setRenaming(null)}
 									onMove={move}
+									gitBadges={gitBadges}
 								/>
 							)}
 						</Section>
