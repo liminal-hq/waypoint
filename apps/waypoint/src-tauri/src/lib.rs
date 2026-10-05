@@ -209,6 +209,8 @@ pub fn run() {
         .manage(thumbnails::ThumbnailBridge::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
+            connections::get_protocol_details,
+            connections::nextcloud_address,
             hold_next_window,
             show_window,
             ops_window::open_ops_window,
