@@ -26,7 +26,6 @@ import {
 	ChevronLeftIcon,
 	ChevronRightSmallIcon,
 	CloseSmallIcon,
-	FolderTabIcon,
 	PinIcon,
 	PlusIcon,
 } from '../icons/AppIcons';
@@ -54,6 +53,7 @@ import { locationLabel } from './tabTitle';
 import { PlusMenu, TabContextMenu } from './TabMenus';
 import { TabSwitcher } from './TabSwitcher';
 import { useTabTitle } from './tabTitle';
+import { FileIcon } from '../browse/FileIcon';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { ServerIcon } from '../connections/ConnectionIcons';
 import { useConnectionsView } from '../connections/ConnectionsContext';
@@ -717,7 +717,7 @@ function TabButton({
 						<ServerIcon className={styles.icon} />
 					</span>
 				) : (
-					<FolderTabIcon className={styles.icon} />
+					<FileIcon group="folder" className={styles.icon} />
 				)}
 				{tab.pinned ? <PinIcon className={styles.pinBadge} width={10} height={10} /> : null}
 				{tab.pinned ? null : <span className={styles.title}>{title}</span>}
