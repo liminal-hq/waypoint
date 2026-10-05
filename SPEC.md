@@ -288,15 +288,15 @@ Full rules are in `docs/interactions.md` §3. Summary:
 
 ## 7. Remote & virtual locations
 
-| Provider     | URI                                                                            | Notes                                                                                         |
-| ------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| SFTP/SSH     | `sftp://user@host:port/path`                                                   | Key agent, known-hosts prompt, jump host, "Open terminal here" over SSH                       |
-| SMB          | `smb://domain;user@host/share/path`                                            | Domain auth, share browser (`smb://host/` lists the shares)                                   |
-| WebDAV       | `davs://host/path` (`dav://` for HTTP)                                         | Nextcloud preset                                                                              |
-| S3           | `s3://bucket/prefix`                                                           | Endpoint preset (AWS, MinIO, R2), storage class column                                        |
-| Git          | `git+file:///repo!/path?rev=main` or a local repo overlay                      | Status column, branch in the status bar, stage and commit actions (plugin)                    |
-| Archives     | `archive:{archive's location}!/path`, opened from `*.zip`, `*.tar.*` or `*.7z` | Read-only, or read/write where the format allows; archives inside archives and on servers too |
-| Cloud drives | Plugin-provided                                                                | Nextcloud and Google Drive samples                                                            |
+| Provider     | URI                                                                            | Notes                                                                                          |
+| ------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| SFTP/SSH     | `sftp://user@host:port/path`                                                   | Key agent, known-hosts prompt, jump host, "Open terminal here" over SSH                        |
+| SMB          | `smb://domain;user@host/share/path`                                            | Domain auth, share browser (`smb://host/` lists the shares)                                    |
+| WebDAV       | `davs://host/path` (`dav://` for HTTP)                                         | Nextcloud preset (`remote.php/dav/files/<id>/`, app passwords); Digest, Basic or token sign-in |
+| S3           | `s3://bucket/prefix`                                                           | Endpoint preset (AWS, MinIO, R2), storage class column                                         |
+| Git          | `git+file:///repo!/path?rev=main` or a local repo overlay                      | Status column, branch in the status bar, stage and commit actions (plugin)                     |
+| Archives     | `archive:{archive's location}!/path`, opened from `*.zip`, `*.tar.*` or `*.7z` | Read-only, or read/write where the format allows; archives inside archives and on servers too  |
+| Cloud drives | Plugin-provided                                                                | Nextcloud and Google Drive samples                                                             |
 
 **SMB.** `smb://host/` is the share browser: the server's shares as a folder you open one share of, with no network neighbourhood. A location may name a domain (`smb://WORK;me@files/Projects`); Waypoint asks for the password when it connects and can remember it in the system keyring, and it signs in with NTLM. Kerberos single sign-on and servers or shares that require encryption are not supported on Linux yet, (the Services status panel gives the reason). On Windows the operating system's own SMB client does the work (UNC paths), so domain logins, Kerberos, signing and encryption behave as in Explorer, and a mapped drive stays a local folder in Devices. A folder of 100 000 entries on an SMB server shows its rows only once the server has sent all of them (about a second on a LAN).
 

@@ -246,33 +246,37 @@ jobs:
           if-no-files-found: error
 
   # The remote providers against real servers (A85). OpenSSH's `sshd` runs as the runner's user
-  # with keys the tests generate (no root, no container), and Samba's `smbd` the same way with a
-  # private state directory and the runner's own account; `WAYPOINT_SFTP_REQUIRE` and
-  # `WAYPOINT_SMB_REQUIRE` make a missing server a failure here, where elsewhere the same tests skip.
-  # The archive provider needs no server, but its tests read archives made by the real `tar`, `zip`
-  # and `7z` tools (encrypted ones included); `WAYPOINT_ARCHIVE_REQUIRE` makes a missing tool a
-  # failure here.
-  # The Git provider needs no server, but its tests build repositories with the real `git` (never run by
-  # the provider itself), and `WAYPOINT_GIT_REQUIRE` makes a missing `git` a failure here.
+  # with keys the tests generate (no root, no container), Samba's `smbd` the same way with a private
+  # state directory and the runner's own account, and Apache's `httpd` (with `mod_dav`) and `rclone
+  # serve webdav` on loopback ports as the runner's user; `WAYPOINT_SFTP_REQUIRE`,
+  # `WAYPOINT_SMB_REQUIRE` and `WAYPOINT_WEBDAV_REQUIRE` make a missing server a failure here, where
+  # elsewhere the same tests skip. The archive provider needs no server, but its tests read archives
+  # made by the real `tar`, `zip` and `7z` tools (encrypted ones included); `WAYPOINT_ARCHIVE_REQUIRE`
+  # makes a missing tool a failure here.
+  # The Git provider needs no server either, but its tests build repositories with the real `git` (never
+  # run by the provider itself), and `WAYPOINT_GIT_REQUIRE` makes a missing `git` a failure here.
   remote-conformance:
     name: Remote providers against real servers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install the OpenSSH and Samba servers and the archivers
+      - name: Install the servers and the archivers
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba zip p7zip-full zstd xz-utils bzip2
-          # The package starts system daemons on port 445 that the tests do not use.
-          sudo systemctl disable --now smbd nmbd winbind 2>/dev/null || true
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba apache2 rclone zip p7zip-full zstd xz-utils bzip2
+          # The packages start system daemons (Samba on port 445, Apache on port 80) that the tests do not
+          # use; the tests run their own, as the runner's user.
+          sudo systemctl disable --now smbd nmbd winbind apache2 2>/dev/null || true
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
 
-      - name: Run the SFTP provider against sshd
-        id: sftp
+      # One run, so one JUnit file holds every provider's tests.
+      - name: Run the SFTP provider against sshd and the WebDAV provider against Apache and rclone
+        id: providers
         env:
           WAYPOINT_SFTP_REQUIRE: '1'
-        run: cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config
+          WAYPOINT_WEBDAV_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config -p waypoint-provider-webdav
 
       - name: Run the SMB provider against smbd
         id: smb
@@ -297,7 +301,7 @@ jobs:
             echo "## Remote providers against real servers"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| SFTP | \`${{ steps.sftp.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config\` |"
+            echo "| SFTP and WebDAV | \`${{ steps.providers.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config -p waypoint-provider-webdav\` |"
             echo "| SMB | \`${{ steps.smb.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-smb\` |"
             echo "| Archives | \`${{ steps.archive.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-archive\` |"
             echo "| Git | \`${{ steps.git.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-git\` |"
