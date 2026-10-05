@@ -33,15 +33,13 @@ const ignoreFailure = (): void => {};
 
 export interface EntryOpeners {
 	/**
-	 * Enter and double-click: a folder navigates the tab, an archive opens as a folder in a new tab
-	 * (D24), and any other file opens in its default application.
+	 * Enter and double-click: a folder navigates the tab, an archive opens as a folder in the tab
+	 * the same way, and any other file opens in its default application.
 	 */
 	open: (entry: Entry, handle: ListingHandle) => void;
-	/** Open as Folder: an archive shows its contents in this tab, as a folder does. */
-	openAsFolder: (entry: Entry, handle: ListingHandle) => void;
 	/**
-	 * Middle-click and the menu: a folder opens in a tab beside this one, or in a new window when
-	 * `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
+	 * Middle-click and the menu: a folder or an archive opens in a tab beside this one, or in a new
+	 * window when `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
 	 */
 	openInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
 	/** Puts the entry's path, as Rust displays it, on the clipboard. */
@@ -63,7 +61,7 @@ export function useOpenEntry(
 	const addFavourite = useAddFavourite();
 	const tabs = useTabActions();
 	const { goTo } = navigation;
-	const { openInBackground, openInForeground } = tabs;
+	const { openInBackground } = tabs;
 	const { openInNewWindow } = useWindowActions();
 	return useMemo(() => {
 		const fail = (entry: Entry, action: EntryAction) => (error: unknown) => {
@@ -76,24 +74,23 @@ export function useOpenEntry(
 				.entryLocation(handle, entry.id)
 				.then((file) => client.parseLocation(archiveTopUri(file), file));
 		return {
-			openAsFolder: (entry, handle) => {
-				if (isArchiveEntry(entry)) archiveOf(entry, handle).then(goTo, fail(entry, 'open'));
-			},
 			open: (entry, handle) => {
 				if (isFolder(entry)) {
 					client.entryLocation(handle, entry.id).then(goTo, fail(entry, 'open'));
 				} else if (isArchiveEntry(entry)) {
-					archiveOf(entry, handle).then(openInForeground, fail(entry, 'open'));
+					archiveOf(entry, handle).then(goTo, fail(entry, 'open'));
 				} else {
 					client.openEntry(handle, entry.id).catch(fail(entry, 'open'));
 				}
 			},
 			openInNewTab: (entry, handle, inNewWindow = false) => {
-				if (isFolder(entry)) {
-					client
-						.entryLocation(handle, entry.id)
-						.then(inNewWindow ? openInNewWindow : openInBackground, fail(entry, 'open'));
-				}
+				// An archive opens like a folder, so it opens in a tab or window beside this one the same way.
+				const location = isFolder(entry)
+					? client.entryLocation(handle, entry.id)
+					: isArchiveEntry(entry)
+						? archiveOf(entry, handle)
+						: null;
+				location?.then(inNewWindow ? openInNewWindow : openInBackground, fail(entry, 'open'));
 			},
 			copyPath: (entry, handle) => {
 				client
@@ -106,5 +103,5 @@ export function useOpenEntry(
 				client.entryLocation(handle, entry.id).then(addFavourite).catch(fail(entry, 'favourite'));
 			},
 		};
-	}, [client, addFavourite, goTo, openInBackground, openInForeground, openInNewWindow, onFailure]);
+	}, [client, addFavourite, goTo, openInBackground, openInNewWindow, onFailure]);
 }

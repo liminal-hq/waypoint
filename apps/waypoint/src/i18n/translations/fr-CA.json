@@ -3999,11 +3999,6 @@
     "description": "Area: menu. Makes an archive file (a .zip, say) from the selected items; “Compress” as in a file manager’s menu, not squeezing a picture.",
     "source": "66b9d2cf"
   },
-  "menu.openAsFolder": {
-    "message": "Ouvrir comme dossier",
-    "description": "Area: menu.",
-    "source": "ade99ded"
-  },
   "menu.cut": {
     "message": "Couper",
     "description": "Area: menu.",
@@ -5983,11 +5978,6 @@
     "message": "Extraire {count} archives vers…",
     "description": "Area: destination. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are destination.title.extract.one, destination.title.extract.many.",
     "source": "3260b12c"
-  },
-  "destination.title.extractAll": {
-    "message": "Extraire {name} vers…",
-    "description": "Area: destination. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
-    "source": "00740d34"
   },
   "destination.extract": {
     "message": "Extraire",

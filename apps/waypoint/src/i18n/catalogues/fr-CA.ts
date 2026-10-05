@@ -1740,8 +1740,6 @@ const messages: Catalogue = {
 	'menu.extractAll': 'Tout extraire',
 	// source: 66b9d2cf
 	'menu.compress': 'Compresser…',
-	// source: ade99ded
-	'menu.openAsFolder': 'Ouvrir comme dossier',
 	// source: 1f45f025
 	'menu.cut': 'Couper',
 	// source: e21f935f
@@ -2585,8 +2583,6 @@ const messages: Catalogue = {
 	'destination.title.extract.many': 'Extraire {count} d’archives vers…',
 	// source: 3260b12c
 	'destination.title.extract.other': 'Extraire {count} archives vers…',
-	// source: 00740d34
-	'destination.title.extractAll': 'Extraire {name} vers…',
 	// source: c15301c0
 	'destination.extract': 'Extraire',
 	// source: 6ecc3df6

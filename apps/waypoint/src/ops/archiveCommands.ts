@@ -171,8 +171,12 @@ export function createArchiveCommands(deps: ArchiveCommandDeps): ArchiveCommands
 		archives: Location[],
 		destination: Location | null,
 		name: string,
+		options: { layout?: 'folder'; keepBoth?: boolean } = {},
 	): Promise<void> => {
-		const request = await prepare(extractRequest(archives, destination, deps.windowLabel), name);
+		const request = await prepare(
+			extractRequest(archives, destination, deps.windowLabel, options),
+			name,
+		);
 		if (request) await execute(request);
 	};
 
@@ -230,16 +234,9 @@ export function createArchiveCommands(deps: ArchiveCommandDeps): ArchiveCommands
 				return;
 			}
 			const name = archive.display.split(/[\\/]/).pop() ?? archive.display;
-			const choose = deps.pickDestination ?? pickDestination;
-			// Beside the archive to begin with, which is where "Up" from its top goes.
-			const beside = await vfs.parseLocation('..', archive).catch(() => found.model.location);
-			const destination = await choose({
-				title: tf('destination.title.extractAll', { name }),
-				confirmLabel: t('destination.extract'),
-				base: beside,
-				initial: beside,
-			});
-			if (destination) await extractLocations([archive], destination, name);
+			// Straight into a new folder beside the archive, named after it; a name already taken gets
+			// the next free one (`name (2)`), so nothing is merged into or replaced.
+			await extractLocations([archive], null, name, { layout: 'folder', keepBoth: true });
 		},
 
 		async compress(session) {

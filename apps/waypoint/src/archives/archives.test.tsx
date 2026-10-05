@@ -56,33 +56,18 @@ const lock = (kind: 'authRequired' | 'authFailed'): VfsError =>
 		: { kind, location: LOCKED };
 
 describe('opening an archive', () => {
-	it('opens it as a folder in a new tab when it is double-clicked (D24)', async () => {
+	it('opens it as a folder in this tab when it is double-clicked, like a folder', async () => {
 		const client = treeWithArchive();
 		const tabs = new FakeTabsApi();
 		await renderWorkspace(client, tabs, undefined, { archives: new FakeArchiveClient() });
 		fireEvent.doubleClick(await screen.findByText('pack.zip'));
 		expect(await screen.findByText('inside.txt')).toBeVisible();
 		const snapshot = await tabs.getSnapshot();
-		expect(snapshot.tabs).toHaveLength(2);
-		expect(snapshot.tabs.find((tab) => tab.id === snapshot.active)?.location.uri).toBe(PACK.uri);
-		// The folder it came from is still open beside it.
-		expect(snapshot.tabs.some((tab) => tab.location.uri === HOME.uri)).toBe(true);
+		expect(snapshot.tabs).toHaveLength(1);
+		expect(snapshot.tabs[0]?.location.uri).toBe(PACK.uri);
 	});
 
-	it('still opens a plain file in its application, and offers Open as Folder only on an archive', async () => {
-		const client = treeWithArchive();
-		await renderWorkspace(client, undefined, undefined, {
-			archives: new FakeArchiveClient(),
-			ops: createFakeOpsClient(),
-		});
-		fireEvent.contextMenu(await screen.findByText('notes.txt'));
-		expect(screen.queryByRole('menuitem', { name: 'Open as Folder' })).toBeNull();
-		expect(screen.queryByRole('menuitem', { name: 'Extract Here' })).toBeNull();
-		fireEvent.keyDown(document.body, { key: 'Escape' });
-		cleanup();
-	});
-
-	it('shows the archive in this tab from Open as Folder, and offers Extract on the same menu', async () => {
+	it('opens it in a tab beside this one from Open in New Tab, as a folder does', async () => {
 		const client = treeWithArchive();
 		const tabs = new FakeTabsApi();
 		await renderWorkspace(client, tabs, undefined, {
@@ -90,13 +75,34 @@ describe('opening an archive', () => {
 			ops: createFakeOpsClient(),
 		});
 		fireEvent.contextMenu(await screen.findByText('pack.zip'));
-		expect(await screen.findByRole('menuitem', { name: 'Extract To…' })).toBeVisible();
-		expect(screen.getByRole('menuitem', { name: 'Compress…' })).toBeVisible();
-		fireEvent.click(screen.getByRole('menuitem', { name: 'Open as Folder' }));
-		expect(await screen.findByText('inside.txt')).toBeVisible();
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Open in New Tab' }));
+		await waitFor(async () => expect((await tabs.getSnapshot()).tabs).toHaveLength(2));
 		const snapshot = await tabs.getSnapshot();
-		expect(snapshot.tabs).toHaveLength(1);
-		expect(snapshot.tabs[0]?.location.uri).toBe(PACK.uri);
+		// The new tab is in the background: the folder stays on screen.
+		expect(snapshot.tabs.some((tab) => tab.location.uri === PACK.uri)).toBe(true);
+		expect(snapshot.tabs.find((tab) => tab.id === snapshot.active)?.location.uri).toBe(HOME.uri);
+	});
+
+	it('opens it in a new tab with the middle button, as a folder does', async () => {
+		const client = treeWithArchive();
+		const tabs = new FakeTabsApi();
+		await renderWorkspace(client, tabs, undefined, { archives: new FakeArchiveClient() });
+		const row = await screen.findByText('pack.zip');
+		fireEvent(row, new MouseEvent('auxclick', { button: 1, bubbles: true }));
+		await waitFor(async () => expect((await tabs.getSnapshot()).tabs).toHaveLength(2));
+		expect((await tabs.getSnapshot()).tabs.some((tab) => tab.location.uri === PACK.uri)).toBe(true);
+	});
+
+	it('offers Open in New Tab and Open in New Window only on archives and folders', async () => {
+		const client = treeWithArchive();
+		await renderWorkspace(client, undefined, undefined, {
+			archives: new FakeArchiveClient(),
+			ops: createFakeOpsClient(),
+		});
+		fireEvent.contextMenu(await screen.findByText('notes.txt'));
+		await screen.findByRole('menuitem', { name: 'Compress…' });
+		expect(screen.queryByRole('menuitem', { name: 'Open in New Tab' })).toBeNull();
+		expect(screen.queryByRole('menuitem', { name: 'Extract Here' })).toBeNull();
 	});
 });
 

@@ -950,7 +950,6 @@ export const enMessages = {
 	'menu.extractAll': 'Extract All',
 	// translator: Makes an archive file (a .zip, say) from the selected items; “Compress” as in a file manager’s menu, not squeezing a picture.
 	'menu.compress': 'Compress…',
-	'menu.openAsFolder': 'Open as Folder',
 	'menu.cut': 'Cut',
 	// translator: A menu command that copies the selection to the clipboard. A verb, not “a copy”.
 	'menu.copy': 'Copy',
@@ -1381,7 +1380,6 @@ export const enMessages = {
 	'destination.copy': 'Copy',
 	'destination.title.extract.one': 'Extract {count} archive to…',
 	'destination.title.extract.other': 'Extract {count} archives to…',
-	'destination.title.extractAll': 'Extract {name} to…',
 	'destination.extract': 'Extract',
 	'destination.move': 'Move',
 	'destination.link': 'Link',

@@ -20,8 +20,6 @@ export interface TabActions {
 	newTabAtHome(): void;
 	/** Opens `location` in a tab next to the active one, without leaving the current tab. */
 	openInBackground(location: Location): void;
-	/** A tab for `location` beside the active one, shown at once: an archive double-clicked opens in one (D24). */
-	openInForeground(location: Location): void;
 	activate(tab: TabId): void;
 	/**
 	 * Closes a tab. Closing a window's last tab closes the window (D91); the session plugin does that,
@@ -70,7 +68,6 @@ export function createTabActions(
 		newTab: () => run(api.openTab(active?.location ?? home, active ? { after: active.id } : {})),
 		newTabAtEnd: () => run(api.openTab(active?.location ?? home)),
 		newTabAtHome: () => run(api.openTab(home)),
-		openInForeground: (location) => run(api.openTab(location, active ? { after: active.id } : {})),
 		openInBackground: (location) =>
 			run(api.openTab(location, { activate: false, ...(active ? { after: active.id } : {}) })),
 		activate,

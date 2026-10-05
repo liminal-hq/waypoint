@@ -370,19 +370,15 @@ describe('an encrypted archive', () => {
 });
 
 describe('Extract All', () => {
-	it('extracts the whole archive the pane is in, to the folder chosen', async () => {
+	it('extracts the whole archive the pane is in into a new folder beside it, with no question', async () => {
 		const h = await commandsHarness();
 		const insideUri = 'archive:file:///home/test/pack.zip!/docs';
 		const inside: Location = { display: '/home/test/pack.zip › docs', uri: insideUri };
 		h.vfs.setFolder(inside, [makeEntry(1, 'readme.md')]);
 		const session = createListingSession(await openListingModel(h.vfs, inside));
 		const file: Location = { display: '/home/test/pack.zip', uri: 'file:///home/test/pack.zip' };
-		const beside: Location = { display: '/home/test', uri: 'file:///home/test' };
-		vi.spyOn(h.vfs, 'parseLocation').mockImplementation(async (input) =>
-			input === '..' ? beside : file,
-		);
-		const chosen: Location = { display: '/out', uri: 'file:///out' };
-		let options: { base?: Location; initial?: Location; title?: string } = {};
+		vi.spyOn(h.vfs, 'parseLocation').mockResolvedValue(file);
+		const asked = vi.fn();
 		const commands = createFileCommands({
 			ops: h.ops,
 			vfs: h.vfs,
@@ -390,9 +386,9 @@ describe('Extract All', () => {
 			activeSession: () => session,
 			confirm: async () => true,
 			say: (text) => h.said.push(text),
-			pickDestination: async (asked) => {
-				options = asked;
-				return chosen;
+			pickDestination: async (options) => {
+				asked(options);
+				return null;
 			},
 		});
 		expect(commands.states(session).extractAll.visible).toBe(true);
@@ -400,9 +396,52 @@ describe('Extract All', () => {
 		await vi.waitFor(() => expect(submitted(h)).toHaveLength(1));
 		const [request] = submitted(h);
 		expect(request?.sources).toEqual({ kind: 'locations', locations: [file] });
-		expect(request?.destination).toEqual(chosen);
-		expect(options.initial).toEqual(beside);
-		expect(options.title).toBe('Extract pack.zip to…');
+		// Beside the archive (no destination), in a folder named after it, a taken name getting a free one.
+		expect(request?.destination).toBeNull();
+		expect(request?.options.conflict).toBe('keepBoth');
+		expect(request?.archive).toEqual({ kind: 'extract', layout: 'folder', allowLarge: false });
+		expect(asked).not.toHaveBeenCalled();
+		await h.finish();
+		await done;
+	});
+
+	it('still confirms an archive past the limits', async () => {
+		const h = await commandsHarness();
+		const inside: Location = { display: 'x', uri: 'archive:file:///home/test/pack.zip!/' };
+		h.vfs.setFolder(inside, []);
+		const session = createListingSession(await openListingModel(h.vfs, inside));
+		vi.spyOn(h.vfs, 'parseLocation').mockResolvedValue({
+			display: '/home/test/pack.zip',
+			uri: 'file:///home/test/pack.zip',
+		});
+		vi.spyOn(h.fake, 'plan').mockRejectedValueOnce({
+			kind: 'ops',
+			message: '',
+			error: {
+				kind: 'archiveLimit',
+				location: FOLDER,
+				limit: { kind: 'bytes', found: 5, max: 1 },
+			},
+		});
+		const commands = createFileCommands({
+			ops: h.ops,
+			vfs: h.vfs,
+			windowLabel: 'main-1',
+			activeSession: () => session,
+			confirm: async (spec) => {
+				h.confirms.push(spec);
+				return true;
+			},
+			say: (text) => h.said.push(text),
+		});
+		const done = commands.extractAll(session);
+		await vi.waitFor(() => expect(submitted(h)).toHaveLength(1));
+		expect(h.confirms).toHaveLength(1);
+		expect(submitted(h)[0]?.archive).toEqual({
+			kind: 'extract',
+			layout: 'folder',
+			allowLarge: true,
+		});
 		await h.finish();
 		await done;
 	});

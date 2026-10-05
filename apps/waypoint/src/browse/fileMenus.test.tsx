@@ -51,9 +51,14 @@ describe('the entry menu on an archive', () => {
 	const archive = { id: 5, name: 'a.zip', kind: 'file', linkTarget: null } as unknown as Entry;
 	const onArchive = commandStates({ ...base, archive: true });
 
-	it('offers Open as Folder after Open, and Extract Here and Extract To… as a section of their own', () => {
+	it('opens like a folder: Open, then Open in New Tab and Open in New Window', () => {
 		const ids = shape(entryMenuItems(archive, onArchive));
-		expect(ids.slice(0, 3)).toEqual(['open', 'openAsFolder', '|']);
+		expect(ids.slice(0, 4)).toEqual(['open', 'openInNewTab', 'openInNewWindow', '|']);
+		expect(ids).not.toContain('openAsFolder');
+	});
+
+	it('offers Extract Here and Extract To… as a section of their own, and Compress…', () => {
+		const ids = shape(entryMenuItems(archive, onArchive));
 		const at = ids.indexOf('extractHere');
 		expect(ids.slice(at - 1, at + 3)).toEqual(['|', 'extractHere', 'extractTo', '|']);
 		expect(ids).toContain('compress');
@@ -63,7 +68,6 @@ describe('the entry menu on an archive', () => {
 	it('keeps Extract To… where it only reads, and drops Extract Here and Compress', () => {
 		const reading = commandStates({ ...base, archive: true, readOnly: true });
 		const ids = shape(entryMenuItems(archive, reading));
-		expect(ids).toContain('openAsFolder');
 		expect(ids).toContain('extractTo');
 		expect(ids).not.toContain('extractHere');
 		expect(ids).not.toContain('compress');
@@ -78,38 +82,16 @@ describe('the entry menu on an archive', () => {
 		} as unknown as Entry;
 		for (const entry of [file, folderZip]) {
 			const ids = shape(entryMenuItems(entry, writable));
-			expect(ids).not.toContain('openAsFolder');
 			expect(ids).not.toContain('extractHere');
 			expect(ids).not.toContain('extractTo');
 		}
+		expect(shape(entryMenuItems(file, writable))).not.toContain('openInNewTab');
 	});
 
-	it('runs Open as Folder and the extract commands from the rendered menu', () => {
-		const onOpenAsFolder = vi.fn();
+	it('runs Open in New Tab, Extract Here and Compress… on the entry', () => {
+		const onOpenInNewTab = vi.fn();
 		const onCommand = vi.fn();
-		render(
-			<EntryContextMenu
-				entry={archive}
-				handle={7}
-				position={{ x: 0, y: 0 }}
-				keyboard={false}
-				onClose={() => {}}
-				onOpen={() => {}}
-				onOpenInNewTab={() => {}}
-				onCopyPath={() => {}}
-				onAddToFavourites={() => {}}
-				onOpenAsFolder={onOpenAsFolder}
-				commands={onArchive}
-				onCommand={onCommand}
-			/>,
-		);
-		fireEvent.click(screen.getByRole('menuitem', { name: /Open as Folder/ }));
-		expect(onOpenAsFolder).toHaveBeenCalledWith(archive, 7);
-	});
-
-	it('runs Extract Here and Compress… on the entry', () => {
-		const onCommand = vi.fn();
-		for (const name of [/Extract Here/, /Compress…/]) {
+		for (const name of [/Open in New Tab/, /Extract Here/, /Compress…/]) {
 			render(
 				<EntryContextMenu
 					entry={archive}
@@ -118,7 +100,7 @@ describe('the entry menu on an archive', () => {
 					keyboard={false}
 					onClose={() => {}}
 					onOpen={() => {}}
-					onOpenInNewTab={() => {}}
+					onOpenInNewTab={onOpenInNewTab}
 					onCopyPath={() => {}}
 					onAddToFavourites={() => {}}
 					commands={onArchive}
@@ -128,6 +110,7 @@ describe('the entry menu on an archive', () => {
 			fireEvent.click(screen.getByRole('menuitem', { name }));
 			cleanup();
 		}
+		expect(onOpenInNewTab).toHaveBeenCalledWith(archive, 7);
 		expect(onCommand.mock.calls.map((call) => call[0])).toEqual(['extractHere', 'compress']);
 	});
 });

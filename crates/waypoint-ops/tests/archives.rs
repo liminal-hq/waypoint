@@ -737,3 +737,20 @@ fn an_archive_inside_an_archive_can_be_extracted_by_itself() {
     let tree = jwork(&h);
     assert_eq!(tree.get("out/inner/note.txt"), Some(&file("nested note")));
 }
+
+#[test]
+fn extract_all_style_extraction_takes_a_free_folder_name_when_the_name_is_taken() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &tree(&[("src/", ""), ("src/a", "1"), ("src/b", "2")]));
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    // Beside the archive, into a folder named after it, again and again.
+    for _ in 0..3 {
+        let mut request = extract(&h, &["pack.zip"], None, ExtractLayout::Folder);
+        request.options.conflict = Some(ConflictPolicy::KeepBoth);
+        ok(&h.run_journalled(request));
+    }
+    let tree = jwork(&h);
+    assert_eq!(tree.get("pack/src/a"), Some(&file("1")));
+    assert_eq!(tree.get("pack (2)/src/a"), Some(&file("1")));
+    assert_eq!(tree.get("pack (3)/src/b"), Some(&file("2")));
+}

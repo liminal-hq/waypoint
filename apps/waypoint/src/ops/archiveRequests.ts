@@ -22,14 +22,15 @@ export function extractRequest(
 	archives: readonly Location[],
 	destination: Location | null,
 	windowLabel: string,
-	options: { layout?: ExtractLayout; allowLarge?: boolean } = {},
+	options: { layout?: ExtractLayout; allowLarge?: boolean; keepBoth?: boolean } = {},
 ): JobRequest {
 	return {
 		kind: { kind: 'extract' },
 		sources: { kind: 'locations', locations: [...archives] },
 		destination,
 		name: null,
-		options: NO_OPTIONS,
+		// Keep both gives a folder that is already there a free name beside it (`name (2)`).
+		options: options.keepBoth ? { conflict: 'keepBoth', verify: null } : NO_OPTIONS,
 		originWindow: windowLabel,
 		archive: {
 			kind: 'extract',

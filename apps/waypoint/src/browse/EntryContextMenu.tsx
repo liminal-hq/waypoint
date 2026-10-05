@@ -47,8 +47,6 @@ interface EntryContextMenuProps {
 	onAddToFavourites: (entry: Entry, handle: ListingHandle) => void;
 	/** The commands this menu may offer, by what the listing allows; omitted where nothing can be written. */
 	commands?: Partial<Record<FileCommandId, CommandState>> | undefined;
-	/** Opens an archive entry as a folder in this tab; offered for archives only. */
-	onOpenAsFolder?: ((entry: Entry, handle: ListingHandle) => void) | undefined;
 	/** Runs one of the file commands on this entry's listing. */
 	onCommand?: ((command: EntryCommand, entry: Entry) => void) | undefined;
 	/** More than one entry is selected, so Rename Selected… (batch rename) is offered. */
@@ -370,17 +368,8 @@ export function entryMenuItems(
 			shortcut: 'Enter',
 			icon: <FolderOpenIcon />,
 		},
-		...(isArchiveEntry(entry)
-			? [
-					{
-						type: 'action',
-						id: 'openAsFolder',
-						label: t('menu.openAsFolder'),
-						icon: <FolderOpenIcon />,
-					} as const,
-				]
-			: []),
-		...(isFolder(entry)
+		// An archive opens like a folder, so it is offered the same ways to open beside this one.
+		...(isFolder(entry) || isArchiveEntry(entry)
 			? [
 					{
 						type: 'action',
@@ -448,7 +437,6 @@ export function EntryContextMenu({
 	onOpenInNewTab,
 	onCopyPath,
 	onAddToFavourites,
-	onOpenAsFolder,
 	commands,
 	onCommand,
 	batchRename = false,
@@ -471,7 +459,6 @@ export function EntryContextMenu({
 				if (item.id === 'open') onOpen(entry, handle);
 				else if (item.id === 'openInNewTab') onOpenInNewTab(entry, handle);
 				else if (item.id === 'openInNewWindow') onOpenInNewTab(entry, handle, true);
-				else if (item.id === 'openAsFolder') onOpenAsFolder?.(entry, handle);
 				else if (item.id === 'copyPath') onCopyPath(entry, handle);
 				else if (item.id === 'addToFavourites') onAddToFavourites(entry, handle);
 				else if (item.id === 'addToShelf') {
