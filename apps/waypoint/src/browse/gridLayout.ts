@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { GroupLayout } from './groupLayout';
+
 /** Space around an item's icon, each side, in pixels. */
 const CELL_PADDING = 12;
 /** Room under the icon for a two-line name. */
@@ -20,6 +22,21 @@ export interface GridCell {
 /** The size of one cell for icons of `size` pixels. The stylesheet draws the same numbers from custom properties. */
 export function cellFor(size: number): GridCell {
 	return { width: size + CELL_PADDING * 2, height: size + CELL_PADDING * 2 + LABEL_HEIGHT };
+}
+
+/**
+ * Whether the cell in `column` of row `rowIndex` has empty space under it: it is in the last row, or the
+ * next row is a row of entries that stops short of that column. Such a cell can show its whole name
+ * without covering another item. A group's header under a cell counts as something below it.
+ */
+export function hasRoomBelow(
+	layout: Pick<GroupLayout, 'rowCount' | 'rowAt'>,
+	rowIndex: number,
+	column: number,
+): boolean {
+	if (rowIndex >= layout.rowCount - 1) return true;
+	const next = layout.rowAt(rowIndex + 1);
+	return next.kind === 'entries' && next.count <= column;
 }
 
 /** How many columns of `cell` fit in `width` pixels; always at least one. */

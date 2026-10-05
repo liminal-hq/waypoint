@@ -25,7 +25,7 @@ import { devicePixelRatio, useEntryThumbnailLoader } from '../thumbnails/Thumbna
 import { entryThumbKey, thumbSizeFor, wantsThumbnail } from '../thumbnails/thumbnailModel';
 import { useViewportThumbnails } from '../thumbnails/useViewportThumbnails';
 import { InlineRename } from './InlineRename';
-import { cellFor, columnsFor, GROUP_HEADER_HEIGHT, gridMove } from './gridLayout';
+import { cellFor, columnsFor, GROUP_HEADER_HEIGHT, gridMove, hasRoomBelow } from './gridLayout';
 import { groupCount, groupLabel, groupTitle } from './groupHeader';
 import { GroupLayout, groupId } from './groupLayout';
 import { firstTarget } from './groupNav';
@@ -413,11 +413,24 @@ function GridBody({
 							}
 							const start = at.first;
 							const end = Math.min(shownItems, start + at.count);
+							// A selected name, and a name with nothing under it, show whole over the space below, so the row that holds one is raised above the rows after it.
+							let lifted = false;
+							for (let position = start; position < end; position += 1) {
+								const entry = model.entryAt(position);
+								if (
+									hasRoomBelow(layout, row.index, position - start) ||
+									(entry && isSelected(selection, entry.id))
+								) {
+									lifted = true;
+									break;
+								}
+							}
 							return (
 								<div
 									key={row.key}
 									role="presentation"
 									className={styles.row}
+									data-lifted={lifted ? '' : undefined}
 									style={{ '--wp-row-y': `${row.start}px` } as CSSProperties}
 								>
 									{Array.from({ length: Math.max(0, end - start) }, (_, offset) => {
@@ -439,6 +452,7 @@ function GridBody({
 												aria-busy={entry ? undefined : true}
 												data-placeholder={entry ? undefined : ''}
 												data-selected={selected ? '' : undefined}
+												data-room={hasRoomBelow(layout, row.index, offset) ? '' : undefined}
 												data-cut={entry && cut.has(entry.name) ? '' : undefined}
 												data-ignored={entry?.git?.unstaged === 'ignored' ? '' : undefined}
 												data-active={focus === position && headerGroup < 0 ? '' : undefined}

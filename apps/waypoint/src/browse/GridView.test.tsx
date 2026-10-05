@@ -323,3 +323,27 @@ describe('entries without names yet', () => {
 		await waitFor(() => expect(options()[0]).not.toHaveAttribute('data-placeholder'));
 	});
 });
+
+describe('showing a name whole', () => {
+	it('gives every item of a short listing room to show its whole name, and lifts the row', async () => {
+		const { client } = clientWith(3);
+		renderGrid(client);
+		await waitFor(() => expect(options()).toHaveLength(3));
+		for (const option of options()) expect(option).toHaveAttribute('data-room');
+		expect(options()[0]!.parentElement).toHaveAttribute('data-lifted');
+	});
+
+	it('keeps a name clamped while other rows lie below it, and shows it whole once it is selected', async () => {
+		const { client } = clientWith(1000);
+		renderGrid(client);
+		await waitFor(() => expect(options().length).toBeGreaterThan(0));
+		const first = options()[0]!;
+		expect(first).not.toHaveAttribute('data-room');
+		expect(first).not.toHaveAttribute('data-selected');
+		expect(first.parentElement).not.toHaveAttribute('data-lifted');
+		fireEvent.click(first);
+		await waitFor(() => expect(options()[0]).toHaveAttribute('data-selected'));
+		expect(options()[0]!.parentElement).toHaveAttribute('data-lifted');
+		expect(options()[1]!).not.toHaveAttribute('data-selected');
+	});
+});
