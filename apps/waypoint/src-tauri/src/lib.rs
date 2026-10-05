@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+mod archives;
 mod checksum;
 mod connections;
 mod effects;
@@ -129,7 +130,8 @@ fn forget_properties_window<R: tauri::Runtime>(window: &tauri::Window<R>) {
 pub fn run() {
     let saver = Arc::new(Saver::new());
     let (volume_passphrases, volume_passphrases_app) = volume_passphrases::store();
-    let mut composed = connections::compose();
+    let archives = archives::Archives::new();
+    let mut composed = connections::compose(&archives);
     let vfs_options = std::mem::take(&mut composed.options);
     let geometry = GeometryCapture::default();
 
@@ -202,6 +204,7 @@ pub fn run() {
         .plugin(tauri_plugin_waypoint_ops::init_with(ops::deps))
         .plugin(tauri_plugin_waypoint_session::init(session_deps(&saver)))
         .manage(Arc::clone(&saver))
+        .manage(archives.clone())
         .manage(HoldNextWindow::default())
         .manage(effects::Driver::default())
         .manage(properties_window::PropertiesWindows::default())
@@ -222,6 +225,7 @@ pub fn run() {
             properties_window::open_properties_window,
             properties_window::properties_subject,
             properties_window::properties_set_subject,
+            archives::unlock_archive,
             checksum::file_checksum,
             checksum::cancel_checksum,
             thumbnails::thumbnails_request_entries,
@@ -233,9 +237,11 @@ pub fn run() {
         ])
         .setup({
             let saver = Arc::clone(&saver);
+            let archives = archives.clone();
             move |app| {
                 let _ = volume_passphrases_app.set(app.handle().clone());
                 composed.wire(app.handle());
+                archives.wire(app.handle());
                 settings::wire(app.handle());
                 settings_transfer::wire(app.handle());
                 effects::wire(app.handle());

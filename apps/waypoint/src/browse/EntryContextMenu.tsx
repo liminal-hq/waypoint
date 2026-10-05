@@ -7,6 +7,7 @@ import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuItem, SubmenuMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
+import { isArchiveEntry } from '../archives/archiveNames';
 import { t } from '../i18n/messages';
 import { PropertiesIcon } from '../inspector/InspectorIcons';
 import { useOpenWithMenu } from '../openWith/useOpenWithMenu';
@@ -16,12 +17,14 @@ import type { ListingSession } from './useListingSession';
 import { isFolder } from '../nav/useOpenEntry';
 import { StarIcon } from '../icons/AppIcons';
 import {
+	CompressIcon,
 	CopyIcon,
 	CopyToIcon,
 	CutIcon,
 	DeleteForeverIcon,
 	DuplicateIcon,
 	EditIcon,
+	ExtractIcon,
 	FolderOpenIcon,
 	LinkIcon,
 	MoveToIcon,
@@ -59,6 +62,9 @@ export type EntryCommand =
 	| 'rename'
 	| 'batchRename'
 	| 'duplicate'
+	| 'extractHere'
+	| 'extractTo'
+	| 'compress'
 	| 'moveToTrash'
 	| 'deletePermanently'
 	| 'cut'
@@ -76,6 +82,9 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
 	'batchRename',
 	'duplicate',
+	'extractHere',
+	'extractTo',
+	'compress',
 	'moveToTrash',
 	'deletePermanently',
 	'cut',
@@ -211,6 +220,36 @@ function transferItems(commands: Partial<Record<FileCommandId, CommandState>>): 
 	];
 }
 
+/** Extract Here and Extract To…, offered on an archive (its entry is the one the keyboard is on). */
+function extractItems(commands: Partial<Record<FileCommandId, CommandState>>): MenuItem[] {
+	const shown = (id: FileCommandId) => commands[id]?.visible === true;
+	const disabled = (id: FileCommandId) => commands[id]?.enabled !== true;
+	return [
+		...(shown('extractHere')
+			? [
+					{
+						type: 'action',
+						id: 'extractHere',
+						label: t('menu.extractHere'),
+						icon: <ExtractIcon />,
+						disabled: disabled('extractHere'),
+					} as const,
+				]
+			: []),
+		...(shown('extractTo')
+			? [
+					{
+						type: 'action',
+						id: 'extractTo',
+						label: t('menu.extractTo'),
+						icon: <ExtractIcon />,
+						disabled: disabled('extractTo'),
+					} as const,
+				]
+			: []),
+	];
+}
+
 /**
  * The write items, in the order of `docs/interactions.md`: Rename and Duplicate in their own
  * section, then the destructive ones last and in red. They are left out where the listing is
@@ -258,6 +297,17 @@ function writeItems(
 					} as const,
 				]
 			: []),
+		...(shown('compress')
+			? [
+					{
+						type: 'action',
+						id: 'compress',
+						label: t('menu.compress'),
+						icon: <CompressIcon />,
+						disabled: disabled('compress'),
+					} as const,
+				]
+			: []),
 	];
 	const destructive: MenuItem[] = [
 		...(shown('moveToTrash')
@@ -288,8 +338,10 @@ function writeItems(
 			: []),
 	];
 	const transfer = transferItems(commands);
+	const extract = extractItems(commands);
 	return [
 		...(editing.length > 0 ? [{ type: 'separator' } as const, ...editing] : []),
+		...(extract.length > 0 ? [{ type: 'separator' } as const, ...extract] : []),
 		...(transfer.length > 0 ? [{ type: 'separator' } as const, ...transfer] : []),
 		...(destructive.length > 0 ? [{ type: 'separator' } as const, ...destructive] : []),
 	];
@@ -316,7 +368,8 @@ export function entryMenuItems(
 			shortcut: 'Enter',
 			icon: <FolderOpenIcon />,
 		},
-		...(isFolder(entry)
+		// An archive opens like a folder, so it is offered the same ways to open beside this one.
+		...(isFolder(entry) || isArchiveEntry(entry)
 			? [
 					{
 						type: 'action',

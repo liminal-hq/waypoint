@@ -425,3 +425,21 @@ export const InfoIcon = (props: IconProps) => (
 		<path d="M8 7.2v4M8 4.9v.1" />
 	</Glyph>
 );
+
+/** A box with a lid and an arrow out of it: take the contents of an archive out. */
+export const ExtractIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path data-fill d="M2.5 6.5h11v6.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V6.5z" />
+		<path data-fill d="M2 3.5h12v3H2z" />
+		<path d="M8 7.5v4M6 9.5l2 2 2-2" />
+	</Glyph>
+);
+
+/** The same box with an arrow into it: pack items into an archive. */
+export const CompressIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path data-fill d="M2.5 6.5h11v6.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V6.5z" />
+		<path data-fill d="M2 3.5h12v3H2z" />
+		<path d="M8 11.5v-4M6 9.5l2-2 2 2" />
+	</Glyph>
+);

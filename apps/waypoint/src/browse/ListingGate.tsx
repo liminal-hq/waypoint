@@ -7,6 +7,8 @@ import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError'
 import type { ReactNode } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { ProtocolOffState } from '../connections/ProtocolOff';
+import { ArchiveLocked } from '../archives/ArchiveLocked';
+import { isArchiveLock } from '../archives/lockModel';
 import { RemoteState } from '../connections/RemoteState';
 import { isConnectionError } from '../connections/remoteModel';
 import styles from './ListingGate.module.css';
@@ -26,6 +28,13 @@ function errorMessages(error: VfsError): { title: MessageId; detail: MessageId }
 				title: 'browse.error.notADirectory.title',
 				detail: 'browse.error.notADirectory.detail',
 			};
+		case 'corrupt':
+			return { title: 'browse.error.corrupt.title', detail: 'browse.error.corrupt.detail' };
+		case 'unsupported':
+			return {
+				title: 'browse.error.unsupported.title',
+				detail: 'browse.error.unsupported.detail',
+			};
 		default:
 			return { title: 'browse.error.other.title', detail: 'browse.error.other.detail' };
 	}
@@ -34,16 +43,22 @@ function errorMessages(error: VfsError): { title: MessageId; detail: MessageId }
 /** The distinct state for a folder that could not be shown: never a blank view. A folder on a server that could not be reached, or that asks to sign in, has a state of its own with its action. */
 export function ErrorState({ error }: { error: VfsError }) {
 	if (error.kind === 'protocolOff') return <ProtocolOffState scheme={error.scheme} />;
+	// A password asked for an archive is the archive's, even when it is on a server.
+	if (isArchiveLock(error)) return <ArchiveLocked error={error} />;
 	if (isConnectionError(error)) return <RemoteState error={error} />;
 	const { title, detail } = errorMessages(error);
 	const location =
-		error.kind === 'notFound' || error.kind === 'permissionDenied' || error.kind === 'notADirectory'
+		error.kind === 'notFound' ||
+		error.kind === 'permissionDenied' ||
+		error.kind === 'notADirectory' ||
+		error.kind === 'corrupt'
 			? error.location.display
 			: '';
+	const what = error.kind === 'unsupported' ? error.what : '';
 	return (
 		<div className={styles.message} role="alert" data-error={error.kind}>
 			<h2 className={styles.messageTitle}>{t(title)}</h2>
-			<p className={styles.messageDetail}>{tf(detail, { location })}</p>
+			<p className={styles.messageDetail}>{tf(detail, { location, what })}</p>
 		</div>
 	);
 }

@@ -29,6 +29,8 @@ import {
 	CutIcon,
 	DeleteForeverIcon,
 	DuplicateIcon,
+	ExtractIcon,
+	CompressIcon,
 	EditIcon,
 	EyeIcon,
 	FolderOpenIcon,
@@ -216,6 +218,8 @@ function fileCommand(
 
 const needsSelection = () => 'cmd.reason.nothingSelected' as const;
 
+const needsArchive = () => 'cmd.reason.notAnArchive' as const;
+
 const needsOtherPane = (facts: CommandFacts) =>
 	facts.selected === 0 ? 'cmd.reason.nothingSelected' : 'cmd.reason.otherPaneReadOnly';
 
@@ -389,6 +393,39 @@ export const COMMANDS: readonly CommandDef[] = [
 		group: 'file',
 		when: fileCommand('duplicate', needsSelection),
 		run: (a) => void a.files?.duplicate(),
+	},
+	{
+		id: 'extractHere',
+		label: 'menu.extractHere',
+		icon: ExtractIcon,
+		group: 'file',
+		when: fileCommand('extractHere', needsArchive),
+		run: (a) => void a.files?.extractHere(),
+	},
+	{
+		id: 'extractTo',
+		label: 'menu.extractTo',
+		icon: ExtractIcon,
+		group: 'file',
+		when: fileCommand('extractTo', needsArchive),
+		run: (a) => void a.files?.extractTo(),
+	},
+	{
+		id: 'extractAll',
+		label: 'menu.extractAll',
+		icon: ExtractIcon,
+		group: 'file',
+		// Only inside an archive, where it extracts the whole of it: the Action bar's Extract all.
+		when: fileCommand('extractAll', needsArchive),
+		run: (a) => void a.files?.extractAll(),
+	},
+	{
+		id: 'compress',
+		label: 'menu.compress',
+		icon: CompressIcon,
+		group: 'file',
+		when: fileCommand('compress', needsSelection),
+		run: (a) => void a.files?.compress(),
 	},
 	{
 		id: 'moveToTrash',

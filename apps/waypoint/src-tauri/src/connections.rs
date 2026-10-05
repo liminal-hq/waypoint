@@ -237,7 +237,7 @@ pub struct Composed {
 }
 
 /// The providers, the credential source and the storage the vfs plugin is built with.
-pub fn compose() -> Composed {
+pub fn compose(archives: &crate::archives::Archives) -> Composed {
     let app: AppCell = Arc::new(OnceLock::new());
     let credentials = Arc::new(Credentials::new(Arc::new(KeyringSecrets {
         app: app.clone(),
@@ -270,6 +270,11 @@ pub fn compose() -> Composed {
     // A revision of a local repository browses read-only like any other location (A85).
     #[cfg(feature = "git")]
     providers.push(Arc::new(waypoint_provider_git::GitProvider::new()));
+    // Archives are served beside the servers, and reach server-held archive files through the same registry (A91).
+    #[cfg(feature = "archive")]
+    providers.push(archives.provider.clone());
+    #[cfg(not(feature = "archive"))]
+    let _ = archives;
     let storage: tauri_plugin_waypoint_vfs::StorageFactory<Wry> = Box::new(storage);
     Composed {
         options: tauri_plugin_waypoint_vfs::Options {

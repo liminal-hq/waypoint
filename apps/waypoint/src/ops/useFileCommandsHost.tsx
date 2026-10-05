@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { showNotice } from '../app/notices';
 import type { ListingSession } from '../browse/useListingSession';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { useArchiveClient } from '../archives/ArchiveContext';
+import { askQuestion } from '../connections/connectStore';
 import { createClipboardService, type ClipboardService } from './clipboardService';
 import { useConfirm } from './ConfirmHost';
 import { createFileCommands, type ConfirmSpec, type FileCommands } from './fileCommands';
@@ -35,6 +37,7 @@ export function useFileCommandsHost(
 	const ops = useOps();
 	const vfs = useVfsClient();
 	const { confirm, dialog } = useConfirm();
+	const archives = useArchiveClient();
 	const active = useRef(activeSession);
 	active.current = activeSession;
 	const other = useRef(otherPane);
@@ -70,9 +73,11 @@ export function useFileCommandsHost(
 						say: (text) => void showNotice(text),
 						clipboard,
 						otherPane: (session) => other.current?.(session) ?? null,
+						archives,
+						askQuestion,
 					})
 				: null,
-		[handle, windowLabel, vfs, confirm, clipboard],
+		[handle, windowLabel, vfs, confirm, clipboard, archives],
 	);
 	return { commands, confirm, dialog, clipboard };
 }

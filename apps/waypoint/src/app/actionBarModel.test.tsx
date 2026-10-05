@@ -112,6 +112,23 @@ describe('the buttons', () => {
 	});
 });
 
+describe('Extract all', () => {
+	it('is a button only inside an archive, which only reads, and runs the registry command', () => {
+		expect(ids(items(factsFor({ selected: 1 })))).not.toContain('extractAll');
+		const inside = items(factsFor({ inArchive: true, readOnly: true }));
+		expect(ids(inside)).toContain('extractAll');
+		const button = byId(inside, 'extractAll');
+		expect(button).toMatchObject({
+			label: t('actionBar.extractAll'),
+			command: 'extractAll',
+			enabled: true,
+		});
+		expect(button.icon).toBeDefined();
+		// It sits with the editing buttons, after Delete.
+		expect(ids(inside).indexOf('extractAll')).toBeGreaterThan(ids(inside).indexOf('copy'));
+	});
+});
+
 describe('the menu buttons', () => {
 	it('New opens Folder and File', () => {
 		const list = items(factsFor({}));

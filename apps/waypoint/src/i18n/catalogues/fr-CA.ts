@@ -1104,6 +1104,15 @@ const messages: Catalogue = {
 	'browse.error.other.title': 'Ce dossier n’a pas pu être affiché',
 	// source: dc6a434c
 	'browse.error.other.detail': 'Une erreur s’est produite pendant la lecture du dossier.',
+	// source: 3ff1d728
+	'browse.error.corrupt.title': 'Cette archive est endommagée',
+	// source: 330e6a0c
+	'browse.error.corrupt.detail':
+		'{location} ne peut pas être lue comme une archive. Elle est peut-être tronquée ou endommagée.',
+	// source: 20f01ff9
+	'browse.error.unsupported.title': 'Impossible de l’afficher comme un dossier',
+	// source: 1a3bff82
+	'browse.error.unsupported.detail': 'Waypoint ne peut pas l’ouvrir ici : {what}',
 	// source: 6b411541
 	'browse.selection.none': 'Aucun élément sélectionné',
 	// source: f2015f5f
@@ -1723,6 +1732,14 @@ const messages: Catalogue = {
 	'menu.propertiesInWindow': 'Propriétés dans une fenêtre',
 	// source: 02cdaabf
 	'menu.duplicate': 'Dupliquer',
+	// source: f0064f1d
+	'menu.extractHere': 'Extraire ici',
+	// source: b9baace5
+	'menu.extractTo': 'Extraire vers…',
+	// source: 564208dc
+	'menu.extractAll': 'Tout extraire',
+	// source: 66b9d2cf
+	'menu.compress': 'Compresser…',
 	// source: 1f45f025
 	'menu.cut': 'Couper',
 	// source: e21f935f
@@ -2447,6 +2464,30 @@ const messages: Catalogue = {
 	'files.default.file': 'fichier sans titre',
 	// source: 8fcfae1d
 	'files.readOnly': 'Cet emplacement ne peut pas être modifié.',
+	// source: 84adb9fa
+	'files.extract.nothing': 'Aucun des éléments sélectionnés n’est une archive.',
+	// source: 034bb0fb
+	'files.extract.limit.title': 'Extraire une très grosse archive?',
+	// source: 54549af9
+	'files.extract.limit.message':
+		'{name} dépasse les limites prévues pour les archives ({reason}). L’extraire pourrait remplir le disque.',
+	// source: 05f8be5b
+	'files.extract.limit.action': 'Extraire quand même',
+	// source: 3608510b
+	'files.extract.leftOut.one':
+		'{count} entrée de l’archive a été laissée de côté : son nom ou son lien n’était pas sûr.',
+	// source: a82b46a4
+	'files.extract.leftOut.many':
+		'{count} d’entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.',
+	// source: a82b46a4
+	'files.extract.leftOut.other':
+		'{count} entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.',
+	// source: b5351143
+	'files.extract.unlockFailed': 'Le mot de passe de l’archive n’a pas pu être transmis : {reason}',
+	// source: d92e94e8
+	'files.extract.stillLocked': 'L’archive est toujours verrouillée.',
+	// source: 1097d4a6
+	'files.compress.nothing': 'Sélectionnez d’abord ce qu’il faut compresser.',
 	// source: 3007b678
 	'files.nothingSelected': 'Rien n’est sélectionné.',
 	// source: 9da785e5
@@ -2536,6 +2577,14 @@ const messages: Catalogue = {
 	'destination.title.choose': 'Choisir un dossier',
 	// source: e21f935f
 	'destination.copy': 'Copier',
+	// source: cb97201b
+	'destination.title.extract.one': 'Extraire {count} archive vers…',
+	// source: 3260b12c
+	'destination.title.extract.many': 'Extraire {count} d’archives vers…',
+	// source: 3260b12c
+	'destination.title.extract.other': 'Extraire {count} archives vers…',
+	// source: c15301c0
+	'destination.extract': 'Extraire',
 	// source: 6ecc3df6
 	'destination.move': 'Déplacer',
 	// source: a6a32dbc
@@ -3064,6 +3113,38 @@ const messages: Catalogue = {
 	'ops.done.restore.other': '{count} éléments restaurés',
 	// source: b7ceb1cf
 	'ops.done.restore.named': '{name} restauré',
+	// source: d1b1a8da
+	'ops.title.extract.one': 'Extraction de {count} archive',
+	// source: 9322402d
+	'ops.title.extract.many': 'Extraction de {count} d’archives',
+	// source: 9322402d
+	'ops.title.extract.other': 'Extraction de {count} archives',
+	// source: 5ebe3d1b
+	'ops.title.extract.named': 'Extraction de {name}',
+	// source: 533f2790
+	'ops.done.extract.one': '{count} archive extraite',
+	// source: 5f005fd1
+	'ops.done.extract.many': '{count} d’archives extraites',
+	// source: 5f005fd1
+	'ops.done.extract.other': '{count} archives extraites',
+	// source: 18b944ce
+	'ops.done.extract.named': '{name} extraite',
+	// source: 3a469567
+	'ops.title.compress.one': 'Compression de {count} élément',
+	// source: d86ab739
+	'ops.title.compress.many': 'Compression de {count} d’éléments',
+	// source: d86ab739
+	'ops.title.compress.other': 'Compression de {count} éléments',
+	// source: 7718f8d1
+	'ops.title.compress.named': 'Compression de {name}',
+	// source: 362021f1
+	'ops.done.compress.one': '{count} élément compressé',
+	// source: 2e049436
+	'ops.done.compress.many': '{count} d’éléments compressés',
+	// source: 2e049436
+	'ops.done.compress.other': '{count} éléments compressés',
+	// source: 8d6d5320
+	'ops.done.compress.named': '{name} compressé',
 	// source: b3f812b1
 	'ops.done.delete.one': '{count} élément supprimé',
 	// source: 3566861d
@@ -3466,6 +3547,10 @@ const messages: Catalogue = {
 	'ops.error.verifyFailed': 'La vérification de {name} a échoué',
 	// source: 4897a77f
 	'ops.error.cannotReplace': '{name} ne peut pas être remplacé par une entrée d’un autre genre',
+	// source: dd236500
+	'ops.error.connection': 'Un serveur est injoignable ou demande une connexion.',
+	// source: afa7bb0a
+	'ops.error.archiveLimit': '{name} dépasse les limites prévues pour les archives',
 	// source: 45da8fd3
 	'ops.error.undoStale.missing': '{name} n’est plus à son emplacement',
 	// source: e71102d4
@@ -3986,6 +4071,8 @@ const messages: Catalogue = {
 	'quickLook.kind.link': 'Lien',
 	// source: a869446a
 	'cmd.reason.nothingSelected': 'Sélectionnez d’abord quelque chose',
+	// source: d09370ec
+	'cmd.reason.notAnArchive': 'Sélectionnez d’abord une archive',
 	// source: 213a52b1
 	'cmd.reason.nothingFocused': 'Sélectionnez un élément à renommer',
 	// source: 678a49e2
@@ -4020,6 +4107,8 @@ const messages: Catalogue = {
 	'actionBar.view': 'Affichage',
 	// source: e2d0a549
 	'actionBar.delete': 'Supprimer',
+	// source: 5998f3f9
+	'actionBar.extractAll': 'Tout extraire',
 	// source: d47d7cb0
 	'actionBar.more': 'Plus',
 	// source: 1a484fd3
@@ -4930,6 +5019,57 @@ const messages: Catalogue = {
 		'Cette connexion n’est pas chiffrée : toute personne sur le réseau peut lire ce qui est envoyé, mots de passe compris.',
 	// source: 64a4a301
 	'connect.problem.domainUser': 'Indiquez le nom d’utilisateur qui accompagne le domaine.',
+	// source: 033fc044
+	'compress.title': 'Compresser',
+	// source: 6f8d5512
+	'compress.description': 'Regroupe la sélection dans une nouvelle archive, dans ce dossier.',
+	// source: 80c2a46d
+	'compress.name': 'Nom de l’archive',
+	// source: 2f343666
+	'compress.format': 'Format',
+	// source: 541cdce2
+	'compress.format.zip': 'Zip (.zip)',
+	// source: 04f9fef5
+	'compress.format.tarGz': 'Tar, gzip (.tar.gz)',
+	// source: c8ad4c9c
+	'compress.format.tarXz': 'Tar, xz (.tar.xz)',
+	// source: 53feccbd
+	'compress.format.tarBz2': 'Tar, bzip2 (.tar.bz2)',
+	// source: 63aa5aca
+	'compress.format.tar': 'Tar, sans compression (.tar)',
+	// source: 54ed0473
+	'compress.format.sevenZ': '7z (.7z)',
+	// source: 033fc044
+	'compress.confirm': 'Compresser',
+	// source: 19766ed6
+	'compress.cancel': 'Annuler',
+	// source: 66f4804e
+	'compress.default': 'Archive',
+	// source: b839bf5a
+	'compress.error.empty': 'Donnez un nom à l’archive.',
+	// source: 6889e47e
+	'compress.error.invalid': 'Un nom ne peut pas contenir de barre oblique.',
+	// source: 8b274afe
+	'archive.locked.title': '{name} est verrouillée',
+	// source: 9ff4dfa1
+	'archive.locked.detail': 'Cette archive est chiffrée. Entrez son mot de passe pour l’ouvrir.',
+	// source: fdff224b
+	'archive.locked.refused':
+		'Ce mot de passe n’a pas été accepté. Entrez-le de nouveau pour ouvrir l’archive.',
+	// source: 7014aff1
+	'archive.locked.action': 'Entrer le mot de passe',
+	// source: ec963ffc
+	'archive.locked.checking': 'Vérification…',
+	// source: 3e0d95e3
+	'archive.locked.announce': '{name} déverrouillée',
+	// source: 82f299da
+	'archive.locked.dialogDescription':
+		'Waypoint ne garde le mot de passe que jusqu’à sa fermeture et ne l’enregistre jamais.',
+	// source: 5a6220d3
+	'archive.locked.failed': 'Le mot de passe n’a pas pu être transmis à l’archive.',
+	// source: ecbd22c9
+	'archive.slow':
+		'Lecture de {name}. Une archive {format} n’a pas d’index; son ouverture prend donc un moment.',
 };
 
 export default messages;

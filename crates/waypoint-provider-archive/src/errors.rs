@@ -32,10 +32,20 @@ pub(crate) fn from_io(error: &io::Error, container: &Location) -> VfsError {
     }
 }
 
+/// The top of the archive that is the file `container`, which is where a password question is
+/// about: an `archive:` location, so a view tells it from a server's own login question even when
+/// the archive file is on that server.
+fn locked(container: &Location) -> Location {
+    Location::new(
+        container.display.clone(),
+        format!("archive:{}!/", container.uri),
+    )
+}
+
 /// A password is needed to read `container`.
 pub(crate) fn password_required(container: &Location) -> VfsError {
     VfsError::AuthRequired {
-        location: container.clone(),
+        location: locked(container),
         prompt: Box::new(AuthPrompt::Passphrase {
             subject: container.display.clone(),
         }),
@@ -44,7 +54,7 @@ pub(crate) fn password_required(container: &Location) -> VfsError {
 
 pub(crate) fn password_refused(container: &Location) -> VfsError {
     VfsError::AuthFailed {
-        location: container.clone(),
+        location: locked(container),
     }
 }
 
@@ -76,5 +86,45 @@ impl<R: io::Read> io::Read for DecodeErrors<R> {
                 error
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_password_question_is_about_the_top_of_the_archive() {
+        let file = waypoint_path::VfsPath::File(
+            waypoint_path::FilePath::parse(if cfg!(windows) {
+                r"C:\home\me\a.zip"
+            } else {
+                "/home/me/a.zip"
+            })
+            .unwrap(),
+        );
+        let container = file.to_location();
+        let expected = Location::new(
+            container.display.clone(),
+            format!("archive:{}!/", container.uri),
+        );
+        match password_required(&container) {
+            VfsError::AuthRequired { location, prompt } => {
+                assert_eq!(location, expected);
+                assert!(
+                    matches!(*prompt, AuthPrompt::Passphrase { subject } if subject == container.display)
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            password_refused(&container),
+            VfsError::AuthFailed {
+                location: expected.clone()
+            }
+        );
+        // And it reads back as the archive path it names.
+        let parsed = waypoint_path::VfsPath::from_uri(&expected.uri).unwrap();
+        assert_eq!(parsed.to_uri(), expected.uri);
     }
 }

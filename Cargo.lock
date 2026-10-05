@@ -8618,6 +8618,7 @@ dependencies = [
  "waypoint-ops",
  "waypoint-path",
  "waypoint-protocol",
+ "waypoint-provider-archive",
  "waypoint-provider-git",
  "waypoint-provider-sftp",
  "waypoint-provider-smb",

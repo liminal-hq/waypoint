@@ -7,6 +7,7 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { useMemo } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { archiveTopUri, isArchiveEntry } from '../archives/archiveNames';
 import { useAddFavourite } from '../sidebar/useAddFavourite';
 import { useTabActions } from '../tabs/tabActions';
 import { useWindowActions } from '../tabs/windowActions';
@@ -31,11 +32,14 @@ const ACTION_TEXT: Record<EntryAction, string> = {
 const ignoreFailure = (): void => {};
 
 export interface EntryOpeners {
-	/** Enter and double-click: a folder navigates the tab, a file opens in its default application. */
+	/**
+	 * Enter and double-click: a folder navigates the tab, an archive opens as a folder in the tab
+	 * the same way, and any other file opens in its default application.
+	 */
 	open: (entry: Entry, handle: ListingHandle) => void;
 	/**
-	 * Middle-click and the menu: a folder opens in a tab beside this one, or in a new window when
-	 * `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
+	 * Middle-click and the menu: a folder or an archive opens in a tab beside this one, or in a new
+	 * window when `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
 	 */
 	openInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
 	/** Puts the entry's path, as Rust displays it, on the clipboard. */
@@ -64,20 +68,29 @@ export function useOpenEntry(
 			console.warn(`could not ${ACTION_TEXT[action]} the entry`, error);
 			onFailure(entry, action);
 		};
+		/** The location of the top of the archive `entry` is. */
+		const archiveOf = (entry: Entry, handle: ListingHandle) =>
+			client
+				.entryLocation(handle, entry.id)
+				.then((file) => client.parseLocation(archiveTopUri(file), file));
 		return {
 			open: (entry, handle) => {
 				if (isFolder(entry)) {
 					client.entryLocation(handle, entry.id).then(goTo, fail(entry, 'open'));
+				} else if (isArchiveEntry(entry)) {
+					archiveOf(entry, handle).then(goTo, fail(entry, 'open'));
 				} else {
 					client.openEntry(handle, entry.id).catch(fail(entry, 'open'));
 				}
 			},
 			openInNewTab: (entry, handle, inNewWindow = false) => {
-				if (isFolder(entry)) {
-					client
-						.entryLocation(handle, entry.id)
-						.then(inNewWindow ? openInNewWindow : openInBackground, fail(entry, 'open'));
-				}
+				// An archive opens like a folder, so it opens in a tab or window beside this one the same way.
+				const location = isFolder(entry)
+					? client.entryLocation(handle, entry.id)
+					: isArchiveEntry(entry)
+						? archiveOf(entry, handle)
+						: null;
+				location?.then(inNewWindow ? openInNewWindow : openInBackground, fail(entry, 'open'));
 			},
 			copyPath: (entry, handle) => {
 				client

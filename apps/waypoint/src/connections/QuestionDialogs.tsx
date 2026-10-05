@@ -10,6 +10,7 @@ import type { AuthPrompt } from '@liminal-hq/waypoint-protocol/generated/AuthPro
 import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated/KeyringUnavailable';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import { useId, useState, type FormEvent } from 'react';
+import { isArchiveLocation } from '../archives/archiveNames';
 import { t, tf } from '../i18n/messages';
 import type { Answered } from './connectFlow';
 import { keyringText } from './connectModel';
@@ -109,7 +110,9 @@ function SignInDialog({
 	const firstId = useId();
 	const secretId = useId();
 	const noteId = useId();
-	const canRemember = prompt.kind !== 'challenge';
+	// An archive's password is kept in memory until Waypoint quits, and never saved (D162).
+	const archive = 'location' in error && !!error.location && isArchiveLocation(error.location);
+	const canRemember = prompt.kind !== 'challenge' && !archive;
 
 	const answer = (): AnswerInput => {
 		switch (prompt.kind) {
@@ -148,7 +151,9 @@ function SignInDialog({
 			description={
 				prompt.kind === 'challenge' && prompt.instructions
 					? prompt.instructions
-					: t('connect.signIn.description')
+					: archive
+						? t('archive.locked.dialogDescription')
+						: t('connect.signIn.description')
 			}
 			initialFocus={`#${CSS.escape(firstId)}`}
 			onClose={() => onAnswer(null)}

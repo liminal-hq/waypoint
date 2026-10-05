@@ -715,3 +715,42 @@ fn the_limits_are_the_ones_in_the_settings() {
     assert!(h.plan(&allowed).is_ok());
     let _ = &mut h;
 }
+
+#[test]
+fn an_archive_inside_an_archive_can_be_extracted_by_itself() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &tree(&[("out/", "")]));
+    let inner = raw_zip(&[("note.txt", b"nested note", 11)]);
+    put(
+        &h,
+        "outer.zip",
+        &raw_zip(&[("inner.zip", &inner, inner.len() as u32)]),
+    );
+    // The source is the file `inner.zip` as it is seen inside `outer.zip`.
+    let outer = waypoint_path::ArchivePath::new(h.path("outer.zip")).unwrap();
+    let nested = VfsPath::Archive(outer.join("inner.zip").unwrap()).to_location();
+    let mut request = extract(&h, &[], Some("out"), ExtractLayout::Folder);
+    request.sources = Sources::Locations {
+        locations: vec![nested],
+    };
+    ok(&h.run_journalled(request));
+    let tree = jwork(&h);
+    assert_eq!(tree.get("out/inner/note.txt"), Some(&file("nested note")));
+}
+
+#[test]
+fn extract_all_style_extraction_takes_a_free_folder_name_when_the_name_is_taken() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &tree(&[("src/", ""), ("src/a", "1"), ("src/b", "2")]));
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    // Beside the archive, into a folder named after it, again and again.
+    for _ in 0..3 {
+        let mut request = extract(&h, &["pack.zip"], None, ExtractLayout::Folder);
+        request.options.conflict = Some(ConflictPolicy::KeepBoth);
+        ok(&h.run_journalled(request));
+    }
+    let tree = jwork(&h);
+    assert_eq!(tree.get("pack/src/a"), Some(&file("1")));
+    assert_eq!(tree.get("pack (2)/src/a"), Some(&file("1")));
+    assert_eq!(tree.get("pack (3)/src/b"), Some(&file("2")));
+}

@@ -52,7 +52,7 @@ const HISTORY_GROUP = 3;
  * The bar: New (a menu of Folder and File), Cut, Copy, Paste, Rename, Delete (moves to the
  * Trash), Sort (a menu), View (switches between List and Grid), Undo and Redo. A button whose
  * command is hidden (nothing is written in the Trash) is left out, and a menu with nothing in it
- * too. Extract all arrives with archives; Share has no destination yet.
+ * too. Extract all is there inside an archive; Share has no destination yet.
  */
 export function actionBarItems(api: Pick<CommandsApi, 'get'>): ActionBarItem[] {
 	const items: ActionBarItem[] = [];
@@ -92,6 +92,8 @@ export function actionBarItems(api: Pick<CommandsApi, 'get'>): ActionBarItem[] {
 	button('paste', t('menu.paste'), EDIT_GROUP);
 	button('rename', t('menu.rename'), EDIT_GROUP);
 	button('moveToTrash', t('actionBar.delete'), EDIT_GROUP);
+	// Only inside an archive, where it extracts the whole of it (D48).
+	button('extractAll', t('actionBar.extractAll'), EDIT_GROUP);
 
 	const sortRows = menuSections(
 		(['sortName', 'sortSize', 'sortModified', 'sortKind', 'sortDeleted', 'sortGit'] as const)

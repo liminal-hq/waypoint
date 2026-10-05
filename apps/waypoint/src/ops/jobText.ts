@@ -11,7 +11,17 @@ import type { JobPriority, Location, Schedule } from '../services/opsClient';
 import { isFinished, jobFraction, type JobWithProgress } from './opsSelectors';
 
 /** The kinds this area words itself; the others show the title Rust made. */
-const WORDED = new Set(['copy', 'move', 'link', 'trash', 'delete', 'duplicate', 'restore']);
+const WORDED = new Set([
+	'copy',
+	'move',
+	'link',
+	'trash',
+	'delete',
+	'duplicate',
+	'restore',
+	'extract',
+	'compress',
+]);
 
 /** Kinds that act on one entry and are worded only by its name (a create has no source, so `first` is what it made). */
 const NAMED_ONLY = new Set(['createFolder', 'createFile', 'rename']);
@@ -99,6 +109,7 @@ export function errorText(error: OpsError): string {
 		case 'changedSince':
 		case 'verifyFailed':
 		case 'cannotReplace':
+		case 'archiveLimit':
 			return tf(key, { name: baseName(error.location.display) });
 		case 'undoStale':
 			return tf(`ops.error.undoStale.${error.reason}` as MessageId, {

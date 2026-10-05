@@ -86,6 +86,11 @@ pub fn compose<R: Runtime>(
             // everywhere or nowhere (A85) and a protocol turned on or off in Settings →
             // Experimental takes effect here at once (D167).
             providers = providers.with_live(vfs.remote().as_ref().clone());
+            // Archives are also what Extract lists and Compress writes through (A92), so the engine is given the typed provider.
+            #[cfg(feature = "archive")]
+            if let Some(archives) = app.try_state::<crate::archives::Archives>() {
+                providers.register_archives(archives.provider.clone());
+            }
         }
         None => {
             log::warn!("the file system plugin is not set up, so the Trash cannot be browsed");
