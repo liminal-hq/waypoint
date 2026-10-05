@@ -6,6 +6,7 @@
 mod archives;
 mod checksum;
 mod connections;
+mod dialog_window_state;
 mod effects;
 mod git;
 mod integration_policy;
@@ -53,8 +54,8 @@ const TAB_MIME: &str = "application/x-waypoint-tab";
 
 /// The tear-off ghost: one shared window the plugin creates once the event loop runs (never
 /// `tauri.conf.json`), which loads the app bundle and is routed to `TearGhostScreen` by its label.
-/// No window-state plugin is registered, so the ghost needs no denylist entry; add
-/// `Options::window_state_denylist` to one if it is ever added.
+/// The window-state plugin (`dialog_window_state`) is given `Options::window_state_denylist`, so it
+/// never shows or saves the ghost.
 fn tear_off_options() -> tauri_plugin_window_tearoff::Options {
     tauri_plugin_window_tearoff::Options {
         ghost_label: GHOST_LABEL.into(),
@@ -173,6 +174,9 @@ pub fn run() {
         .plugin(tauri_plugin_system_appearance::init())
         .plugin(tauri_plugin_window_manager::init())
         .plugin(tauri_plugin_window_tearoff::init(tear_off_options()))
+        .plugin(dialog_window_state::plugin(
+            &tear_off_options().window_state_denylist(),
+        ))
         .plugin(tauri_plugin_trash::init())
         .plugin(tauri_plugin_thumbnails::init())
         // The passphrases of encrypted volumes are kept through `volume_passphrases`, which adapts the keyring and the Settings switch (D153); the volumes plugin never calls the secrets plugin.

@@ -97,6 +97,8 @@ tauri::Builder::default()
 
 Dependencies are passed as trait objects (`Arc<dyn Trash>`, `Arc<dyn SecretStore>`) built from the reusable plugins' Rust APIs. Tests substitute fakes. Cross-concern _events_ (a job finishing updates the dock progress and a notification) are handled by small subscribers in `src-tauri`, not by one plugin calling another.
 
+**Official Tauri plugins the app registers itself.** Besides Waypoint's own and the shared plugins, `src-tauri` registers `tauri-plugin-log`, `-os`, `-opener`, `-store`, `-dialog` and `tauri-plugin-window-state`. The last is scoped to the Settings, Properties and Operations windows by `src-tauri/dialog_window_state.rs` (A111): the main windows, the Shelf and the tear-off ghost are excluded (who places each window is the table in `README.md` §4), and the tear-off plugin's `Options::window_state_denylist` is passed to it. It has no `guest-js` and no capability, because only Rust uses it.
+
 ## 6. Dependency direction (enforced in review and, later, a CI script)
 
 ```

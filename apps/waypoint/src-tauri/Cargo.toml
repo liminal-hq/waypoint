@@ -46,6 +46,8 @@ tauri-plugin-volumes = { path = "../../../plugins/volumes" }
 tauri-plugin-secrets = { path = "../../../plugins/secrets" }
 tauri-plugin-mime-apps = { path = "../../../plugins/mime-apps" }
 tauri-plugin-opener = "2"
+# Remembers where the Settings and Properties dialogs were left (A111); the other windows keep their own geometry.
+tauri-plugin-window-state = "2"
 # The shared portal and desktop-integration plugins (liminal-hq/tauri-plugins-workspace#80), used only
 # from Rust (A65). Pinned to the exact revision that PR's head had; move the `rev` to the release or
 # merge commit that carries them once it exists.
