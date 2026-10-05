@@ -9,10 +9,12 @@
 // answers and then the keyring through `KeyringSecrets` over the reusable `secrets` plugin; the
 // saved connections live in `connections.json` beside the other documents; and the SSH options a
 // saved connection sets (a key file, a jump host) are laid over `~/.ssh/config` for its host.
-// Registering another protocol is one more provider in `providers` and, when its connections have
-// tuning of their own, one more observer in `wire`.
+// The remote protocols are gated by the switches on Settings → Experimental (D167): a provider is
+// built here but registered only while its switch is on, and `Gate` registers and turns off
+// providers as the settings change, with no restart. Adding another protocol is one more entry in
+// `compose`'s gate and, when its connections have tuning of their own, one more observer in `wire`.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager, Wry};
@@ -22,7 +24,8 @@ use waypoint_connections::{
     SecretKind, SecretStore, CONNECTIONS_FILE, KEYRING_SERVICE,
 };
 use waypoint_path::ConnectionKey;
-use waypoint_vfs::{Provider, Secret};
+use waypoint_settings::ExperimentalSettings;
+use waypoint_vfs::{Provider, ProviderRegistry, Secret};
 
 use crate::storage::FileKeyValue;
 
@@ -144,11 +147,86 @@ impl SecretStore for KeyringSecrets {
     }
 }
 
+/// The remote protocols that have a switch on Settings → Experimental.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Protocol {
+    Sftp,
+    // The remaining variants have switches whose providers this build may not include.
+    #[allow(dead_code)]
+    Smb,
+    #[allow(dead_code)]
+    WebDav,
+    #[allow(dead_code)]
+    S3,
+}
+
+impl Protocol {
+    /// Whether the person has turned the protocol on.
+    pub fn is_on(self, settings: &ExperimentalSettings) -> bool {
+        match self {
+            Protocol::Sftp => settings.sftp,
+            Protocol::Smb => settings.smb,
+            Protocol::WebDav => settings.webdav,
+            Protocol::S3 => settings.s3,
+        }
+    }
+}
+
+/// The providers of the build that a switch gates, and what registers them. A provider is
+/// registered while its switch is on and turned off while it is not, so nothing connects, listens
+/// or reads a credential for a protocol that is off, and the registry (shared with the operations
+/// engine) tells an address in it apart from one nothing serves.
+#[derive(Default)]
+pub struct Gate {
+    protocols: Vec<(Protocol, Vec<Arc<dyn Provider>>)>,
+    /// One change of the registry at a time, so two quick changes of the settings cannot cross.
+    applying: Mutex<()>,
+}
+
+impl Gate {
+    /// Gates `providers` (every scheme one protocol serves) behind the protocol's switch.
+    pub fn add(&mut self, protocol: Protocol, providers: Vec<Arc<dyn Provider>>) {
+        self.protocols.push((protocol, providers));
+    }
+
+    /// Makes `registry` match `settings`: registers the providers whose switch is on and turns
+    /// off the others, ending their logins first through `close_logins` (called with the scheme,
+    /// while its provider is still registered). Returns whether anything changed.
+    pub fn apply(
+        &self,
+        registry: &ProviderRegistry,
+        settings: &ExperimentalSettings,
+        close_logins: &dyn Fn(&str),
+    ) -> bool {
+        let _one_at_a_time = self.applying.lock().unwrap_or_else(|e| e.into_inner());
+        let mut changed = false;
+        for (protocol, providers) in &self.protocols {
+            let wanted = protocol.is_on(settings);
+            for provider in providers {
+                let scheme = provider.scheme();
+                let serving = registry.serves(scheme);
+                if wanted && !serving {
+                    registry.register(provider.clone());
+                    changed = true;
+                } else if !wanted && (serving || !registry.is_off(scheme)) {
+                    if serving {
+                        close_logins(scheme);
+                    }
+                    registry.turn_off(scheme);
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+}
+
 /// What `compose` makes before the app exists.
 pub struct Composed {
     pub options: tauri_plugin_waypoint_vfs::Options<Wry>,
     /// Set once the app exists, so the keyring can be reached.
     pub app: AppCell,
+    gate: Arc<Gate>,
     #[cfg(feature = "sftp")]
     sftp: sftp::Sftp,
 }
@@ -161,10 +239,12 @@ pub fn compose() -> Composed {
     })));
     #[allow(unused_mut)]
     let mut providers: Vec<Arc<dyn Provider>> = Vec::new();
+    #[allow(unused_mut)]
+    let mut gate = Gate::default();
     #[cfg(feature = "sftp")]
     let sftp = {
         let sftp = sftp::Sftp::new(credentials.clone());
-        providers.push(Arc::new(sftp.provider.clone()));
+        gate.add(Protocol::Sftp, vec![Arc::new(sftp.provider.clone())]);
         sftp
     };
     // A revision of a local repository browses read-only like any other location (A85).
@@ -179,6 +259,7 @@ pub fn compose() -> Composed {
             suggestions: Some(Arc::new(|| openssh_config::SshConfig::for_user().aliases())),
         },
         app,
+        gate: Arc::new(gate),
         #[cfg(feature = "sftp")]
         sftp,
     }
@@ -206,6 +287,28 @@ impl Composed {
         let Some(vfs) = app.try_state::<tauri_plugin_waypoint_vfs::Vfs>() else {
             return;
         };
+        let registry = vfs.remote().clone();
+        let manager = vfs.connections().map(|hub| hub.manager().clone());
+        // Before any window exists, the switches decide which protocols a restored tab can open;
+        // after, each change registers or turns off providers and tells every window.
+        let gate = self.gate.clone();
+        let apply = {
+            let (app, registry) = (app.clone(), registry.clone());
+            move |settings: &ExperimentalSettings| {
+                let changed = gate.apply(&registry, settings, &|scheme| {
+                    if let Some(manager) = &manager {
+                        manager.close_scheme(scheme);
+                    }
+                });
+                if changed {
+                    tauri_plugin_waypoint_vfs::announce_protocols(&app);
+                }
+            }
+        };
+        apply(&crate::settings::current(app).experimental);
+        if let Some(store) = app.try_state::<tauri_plugin_waypoint_settings::SettingsStore<Wry>>() {
+            store.on_change(move |settings| apply(&settings.experimental));
+        }
         let Some(hub) = vfs.connections() else {
             return;
         };
@@ -361,6 +464,84 @@ mod tests {
         assert_eq!(filed.service, "connection");
         assert_eq!(filed.account, "sftp://me@nas.lan");
         assert_eq!(filed.kind, tauri_plugin_secrets::SecretKind::Password);
+    }
+
+    fn fake(scheme: waypoint_path::RemoteScheme) -> Arc<dyn Provider> {
+        Arc::new(waypoint_vfs::FakeRemoteProvider::new(
+            scheme,
+            waypoint_path::CaseRule::Sensitive,
+        ))
+    }
+
+    fn gate_of_two() -> Gate {
+        let mut gate = Gate::default();
+        gate.add(
+            Protocol::Sftp,
+            vec![fake(waypoint_path::RemoteScheme::Sftp)],
+        );
+        gate.add(
+            Protocol::WebDav,
+            vec![
+                fake(waypoint_path::RemoteScheme::Dav),
+                fake(waypoint_path::RemoteScheme::Davs),
+            ],
+        );
+        gate
+    }
+
+    #[test]
+    fn a_fresh_profile_registers_no_remote_protocol_and_marks_each_one_off() {
+        let (gate, registry) = (gate_of_two(), ProviderRegistry::new());
+        assert!(gate.apply(&registry, &ExperimentalSettings::default(), &|_| {}));
+        assert!(registry.schemes().is_empty());
+        assert_eq!(registry.off_schemes(), ["dav", "davs", "sftp"]);
+        // Nothing changes the second time.
+        assert!(!gate.apply(&registry, &ExperimentalSettings::default(), &|_| {}));
+    }
+
+    #[test]
+    fn each_switch_turns_on_its_own_protocol_and_nothing_else() {
+        let (gate, registry) = (gate_of_two(), ProviderRegistry::new());
+        gate.apply(&registry, &ExperimentalSettings::default(), &|_| {});
+        let sftp = ExperimentalSettings {
+            sftp: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &sftp, &|_| {}));
+        assert_eq!(registry.schemes(), ["sftp"]);
+        assert_eq!(registry.off_schemes(), ["dav", "davs"]);
+        // A protocol with two schemes turns on and off as one.
+        let webdav = ExperimentalSettings {
+            webdav: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &webdav, &|_| {}));
+        assert_eq!(registry.schemes(), ["dav", "davs"]);
+        assert_eq!(registry.off_schemes(), ["sftp"]);
+    }
+
+    #[test]
+    fn turning_a_switch_off_ends_its_logins_first_and_only_for_what_was_serving() {
+        let (gate, registry) = (gate_of_two(), ProviderRegistry::new());
+        let both = ExperimentalSettings {
+            sftp: true,
+            webdav: true,
+            ..ExperimentalSettings::default()
+        };
+        gate.apply(&registry, &both, &|_| {});
+        let closed = Mutex::new(Vec::new());
+        let sftp_only = ExperimentalSettings {
+            sftp: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &sftp_only, &|scheme| {
+            // The provider is still registered while its logins end.
+            assert!(registry.serves(scheme));
+            closed.lock().unwrap().push(scheme.to_owned());
+        }));
+        assert_eq!(*closed.lock().unwrap(), ["dav", "davs"]);
+        assert_eq!(registry.schemes(), ["sftp"]);
+        assert!(registry.is_off("dav") && registry.is_off("davs"));
     }
 
     #[cfg(feature = "sftp")]
