@@ -276,6 +276,9 @@ impl Core {
 }
 
 /// Everything the workers and the commands share.
+/// The folder of the app's cache that holds files downloaded for a drag out of the window.
+const STAGE_FOLDER: &str = "drag-out";
+
 pub(crate) struct Shared<R: Runtime> {
     pub app: AppHandle<R>,
     pub env: ExecEnv,
@@ -1153,6 +1156,32 @@ impl<R: Runtime> Ops<R> {
             }));
         }
         Ok(items)
+    }
+
+    /// Downloads files dragged from a server into a folder of the app's cache, so a drag out of the
+    /// window can hand another application local files (D151), and returns where they are. Each
+    /// drag replaces the last one's copies; what another application took is its own by then.
+    pub fn stage_for_drag(&self, items: &[Location]) -> Result<Vec<Location>, Error> {
+        use tauri::Manager;
+        let cache = self
+            .shared
+            .app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| Error::Internal(e.to_string()))?;
+        let folder = cache.join(STAGE_FOLDER);
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).map_err(|e| Error::Internal(e.to_string()))?;
+        let path = waypoint_path::FilePath::from_path(&folder)
+            .map(waypoint_path::VfsPath::File)
+            .map_err(|_| Error::Internal("the cache folder is not a usable path".to_owned()))?;
+        Ok(waypoint_ops::stage_files(
+            &self.shared.env.providers,
+            items,
+            &path,
+            waypoint_ops::STAGE_LIMIT_BYTES,
+            &waypoint_vfs::CancelToken::new(),
+        )?)
     }
 
     /// The unfinished jobs that read from, write into, or remove something that holds `location`.

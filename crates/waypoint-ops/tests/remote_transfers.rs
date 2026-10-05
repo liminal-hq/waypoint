@@ -508,3 +508,122 @@ fn a_verified_upload_reads_the_copy_back_through_the_server() {
         Some(1)
     );
 }
+
+#[test]
+fn a_drag_out_downloads_small_files_and_refuses_folders_and_large_ones() {
+    let server = FakeRemoteProvider::sftp();
+    server.put_file(&on(&server, "a/x.txt"), b"one");
+    server.put_file(&on(&server, "b/x.txt"), b"two");
+    server.put_file(&on(&server, "big.bin"), &[0u8; 4096]);
+    server.put_dir(&on(&server, "dir"));
+    let (h, _dir) = engine(&[&server]);
+    jbuild(&h, &tree(&[("stage/", ""), ("local.txt", "here")]));
+    let providers = &h.harness.env.providers;
+    let cancel = CancelToken::new();
+    let stage = h.path("stage");
+
+    let staged = stage_files(
+        providers,
+        &[
+            on(&server, "a/x.txt").to_location(),
+            on(&server, "b/x.txt").to_location(),
+            h.loc("local.txt"),
+        ],
+        &stage,
+        STAGE_LIMIT_BYTES,
+        &cancel,
+    )
+    .unwrap();
+    // Two files of one name keep both; a local file is handed back as it is.
+    assert_eq!(staged[2], h.loc("local.txt"));
+    assert_eq!(
+        tree_of(h.provider.as_ref(), &stage),
+        tree(&[("x.txt", "one"), ("x (2).txt", "two")])
+    );
+
+    let folder = stage_files(
+        providers,
+        &[on(&server, "dir").to_location()],
+        &stage,
+        STAGE_LIMIT_BYTES,
+        &cancel,
+    );
+    assert!(matches!(folder, Err(OpsError::Unsupported { .. })));
+    let large = stage_files(
+        providers,
+        &[on(&server, "big.bin").to_location()],
+        &stage,
+        1024,
+        &cancel,
+    );
+    assert!(matches!(large, Err(OpsError::Unsupported { .. })));
+
+    // A failure part way removes what was written.
+    jbuild(&h, &tree(&[("stage2/", "")]));
+    server.memory().fail_nth(
+        MemOp::OpenRead,
+        2,
+        VfsError::Disconnected {
+            location: on(&server, "b").to_location(),
+        },
+    );
+    let failed = stage_files(
+        providers,
+        &[
+            on(&server, "a/x.txt").to_location(),
+            on(&server, "b/x.txt").to_location(),
+        ],
+        &h.path("stage2"),
+        STAGE_LIMIT_BYTES,
+        &cancel,
+    );
+    assert!(
+        matches!(failed, Err(OpsError::Connection { .. })),
+        "{failed:?}"
+    );
+    assert!(tree_of(h.provider.as_ref(), &h.path("stage2")).is_empty());
+}
+
+#[test]
+fn a_protocol_turned_off_refuses_a_transfer_with_its_typed_reason_and_writes_nothing() {
+    let server = FakeRemoteProvider::sftp();
+    server.put_dir(&on(&server, "up"));
+    let (mut h, _dir) = memory_jh(CaseRule::Sensitive);
+    let registry = waypoint_vfs::ProviderRegistry::new();
+    registry.register(Arc::new(server.clone()));
+    h.harness.env.providers = h.harness.env.providers.clone().with_live(registry.clone());
+    jbuild(&h, &tree(&[("a.txt", "alpha")]));
+    let upload = request(JobKind::Copy, &[h.path("a.txt")], &on(&server, "up"));
+
+    registry.turn_off("sftp").expect("the protocol was on");
+    let refused = h.run_journalled(upload.clone());
+    assert_eq!(
+        *failed_with(&refused),
+        OpsError::ProtocolOff {
+            scheme: "sftp".to_owned()
+        }
+    );
+    assert_eq!(server.connects(), 0, "nothing reached the server");
+    // A download from it, and a drag out, are refused the same way.
+    let down = request(JobKind::Copy, &[on(&server, "up/x")], &h.path(""));
+    assert!(matches!(
+        failed_with(&h.run_journalled(down)),
+        OpsError::ProtocolOff { .. }
+    ));
+    let staged = stage_files(
+        &h.harness.env.providers,
+        &[on(&server, "up/x").to_location()],
+        &h.path(""),
+        STAGE_LIMIT_BYTES,
+        &CancelToken::new(),
+    );
+    assert!(matches!(staged, Err(OpsError::ProtocolOff { .. })));
+
+    // Turned on again: the same request goes through.
+    registry.register(Arc::new(server.clone()));
+    finished(&h.run_journalled(upload));
+    assert_eq!(
+        content(&server, &on(&server, "up/a.txt")).as_deref(),
+        Some(&b"alpha"[..])
+    );
+}

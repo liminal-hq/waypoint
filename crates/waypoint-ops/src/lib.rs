@@ -19,6 +19,7 @@ mod rename_clash;
 mod rename_rules;
 mod schedule;
 mod speed;
+mod stage;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 mod throttle;
@@ -58,6 +59,7 @@ pub use rename_rules::{
 };
 pub use schedule::Schedule;
 pub use speed::SpeedEstimator;
+pub use stage::{stage_files, STAGE_LIMIT_BYTES};
 pub use throttle::{Bucket, Pacer, RateCell, SystemPacer, Throttle, WAIT_SLICE};
 pub use traits::{
     Clock, CounterIds, IdSource, Protected, Providers, SelectionResolver, SettingsReader,

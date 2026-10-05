@@ -161,6 +161,14 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     function resolveSelection(handle, spec) {
         return cmd('resolve_selection', { handle, spec });
     }
+    /**
+     * Downloads files dragged from a server into the app's cache and returns their local locations, so
+     * a drag out of the window can hand them to another application. A location already local comes
+     * back as it is. Rejects (`unsupported`) for a folder from a server or more than the drag allows.
+     */
+    function stageForDrag(items) {
+        return cmd('stage_for_drag', { items });
+    }
     function getClipboard() {
         return cmd('get_clipboard');
     }
@@ -234,6 +242,7 @@ var __TAURI_PLUGIN_WAYPOINT_OPS__ = (function (exports, core, event) {
     exports.setJobLimits = setJobLimits;
     exports.setJobSchedule = setJobSchedule;
     exports.setSettings = setSettings;
+    exports.stageForDrag = stageForDrag;
     exports.submit = submit;
     exports.subscribeProgress = subscribeProgress;
     exports.takeRecoveryReport = takeRecoveryReport;

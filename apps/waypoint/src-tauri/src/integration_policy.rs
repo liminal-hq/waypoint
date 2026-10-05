@@ -1950,6 +1950,8 @@ mod tests {
             finished_ms: None,
             undoable: false,
             verified: None,
+            ends: None,
+            dropped: None,
         }
     }
 

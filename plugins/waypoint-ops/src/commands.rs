@@ -358,6 +358,19 @@ pub async fn resolve_selection<R: Runtime>(
         .map_err(|e| Error::Internal(e.to_string()))?
 }
 
+/// Downloads files dragged from a server so a drag out of the window can hand them over (D151).
+#[tauri::command]
+pub async fn stage_for_drag<R: Runtime>(
+    _window: WebviewWindow<R>,
+    ops: State<'_, Ops<R>>,
+    items: Vec<Location>,
+) -> Result<Vec<Location>, Error> {
+    let ops = ops.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || ops.stage_for_drag(&items))
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?
+}
+
 #[tauri::command]
 pub async fn get_clipboard<R: Runtime>(
     _window: WebviewWindow<R>,

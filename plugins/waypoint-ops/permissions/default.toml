@@ -29,6 +29,7 @@ permissions = [
   "allow-set-clipboard",
   "allow-set-clipboard-from-selection",
   "allow-resolve-selection",
+  "allow-stage-for-drag",
   "allow-get-clipboard",
   "allow-jobs-targeting",
   "allow-get-settings",

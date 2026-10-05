@@ -295,6 +295,15 @@ export function resolveSelection(handle: ListingHandle, spec: SelectionSpec): Pr
 	return cmd<Location[]>('resolve_selection', { handle, spec });
 }
 
+/**
+ * Downloads files dragged from a server into the app's cache and returns their local locations, so
+ * a drag out of the window can hand them to another application. A location already local comes
+ * back as it is. Rejects (`unsupported`) for a folder from a server or more than the drag allows.
+ */
+export function stageForDrag(items: Location[]): Promise<Location[]> {
+	return cmd<Location[]>('stage_for_drag', { items });
+}
+
 export function getClipboard(): Promise<Clipboard> {
 	return cmd<Clipboard>('get_clipboard');
 }
