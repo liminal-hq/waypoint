@@ -63,6 +63,11 @@ fn label_for(kind: JobKind, count: usize, names: &[String]) -> String {
             (1, Some(old), Some(new)) => format!("Rename {} to {}", quoted(old), quoted(new)),
             _ => items("Rename", ""),
         },
+        JobKind::Extract => items("Extract", ""),
+        JobKind::Compress => match (one, count) {
+            (Some(name), 1) => format!("Compress {name}"),
+            _ => format!("Compress {count} items"),
+        },
         JobKind::Undo { .. } => items("Undo", ""),
         JobKind::Redo { .. } => items("Redo", ""),
     }
@@ -131,6 +136,20 @@ impl Recorded {
                     many => many.iter().map(|(from, _)| name_of(from)).collect(),
                 };
             }
+            JobKind::Compress => {
+                let created = report.created.first()?;
+                let placed = report.transfer.placed_sources.clone();
+                if !placed.is_empty() {
+                    forward.sources = Sources::Locations {
+                        locations: placed.clone(),
+                    };
+                }
+                forward.destination = parent_of(created);
+                forward.name = Some(name_of(created));
+                forward.options.conflict = report.transfer.policy.or(request.options.conflict);
+                count = placed.len().max(1);
+                names = placed.iter().map(name_of).collect();
+            }
             JobKind::Trash => {
                 let originals: Vec<Location> =
                     report.trashed.iter().map(|r| r.original.clone()).collect();
@@ -140,7 +159,7 @@ impl Recorded {
                     locations: originals,
                 };
             }
-            JobKind::Copy | JobKind::Move | JobKind::Link => {
+            JobKind::Copy | JobKind::Move | JobKind::Link | JobKind::Extract => {
                 // Only the sources something was placed for: a redo does what the job did, not
                 // what it skipped or failed on.
                 let placed = report.transfer.placed_sources.clone();

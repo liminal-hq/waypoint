@@ -151,6 +151,8 @@ fn title_for(kind: JobKind, sources: &SourcesSummary, name: Option<&str>) -> Str
         JobKind::Move => "Move",
         JobKind::Link => "Link",
         JobKind::BatchRename => "Rename",
+        JobKind::Extract => "Extract",
+        JobKind::Compress => "Compress",
         JobKind::Undo { .. } => "Undo",
         JobKind::Redo { .. } => "Redo",
     };

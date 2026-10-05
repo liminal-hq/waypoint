@@ -249,15 +249,18 @@ jobs:
   # with keys the tests generate (no root, no container), and Samba's `smbd` the same way with a
   # private state directory and the runner's own account; `WAYPOINT_SFTP_REQUIRE` and
   # `WAYPOINT_SMB_REQUIRE` make a missing server a failure here, where elsewhere the same tests skip.
+  # The archive provider needs no server, but its tests read archives made by the real `tar`, `zip`
+  # and `7z` tools (encrypted ones included); `WAYPOINT_ARCHIVE_REQUIRE` makes a missing tool a
+  # failure here.
   remote-conformance:
     name: Remote providers against real servers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install the OpenSSH and Samba servers
+      - name: Install the OpenSSH and Samba servers and the archivers
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba zip p7zip-full zstd xz-utils bzip2
           # The package starts system daemons on port 445 that the tests do not use.
           sudo systemctl disable --now smbd nmbd winbind 2>/dev/null || true
       - uses: Swatinem/rust-cache@v2
@@ -274,6 +277,11 @@ jobs:
         env:
           WAYPOINT_SMB_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-smb
+      - name: Run the archive provider against the real archivers
+        id: archive
+        env:
+          WAYPOINT_ARCHIVE_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-archive
 
       - name: Job summary
         if: always()
@@ -284,6 +292,7 @@ jobs:
             echo "|---|---|---|"
             echo "| SFTP | \`${{ steps.sftp.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config\` |"
             echo "| SMB | \`${{ steps.smb.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-smb\` |"
+            echo "| Archives | \`${{ steps.archive.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-archive\` |"
             echo
             bash scripts/junit-summary.sh target/nextest/ci/junit.xml
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -358,7 +367,7 @@ jobs:
         id: tests
         run: >-
           cargo nextest run --no-fail-fast
-          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-thumbnails -p tauri-plugin-volumes -p tauri-plugin-secrets -p tauri-plugin-window-effects -p tauri-plugin-mime-apps -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings
+          -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p waypoint-provider-archive -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-thumbnails -p tauri-plugin-volumes -p tauri-plugin-secrets -p tauri-plugin-window-effects -p tauri-plugin-mime-apps -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings
           -E "not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-thumbnails) | package(tauri-plugin-volumes) | package(tauri-plugin-secrets) | package(tauri-plugin-window-effects) | package(tauri-plugin-mime-apps) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))"
 
       - name: Job summary
@@ -369,5 +378,5 @@ jobs:
             echo "## Windows tests (${{ matrix.arch }})"
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
-            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-thumbnails -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-thumbnails) | package(tauri-plugin-volumes) | package(tauri-plugin-window-effects) | package(tauri-plugin-mime-apps) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
+            echo "| Pure crate tests | \`${{ steps.tests.outcome }}\` | \`cargo nextest run --no-fail-fast -p waypoint-protocol -p waypoint-session -p waypoint-vfs -p waypoint-settings -p waypoint-ops -p waypoint-provider-archive -p tauri-plugin-window-tearoff -p tauri-plugin-os-prefs -p tauri-plugin-trash -p tauri-plugin-thumbnails -p tauri-plugin-native-dnd -p tauri-plugin-waypoint-ops -p tauri-plugin-waypoint-settings -E \"not (kind(test) & (package(tauri-plugin-os-prefs) | package(tauri-plugin-trash) | package(tauri-plugin-thumbnails) | package(tauri-plugin-volumes) | package(tauri-plugin-window-effects) | package(tauri-plugin-mime-apps) | package(tauri-plugin-native-dnd) | package(tauri-plugin-waypoint-ops) | package(tauri-plugin-waypoint-settings)))\"\` |"
           } >> "${GITHUB_STEP_SUMMARY}"

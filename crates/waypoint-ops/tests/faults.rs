@@ -148,6 +148,7 @@ fn scenarios<P: Provider + 'static>() -> Vec<Scenario<P>> {
                 options: JobOptions::default(),
                 origin_window: "main-1".to_owned(),
                 rename: None,
+                archive: None,
             },
             removal: false,
             double: false,

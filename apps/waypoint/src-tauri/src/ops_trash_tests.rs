@@ -358,6 +358,7 @@ fn restore_and_delete_jobs_work_on_the_locations_the_view_gives() {
         options: waypoint_ops::JobOptions::default(),
         origin_window: "main-1".to_owned(),
         rename: None,
+        archive: None,
     };
     let ops = fx.ops();
     let restore = ops
@@ -404,6 +405,7 @@ fn a_restore_over_a_taken_name_waits_and_keep_both_restores_beside_it() {
                 options: waypoint_ops::JobOptions::default(),
                 origin_window: "main-1".to_owned(),
                 rename: None,
+                archive: None,
             },
         )
         .unwrap();

@@ -9,7 +9,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{ListingHandle, SelectionSpec};
+use waypoint_vfs::{ArchiveKind, ListingHandle, SelectionSpec};
 
 use crate::journal::{JournalEntrySummary, JournalId, JournalSnapshot, StaleReason};
 use crate::rename_rules::RenameSpec;
@@ -52,6 +52,10 @@ pub enum JobKind {
     Link,
     /// Renames many entries by a stack of rules, all or none (`JobRequest::rename` holds the rules).
     BatchRename,
+    /// Extracts each source archive into a folder (`JobRequest::archive` holds the layout).
+    Extract,
+    /// Packs the sources into one new archive file (`JobRequest::archive` holds the format).
+    Compress,
     /// Reverses the journal entry `of`.
     Undo {
         of: JournalId,
@@ -157,6 +161,101 @@ pub struct JobRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub rename: Option<RenameSpec>,
+    /// What an extraction or a compression does; the defaults (an automatic layout, a zip) when
+    /// absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub archive: Option<ArchiveSpec>,
+}
+
+/// Where an extraction puts what an archive holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ExtractLayout {
+    /// Into a folder named after the archive, unless the archive holds just one thing at its top,
+    /// which is put straight into the destination: nothing is ever scattered among what is there.
+    #[default]
+    Auto,
+    /// Always into a folder named after the archive.
+    Folder,
+    /// The archive's top-level entries straight into the destination.
+    Contents,
+}
+
+/// The formats an archive can be made in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ArchiveFormat {
+    Zip,
+    Tar,
+    TarGz,
+    TarBz2,
+    TarXz,
+    SevenZ,
+}
+
+impl ArchiveFormat {
+    pub const ALL: [ArchiveFormat; 6] = [
+        ArchiveFormat::Zip,
+        ArchiveFormat::Tar,
+        ArchiveFormat::TarGz,
+        ArchiveFormat::TarBz2,
+        ArchiveFormat::TarXz,
+        ArchiveFormat::SevenZ,
+    ];
+
+    /// The extension of the files it makes, with its dot.
+    pub fn extension(self) -> &'static str {
+        ArchiveKind::from(self).extension()
+    }
+}
+
+impl From<ArchiveFormat> for ArchiveKind {
+    fn from(format: ArchiveFormat) -> Self {
+        match format {
+            ArchiveFormat::Zip => ArchiveKind::Zip,
+            ArchiveFormat::Tar => ArchiveKind::Tar,
+            ArchiveFormat::TarGz => ArchiveKind::TarGz,
+            ArchiveFormat::TarBz2 => ArchiveKind::TarBz2,
+            ArchiveFormat::TarXz => ArchiveKind::TarXz,
+            ArchiveFormat::SevenZ => ArchiveKind::SevenZ,
+        }
+    }
+}
+
+impl From<ArchiveKind> for ArchiveFormat {
+    fn from(kind: ArchiveKind) -> Self {
+        match kind {
+            ArchiveKind::Zip => ArchiveFormat::Zip,
+            ArchiveKind::Tar => ArchiveFormat::Tar,
+            ArchiveKind::TarGz => ArchiveFormat::TarGz,
+            ArchiveKind::TarBz2 => ArchiveFormat::TarBz2,
+            ArchiveKind::TarXz => ArchiveFormat::TarXz,
+            ArchiveKind::SevenZ => ArchiveFormat::SevenZ,
+        }
+    }
+}
+
+/// What an extraction or a compression is asked to do beyond the request's sources and destination.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ArchiveSpec {
+    Extract {
+        layout: ExtractLayout,
+        /// Go ahead although an archive claims more entries or bytes than the limits allow, or
+        /// compresses so well that it looks like a bomb: the answer to `OpsError::ArchiveLimit`.
+        allow_large: bool,
+    },
+    Compress {
+        format: ArchiveFormat,
+    },
 }
 
 /// How far a job has got.
@@ -327,12 +426,52 @@ pub enum OpsError {
     /// There is no such entry in the journal, or it is not in a state this can be done in.
     #[error("{reason}")]
     UndoUnavailable { reason: String },
+    /// An archive is bigger, or compresses better, than extraction allows without being told to go
+    /// ahead: answer with the same request and `allow_large`, or give it up.
+    #[error("{} is too large to extract safely ({limit:?})", .location.display)]
+    ArchiveLimit {
+        location: Location,
+        limit: ArchiveLimit,
+    },
     /// A server could not be reached, asked for a login or a trust decision, or dropped the
     /// connection (A80). One kind, so Skip all covers every connection failure; Retry reconnects.
     #[error("connection problem: {error:?}")]
     Connection { error: VfsError },
     #[error("{message}")]
     Io { message: String },
+}
+
+/// Which limit an archive went past, and by how much.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ArchiveLimit {
+    /// More entries than the limit.
+    Entries {
+        #[ts(type = "number")]
+        found: u64,
+        #[ts(type = "number")]
+        max: u64,
+    },
+    /// More bytes once extracted than the limit.
+    Bytes {
+        #[ts(type = "number")]
+        found: u64,
+        #[ts(type = "number")]
+        max: u64,
+    },
+    /// It expands to `ratio` times its own size: more than the limit allows for an archive of that
+    /// size.
+    Ratio {
+        #[ts(type = "number")]
+        ratio: u64,
+        #[ts(type = "number")]
+        max: u64,
+    },
 }
 
 impl From<VfsError> for OpsError {
@@ -699,6 +838,73 @@ pub struct OpsSettings {
     #[serde(default)]
     #[ts(type = "number | null")]
     pub speed_limit_bps: Option<u64>,
+    /// The most entries an archive may hold to be extracted without asking.
+    #[serde(default = "default_archive_max_entries")]
+    #[ts(type = "number")]
+    pub archive_max_entries: u64,
+    /// The most bytes an archive may expand to without asking.
+    #[serde(default = "default_archive_max_bytes")]
+    #[ts(type = "number")]
+    pub archive_max_bytes: u64,
+    /// How many times its own size an archive may expand to without asking, counted only once it
+    /// expands to `archive_ratio_floor_bytes` or more.
+    #[serde(default = "default_archive_max_ratio")]
+    #[ts(type = "number")]
+    pub archive_max_ratio: u32,
+    /// The size an archive has to expand to before its ratio is looked at.
+    #[serde(default = "default_archive_ratio_floor_bytes")]
+    #[ts(type = "number")]
+    pub archive_ratio_floor_bytes: u64,
+}
+
+fn default_archive_max_entries() -> u64 {
+    ArchiveLimits::DEFAULT.max_entries
+}
+fn default_archive_max_bytes() -> u64 {
+    ArchiveLimits::DEFAULT.max_bytes
+}
+fn default_archive_max_ratio() -> u32 {
+    ArchiveLimits::DEFAULT.max_ratio
+}
+fn default_archive_ratio_floor_bytes() -> u64 {
+    ArchiveLimits::DEFAULT.ratio_floor_bytes
+}
+
+/// What an extraction allows an archive to be before it asks (D155).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArchiveLimits {
+    pub max_entries: u64,
+    pub max_bytes: u64,
+    pub max_ratio: u32,
+    pub ratio_floor_bytes: u64,
+}
+
+impl ArchiveLimits {
+    /// A million entries, 100 GiB, and 1 000 times its size once past 1 GiB.
+    pub const DEFAULT: ArchiveLimits = ArchiveLimits {
+        max_entries: 1_000_000,
+        max_bytes: 100 * 1024 * 1024 * 1024,
+        max_ratio: 1_000,
+        ratio_floor_bytes: 1024 * 1024 * 1024,
+    };
+}
+
+impl Default for ArchiveLimits {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl OpsSettings {
+    /// The limits an extraction keeps to.
+    pub fn archive_limits(&self) -> ArchiveLimits {
+        ArchiveLimits {
+            max_entries: self.archive_max_entries,
+            max_bytes: self.archive_max_bytes,
+            max_ratio: self.archive_max_ratio,
+            ratio_floor_bytes: self.archive_ratio_floor_bytes,
+        }
+    }
 }
 
 impl Default for OpsSettings {
@@ -711,6 +917,10 @@ impl Default for OpsSettings {
             undo_depth: 50,
             trash_expiry_days: None,
             speed_limit_bps: None,
+            archive_max_entries: ArchiveLimits::DEFAULT.max_entries,
+            archive_max_bytes: ArchiveLimits::DEFAULT.max_bytes,
+            archive_max_ratio: ArchiveLimits::DEFAULT.max_ratio,
+            archive_ratio_floor_bytes: ArchiveLimits::DEFAULT.ratio_floor_bytes,
         }
     }
 }

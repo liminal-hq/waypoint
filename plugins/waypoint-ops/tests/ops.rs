@@ -1924,6 +1924,7 @@ fn a_scheduled_job_left_by_the_last_run_is_queued_again_at_start_up() {
                     options: waypoint_ops::JobOptions::default(),
                     origin_window: "main-1".to_owned(),
                     rename: None,
+                    archive: None,
                 };
                 request.options.schedule = Some(Schedule::StartAt {
                     at_ms: clock_ms() + 700,
@@ -2014,4 +2015,92 @@ fn pause_all_stops_every_running_copy_and_holds_the_queue_and_resume_all_goes_on
         })
         .collect();
     assert_eq!(flags, vec![true, false]);
+}
+
+#[test]
+fn the_archive_limits_have_defaults_bounds_and_an_old_document_gets_the_defaults() {
+    use tauri_plugin_waypoint_ops::{
+        ARCHIVE_BYTES_RANGE, ARCHIVE_ENTRIES_RANGE, ARCHIVE_RATIO_FLOOR_RANGE, ARCHIVE_RATIO_RANGE,
+    };
+    let env = env();
+    let ops = env.ops();
+    let defaults = ops.settings();
+    assert_eq!(defaults.archive_max_entries, 1_000_000);
+    assert_eq!(defaults.archive_max_bytes, 100 * 1024 * 1024 * 1024);
+    assert_eq!(defaults.archive_max_ratio, 1_000);
+    assert_eq!(defaults.archive_ratio_floor_bytes, 1024 * 1024 * 1024);
+    // A document saved before these settings existed reads with the defaults.
+    let old = serde_json::json!({
+        "concurrency": 3, "verifyAfterCopy": false, "verifyAlgorithm": "blake3",
+        "confirmTrash": false, "undoDepth": 50, "trashExpiryDays": null
+    });
+    let read: OpsSettings = serde_json::from_value(old).unwrap();
+    assert_eq!(read.archive_max_entries, 1_000_000);
+    assert_eq!(read.concurrency, 3);
+    // Each is refused outside its range, at both ends, and nothing is saved.
+    type Change = fn(&mut OpsSettings, bool);
+    let changes: [(Change, bool); 8] = [
+        (
+            |s, low| {
+                s.archive_max_entries = if low {
+                    ARCHIVE_ENTRIES_RANGE.start() - 1
+                } else {
+                    ARCHIVE_ENTRIES_RANGE.end() + 1
+                }
+            },
+            true,
+        ),
+        (
+            |s, low| {
+                s.archive_max_bytes = if low {
+                    ARCHIVE_BYTES_RANGE.start() - 1
+                } else {
+                    ARCHIVE_BYTES_RANGE.end() + 1
+                }
+            },
+            true,
+        ),
+        (
+            |s, low| {
+                s.archive_max_ratio = if low {
+                    ARCHIVE_RATIO_RANGE.start() - 1
+                } else {
+                    ARCHIVE_RATIO_RANGE.end() + 1
+                }
+            },
+            true,
+        ),
+        (
+            |s, low| {
+                s.archive_ratio_floor_bytes = if low {
+                    ARCHIVE_RATIO_FLOOR_RANGE.start() - 1
+                } else {
+                    ARCHIVE_RATIO_FLOOR_RANGE.end() + 1
+                }
+            },
+            true,
+        ),
+        (|s, _| s.archive_max_entries = 0, true),
+        (|s, _| s.archive_max_bytes = 0, true),
+        (|s, _| s.archive_max_ratio = 0, true),
+        (|s, _| s.archive_ratio_floor_bytes = 0, true),
+    ];
+    for (n, (change, _)) in changes.iter().enumerate() {
+        for low in [true, false] {
+            let mut bad = ops.settings();
+            change(&mut bad, low);
+            assert!(ops.set_settings(bad).is_err(), "change {n} low={low}");
+        }
+    }
+    assert_eq!(env.settings.saved(), None);
+    // Values at the ends are accepted and come back as saved.
+    let ends = OpsSettings {
+        archive_max_entries: *ARCHIVE_ENTRIES_RANGE.start(),
+        archive_max_bytes: *ARCHIVE_BYTES_RANGE.end(),
+        archive_max_ratio: *ARCHIVE_RATIO_RANGE.end(),
+        archive_ratio_floor_bytes: *ARCHIVE_RATIO_FLOOR_RANGE.start(),
+        ..ops.settings()
+    };
+    assert_eq!(ops.set_settings(ends).unwrap(), ends);
+    assert_eq!(env.settings.saved(), Some(ends));
 }

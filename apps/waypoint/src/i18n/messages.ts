@@ -51,6 +51,7 @@ export const enMessages = {
 	'settings.group.copying': 'Copying',
 	'settings.group.queue': 'Queue',
 	'settings.group.trash': 'Trash',
+	'settings.group.archives': 'Archives',
 	'settings.group.dropping': 'Dropping',
 	'settings.group.shelf': 'Shelf',
 	'services.title': 'Services',
@@ -385,6 +386,27 @@ export const enMessages = {
 	'settings.operations.trashDays.needsExpiry':
 		'Turn on “Empty old items from the Trash” to set this.',
 	'settings.operations.trashDays.unit': 'days',
+	'settings.operations.archiveEntries.label':
+		'Most entries in an archive to extract without asking',
+	'settings.operations.archiveEntries.description':
+		'Extracting an archive that holds more entries than this asks first.',
+	'settings.operations.archiveEntries.unit': 'entries',
+	'settings.operations.archiveBytes.label': 'Most an archive may expand to without asking',
+	'settings.operations.archiveBytes.description':
+		'Extracting an archive whose contents add up to more than this asks first.',
+	'settings.operations.archiveBytes.unit': 'GiB',
+	'settings.operations.archiveRatio.label': 'Most times its size an archive may expand to',
+	'settings.operations.archiveRatio.description':
+		'An archive that expands to far more than its own size may be built to fill the disk, so extracting one asks first. This applies only above the size below.',
+	'settings.operations.archiveRatio.unit': 'times',
+	'settings.operations.archiveFloor.label': 'Check the expansion ratio only above',
+	'settings.operations.archiveFloor.description':
+		'Small archives that compress very well are fine; the ratio is checked only when an archive expands to at least this much.',
+	'settings.operations.archiveFloor.unit': 'MiB',
+	'settings.operations.archiveReset.label': 'Archive limits',
+	'settings.operations.archiveReset.description':
+		'Puts the four limits above back to 1 000 000 entries, 100 GiB, 1 000 times its size, checked above 1 GiB.',
+	'settings.operations.archiveReset.action': 'Reset to defaults',
 	'settings.dnd.unavailable': 'Dragging files out to other applications is unavailable: {reason}',
 	'settings.dnd.unavailable.noReason': 'this system does not support it.',
 	'settings.dnd.rule.label': 'Default drop action',
@@ -1540,6 +1562,12 @@ export const enMessages = {
 	'ops.problem.message.io': 'The system reported a problem: {message}',
 	'ops.problem.message.connection':
 		'The connection to the server that holds {location} failed. Retry connects again.',
+	'ops.problem.message.archiveLimit':
+		'{location} is larger than the archive limits allow, so extracting it was stopped. The limits are in Settings, under Operations.',
+	'ops.problem.details.archiveEntries': 'It holds {found} entries; the limit is {max}.',
+	'ops.problem.details.archiveBytes': 'It expands to {found}; the limit is {max}.',
+	'ops.problem.details.archiveRatio':
+		'It expands to {ratio} times its own size; the limit is {max} times.',
 	'ops.problem.details': 'Details',
 	'ops.problem.details.expected': 'Expected checksum: {digest}',
 	'ops.problem.details.actual': 'Found checksum: {digest}',

@@ -149,6 +149,11 @@
     "description": "Area: settings.",
     "source": "c560122a"
   },
+  "settings.group.archives": {
+    "message": "Archives",
+    "description": "Area: settings.",
+    "source": "e404aa80"
+  },
   "settings.group.dropping": {
     "message": "Dépôt",
     "description": "Area: settings.",
@@ -1393,6 +1398,81 @@
     "message": "jours",
     "description": "Area: settings.",
     "source": "ab51004e"
+  },
+  "settings.operations.archiveEntries.label": {
+    "message": "Nombre maximal d’entrées d’une archive à extraire sans demander",
+    "description": "Area: settings.",
+    "source": "5ee25a32"
+  },
+  "settings.operations.archiveEntries.description": {
+    "message": "L’extraction d’une archive qui contient plus d’entrées que ce nombre demande d’abord confirmation.",
+    "description": "Area: settings.",
+    "source": "4321ab2e"
+  },
+  "settings.operations.archiveEntries.unit": {
+    "message": "entrées",
+    "description": "Area: settings.",
+    "source": "87d05cd0"
+  },
+  "settings.operations.archiveBytes.label": {
+    "message": "Taille maximale à laquelle une archive peut se déployer sans demander",
+    "description": "Area: settings.",
+    "source": "ab83e81e"
+  },
+  "settings.operations.archiveBytes.description": {
+    "message": "L’extraction d’une archive dont le contenu dépasse cette taille demande d’abord confirmation.",
+    "description": "Area: settings.",
+    "source": "d4f3ddcd"
+  },
+  "settings.operations.archiveBytes.unit": {
+    "message": "Gio",
+    "description": "Area: settings.",
+    "source": "66a1561b"
+  },
+  "settings.operations.archiveRatio.label": {
+    "message": "Nombre maximal de fois sa taille qu’une archive peut atteindre",
+    "description": "Area: settings.",
+    "source": "90107fdb"
+  },
+  "settings.operations.archiveRatio.description": {
+    "message": "Une archive qui se déploie en beaucoup plus que sa propre taille peut avoir été conçue pour remplir le disque; son extraction demande donc d’abord confirmation. Cette limite ne s’applique qu’au-delà de la taille ci-dessous.",
+    "description": "Area: settings.",
+    "source": "3ce2a2b4"
+  },
+  "settings.operations.archiveRatio.unit": {
+    "message": "fois",
+    "description": "Area: settings.",
+    "source": "2bf61a3b"
+  },
+  "settings.operations.archiveFloor.label": {
+    "message": "Vérifier le rapport de déploiement seulement au-delà de",
+    "description": "Area: settings.",
+    "source": "7f59a937"
+  },
+  "settings.operations.archiveFloor.description": {
+    "message": "Les petites archives très bien compressées ne posent pas de problème; le rapport n’est vérifié que lorsqu’une archive se déploie en au moins cette taille.",
+    "description": "Area: settings.",
+    "source": "dc6d7677"
+  },
+  "settings.operations.archiveFloor.unit": {
+    "message": "Mio",
+    "description": "Area: settings.",
+    "source": "dea6cb8d"
+  },
+  "settings.operations.archiveReset.label": {
+    "message": "Limites des archives",
+    "description": "Area: settings.",
+    "source": "34cee451"
+  },
+  "settings.operations.archiveReset.description": {
+    "message": "Rétablit les quatre limites ci-dessus : 1 000 000 d’entrées, 100 Gio, 1 000 fois la taille de l’archive, vérifié au-delà de 1 Gio.",
+    "description": "Area: settings.",
+    "source": "1bfda070"
+  },
+  "settings.operations.archiveReset.action": {
+    "message": "Rétablir les valeurs par défaut",
+    "description": "Area: settings.",
+    "source": "e240e635"
   },
   "settings.dnd.unavailable": {
     "message": "Le glissement de fichiers vers d’autres applications est indisponible : {reason}",
@@ -6928,6 +7008,26 @@
     "message": "La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.",
     "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
     "source": "2fd894ca"
+  },
+  "ops.problem.message.archiveLimit": {
+    "message": "{location} dépasse les limites prévues pour les archives; son extraction a donc été arrêtée. Les limites se règlent dans les paramètres, sous Opérations.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
+    "source": "c24681d1"
+  },
+  "ops.problem.details.archiveEntries": {
+    "message": "Elle contient {found} entrées; la limite est de {max}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {found}; {max} is the largest allowed value.",
+    "source": "bbf68959"
+  },
+  "ops.problem.details.archiveBytes": {
+    "message": "Elle se déploie en {found}; la limite est de {max}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {found}; {max} is the largest allowed value.",
+    "source": "dd194e68"
+  },
+  "ops.problem.details.archiveRatio": {
+    "message": "Elle se déploie en {ratio} fois sa propre taille; la limite est de {max} fois.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {max} is the largest allowed value; {ratio}.",
+    "source": "ba3a3a19"
   },
   "ops.problem.details": {
     "message": "Détails",

@@ -96,6 +96,44 @@ pub enum PlanNote {
     DuplicateSource { location: Location },
     /// The entry is already in the destination folder, so it is left out.
     AlreadyThere { location: Location },
+    /// An entry of an archive that is not extracted, and why.
+    LeftOut { location: Location, why: LeftOutWhy },
+    /// An archive that holds nothing.
+    EmptyArchive { location: Location },
+}
+
+/// Why an entry of an archive is not extracted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum LeftOutWhy {
+    /// Its stored name starts at the root or a drive.
+    Absolute,
+    /// Its stored name climbs out of the folder with `..`.
+    Traversal,
+    /// Its stored name holds a control character.
+    ControlCharacters,
+    /// It is stored below a link or a file, so extracting it would write through that.
+    ThroughLink,
+    /// A symlink that points outside the archive.
+    LinkOutside,
+    /// A device, a pipe or another entry that is neither a file, a folder nor a link.
+    Special,
+}
+
+impl From<waypoint_ops::LeftOut> for LeftOutWhy {
+    fn from(reason: waypoint_ops::LeftOut) -> Self {
+        use waypoint_ops::LeftOut;
+        use waypoint_vfs::UnsafeName;
+        match reason {
+            LeftOut::Name(UnsafeName::Absolute) => Self::Absolute,
+            LeftOut::Name(UnsafeName::Traversal) => Self::Traversal,
+            LeftOut::Name(UnsafeName::ControlCharacters) => Self::ControlCharacters,
+            LeftOut::Name(UnsafeName::ThroughLink) => Self::ThroughLink,
+            LeftOut::LinkOutside => Self::LinkOutside,
+            LeftOut::Special => Self::Special,
+        }
+    }
 }
 
 /// What a request would do, found without writing anything: for the drag's default action (a move

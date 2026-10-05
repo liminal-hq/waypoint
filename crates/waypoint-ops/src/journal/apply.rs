@@ -113,6 +113,8 @@ pub fn prepare_undo(
         conflicts: Vec::new(),
         warnings: Vec::new(),
         batch: None,
+        extract: None,
+        compress: None,
     };
     Ok(UndoPlan { entry, steps, plan })
 }

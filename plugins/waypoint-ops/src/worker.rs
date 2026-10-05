@@ -126,6 +126,7 @@ fn plan_job<R: Runtime>(shared: &Arc<Shared<R>>, id: JobId) {
         trash: shared.env.trash.as_ref(),
         protected: &shared.env.protected,
         cancel: &token,
+        archive_limits: shared.settings.get().archive_limits(),
     };
     let mut progress = |p: &PlanProgress| {
         let mut core = shared.lock();

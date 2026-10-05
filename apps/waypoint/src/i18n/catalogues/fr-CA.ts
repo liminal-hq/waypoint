@@ -71,6 +71,8 @@ const messages: Catalogue = {
 	'settings.group.queue': 'File d’attente',
 	// source: c560122a
 	'settings.group.trash': 'Corbeille',
+	// source: e404aa80
+	'settings.group.archives': 'Archives',
 	// source: 036dbf5b
 	'settings.group.dropping': 'Dépôt',
 	// source: 338c8ac8
@@ -651,6 +653,45 @@ const messages: Catalogue = {
 		'Activez « Vider les anciens éléments de la Corbeille » pour le régler.',
 	// source: ab51004e
 	'settings.operations.trashDays.unit': 'jours',
+	// source: 5ee25a32
+	'settings.operations.archiveEntries.label':
+		'Nombre maximal d’entrées d’une archive à extraire sans demander',
+	// source: 4321ab2e
+	'settings.operations.archiveEntries.description':
+		'L’extraction d’une archive qui contient plus d’entrées que ce nombre demande d’abord confirmation.',
+	// source: 87d05cd0
+	'settings.operations.archiveEntries.unit': 'entrées',
+	// source: ab83e81e
+	'settings.operations.archiveBytes.label':
+		'Taille maximale à laquelle une archive peut se déployer sans demander',
+	// source: d4f3ddcd
+	'settings.operations.archiveBytes.description':
+		'L’extraction d’une archive dont le contenu dépasse cette taille demande d’abord confirmation.',
+	// source: 66a1561b
+	'settings.operations.archiveBytes.unit': 'Gio',
+	// source: 90107fdb
+	'settings.operations.archiveRatio.label':
+		'Nombre maximal de fois sa taille qu’une archive peut atteindre',
+	// source: 3ce2a2b4
+	'settings.operations.archiveRatio.description':
+		'Une archive qui se déploie en beaucoup plus que sa propre taille peut avoir été conçue pour remplir le disque; son extraction demande donc d’abord confirmation. Cette limite ne s’applique qu’au-delà de la taille ci-dessous.',
+	// source: 2bf61a3b
+	'settings.operations.archiveRatio.unit': 'fois',
+	// source: 7f59a937
+	'settings.operations.archiveFloor.label':
+		'Vérifier le rapport de déploiement seulement au-delà de',
+	// source: dc6d7677
+	'settings.operations.archiveFloor.description':
+		'Les petites archives très bien compressées ne posent pas de problème; le rapport n’est vérifié que lorsqu’une archive se déploie en au moins cette taille.',
+	// source: dea6cb8d
+	'settings.operations.archiveFloor.unit': 'Mio',
+	// source: 34cee451
+	'settings.operations.archiveReset.label': 'Limites des archives',
+	// source: 1bfda070
+	'settings.operations.archiveReset.description':
+		'Rétablit les quatre limites ci-dessus : 1 000 000 d’entrées, 100 Gio, 1 000 fois la taille de l’archive, vérifié au-delà de 1 Gio.',
+	// source: e240e635
+	'settings.operations.archiveReset.action': 'Rétablir les valeurs par défaut',
 	// source: 24ac24ba
 	'settings.dnd.unavailable':
 		'Le glissement de fichiers vers d’autres applications est indisponible : {reason}',
@@ -2953,6 +2994,16 @@ const messages: Catalogue = {
 	// source: 2fd894ca
 	'ops.problem.message.connection':
 		'La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.',
+	// source: c24681d1
+	'ops.problem.message.archiveLimit':
+		'{location} dépasse les limites prévues pour les archives; son extraction a donc été arrêtée. Les limites se règlent dans les paramètres, sous Opérations.',
+	// source: bbf68959
+	'ops.problem.details.archiveEntries': 'Elle contient {found} entrées; la limite est de {max}.',
+	// source: dd194e68
+	'ops.problem.details.archiveBytes': 'Elle se déploie en {found}; la limite est de {max}.',
+	// source: ba3a3a19
+	'ops.problem.details.archiveRatio':
+		'Elle se déploie en {ratio} fois sa propre taille; la limite est de {max} fois.',
 	// source: 45989de4
 	'ops.problem.details': 'Détails',
 	// source: f924415e

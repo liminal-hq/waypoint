@@ -50,6 +50,15 @@ pub const MAX_SPEED_LIMIT: u64 = 1_000_000_000_000;
 /// The most journal entries the settings can ask to keep.
 pub const MAX_UNDO_DEPTH: u32 = 500;
 
+/// The ranges an extraction's limits may be set within (D155): a limit below the lower end would
+/// refuse ordinary archives, and one above the upper end would be no limit at all.
+pub const ARCHIVE_ENTRIES_RANGE: std::ops::RangeInclusive<u64> = 1_000..=100_000_000;
+pub const ARCHIVE_BYTES_RANGE: std::ops::RangeInclusive<u64> = GIB..=1024 * GIB;
+pub const ARCHIVE_RATIO_RANGE: std::ops::RangeInclusive<u32> = 10..=100_000;
+pub const ARCHIVE_RATIO_FLOOR_RANGE: std::ops::RangeInclusive<u64> = MIB..=1024 * GIB;
+const MIB: u64 = 1024 * 1024;
+const GIB: u64 = 1024 * MIB;
+
 pub(crate) fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     // A poisoned lock only means a thread panicked; the state is still consistent.
     mutex.lock().unwrap_or_else(|e| e.into_inner())
@@ -446,7 +455,19 @@ fn clamped(mut settings: OpsSettings) -> OpsSettings {
     settings.trash_expiry_days = settings
         .trash_expiry_days
         .filter(|days| (1..=MAX_TRASH_EXPIRY_DAYS).contains(days));
+    // A stored limit out of range falls back to the nearest end of it.
+    settings.archive_max_entries = clamp_to(settings.archive_max_entries, &ARCHIVE_ENTRIES_RANGE);
+    settings.archive_max_bytes = clamp_to(settings.archive_max_bytes, &ARCHIVE_BYTES_RANGE);
+    settings.archive_max_ratio = clamp_to(settings.archive_max_ratio, &ARCHIVE_RATIO_RANGE);
+    settings.archive_ratio_floor_bytes = clamp_to(
+        settings.archive_ratio_floor_bytes,
+        &ARCHIVE_RATIO_FLOOR_RANGE,
+    );
     settings
+}
+
+fn clamp_to<T: Ord + Copy>(value: T, range: &std::ops::RangeInclusive<T>) -> T {
+    value.clamp(*range.start(), *range.end())
 }
 
 impl<R: Runtime> Shared<R> {
@@ -666,6 +687,7 @@ impl<R: Runtime> Shared<R> {
             trash: self.env.trash.as_ref(),
             protected: &self.env.protected,
             cancel: &cancel,
+            archive_limits: self.settings.get().archive_limits(),
         };
         Ok(preview_batch(&request, &ctx)?)
     }
@@ -687,6 +709,7 @@ impl<R: Runtime> Shared<R> {
             trash: self.env.trash.as_ref(),
             protected: &self.env.protected,
             cancel: &cancel,
+            archive_limits: self.settings.get().archive_limits(),
         };
         let planned = plan(request, &ctx)?;
         let totals = planned.totals();
@@ -705,6 +728,13 @@ impl<R: Runtime> Shared<R> {
                         location: location.clone(),
                     },
                     PlanWarning::AlreadyThere { location } => PlanNote::AlreadyThere {
+                        location: location.clone(),
+                    },
+                    PlanWarning::LeftOut { location, why } => PlanNote::LeftOut {
+                        location: location.clone(),
+                        why: (*why).into(),
+                    },
+                    PlanWarning::EmptyArchive { location } => PlanNote::EmptyArchive {
                         location: location.clone(),
                     },
                 })
@@ -1156,6 +1186,31 @@ impl<R: Runtime> Ops<R> {
             return Err(Error::Invalid(format!(
                 "the Trash sweep must wait between 1 and {MAX_TRASH_EXPIRY_DAYS} days, or be off"
             )));
+        }
+        if !ARCHIVE_ENTRIES_RANGE.contains(&settings.archive_max_entries) {
+            return Err(Error::Invalid(format!(
+                "the most entries an archive may hold must be between {} and {}",
+                ARCHIVE_ENTRIES_RANGE.start(),
+                ARCHIVE_ENTRIES_RANGE.end()
+            )));
+        }
+        if !ARCHIVE_BYTES_RANGE.contains(&settings.archive_max_bytes) {
+            return Err(Error::Invalid(
+                "the most an archive may expand to must be between 1 GiB and 1 TiB".to_owned(),
+            ));
+        }
+        if !ARCHIVE_RATIO_RANGE.contains(&settings.archive_max_ratio) {
+            return Err(Error::Invalid(format!(
+                "how many times its size an archive may expand to must be between {} and {}",
+                ARCHIVE_RATIO_RANGE.start(),
+                ARCHIVE_RATIO_RANGE.end()
+            )));
+        }
+        if !ARCHIVE_RATIO_FLOOR_RANGE.contains(&settings.archive_ratio_floor_bytes) {
+            return Err(Error::Invalid(
+                "the size above which the expansion ratio is checked must be between 1 MiB and 1 TiB"
+                    .to_owned(),
+            ));
         }
         Ok(())
     }

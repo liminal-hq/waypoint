@@ -132,6 +132,10 @@ export class FakeOpsClient implements OpsClient {
 		undoDepth: 50,
 		trashExpiryDays: null,
 		speedLimitBps: null,
+		archiveMaxEntries: 1_000_000,
+		archiveMaxBytes: 100 * 1024 ** 3,
+		archiveMaxRatio: 1_000,
+		archiveRatioFloorBytes: 1024 ** 3,
 	};
 	private recovery: RecoveryReport | null = null;
 	private paused = false;

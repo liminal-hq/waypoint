@@ -39,8 +39,8 @@ pub use names::{
     unique_name,
 };
 pub use plan::{
-    plan, plan_with_progress, preview_batch, BatchPlan, BatchStep, Plan, PlanCtx, PlanItem,
-    PlanProgress, PlanWarning,
+    plan, plan_with_progress, preview_batch, BatchPlan, BatchStep, CompressPlan, ExtractPlan,
+    LeftOut, Plan, PlanCtx, PlanItem, PlanProgress, PlanWarning,
 };
 pub use preview::{
     conflict_preview, ConflictPreview, DiffLine, PreviewKind, PreviewSide, TextDiff,

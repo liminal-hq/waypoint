@@ -463,6 +463,49 @@ describe('the Operations page', () => {
 		expect(await ops.getSettings()).toMatchObject({ speedLimitBps: null });
 	});
 
+	it('sets the archive limits in friendly units, within their ranges, and resets them to the defaults', async () => {
+		const { opsSaves, ops } = await open();
+		await goTo('Operations');
+		const entries = screen.getByRole('spinbutton', {
+			name: 'Most entries in an archive to extract without asking',
+		});
+		const size = screen.getByRole('spinbutton', {
+			name: 'Most an archive may expand to without asking',
+		});
+		const ratio = screen.getByRole('spinbutton', {
+			name: 'Most times its size an archive may expand to',
+		});
+		const floor = screen.getByRole('spinbutton', { name: 'Check the expansion ratio only above' });
+		const reset = screen.getByRole('button', { name: 'Reset to defaults' });
+		expect(entries).toHaveValue(1_000_000);
+		expect(size).toHaveValue(100);
+		expect(ratio).toHaveValue(1000);
+		expect(floor).toHaveValue(1024);
+		expect(size).toHaveAttribute('max', '1024');
+		expect(reset).toBeDisabled();
+		fireEvent.change(size, { target: { value: '50' } });
+		fireEvent.blur(size);
+		await waitFor(() => expect(opsSaves).toHaveLength(1));
+		expect(opsSaves[0]).toMatchObject({ archiveMaxBytes: 50 * 1024 ** 3 });
+		fireEvent.change(floor, { target: { value: '512' } });
+		fireEvent.blur(floor);
+		await waitFor(() => expect(opsSaves).toHaveLength(2));
+		expect(opsSaves[1]).toMatchObject({ archiveRatioFloorBytes: 512 * 1024 ** 2 });
+		fireEvent.change(entries, { target: { value: '5' } });
+		fireEvent.blur(entries);
+		await waitFor(() => expect(opsSaves).toHaveLength(3));
+		expect(opsSaves[2]).toMatchObject({ archiveMaxEntries: 1000 });
+		await waitFor(() => expect(reset).toBeEnabled());
+		await userEvent.click(reset);
+		await waitFor(() => expect(reset).toBeDisabled());
+		expect(await ops.getSettings()).toMatchObject({
+			archiveMaxEntries: 1_000_000,
+			archiveMaxBytes: 100 * 1024 ** 3,
+			archiveMaxRatio: 1000,
+			archiveRatioFloorBytes: 1024 ** 3,
+		});
+	});
+
 	it('shows the operations plugin’s refusal under the row and keeps the value in force', async () => {
 		await open({
 			opsApi: (ops) => ({

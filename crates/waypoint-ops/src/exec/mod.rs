@@ -11,10 +11,12 @@
 // tree, so it removes children before their folder and a failure leaves a smaller valid tree.
 
 mod batch;
+mod compress;
 mod copy;
 mod copy_engine;
 mod copy_job;
 mod copy_resolve;
+mod extract;
 mod remove;
 
 use std::ffi::OsStr;
@@ -159,6 +161,12 @@ impl Executor {
         }
         if plan.kind == JobKind::BatchRename {
             return batch::run(&self.env, job, plan, cancel, sink);
+        }
+        if plan.kind == JobKind::Extract {
+            return extract::run(&self.env, job, plan, cancel, sink, options);
+        }
+        if plan.kind == JobKind::Compress {
+            return compress::run(&self.env, job, plan, cancel, sink, options);
         }
         let mut run = Run {
             env: &self.env,
