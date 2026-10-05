@@ -14,9 +14,11 @@ name = "waypoint_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-default = ["sftp", "git"]
+default = ["sftp", "smb", "webdav", "git"]
 # One feature per remote provider (A85), so a build can leave a heavy protocol library out.
 sftp = ["dep:waypoint-provider-sftp", "dep:openssh-config"]
+smb = ["dep:waypoint-provider-smb"]
+webdav = ["dep:waypoint-provider-webdav"]
 # The `git+file` revision provider; the Git status plugin is always there (it reads no revision).
 git = []
 
@@ -66,11 +68,15 @@ waypoint-session = { path = "../../../crates/waypoint-session" }
 waypoint-settings = { path = "../../../crates/waypoint-settings" }
 waypoint-vfs = { path = "../../../crates/waypoint-vfs" }
 waypoint-provider-sftp = { path = "../../../crates/waypoint-provider-sftp", optional = true }
+waypoint-provider-smb = { path = "../../../crates/waypoint-provider-smb", optional = true }
+waypoint-provider-webdav = { path = "../../../crates/waypoint-provider-webdav", optional = true }
 openssh-config = { path = "../../../crates/openssh-config", optional = true }
 
 [dev-dependencies]
 tauri = { workspace = true, features = ["test"] }
 tempfile = "3"
+# The fake remote provider, for the tests of the protocol gate.
+waypoint-vfs = { path = "../../../crates/waypoint-vfs", features = ["testing"] }
 
 # Debug-only automation bridge, registered under `#[cfg(all(debug_assertions, not(windows)))]` in
 # `src/lib.rs`. It must be a normal dependency (dev-dependencies are not available to the lib

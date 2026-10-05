@@ -27,8 +27,8 @@ pub use manager::{
     is_connection_error, ConnectionManager, ConnectionStatus, Remembered, IDLE_TIMEOUT, SWEEP_EVERY,
 };
 pub use model::{
-    check_draft, AuthMethod, Checked, ConnectionDraft, ConnectionEntry, ConnectionOptions,
-    DraftError, RecentServer, SavedConnection, MAX_FIELD_BYTES, MAX_NAME_CHARS,
+    check_draft, AuthMethod, Checked, ConnectionDraft, ConnectionEntry, ConnectionOptions, DavAuth,
+    DavPreset, DraftError, RecentServer, SavedConnection, MAX_FIELD_BYTES, MAX_NAME_CHARS,
 };
 pub use storage::{
     plan_connections, ConnectionStorage, ConnectionsPersistence, MemoryConnections,
@@ -39,6 +39,6 @@ pub use store::{
     ConnectionsSnapshot, CONNECTIONS_VERSION, MAX_CONNECTIONS, MAX_RECENT,
 };
 pub use wire::{
-    parse_address, AnswerInput, ConnectionSupport, ConnectionsOverview, NoKeyring, ParsedAddress,
-    SuggestedServer, TestedConnection,
+    parse_address, parse_address_gated, AnswerInput, ConnectionSupport, ConnectionsOverview,
+    NoKeyring, ParsedAddress, ProtocolsChanged, SuggestedServer, TestedConnection,
 };

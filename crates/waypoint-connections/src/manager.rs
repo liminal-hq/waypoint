@@ -249,6 +249,25 @@ impl ConnectionManager {
         Ok(())
     }
 
+    /// Closes every login of `scheme` and forgets its state, for a protocol that is being turned
+    /// off (D167): call it while the provider is still registered, so it can end the sessions.
+    /// Each login's windows hear it go idle.
+    pub fn close_scheme(&self, scheme: &str) {
+        let prefix = format!("{scheme}://");
+        let keys: Vec<ConnectionKey> = self
+            .lock()
+            .keys()
+            .filter(|key| key.as_str().starts_with(&prefix))
+            .cloned()
+            .collect();
+        for key in keys {
+            if let Ok(provider) = self.provider(&key) {
+                provider.disconnect(&key);
+            }
+            self.set(&key, ConnectionState::Idle);
+        }
+    }
+
     /// What a call on a login found: success means the session works, a connection error is the
     /// login's new state, and any other error (a missing file) says nothing about the login.
     pub fn observe(&self, key: &ConnectionKey, outcome: Result<(), &VfsError>) {
@@ -369,7 +388,7 @@ mod tests {
         let credentials = Arc::new(Credentials::new(keyring.clone()));
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive)
             .with_credentials(credentials.clone());
-        let mut registry = ProviderRegistry::new();
+        let registry = ProviderRegistry::new();
         registry.register(Arc::new(server.clone()));
         let manager = Arc::new(ConnectionManager::new(Arc::new(registry), credentials));
         let events = Arc::new(StdMutex::new(Vec::new()));
@@ -403,8 +422,12 @@ mod tests {
     }
 
     fn password(text: &str) -> ConnectAnswer {
+        password_of("me", text)
+    }
+
+    fn password_of(user: &str, text: &str) -> ConnectAnswer {
         ConnectAnswer::Credential(Credential::Password {
-            user: Some("me".into()),
+            user: Some(user.into()),
             password: Secret::from(text),
         })
     }
@@ -582,5 +605,106 @@ mod tests {
             Err(VfsError::Unsupported { .. })
         ));
         assert_eq!(fx.manager.statuses().len(), 0);
+    }
+
+    #[test]
+    fn turning_a_protocol_off_ends_its_logins_and_refuses_new_ones() {
+        let fx = fixture();
+        fx.manager
+            .connect(&fx.key, None, false, &CancelToken::new())
+            .unwrap();
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Connected);
+        fx.manager.close_scheme("sftp");
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Idle);
+        assert_eq!(
+            fx.server.connection_state(&fx.key),
+            ConnectionState::Idle,
+            "the provider's session is closed too"
+        );
+        fx.manager.registry().turn_off("sftp");
+        assert!(matches!(
+            fx.manager
+                .connect(&fx.key, None, false, &CancelToken::new()),
+            Err(VfsError::ProtocolOff { scheme }) if scheme == "sftp"
+        ));
+        // A login of another scheme is left alone.
+        fx.manager.close_scheme("smb");
+    }
+
+    /// The manager over a fake server of `scheme`, the way the app composes a provider of it.
+    fn fixture_of(scheme: RemoteScheme, login: &str) -> Fixture {
+        let keyring = Arc::new(MemorySecrets::new());
+        let credentials = Arc::new(Credentials::new(keyring.clone()));
+        let server = FakeRemoteProvider::new(scheme, CaseRule::Sensitive)
+            .with_credentials(credentials.clone());
+        let registry = ProviderRegistry::new();
+        registry.register(Arc::new(server.clone()));
+        let manager = Arc::new(ConnectionManager::new(Arc::new(registry), credentials));
+        let events = Arc::new(StdMutex::new(Vec::new()));
+        let seen = events.clone();
+        manager.set_sink(move |status| seen.lock().unwrap().push(status));
+        Fixture {
+            manager,
+            server,
+            keyring,
+            events,
+            key: root_of(login).unwrap().connection_key(),
+        }
+    }
+
+    #[test]
+    fn an_smb_domain_login_asks_for_a_password_and_remembers_it_under_its_own_key() {
+        let fx = fixture_of(RemoteScheme::Smb, "smb://WORK;me@files.lan");
+        assert_eq!(fx.key.as_str(), "smb://WORK;me@files.lan");
+        fx.server.require_password(Some("WORK;me"), "hunter2");
+        let asked = fx
+            .manager
+            .connect(&fx.key, None, false, &CancelToken::new())
+            .unwrap_err();
+        assert!(matches!(asked, VfsError::AuthRequired { .. }));
+        let kept = fx
+            .manager
+            .connect(
+                &fx.key,
+                Some(password_of("WORK;me", "hunter2")),
+                true,
+                &CancelToken::new(),
+            )
+            .unwrap();
+        assert_eq!(kept, Remembered::Kept);
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Connected);
+        // The next login needs no question, and a login of another user of the server is another one.
+        fx.manager.disconnect(&fx.key).unwrap();
+        fx.manager
+            .connect(&fx.key, None, false, &CancelToken::new())
+            .unwrap();
+        let other = root_of("smb://WORK;you@files.lan")
+            .unwrap()
+            .connection_key();
+        assert_ne!(other, fx.key);
+        assert_eq!(fx.manager.state(&other), ConnectionState::Idle);
+    }
+
+    #[test]
+    fn a_webdav_server_is_a_login_of_its_own_scheme_and_host() {
+        let fx = fixture_of(RemoteScheme::Davs, "davs://alice@cloud.example.com");
+        fx.server.require_password(Some("alice"), "app-password");
+        fx.manager
+            .connect(
+                &fx.key,
+                Some(password_of("alice", "app-password")),
+                false,
+                &CancelToken::new(),
+            )
+            .unwrap();
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Connected);
+        // Plain HTTP is not served by this provider, and says so rather than connecting.
+        let dav = root_of("dav://alice@cloud.example.com")
+            .unwrap()
+            .connection_key();
+        assert!(matches!(
+            fx.manager.connect(&dav, None, false, &CancelToken::new()),
+            Err(VfsError::Unsupported { .. })
+        ));
     }
 }

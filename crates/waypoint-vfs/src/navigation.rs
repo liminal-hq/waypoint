@@ -49,17 +49,30 @@ pub fn parse_location_with(
     home: &Path,
     serves: &dyn Fn(&str) -> bool,
 ) -> Result<(Location, bool), VfsError> {
+    parse_location_gated(input, base, home, serves, &|_| false)
+}
+
+/// `parse_location_with`, also telling a scheme that is turned off (`off` is true: the build has
+/// the provider and the person has not turned it on, D167) from one nothing serves: the first is
+/// `ProtocolOff`, so the page can say where to turn it on, the second `Unsupported`.
+pub fn parse_location_gated(
+    input: &str,
+    base: &Location,
+    home: &Path,
+    serves: &dyn Fn(&str) -> bool,
+    off: &dyn Fn(&str) -> bool,
+) -> Result<(Location, bool), VfsError> {
     let text = input.trim();
     if text.is_empty() || text.contains('\0') {
         return Err(invalid(input));
     }
     // An archive location has no `//` either.
     if ArchivePath::is_archive_uri(text) {
-        return parse_served(input, text, ARCHIVE_SCHEME, serves);
+        return parse_served(input, text, ARCHIVE_SCHEME, serves, off);
     }
     if let Some(scheme) = scheme_of(text) {
         if !scheme.eq_ignore_ascii_case("file") {
-            return parse_served(input, text, scheme, serves);
+            return parse_served(input, text, scheme, serves, off);
         }
     }
     // Text relative to a server, archive or revision folder stays there.
@@ -87,12 +100,17 @@ fn parse_served(
     text: &str,
     scheme: &str,
     serves: &dyn Fn(&str) -> bool,
+    off: &dyn Fn(&str) -> bool,
 ) -> Result<(Location, bool), VfsError> {
     let scheme = RemoteScheme::from_name(scheme)
         .map(|scheme| scheme.as_str().to_owned())
         .unwrap_or_else(|| scheme.to_ascii_lowercase());
     if !serves(&scheme) {
-        return Err(VfsError::Unsupported { what: scheme });
+        return Err(if off(&scheme) {
+            VfsError::ProtocolOff { scheme }
+        } else {
+            VfsError::Unsupported { what: scheme }
+        });
     }
     VfsPath::parse_input_reporting(text)
         .map(|(path, dropped)| (path.to_location(), dropped))
@@ -386,6 +404,32 @@ mod tests {
             parse("sftp://"),
             Err(VfsError::InvalidLocation { .. })
         ));
+    }
+
+    #[test]
+    fn a_scheme_that_is_turned_off_is_told_apart_from_one_nothing_serves() {
+        let home = Path::new("/home/me");
+        let base = Location::new("/", "file:///");
+        let only_files = |scheme: &str| scheme == "file";
+        let sftp_off = |scheme: &str| scheme == "sftp";
+        for text in ["sftp://me@h/x", "SFTP://h/"] {
+            assert_eq!(
+                parse_location_gated(text, &base, home, &only_files, &sftp_off).unwrap_err(),
+                VfsError::ProtocolOff {
+                    scheme: "sftp".to_owned()
+                },
+                "{text}"
+            );
+        }
+        // Another scheme that nothing serves and nothing turns off stays `Unsupported`.
+        assert_eq!(
+            parse_location_gated("smb://h/s", &base, home, &only_files, &sftp_off).unwrap_err(),
+            VfsError::Unsupported {
+                what: "smb".to_owned()
+            }
+        );
+        // Served wins over off, so a switch turned on again reads at once.
+        assert!(parse_location_gated("sftp://h/x", &base, home, &|_| true, &sftp_off).is_ok());
     }
 
     #[test]

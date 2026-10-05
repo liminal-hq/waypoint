@@ -42,6 +42,7 @@ import type { ConnectionSupport } from '@liminal-hq/waypoint-protocol/generated/
 import type { ConnectionsChanged } from '@liminal-hq/waypoint-protocol/generated/ConnectionsChanged';
 import type { ConnectionsOverview } from '@liminal-hq/waypoint-protocol/generated/ConnectionsOverview';
 import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated/KeyringUnavailable';
+import type { ProtocolsChanged } from '@liminal-hq/waypoint-protocol/generated/ProtocolsChanged';
 import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/ParsedAddress';
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
@@ -51,6 +52,7 @@ const PREFIX = 'plugin:waypoint-vfs|';
 const LISTING_EVENT = 'waypoint-vfs://listing';
 const CONNECTIONS_EVENT = 'waypoint-vfs://connections';
 const CONNECTION_STATE_EVENT = 'waypoint-vfs://connection-state';
+const PROTOCOLS_EVENT = 'waypoint-vfs://protocols';
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -416,6 +418,13 @@ export function onConnectionsChanged(
 	return listen<ConnectionsChanged>(CONNECTIONS_EVENT, (event) => handler(event.payload));
 }
 
+/** Hears every time a remote protocol is turned on or off in Settings → Experimental, in any window. */
+export function onProtocolsChanged(
+	handler: (_change: ProtocolsChanged) => void,
+): Promise<UnlistenFn> {
+	return listen<ProtocolsChanged>(PROTOCOLS_EVENT, (event) => handler(event.payload));
+}
+
 /** Hears every change of a login's state. */
 export function onConnectionState(
 	handler: (_status: ConnectionStatus) => void,
@@ -433,6 +442,7 @@ export type {
 	ConnectionsOverview,
 	KeyringUnavailable,
 	ParsedAddress,
+	ProtocolsChanged,
 	Remembered,
 	SuggestedServer,
 	TestedConnection,

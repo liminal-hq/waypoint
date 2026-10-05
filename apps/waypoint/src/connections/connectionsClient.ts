@@ -14,6 +14,7 @@ import type { ConnectionsOverview } from '@liminal-hq/waypoint-protocol/generate
 import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated/KeyringUnavailable';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/ParsedAddress';
+import type { ProtocolsChanged } from '@liminal-hq/waypoint-protocol/generated/ProtocolsChanged';
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
 import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
@@ -45,10 +46,18 @@ export interface ConnectionsClient {
 		answer?: AnswerInput | null,
 		remember?: boolean,
 	): Promise<TestedConnection>;
+	/**
+	 * The address of a person's files on the Nextcloud server at `server` (a host or an address as
+	 * people copy it), for the account `user`: Rust writes it, the dialog reads it back. Rejects with
+	 * a `VfsError` for a server or user that does not make one.
+	 */
+	nextcloudAddress(server: string, user: string): Promise<string>;
 	disconnect(location: Location): Promise<void>;
 	state(location: Location): Promise<ConnectionStatus | null>;
 	onChanged(listener: (change: ConnectionsChanged) => void): Unsubscribe;
 	onState(listener: (status: ConnectionStatus) => void): Unsubscribe;
+	/** Hears a remote protocol being turned on or off in Settings → Experimental (D167). */
+	onProtocols(listener: (change: ProtocolsChanged) => void): Unsubscribe;
 }
 
 /** How an edit of the saved connections is refused. */

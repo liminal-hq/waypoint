@@ -11,6 +11,11 @@ export type ConnectionSupport = {
  */
 schemes: Array<string>, 
 /**
+ * The schemes the build has a provider for that are turned off in Settings → Experimental
+ * (D167), in order: their saved connections are shown dimmed, with the reason.
+ */
+off: Array<string>, 
+/**
  * Why "Remember" cannot be offered; `None` when the keyring answers.
  */
 keyring: KeyringUnavailable | null, };

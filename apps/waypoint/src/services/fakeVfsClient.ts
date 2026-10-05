@@ -272,6 +272,8 @@ export interface FakeVfsOptions {
 	freeSpace?: VolumeSpace | null;
 	/** Server schemes typed text may name (`sftp`); others are `unsupported`, as without a provider. */
 	remoteSchemes?: string[];
+	/** Server schemes the build has that are turned off (D167): typed text naming one is `protocolOff`. */
+	offSchemes?: string[];
 }
 
 /** A server location's login and path, the way `waypoint-path` splits it (plain names only). */
@@ -513,7 +515,10 @@ export class FakeVfsClient implements VfsClient {
 			throw { kind: 'invalidLocation', input } satisfies VfsError;
 		const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(text);
 		if (scheme && scheme[1]!.toLowerCase() !== 'file') {
-			throw { kind: 'unsupported', what: scheme[1]!.toLowerCase() } satisfies VfsError;
+			const name = scheme[1]!.toLowerCase();
+			if (this.options.offSchemes?.includes(name))
+				throw { kind: 'protocolOff', scheme: name } satisfies VfsError;
+			throw { kind: 'unsupported', what: name } satisfies VfsError;
 		}
 		let path: string;
 		if (scheme) {

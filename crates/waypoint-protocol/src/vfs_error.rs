@@ -34,6 +34,10 @@ pub enum VfsError {
     Cancelled,
     /// This provider cannot do what was asked.
     Unsupported { what: String },
+    /// The address is of a protocol the build has but the person has not turned on (Settings →
+    /// Experimental, D167): no provider is registered for `scheme`, so nothing was tried. Unlike
+    /// `Unsupported`, turning the switch on makes the same address work.
+    ProtocolOff { scheme: String },
     /// Something already has that name, and the operation was not allowed to replace it.
     AlreadyExists { location: Location },
     /// A folder cannot be removed because it still holds entries.

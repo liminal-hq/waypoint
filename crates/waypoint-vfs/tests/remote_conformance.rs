@@ -121,7 +121,7 @@ fn a_cancelled_connect_says_cancelled_and_leaves_no_session() {
 
 #[test]
 fn the_registry_serves_each_scheme_from_its_provider() {
-    let mut registry = ProviderRegistry::new();
+    let registry = ProviderRegistry::new();
     registry.register(Arc::new(LocalProvider::new()));
     let fake = FakeRemoteProvider::sftp();
     registry.register(Arc::new(fake.clone()));
@@ -144,5 +144,5 @@ fn the_registry_serves_each_scheme_from_its_provider() {
             .capabilities()
             .remote
     );
-    assert_eq!(registry.schemes().collect::<Vec<_>>(), ["file", "sftp"]);
+    assert_eq!(registry.schemes(), ["file", "sftp"]);
 }

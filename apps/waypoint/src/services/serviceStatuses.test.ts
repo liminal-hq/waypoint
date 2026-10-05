@@ -11,6 +11,7 @@ import {
 	secretsServiceStatus,
 	volumesServiceStatus,
 	nativeDndServiceStatus,
+	protocolServiceStatus,
 	SERVICE_SOURCES,
 	systemAppearanceServiceStatus,
 	trashServiceStatus,
@@ -29,6 +30,8 @@ const plugins = vi.hoisted(() => ({
 	mimeApps: vi.fn(),
 	secrets: vi.fn(),
 	volumes: vi.fn(),
+	support: vi.fn(),
+	details: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-volumes', () => ({ getStatus: plugins.volumes }));
 vi.mock('@liminal-hq/plugin-secrets', () => ({ getStatus: plugins.secrets }));
@@ -38,8 +41,12 @@ vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
 vi.mock('@liminal-hq/plugin-system-appearance', () => ({ getStatus: plugins.appearance }));
 vi.mock('@liminal-hq/plugin-window-effects', () => ({ getStatus: plugins.effects }));
 vi.mock('@liminal-hq/waypoint-plugin-ops', () => ({ getStatus: plugins.ops }));
-vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({ getStatus: plugins.vfs }));
+vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({
+	getStatus: plugins.vfs,
+	connectionSupport: plugins.support,
+}));
 vi.mock('@liminal-hq/plugin-window-manager', () => ({ getStatus: plugins.windowManager }));
+vi.mock('./tauriProtocolsClient', () => ({ protocolDetails: plugins.details }));
 vi.mock('./tauriIntegrationsClient', () => ({
 	createTauriIntegrationsClient: () => ({ statuses: plugins.integrations }),
 }));
@@ -399,6 +406,10 @@ describe('the Services panel sources', () => {
 			'secrets',
 			'window-effects',
 			'mime-apps',
+			'sftp',
+			'smb',
+			'webdav',
+			's3',
 			'xdg-portal',
 			'desktop-integration',
 		]);
@@ -427,6 +438,74 @@ describe('the Services panel sources', () => {
 		expect(statuses['file-system']?.features).toEqual(['listing']);
 		// The Shelf window's always-on-top is among the features the window manager reports (or lacks).
 		expect(statuses['window-manager']?.features).toEqual(['system-window-menu']);
+	});
+});
+
+describe('the remote protocols', () => {
+	const support = (schemes: string[], off: string[]) =>
+		plugins.support.mockResolvedValue({ schemes, off, keyring: null });
+	beforeEach(() => {
+		plugins.details.mockResolvedValue({});
+	});
+
+	it('are available while their provider is registered', async () => {
+		support(['sftp', 'dav', 'davs'], ['smb']);
+		expect(await protocolServiceStatus(['sftp'], 'sftp')()).toEqual({
+			available: true,
+			reason: null,
+			features: ['sftp'],
+		});
+		expect(await protocolServiceStatus(['dav', 'davs'], 'webdav')()).toMatchObject({
+			available: true,
+		});
+	});
+
+	it('say what the provider can do, and the reason for what it cannot, in its own words', async () => {
+		support(['smb'], []);
+		plugins.details.mockResolvedValue({
+			smb: {
+				available: true,
+				reason: 'the SMB library Waypoint uses has no Kerberos login yet',
+				features: ['ntlm', 'signing'],
+			},
+		});
+		expect(await protocolServiceStatus(['smb'], 'smb')()).toEqual({
+			available: true,
+			reason: 'the SMB library Waypoint uses has no Kerberos login yet',
+			features: ['ntlm', 'signing'],
+		});
+	});
+
+	it('stay available when the provider’s details cannot be read', async () => {
+		support(['smb'], []);
+		plugins.details.mockRejectedValue(new Error('no command'));
+		expect(await protocolServiceStatus(['smb'], 'smb')()).toEqual({
+			available: true,
+			reason: null,
+			features: ['smb'],
+		});
+	});
+
+	it('say they are turned off in Settings → Experimental while their switch is off', async () => {
+		support([], ['sftp', 'smb']);
+		expect(await protocolServiceStatus(['smb'], 'smb')()).toEqual({
+			available: false,
+			reason: 'Turned off in Settings → Experimental',
+			features: [],
+		});
+	});
+
+	it('say a protocol the build does not have is not included, and each has its own line in the panel', async () => {
+		support([], ['sftp']);
+		expect(await protocolServiceStatus(['s3'], 's3')()).toEqual({
+			available: false,
+			reason: 'Not included in this build',
+			features: [],
+		});
+		const all = await collectServiceStatuses();
+		expect(all['sftp']?.reason).toBe('Turned off in Settings → Experimental');
+		expect(all['s3']?.reason).toBe('Not included in this build');
+		expect(Object.keys(all)).toEqual(expect.arrayContaining(['sftp', 'smb', 'webdav', 's3']));
 	});
 });
 

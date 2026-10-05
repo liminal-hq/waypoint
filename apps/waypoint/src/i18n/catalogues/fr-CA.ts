@@ -4765,6 +4765,72 @@ const messages: Catalogue = {
 		'Dans un dossier d’une copie de travail Git, signale les fichiers et les dossiers modifiés, ajoute une colonne Git à la liste et affiche la branche dans la barre d’état et dans l’Inspecteur. Waypoint ne fait que lire le dépôt et ne le modifie jamais. Désactivé, Waypoint ne lit rien des dépôts.',
 	// source: 591239c6
 	'services.name.waypoint-git': 'État Git',
+	// source: b07c0f49
+	'services.name.sftp': 'SFTP',
+	// source: f54ab2de
+	'services.name.smb': 'SMB',
+	// source: d92634e4
+	'services.name.webdav': 'WebDAV',
+	// source: 44d6a8a7
+	'services.name.s3': 'S3',
+	// source: 82c08932
+	'protocol.off.reason': 'Désactivé dans Paramètres → Expérimental',
+	// source: d5b9458e
+	'services.protocol.notBuilt': 'Non inclus dans cette version',
+	// source: 9557af38
+	'protocol.off.title': '{protocol} est désactivé',
+	// source: e9f631e8
+	'protocol.off.detail':
+		'Cette adresse utilise un protocole désactivé. Vous pouvez l’activer dans Paramètres → Expérimental.',
+	// source: c4dd57df
+	'protocol.off.action': 'Ouvrir les paramètres expérimentaux',
+	// source: d5d70220
+	'nav.path.protocolOff':
+		'{protocol} est désactivé. Vous pouvez l’activer dans Paramètres → Expérimental.',
+	// source: 86baf491
+	'connect.address.protocolOff': '{protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: fcdcc355
+	'connect.error.protocolOff':
+		'Connexion impossible : {protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: 1cd21129
+	'connect.scheme.off': '{protocol} (désactivé)',
+	// source: 74c6372b
+	'network.menu.experimental': 'Ouvrir les paramètres expérimentaux…',
+	// source: 86baf491
+	'destination.check.protocolOff': '{protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: 86baf491
+	'ops.problem.message.protocolOff': '{protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: dd56cc14
+	'ops.error.protocolOff': 'Protocole désactivé',
+	// source: 3dc9f569
+	'settings.section.experimental': 'Expérimental',
+	// source: bc8d9fb3
+	'settings.group.protocols': 'Protocoles distants',
+	// source: a5bb8222
+	'settings.experimental.intro':
+		'Ces fonctions sont conçues, mais pas encore éprouvées à l’usage; elles peuvent mal se comporter. Chacune est désactivée tant que vous ne l’activez pas, et un changement s’applique immédiatement.',
+	// source: 3dc9f569
+	'settings.experimental.badge': 'Expérimental',
+	// source: b07c0f49
+	'settings.experimental.sftp.label': 'SFTP',
+	// source: 810ccd28
+	'settings.experimental.sftp.description':
+		'Connectez-vous à des serveurs par SFTP (SSH), puis parcourez et copiez leurs fichiers.',
+	// source: f54ab2de
+	'settings.experimental.smb.label': 'SMB',
+	// source: e7b2f24d
+	'settings.experimental.smb.description': 'Parcourez les partages Windows et Samba par SMB.',
+	// source: d92634e4
+	'settings.experimental.webdav.label': 'WebDAV',
+	// source: ef668159
+	'settings.experimental.webdav.description': 'Parcourez des serveurs WebDAV, y compris Nextcloud.',
+	// source: 44d6a8a7
+	'settings.experimental.s3.label': 'S3',
+	// source: cd385c00
+	'settings.experimental.s3.description':
+		'Parcourez le stockage S3 et les stockages compatibles S3.',
+	// source: 011805aa
+	'settings.experimental.unavailable': 'Pas encore dans cette version.',
 	// source: b949c922
 	'inspector.tab.git': 'Git',
 	// source: 13d6ff07
@@ -4819,6 +4885,51 @@ const messages: Catalogue = {
 		'L’historique s’affiche pour un seul élément à la fois. Sélectionnez un élément pour le voir.',
 	// source: 46053dfe
 	'git.pane.repositoryName': 'Dépôt Git {name}',
+	// source: 9a911b08
+	'connect.auth.token': 'Jeton d’accès',
+	// source: 916993a1
+	'connect.auth.tokenHint':
+		'Se connecte avec un jeton fourni par le serveur, demandé à la connexion.',
+	// source: 3b0736da
+	'connect.auth.autoHintSmb':
+		'Utilise le mot de passe que Waypoint a retenu pour ce serveur et cet utilisateur, et le demande s’il n’en a aucun.',
+	// source: 9715f26b
+	'connect.auth.autoHintDav':
+		'Laisse le serveur indiquer comment se connecter, puis utilise un mot de passe retenu ou en demande un.',
+	// source: aa20ea4e
+	'connect.address.placeholderSmb': 'smb://domaine;utilisateur@hôte/partage',
+	// source: 4e236334
+	'connect.address.placeholderDav': 'davs://hôte/dossier',
+	// source: 79fa3361
+	'connect.field.domain': 'Domaine',
+	// source: 5ebaf4ff
+	'connect.field.domainHint': 'Facultatif. Pour un compte de domaine Windows, comme TRAVAIL.',
+	// source: 29887a5f
+	'connect.field.share': 'Partage',
+	// source: 780d2c63
+	'connect.field.shareHint': 'Facultatif. Laissez vide pour parcourir les partages du serveur.',
+	// source: 9a911b08
+	'connect.field.token': 'Jeton d’accès',
+	// source: 24b96146
+	'connect.field.davAuth': 'Mot de passe envoyé en mode',
+	// source: 0f37e150
+	'connect.davAuth.auto': 'Au choix du serveur',
+	// source: 568f00ed
+	'connect.davAuth.basic': 'Basique (un mot de passe d’application)',
+	// source: 6e2f80bf
+	'connect.davAuth.digest': 'Condensé (Digest)',
+	// source: 9881c85a
+	'connect.field.nextcloud': 'Ceci est un serveur Nextcloud',
+	// source: 342658d3
+	'connect.field.nextcloudHint':
+		'S’ouvre sur vos propres fichiers. Connectez-vous avec un mot de passe d’application créé dans les paramètres de sécurité de votre compte.',
+	// source: a40b044e
+	'connect.nextcloud.fill': 'Remplir mon dossier de fichiers',
+	// source: 934afebe
+	'connect.dav.unencrypted':
+		'Cette connexion n’est pas chiffrée : toute personne sur le réseau peut lire ce qui est envoyé, mots de passe compris.',
+	// source: 64a4a301
+	'connect.problem.domainUser': 'Indiquez le nom d’utilisateur qui accompagne le domaine.',
 };
 
 export default messages;

@@ -355,6 +355,7 @@ pub async fn get_status(state: State<'_, Vfs>) -> Result<PluginStatus, Error> {
         state
             .remote()
             .schemes()
+            .into_iter()
             .map(|scheme| format!("remote-{scheme}")),
     );
     if let Some(provider) = state.trash_provider() {
@@ -522,10 +523,13 @@ pub async fn close_listing<R: Runtime>(
 fn read_typed(state: &Vfs, input: String, base: Location) -> Result<TypedLocation, VfsError> {
     let remote = state.remote().clone();
     let env = PlacesEnv::detect()?;
-    let (location, password_dropped) =
-        waypoint_vfs::parse_location_with(&input, &base, &env.home, &|scheme| {
-            remote.serves(scheme)
-        })?;
+    let (location, password_dropped) = waypoint_vfs::parse_location_gated(
+        &input,
+        &base,
+        &env.home,
+        &|scheme| remote.serves(scheme),
+        &|scheme| remote.is_off(scheme),
+    )?;
     Ok(TypedLocation {
         location,
         password_dropped,
@@ -544,8 +548,14 @@ pub async fn parse_location(
     let remote = state.remote().clone();
     blocking(move || {
         let env = PlacesEnv::detect()?;
-        waypoint_vfs::parse_location_with(&input, &base, &env.home, &|scheme| remote.serves(scheme))
-            .map(|(location, _)| location)
+        waypoint_vfs::parse_location_gated(
+            &input,
+            &base,
+            &env.home,
+            &|scheme| remote.serves(scheme),
+            &|scheme| remote.is_off(scheme),
+        )
+        .map(|(location, _)| location)
     })
     .await?
     .map_err(Error::from)

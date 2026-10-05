@@ -110,17 +110,33 @@ impl From<AnswerInput> for ConnectAnswer {
 pub struct ConnectionSupport {
     /// The server schemes a provider is registered for (`sftp`, …), in order.
     pub schemes: Vec<String>,
+    /// The schemes the build has a provider for that are turned off in Settings → Experimental
+    /// (D167), in order: their saved connections are shown dimmed, with the reason.
+    pub off: Vec<String>,
     /// Why "Remember" cannot be offered; `None` when the keyring answers.
     pub keyring: Option<KeyringUnavailable>,
 }
 
 impl ConnectionSupport {
-    pub fn new(schemes: Vec<String>, keyring: &dyn SecretStore) -> Self {
+    pub fn new(schemes: Vec<String>, off: Vec<String>, keyring: &dyn SecretStore) -> Self {
         Self {
             schemes,
+            off,
             keyring: keyring.status().err(),
         }
     }
+}
+
+/// Which protocols are on and which are turned off, sent to every window when a switch on the
+/// Experimental page changes one (D167).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ProtocolsChanged {
+    /// The schemes a provider is registered for, in order.
+    pub schemes: Vec<String>,
+    /// The schemes that are turned off, in order.
+    pub off: Vec<String>,
 }
 
 /// What a window reads when it opens: the saved connections, the recent servers, and the state of
@@ -195,6 +211,16 @@ pub struct ParsedAddress {
 /// Reads a typed server address. A scheme no provider serves is `Unsupported`; text that is not a
 /// server address is `InvalidLocation`.
 pub fn parse_address(text: &str, serves: &dyn Fn(&str) -> bool) -> Result<ParsedAddress, VfsError> {
+    parse_address_gated(text, serves, &|_| false)
+}
+
+/// `parse_address`, where a scheme that `off` says is turned off (D167) is `ProtocolOff`, not
+/// `Unsupported`, so the dialog can say where to turn it on.
+pub fn parse_address_gated(
+    text: &str,
+    serves: &dyn Fn(&str) -> bool,
+    off: &dyn Fn(&str) -> bool,
+) -> Result<ParsedAddress, VfsError> {
     let invalid = || VfsError::InvalidLocation {
         input: text.to_owned(),
     };
@@ -205,8 +231,14 @@ pub fn parse_address(text: &str, serves: &dyn Fn(&str) -> bool) -> Result<Parsed
     };
     let scheme = remote.scheme().as_str();
     if !serves(scheme) {
-        return Err(VfsError::Unsupported {
-            what: scheme.to_owned(),
+        return Err(if off(scheme) {
+            VfsError::ProtocolOff {
+                scheme: scheme.to_owned(),
+            }
+        } else {
+            VfsError::Unsupported {
+                what: scheme.to_owned(),
+            }
         });
     }
     let start = (!remote.is_root()).then(|| {

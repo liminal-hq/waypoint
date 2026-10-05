@@ -484,6 +484,33 @@ mod tests {
     }
 
     #[test]
+    fn the_experimental_switches_travel_in_the_export_and_come_back_on_import() {
+        let mut incoming = Settings::default();
+        incoming.experimental.sftp = true;
+        incoming.experimental.webdav = true;
+        let bundle = bundle_of(&incoming);
+        let planned = plan_import(&bundle, &[settings_file(Settings::default())]).unwrap();
+        assert_eq!(
+            planned.plan.changes,
+            [ChangeGroup {
+                file: "settings".into(),
+                group: "experimental".into(),
+                count: 2
+            }]
+        );
+        assert!(planned.plan.warnings.is_empty());
+        let (_, document) = planned
+            .documents
+            .iter()
+            .find(|(id, _)| id == "settings")
+            .unwrap();
+        assert_eq!(
+            document["body"]["experimental"],
+            serde_json::json!({"sftp": true, "smb": false, "webdav": true, "s3": false})
+        );
+    }
+
+    #[test]
     fn importing_what_is_already_in_force_changes_nothing() {
         let planned = plan_import(
             &bundle_of(&Settings::default()),

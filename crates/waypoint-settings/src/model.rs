@@ -498,6 +498,19 @@ impl Default for IntegrationSettings {
     }
 }
 
+/// The Experimental page: one switch per remote protocol, each off until it is turned on (D167).
+/// A protocol that is off has no provider registered, so nothing connects, listens or reads a
+/// credential for it, and its addresses fail with a reason that points here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ExperimentalSettings {
+    pub sftp: bool,
+    pub smb: bool,
+    pub webdav: bool,
+    pub s3: bool,
+}
+
 /// Everything the Settings window edits that is not an operations setting.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
@@ -512,6 +525,7 @@ pub struct Settings {
     pub locale: LocaleSettings,
     pub previews: PreviewSettings,
     pub integrations: IntegrationSettings,
+    pub experimental: ExperimentalSettings,
 }
 
 /// Why a settings value was refused. Nothing changed.
@@ -1006,6 +1020,36 @@ mod tests {
         assert_eq!(old.locale, LocaleSettings::default());
         assert_eq!(old.previews, PreviewSettings::default());
         assert_eq!(old.integrations, IntegrationSettings::default());
+        assert_eq!(old.experimental, ExperimentalSettings::default());
+    }
+
+    #[test]
+    fn every_remote_protocol_is_off_until_it_is_turned_on() {
+        let defaults = Settings::default().experimental;
+        assert!(!defaults.sftp && !defaults.smb && !defaults.webdav && !defaults.s3);
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        assert_eq!(
+            json["experimental"],
+            serde_json::json!({"sftp": false, "smb": false, "webdav": false, "s3": false})
+        );
+    }
+
+    #[test]
+    fn each_protocol_switch_is_read_on_its_own() {
+        let one: Settings = serde_json::from_str(r#"{"experimental":{"smb":true}}"#).unwrap();
+        assert_eq!(
+            one.experimental,
+            ExperimentalSettings {
+                smb: true,
+                ..ExperimentalSettings::default()
+            }
+        );
+        assert_eq!(one.validate(), Ok(()));
+        // A switch from a later version, or one written as something else, never stops the app.
+        let odd: Settings =
+            serde_json::from_str(r#"{"experimental":{"sftp":true,"gopher":true}}"#).unwrap();
+        assert!(odd.experimental.sftp);
+        assert_eq!(odd.clone().clamped(), odd);
     }
 
     #[test]

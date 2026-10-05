@@ -43,6 +43,14 @@ describe('checkDestination', () => {
 		});
 	});
 
+	it('says a destination in a protocol that is turned off is turned off, not invalid', async () => {
+		const vfs = new FakeVfsClient({ home: '/home/test', offSchemes: ['sftp'] });
+		expect(await checkDestination(vfs, 'sftp://me@nas.lan/srv', FOLDER)).toEqual({
+			state: 'problem',
+			message: 'SFTP (SSH) is turned off in Settings → Experimental.',
+		});
+	});
+
 	it('says a file is not a folder', async () => {
 		expect(await checkDestination(vfsWith(), 'notes.txt', FOLDER)).toEqual({
 			state: 'problem',

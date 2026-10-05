@@ -98,3 +98,9 @@
 	gap: 8px;
 	font-size: 13px;
 }
+
+/* A server of a protocol that is turned off (D167): the icon and name are dimmed, the reason under them is not, so it stays readable. */
+.row[data-off] .iconWrap,
+.row[data-off] .text > :first-child {
+	opacity: 0.6;
+}

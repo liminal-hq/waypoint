@@ -25,6 +25,12 @@ function Host({ open }: { open: () => void }) {
 }
 
 describe('openSettingsWindow', () => {
+	it('can ask for one page, such as Experimental', () => {
+		invoke.mockResolvedValue(undefined);
+		openSettingsWindow('experimental');
+		expect(invoke).toHaveBeenCalledWith('open_settings_window', { section: 'experimental' });
+	});
+
 	it('asks the app to open the single Settings window', () => {
 		invoke.mockResolvedValue(undefined);
 		openSettingsWindow();

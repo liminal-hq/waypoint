@@ -8,9 +8,16 @@ import { useEffect } from 'react';
 import { showNotice } from '../app/notices';
 import { t } from '../i18n/messages';
 
-/** Opens the Settings window, or focuses the one that is open. A failure is shown as a notice. */
-export function openSettingsWindow(): void {
-	invoke<void>('open_settings_window').catch((error: unknown) => {
+/**
+ * Opens the Settings window, or focuses the one that is open, on `section` when one is given (the
+ * ids of `settingsSections.tsx`, such as `experimental`). A failure is shown as a notice.
+ */
+export function openSettingsWindow(section?: string): void {
+	const opened =
+		section === undefined
+			? invoke<void>('open_settings_window')
+			: invoke<void>('open_settings_window', { section });
+	opened.catch((error: unknown) => {
 		console.warn('could not open the Settings window', error);
 		showNotice(t('settings.open.failed'));
 	});

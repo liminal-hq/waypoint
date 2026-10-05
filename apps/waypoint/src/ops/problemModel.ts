@@ -6,6 +6,7 @@
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import { formatSize } from '../browse/format';
+import { schemeLabel } from '../connections/connectModel';
 import { t, tf, type MessageId } from '../i18n/messages';
 
 export interface ProblemText {
@@ -85,6 +86,9 @@ export function problemText(error: OpsError): ProblemText {
 			break;
 		case 'unsupported':
 			message = tf(key(error.kind), { what: error.what });
+			break;
+		case 'protocolOff':
+			message = tf(key(error.kind), { protocol: schemeLabel(error.scheme) });
 			break;
 		case 'undoStale':
 			message = tf(key(error.kind), {

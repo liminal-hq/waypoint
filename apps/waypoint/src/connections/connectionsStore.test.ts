@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { stateOf } from './connectionsModel';
 import { startConnections } from './connectionsStore';
 import { draft, FakeConnectionsClient, serverLocation } from './fakeConnectionsClient';
@@ -42,6 +42,37 @@ describe('startConnections', () => {
 		});
 		const state = stateOf(connections.store.getState(), 'sftp://a.lan');
 		expect(state.kind === 'failed' && state.error.kind).toBe('authRequired');
+		connections.stop();
+	});
+
+	it('reads which protocols are on, then follows the switches without a reload', async () => {
+		const client = new FakeConnectionsClient({ schemes: [], off: ['sftp'] });
+		const connections = startConnections(client);
+		await connections.reload();
+		await vi.waitFor(() =>
+			expect(connections.store.getState().protocols).toEqual({ schemes: [], off: ['sftp'] }),
+		);
+		client.setProtocols(['sftp']);
+		expect(connections.store.getState().protocols).toEqual({ schemes: ['sftp'], off: [] });
+		connections.stop();
+		client.setProtocols([]);
+		expect(connections.store.getState().protocols).toEqual({ schemes: ['sftp'], off: [] });
+	});
+
+	it('prefers a change heard before the first read finished', async () => {
+		const client = new FakeConnectionsClient({ schemes: [], off: ['sftp'] });
+		const slow = client.support.bind(client);
+		client.support = async () => {
+			const stale = await slow();
+			// The switch is turned on while the read is in flight.
+			client.setProtocols(['sftp']);
+			return stale;
+		};
+		const connections = startConnections(client);
+		await connections.reload();
+		await vi.waitFor(() =>
+			expect(connections.store.getState().protocols).toEqual({ schemes: ['sftp'], off: [] }),
+		);
 		connections.stop();
 	});
 });

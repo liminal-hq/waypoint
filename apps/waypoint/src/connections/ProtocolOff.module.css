@@ -1,0 +1,17 @@
+.link {
+	display: inline-flex;
+	align-items: center;
+	min-block-size: var(--wp-hit-target);
+	padding-inline: 4px;
+	border: 0;
+	background: none;
+	color: var(--wp-accent);
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.link:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
+}

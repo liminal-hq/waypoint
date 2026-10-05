@@ -7,7 +7,7 @@ import type { VfsError } from "./VfsError";
 /**
  * Why an operation failed, as the UI shows it.
  */
-export type OpsError = { "kind": "notFound", location: Location, } | { "kind": "permissionDenied", location: Location, } | { "kind": "notEnoughSpace", needed: number, free: number, } | { "kind": "invalidName", name: string, reason: string, } | { "kind": "nameInUse", location: Location, } | { "kind": "sameFolder" } | { "kind": "intoItself" } | { "kind": "protected", location: Location, } | { "kind": "trashUnavailable", reason: string, } | { "kind": "originMissingParent", location: Location, } | { "kind": "cancelled" } | { "kind": "unsupported", what: string, } | { "kind": "changedSince", location: Location, } | { "kind": "verifyFailed", location: Location, 
+export type OpsError = { "kind": "notFound", location: Location, } | { "kind": "permissionDenied", location: Location, } | { "kind": "notEnoughSpace", needed: number, free: number, } | { "kind": "invalidName", name: string, reason: string, } | { "kind": "nameInUse", location: Location, } | { "kind": "sameFolder" } | { "kind": "intoItself" } | { "kind": "protected", location: Location, } | { "kind": "trashUnavailable", reason: string, } | { "kind": "originMissingParent", location: Location, } | { "kind": "cancelled" } | { "kind": "unsupported", what: string, } | { "kind": "protocolOff", scheme: string, } | { "kind": "changedSince", location: Location, } | { "kind": "verifyFailed", location: Location, 
 /**
  * The digest of what was read from the source, in hex.
  */

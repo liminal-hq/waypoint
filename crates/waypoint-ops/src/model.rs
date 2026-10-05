@@ -401,6 +401,9 @@ pub enum OpsError {
     Cancelled,
     #[error("unsupported: {what}")]
     Unsupported { what: String },
+    /// The protocol of a location is turned off in Settings → Experimental (D167).
+    #[error("the {scheme} protocol is turned off")]
+    ProtocolOff { scheme: String },
     /// An entry is no longer what the plan saw.
     #[error("{} changed since it was planned", .location.display)]
     ChangedSince { location: Location },
@@ -486,6 +489,7 @@ impl From<VfsError> for OpsError {
             VfsError::InvalidName { name, reason } => OpsError::InvalidName { name, reason },
             VfsError::Cancelled => OpsError::Cancelled,
             VfsError::Unsupported { what } => OpsError::Unsupported { what },
+            VfsError::ProtocolOff { scheme } => OpsError::ProtocolOff { scheme },
             VfsError::NotADirectory { location } => OpsError::Io {
                 message: format!("{} is not a folder", location.display),
             },

@@ -11,7 +11,8 @@
 # `desktop-integration`) report nothing and are skipped. A plugin used only from Rust has no guest-js
 # `getStatus`, so its `SERVICE_SOURCES` entry asks an app command instead (`xdg-portal` and
 # `desktop-integration` ask `get_integration_statuses`); `RUST_ONLY` is for one with no panel entry
-# at all. Exits 1 and lists what is missing; 0 if every plugin is covered.
+# at all. The remote protocols (`sftp`, `smb`, `webdav`, `s3`) are not plugins and have their own
+# `SERVICE_SOURCES` entries, which this check does not need. Exits 1 and lists what is missing; 0 if every plugin is covered.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || dirname "$(dirname "${BASH_SOURCE[0]}")")"

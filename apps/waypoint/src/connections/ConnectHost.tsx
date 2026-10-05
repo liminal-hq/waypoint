@@ -11,6 +11,7 @@ import { announce } from '../tabs/announcer';
 import { useTabsApi } from '../tabs/TabsContext';
 import { ConnectDialog } from './ConnectDialog';
 import { useConnections, useConnectionsView } from './ConnectionsContext';
+import { anyProtocolOn } from './connectionsModel';
 import { askQuestion, connectStore, openConnectDialog } from './connectStore';
 import { QuestionDialog } from './QuestionDialogs';
 
@@ -26,13 +27,15 @@ export function ConnectHost() {
 	const dialog = useStore(connectStore, (state) => state.dialog);
 	const question = useStore(connectStore, (state) => state.question);
 	const saved = useConnectionsView((view) => view.connections);
+	// With every remote protocol turned off in Settings → Experimental there is nothing to connect to (D167).
+	const anyOn = useConnectionsView(anyProtocolOn);
 	const api = useTabsApi();
 	const [keyring, setKeyring] = useState<KeyringUnavailable | null>('noKeyring');
 
 	useEffect(() => {
-		bridge.patchFacts({ connections: connections !== null });
+		bridge.patchFacts({ connections: connections !== null && anyOn });
 		bridge.patchActions({ connectToServer: () => openConnectDialog() });
-	}, [bridge, connections]);
+	}, [bridge, connections, anyOn]);
 
 	// Whether a login can be remembered is asked again for each question: the keyring may have been
 	// unlocked or started since.

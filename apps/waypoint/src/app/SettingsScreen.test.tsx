@@ -213,6 +213,7 @@ describe('SettingsScreen', () => {
 			'Operations',
 			'Drag & drop',
 			'Integrations',
+			'Experimental',
 		]);
 		expect(screen.getAllByText('Waypoint — Settings').length).toBeGreaterThan(0);
 		expect(screen.queryByText(/coming soon/i)).toBeNull();
@@ -1041,7 +1042,7 @@ describe('the Transparency page', () => {
 		await goTo('Transparency');
 		const master = screen.getByRole('switch', { name: /Transparent window/ });
 		expect(master).toHaveAttribute('aria-checked', 'false');
-		expect(screen.getByText('Experimental')).toBeInTheDocument();
+		expect(screen.getByText('Experimental', { selector: '.badge' })).toBeInTheDocument();
 		expect(slider('Title bar and menu bar opacity')).toBeDisabled();
 		expect(screen.getByRole('switch', { name: /Solid when not in front/ })).toBeDisabled();
 	});
@@ -1295,6 +1296,6 @@ describe('the Transparency page', () => {
 		const status = gnomeEffects();
 		await open({ effects: { ...status, flavour: 'windows' } });
 		await goTo('Transparency');
-		expect(screen.queryByText('Experimental')).toBeNull();
+		expect(screen.queryByText('Experimental', { selector: '.badge' })).toBeNull();
 	});
 });

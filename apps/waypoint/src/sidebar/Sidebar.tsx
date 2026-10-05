@@ -41,7 +41,8 @@ import {
 	type SidebarView,
 } from './sidebarStore';
 import { usePlaces } from './usePlaces';
-import { useConnections } from '../connections/ConnectionsContext';
+import { useConnections, useConnectionsView } from '../connections/ConnectionsContext';
+import { anyProtocolOn } from '../connections/connectionsModel';
 import { NetworkList } from '../connections/NetworkList';
 import { useLocationInfo } from '../nav/locationInfo';
 import styles from './Sidebar.module.css';
@@ -160,6 +161,8 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 
 	const vfs = useVfsClient();
 	const connections = useConnections();
+	// The Network section is hidden while every remote protocol is turned off in Settings → Experimental (D167).
+	const networkOn = useConnectionsView(anyProtocolOn);
 	const currentInfo = useLocationInfo(vfs, currentLocation);
 	const devices = useDevices(
 		useDevicesClient(),
@@ -389,7 +392,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 								/>
 							</Section>
 						)}
-						{connections && (
+						{connections && networkOn && (
 							<Section section="network">
 								<NetworkList
 									currentConnection={currentInfo?.connection}

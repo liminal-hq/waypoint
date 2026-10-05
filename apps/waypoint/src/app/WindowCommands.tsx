@@ -54,7 +54,7 @@ export function WindowCommands() {
 				void controls.setAlwaysOnTop(value);
 			},
 			closeWindow: () => void controls.close(),
-			openSettings: openSettingsWindow,
+			openSettings: () => openSettingsWindow(),
 		});
 	}, [bridge, controls]);
 

@@ -12,9 +12,11 @@ import {
 	getStatus as thumbnailsPluginStatus,
 	type PluginStatus,
 } from '@liminal-hq/plugin-thumbnails';
+import { connectionSupport } from '@liminal-hq/waypoint-plugin-vfs';
 import { SettingsShell } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsShell';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
-import { useMemo, useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocaleVersion } from '../i18n/active';
 import { t } from '../i18n/messages';
 import type { DefaultFileManagerClient } from '../services/defaultFileManagerClient';
@@ -32,6 +34,7 @@ import {
 	useSettingsEditor,
 	type DndAvailability,
 	type OpsSettingsApi,
+	type ProtocolSupport,
 } from '../settings/SettingsEditor';
 import { settingsSections, type SectionId } from '../settings/settingsSections';
 import { AppTitleBar } from './AppTitleBar';
@@ -51,6 +54,10 @@ interface SettingsScreenProps {
 	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
 	/** What the OS integrations can do here; the app's own commands unless a test supplies its own. */
 	integrations?: IntegrationsClient;
+	/** Which remote protocols this build has; the file system plugin's unless a test supplies its own. */
+	protocolSupport?: () => Promise<ProtocolSupport>;
+	/** The page to open on (`experimental`); the window's `?section=` unless a test supplies its own. */
+	initialSection?: string;
 	/** The default file manager action; the mime-apps plugin's unless a test supplies its own. */
 	fileManager?: DefaultFileManagerClient;
 	/** Export and import of the settings; the settings plugin's unless a test supplies its own. */
@@ -63,9 +70,36 @@ async function nativeDndAvailability(): Promise<DndAvailability> {
 	return { outbound: { available: outbound.available, reason: outbound.reason } };
 }
 
-function Pages() {
+/** What the Settings window shows when it opens: the page a link asked for, or the first. */
+function sectionFromUrl(): string | null {
+	try {
+		return new URLSearchParams(window.location.search).get('section');
+	} catch {
+		return null;
+	}
+}
+
+/** The event the app sends an open Settings window to make it show another page (`settings_window.rs`). */
+const SECTION_EVENT = 'waypoint://settings-section';
+
+function Pages({ initialSection }: { initialSection?: string | undefined }) {
 	const { ready } = useSettingsEditor();
-	const [active, setActive] = useState<SectionId>('general');
+	const [active, setActive] = useState<SectionId>(
+		() => (initialSection ?? sectionFromUrl() ?? 'general') as SectionId,
+	);
+	// A link from another window (an address of a protocol that is off) shows its page here.
+	useEffect(() => {
+		let stop: (() => void) | undefined;
+		let live = true;
+		listen<string>(SECTION_EVENT, (event) => setActive(event.payload as SectionId)).then(
+			(unlisten) => (live ? (stop = unlisten) : unlisten()),
+			() => {},
+		);
+		return () => {
+			live = false;
+			stop?.();
+		};
+	}, []);
 	// A new language re-renders the pages in place, so the page the person is on stays open.
 	const version = useLocaleVersion();
 	// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,6 +127,8 @@ function Editor({
 	thumbnailsStatus,
 	windowEffectsStatus,
 	integrations,
+	protocolSupport,
+	initialSection,
 	fileManager,
 	transfer,
 }: Pick<
@@ -102,6 +138,8 @@ function Editor({
 	| 'thumbnailsStatus'
 	| 'windowEffectsStatus'
 	| 'integrations'
+	| 'protocolSupport'
+	| 'initialSection'
 	| 'fileManager'
 	| 'transfer'
 >) {
@@ -119,10 +157,11 @@ function Editor({
 			thumbnailsStatus={thumbnailsStatus ?? thumbnailsPluginStatus}
 			windowEffectsStatus={windowEffectsStatus ?? windowEffectsPluginStatus}
 			integrations={ownIntegrations}
+			protocolSupport={protocolSupport ?? connectionSupport}
 			fileManager={ownFileManager}
 			transfer={ownTransfer}
 		>
-			<Pages />
+			<Pages initialSection={initialSection} />
 		</SettingsEditorProvider>
 	);
 }
@@ -139,6 +178,8 @@ export function SettingsScreen({
 	thumbnailsStatus,
 	windowEffectsStatus,
 	integrations,
+	protocolSupport,
+	initialSection,
 	fileManager,
 	transfer,
 }: SettingsScreenProps) {
@@ -156,6 +197,8 @@ export function SettingsScreen({
 						thumbnailsStatus={thumbnailsStatus}
 						windowEffectsStatus={windowEffectsStatus}
 						integrations={integrations}
+						protocolSupport={protocolSupport}
+						initialSection={initialSection}
 						fileManager={fileManager}
 						transfer={transfer}
 					/>

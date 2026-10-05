@@ -9,10 +9,12 @@
 // answers and then the keyring through `KeyringSecrets` over the reusable `secrets` plugin; the
 // saved connections live in `connections.json` beside the other documents; and the SSH options a
 // saved connection sets (a key file, a jump host) are laid over `~/.ssh/config` for its host.
-// Registering another protocol is one more provider in `providers` and, when its connections have
-// tuning of their own, one more observer in `wire`.
+// The remote protocols are gated by the switches on Settings → Experimental (D167): a provider is
+// built here but registered only while its switch is on, and `Gate` registers and turns off
+// providers as the settings change, with no restart. Adding another protocol is one more entry in
+// `compose`'s gate and, when its connections have tuning of their own, one more observer in `wire`.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager, Wry};
@@ -22,7 +24,8 @@ use waypoint_connections::{
     SecretKind, SecretStore, CONNECTIONS_FILE, KEYRING_SERVICE,
 };
 use waypoint_path::ConnectionKey;
-use waypoint_vfs::{Provider, Secret};
+use waypoint_settings::ExperimentalSettings;
+use waypoint_vfs::{Provider, ProviderRegistry, Secret};
 
 use crate::storage::FileKeyValue;
 
@@ -144,13 +147,93 @@ impl SecretStore for KeyringSecrets {
     }
 }
 
+/// The remote protocols that have a switch on Settings → Experimental.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Protocol {
+    Sftp,
+    // The other protocols' providers are behind Cargo features (S3 is not built yet), so a
+    // variant can be unused in a build that leaves its provider out.
+    #[allow(dead_code)]
+    Smb,
+    #[allow(dead_code)]
+    WebDav,
+    #[allow(dead_code)]
+    S3,
+}
+
+impl Protocol {
+    /// Whether the person has turned the protocol on.
+    pub fn is_on(self, settings: &ExperimentalSettings) -> bool {
+        match self {
+            Protocol::Sftp => settings.sftp,
+            Protocol::Smb => settings.smb,
+            Protocol::WebDav => settings.webdav,
+            Protocol::S3 => settings.s3,
+        }
+    }
+}
+
+/// The providers of the build that a switch gates, and what registers them. A provider is
+/// registered while its switch is on and turned off while it is not, so nothing connects, listens
+/// or reads a credential for a protocol that is off, and the registry (shared with the operations
+/// engine) tells an address in it apart from one nothing serves.
+#[derive(Default)]
+pub struct Gate {
+    protocols: Vec<(Protocol, Vec<Arc<dyn Provider>>)>,
+    /// One change of the registry at a time, so two quick changes of the settings cannot cross.
+    applying: Mutex<()>,
+}
+
+impl Gate {
+    /// Gates `providers` (every scheme one protocol serves) behind the protocol's switch.
+    pub fn add(&mut self, protocol: Protocol, providers: Vec<Arc<dyn Provider>>) {
+        self.protocols.push((protocol, providers));
+    }
+
+    /// Makes `registry` match `settings`: registers the providers whose switch is on and turns
+    /// off the others, ending their logins first through `close_logins` (called with the scheme,
+    /// while its provider is still registered). Returns whether anything changed.
+    pub fn apply(
+        &self,
+        registry: &ProviderRegistry,
+        settings: &ExperimentalSettings,
+        close_logins: &dyn Fn(&str),
+    ) -> bool {
+        let _one_at_a_time = self.applying.lock().unwrap_or_else(|e| e.into_inner());
+        let mut changed = false;
+        for (protocol, providers) in &self.protocols {
+            let wanted = protocol.is_on(settings);
+            for provider in providers {
+                let scheme = provider.scheme();
+                let serving = registry.serves(scheme);
+                if wanted && !serving {
+                    registry.register(provider.clone());
+                    changed = true;
+                } else if !wanted && (serving || !registry.is_off(scheme)) {
+                    if serving {
+                        close_logins(scheme);
+                    }
+                    registry.turn_off(scheme);
+                    changed = true;
+                }
+            }
+        }
+        changed
+    }
+}
+
 /// What `compose` makes before the app exists.
 pub struct Composed {
     pub options: tauri_plugin_waypoint_vfs::Options<Wry>,
     /// Set once the app exists, so the keyring can be reached.
     pub app: AppCell,
+    gate: Arc<Gate>,
     #[cfg(feature = "sftp")]
     sftp: sftp::Sftp,
+    #[cfg(feature = "smb")]
+    smb: smb::Smb,
+    #[cfg(feature = "webdav")]
+    webdav: webdav::WebDav,
 }
 
 /// The providers, the credential source and the storage the vfs plugin is built with.
@@ -161,11 +244,28 @@ pub fn compose() -> Composed {
     })));
     #[allow(unused_mut)]
     let mut providers: Vec<Arc<dyn Provider>> = Vec::new();
+    #[allow(unused_mut)]
+    let mut gate = Gate::default();
     #[cfg(feature = "sftp")]
     let sftp = {
         let sftp = sftp::Sftp::new(credentials.clone());
-        providers.push(Arc::new(sftp.provider.clone()));
+        gate.add(Protocol::Sftp, vec![Arc::new(sftp.provider.clone())]);
         sftp
+    };
+    #[cfg(feature = "smb")]
+    let smb = {
+        let smb = smb::Smb::new(credentials.clone());
+        gate.add(Protocol::Smb, vec![Arc::new(smb.provider.clone())]);
+        smb
+    };
+    #[cfg(feature = "webdav")]
+    let webdav = {
+        let webdav = webdav::WebDav::new(credentials.clone());
+        gate.add(
+            Protocol::WebDav,
+            vec![Arc::new(webdav.davs.clone()), Arc::new(webdav.dav.clone())],
+        );
+        webdav
     };
     // A revision of a local repository browses read-only like any other location (A85).
     #[cfg(feature = "git")]
@@ -179,8 +279,13 @@ pub fn compose() -> Composed {
             suggestions: Some(Arc::new(|| openssh_config::SshConfig::for_user().aliases())),
         },
         app,
+        gate: Arc::new(gate),
         #[cfg(feature = "sftp")]
         sftp,
+        #[cfg(feature = "smb")]
+        smb,
+        #[cfg(feature = "webdav")]
+        webdav,
     }
 }
 
@@ -206,12 +311,38 @@ impl Composed {
         let Some(vfs) = app.try_state::<tauri_plugin_waypoint_vfs::Vfs>() else {
             return;
         };
+        let registry = vfs.remote().clone();
+        let manager = vfs.connections().map(|hub| hub.manager().clone());
+        // Before any window exists, the switches decide which protocols a restored tab can open;
+        // after, each change registers or turns off providers and tells every window.
+        let gate = self.gate.clone();
+        let apply = {
+            let (app, registry) = (app.clone(), registry.clone());
+            move |settings: &ExperimentalSettings| {
+                let changed = gate.apply(&registry, settings, &|scheme| {
+                    if let Some(manager) = &manager {
+                        manager.close_scheme(scheme);
+                    }
+                });
+                if changed {
+                    tauri_plugin_waypoint_vfs::announce_protocols(&app);
+                }
+            }
+        };
+        apply(&crate::settings::current(app).experimental);
+        if let Some(store) = app.try_state::<tauri_plugin_waypoint_settings::SettingsStore<Wry>>() {
+            store.on_change(move |settings| apply(&settings.experimental));
+        }
         let Some(hub) = vfs.connections() else {
             return;
         };
         #[cfg(feature = "sftp")]
         self.sftp.follow(hub);
-        #[cfg(not(feature = "sftp"))]
+        #[cfg(feature = "smb")]
+        self.smb.follow(hub);
+        #[cfg(feature = "webdav")]
+        self.webdav.follow(hub);
+        #[cfg(not(any(feature = "sftp", feature = "smb", feature = "webdav")))]
         let _ = hub;
     }
 }
@@ -338,6 +469,219 @@ mod sftp {
     }
 }
 
+#[cfg(feature = "smb")]
+mod smb {
+    //! The SMB provider (#293): the pure Rust client on Linux and the operating system's own on
+    //! Windows (A99, A100), signing in with the one credential source, and each saved connection's
+    //! tuning.
+
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use waypoint_connections::{ConnectionsHub, Credentials, SavedConnection};
+    use waypoint_protocol::PluginStatus;
+    use waypoint_provider_smb::{
+        availability, Engine, SmbConfig, SmbOptions, SmbProvider, Support,
+    };
+
+    /// A saved connection's tuning as the provider takes it. On Windows the system's client has
+    /// none to tune, so only the tests read it there.
+    #[cfg_attr(windows, allow(dead_code))]
+    pub(super) fn options_of(saved: &SavedConnection) -> SmbOptions {
+        let options = &saved.draft.options;
+        let mut tuned = SmbOptions::default();
+        if let Some(seconds) = options.timeout_seconds {
+            tuned.timeout = Duration::from_secs(u64::from(seconds));
+        }
+        if let Some(requests) = options.transfer_requests {
+            tuned.read_requests = requests as usize;
+        }
+        tuned
+    }
+
+    /// What this build can do, for the Services panel: the logins and protections that work, and
+    /// the first one that does not, with the provider's own reason.
+    pub(super) fn detail() -> PluginStatus {
+        let found = availability();
+        if found.engine == Engine::None {
+            return PluginStatus::unavailable("this build of Waypoint has no SMB client");
+        }
+        let all = [
+            ("ntlm", found.ntlm),
+            ("kerberos", found.kerberos),
+            ("signing", found.signing),
+            ("encryption", found.encryption),
+            ("share-browser", found.share_browser),
+        ];
+        let reason = all.iter().find_map(|(_, support)| match support {
+            Support::Unsupported { reason } => Some((*reason).to_owned()),
+            Support::Supported => None,
+        });
+        PluginStatus {
+            available: true,
+            reason,
+            features: all
+                .iter()
+                .filter(|(_, support)| support.is_supported())
+                .map(|(name, _)| (*name).to_owned())
+                .collect(),
+        }
+    }
+
+    pub struct Smb {
+        pub provider: SmbProvider,
+    }
+
+    impl Smb {
+        pub fn new(credentials: Arc<Credentials>) -> Self {
+            Self {
+                provider: SmbProvider::new(SmbConfig::new().with_credentials(credentials)),
+            }
+        }
+
+        /// Follows the saved connections' tuning. On Windows the system's client does the work and
+        /// has none to tune.
+        pub fn follow(&self, hub: &ConnectionsHub) {
+            #[cfg(not(windows))]
+            {
+                let provider = self.provider.clone();
+                hub.observe(move |saved| {
+                    for connection in saved.iter().filter(|c| c.draft.scheme == "smb") {
+                        if let Some(key) = connection.key() {
+                            provider.set_options(&key, options_of(connection));
+                        }
+                    }
+                });
+            }
+            #[cfg(windows)]
+            let _ = hub;
+        }
+    }
+}
+
+#[cfg(feature = "webdav")]
+mod webdav {
+    //! The WebDAV providers (#294): one for `davs://` and one for `dav://`, signing in with the one
+    //! credential source, and each saved connection's sign-in, dialect and tuning.
+
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use waypoint_connections::{
+        AuthMethod, ConnectionsHub, Credentials, DavAuth, DavPreset, SavedConnection,
+    };
+    use waypoint_protocol::PluginStatus;
+    use waypoint_provider_webdav::{AuthMode, Preset, WebDavConfig, WebDavOptions, WebDavProvider};
+
+    /// How a saved connection answers a server that asks who is calling.
+    fn auth_mode(saved: &SavedConnection) -> AuthMode {
+        match saved.draft.auth {
+            AuthMethod::Token => AuthMode::Bearer,
+            AuthMethod::Password => match saved.draft.options.dav_auth {
+                Some(DavAuth::Basic) => AuthMode::Basic,
+                Some(DavAuth::Digest) => AuthMode::Digest,
+                Some(DavAuth::Auto) | None => AuthMode::Auto,
+            },
+            AuthMethod::Auto | AuthMethod::KeyFile => AuthMode::Auto,
+        }
+    }
+
+    /// A saved connection's tuning, sign-in and dialect as the provider takes them.
+    pub(super) fn options_of(saved: &SavedConnection) -> WebDavOptions {
+        let options = &saved.draft.options;
+        let mut tuned = WebDavOptions::default().with_auth(auth_mode(saved));
+        if let Some(seconds) = options.timeout_seconds {
+            tuned = tuned.with_timeout(Duration::from_secs(u64::from(seconds)));
+        }
+        if let Some(requests) = options.transfer_requests {
+            tuned = tuned.with_max_requests(requests as usize);
+        }
+        tuned.with_preset(match options.dav_preset {
+            Some(DavPreset::Generic) => Preset::Generic,
+            Some(DavPreset::Nextcloud) => Preset::Nextcloud,
+            Some(DavPreset::Auto) | None => Preset::Auto,
+        })
+    }
+
+    pub(super) fn detail() -> PluginStatus {
+        PluginStatus::available(
+            ["basic", "digest", "bearer", "nextcloud", "tls"]
+                .map(str::to_owned)
+                .to_vec(),
+        )
+    }
+
+    pub struct WebDav {
+        pub davs: WebDavProvider,
+        pub dav: WebDavProvider,
+    }
+
+    impl WebDav {
+        pub fn new(credentials: Arc<Credentials>) -> Self {
+            let config = WebDavConfig::new().with_credentials(credentials);
+            Self {
+                davs: WebDavProvider::davs(config.clone()),
+                dav: WebDavProvider::dav(config),
+            }
+        }
+
+        /// Follows the saved connections: their sign-in, dialect and tuning, for the provider of
+        /// each one's scheme.
+        pub fn follow(&self, hub: &ConnectionsHub) {
+            let (davs, dav) = (self.davs.clone(), self.dav.clone());
+            hub.observe(move |saved| {
+                for connection in saved.iter() {
+                    let provider = match connection.draft.scheme.as_str() {
+                        "davs" => &davs,
+                        "dav" => &dav,
+                        _ => continue,
+                    };
+                    if let Some(key) = connection.key() {
+                        provider.set_options(&key, options_of(connection));
+                    }
+                }
+            });
+        }
+    }
+}
+
+/// What each remote protocol this build includes can do, for the Services panel: the logins and
+/// protections that work and the first that does not, in the provider's own words. A protocol the
+/// build leaves out is not listed. Whether it is turned on is the vfs plugin's `connection_support`.
+#[tauri::command]
+pub fn get_protocol_details() -> std::collections::HashMap<String, waypoint_protocol::PluginStatus>
+{
+    #[allow(unused_mut)]
+    let mut details = std::collections::HashMap::new();
+    #[cfg(feature = "smb")]
+    details.insert("smb".to_owned(), smb::detail());
+    #[cfg(feature = "webdav")]
+    details.insert("webdav".to_owned(), webdav::detail());
+    details
+}
+
+/// The address of a person's files on a Nextcloud server, from the address they know and their
+/// account's id (`davs://alice@cloud.example.com/remote.php/dav/files/alice`), for the Connect
+/// dialog's Nextcloud preset. The dialog reads it back through `parse_address_text`, so the host,
+/// user and folder it fills in are the canonical ones.
+#[tauri::command]
+pub fn nextcloud_address(
+    server: String,
+    user: String,
+) -> Result<String, waypoint_protocol::VfsError> {
+    #[cfg(feature = "webdav")]
+    {
+        waypoint_provider_webdav::nextcloud_root(&server, &user).map(|path| path.to_uri())
+    }
+    #[cfg(not(feature = "webdav"))]
+    {
+        let _ = (server, user);
+        Err(waypoint_protocol::VfsError::Unsupported {
+            what: "WebDAV".to_owned(),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -361,6 +705,84 @@ mod tests {
         assert_eq!(filed.service, "connection");
         assert_eq!(filed.account, "sftp://me@nas.lan");
         assert_eq!(filed.kind, tauri_plugin_secrets::SecretKind::Password);
+    }
+
+    fn fake(scheme: waypoint_path::RemoteScheme) -> Arc<dyn Provider> {
+        Arc::new(waypoint_vfs::FakeRemoteProvider::new(
+            scheme,
+            waypoint_path::CaseRule::Sensitive,
+        ))
+    }
+
+    fn gate_of_two() -> Gate {
+        let mut gate = Gate::default();
+        gate.add(
+            Protocol::Sftp,
+            vec![fake(waypoint_path::RemoteScheme::Sftp)],
+        );
+        gate.add(
+            Protocol::WebDav,
+            vec![
+                fake(waypoint_path::RemoteScheme::Dav),
+                fake(waypoint_path::RemoteScheme::Davs),
+            ],
+        );
+        gate
+    }
+
+    #[test]
+    fn a_fresh_profile_registers_no_remote_protocol_and_marks_each_one_off() {
+        let (gate, registry) = (gate_of_two(), ProviderRegistry::new());
+        assert!(gate.apply(&registry, &ExperimentalSettings::default(), &|_| {}));
+        assert!(registry.schemes().is_empty());
+        assert_eq!(registry.off_schemes(), ["dav", "davs", "sftp"]);
+        // Nothing changes the second time.
+        assert!(!gate.apply(&registry, &ExperimentalSettings::default(), &|_| {}));
+    }
+
+    #[test]
+    fn each_switch_turns_on_its_own_protocol_and_nothing_else() {
+        let (gate, registry) = (gate_of_two(), ProviderRegistry::new());
+        gate.apply(&registry, &ExperimentalSettings::default(), &|_| {});
+        let sftp = ExperimentalSettings {
+            sftp: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &sftp, &|_| {}));
+        assert_eq!(registry.schemes(), ["sftp"]);
+        assert_eq!(registry.off_schemes(), ["dav", "davs"]);
+        // A protocol with two schemes turns on and off as one.
+        let webdav = ExperimentalSettings {
+            webdav: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &webdav, &|_| {}));
+        assert_eq!(registry.schemes(), ["dav", "davs"]);
+        assert_eq!(registry.off_schemes(), ["sftp"]);
+    }
+
+    #[test]
+    fn turning_a_switch_off_ends_its_logins_first_and_only_for_what_was_serving() {
+        let (gate, registry) = (gate_of_two(), ProviderRegistry::new());
+        let both = ExperimentalSettings {
+            sftp: true,
+            webdav: true,
+            ..ExperimentalSettings::default()
+        };
+        gate.apply(&registry, &both, &|_| {});
+        let closed = Mutex::new(Vec::new());
+        let sftp_only = ExperimentalSettings {
+            sftp: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &sftp_only, &|scheme| {
+            // The provider is still registered while its logins end.
+            assert!(registry.serves(scheme));
+            closed.lock().unwrap().push(scheme.to_owned());
+        }));
+        assert_eq!(*closed.lock().unwrap(), ["dav", "davs"]);
+        assert_eq!(registry.schemes(), ["sftp"]);
+        assert!(registry.is_off("dav") && registry.is_off("davs"));
     }
 
     #[cfg(feature = "sftp")]
@@ -397,5 +819,165 @@ mod tests {
         let options = sftp::options_of(&saved);
         assert_eq!(options.timeout, Duration::from_secs(10));
         assert_eq!(options.window_size, 1024 * 1024);
+    }
+
+    #[cfg(feature = "smb")]
+    #[test]
+    fn an_smb_connections_tuning_reaches_its_provider_and_the_panel_says_what_it_can_do() {
+        let saved = SavedConnection {
+            id: "c1".into(),
+            draft: check_draft(&ConnectionDraft {
+                scheme: "smb".into(),
+                host: "files.lan".into(),
+                user: Some("WORK;me".into()),
+                options: ConnectionOptions {
+                    timeout_seconds: Some(12),
+                    transfer_requests: Some(4),
+                    ..ConnectionOptions::default()
+                },
+                ..ConnectionDraft::default()
+            })
+            .unwrap()
+            .draft,
+        };
+        let options = smb::options_of(&saved);
+        assert_eq!(options.timeout, Duration::from_secs(12));
+        assert_eq!(options.read_requests, 4);
+        let detail = smb::detail();
+        assert!(detail.available);
+        assert!(detail.features.iter().any(|f| f == "ntlm"));
+        assert!(detail.features.iter().any(|f| f == "share-browser"));
+        if !cfg!(windows) {
+            // The reason is the provider's own, for what the Linux client cannot do.
+            assert!(detail
+                .reason
+                .as_deref()
+                .unwrap_or_default()
+                .contains("Kerberos"));
+        }
+    }
+
+    #[cfg(feature = "webdav")]
+    #[test]
+    fn a_webdav_connections_sign_in_dialect_and_tuning_reach_its_provider() {
+        use waypoint_connections::{AuthMethod, DavAuth, DavPreset};
+        use waypoint_provider_webdav::{AuthMode, Preset};
+        let saved = |auth, dav_auth, dav_preset| SavedConnection {
+            id: "c1".into(),
+            draft: check_draft(&ConnectionDraft {
+                scheme: "davs".into(),
+                host: "cloud.example.com".into(),
+                auth,
+                options: ConnectionOptions {
+                    timeout_seconds: Some(20),
+                    transfer_requests: Some(3),
+                    dav_auth,
+                    dav_preset,
+                    ..ConnectionOptions::default()
+                },
+                ..ConnectionDraft::default()
+            })
+            .unwrap()
+            .draft,
+        };
+        let basic = webdav::options_of(&saved(
+            AuthMethod::Password,
+            Some(DavAuth::Basic),
+            Some(DavPreset::Nextcloud),
+        ));
+        assert_eq!(basic.auth, AuthMode::Basic);
+        assert_eq!(basic.preset, Preset::Nextcloud);
+        assert_eq!(basic.timeout, Duration::from_secs(20));
+        assert_eq!(basic.max_requests, 3);
+        let token = webdav::options_of(&saved(AuthMethod::Token, Some(DavAuth::Digest), None));
+        assert_eq!(
+            token.auth,
+            AuthMode::Bearer,
+            "a token ignores the password type"
+        );
+        assert_eq!(token.preset, Preset::Auto);
+        let digest = webdav::options_of(&saved(AuthMethod::Password, Some(DavAuth::Digest), None));
+        assert_eq!(digest.auth, AuthMode::Digest);
+        let auto = webdav::options_of(&saved(AuthMethod::Auto, Some(DavAuth::Basic), None));
+        assert_eq!(
+            auto.auth,
+            AuthMode::Auto,
+            "the password type is for a password"
+        );
+    }
+
+    #[cfg(all(feature = "smb", feature = "webdav"))]
+    #[test]
+    fn the_details_list_the_protocols_this_build_includes() {
+        let details = get_protocol_details();
+        assert!(details.contains_key("smb") && details.contains_key("webdav"));
+        assert!(!details.contains_key("s3"), "no S3 provider is built yet");
+        assert!(details["webdav"].features.iter().any(|f| f == "bearer"));
+    }
+
+    #[cfg(feature = "webdav")]
+    #[test]
+    fn the_nextcloud_preset_writes_the_address_of_a_persons_files() {
+        assert_eq!(
+            nextcloud_address("cloud.example.com".into(), "alice".into()).unwrap(),
+            "davs://alice@cloud.example.com/remote.php/dav/files/alice"
+        );
+        assert_eq!(
+            nextcloud_address(
+                "https://cloud.example.com/nextcloud/".into(),
+                "alice".into()
+            )
+            .unwrap(),
+            "davs://alice@cloud.example.com/nextcloud/remote.php/dav/files/alice"
+        );
+        assert!(nextcloud_address("".into(), "alice".into()).is_err());
+        assert!(nextcloud_address("cloud.example.com".into(), "".into()).is_err());
+    }
+
+    #[test]
+    fn the_real_providers_register_behind_their_switches_and_no_other_does() {
+        // Each Cargo feature adds its provider to the gate; with every switch off none is served.
+        let (app, registry) = (
+            Arc::new(OnceLock::<AppHandle<Wry>>::new()),
+            ProviderRegistry::new(),
+        );
+        let credentials = Arc::new(Credentials::new(Arc::new(KeyringSecrets { app })));
+        let mut gate = Gate::default();
+        #[cfg(feature = "smb")]
+        gate.add(
+            Protocol::Smb,
+            vec![Arc::new(smb::Smb::new(credentials.clone()).provider)],
+        );
+        #[cfg(feature = "webdav")]
+        {
+            let dav = webdav::WebDav::new(credentials.clone());
+            gate.add(
+                Protocol::WebDav,
+                vec![Arc::new(dav.davs), Arc::new(dav.dav)],
+            );
+        }
+        let _ = credentials;
+        gate.apply(&registry, &ExperimentalSettings::default(), &|_| {});
+        assert!(registry.schemes().is_empty());
+        gate.apply(
+            &registry,
+            &ExperimentalSettings {
+                smb: true,
+                webdav: true,
+                ..ExperimentalSettings::default()
+            },
+            &|_| {},
+        );
+        let mut served = registry.schemes();
+        served.sort_unstable();
+        let expected: Vec<&str> = [
+            cfg!(feature = "webdav").then_some("dav"),
+            cfg!(feature = "webdav").then_some("davs"),
+            cfg!(feature = "smb").then_some("smb"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        assert_eq!(served, expected);
     }
 }

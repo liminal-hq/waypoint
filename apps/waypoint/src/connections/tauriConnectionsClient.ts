@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import * as vfs from '@liminal-hq/waypoint-plugin-vfs';
+import { invoke } from '@tauri-apps/api/core';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { Unsubscribe } from '../services/vfsClient';
 import type { ConnectionsClient } from './connectionsClient';
@@ -41,9 +42,11 @@ export function createTauriConnectionsClient(): ConnectionsClient {
 		forgetLogin: (location) => vfs.forgetLogin(location),
 		connect: (location, answer = null, remember = false) => vfs.connect(location, answer, remember),
 		test: (draft, answer = null, remember = false) => vfs.testConnection(draft, answer, remember),
+		nextcloudAddress: (server, user) => invoke<string>('nextcloud_address', { server, user }),
 		disconnect: (location) => vfs.disconnect(location),
 		state: (location) => vfs.connectionState(location),
 		onChanged: (listener) => follow(() => vfs.onConnectionsChanged(listener), 'connection changes'),
 		onState: (listener) => follow(() => vfs.onConnectionState(listener), 'connection states'),
+		onProtocols: (listener) => follow(() => vfs.onProtocolsChanged(listener), 'protocol changes'),
 	};
 }

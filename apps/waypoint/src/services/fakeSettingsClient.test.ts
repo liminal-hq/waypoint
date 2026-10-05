@@ -81,6 +81,7 @@ describe('the milestone 5 sections', () => {
 			globalShortcutEnabled: false,
 			globalShortcut: null,
 		});
+		expect(settings.experimental).toEqual({ sftp: false, smb: false, webdav: false, s3: false });
 	});
 
 	it('refuses what Rust refuses, naming the field', async () => {

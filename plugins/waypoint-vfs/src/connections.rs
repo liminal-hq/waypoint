@@ -10,11 +10,12 @@
 
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use waypoint_connections::{
-    check_draft, parse_address, AnswerInput, ConnectionDraft, ConnectionEntry, ConnectionStatus,
-    ConnectionSupport, ConnectionsError, ConnectionsHub, ConnectionsOverview, KeyringUnavailable,
-    ParsedAddress, Remembered, SuggestedServer, TestedConnection,
+    check_draft, parse_address_gated, AnswerInput, ConnectionDraft, ConnectionEntry,
+    ConnectionStatus, ConnectionSupport, ConnectionsError, ConnectionsHub, ConnectionsOverview,
+    KeyringUnavailable, ParsedAddress, ProtocolsChanged, Remembered, SuggestedServer,
+    TestedConnection,
 };
 use waypoint_path::{ConnectionKey, VfsPath};
 use waypoint_protocol::{Location, VfsError};
@@ -28,6 +29,27 @@ pub const CONNECTIONS_EVENT: &str = "waypoint-vfs://connections";
 
 /// Sent to every window after a login changes state (`ConnectionStatus`).
 pub const CONNECTION_STATE_EVENT: &str = "waypoint-vfs://connection-state";
+
+/// Sent to every window after a remote protocol is turned on or off (`ProtocolsChanged`).
+pub const PROTOCOLS_EVENT: &str = "waypoint-vfs://protocols";
+
+/// Tells every window which protocols are on and which are off now. The app calls it after it
+/// registers or turns off a provider (D167).
+pub fn announce_protocols<R: Runtime>(app: &AppHandle<R>) {
+    let Some(state) = app.try_state::<Vfs>() else {
+        return;
+    };
+    let names = |schemes: Vec<&'static str>| -> Vec<String> {
+        schemes.into_iter().map(str::to_owned).collect()
+    };
+    let change = ProtocolsChanged {
+        schemes: names(state.remote().schemes()),
+        off: names(state.remote().off_schemes()),
+    };
+    if let Err(error) = app.emit(PROTOCOLS_EVENT, change) {
+        log::warn!("could not send the protocols that are on: {error}");
+    }
+}
 
 /// Points the hub's events at every window of `app`.
 pub(crate) fn wire_events<R: Runtime>(app: &AppHandle<R>, hub: &ConnectionsHub) {
@@ -90,9 +112,20 @@ pub async fn list_connections(state: State<'_, Vfs>) -> Result<ConnectionsOvervi
 #[tauri::command]
 pub async fn connection_support(state: State<'_, Vfs>) -> Result<ConnectionSupport, Error> {
     let hub = hub(&state)?;
-    let schemes: Vec<String> = state.remote().schemes().map(str::to_owned).collect();
+    let schemes: Vec<String> = state
+        .remote()
+        .schemes()
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    let off: Vec<String> = state
+        .remote()
+        .off_schemes()
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
     blocking(move || {
-        ConnectionSupport::new(schemes, hub.manager().credentials().keyring().as_ref())
+        ConnectionSupport::new(schemes, off, hub.manager().credentials().keyring().as_ref())
     })
     .await
 }
@@ -113,7 +146,11 @@ pub async fn parse_address_text(
     text: String,
 ) -> Result<ParsedAddress, Error> {
     let remote = state.remote().clone();
-    Ok(parse_address(&text, &|scheme| remote.serves(scheme))?)
+    Ok(parse_address_gated(
+        &text,
+        &|scheme| remote.serves(scheme),
+        &|scheme| remote.is_off(scheme),
+    )?)
 }
 
 #[tauri::command]

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { AuthMethod } from '@liminal-hq/waypoint-protocol/generated/AuthMethod';
+import type { DavAuth } from '@liminal-hq/waypoint-protocol/generated/DavAuth';
 import type { ConnectionDraft } from '@liminal-hq/waypoint-protocol/generated/ConnectionDraft';
 import type { DraftError } from '@liminal-hq/waypoint-protocol/generated/DraftError';
 import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated/KeyringUnavailable';
@@ -30,6 +31,12 @@ export interface ConnectForm {
 	thumbnails: boolean;
 	/** Refresh every so many seconds; blank for never. */
 	refreshSeconds: string;
+	/** SMB: the domain the user belongs to; it is joined to the user as `domain;user`. */
+	domain: string;
+	/** WebDAV: how a password is sent. */
+	davAuth: DavAuth;
+	/** WebDAV: the server is a Nextcloud (or ownCloud). */
+	nextcloud: boolean;
 }
 
 /** The field a refusal is about, so its message goes under that field. */
@@ -43,7 +50,8 @@ export type FormField =
 	| 'keyFile'
 	| 'jumpHost'
 	| 'startFolder'
-	| 'refreshSeconds';
+	| 'refreshSeconds'
+	| 'domain';
 
 export function emptyForm(scheme = 'sftp'): ConnectForm {
 	return {
@@ -58,17 +66,69 @@ export function emptyForm(scheme = 'sftp'): ConnectForm {
 		startFolder: '',
 		thumbnails: false,
 		refreshSeconds: '',
+		domain: '',
+		davAuth: 'auto',
+		nextcloud: false,
 	};
+}
+
+/** The families of protocol the form is shaped for: what is asked, and how a login is made. */
+export type SchemeFamily = 'ssh' | 'smb' | 'dav' | 'other';
+
+export function familyOf(scheme: string): SchemeFamily {
+	switch (scheme) {
+		case 'sftp':
+			return 'ssh';
+		case 'smb':
+			return 'smb';
+		case 'dav':
+		case 'davs':
+			return 'dav';
+		default:
+			return 'other';
+	}
+}
+
+/** The ways to sign in a protocol has, in the order they are offered. */
+export function methodsFor(scheme: string): readonly AuthMethod[] {
+	switch (familyOf(scheme)) {
+		case 'ssh':
+			return ['auto', 'password', 'keyFile'];
+		case 'dav':
+			return ['auto', 'password', 'token'];
+		default:
+			return ['auto', 'password'];
+	}
+}
+
+/** The form after another protocol was chosen: a way to sign in the new one does not have goes back to automatic. */
+export function withScheme(form: ConnectForm, scheme: string): ConnectForm {
+	return {
+		...form,
+		scheme,
+		auth: methodsFor(scheme).includes(form.auth) ? form.auth : 'auto',
+	};
+}
+
+/** Splits an SMB user the way it is written (`domain;user`). */
+function splitDomain(user: string): { domain: string; user: string } {
+	const at = user.indexOf(';');
+	return at < 0 ? { domain: '', user } : { domain: user.slice(0, at), user: user.slice(at + 1) };
 }
 
 /** The fields of a draft Rust read (a typed address) or a saved connection. */
 export function formOf(draft: ConnectionDraft | SavedConnection, keep?: ConnectForm): ConnectForm {
+	const login = familyOf(draft.scheme) === 'smb' ? splitDomain(draft.user ?? '') : null;
 	return {
 		name: draft.name || keep?.name || '',
 		scheme: draft.scheme,
 		host: draft.host,
 		port: draft.port === null ? '' : String(draft.port),
-		user: draft.user ?? '',
+		user: login ? login.user : (draft.user ?? ''),
+		domain: login ? login.domain : '',
+		// What a typed address cannot say (how to sign in, which dialect) stays as it was chosen.
+		davAuth: keep && !('id' in draft) ? keep.davAuth : (draft.options.davAuth ?? 'auto'),
+		nextcloud: keep && !('id' in draft) ? keep.nextcloud : draft.options.davPreset === 'nextcloud',
 		auth: keep && !('id' in draft) ? keep.auth : draft.auth,
 		keyFile: draft.keyFile ?? keep?.keyFile ?? '',
 		jumpHost: draft.jumpHost ?? keep?.jumpHost ?? '',
@@ -92,15 +152,19 @@ function count(text: string): number | null {
 export function draftOf(form: ConnectForm): ConnectionDraft {
 	const port = count(form.port);
 	const refresh = count(form.refreshSeconds);
+	const family = familyOf(form.scheme);
+	const user = blank(form.user);
+	const domain = blank(form.domain);
 	return {
 		name: form.name.trim(),
 		scheme: form.scheme,
 		host: form.host.trim(),
 		port: port === null ? null : Number.isNaN(port) || port > 65535 ? 0 : port,
-		user: blank(form.user),
-		auth: form.auth,
-		keyFile: form.auth === 'keyFile' ? blank(form.keyFile) : null,
-		jumpHost: blank(form.jumpHost),
+		// A domain goes with a user: `domain;user`. A domain alone is refused before it is sent.
+		user: family === 'smb' && domain && user ? `${domain};${user}` : user,
+		auth: methodsFor(form.scheme).includes(form.auth) ? form.auth : 'auto',
+		keyFile: family === 'ssh' && form.auth === 'keyFile' ? blank(form.keyFile) : null,
+		jumpHost: family === 'ssh' ? blank(form.jumpHost) : null,
 		startFolder: blank(form.startFolder),
 		options: {
 			thumbnails: form.thumbnails,
@@ -109,8 +173,18 @@ export function draftOf(form: ConnectForm): ConnectionDraft {
 			listingRequests: null,
 			transferRequests: null,
 			windowKib: null,
+			davAuth: family === 'dav' && form.davAuth !== 'auto' ? form.davAuth : null,
+			davPreset: family === 'dav' && form.nextcloud ? 'nextcloud' : null,
 		},
 	};
+}
+
+/** What is wrong with the form before it is sent, which Rust cannot see because the fields are joined first. */
+export function formProblem(form: ConnectForm): { field: FormField; message: string } | null {
+	if (familyOf(form.scheme) === 'smb' && form.domain.trim() !== '' && form.user.trim() === '') {
+		return { field: 'user', message: t('connect.problem.domainUser') };
+	}
+	return null;
 }
 
 const DRAFT_FIELDS: Record<DraftError['kind'], FormField> = {
@@ -209,6 +283,8 @@ export function connectionErrorText(error: unknown): string {
 			return t('connect.error.certificate');
 		case 'unsupported':
 			return tf('connect.error.unsupported', { what: error.what });
+		case 'protocolOff':
+			return tf('connect.error.protocolOff', { protocol: schemeLabel(error.scheme) });
 		case 'invalidLocation':
 			return t('connect.error.invalid');
 		case 'permissionDenied':

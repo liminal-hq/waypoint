@@ -2467,6 +2467,45 @@ export const enMessages = {
 	'settings.general.gitDecorations.description':
 		'In a folder of a Git working tree, mark changed files and folders, add a Git column to the list, and show the branch in the status bar and the Inspector. Waypoint only reads the repository and never changes it. Off, Waypoint reads nothing from repositories.',
 	'services.name.waypoint-git': 'Git status',
+	// translator: A Services panel entry for a remote protocol. The protocol names (SFTP, SMB, WebDAV, S3) are not translated.
+	'services.name.sftp': 'SFTP',
+	'services.name.smb': 'SMB',
+	'services.name.webdav': 'WebDAV',
+	'services.name.s3': 'S3',
+	// translator: The reason a remote protocol is not available. Settings → Experimental is the name of a Settings page, written the way the page is named.
+	'protocol.off.reason': 'Turned off in Settings → Experimental',
+	'services.protocol.notBuilt': 'Not included in this build',
+	'protocol.off.title': '{protocol} is turned off',
+	// translator: Shown where a folder would be, for an address whose protocol is turned off. Settings → Experimental is the name of a Settings page.
+	'protocol.off.detail':
+		'This address uses a protocol that is turned off. You can turn it on in Settings → Experimental.',
+	'protocol.off.action': 'Open Experimental settings',
+	'nav.path.protocolOff':
+		'{protocol} is turned off. You can turn it on in Settings → Experimental.',
+	'connect.address.protocolOff': '{protocol} is turned off in Settings → Experimental.',
+	'connect.error.protocolOff':
+		'Not connected: {protocol} is turned off in Settings → Experimental.',
+	'connect.scheme.off': '{protocol} (turned off)',
+	'network.menu.experimental': 'Open Experimental Settings…',
+	'destination.check.protocolOff': '{protocol} is turned off in Settings → Experimental.',
+	'ops.problem.message.protocolOff': '{protocol} is turned off in Settings → Experimental.',
+	'ops.error.protocolOff': 'Protocol turned off',
+	'settings.section.experimental': 'Experimental',
+	'settings.group.protocols': 'Remote protocols',
+	'settings.experimental.intro':
+		'These features are built but not yet proven in daily use, so they may misbehave. Each one is off until you turn it on, and a change takes effect at once.',
+	// translator: A small badge beside each switch on the Experimental page, marking a feature that is not yet proven in daily use.
+	'settings.experimental.badge': 'Experimental',
+	'settings.experimental.sftp.label': 'SFTP',
+	'settings.experimental.sftp.description':
+		'Connect to servers over SFTP (SSH), and browse and copy their files.',
+	'settings.experimental.smb.label': 'SMB',
+	'settings.experimental.smb.description': 'Browse Windows and Samba shares over SMB.',
+	'settings.experimental.webdav.label': 'WebDAV',
+	'settings.experimental.webdav.description': 'Browse WebDAV servers, including Nextcloud.',
+	'settings.experimental.s3.label': 'S3',
+	'settings.experimental.s3.description': 'Browse S3 and S3-compatible storage.',
+	'settings.experimental.unavailable': 'Not in this build yet.',
 
 	// translator: A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.
 	'inspector.tab.git': 'Git',
@@ -2495,6 +2534,31 @@ export const enMessages = {
 	'git.pane.commit.by': '{author}, {date}',
 	'git.pane.many': 'The history shows for one item at a time. Select a single item to see it.',
 	'git.pane.repositoryName': 'Git repository {name}',
+	'connect.auth.token': 'Access token',
+	'connect.auth.tokenHint': 'Signs in with a token from the server, asked for when it connects.',
+	'connect.auth.autoHintSmb':
+		'Uses the password Waypoint remembers for this server and user, and asks when it has none.',
+	'connect.auth.autoHintDav':
+		'Lets the server say how to sign in, then uses a remembered password or asks for one.',
+	'connect.address.placeholderSmb': 'smb://domain;user@host/share',
+	'connect.address.placeholderDav': 'davs://host/folder',
+	'connect.field.domain': 'Domain',
+	'connect.field.domainHint': 'Optional. For a Windows domain account, such as WORK.',
+	// translator: A share is a folder that a Windows or Samba server offers on the network (SMB), not the verb.
+	'connect.field.share': 'Share',
+	'connect.field.shareHint': 'Optional. Leave it empty to browse the server’s shares.',
+	'connect.field.token': 'Access token',
+	'connect.field.davAuth': 'Password sent as',
+	'connect.davAuth.auto': 'The server’s choice',
+	'connect.davAuth.basic': 'Basic (an app password)',
+	'connect.davAuth.digest': 'Digest',
+	'connect.field.nextcloud': 'This is a Nextcloud server',
+	'connect.field.nextcloudHint':
+		'Opens at your own files. Sign in with an app password made in your account’s security settings.',
+	'connect.nextcloud.fill': 'Fill in my files folder',
+	'connect.dav.unencrypted':
+		'This connection is not encrypted: anyone on the network can read what is sent, passwords included.',
+	'connect.problem.domainUser': 'Give the user name that goes with the domain.',
 } as const;
 
 export type MessageId = keyof typeof enMessages;

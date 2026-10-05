@@ -82,10 +82,10 @@ pub fn compose<R: Runtime>(
             if let Some(provider) = vfs.trash_provider() {
                 providers.register(provider);
             }
-            // The server providers the vfs plugin serves, so a scheme exists everywhere or nowhere (A85).
-            for provider in vfs.remote().providers() {
-                providers.register(provider.clone());
-            }
+            // The server providers the vfs plugin serves, looked up at each use, so a scheme exists
+            // everywhere or nowhere (A85) and a protocol turned on or off in Settings →
+            // Experimental takes effect here at once (D167).
+            providers = providers.with_live(vfs.remote().as_ref().clone());
         }
         None => {
             log::warn!("the file system plugin is not set up, so the Trash cannot be browsed");
