@@ -51,7 +51,7 @@
 	z-index: 1;
 	width: 36px;
 	justify-content: center;
-	background: var(--wp-bg-window);
+	background: var(--wp-strip-bar, var(--wp-bg-window));
 }
 
 .chip,

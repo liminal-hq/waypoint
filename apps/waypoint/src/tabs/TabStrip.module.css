@@ -5,7 +5,37 @@
 	align-items: center;
 	gap: 2px;
 	padding: 4px 8px 0;
-	background: var(--wp-bg-window);
+	/*
+	 * The strip sits inside the title bar's shade: it is the title bar's bottom tone, so there is no seam
+	 * between them (the quieter pair while the window is unfocused, as the title bar does). The tabs
+	 * read these tokens: a tab that is not selected is a translucent veil of the window colour over the
+	 * strip, and the selected tab is the window colour itself, the colour of the navigation bar below it.
+	 */
+	--wp-strip-bar: var(--wp-title-bar-bottom);
+	--wp-tab-fill: color-mix(in srgb, var(--wp-bg-window) 45%, transparent);
+	--wp-tab-fill-hover: color-mix(in srgb, var(--wp-bg-hover) 75%, transparent);
+	/* Pinned tabs stay put while the others scroll under them, so their fills are the same shades laid on the bar, never see-through. */
+	--wp-tab-fill-pinned: color-mix(
+		in srgb,
+		var(--wp-solid-window, var(--wp-bg-window)) 45%,
+		var(--wp-strip-bar)
+	);
+	--wp-tab-fill-active: var(--wp-bg-window);
+	--wp-tab-fill-active-pinned: var(--wp-solid-window, var(--wp-bg-window));
+	background: var(--wp-strip-bar);
+}
+
+[data-focused='false'] .strip {
+	--wp-strip-bar: var(--wp-title-bar-bottom-unfocused);
+}
+
+/* A translucent window: the strip is as see-through as the title bar above it. */
+:root[data-transparency='on'] .strip {
+	background: color-mix(
+		in srgb,
+		var(--wp-strip-bar) calc(var(--wp-title-bar-opacity) * 100%),
+		transparent
+	);
 }
 
 .scroller {
@@ -67,7 +97,9 @@
 	border: 1px solid transparent;
 	border-bottom: 0;
 	border-radius: 8px 8px 0 0;
-	color: var(--wp-text-secondary);
+	background: var(--wp-tab-fill);
+	/* Primary text: it is the colour held to 4.5:1 on both the window colour and the title bar's tones, which the tab's fill is a blend of. */
+	color: var(--wp-text-primary);
 	font-size: 13px;
 	transform: translate(var(--wp-tab-shift, 0px), var(--wp-tab-lift, 0px));
 	touch-action: pan-x;
@@ -75,13 +107,14 @@
 }
 
 .slot:hover {
-	background: var(--wp-bg-hover);
+	background: var(--wp-tab-fill-hover);
 }
 
+/* The selected tab is the navigation bar's colour with no edge at its foot, so it reads as one with the page below. */
 .slot[data-active] {
 	border-color: var(--wp-border-subtle);
-	background: var(--wp-bg-content);
-	color: var(--wp-text-primary);
+	background: var(--wp-tab-fill-active);
+	font-weight: 500;
 }
 
 .slot[data-dragging] {
@@ -98,7 +131,7 @@
 	z-index: 1;
 	width: 36px;
 	justify-content: center;
-	background: var(--wp-bg-window);
+	background: var(--wp-tab-fill-pinned);
 }
 
 .slot[data-pinned]:hover {
@@ -106,7 +139,7 @@
 }
 
 .slot[data-pinned][data-active] {
-	background: var(--wp-bg-content);
+	background: var(--wp-tab-fill-active-pinned);
 }
 
 .slot[data-pinned][data-dragging] {
@@ -378,7 +411,11 @@
 }
 
 .slot[data-pair][data-active] {
-	background: var(--wp-bg-content);
+	background: var(--wp-tab-fill-active);
+}
+
+.slot[data-pair][data-pinned][data-active] {
+	background: var(--wp-tab-fill-active-pinned);
 }
 
 /*
@@ -468,6 +505,37 @@
 	}
 	to {
 		clip-path: inset(0);
+	}
+}
+
+/*
+ * High contrast, the system's or Waypoint's own: solid fills and a strong border on every tab, and the
+ * selected tab bold, so it is told apart by more than colour.
+ */
+:root[data-contrast='high'] .strip {
+	--wp-tab-fill: var(--wp-bg-window);
+	--wp-tab-fill-hover: var(--wp-bg-hover);
+	--wp-tab-fill-pinned: var(--wp-bg-window);
+	--wp-tab-fill-active-pinned: var(--wp-bg-window);
+}
+
+:root[data-contrast='high'] .slot {
+	border-color: var(--wp-border-subtle);
+}
+
+:root[data-contrast='high'] .slot[data-active] {
+	font-weight: 700;
+}
+
+@media (forced-colors: active) {
+	.slot {
+		border-color: CanvasText;
+		background: Canvas;
+	}
+
+	.slot[data-active] {
+		border-color: Highlight;
+		font-weight: 700;
 	}
 }
 
