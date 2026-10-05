@@ -2,6 +2,7 @@
 import type { AccessibilitySettings } from "./AccessibilitySettings";
 import type { AppearanceSettings } from "./AppearanceSettings";
 import type { DndSettings } from "./DndSettings";
+import type { ExperimentalSettings } from "./ExperimentalSettings";
 import type { GeneralSettings } from "./GeneralSettings";
 import type { IntegrationSettings } from "./IntegrationSettings";
 import type { LocaleSettings } from "./LocaleSettings";
@@ -12,4 +13,4 @@ import type { UiSettings } from "./UiSettings";
 /**
  * Everything the Settings window edits that is not an operations setting.
  */
-export type Settings = { general: GeneralSettings, dnd: DndSettings, ui: UiSettings, appearance: AppearanceSettings, transparency: TransparencySettings, accessibility: AccessibilitySettings, locale: LocaleSettings, previews: PreviewSettings, integrations: IntegrationSettings, };
+export type Settings = { general: GeneralSettings, dnd: DndSettings, ui: UiSettings, appearance: AppearanceSettings, transparency: TransparencySettings, accessibility: AccessibilitySettings, locale: LocaleSettings, previews: PreviewSettings, integrations: IntegrationSettings, experimental: ExperimentalSettings, };

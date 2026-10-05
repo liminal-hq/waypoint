@@ -36,9 +36,9 @@ pub use import::{
     ImportWarning, PlannedImport, SETTINGS_FILE_ID,
 };
 pub use model::{
-    BlurLevel, ClickMode, ColourMode, DefaultView, DndSettings, DropActionRule, GeneralSettings,
-    OsPreference, Settings, SettingsError, SettingsSnapshot, StartupMode, UiSettings,
-    SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
+    BlurLevel, ClickMode, ColourMode, DefaultView, DndSettings, DropActionRule,
+    ExperimentalSettings, GeneralSettings, OsPreference, Settings, SettingsError, SettingsSnapshot,
+    StartupMode, UiSettings, SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
 };
 pub use storage::{
     KeyValue, MemoryStorage, Persistence, SettingsDocument, SettingsStorage, StorageError,
