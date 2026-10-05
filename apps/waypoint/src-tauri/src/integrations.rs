@@ -27,6 +27,7 @@
 // - Global shortcut: raises the most recently focused main window, or opens one.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 
@@ -52,10 +53,11 @@ use waypoint_session::{Command, SessionEvent, TabHints};
 use waypoint_settings::{Settings, DEFAULT_ACCELERATOR};
 
 use crate::integration_policy::{
-    actions_work, availability, combined_progress, command_for, desktop_summary, facts,
-    inhibit_route, keeps_awake, notify_route, open_requests, portal_summary, transition_buttons,
-    ActionCommand, InhibitAction, Inhibitor, JobFacts, Notice, OpenRequest, Platform, Route, Shown,
-    Tracker, RAISE_ACTION,
+    actions_work, availability, combined_progress, command_for, desktop_summary,
+    drive_inhibitor as policy_drive_inhibitor, facts, inhibit_route, keeps_awake, notify_route,
+    open_requests, portal_summary, request_is_gone, transition_buttons, with_refused_inhibit,
+    ActionCommand, InhibitAction, InhibitBackend, Inhibitor, JobFacts, Notice, OpenRequest,
+    Platform, Route, Shown, Tracker, RAISE_ACTION,
 };
 use crate::ops_window;
 
@@ -114,6 +116,9 @@ struct State {
 pub struct Integrations {
     gate: Mutex<State>,
     recent: StdMutex<Option<String>>,
+    /// The backend refused the sleep inhibitor this run. Read without the gate, which is held
+    /// across D-Bus calls, so the availability command never waits on them.
+    inhibit_refused: AtomicBool,
 }
 
 impl Integrations {
@@ -121,6 +126,7 @@ impl Integrations {
         Self {
             gate: Mutex::new(State::default()),
             recent: StdMutex::new(None),
+            inhibit_refused: AtomicBool::new(false),
         }
     }
 
@@ -288,50 +294,60 @@ async fn acquire<R: Runtime>(app: &AppHandle<R>, route: Route) -> Result<Handle,
     }
 }
 
-async fn release<R: Runtime>(app: &AppHandle<R>, (route, handle): Handle) {
-    let result = match route {
-        Route::Portal => app
-            .portal()
-            .release_inhibit(handle)
-            .await
-            .map_err(|e| e.to_string()),
-        Route::Desktop => app
-            .desktop_services()
-            .release_sleep_inhibit(handle)
-            .await
-            .map_err(|e| e.to_string()),
-    };
-    if let Err(e) = result {
-        log::warn!("could not release the sleep inhibitor: {e}");
+/// The portal and `desktop-integration`, as the inhibitor's policy sees them.
+struct AppBackend<'a, R: Runtime>(&'a AppHandle<R>);
+
+impl<R: Runtime> InhibitBackend for AppBackend<'_, R> {
+    type Handle = Handle;
+
+    fn route_of((route, _): Handle) -> Route {
+        route
+    }
+
+    async fn acquire(&self, route: Route) -> Result<Handle, String> {
+        acquire(self.0, route).await
+    }
+
+    async fn release(&self, (route, handle): Handle) -> Result<(), String> {
+        match route {
+            Route::Portal => self
+                .0
+                .portal()
+                .release_inhibit(handle)
+                .await
+                .map_err(|e| e.to_string()),
+            Route::Desktop => self
+                .0
+                .desktop_services()
+                .release_sleep_inhibit(handle)
+                .await
+                .map_err(|e| e.to_string()),
+        }
     }
 }
 
-/// Follows the wish to keep the machine awake with the inhibitor's state machine.
+/// Gives a held inhibitor back at exit, where nothing is asked for again. A request the backend
+/// already dropped (a refused inhibitor) is not worth a warning.
+async fn release_at_exit<R: Runtime>(app: &AppHandle<R>, held: Handle) {
+    if let Err(e) = AppBackend(app).release(held).await {
+        if held.0 != Route::Portal || !request_is_gone(&e) {
+            log::warn!("could not release the sleep inhibitor: {e}");
+        }
+    }
+}
+
+/// Follows the wish to keep the machine awake (see `integration_policy::drive_inhibitor`), and
+/// tells the Services panel once the backend has refused.
 async fn drive_inhibitor<R: Runtime>(
     app: &AppHandle<R>,
     st: &mut State,
     wanted: bool,
     route: Option<Route>,
 ) {
-    match st.inhibitor.want(wanted) {
-        InhibitAction::None => {}
-        InhibitAction::Release(handle) => release(app, handle).await,
-        InhibitAction::Acquire => {
-            let Some(route) = route else {
-                st.inhibitor.failed();
-                return;
-            };
-            match acquire(app, route).await {
-                Ok(handle) => {
-                    if let InhibitAction::Release(handle) = st.inhibitor.acquired(handle) {
-                        release(app, handle).await;
-                    }
-                }
-                Err(e) => {
-                    log::warn!("could not keep the system awake: {e}");
-                    st.inhibitor.failed();
-                }
-            }
+    policy_drive_inhibitor(&AppBackend(app), &mut st.inhibitor, wanted, route).await;
+    if st.inhibitor.is_refused() {
+        if let Some(integrations) = app.try_state::<Integrations>() {
+            integrations.inhibit_refused.store(true, Ordering::Relaxed);
         }
     }
 }
@@ -968,7 +984,7 @@ pub fn on_exit<R: Runtime>(app: &AppHandle<R>) {
         let work = async {
             let mut st = integrations.gate.lock().await;
             if let InhibitAction::Release(handle) = st.inhibitor.release_all() {
-                release(app, handle).await;
+                release_at_exit(app, handle).await;
             }
         };
         let _ = tokio::time::timeout(Duration::from_secs(1), work).await;
@@ -1000,7 +1016,11 @@ pub async fn get_integration_statuses<R: Runtime>(
 pub async fn get_integration_availability<R: Runtime>(
     app: AppHandle<R>,
 ) -> IntegrationAvailability {
-    probe(&app).await.availability
+    let availability = probe(&app).await.availability;
+    let refused = app
+        .try_state::<Integrations>()
+        .is_some_and(|i| i.inhibit_refused.load(Ordering::Relaxed));
+    with_refused_inhibit(availability, refused)
 }
 
 #[cfg(test)]
@@ -1068,7 +1088,7 @@ mod live {
                 println!("acquired: {held:?}");
                 if let Ok(held) = held {
                     tokio::time::sleep(Duration::from_secs(12)).await;
-                    release(&handle, held).await;
+                    release_at_exit(&handle, held).await;
                     println!("released");
                 }
             }
