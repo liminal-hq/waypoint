@@ -31,9 +31,9 @@ use waypoint_vfs::CancelToken;
 
 use crate::exec::Resolutions;
 use crate::model::{
-    Counts, JobId, JobKind, JobPriority, JobRequest, JobSnapshot, JobState, OpsError, OpsEvent,
-    OpsSnapshot, PlanTotals, Progress, Resolution, Sources, SourcesSummary, Verification,
-    WaitReason,
+    Counts, DroppedDetail, JobId, JobKind, JobPriority, JobRequest, JobSnapshot, JobState,
+    OpsError, OpsEvent, OpsSnapshot, PlanTotals, Progress, Resolution, Sources, SourcesSummary,
+    Verification, WaitReason,
 };
 use crate::schedule::Schedule;
 use crate::traits::{Clock, SettingsReader};
@@ -298,6 +298,8 @@ impl OpsStore {
             finished_ms: None,
             undoable: false,
             verified: None,
+            ends: None,
+            dropped: None,
         };
         let mut touches = Vec::new();
         touches.extend(request.destination.clone());
@@ -378,6 +380,7 @@ impl OpsStore {
             job.request.name.as_deref(),
         );
         job.snapshot.sources = totals.sources;
+        job.snapshot.ends = (!totals.ends.is_local()).then_some(totals.ends);
         job.touches.extend(totals.touches);
         job.trees = totals.trees;
         self.go(id, JobState::Queued, "finish planning")
@@ -641,6 +644,22 @@ impl OpsStore {
             return Ok(Vec::new());
         }
         self.jobs[index].snapshot.verified = verified;
+        Ok(vec![self.changed(index)])
+    }
+
+    /// Records what the copies could not keep (A84). The worker calls it from the executor's report
+    /// just before it ends the job.
+    pub fn set_dropped(
+        &mut self,
+        id: JobId,
+        dropped: Vec<DroppedDetail>,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        let dropped = (!dropped.is_empty()).then_some(dropped);
+        if self.jobs[index].snapshot.dropped == dropped {
+            return Ok(Vec::new());
+        }
+        self.jobs[index].snapshot.dropped = dropped;
         Ok(vec![self.changed(index)])
     }
 

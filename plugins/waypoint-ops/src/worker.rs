@@ -520,6 +520,11 @@ fn finish<R: Runtime>(
                     .set_verified(id, report.transfer.verified.clone())
                     .unwrap_or_default(),
             );
+            store_events.extend(
+                core.store
+                    .set_dropped(id, report.transfer.dropped.clone())
+                    .unwrap_or_default(),
+            );
             match failure {
                 None => store_events.extend(core.store.done(id).unwrap_or_default()),
                 Some(failure) => end_failed(

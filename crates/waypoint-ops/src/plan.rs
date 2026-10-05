@@ -11,11 +11,13 @@ use std::sync::Arc;
 
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{child_path, validate_name, CancelToken, EntryKind, Provider, ScannedEntry};
+use waypoint_vfs::{
+    child_path, validate_name, CancelToken, EntryKind, Provider, RenameSupport, ScannedEntry,
+};
 
 use crate::model::{
     Conflict, ConflictKind, ConflictPolicy, JobKind, JobRequest, OpsError, PlanTotals, Sources,
-    SourcesSummary,
+    SourcesSummary, TransferEnds,
 };
 use crate::names::{file_name_of, fold_name, is_within, same_name, same_path, unique_full_name};
 use crate::traits::{Protected, Providers, SelectionResolver, Trash};
@@ -119,6 +121,8 @@ pub struct Plan {
     pub batch: Option<BatchPlan>,
     pub extract: Option<ExtractPlan>,
     pub compress: Option<CompressPlan>,
+    /// The servers a copy, move or link reads from and writes to (A84); empty otherwise.
+    pub ends: TransferEnds,
 }
 
 impl Plan {
@@ -168,6 +172,7 @@ impl Plan {
             bytes: self.total_bytes,
             touches,
             trees,
+            ends: self.ends.clone(),
         }
     }
 }
@@ -188,6 +193,46 @@ pub(crate) fn conflict_kind(new: EntryKind, old: EntryKind) -> ConflictKind {
 /// The path to ask for the volume an entry is on. A symlink is on the volume of the folder that
 /// holds it, not of what it points at (which `volume_id` would follow, and which may be elsewhere
 /// or nowhere), so a link is asked about by its folder.
+/// Whether a rename can move `src` (asked about through `volume_probe`) into the folder `dest`
+/// (A50, A84): both are served by one provider that renames, and they are on one volume, or, where
+/// the provider cannot say which volume a path is on, under one login of a server. A rename that
+/// still meets another volume there says `CrossesDevices`, and the engine copies instead.
+pub(crate) fn renames_between(
+    sp: &dyn Provider,
+    src: &VfsPath,
+    dp: &dyn Provider,
+    dest: &VfsPath,
+) -> bool {
+    if sp.scheme() != dp.scheme() || dp.capabilities().rename == RenameSupport::None {
+        return false;
+    }
+    match (sp.volume_id(src), dp.volume_id(dest)) {
+        (Some(a), Some(b)) => a == b,
+        (None, None) => matches!(
+            (sp.connection_key(src), dp.connection_key(dest)),
+            (Some(a), Some(b)) if a == b
+        ),
+        _ => false,
+    }
+}
+
+/// Whether `src` and `dst` are served by one provider under one login (or both by a provider with
+/// no logins, a local disk), so the provider's own copy (a reflink, a server-side copy) may join
+/// them. Two logins of one server never share a copy (A84).
+pub(crate) fn same_connection(
+    sp: &Arc<dyn Provider>,
+    src: &VfsPath,
+    dp: &Arc<dyn Provider>,
+    dst: &VfsPath,
+) -> bool {
+    Arc::ptr_eq(sp, dp) && sp.connection_key(src) == dp.connection_key(dst)
+}
+
+/// The login a path is on, as text, when its provider has logins.
+fn login_of(provider: &dyn Provider, path: &VfsPath) -> Option<String> {
+    provider.connection_key(path).map(|key| key.to_string())
+}
+
 pub(crate) fn volume_probe(path: &VfsPath, entry: &ScannedEntry) -> VfsPath {
     if entry.kind == EntryKind::Symlink {
         path.parent().unwrap_or_else(|| path.clone())
@@ -338,6 +383,7 @@ impl Planner<'_, '_> {
             batch: None,
             extract: None,
             compress: None,
+            ends: TransferEnds::default(),
         }
     }
 
@@ -700,7 +746,10 @@ impl Planner<'_, '_> {
         let mut conflicts = Vec::new();
         let mut claimed: HashMap<OsString, VfsPath> = HashMap::new();
         let mut same_volume = true;
-        let dest_volume = dest_provider.volume_id(&dest);
+        let mut ends = TransferEnds {
+            from: Vec::new(),
+            to: login_of(dest_provider.as_ref(), &dest),
+        };
         for (source, provider, entry) in kept {
             check(self.ctx.cancel)?;
             let name = file_name_of(&source).unwrap_or_default();
@@ -755,14 +804,17 @@ impl Planner<'_, '_> {
             } else {
                 claimed.insert(key, target.clone());
             }
-            let known_same = match (
-                provider.volume_id(&volume_probe(&source, &entry)),
-                dest_volume,
-            ) {
-                (Some(a), Some(b)) => provider.scheme() == dest_provider.scheme() && a == b,
-                _ => false,
-            };
-            same_volume &= known_same;
+            same_volume &= renames_between(
+                provider.as_ref(),
+                &volume_probe(&source, &entry),
+                dest_provider.as_ref(),
+                &dest,
+            );
+            if let Some(login) = login_of(provider.as_ref(), &source) {
+                if !ends.from.contains(&login) {
+                    ends.from.push(login);
+                }
+            }
             let (entries, bytes) = if linking {
                 (1, 0)
             } else {
@@ -782,7 +834,9 @@ impl Planner<'_, '_> {
         if !linking && !(moving && same_volume) {
             Self::enough_space(dest_provider.as_ref(), &dest, total_bytes)?;
         }
-        Ok(self.finish(items, Some(dest), same_volume, conflicts))
+        let mut plan = self.finish(items, Some(dest), same_volume, conflicts);
+        plan.ends = ends;
+        Ok(plan)
     }
 
     fn kind_of(source: &ScannedEntry, existing: Option<&ScannedEntry>) -> ConflictKind {

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_ops::{
     Conflict, Counts, JobId, JobKind, JournalId, OpsError, Progress, QueueError, SourcesSummary,
+    TransferEnds,
 };
 use waypoint_protocol::Location;
 
@@ -153,6 +154,9 @@ pub struct PlanPreview {
     pub same_volume: bool,
     pub conflicts: Vec<Conflict>,
     pub notes: Vec<PlanNote>,
+    /// The servers the job would read from and write to, so a drop can say it uploads or
+    /// downloads (A84).
+    pub ends: TransferEnds,
 }
 
 /// Why a command failed. Serialised as `{ kind, message }`, with `error` holding the engine's typed

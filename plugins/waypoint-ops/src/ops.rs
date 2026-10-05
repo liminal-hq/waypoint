@@ -719,6 +719,7 @@ impl<R: Runtime> Shared<R> {
             items: planned.total_items,
             bytes: planned.total_bytes,
             same_volume: planned.same_volume,
+            ends: planned.ends.clone(),
             conflicts: planned.conflicts.clone(),
             notes: planned
                 .warnings

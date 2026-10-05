@@ -19,15 +19,25 @@ use crate::verify::Hasher;
 /// The size of one read and write: 8 MiB (A50).
 pub const CHUNK_BYTES: usize = 8 * 1024 * 1024;
 
-/// One file to copy, from `src` to the partial name `dst`.
+/// One file to copy, from `src` to `dst`: a partial name, or the final name on a provider that
+/// shows a file only once it is complete or cannot rename (A84).
 pub struct FileCopy<'a> {
     pub src_provider: &'a dyn Provider,
     pub src: &'a VfsPath,
     pub dst_provider: &'a dyn Provider,
-    /// Created exclusively; on a failure of any kind nothing is left under this name.
+    /// Created as `options` say (exclusively, unless an existing file is replaced in place); on a
+    /// failure of any kind nothing is left under this name that the copy wrote.
     pub dst: &'a VfsPath,
-    /// Both paths are served by one provider, so it may offer a fast path for the copy.
+    /// How `dst` is opened: exclusively for a new name, truncating for a file replaced in place.
+    pub options: WriteOptions,
+    /// The destination shows a file only when its stream finishes (`atomic_write`), so a failure
+    /// leaves nothing to remove, and removing the name would take away the file it replaces.
+    pub atomic: bool,
+    /// Both paths are served by one provider under one login, so it may offer a fast path.
     pub same_provider: bool,
+    /// The provider's fast path is a copy on the server (`server_copy`), which commits there: it
+    /// is used for a move too, where a local fast path is not, since it never syncs.
+    pub server_copy: bool,
     /// Hash what is read (and so skip the fast path, which never shows the bytes).
     pub verify: Option<VerifyAlgorithm>,
     /// The source is to be removed once this copy is in place (a move across volumes): the data is
@@ -85,7 +95,12 @@ pub fn copy_file_bytes(
     cancel: &CancelToken,
 ) -> Result<Copied, VfsError> {
     let limited = request.throttle.is_some_and(Throttle::is_limited);
-    if request.same_provider && request.verify.is_none() && !request.durable && !limited {
+    let fast = request.same_provider
+        && request.verify.is_none()
+        && (!request.durable || request.server_copy)
+        && request.options.exclusive
+        && !limited;
+    if fast {
         let attempt = request.src_provider.copy_file_within(
             request.src,
             request.dst,
@@ -124,7 +139,7 @@ fn copy_loop(
     let mut reader = request.src_provider.open_read(request.src)?;
     let mut writer = request
         .dst_provider
-        .create_write(request.dst, WriteOptions::exclusive())?;
+        .create_write(request.dst, request.options)?;
     let buffer = buffer_for(buf, request.chunk, request.size_hint);
     let mut hasher = request.verify.map(Hasher::new);
     let mut copied = 0u64;
@@ -170,7 +185,9 @@ fn copy_loop(
             digest: hasher.map(Hasher::finish),
         }),
         Err(error) => {
-            let _ = request.dst_provider.remove_file(request.dst);
+            if !request.atomic {
+                let _ = request.dst_provider.remove_file(request.dst);
+            }
             Err(error)
         }
     }

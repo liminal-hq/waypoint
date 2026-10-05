@@ -115,6 +115,7 @@ pub fn prepare_undo(
         batch: None,
         extract: None,
         compress: None,
+        ends: Default::default(),
     };
     Ok(UndoPlan { entry, steps, plan })
 }

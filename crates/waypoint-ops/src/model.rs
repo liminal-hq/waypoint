@@ -674,6 +674,16 @@ pub struct JobSnapshot {
     /// What verification recorded, once a verified copy or move has checked at least one file
     /// (A51); `None` when the job did not verify.
     pub verified: Option<Verification>,
+    /// The servers the job reads from and writes to, once it is planned; `None` for a job that
+    /// touches no server (A84).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ends: Option<TransferEnds>,
+    /// What the copies could not keep because the destination cannot hold it, once the job ends;
+    /// `None` when they kept everything.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub dropped: Option<Vec<DroppedDetail>>,
 }
 
 /// The whole queue at one revision, in queue order.
@@ -950,6 +960,40 @@ pub struct PlanTotals {
     pub touches: Vec<Location>,
     /// The entries the job removes or moves, which the guard also covers below.
     pub trees: Vec<Location>,
+    /// The servers the job reads from and writes to (A84).
+    pub ends: TransferEnds,
+}
+
+/// The servers a job reads from and writes to, by login (`sftp://me@nas.lan`), so a list of jobs
+/// can say which connection each one uses and a drop can say it uploads or downloads (A84). Both
+/// are empty for a job between local folders.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct TransferEnds {
+    /// The logins the sources are on, each once, in the order met.
+    pub from: Vec<String>,
+    /// The login the destination is on, when it is on a server.
+    pub to: Option<String>,
+}
+
+impl TransferEnds {
+    /// Whether the job reads or writes no server.
+    pub fn is_local(&self) -> bool {
+        self.from.is_empty() && self.to.is_none()
+    }
+}
+
+/// A detail of a file that a copy could not keep because the destination cannot hold it (A84):
+/// the copy is made, without it, and the job says so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum DroppedDetail {
+    /// Modification times: the copies carry the time they were written.
+    ModifiedTimes,
+    /// Permissions (mode bits or the read-only state).
+    Permissions,
 }
 
 #[cfg(test)]

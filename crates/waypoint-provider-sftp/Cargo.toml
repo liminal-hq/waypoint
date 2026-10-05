@@ -22,4 +22,5 @@ waypoint-vfs = { path = "../waypoint-vfs" }
 
 [dev-dependencies]
 tempfile = "3"
+waypoint-ops = { path = "../waypoint-ops", features = ["testing"] }
 waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }

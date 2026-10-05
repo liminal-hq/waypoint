@@ -242,6 +242,7 @@ describe('Extract Here and Extract To…', () => {
 			items: 3,
 			bytes: 0,
 			sameVolume: true,
+			ends: { from: [], to: null },
 			conflicts: [],
 			notes: [
 				{ kind: 'leftOut', location: { display: '', uri: '' }, why: 'traversal' },
