@@ -350,6 +350,7 @@ fn the_errors_are_typed() {
                 Some(ConnectAnswer::Credential(Credential::AccessKey {
                     key_id: KEY_ID.to_owned(),
                     secret: Secret::from(SECRET),
+                    session_token: None,
                 })),
                 &CancelToken::new(),
             )

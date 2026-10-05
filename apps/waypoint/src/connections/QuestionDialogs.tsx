@@ -30,7 +30,18 @@ export function QuestionDialog(props: QuestionProps) {
 		case 'authRequired':
 			return <SignInDialog {...props} prompt={props.error.prompt} refused={false} />;
 		case 'authFailed':
-			return <SignInDialog {...props} prompt={{ kind: 'password', user: null }} refused={true} />;
+			// A refused S3 login asks for the access key again, not a password.
+			return (
+				<SignInDialog
+					{...props}
+					prompt={
+						props.error.location.uri.startsWith('s3://')
+							? { kind: 'accessKey', keyId: null }
+							: { kind: 'password', user: null }
+					}
+					refused={true}
+				/>
+			);
 		case 'hostKeyUnknown':
 			return <HostKeyDialog {...props} />;
 		case 'hostKeyChanged':
@@ -103,6 +114,9 @@ function SignInDialog({
 	const [user, setUser] = useState(prompt.kind === 'password' ? (prompt.user ?? '') : '');
 	const [secret, setSecret] = useState('');
 	const [keyId, setKeyId] = useState(prompt.kind === 'accessKey' ? (prompt.keyId ?? '') : '');
+	// An S3 session token, for temporary credentials: asked for the session only, never remembered.
+	const [sessionToken, setSessionToken] = useState('');
+	const tokenId = useId();
 	const [answers, setAnswers] = useState<string[]>(
 		prompt.kind === 'challenge' ? prompt.prompts.map(() => '') : [],
 	);
@@ -123,7 +137,12 @@ function SignInDialog({
 			case 'challenge':
 				return { kind: 'challenge', answers };
 			case 'accessKey':
-				return { kind: 'accessKey', keyId: keyId.trim(), secret };
+				return {
+					kind: 'accessKey',
+					keyId: keyId.trim(),
+					secret,
+					sessionToken: sessionToken === '' ? null : sessionToken,
+				};
 		}
 	};
 	const ready =
@@ -246,6 +265,22 @@ function SignInDialog({
 							autoComplete="off"
 							spellCheck={false}
 							onChange={(event) => setSecret(event.target.value)}
+						/>
+					</div>
+				)}
+				{prompt.kind === 'accessKey' && (
+					<div className={styles.field}>
+						<label className={styles.label} htmlFor={tokenId}>
+							{t('connect.field.sessionToken')}
+						</label>
+						<input
+							id={tokenId}
+							className={styles.input}
+							type="password"
+							value={sessionToken}
+							autoComplete="off"
+							spellCheck={false}
+							onChange={(event) => setSessionToken(event.target.value)}
 						/>
 					</div>
 				)}

@@ -124,7 +124,7 @@ describe('the form of each protocol', () => {
 			'smb',
 			'dav',
 			'dav',
-			'other',
+			's3',
 			'other',
 		]);
 	});
@@ -133,7 +133,8 @@ describe('the form of each protocol', () => {
 		expect(methodsFor('sftp')).toEqual(['auto', 'password', 'keyFile']);
 		expect(methodsFor('smb')).toEqual(['auto', 'password']);
 		expect(methodsFor('davs')).toEqual(['auto', 'password', 'token']);
-		expect(methodsFor('s3')).toEqual(['auto', 'password']);
+		// An S3 login is an access key (an id and a secret), not a way to sign in.
+		expect(methodsFor('s3')).toEqual(['auto']);
 	});
 
 	it('sends back to automatic a way to sign in that the chosen protocol lacks', () => {
@@ -199,5 +200,83 @@ describe('the form of each protocol', () => {
 		expect(formProblem({ ...emptyForm('smb'), domain: 'WORK' })).toMatchObject({ field: 'user' });
 		expect(formProblem({ ...emptyForm('smb'), domain: 'WORK', user: 'me' })).toBeNull();
 		expect(formProblem({ ...emptyForm('sftp'), domain: 'WORK' })).toBeNull();
+	});
+});
+
+describe('the S3 form', () => {
+	const s3 = (fields: Partial<ReturnType<typeof emptyForm>> = {}) => ({
+		...emptyForm('s3'),
+		host: 'Photos',
+		user: 'AKIA',
+		...fields,
+	});
+
+	it('sends the bucket as the host, the key id as the user, and the endpoint a preset makes', () => {
+		const sent = draftOf(
+			s3({ s3Preset: 'b2', s3Value: 'us-west-004', port: '9', s3Region: ' us-west-004 ' }),
+		);
+		expect(sent).toMatchObject({
+			scheme: 's3',
+			host: 'Photos',
+			user: 'AKIA',
+			port: null,
+			auth: 'auto',
+		});
+		expect(sent.options).toMatchObject({
+			s3Endpoint: 'https://s3.us-west-004.backblazeb2.com',
+			s3Preset: 'b2',
+			s3Region: 'us-west-004',
+			s3PathStyle: null,
+		});
+		expect(draftOf(s3()).options.s3Endpoint).toBeNull();
+		expect(draftOf({ ...s3(), scheme: 'sftp' }).options).toMatchObject({
+			s3Endpoint: null,
+			s3Preset: null,
+		});
+	});
+
+	it('reads a saved connection back into its service and input', () => {
+		const saved = draft({
+			scheme: 's3',
+			host: 'media',
+			user: 'AKIA',
+			options: {
+				...draft().options,
+				s3Endpoint: 'https://abc123.r2.cloudflarestorage.com',
+				s3Preset: 'r2',
+				s3PathStyle: false,
+				s3Region: 'auto',
+			},
+		});
+		expect(formOf(saved)).toMatchObject({
+			s3Preset: 'r2',
+			s3Value: 'abc123',
+			s3PathStyle: false,
+			s3Region: 'auto',
+			host: 'media',
+			user: 'AKIA',
+		});
+		// What a typed address cannot say stays as it was chosen.
+		const typed = draft({ scheme: 's3', host: 'media' });
+		expect(formOf(typed, s3({ s3Region: 'eu-west-1', s3PathStyle: true }))).toMatchObject({
+			s3Region: 'eu-west-1',
+			s3PathStyle: true,
+		});
+	});
+
+	it('names the bucket or the service input that is missing', () => {
+		expect(formProblem(s3({ host: ' ' }))).toMatchObject({ field: 'host' });
+		expect(formProblem(s3({ s3Preset: 'r2' }))).toMatchObject({ field: 's3Value' });
+		expect(formProblem(s3({ s3Preset: 'custom', s3Value: 'https://x.test' }))).toBeNull();
+		expect(formProblem(s3())).toBeNull();
+	});
+
+	it('puts what Rust refuses under its field', () => {
+		const refused = (kind: 'endpoint' | 'region') => ({
+			kind: 'connections' as const,
+			error: { kind: 'draft' as const, error: { kind } },
+		});
+		expect(draftProblem(refused('endpoint'))).toMatchObject({ field: 's3Value' });
+		expect(draftProblem(refused('region'))).toMatchObject({ field: 's3Region' });
 	});
 });

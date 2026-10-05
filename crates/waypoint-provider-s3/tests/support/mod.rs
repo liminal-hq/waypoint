@@ -47,6 +47,7 @@ impl CredentialSource for FixedKey {
         matches!(prompt, AuthPrompt::AccessKey { .. }).then(|| Credential::AccessKey {
             key_id: self.key_id.clone(),
             secret: Secret::from(self.secret.as_str()),
+            session_token: None,
         })
     }
 }

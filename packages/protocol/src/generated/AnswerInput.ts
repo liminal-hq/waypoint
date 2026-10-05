@@ -5,4 +5,8 @@
  * from the dialog to Rust, and is turned into a `ConnectAnswer` at once: its text moves into a
  * `Secret`, which is zeroed when dropped. It has no `Debug` and no `Serialize`.
  */
-export type AnswerInput = { "kind": "password", user: string | null, password: string, } | { "kind": "passphrase", passphrase: string, } | { "kind": "challenge", answers: Array<string>, } | { "kind": "accessKey", keyId: string, secret: string, } | { "kind": "trustHostKey", fingerprint: string, remember: boolean, } | { "kind": "trustChangedHostKey", recordedFingerprint: string, offeredFingerprint: string, } | { "kind": "trustCertificate", fingerprint: string, remember: boolean, };
+export type AnswerInput = { "kind": "password", user: string | null, password: string, } | { "kind": "passphrase", passphrase: string, } | { "kind": "challenge", answers: Array<string>, } | { "kind": "accessKey", keyId: string, secret: string, 
+/**
+ * The session token of temporary credentials, kept for this session only.
+ */
+sessionToken: string | null, } | { "kind": "trustHostKey", fingerprint: string, remember: boolean, } | { "kind": "trustChangedHostKey", recordedFingerprint: string, offeredFingerprint: string, } | { "kind": "trustCertificate", fingerprint: string, remember: boolean, };

@@ -45,8 +45,10 @@ vi.mock('../services/serviceStatuses', () => ({
 
 afterEach(cleanup);
 
-/** SFTP, SMB and WebDAV are in the build; S3 is not (D167). */
-const BUILD: ProtocolSupport = { schemes: [], off: ['sftp', 'smb', 'dav', 'davs'] };
+/** Every remote protocol is in the build, and off (D167). */
+const BUILD: ProtocolSupport = { schemes: [], off: ['sftp', 'smb', 'dav', 'davs', 's3'] };
+/** A build without the S3 provider (its Cargo feature left out). */
+const BUILD_WITHOUT_S3: ProtocolSupport = { schemes: [], off: ['sftp', 'smb', 'dav', 'davs'] };
 
 async function open(
 	options: {
@@ -154,8 +156,17 @@ describe('the Experimental page', () => {
 		expect(screen.getByRole('switch', { name: 'SFTP Experimental' })).not.toBeChecked();
 	});
 
+	it('turns S3 on like the other protocols, now that its provider is in the build', async () => {
+		const { settings } = await open();
+		const s3 = await screen.findByRole('switch', { name: 'S3 Experimental' });
+		await waitFor(() => expect(s3).toBeEnabled());
+		await userEvent.click(s3);
+		await waitFor(() => expect(lastExperimental(settings)?.s3).toBe(true));
+		expect(lastExperimental(settings)?.sftp).toBe(false);
+	});
+
 	it('dims the switch of a protocol this build does not have, with the reason', async () => {
-		await open();
+		await open({ protocols: () => Promise.resolve(BUILD_WITHOUT_S3) });
 		const s3 = await screen.findByRole('switch', { name: 'S3 Experimental' });
 		await waitFor(() => expect(s3).toBeDisabled());
 		expect(screen.getByText(/Not in this build yet/)).toBeInTheDocument();

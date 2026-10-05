@@ -3,4 +3,4 @@
 /**
  * Why a draft cannot be saved. Each names the field, so the dialog can put the message under it.
  */
-export type DraftError = { "kind": "name" } | { "kind": "scheme", scheme: string, } | { "kind": "host" } | { "kind": "user" } | { "kind": "password" } | { "kind": "port" } | { "kind": "keyFile" } | { "kind": "jumpHost" } | { "kind": "startFolder" } | { "kind": "option", option: string, };
+export type DraftError = { "kind": "name" } | { "kind": "scheme", scheme: string, } | { "kind": "host" } | { "kind": "user" } | { "kind": "password" } | { "kind": "port" } | { "kind": "keyFile" } | { "kind": "jumpHost" } | { "kind": "startFolder" } | { "kind": "option", option: string, } | { "kind": "endpoint" } | { "kind": "region" };

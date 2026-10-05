@@ -11,7 +11,7 @@ use waypoint_vfs::{ConnectAnswer, Credential, Secret};
 
 use crate::credentials::{KeyringUnavailable, SecretKind, SecretStore};
 use crate::manager::{ConnectionStatus, Remembered};
-use crate::model::{check_draft, host_text, ConnectionDraft};
+use crate::model::{check_draft, host_text, ConnectionDraft, ConnectionOptions};
 use crate::store::ConnectionsSnapshot;
 
 /// The person's answer to a connection's question, as the dialog sends it. It crosses IPC once,
@@ -39,6 +39,8 @@ pub enum AnswerInput {
     AccessKey {
         key_id: String,
         secret: String,
+        /// The session token of temporary credentials, kept for this session only.
+        session_token: Option<String>,
     },
     /// Trust an unknown SSH host key, named by the fingerprint the dialog showed.
     TrustHostKey {
@@ -71,12 +73,17 @@ impl From<AnswerInput> for ConnectAnswer {
             AnswerInput::Challenge { answers } => ConnectAnswer::Credential(Credential::Challenge(
                 answers.into_iter().map(Secret::from).collect(),
             )),
-            AnswerInput::AccessKey { key_id, secret } => {
-                ConnectAnswer::Credential(Credential::AccessKey {
-                    key_id,
-                    secret: Secret::from(secret),
-                })
-            }
+            AnswerInput::AccessKey {
+                key_id,
+                secret,
+                session_token,
+            } => ConnectAnswer::Credential(Credential::AccessKey {
+                key_id,
+                secret: Secret::from(secret),
+                session_token: session_token
+                    .filter(|token| !token.is_empty())
+                    .map(Secret::from),
+            }),
             AnswerInput::TrustHostKey {
                 fingerprint,
                 remember,
@@ -255,6 +262,10 @@ pub fn parse_address_gated(
         port: remote.authority().port,
         user: remote.authority().user.clone(),
         start_folder: start,
+        options: ConnectionOptions {
+            s3_endpoint: remote.endpoint().map(crate::model::endpoint_origin),
+            ..ConnectionOptions::default()
+        },
         ..ConnectionDraft::default()
     })
     .map_err(|_| invalid())?

@@ -71,8 +71,13 @@ pub enum Credential {
     Passphrase(Secret),
     /// The answers to a keyboard-interactive round, in the order of its prompts.
     Challenge(Vec<Secret>),
-    /// An access key id and its secret (S3).
-    AccessKey { key_id: String, secret: Secret },
+    /// An access key id and its secret (S3), and the session token of temporary credentials when
+    /// there is one (kept for the session only: it expires, so it is never remembered).
+    AccessKey {
+        key_id: String,
+        secret: Secret,
+        session_token: Option<Secret>,
+    },
 }
 
 /// The person's answer to the question a connection's last attempt asked.
@@ -136,8 +141,10 @@ mod tests {
         let answer = ConnectAnswer::Credential(Credential::AccessKey {
             key_id: "AKIA".into(),
             secret: Secret::from("wJalr"),
+            session_token: Some(Secret::from("tok3n")),
         });
         assert!(!format!("{answer:?}").contains("wJalr"));
+        assert!(!format!("{answer:?}").contains("tok3n"));
         assert_eq!(secret.expose_str(), Some("hunter2"));
     }
 }
