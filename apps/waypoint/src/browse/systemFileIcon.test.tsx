@@ -402,6 +402,150 @@ describe('FileIcon for a file that carries its own icon', () => {
 	});
 });
 
+describe('FileIcon for a file named by place', () => {
+	const place = (name: string) => ({ display: `C:\\x\\${name}`, uri: `file:///C:/x/${name}` });
+	const typeUrl = 'fake://ext/exe?size=16&scale=1&theme=Adwaita&tone=light';
+
+	it('asks for the places’ tokens in one call for every row of the same turn, and names the file by its token', async () => {
+		setup({ token: (location) => (location.uri.endsWith('a.exe') ? 7 : 8) });
+		render(
+			<>
+				<FileIcon
+					group="executable"
+					name="a.exe"
+					source={{ location: place('a.exe'), modifiedMs: 5 }}
+				/>
+				<FileIcon
+					group="other"
+					name="b.lnk"
+					source={{ location: place('b.lnk'), modifiedMs: null }}
+				/>
+				<FileIcon
+					group="executable"
+					name="a.exe"
+					source={{ location: place('a.exe'), modifiedMs: 5 }}
+				/>
+			</>,
+		);
+		await settleStatus();
+		expect(fake.registered).toHaveLength(1);
+		expect(fake.registered[0]!.map((location) => location.uri)).toEqual([
+			'file:///C:/x/a.exe',
+			'file:///C:/x/b.lnk',
+		]);
+		expect(fake.probed.sort()).toEqual([
+			'fake://file/l7?size=16&scale=1&m=5',
+			'fake://file/l8?size=16&scale=1&m=0',
+		]);
+	});
+
+	it('draws the file’s own icon once it is there, and the type’s when the system has none', async () => {
+		setup({ token: () => 7 });
+		const { container } = render(
+			<FileIcon
+				group="executable"
+				name="a.exe"
+				source={{ location: place('a.exe'), modifiedMs: 5 }}
+			/>,
+		);
+		await settleStatus();
+		const file = 'fake://file/l7?size=16&scale=1&m=5';
+		// The type's icon is not asked for while the file's may still come.
+		expect(fake.probed).toEqual([file]);
+		await act(async () => fake.settleUrl(file, false));
+		expect(fake.probed).toEqual([file, typeUrl]);
+		await act(async () => fake.settleUrl(typeUrl, true));
+		expect(picture(container)?.getAttribute('href')).toBe(typeUrl);
+	});
+
+	it('draws the type’s icon straight away, with no request for the file, when Rust gives no token', async () => {
+		setup({ token: () => null });
+		const { container } = render(
+			<FileIcon
+				group="executable"
+				name="a.exe"
+				source={{ location: place('a.exe'), modifiedMs: 5 }}
+			/>,
+		);
+		await settleStatus();
+		expect(fake.registered).toHaveLength(1);
+		expect(fake.probed).toEqual([typeUrl]);
+		await act(async () => fake.settleUrl(typeUrl, true));
+		expect(picture(container)?.getAttribute('href')).toBe(typeUrl);
+	});
+
+	it('draws the type’s icon when the window may not ask', async () => {
+		const refusing = setup();
+		refusing.failRegister();
+		render(
+			<FileIcon
+				group="executable"
+				name="a.exe"
+				source={{ location: place('a.exe'), modifiedMs: null }}
+			/>,
+		);
+		await settleStatus();
+		expect(refusing.probed).toEqual([typeUrl]);
+	});
+
+	it('does not ask again for a place it already has an answer for', async () => {
+		const { rerender, unmount } = render(
+			<FileIcon
+				group="executable"
+				name="a.exe"
+				source={{ location: place('a.exe'), modifiedMs: 5 }}
+			/>,
+		);
+		await settleStatus();
+		unmount();
+		render(
+			<FileIcon
+				group="executable"
+				name="a.exe"
+				source={{ location: place('a.exe'), modifiedMs: 6 }}
+			/>,
+		);
+		await settleStatus();
+		expect(fake.registered).toHaveLength(1);
+		expect(rerender).toBeDefined();
+		expect(fake.probed.at(-1)).toBe('fake://file/l1?size=16&scale=1&m=6');
+	});
+
+	it('asks nothing of Rust for a name that carries no icon, or a folder, or without the system’s icons', async () => {
+		render(
+			<>
+				<FileIcon
+					group="pdf"
+					name="a.pdf"
+					source={{ location: place('a.pdf'), modifiedMs: null }}
+				/>
+				<FileIcon
+					group="folder"
+					name="e.exe"
+					source={{ location: place('e.exe'), modifiedMs: null }}
+				/>
+				<FileIcon
+					group="executable"
+					name="Makefile"
+					source={{ location: place('Makefile'), modifiedMs: null }}
+				/>
+			</>,
+		);
+		await settleStatus();
+		expect(fake.registered).toEqual([]);
+		setup({ status: { typeIcons: { available: false, reason: 'none' } } });
+		render(
+			<FileIcon
+				group="executable"
+				name="a.exe"
+				source={{ location: place('a.exe'), modifiedMs: null }}
+			/>,
+		);
+		await settleStatus();
+		expect(fake.registered).toEqual([]);
+	});
+});
+
 async function waitForProbe(count: number): Promise<void> {
 	await act(async () => {
 		for (let turn = 0; turn < 10 && fake.probed.length < count; turn += 1) await Promise.resolve();

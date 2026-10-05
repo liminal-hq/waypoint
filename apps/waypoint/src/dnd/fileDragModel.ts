@@ -8,6 +8,7 @@ import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError'
 import type { TransferEnds } from '@liminal-hq/waypoint-protocol/generated/TransferEnds';
 import type { ListingSession } from '../browse/useListingSession';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
+import type { EntryIconSource } from '../icons/systemIconTarget';
 import { normaliseUri } from '../ops/clipboardRules';
 import type { FileCommandId } from '../ops/fileCommands';
 import { isArchiveLocation } from '../archives/archiveNames';
@@ -32,6 +33,12 @@ export interface ExternalFiles {
 	own: boolean;
 }
 
+/** What a card of the stack needs to be drawn from its file's own icon (a program's, a shortcut's) under the System icon set. */
+export interface StackIcon {
+	name: string;
+	source: EntryIconSource;
+}
+
 /** What every drag carries, whatever it was taken from. */
 interface FileDragBase {
 	/** The pane (tab) the drag began in, when the view is a pane's. */
@@ -41,6 +48,8 @@ interface FileDragBase {
 	name: string | null;
 	/** The icons of the stack: up to three. */
 	groups: IconGroup[];
+	/** The files the cards stand for, aligned with `groups` (`null` for a card that stands for no file in particular): the stack draws a file that carries its own icon from it. */
+	icons?: Array<StackIcon | null>;
 	/** The thumbnails that had loaded when the drag began, aligned with `groups`: the stack shows them over the icons. */
 	thumbnails?: Array<string | null>;
 	/** The folder the files are in; `null` for external files that are not all in one folder. */

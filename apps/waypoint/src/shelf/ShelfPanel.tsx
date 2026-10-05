@@ -265,6 +265,9 @@ export function ShelfPanel({ layout = 'dock' }: { layout?: 'dock' | 'window' }) 
 			groups: carried
 				.slice(0, 3)
 				.map((i) => iconFor(store.getState().status.get(i.location.uri) ?? 'unknown')),
+			icons: carried
+				.slice(0, 3)
+				.map((i) => ({ name: i.name, source: { location: i.location, modifiedMs: null } })),
 			thumbnails: carried.slice(0, 3).map((i) => thumbnails?.urlOf(i.location.uri) ?? null),
 			folder: commonOrigin(carried),
 			modifiers: modifiersOf(event.nativeEvent),
@@ -519,6 +522,8 @@ function ItemRow({
 				loader={thumbnails}
 				thumbKey={state === 'file' ? item.location.uri : null}
 				group={iconFor(state)}
+				name={item.name}
+				source={{ location: item.location, modifiedMs: null }}
 				className={styles.tile}
 				iconClassName={styles.icon}
 			/>

@@ -5,6 +5,7 @@
 
 import type { FolderKind, TypeIconTarget } from '@liminal-hq/plugin-mime-apps';
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 
 /**
@@ -97,11 +98,29 @@ export function systemIconTarget(
 	return extension ? { extension } : { mime: GROUP_TYPES[group] };
 }
 
-/** Which entry of which listing an icon is for, so a file that carries its own icon can be drawn from it (the page names the entry by the listing token and never sends a path). */
-export interface EntryIconSource {
+/** An entry of a listing the window shows, named by the listing token the window already holds. */
+export interface ListingEntryIconSource {
 	handle: number;
 	id: number;
 	modifiedMs: number | null;
+}
+
+/** A place the window holds as a `Location` and not as an entry of a listing (a Shelf item, a file in a dialog, a dragged file). */
+export interface LocationIconSource {
+	location: Location;
+	modifiedMs: number | null;
+}
+
+/**
+ * Which file an icon is for, so one that carries its own icon can be drawn from it. The page never sends a
+ * path: an entry of a listing is named by the listing token, and a place by an opaque token Rust gave for it
+ * (`register_icon_locations`).
+ */
+export type EntryIconSource = ListingEntryIconSource | LocationIconSource;
+
+/** Whether the source names a place and not an entry of a listing. */
+export function isLocationSource(source: EntryIconSource): source is LocationIconSource {
+	return 'location' in source;
 }
 
 /**

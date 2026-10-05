@@ -11,6 +11,7 @@ import {
 	hasOwnIcon,
 	iconScale,
 	iconSizeFor,
+	isLocationSource,
 	systemIconTarget,
 	type EntryIconSource,
 } from '../icons/systemIconTarget';
@@ -18,6 +19,7 @@ import {
 	requestSystemImage,
 	systemFileIconUrl,
 	systemIconUrl,
+	useLocationToken,
 	useSystemIcons,
 	useSystemImage,
 } from '../icons/systemIcons';
@@ -29,7 +31,7 @@ interface SystemIconProps {
 	special?: SpecialFolder | null;
 	/** The entry's name, whose extension picks the type's icon. Without it the group's stand-in type is drawn. */
 	name?: string;
-	/** The entry the icon is for, so a program or a shortcut is drawn from its own icon; the type's icon is drawn where there is none. */
+	/** The file the icon is for (an entry of a listing, or a place), so a program or a shortcut is drawn from its own icon; the type's icon is drawn where there is none. */
 	source?: EntryIconSource;
 	/** The size the icon is drawn at in CSS pixels, so the picture asked for is no bigger than it needs to be. */
 	size: number;
@@ -47,7 +49,9 @@ interface SystemIconProps {
  * group's stand-in type, or the kind of folder), so a listing of thousands of files asks for a handful of
  * pictures, and each address is loaded once and shared by every row with it. The few kinds of file that
  * carry their own icon (programs, shortcuts, icons and cursors) are asked for by file as well, and draw the
- * type's icon only when that has none. Decorative: the row's name is the accessible name.
+ * type's icon only when that has none. An entry of a listing is named by its listing token; a place is named by
+ * the token Rust gives for it, and the type's icon is drawn at once for a place Rust will not draw from.
+ * Decorative: the row's name is the accessible name.
  */
 export function SystemIcon({
 	group,
@@ -66,23 +70,29 @@ export function SystemIcon({
 	const extensionOrGroup = group === 'folder' ? null : name;
 	const edge = iconSizeFor(size);
 	const scale = iconScale(globalThis.devicePixelRatio ?? 1);
-	const handle = source?.handle;
-	const entry = source?.id;
 	const modifiedMs = source?.modifiedMs ?? null;
-	const own = usable && handle !== undefined && group !== 'folder' && hasOwnIcon(name);
+	const wantsOwn = usable && group !== 'folder' && hasOwnIcon(name);
+	const listingSource = wantsOwn && source && !isLocationSource(source) ? source : null;
+	const placeSource = wantsOwn && source && isLocationSource(source) ? source : null;
+	// A place has no listing token: Rust gives one, and says `null` for a place it will not draw from.
+	const placeToken = useLocationToken(placeSource?.location ?? null);
+	const placePending = placeSource !== null && placeToken === undefined;
+	const fileToken = listingSource
+		? `${listingSource.handle}-${listingSource.id}`
+		: typeof placeToken === 'number'
+			? `l${placeToken}`
+			: null;
 	const fileUrl = useMemo(
 		() =>
-			own && handle !== undefined
-				? systemFileIconUrl(`${handle}-${entry}`, { size: edge, scale, modifiedMs })
-				: null,
-		[own, handle, entry, modifiedMs, edge, scale],
+			fileToken !== null ? systemFileIconUrl(fileToken, { size: edge, scale, modifiedMs }) : null,
+		[fileToken, modifiedMs, edge, scale],
 	);
 	const fileImage = useSystemImage(fileUrl);
 	useEffect(() => {
 		if (fileUrl !== null && fileImage === 'idle') requestSystemImage(fileUrl);
 	}, [fileUrl, fileImage]);
-	// The type's icon is wanted when the file has none of its own to ask for, or the system had none to give.
-	const typeWanted = usable && (fileUrl === null || fileImage === 'missing');
+	// The type's icon is wanted when the file has none of its own to ask for, or the system had none to give; not while a place's token is on its way.
+	const typeWanted = usable && !placePending && (fileUrl === null || fileImage === 'missing');
 	const typeUrl = useMemo(
 		() =>
 			typeWanted

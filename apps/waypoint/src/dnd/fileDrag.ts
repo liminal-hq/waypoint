@@ -69,6 +69,7 @@ import {
 	sameFileTarget,
 	subjectText,
 	type FileDragSource,
+	type StackIcon,
 	type FileDropTarget,
 	type LocationsDragSource,
 	type PlanFact,
@@ -132,6 +133,8 @@ export interface LocationsDragPress {
 	/** The one name, when exactly one item is dragged. */
 	name: string | null;
 	groups: IconGroup[];
+	/** The files the cards stand for, aligned with `groups`. */
+	icons?: Array<StackIcon | null>;
 	/** The thumbnails that have loaded, aligned with `groups` (`null` for an item with none). */
 	thumbnails?: Array<string | null>;
 	/** The folder every item sits in, or `null` when they come from several. */
@@ -1284,6 +1287,16 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				count,
 				name: count === 1 ? input.entry.name : null,
 				groups: stackGroups(input.entry.group, count),
+				icons: [
+					{
+						name: input.entry.name,
+						source: {
+							handle: model.handle,
+							id: input.entry.id,
+							modifiedMs: input.entry.modifiedMs,
+						},
+					},
+				],
 				thumbnails: input.thumbnail ? [input.thumbnail] : [],
 				folder: model.location,
 				readOnly: model.readOnly,
@@ -1302,6 +1315,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				count: input.locations.length,
 				name: input.locations.length === 1 ? input.name : null,
 				groups: input.groups,
+				icons: input.icons ?? [],
 				thumbnails: input.thumbnails ?? [],
 				folder: input.folder,
 				readOnly: false,
@@ -1328,6 +1342,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 						count: returning.source.count,
 						name: returning.source.name,
 						groups: returning.source.groups,
+						icons: returning.source.icons ?? [],
 						thumbnails: returning.source.thumbnails ?? [],
 						folder: returning.source.folder,
 						readOnly: returning.source.readOnly,

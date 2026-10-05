@@ -3,8 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { TypeIconTarget } from '@liminal-hq/plugin-mime-apps';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type {
 	SystemIconAvailability,
 	SystemIconsClient,
@@ -41,6 +42,9 @@ const INITIAL: SystemIconsState = {
 /** How many addresses are remembered before the lot are forgotten and asked for again as rows need them. */
 const MAX_IMAGES = 2048;
 
+/** How many places' tokens are remembered; Rust keeps more per window, and hands the same token for the same file when asked again. */
+const MAX_LOCATION_TOKENS = 2048;
+
 type ImageState = 'loading' | 'loaded' | 'missing';
 
 let client: SystemIconsClient | null = null;
@@ -53,6 +57,11 @@ const listeners = new Set<() => void>();
 const images = new Map<string, ImageState>();
 const probes = new Map<string, Unsubscribe>();
 const imageListeners = new Map<string, Set<() => void>>();
+/** The token Rust gave for a place (by its URI), or `null` for a place with no icon of its own to draw. */
+const locationTokens = new Map<string, number | null>();
+const locationListeners = new Map<string, Set<() => void>>();
+let askedLocations = new Map<string, Location>();
+const inFlightLocations = new Set<string>();
 
 function theClient(): SystemIconsClient {
 	client ??= createTauriSystemIconsClient();
@@ -233,6 +242,81 @@ export function useSystemImage(url: string | null): ImageState | 'idle' {
 	);
 }
 
+function notifyLocation(uri: string): void {
+	for (const listener of [...(locationListeners.get(uri) ?? [])]) listener();
+}
+
+function settleLocations(uris: string[], tokens: ReadonlyArray<number | null | undefined>): void {
+	if (locationTokens.size + uris.length > MAX_LOCATION_TOKENS) locationTokens.clear();
+	uris.forEach((uri, index) => {
+		inFlightLocations.delete(uri);
+		locationTokens.set(uri, tokens[index] ?? null);
+	});
+	for (const uri of uris) notifyLocation(uri);
+}
+
+/** Sends the places asked for since the last send as one call, so a Shelf or a dialog of many files asks once. */
+function flushLocations(mine: number): void {
+	const batch = askedLocations;
+	askedLocations = new Map();
+	if (batch.size === 0 || mine !== epoch) return;
+	const uris = [...batch.keys()];
+	for (const uri of uris) inFlightLocations.add(uri);
+	theClient()
+		.registerLocations([...batch.values()])
+		.then(
+			(tokens) => {
+				if (mine === epoch) settleLocations(uris, tokens);
+			},
+			// A window that may not ask, or a plugin that is not there: the type's icon stands.
+			() => {
+				if (mine === epoch) settleLocations(uris, []);
+			},
+		);
+}
+
+/** Asks Rust for a place's token once; places asked for in the same turn go in one call. */
+export function requestLocationToken(location: Location): void {
+	const uri = location.uri;
+	if (locationTokens.has(uri) || inFlightLocations.has(uri) || askedLocations.has(uri)) return;
+	askedLocations.set(uri, location);
+	if (askedLocations.size === 1) {
+		const mine = epoch;
+		queueMicrotask(() => flushLocations(mine));
+	}
+}
+
+/**
+ * Where a place's token stands: `undefined` until Rust has answered, then the number to name the file by, or
+ * `null` for a place whose own icon cannot be drawn (so the type's icon is drawn at once), and for no place at
+ * all. Reading it asks Rust, once per place and in one call for every place asked for in the same turn.
+ */
+export function useLocationToken(location: Location | null): number | null | undefined {
+	const uri = location?.uri ?? null;
+	const subscribeLocation = useCallback(
+		(listener: () => void): Unsubscribe => {
+			if (uri === null) return () => undefined;
+			let bucket = locationListeners.get(uri);
+			if (!bucket) locationListeners.set(uri, (bucket = new Set()));
+			bucket.add(listener);
+			return () => {
+				bucket.delete(listener);
+				if (bucket.size === 0) locationListeners.delete(uri);
+			};
+		},
+		[uri],
+	);
+	const token = useSyncExternalStore(
+		subscribeLocation,
+		() => (uri === null ? null : locationTokens.get(uri)),
+		() => undefined,
+	);
+	useEffect(() => {
+		if (location !== null && token === undefined) requestLocationToken(location);
+	}, [location, token]);
+	return token;
+}
+
 /** How many addresses are being remembered, for the tests that check a listing needs few. */
 export function systemImageCount(): number {
 	return images.size;
@@ -246,6 +330,10 @@ export function configureSystemIcons(next: SystemIconsClient | null): void {
 	starting = false;
 	forgetImages();
 	imageListeners.clear();
+	locationTokens.clear();
+	locationListeners.clear();
+	askedLocations = new Map();
+	inFlightLocations.clear();
 	lastLook = null;
 	client = next;
 	state = INITIAL;

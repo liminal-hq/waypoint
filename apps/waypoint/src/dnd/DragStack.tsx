@@ -73,7 +73,11 @@ export function DragStack({ session }: DragStackProps) {
 							className={styles.card}
 							style={{ '--wp-stack-depth': depth } as CSSProperties}
 						>
-							<FileIcon group={group} />
+							<FileIcon
+								group={group}
+								name={source.icons?.[depth]?.name}
+								source={source.icons?.[depth]?.source}
+							/>
 							{source.thumbnails?.[depth] && (
 								<img
 									className={styles.picture}

@@ -90,6 +90,10 @@ export function externalSource(files: readonly Location[], own = false): Locatio
 		count,
 		name: count === 1 ? leafOfPath(files[0]!.display) : null,
 		groups: STACK.slice(0, Math.min(count, 3)),
+		icons: files.slice(0, 3).map((file) => ({
+			name: leafOfPath(file.display),
+			source: { location: file, modifiedMs: null },
+		})),
 		folder: commonFolder(files),
 		readOnly: false,
 		rightButton: false,

@@ -216,6 +216,7 @@ pub fn run() {
         .manage(properties_window::PropertiesWindows::default())
         .manage(checksum::Checksums::default())
         .manage(thumbnails::ThumbnailBridge::default())
+        .manage(file_icons::IconLocations::default())
         .invoke_handler(tauri::generate_handler![
             take_restore_notice,
             connections::get_protocol_details,
@@ -238,6 +239,7 @@ pub fn run() {
             thumbnails::thumbnails_request_locations,
             thumbnails::thumbnails_cancel,
             thumbnails::thumbnails_prioritise,
+            file_icons::register_icon_locations,
             integrations::get_integration_statuses,
             integrations::get_integration_availability
         ])
@@ -270,6 +272,7 @@ pub fn run() {
             move |window, event| {
                 effects::on_window_event(window, event);
                 integrations::on_window_event(window, event);
+                file_icons::on_window_event(window, event);
                 if matches!(event, WindowEvent::Destroyed)
                     && window.label().starts_with(properties_window::LABEL_PREFIX)
                 {
