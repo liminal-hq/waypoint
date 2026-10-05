@@ -107,6 +107,9 @@ export function EntryPreview({ client, handle, entry, details }: EntryPreviewPro
 					loader={loader}
 					thumbKey={thumbKey}
 					group={entry.group}
+					name={entry.name}
+					source={{ handle, id: entry.id, modifiedMs: entry.modifiedMs }}
+					iconSize={64}
 					className={styles.thumbnail}
 				/>
 				{showImage && (

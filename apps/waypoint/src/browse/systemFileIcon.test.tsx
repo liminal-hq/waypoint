@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import { EntryHero } from '../inspector/EntryHero';
+import { EntryPreview } from '../inspector/EntryPreview';
+import { QuickLookPreview } from '../quicklook/QuickLookPreview';
+import type { DetailsClient } from '../services/detailsClient';
 import { configureSystemIcons, systemImageCount } from '../icons/systemIcons';
 import {
 	createFakeSystemIconsClient,
@@ -361,20 +364,41 @@ describe('FileIcon for a file that carries its own icon', () => {
 		expect(fake.probed).toEqual([]);
 	});
 
+	const exeEntry = {
+		id: 9,
+		name: 'app.exe',
+		kind: 'file',
+		linkTarget: null,
+		group: 'executable',
+		size: 10,
+		modifiedMs: 1234,
+		hidden: false,
+	} as unknown as Entry;
+
 	it('is drawn from the file in the Inspector’s Properties hero, at its size', async () => {
-		const entry = {
-			id: 9,
-			name: 'app.exe',
-			kind: 'file',
-			linkTarget: null,
-			group: 'executable',
-			size: 10,
-			modifiedMs: 1234,
-			hidden: false,
-		} as unknown as Entry;
-		render(<EntryHero handle={3} entry={entry} size={10} folder={false} />);
+		render(<EntryHero handle={3} entry={exeEntry} size={10} folder={false} />);
 		await settleStatus();
 		expect(fake.probed).toEqual(['fake://file/3-9?size=64&scale=1&m=1234']);
+	});
+
+	it('is drawn from the file in the Inspector’s Preview tab, by its own extension, at its size', async () => {
+		render(<EntryPreview client={null} handle={3} entry={exeEntry} details={null} />);
+		await settleStatus();
+		expect(fake.probed).toEqual(['fake://file/3-9?size=64&scale=1&m=1234']);
+	});
+
+	it('is drawn from the file in Quick Look’s facts panel, at the size bucket that holds it (160 px asks for 256)', async () => {
+		render(
+			<QuickLookPreview
+				entry={exeEntry}
+				handle={3}
+				client={{} as DetailsClient}
+				loader={null}
+				hourCycle={undefined}
+			/>,
+		);
+		await settleStatus();
+		expect(fake.probed).toEqual(['fake://file/3-9?size=256&scale=1&m=1234']);
 	});
 });
 
