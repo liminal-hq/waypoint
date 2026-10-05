@@ -130,6 +130,9 @@ export const GridCell = memo(function GridCell({
 				thumbKey={entry && wantsThumbnail(entry) ? entryThumbKey(entry) : null}
 				group={entry?.group ?? 'other'}
 				name={entry?.name}
+				source={
+					entry ? { handle: model.handle, id: entry.id, modifiedMs: entry.modifiedMs } : undefined
+				}
 				iconSize={size}
 				special={entry?.special}
 				badge={entry?.git?.repository ? 'git' : undefined}

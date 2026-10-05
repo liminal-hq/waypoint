@@ -6,12 +6,15 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
+import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import { EntryHero } from '../inspector/EntryHero';
 import { configureSystemIcons, systemImageCount } from '../icons/systemIcons';
 import {
 	createFakeSystemIconsClient,
 	type FakeSystemIcons,
 } from '../services/fakeSystemIconsClient';
 import { FileIcon } from './FileIcon';
+import { IconPictures } from './IconPictures';
 
 const root = document.documentElement;
 
@@ -243,6 +246,135 @@ describe('FileIcon in the System set', () => {
 		expect(fake.listenerCount).toBe(1);
 		unmount();
 		expect(fake.listenerCount).toBe(0);
+	});
+});
+
+describe('FileIcon for a file that carries its own icon', () => {
+	const source = { handle: 3, id: 9, modifiedMs: 1234 };
+	const fileUrl = 'fake://file/3-9?size=16&scale=1&m=1234';
+	const typeUrl = 'fake://ext/exe?size=16&scale=1&theme=Adwaita&tone=light';
+
+	it('asks for the file’s own icon alone, and draws it once it is there', async () => {
+		const { container } = render(<FileIcon group="executable" name="Setup.EXE" source={source} />);
+		await settleStatus();
+		// The type's icon is not asked for while the file's may still come.
+		expect(fake.probed).toEqual([fileUrl]);
+		expect(glyph(container)).not.toBeNull();
+		await act(async () => fake.settleUrl(fileUrl, true));
+		expect(picture(container)?.getAttribute('href')).toBe(fileUrl);
+		expect(fake.probed).toEqual([fileUrl]);
+	});
+
+	it('draws the type’s icon when the system has none for the file', async () => {
+		const { container } = render(<FileIcon group="executable" name="app.exe" source={source} />);
+		await settleStatus();
+		await act(async () => fake.settleUrl(fileUrl, false));
+		expect(fake.probed).toEqual([fileUrl, typeUrl]);
+		expect(glyph(container)).not.toBeNull();
+		await act(async () => fake.settleUrl(typeUrl, true));
+		expect(picture(container)?.getAttribute('href')).toBe(typeUrl);
+	});
+
+	it('is a new address when the file changes, so the new icon is asked for', async () => {
+		const { rerender } = render(<FileIcon group="executable" name="app.exe" source={source} />);
+		await settleStatus();
+		rerender(
+			<FileIcon group="executable" name="app.exe" source={{ ...source, modifiedMs: 5678 }} />,
+		);
+		await settleStatus();
+		expect(fake.probed).toEqual([fileUrl, 'fake://file/3-9?size=16&scale=1&m=5678']);
+	});
+
+	it('is drawn from the file as a background picture where the icons are pictures (the grid), and the type’s icon is the shared picture for every other file', async () => {
+		const { container } = render(
+			<IconPictures>
+				<FileIcon group="executable" name="Setup.EXE" source={source} />
+				<FileIcon group="document" name="notes.txt" source={{ ...source, id: 10 }} />
+			</IconPictures>,
+		);
+		await settleStatus();
+		const txtUrl = 'fake://ext/txt?size=16&scale=1&theme=Adwaita&tone=light';
+		expect(fake.probed).toEqual([fileUrl, txtUrl]);
+		await act(async () => fake.settleUrl(fileUrl, true));
+		await act(async () => fake.settleUrl(txtUrl, true));
+		const drawn = [...container.querySelectorAll<HTMLElement>('[data-icon-picture][data-system]')];
+		expect(drawn.map((icon) => icon.style.backgroundImage)).toEqual([
+			`url("${fileUrl}")`,
+			`url("${txtUrl}")`,
+		]);
+		expect(container.querySelector('svg[data-system]')).toBeNull();
+	});
+
+	it('falls back from the file’s icon to the type’s to the glyph where the icons are pictures', async () => {
+		const { container } = render(
+			<IconPictures>
+				<FileIcon group="executable" name="app.exe" source={source} />
+			</IconPictures>,
+		);
+		await settleStatus();
+		expect(container.querySelector('[data-system]')).toBeNull();
+		await act(async () => fake.settleUrl(fileUrl, false));
+		expect(fake.probed).toEqual([fileUrl, typeUrl]);
+		expect(container.querySelector('[data-system]')).toBeNull();
+		await act(async () => fake.settleUrl(typeUrl, true));
+		expect(
+			container.querySelector<HTMLElement>('[data-icon-picture][data-system]')?.style
+				.backgroundImage,
+		).toBe(`url("${typeUrl}")`);
+	});
+
+	it('asks for every kind that carries an icon, and for no other', async () => {
+		render(
+			<>
+				<FileIcon group="executable" name="a.exe" source={{ ...source, id: 1 }} />
+				<FileIcon group="other" name="b.lnk" source={{ ...source, id: 2 }} />
+				<FileIcon group="image" name="c.ico" source={{ ...source, id: 3 }} />
+				<FileIcon group="pdf" name="d.pdf" source={{ ...source, id: 4 }} />
+				<FileIcon group="executable" name="Makefile" source={{ ...source, id: 5 }} />
+				<FileIcon group="folder" name="e.exe" source={{ ...source, id: 6 }} />
+			</>,
+		);
+		await settleStatus();
+		const asked = fake.probed.map((url) => url.split('?')[0]).sort();
+		expect(asked).toEqual(
+			[
+				'fake://file/3-1',
+				'fake://file/3-2',
+				'fake://file/3-3',
+				'fake://ext/pdf',
+				'fake://folder/plain',
+				'fake://mime/application/x-executable',
+			].sort(),
+		);
+	});
+
+	it('goes by the type alone when the entry is not named', async () => {
+		render(<FileIcon group="executable" name="a.exe" />);
+		await settleStatus();
+		expect(fake.probed).toEqual([typeUrl]);
+	});
+
+	it('asks for nothing where the system supplies no icons for types', async () => {
+		setup({ status: { typeIcons: { available: false, reason: 'none' } } });
+		render(<FileIcon group="executable" name="a.exe" source={source} />);
+		await settleStatus();
+		expect(fake.probed).toEqual([]);
+	});
+
+	it('is drawn from the file in the Inspector’s Properties hero, at its size', async () => {
+		const entry = {
+			id: 9,
+			name: 'app.exe',
+			kind: 'file',
+			linkTarget: null,
+			group: 'executable',
+			size: 10,
+			modifiedMs: 1234,
+			hidden: false,
+		} as unknown as Entry;
+		render(<EntryHero handle={3} entry={entry} size={10} folder={false} />);
+		await settleStatus();
+		expect(fake.probed).toEqual(['fake://file/3-9?size=64&scale=1&m=1234']);
 	});
 });
 

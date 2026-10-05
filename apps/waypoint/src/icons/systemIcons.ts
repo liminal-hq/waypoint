@@ -180,6 +180,14 @@ export function systemIconUrl(
 	return `${url}&tone=${options.tone}`;
 }
 
+/** The address of the icon stored in an entry's file (a program's, a shortcut's), named by its listing token. It has no theme or tone: the shell draws it from the file. */
+export function systemFileIconUrl(
+	token: string,
+	options: { size: number; scale: number; modifiedMs: number | null },
+): string {
+	return theClient().fileUrl(token, options);
+}
+
 function notifyImage(url: string): void {
 	for (const listener of [...(imageListeners.get(url) ?? [])]) listener();
 }

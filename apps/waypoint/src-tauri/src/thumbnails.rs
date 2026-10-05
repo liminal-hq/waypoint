@@ -335,7 +335,7 @@ fn servers_of<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<dyn Servers>> {
 }
 
 /// The local path of a location, or why it has none here.
-fn path_of_location(location: &Location) -> Result<PathBuf, String> {
+pub(crate) fn path_of_location(location: &Location) -> Result<PathBuf, String> {
     match VfsPath::from_location(location) {
         Ok(VfsPath::File(path)) => Ok(path.into_path_buf()),
         Ok(_) => Err("not a local file".to_owned()),

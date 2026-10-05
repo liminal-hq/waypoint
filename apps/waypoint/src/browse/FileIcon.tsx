@@ -6,6 +6,7 @@
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import { useIconLook, type ResolvedIconTheme } from '../icons/iconTheme';
+import type { EntryIconSource } from '../icons/systemIconTarget';
 import type { PortageFolderBadge } from '../icons/portage/portageFolderArt';
 import type { FolderColour, FolderTone } from '../icons/portage/portagePalette';
 import { cssUrl, glyphSvg, pictureUrl } from '../icons/iconPictures';
@@ -22,6 +23,8 @@ interface FileIconProps {
 	special?: SpecialFolder | null;
 	/** The entry's name, for the System set: its extension picks the type's icon. The other sets go by the group. */
 	name?: string;
+	/** The entry the icon is for, for the System set: a program or a shortcut is drawn from its own icon. */
+	source?: EntryIconSource;
 	/** The size the icon is drawn at in CSS pixels (default 16), so the System set asks for a picture no bigger than it needs. */
 	size?: number;
 	/** An extra class, for a view that draws the glyph larger than the list does. */
@@ -46,6 +49,7 @@ export function FileIcon({
 	group,
 	special,
 	name,
+	source,
 	size = 16,
 	className,
 	badge,
@@ -88,6 +92,7 @@ export function FileIcon({
 				group={group}
 				special={special}
 				name={name}
+				source={source}
 				size={size}
 				tone={tone}
 				className={className}
@@ -126,6 +131,7 @@ export function FileIcon({
 				group={group}
 				special={special}
 				name={name}
+				source={source}
 				size={size}
 				tone={tone}
 				className={className}

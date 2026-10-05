@@ -8,6 +8,7 @@ import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/Spec
 import { useCallback, useContext, useState, useSyncExternalStore } from 'react';
 import { FileIcon } from '../browse/FileIcon';
 import type { PortageFolderBadge } from '../icons/portage/portageFolderArt';
+import type { EntryIconSource } from '../icons/systemIconTarget';
 import styles from './Thumbnail.module.css';
 import type { ThumbnailLoader } from './thumbnailLoader';
 import { ThumbnailPauseContext } from './thumbnailPause';
@@ -20,6 +21,8 @@ interface ThumbnailProps {
 	group: IconGroup;
 	/** The entry's name, for the System icon set: its extension picks the type's icon. */
 	name?: string;
+	/** The entry the icon is for, for the System set: a program or a shortcut is drawn from its own icon. */
+	source?: EntryIconSource;
 	/** The size the icon is drawn at in CSS pixels, when it is not the list's 16. */
 	iconSize?: number;
 	/** The standard folder a folder is, so the icon carries its mark. */
@@ -45,6 +48,7 @@ export function Thumbnail({
 	thumbKey,
 	group,
 	name,
+	source,
 	iconSize,
 	special,
 	badge,
@@ -82,6 +86,7 @@ export function Thumbnail({
 				group={group}
 				special={special}
 				name={name}
+				source={source}
 				size={iconSize}
 				badge={badge}
 				className={iconClassName}

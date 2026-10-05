@@ -8,6 +8,7 @@ mod checksum;
 mod connections;
 mod dialog_window_state;
 mod effects;
+mod file_icons;
 mod git;
 mod integration_policy;
 mod integrations;
@@ -138,7 +139,7 @@ pub fn run() {
     let geometry = GeometryCapture::default();
 
     #[allow(unused_mut)]
-    let mut builder = tauri::Builder::default()
+    let mut builder = file_icons::register(tauri::Builder::default())
         // `tauri-plugin-log`'s own `plugin:log|log` command is what
         // `src/services/logger.ts` forwards the webview's `console.*` calls
         // into, tagged `webview[:file:line]`. That command re-emits through this

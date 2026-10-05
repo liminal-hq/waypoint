@@ -52,6 +52,21 @@ impl ImageList {
     }
 }
 
+/// `FILE_ATTRIBUTE_RECALL_ON_OPEN`, `FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS` and `FILE_ATTRIBUTE_OFFLINE`: reading the file would bring it down from the cloud or from offline storage.
+const PLACEHOLDER_ATTRIBUTES: u32 = 0x0004_0000 | 0x0040_0000 | 0x0000_1000;
+
+/// Whether reading the file would download it. The shell reads a program to find its icon, so such a file is drawn from its type instead.
+pub fn is_placeholder(attributes: u32) -> bool {
+    attributes & PLACEHOLDER_ATTRIBUTES != 0
+}
+
+/// Splits the icon index `SHGetFileInfoW` gives with `SHGFI_OVERLAYINDEX` into the image list index and the overlay as the bits `IImageList::GetIcon` takes (the overlay's index in the top eight bits of the icon index, moved into the overlay mask). The mask is zero for a file with no overlay.
+pub fn split_overlay(icon_index: i32) -> (i32, u32) {
+    let raw = icon_index as u32;
+    let overlay = raw >> 24;
+    ((raw & 0x00FF_FFFF) as i32, overlay << 8)
+}
+
 /// Turns the 32-bit colour bitmap of an icon (blue, green, red, alpha per pixel, as `GetDIBits` writes it) into straight RGBA in place.
 ///
 /// Icons made before alpha existed have a colour bitmap whose alpha is all zero and a separate mask (a set bit is transparent); `mask` is that mask as 32-bit pixels, and is used only when the colour bitmap has no alpha at all.
@@ -95,6 +110,22 @@ mod tests {
         assert_eq!(ImageList::Small.shil(), 1);
         assert_eq!(ImageList::ExtraLarge.shil(), 2);
         assert_eq!(ImageList::Jumbo.shil(), 4);
+    }
+
+    #[test]
+    fn a_placeholder_is_a_file_the_cloud_or_offline_storage_holds() {
+        assert!(is_placeholder(0x0004_0000));
+        assert!(is_placeholder(0x0040_0000 | 0x20));
+        assert!(is_placeholder(0x0000_1000));
+        assert!(!is_placeholder(0x20));
+        assert!(!is_placeholder(0));
+    }
+
+    #[test]
+    fn the_overlay_is_split_from_the_icon_index() {
+        assert_eq!(split_overlay(42), (42, 0));
+        // Overlay 2 over image 7: the top byte holds the overlay, and the mask is it shifted by eight.
+        assert_eq!(split_overlay((2 << 24) | 7), (7, 2 << 8));
     }
 
     #[test]

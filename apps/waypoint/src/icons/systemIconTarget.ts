@@ -61,6 +61,16 @@ const STANDARD_FOLDERS: ReadonlySet<string> = new Set([
 /** What an extension may be to be asked for: the characters of a file extension, and no longer than a real one. */
 const EXTENSION = /^[a-z0-9_+~-]{1,24}$/;
 
+/** The extensions of the files whose icon is stored in the file itself. */
+const OWN_ICON_EXTENSIONS: ReadonlySet<string> = new Set([
+	'exe',
+	'ico',
+	'cur',
+	'ani',
+	'scr',
+	'lnk',
+]);
+
 /** The extension of a name in lower case, or `null` when it has none a type could go by (a leading dot alone is part of the name). */
 export function extensionOf(name: string | undefined): string | null {
 	if (!name) return null;
@@ -85,6 +95,23 @@ export function systemIconTarget(
 	}
 	const extension = extensionOf(name);
 	return extension ? { extension } : { mime: GROUP_TYPES[group] };
+}
+
+/** Which entry of which listing an icon is for, so a file that carries its own icon can be drawn from it (the page names the entry by the listing token and never sends a path). */
+export interface EntryIconSource {
+	handle: number;
+	id: number;
+	modifiedMs: number | null;
+}
+
+/**
+ * Whether a file of this name carries its own icon (a program, a shortcut, an icon, a cursor, a screen saver), so
+ * the entry is asked for by file as well as by type. This only saves a request for every other file: Rust decides
+ * what is drawn from a file, from the same list, and answers 404 for anything else.
+ */
+export function hasOwnIcon(name: string | undefined): boolean {
+	const extension = extensionOf(name);
+	return extension !== null && OWN_ICON_EXTENSIONS.has(extension);
 }
 
 /** The sizes a system icon is asked at, in CSS pixels, so a few requests per type serve every view. */

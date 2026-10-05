@@ -69,6 +69,8 @@ export function createFakeSystemIconsClient(
 			if (urlOptions.revision) params.push(`v=${urlOptions.revision}`);
 			return `fake://${kind}/${value}?${params.join('&')}`;
 		},
+		fileUrl: (token, fileOptions) =>
+			`fake://file/${token}?size=${fileOptions.size}&scale=${fileOptions.scale}&m=${fileOptions.modifiedMs ?? 0}`,
 		probe(url, done) {
 			probed.push(url);
 			let callbacks = waiting.get(url);

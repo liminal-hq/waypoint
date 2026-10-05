@@ -672,6 +672,11 @@ function ListingBody({
 														thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
 														group={entry.group}
 														name={entry.name}
+														source={{
+															handle: model.handle,
+															id: entry.id,
+															modifiedMs: entry.modifiedMs,
+														}}
 														badge={entry.git?.repository ? 'git' : undefined}
 														className={styles.thumbnail}
 													/>
@@ -680,6 +685,11 @@ function ListingBody({
 														group={entry.group}
 														special={entry.special}
 														name={entry.name}
+														source={{
+															handle: model.handle,
+															id: entry.id,
+															modifiedMs: entry.modifiedMs,
+														}}
 														badge={entry.git?.repository ? 'git' : undefined}
 													/>
 												)}
