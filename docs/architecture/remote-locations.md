@@ -114,7 +114,7 @@ provider ── needs a credential ──► CredentialSource (app: cache, then 
 
 `waypoint-vfs` gains `ProviderRegistry`: providers by scheme, `for_path`, `for_location` and `schemes`. The vfs plugin and the operations engine are given the same registry by `src-tauri` (the engine's `Providers` adopts it when the first remote provider is registered), so a scheme exists everywhere or nowhere. `parse_location_with` takes the set of registered schemes: text in a scheme with no provider is still `Unsupported`, exactly as today.
 
-The registry can change while the app runs (A109, D167): a remote provider is registered only while its switch on Settings → Experimental is on. `turn_off` removes it and remembers the scheme, so an address in it is `ProtocolOff` (the build has it, the person has not turned it on), not `Unsupported` (nothing serves it), and the operations engine looks the same registry up at each use, so a change reaches it at once.
+The registry can change while the app runs (A109, D167): a remote provider is registered only while its switch on Settings → Experimental is on. `turn_off` removes it and remembers the scheme, so an address in it is `ProtocolOff` (the build has it, the person has not turned it on), not `Unsupported` (nothing serves it), and the operations engine looks the same registry up at each use, so a change reaches it at once. SFTP, SMB and WebDAV are composed in `src-tauri/connections.rs` behind the `sftp`, `smb` and `webdav` Cargo features (A110); S3 follows with its provider.
 
 ## 4. Listings without a watcher
 
