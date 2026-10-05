@@ -37,6 +37,21 @@ export function startConnections(client: ConnectionsClient): Connections {
 	const stopState = client.onState((status) => {
 		if (live) store.setState((view) => applyStatus(view, status), true);
 	});
+	// Which protocols are on is read once; after that the event keeps it current, and an event
+	// heard first is newer than the read.
+	let protocolsHeard = false;
+	const stopProtocols = client.onProtocols((change) => {
+		protocolsHeard = true;
+		if (live) store.setState((view) => ({ ...view, protocols: change }), true);
+	});
+	void client.support().then(
+		({ schemes, off }) => {
+			if (live && !protocolsHeard) {
+				store.setState((view) => ({ ...view, protocols: { schemes, off } }), true);
+			}
+		},
+		(error: unknown) => console.warn('could not read which protocols are on', error),
+	);
 	const reload = () =>
 		client.list().then(
 			(overview) => {
@@ -53,6 +68,7 @@ export function startConnections(client: ConnectionsClient): Connections {
 			live = false;
 			stopChanged();
 			stopState();
+			stopProtocols();
 		},
 	};
 }

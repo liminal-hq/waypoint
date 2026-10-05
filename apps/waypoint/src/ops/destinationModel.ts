@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { schemeLabel } from '../connections/connectModel';
 import { isVfsError, type VfsClient } from '../services/vfsClient';
 import type { Location } from '../services/opsClient';
 import { t, tf } from '../i18n/messages';
@@ -38,6 +39,12 @@ export async function checkDestination(
 			return {
 				state: 'problem',
 				message: tf('destination.check.unsupported', { what: error.what }),
+			};
+		}
+		if (isVfsError(error) && error.kind === 'protocolOff') {
+			return {
+				state: 'problem',
+				message: tf('destination.check.protocolOff', { protocol: schemeLabel(error.scheme) }),
 			};
 		}
 		return { state: 'problem', message: tf('destination.check.invalid', { input }) };

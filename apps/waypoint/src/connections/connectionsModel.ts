@@ -8,6 +8,7 @@ import type { ConnectionState } from '@liminal-hq/waypoint-protocol/generated/Co
 import type { ConnectionStatus } from '@liminal-hq/waypoint-protocol/generated/ConnectionStatus';
 import type { ConnectionsChanged } from '@liminal-hq/waypoint-protocol/generated/ConnectionsChanged';
 import type { ConnectionsOverview } from '@liminal-hq/waypoint-protocol/generated/ConnectionsOverview';
+import type { ProtocolsChanged } from '@liminal-hq/waypoint-protocol/generated/ProtocolsChanged';
 import type { RecentServer } from '@liminal-hq/waypoint-protocol/generated/RecentServer';
 
 /** What a window knows. Rust is the one writer; this only follows (A81). */
@@ -22,6 +23,11 @@ export interface ConnectionsView {
 	states: ReadonlyMap<string, ConnectionState>;
 	/** True once the first overview arrived. */
 	loaded: boolean;
+	/**
+	 * Which remote protocols are on and which are turned off in Settings → Experimental (D167);
+	 * `null` until Rust has said, when nothing is dimmed or hidden.
+	 */
+	protocols: ProtocolsChanged | null;
 }
 
 export const EMPTY_VIEW: ConnectionsView = {
@@ -31,6 +37,7 @@ export const EMPTY_VIEW: ConnectionsView = {
 	stateRevision: 0,
 	states: new Map(),
 	loaded: false,
+	protocols: null,
 };
 
 /** The view an overview describes. Events already heard and newer than it are kept. */
@@ -54,7 +61,7 @@ export function fromOverview(
 		(states as Map<string, ConnectionState>).set(status.key, status.state);
 		stateRevision = Math.max(stateRevision, status.revision);
 	}
-	return { ...saved, states, stateRevision, loaded: true };
+	return { ...saved, states, stateRevision, loaded: true, protocols: view.protocols };
 }
 
 /** Applies one change to the saved connections. A change at or below the known revision is dropped. */
@@ -87,6 +94,25 @@ export function applyStatus(view: ConnectionsView, status: ConnectionStatus): Co
 	const states = new Map(view.states);
 	states.set(status.key, status.state);
 	return { ...view, states, stateRevision: Math.max(view.stateRevision, status.revision) };
+}
+
+/** The scheme a login key starts with (`sftp` for `sftp://me@nas.lan`). */
+export function schemeOfKey(key: string): string {
+	const end = key.indexOf('://');
+	return end < 0 ? '' : key.slice(0, end).toLowerCase();
+}
+
+/** Whether `scheme` is a protocol the build has that is turned off (D167). Unknown until Rust says. */
+export function isProtocolOff(view: ConnectionsView, scheme: string): boolean {
+	return view.protocols?.off.includes(scheme.toLowerCase()) ?? false;
+}
+
+/**
+ * Whether any remote protocol is on, so the Network section is worth showing (D167). It shows
+ * until Rust has said which are on, so a window never flashes the section away.
+ */
+export function anyProtocolOn(view: ConnectionsView): boolean {
+	return view.protocols === null || view.protocols.schemes.length > 0;
 }
 
 const IDLE: ConnectionState = { kind: 'idle' };

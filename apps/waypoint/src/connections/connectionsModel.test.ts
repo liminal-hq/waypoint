@@ -9,8 +9,11 @@ import {
 	applyChanged,
 	applyStatus,
 	EMPTY_VIEW,
+	anyProtocolOn,
 	fromOverview,
+	isProtocolOff,
 	savedFor,
+	schemeOfKey,
 	stateOf,
 } from './connectionsModel';
 import { draft, keyOf, serverLocation } from './fakeConnectionsClient';
@@ -83,5 +86,38 @@ describe('the connections view', () => {
 		expect(stateOf(view, 'sftp://a')).toEqual({ kind: 'connected' });
 		expect(applyStatus(view, { key: 'sftp://a', state: { kind: 'idle' }, revision: 1 })).toBe(view);
 		expect(stateOf(view, 'sftp://other')).toEqual({ kind: 'idle' });
+	});
+});
+
+describe('the protocols that are on', () => {
+	it('shows everything until Rust says which are on', () => {
+		expect(EMPTY_VIEW.protocols).toBeNull();
+		expect(anyProtocolOn(EMPTY_VIEW)).toBe(true);
+		expect(isProtocolOff(EMPTY_VIEW, 'sftp')).toBe(false);
+	});
+
+	it('knows a protocol that is off and whether any is on', () => {
+		const none = { ...EMPTY_VIEW, protocols: { schemes: [], off: ['sftp', 'dav'] } };
+		expect(anyProtocolOn(none)).toBe(false);
+		expect(isProtocolOff(none, 'SFTP')).toBe(true);
+		const some = { ...EMPTY_VIEW, protocols: { schemes: ['sftp'], off: ['dav'] } };
+		expect(anyProtocolOn(some)).toBe(true);
+		expect(isProtocolOff(some, 'sftp')).toBe(false);
+		expect(isProtocolOff(some, 'smb')).toBe(false);
+	});
+
+	it('keeps them when an overview arrives', () => {
+		const view = { ...EMPTY_VIEW, protocols: { schemes: ['sftp'], off: [] } };
+		const overview = {
+			connections: { revision: 1, connections: [], recent: [] },
+			statuses: [],
+		};
+		expect(fromOverview(view, overview).protocols).toEqual({ schemes: ['sftp'], off: [] });
+	});
+
+	it('reads the scheme of a login key', () => {
+		expect(schemeOfKey('sftp://me@nas.lan')).toBe('sftp');
+		expect(schemeOfKey('DAVS://cloud')).toBe('davs');
+		expect(schemeOfKey('nonsense')).toBe('');
 	});
 });

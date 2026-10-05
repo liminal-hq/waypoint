@@ -18,8 +18,9 @@ import { getStatus as gitStatus } from '@liminal-hq/waypoint-plugin-git';
 import { getStatus as opsStatus } from '@liminal-hq/waypoint-plugin-ops';
 import { getStatus as sessionStatus } from '@liminal-hq/waypoint-plugin-session';
 import { getStatus as settingsStatus } from '@liminal-hq/waypoint-plugin-settings';
-import { getStatus as vfsStatus } from '@liminal-hq/waypoint-plugin-vfs';
+import { connectionSupport, getStatus as vfsStatus } from '@liminal-hq/waypoint-plugin-vfs';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
+import { t } from '../i18n/messages';
 import { collectStatuses, type StatusSource } from './status';
 import { createTauriIntegrationsClient } from './tauriIntegrationsClient';
 
@@ -178,6 +179,26 @@ export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 	return summarise(status, Object.entries(status.features));
 }
 
+/**
+ * A remote protocol's line in the Services panel (D167): available while its provider is
+ * registered, "Turned off in Settings → Experimental" while its switch is off, and "Not included in
+ * this build" where the build has no provider for it. `schemes` are the URI schemes it serves.
+ */
+export function protocolServiceStatus(schemes: readonly string[]): StatusSource {
+	return async () => {
+		const support = await connectionSupport();
+		if (schemes.some((scheme) => support.schemes.includes(scheme))) {
+			return { available: true, reason: null, features: [...schemes] };
+		}
+		const off = schemes.some((scheme) => support.off.includes(scheme));
+		return {
+			available: false,
+			reason: off ? t('protocol.off.reason') : t('services.protocol.notBuilt'),
+			features: [],
+		};
+	};
+}
+
 let inflight: Promise<Record<string, PluginStatus>> | null = null;
 
 /**
@@ -228,6 +249,11 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	secrets: secretsServiceStatus,
 	'window-effects': windowEffectsServiceStatus,
 	'mime-apps': mimeAppsServiceStatus,
+	// The remote protocols are not plugins: each is a provider the file system plugin serves while its Settings → Experimental switch is on (D167).
+	sftp: protocolServiceStatus(['sftp']),
+	smb: protocolServiceStatus(['smb']),
+	webdav: protocolServiceStatus(['dav', 'davs']),
+	s3: protocolServiceStatus(['s3']),
 	// Used only from Rust, so they report through the app's `get_integration_statuses` (A66).
 	'xdg-portal': integrationServiceStatus('xdg-portal'),
 	'desktop-integration': integrationServiceStatus('desktop-integration'),

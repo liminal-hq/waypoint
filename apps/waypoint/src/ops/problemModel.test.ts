@@ -23,6 +23,10 @@ const CASES: Array<[OpsError, RegExp]> = [
 	[{ kind: 'originMissingParent', location: at }, /no longer exists. Recreate it/],
 	[{ kind: 'cancelled' }, /was cancelled/],
 	[{ kind: 'unsupported', what: 'links' }, /not supported yet: links/],
+	[
+		{ kind: 'protocolOff', scheme: 'davs' },
+		/WebDAV \(HTTPS\) is turned off in Settings → Experimental/,
+	],
 	[{ kind: 'changedSince', location: at }, /changed after the job was planned/],
 	[
 		{ kind: 'verifyFailed', location: at, expected: 'aa', actual: 'bb' },
@@ -58,7 +62,7 @@ describe('problemText', () => {
 
 	it('covers every kind of error', () => {
 		const kinds = new Set(CASES.map(([error]) => error.kind));
-		expect(kinds.size).toBe(20);
+		expect(kinds.size).toBe(21);
 	});
 
 	it('keeps the checksums of a failed verification as details, not in the message', () => {

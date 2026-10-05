@@ -14,6 +14,7 @@ import type { ConnectionsOverview } from '@liminal-hq/waypoint-protocol/generate
 import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated/KeyringUnavailable';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ParsedAddress } from '@liminal-hq/waypoint-protocol/generated/ParsedAddress';
+import type { ProtocolsChanged } from '@liminal-hq/waypoint-protocol/generated/ProtocolsChanged';
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
 import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
@@ -49,6 +50,8 @@ export interface ConnectionsClient {
 	state(location: Location): Promise<ConnectionStatus | null>;
 	onChanged(listener: (change: ConnectionsChanged) => void): Unsubscribe;
 	onState(listener: (status: ConnectionStatus) => void): Unsubscribe;
+	/** Hears a remote protocol being turned on or off in Settings → Experimental (D167). */
+	onProtocols(listener: (change: ProtocolsChanged) => void): Unsubscribe;
 }
 
 /** How an edit of the saved connections is refused. */

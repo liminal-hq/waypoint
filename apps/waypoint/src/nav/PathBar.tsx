@@ -17,6 +17,8 @@ import {
 	type KeyboardEvent,
 } from 'react';
 import { useConnectionsView } from '../connections/ConnectionsContext';
+import { schemeLabel } from '../connections/connectModel';
+import { ExperimentalLink } from '../connections/ProtocolOff';
 import { useVfsClient } from '../browse/VfsClientContext';
 import { dropAttributes } from '../dnd/dropTargets';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
@@ -43,6 +45,8 @@ function problemText(error: VfsError, input: string): string {
 			return tf('nav.path.invalid', { input });
 		case 'unsupported':
 			return tf('nav.path.unsupported', { what: error.what });
+		case 'protocolOff':
+			return tf('nav.path.protocolOff', { protocol: schemeLabel(error.scheme) });
 		default:
 			return t('nav.path.failed');
 	}
@@ -149,6 +153,8 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 	const field = useRef<HTMLInputElement | null>(null);
 	const [text, setText] = useState(location.display);
 	const [problem, setProblem] = useState<string | null>(null);
+	// The address named a protocol that is turned off: the problem links to the page that turns it on.
+	const [problemOff, setProblemOff] = useState(false);
 	const [note, setNote] = useState<string | null>(null);
 	const problemId = useId();
 	const noteId = useId();
@@ -197,7 +203,9 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 			onCommitted?.();
 		} catch (error) {
 			if (mine !== attempt.current) return;
-			setProblem(problemText(toVfsError(error), text));
+			const failure = toVfsError(error);
+			setProblem(problemText(failure, text));
+			setProblemOff(failure.kind === 'protocolOff');
 		}
 	};
 
@@ -230,6 +238,7 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 				onChange={(event) => {
 					setText(event.target.value);
 					setProblem(null);
+					setProblemOff(false);
 					setNote(null);
 				}}
 				onKeyDown={onKeyDown}
@@ -246,6 +255,7 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 					{problem}
 				</p>
 			)}
+			{problem && problemOff && <ExperimentalLink />}
 			{note && !problem && (
 				<p id={noteId} className={styles.problem} role="status" data-tone="note">
 					{note}

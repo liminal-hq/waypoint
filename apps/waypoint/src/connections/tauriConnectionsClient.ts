@@ -45,5 +45,6 @@ export function createTauriConnectionsClient(): ConnectionsClient {
 		state: (location) => vfs.connectionState(location),
 		onChanged: (listener) => follow(() => vfs.onConnectionsChanged(listener), 'connection changes'),
 		onState: (listener) => follow(() => vfs.onConnectionState(listener), 'connection states'),
+		onProtocols: (listener) => follow(() => vfs.onProtocolsChanged(listener), 'protocol changes'),
 	};
 }

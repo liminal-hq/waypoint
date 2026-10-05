@@ -28,6 +28,8 @@ import {
 	type FormField,
 } from './connectModel';
 import type { ConnectRequest } from './connectStore';
+import { useConnectionsView } from './ConnectionsContext';
+import { ExperimentalLink } from './ProtocolOff';
 import styles from './Connect.module.css';
 
 /** How long typing in the address waits before Rust reads it. */
@@ -85,6 +87,8 @@ export function ConnectDialog({
 		initial?.location.display ?? (request.mode === 'new' ? (request.address ?? '') : ''),
 	);
 	const [addressNote, setAddressNote] = useState('');
+	// The address named a protocol that is turned off: the problem links to the page that turns it on.
+	const [addressOff, setAddressOff] = useState(false);
 	const [problems, setProblems] = useState<Problems>({});
 	const [password, setPassword] = useState('');
 	const [remember, setRemember] = useState(false);
@@ -136,7 +140,11 @@ export function ConnectDialog({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	const schemes = support?.schemes ?? [form.scheme];
+	// The protocols that are on follow Settings → Experimental while the dialog is open; the form's
+	// own scheme stays listed (marked) when it is off, so editing a saved connection of it still shows it.
+	const protocols = useConnectionsView((view) => view.protocols);
+	const enabled = protocols?.schemes ?? support?.schemes ?? [form.scheme];
+	const schemes = enabled.includes(form.scheme) ? enabled : [...enabled, form.scheme];
 	const keyring = support ? support.keyring : 'noKeyring';
 
 	const change = <K extends keyof ConnectForm>(key: K, value: ConnectForm[K]) => {
@@ -149,6 +157,7 @@ export function ConnectDialog({
 		const turn = ++parseTurn.current;
 		if (text.trim() === '') {
 			setAddressNote('');
+			setAddressOff(false);
 			setProblems((now) => ({ ...now, address: undefined }));
 			return;
 		}
@@ -157,17 +166,21 @@ export function ConnectDialog({
 				if (turn !== parseTurn.current) return;
 				setForm((now) => formOf(parsed.draft, now));
 				setProblems({});
+				setAddressOff(false);
 				setAddressNote(parsed.passwordDropped ? t('connect.address.passwordDropped') : '');
 			},
 			(error: unknown) => {
 				if (turn !== parseTurn.current) return;
 				setAddressNote('');
+				setAddressOff(isVfsError(error) && error.kind === 'protocolOff');
 				setProblems((now) => ({
 					...now,
 					address:
 						isVfsError(error) && error.kind === 'unsupported'
 							? tf('connect.address.unsupported', { scheme: error.what })
-							: t('connect.address.invalid'),
+							: isVfsError(error) && error.kind === 'protocolOff'
+								? tf('connect.address.protocolOff', { protocol: schemeLabel(error.scheme) })
+								: t('connect.address.invalid'),
 				}));
 			},
 		);
@@ -469,6 +482,7 @@ export function ConnectDialog({
 							<p id={`${ids.address}-problem`} className={styles.problem} role="alert">
 								{problems.address ?? ''}
 							</p>
+							{problems.address && addressOff && <ExperimentalLink />}
 						</div>
 						<div className={styles.row}>
 							{field(
@@ -514,7 +528,9 @@ export function ConnectDialog({
 								>
 									{schemes.map((scheme) => (
 										<option key={scheme} value={scheme}>
-											{schemeLabel(scheme)}
+											{enabled.includes(scheme)
+												? schemeLabel(scheme)
+												: tf('connect.scheme.off', { protocol: schemeLabel(scheme) })}
 										</option>
 									))}
 								</select>,

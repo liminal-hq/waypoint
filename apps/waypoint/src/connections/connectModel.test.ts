@@ -93,3 +93,15 @@ describe('refusals and errors', () => {
 		expect(rememberedText({ kind: 'sessionOnly', why: 'locked' })).toMatch(/keyring is locked/);
 	});
 });
+
+describe('a protocol that is turned off', () => {
+	it('is said in words with where to turn it on', () => {
+		expect(connectionErrorText({ kind: 'protocolOff', scheme: 'sftp' })).toBe(
+			'Not connected: SFTP (SSH) is turned off in Settings → Experimental.',
+		);
+	});
+
+	it('asks no question', () => {
+		expect(questionOf({ kind: 'protocolOff', scheme: 'sftp' })).toBeNull();
+	});
+});

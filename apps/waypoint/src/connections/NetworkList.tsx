@@ -24,9 +24,11 @@ import { ITEM_ATTRIBUTE, moveFocusInList } from '../sidebar/itemList';
 import sidebar from '../sidebar/Sidebar.module.css';
 import { connectionErrorText, keyringText } from './connectModel';
 import { useConnections, useConnectionsView } from './ConnectionsContext';
-import { stateOf } from './connectionsModel';
+import { isProtocolOff, schemeOfKey, stateOf } from './connectionsModel';
 import { DisconnectIcon, ServerIcon } from './ConnectionIcons';
 import { openConnectDialog } from './connectStore';
+import { EXPERIMENTAL_SECTION } from './ProtocolOff';
+import { openSettingsWindow } from '../settings/openSettingsWindow';
 import { stateTone, stateWords } from './remoteModel';
 import styles from './NetworkList.module.css';
 
@@ -109,15 +111,22 @@ export function NetworkList({
 	const menuItems = (row: Row): MenuItem[] => {
 		const state = stateOf(view, keyOf(row));
 		const live = state.kind === 'connected' || state.kind === 'connecting';
-		const items: MenuItem[] = [
-			{ type: 'action', id: 'open', label: t('network.menu.open') },
-			{ type: 'action', id: 'openInNewTab', label: t('network.menu.openInNewTab') },
-			{ type: 'separator', id: 'sep-connect' },
-			live
-				? { type: 'action', id: 'disconnect', label: t('network.menu.disconnect') }
-				: { type: 'action', id: 'connect', label: t('network.menu.connect') },
-			{ type: 'separator', id: 'sep-edit' },
-		];
+		const off = isProtocolOff(view, schemeOfKey(keyOf(row)));
+		// A server of a protocol that is turned off cannot connect: the menu offers the page that turns it on instead.
+		const items: MenuItem[] = off
+			? [
+					{ type: 'action', id: 'experimental', label: t('network.menu.experimental') },
+					{ type: 'separator', id: 'sep-edit' },
+				]
+			: [
+					{ type: 'action', id: 'open', label: t('network.menu.open') },
+					{ type: 'action', id: 'openInNewTab', label: t('network.menu.openInNewTab') },
+					{ type: 'separator', id: 'sep-connect' },
+					live
+						? { type: 'action', id: 'disconnect', label: t('network.menu.disconnect') }
+						: { type: 'action', id: 'connect', label: t('network.menu.connect') },
+					{ type: 'separator', id: 'sep-edit' },
+				];
 		if (row.kind === 'saved') {
 			items.push(
 				{ type: 'action', id: 'edit', label: t('network.menu.edit') },
@@ -153,6 +162,8 @@ export function NetworkList({
 				return openInNewTab(locationOf(row));
 			case 'connect':
 				return connect(row);
+			case 'experimental':
+				return openSettingsWindow(EXPERIMENTAL_SECTION);
 			case 'disconnect':
 				return disconnect(row);
 			case 'edit':
@@ -244,12 +255,14 @@ export function NetworkList({
 		const tone = stateTone(state);
 		const label = labelOf(row);
 		const location = locationOf(row);
-		const live = state.kind === 'connected' || state.kind === 'connecting';
+		const off = isProtocolOff(view, schemeOfKey(key));
+		const live = !off && (state.kind === 'connected' || state.kind === 'connecting');
 		const current = currentConnection === key;
 		return (
 			<li
 				key={row.kind === 'saved' ? row.entry.connection.id : `recent-${row.server.key}`}
 				className={styles.row}
+				data-off={off ? '' : undefined}
 			>
 				<button
 					type="button"
@@ -266,11 +279,13 @@ export function NetworkList({
 				>
 					<span className={styles.iconWrap}>
 						<ServerIcon className={sidebar.itemIcon} />
-						<span className={styles.dot} data-tone={tone} aria-hidden="true" />
+						<span className={styles.dot} data-tone={off ? 'idle' : tone} aria-hidden="true" />
 					</span>
 					<span className={styles.text}>
 						<span className={sidebar.label}>{label}</span>
-						<span className={styles.detail}>{detailOf(state)}</span>
+						<span className={styles.detail}>
+							{off ? t('protocol.off.reason') : detailOf(state)}
+						</span>
 					</span>
 				</button>
 				{live && (

@@ -18,6 +18,7 @@ import type { RecentServer } from '@liminal-hq/waypoint-protocol/generated/Recen
 import type { Remembered } from '@liminal-hq/waypoint-protocol/generated/Remembered';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
 import type { TestedConnection } from '@liminal-hq/waypoint-protocol/generated/TestedConnection';
+import type { ProtocolsChanged } from '@liminal-hq/waypoint-protocol/generated/ProtocolsChanged';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import type { Unsubscribe } from '../services/vfsClient';
 import type { ConnectionsClient, ConnectionsRefusal } from './connectionsClient';
@@ -32,6 +33,7 @@ export interface FakeConnectionsOptions {
 	connections?: ConnectionDraft[];
 	recent?: RecentServer[];
 	schemes?: string[];
+	off?: string[];
 	keyring?: KeyringUnavailable | null;
 	suggested?: string[];
 	connect?: ConnectScript;
@@ -97,8 +99,11 @@ export class FakeConnectionsClient implements ConnectionsClient {
 	private readonly states = new Map<string, ConnectionState>();
 	private readonly changedListeners = new Set<(change: ConnectionsChanged) => void>();
 	private readonly stateListeners = new Set<(status: ConnectionStatus) => void>();
+	private readonly protocolListeners = new Set<(change: ProtocolsChanged) => void>();
 	readonly calls: { method: string; args: unknown[] }[] = [];
 	schemes: string[];
+	/** Protocols the build has that are turned off (D167). */
+	off: string[];
 	keyring: KeyringUnavailable | null;
 	suggestions: string[];
 	script: ConnectScript;
@@ -107,6 +112,7 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		for (const d of options.connections ?? []) this.entries.push(entryOf(`c${this.next++}`, d));
 		this.recent = options.recent ?? [];
 		this.schemes = options.schemes ?? ['sftp'];
+		this.off = options.off ?? [];
 		this.keyring = options.keyring ?? null;
 		this.suggestions = options.suggested ?? [];
 		this.script = options.connect ?? (() => null);
@@ -146,7 +152,7 @@ export class FakeConnectionsClient implements ConnectionsClient {
 	}
 
 	async support(): Promise<ConnectionSupport> {
-		return { schemes: [...this.schemes], keyring: this.keyring };
+		return { schemes: [...this.schemes], off: [...this.off], keyring: this.keyring };
 	}
 
 	async suggested(): Promise<SuggestedServer[]> {
@@ -164,6 +170,7 @@ export class FakeConnectionsClient implements ConnectionsClient {
 			);
 		if (!match) throw { kind: 'invalidLocation', input: text } satisfies VfsError;
 		const scheme = (match[1] ?? '').toLowerCase();
+		if (this.off.includes(scheme)) throw { kind: 'protocolOff', scheme } satisfies VfsError;
 		if (!this.schemes.includes(scheme))
 			throw { kind: 'unsupported', what: scheme } satisfies VfsError;
 		const port = match[5] && match[5] !== '22' ? Number(match[5]) : null;
@@ -301,6 +308,8 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		remember = false,
 	): Promise<Remembered> {
 		this.record('connect', location, answer?.kind ?? null, remember);
+		const scheme = /^([a-z]+):\/\//.exec(location.uri)?.[1] ?? '';
+		if (this.off.includes(scheme)) throw { kind: 'protocolOff', scheme } satisfies VfsError;
 		return this.run(this.keyOfLocation(location), answer, remember);
 	}
 
@@ -335,5 +344,18 @@ export class FakeConnectionsClient implements ConnectionsClient {
 	onState(listener: (status: ConnectionStatus) => void): Unsubscribe {
 		this.stateListeners.add(listener);
 		return () => this.stateListeners.delete(listener);
+	}
+
+	onProtocols(listener: (change: ProtocolsChanged) => void): Unsubscribe {
+		this.protocolListeners.add(listener);
+		return () => this.protocolListeners.delete(listener);
+	}
+
+	/** Turns the protocols in `on` on and the other `known` ones off, and tells the listeners. */
+	setProtocols(on: string[], known: string[] = [...this.schemes, ...this.off]) {
+		this.schemes = known.filter((scheme) => on.includes(scheme));
+		this.off = known.filter((scheme) => !on.includes(scheme));
+		const change = { schemes: [...this.schemes], off: [...this.off] };
+		for (const listener of this.protocolListeners) listener(change);
 	}
 }

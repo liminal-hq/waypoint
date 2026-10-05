@@ -209,6 +209,8 @@ export function connectionErrorText(error: unknown): string {
 			return t('connect.error.certificate');
 		case 'unsupported':
 			return tf('connect.error.unsupported', { what: error.what });
+		case 'protocolOff':
+			return tf('connect.error.protocolOff', { protocol: schemeLabel(error.scheme) });
 		case 'invalidLocation':
 			return t('connect.error.invalid');
 		case 'permissionDenied':
