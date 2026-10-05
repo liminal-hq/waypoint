@@ -283,6 +283,11 @@ jobs:
         env:
           WAYPOINT_SMB_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-smb
+      - name: Run the S3 provider against rclone and MinIO
+        id: s3
+        env:
+          WAYPOINT_S3_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-s3
       - name: Run the archive provider against the real archivers
         id: archive
         env:
@@ -303,6 +308,7 @@ jobs:
             echo "|---|---|---|"
             echo "| SFTP and WebDAV | \`${{ steps.providers.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config -p waypoint-provider-webdav\` |"
             echo "| SMB | \`${{ steps.smb.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-smb\` |"
+            echo "| S3 | \`${{ steps.s3.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-s3\` |"
             echo "| Archives | \`${{ steps.archive.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-archive\` |"
             echo "| Git | \`${{ steps.git.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-git\` |"
             echo
