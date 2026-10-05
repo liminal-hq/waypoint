@@ -2534,6 +2534,31 @@ export const enMessages = {
 	'git.pane.commit.by': '{author}, {date}',
 	'git.pane.many': 'The history shows for one item at a time. Select a single item to see it.',
 	'git.pane.repositoryName': 'Git repository {name}',
+	'connect.auth.token': 'Access token',
+	'connect.auth.tokenHint': 'Signs in with a token from the server, asked for when it connects.',
+	'connect.auth.autoHintSmb':
+		'Uses the password Waypoint remembers for this server and user, and asks when it has none.',
+	'connect.auth.autoHintDav':
+		'Lets the server say how to sign in, then uses a remembered password or asks for one.',
+	'connect.address.placeholderSmb': 'smb://domain;user@host/share',
+	'connect.address.placeholderDav': 'davs://host/folder',
+	'connect.field.domain': 'Domain',
+	'connect.field.domainHint': 'Optional. For a Windows domain account, such as WORK.',
+	// translator: A share is a folder that a Windows or Samba server offers on the network (SMB), not the verb.
+	'connect.field.share': 'Share',
+	'connect.field.shareHint': 'Optional. Leave it empty to browse the server’s shares.',
+	'connect.field.token': 'Access token',
+	'connect.field.davAuth': 'Password sent as',
+	'connect.davAuth.auto': 'The server’s choice',
+	'connect.davAuth.basic': 'Basic (an app password)',
+	'connect.davAuth.digest': 'Digest',
+	'connect.field.nextcloud': 'This is a Nextcloud server',
+	'connect.field.nextcloudHint':
+		'Opens at your own files. Sign in with an app password made in your account’s security settings.',
+	'connect.nextcloud.fill': 'Fill in my files folder',
+	'connect.dav.unencrypted':
+		'This connection is not encrypted: anyone on the network can read what is sent, passwords included.',
+	'connect.problem.domainUser': 'Give the user name that goes with the domain.',
 } as const;
 
 export type MessageId = keyof typeof enMessages;

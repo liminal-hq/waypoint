@@ -4885,6 +4885,51 @@ const messages: Catalogue = {
 		'L’historique s’affiche pour un seul élément à la fois. Sélectionnez un élément pour le voir.',
 	// source: 46053dfe
 	'git.pane.repositoryName': 'Dépôt Git {name}',
+	// source: 9a911b08
+	'connect.auth.token': 'Jeton d’accès',
+	// source: 916993a1
+	'connect.auth.tokenHint':
+		'Se connecte avec un jeton fourni par le serveur, demandé à la connexion.',
+	// source: 3b0736da
+	'connect.auth.autoHintSmb':
+		'Utilise le mot de passe que Waypoint a retenu pour ce serveur et cet utilisateur, et le demande s’il n’en a aucun.',
+	// source: 9715f26b
+	'connect.auth.autoHintDav':
+		'Laisse le serveur indiquer comment se connecter, puis utilise un mot de passe retenu ou en demande un.',
+	// source: aa20ea4e
+	'connect.address.placeholderSmb': 'smb://domaine;utilisateur@hôte/partage',
+	// source: 4e236334
+	'connect.address.placeholderDav': 'davs://hôte/dossier',
+	// source: 79fa3361
+	'connect.field.domain': 'Domaine',
+	// source: 5ebaf4ff
+	'connect.field.domainHint': 'Facultatif. Pour un compte de domaine Windows, comme TRAVAIL.',
+	// source: 29887a5f
+	'connect.field.share': 'Partage',
+	// source: 780d2c63
+	'connect.field.shareHint': 'Facultatif. Laissez vide pour parcourir les partages du serveur.',
+	// source: 9a911b08
+	'connect.field.token': 'Jeton d’accès',
+	// source: 24b96146
+	'connect.field.davAuth': 'Mot de passe envoyé en mode',
+	// source: 0f37e150
+	'connect.davAuth.auto': 'Au choix du serveur',
+	// source: 568f00ed
+	'connect.davAuth.basic': 'Basique (un mot de passe d’application)',
+	// source: 6e2f80bf
+	'connect.davAuth.digest': 'Condensé (Digest)',
+	// source: 9881c85a
+	'connect.field.nextcloud': 'Ceci est un serveur Nextcloud',
+	// source: 342658d3
+	'connect.field.nextcloudHint':
+		'S’ouvre sur vos propres fichiers. Connectez-vous avec un mot de passe d’application créé dans les paramètres de sécurité de votre compte.',
+	// source: a40b044e
+	'connect.nextcloud.fill': 'Remplir mon dossier de fichiers',
+	// source: 934afebe
+	'connect.dav.unencrypted':
+		'Cette connexion n’est pas chiffrée : toute personne sur le réseau peut lire ce qui est envoyé, mots de passe compris.',
+	// source: 64a4a301
+	'connect.problem.domainUser': 'Indiquez le nom d’utilisateur qui accompagne le domaine.',
 };
 
 export default messages;

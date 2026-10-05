@@ -20,10 +20,14 @@ import {
 	draftOf,
 	draftProblem,
 	emptyForm,
+	familyOf,
 	formOf,
+	formProblem,
 	keyringText,
+	methodsFor,
 	rememberedText,
 	schemeLabel,
+	withScheme,
 	type ConnectForm,
 	type FormField,
 } from './connectModel';
@@ -35,11 +39,27 @@ import styles from './Connect.module.css';
 /** How long typing in the address waits before Rust reads it. */
 const PARSE_DELAY_MS = 200;
 
-const METHODS: readonly { value: AuthMethod; label: MessageId; hint: MessageId }[] = [
-	{ value: 'auto', label: 'connect.auth.auto', hint: 'connect.auth.autoHint' },
-	{ value: 'password', label: 'connect.auth.password', hint: 'connect.auth.passwordHint' },
-	{ value: 'keyFile', label: 'connect.auth.keyFile', hint: 'connect.auth.keyFileHint' },
-];
+const METHODS: Record<AuthMethod, { label: MessageId; hint: (family: string) => MessageId }> = {
+	auto: {
+		label: 'connect.auth.auto',
+		hint: (family) =>
+			family === 'smb'
+				? 'connect.auth.autoHintSmb'
+				: family === 'dav'
+					? 'connect.auth.autoHintDav'
+					: 'connect.auth.autoHint',
+	},
+	password: { label: 'connect.auth.password', hint: () => 'connect.auth.passwordHint' },
+	keyFile: { label: 'connect.auth.keyFile', hint: () => 'connect.auth.keyFileHint' },
+	token: { label: 'connect.auth.token', hint: () => 'connect.auth.tokenHint' },
+};
+
+/** The address field's example, in the form of the protocol chosen. */
+const PLACEHOLDERS: Record<string, MessageId> = {
+	smb: 'connect.address.placeholderSmb',
+	davs: 'connect.address.placeholderDav',
+	dav: 'connect.address.placeholderDav',
+};
 
 export interface ConnectDialogProps {
 	client: ConnectionsClient;
@@ -111,6 +131,10 @@ export function ConnectDialog({
 		jumpHost: useId(),
 		startFolder: useId(),
 		refresh: useId(),
+		domain: useId(),
+		share: useId(),
+		davAuth: useId(),
+		nextcloud: useId(),
 		password: useId(),
 		remember: useId(),
 		hosts: useId(),
@@ -148,10 +172,14 @@ export function ConnectDialog({
 	const keyring = support ? support.keyring : 'noKeyring';
 
 	const change = <K extends keyof ConnectForm>(key: K, value: ConnectForm[K]) => {
-		setForm((now) => ({ ...now, [key]: value }));
+		setForm((now) =>
+			key === 'scheme' ? withScheme(now, value as string) : { ...now, [key]: value },
+		);
 		setProblems((now) => ({ ...now, [key]: undefined }));
 		setResult(null);
 	};
+	const family = familyOf(form.scheme);
+	const methods = methodsFor(form.scheme);
 
 	function readAddress(text: string) {
 		const turn = ++parseTurn.current;
@@ -205,13 +233,48 @@ export function ConnectDialog({
 	};
 
 	/** The password typed with "Password" chosen, sent with the first attempt. */
-	const firstAnswer = (): Answered | null =>
-		form.auth === 'password' && password !== ''
+	const firstAnswer = (): Answered | null => {
+		if (password === '') return null;
+		if (form.auth === 'token') {
+			return {
+				answer: { kind: 'passphrase', passphrase: password },
+				remember: keyring === null && remember,
+			};
+		}
+		return form.auth === 'password'
 			? {
-					answer: { kind: 'password', user: form.user.trim() || null, password },
+					answer: {
+						kind: 'password',
+						// The user as the login names it (`domain;user` on SMB).
+						user: draftOf(form).user,
+						password,
+					},
 					remember: keyring === null && remember,
 				}
 			: null;
+	};
+
+	/** What is wrong before anything is sent: put under its field, as a refusal would be. */
+	const checkForm = (): boolean => {
+		const problem = formProblem(form);
+		if (!problem) return true;
+		setProblems({ [problem.field]: problem.message });
+		setResult({ tone: 'failed', text: problem.message });
+		return false;
+	};
+
+	/** The Nextcloud preset: Rust writes the address of the person's files, and the dialog reads it like a typed one. */
+	const fillNextcloud = async () => {
+		const server = `${form.host.trim()}${form.port.trim() ? `:${form.port.trim()}` : ''}`;
+		try {
+			const written = await client.nextcloudAddress(server, form.user.trim());
+			setAddress(written);
+			readAddress(written);
+			setForm((now) => ({ ...now, nextcloud: true }));
+		} catch (error) {
+			refuse(error);
+		}
+	};
 
 	/** Puts a refusal under its field, or says it as the result. */
 	const refuse = (error: unknown) => {
@@ -225,7 +288,7 @@ export function ConnectDialog({
 	};
 
 	const attempt = async (then: 'test' | 'connect') => {
-		if (busy) return;
+		if (busy || !checkForm()) return;
 		setBusy(then);
 		setResult(null);
 		const draft = draftOf(form);
@@ -261,7 +324,7 @@ export function ConnectDialog({
 	};
 
 	const save = async () => {
-		if (busy) return;
+		if (busy || !checkForm()) return;
 		setBusy('save');
 		setResult(null);
 		try {
@@ -469,7 +532,7 @@ export function ConnectDialog({
 								className={styles.input}
 								value={address}
 								disabled={working}
-								placeholder={t('connect.address.placeholder')}
+								placeholder={t(PLACEHOLDERS[form.scheme] ?? 'connect.address.placeholder')}
 								autoComplete="off"
 								spellCheck={false}
 								aria-invalid={problems.address ? true : undefined}
@@ -515,6 +578,14 @@ export function ConnectDialog({
 						</div>
 						<div className={styles.row}>
 							{field('user', ids.user, 'connect.field.user', text('user', ids.user, form.user))}
+							{family === 'smb' &&
+								field(
+									'domain',
+									ids.domain,
+									'connect.field.domain',
+									text('domain', ids.domain, form.domain, true),
+									'connect.field.domainHint',
+								)}
 							{field(
 								'scheme',
 								ids.scheme,
@@ -543,27 +614,100 @@ export function ConnectDialog({
 							text('name', ids.name, form.name, true),
 							'connect.field.nameHint',
 						)}
+						{family === 'smb' &&
+							field(
+								'startFolder',
+								ids.share,
+								'connect.field.share',
+								<input
+									id={ids.share}
+									className={styles.input}
+									value={form.startFolder.replace(/^\/+/, '')}
+									disabled={working}
+									autoComplete="off"
+									spellCheck={false}
+									aria-invalid={problems.startFolder ? true : undefined}
+									aria-describedby={described('startFolder', ids.share, true)}
+									onChange={(event) => {
+										const folder = event.target.value.replace(/^\/+/, '');
+										change('startFolder', folder === '' ? '' : `/${folder}`);
+									}}
+								/>,
+								'connect.field.shareHint',
+							)}
+						{family === 'dav' && form.scheme === 'dav' && (
+							<p className={styles.hint} role="note">
+								{t('connect.dav.unencrypted')}
+							</p>
+						)}
 						<fieldset className={styles.methods} disabled={working}>
 							<legend>{t('connect.field.auth')}</legend>
-							{METHODS.map((method) => (
-								<label key={method.value} className={styles.check} title={t(method.hint)}>
+							{methods.map((method) => (
+								<label
+									key={method}
+									className={styles.check}
+									title={t(METHODS[method].hint(family))}
+								>
 									<input
 										type="radio"
 										name={`${ids.password}-auth`}
-										value={method.value}
-										checked={form.auth === method.value}
-										onChange={() => change('auth', method.value)}
+										value={method}
+										checked={form.auth === method}
+										onChange={() => change('auth', method)}
 									/>
-									{t(method.label)}
+									{t(METHODS[method].label)}
 								</label>
 							))}
 						</fieldset>
-						<p className={styles.hint}>
-							{t(
-								METHODS.find((method) => method.value === form.auth)?.hint ??
-									'connect.auth.autoHint',
-							)}
-						</p>
+						<p className={styles.hint}>{t(METHODS[form.auth].hint(family))}</p>
+						{family === 'dav' && form.auth === 'password' && (
+							<div className={styles.field}>
+								<label className={styles.label} htmlFor={ids.davAuth}>
+									{t('connect.field.davAuth')}
+								</label>
+								<select
+									id={ids.davAuth}
+									className={styles.input}
+									value={form.davAuth}
+									disabled={working}
+									onChange={(event) =>
+										change('davAuth', event.target.value as ConnectForm['davAuth'])
+									}
+								>
+									<option value="auto">{t('connect.davAuth.auto')}</option>
+									<option value="basic">{t('connect.davAuth.basic')}</option>
+									<option value="digest">{t('connect.davAuth.digest')}</option>
+								</select>
+							</div>
+						)}
+						{family === 'dav' && (
+							<div className={styles.field}>
+								<label className={styles.check} htmlFor={ids.nextcloud}>
+									<input
+										id={ids.nextcloud}
+										type="checkbox"
+										checked={form.nextcloud}
+										disabled={working}
+										aria-describedby={`${ids.nextcloud}-hint`}
+										onChange={(event) => change('nextcloud', event.target.checked)}
+									/>
+									{t('connect.field.nextcloud')}
+								</label>
+								<p id={`${ids.nextcloud}-hint`} className={styles.hint}>
+									{t('connect.field.nextcloudHint')}
+								</p>
+								{form.nextcloud && (
+									<button
+										type="button"
+										className={styles.small}
+										disabled={working || form.host.trim() === '' || form.user.trim() === ''}
+										onClick={() => void fillNextcloud()}
+									>
+										{t('connect.nextcloud.fill')}
+									</button>
+								)}
+							</div>
+						)}
 						{form.auth === 'keyFile' &&
 							field(
 								'keyFile',
@@ -572,10 +716,10 @@ export function ConnectDialog({
 								text('keyFile', ids.keyFile, form.keyFile, true),
 								'connect.field.keyFileHint',
 							)}
-						{form.auth === 'password' && (
+						{(form.auth === 'password' || form.auth === 'token') && (
 							<div className={styles.field}>
 								<label className={styles.label} htmlFor={ids.password}>
-									{t('connect.field.password')}
+									{form.auth === 'token' ? t('connect.field.token') : t('connect.field.password')}
 								</label>
 								<input
 									id={ids.password}
@@ -611,20 +755,22 @@ export function ConnectDialog({
 						)}
 						<details className={styles.more}>
 							<summary>{t('connect.more')}</summary>
-							{field(
-								'jumpHost',
-								ids.jumpHost,
-								'connect.field.jumpHost',
-								text('jumpHost', ids.jumpHost, form.jumpHost, true),
-								'connect.field.jumpHostHint',
-							)}
-							{field(
-								'startFolder',
-								ids.startFolder,
-								'connect.field.startFolder',
-								text('startFolder', ids.startFolder, form.startFolder, true),
-								'connect.field.startFolderHint',
-							)}
+							{family === 'ssh' &&
+								field(
+									'jumpHost',
+									ids.jumpHost,
+									'connect.field.jumpHost',
+									text('jumpHost', ids.jumpHost, form.jumpHost, true),
+									'connect.field.jumpHostHint',
+								)}
+							{family !== 'smb' &&
+								field(
+									'startFolder',
+									ids.startFolder,
+									'connect.field.startFolder',
+									text('startFolder', ids.startFolder, form.startFolder, true),
+									'connect.field.startFolderHint',
+								)}
 							{field(
 								'refreshSeconds',
 								ids.refresh,

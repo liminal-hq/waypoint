@@ -58,6 +58,8 @@ export function draft(fields: Partial<ConnectionDraft> = {}): ConnectionDraft {
 			listingRequests: null,
 			transferRequests: null,
 			windowKib: null,
+			davAuth: null,
+			davPreset: null,
 		},
 		...fields,
 	};
@@ -323,6 +325,15 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		const key = keyOf(checked);
 		const remembered = await this.run(key, answer, remember);
 		return { remembered, key, location: serverLocation(key, checked.startFolder ?? '/') };
+	}
+
+	async nextcloudAddress(server: string, user: string): Promise<string> {
+		this.record('nextcloudAddress', server, user);
+		const match = /^(?:(https?|davs?):\/\/)?([^/@\s]+)((?:\/[^/\s]+)*)\/?$/.exec(server.trim());
+		if (!match || !user) throw { kind: 'invalidLocation', input: server } satisfies VfsError;
+		const scheme = match[1] === 'http' || match[1] === 'dav' ? 'dav' : 'davs';
+		const id = encodeURIComponent(user);
+		return `${scheme}://${id}@${match[2]}${match[3] ?? ''}/remote.php/dav/files/${id}`;
 	}
 
 	async disconnect(location: Location): Promise<void> {

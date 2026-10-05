@@ -8902,5 +8902,85 @@
   "git.pane.repositoryName": {
     "message": "Git repository {name}",
     "description": "Area: git. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "connect.auth.token": {
+    "message": "Access token",
+    "description": "Area: connect."
+  },
+  "connect.auth.tokenHint": {
+    "message": "Signs in with a token from the server, asked for when it connects.",
+    "description": "Area: connect."
+  },
+  "connect.auth.autoHintSmb": {
+    "message": "Uses the password Waypoint remembers for this server and user, and asks when it has none.",
+    "description": "Area: connect."
+  },
+  "connect.auth.autoHintDav": {
+    "message": "Lets the server say how to sign in, then uses a remembered password or asks for one.",
+    "description": "Area: connect."
+  },
+  "connect.address.placeholderSmb": {
+    "message": "smb://domain;user@host/share",
+    "description": "Area: connect."
+  },
+  "connect.address.placeholderDav": {
+    "message": "davs://host/folder",
+    "description": "Area: connect."
+  },
+  "connect.field.domain": {
+    "message": "Domain",
+    "description": "Area: connect."
+  },
+  "connect.field.domainHint": {
+    "message": "Optional. For a Windows domain account, such as WORK.",
+    "description": "Area: connect."
+  },
+  "connect.field.share": {
+    "message": "Share",
+    "description": "Area: connect. A share is a folder that a Windows or Samba server offers on the network (SMB), not the verb."
+  },
+  "connect.field.shareHint": {
+    "message": "Optional. Leave it empty to browse the server’s shares.",
+    "description": "Area: connect."
+  },
+  "connect.field.token": {
+    "message": "Access token",
+    "description": "Area: connect."
+  },
+  "connect.field.davAuth": {
+    "message": "Password sent as",
+    "description": "Area: connect."
+  },
+  "connect.davAuth.auto": {
+    "message": "The server’s choice",
+    "description": "Area: connect."
+  },
+  "connect.davAuth.basic": {
+    "message": "Basic (an app password)",
+    "description": "Area: connect."
+  },
+  "connect.davAuth.digest": {
+    "message": "Digest",
+    "description": "Area: connect."
+  },
+  "connect.field.nextcloud": {
+    "message": "This is a Nextcloud server",
+    "description": "Area: connect."
+  },
+  "connect.field.nextcloudHint": {
+    "message": "Opens at your own files. Sign in with an app password made in your account’s security settings.",
+    "description": "Area: connect."
+  },
+  "connect.nextcloud.fill": {
+    "message": "Fill in my files folder",
+    "description": "Area: connect."
+  },
+  "connect.dav.unencrypted": {
+    "message": "This connection is not encrypted: anyone on the network can read what is sent, passwords included.",
+    "description": "Area: connect."
+  },
+  "connect.problem.domainUser": {
+    "message": "Give the user name that goes with the domain.",
+    "description": "Area: connect."
   }
 }

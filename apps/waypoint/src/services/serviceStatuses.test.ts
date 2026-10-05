@@ -31,6 +31,7 @@ const plugins = vi.hoisted(() => ({
 	secrets: vi.fn(),
 	volumes: vi.fn(),
 	support: vi.fn(),
+	details: vi.fn(),
 }));
 vi.mock('@liminal-hq/plugin-volumes', () => ({ getStatus: plugins.volumes }));
 vi.mock('@liminal-hq/plugin-secrets', () => ({ getStatus: plugins.secrets }));
@@ -45,6 +46,7 @@ vi.mock('@liminal-hq/waypoint-plugin-vfs', () => ({
 	connectionSupport: plugins.support,
 }));
 vi.mock('@liminal-hq/plugin-window-manager', () => ({ getStatus: plugins.windowManager }));
+vi.mock('./tauriProtocolsClient', () => ({ protocolDetails: plugins.details }));
 vi.mock('./tauriIntegrationsClient', () => ({
 	createTauriIntegrationsClient: () => ({ statuses: plugins.integrations }),
 }));
@@ -442,20 +444,51 @@ describe('the Services panel sources', () => {
 describe('the remote protocols', () => {
 	const support = (schemes: string[], off: string[]) =>
 		plugins.support.mockResolvedValue({ schemes, off, keyring: null });
+	beforeEach(() => {
+		plugins.details.mockResolvedValue({});
+	});
 
 	it('are available while their provider is registered', async () => {
 		support(['sftp', 'dav', 'davs'], ['smb']);
-		expect(await protocolServiceStatus(['sftp'])()).toEqual({
+		expect(await protocolServiceStatus(['sftp'], 'sftp')()).toEqual({
 			available: true,
 			reason: null,
 			features: ['sftp'],
 		});
-		expect(await protocolServiceStatus(['dav', 'davs'])()).toMatchObject({ available: true });
+		expect(await protocolServiceStatus(['dav', 'davs'], 'webdav')()).toMatchObject({
+			available: true,
+		});
+	});
+
+	it('say what the provider can do, and the reason for what it cannot, in its own words', async () => {
+		support(['smb'], []);
+		plugins.details.mockResolvedValue({
+			smb: {
+				available: true,
+				reason: 'the SMB library Waypoint uses has no Kerberos login yet',
+				features: ['ntlm', 'signing'],
+			},
+		});
+		expect(await protocolServiceStatus(['smb'], 'smb')()).toEqual({
+			available: true,
+			reason: 'the SMB library Waypoint uses has no Kerberos login yet',
+			features: ['ntlm', 'signing'],
+		});
+	});
+
+	it('stay available when the provider’s details cannot be read', async () => {
+		support(['smb'], []);
+		plugins.details.mockRejectedValue(new Error('no command'));
+		expect(await protocolServiceStatus(['smb'], 'smb')()).toEqual({
+			available: true,
+			reason: null,
+			features: ['smb'],
+		});
 	});
 
 	it('say they are turned off in Settings → Experimental while their switch is off', async () => {
 		support([], ['sftp', 'smb']);
-		expect(await protocolServiceStatus(['smb'])()).toEqual({
+		expect(await protocolServiceStatus(['smb'], 'smb')()).toEqual({
 			available: false,
 			reason: 'Turned off in Settings → Experimental',
 			features: [],
@@ -464,7 +497,7 @@ describe('the remote protocols', () => {
 
 	it('say a protocol the build does not have is not included, and each has its own line in the panel', async () => {
 		support([], ['sftp']);
-		expect(await protocolServiceStatus(['s3'])()).toEqual({
+		expect(await protocolServiceStatus(['s3'], 's3')()).toEqual({
 			available: false,
 			reason: 'Not included in this build',
 			features: [],

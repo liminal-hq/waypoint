@@ -46,6 +46,12 @@ export interface ConnectionsClient {
 		answer?: AnswerInput | null,
 		remember?: boolean,
 	): Promise<TestedConnection>;
+	/**
+	 * The address of a person's files on the Nextcloud server at `server` (a host or an address as
+	 * people copy it), for the account `user`: Rust writes it, the dialog reads it back. Rejects with
+	 * a `VfsError` for a server or user that does not make one.
+	 */
+	nextcloudAddress(server: string, user: string): Promise<string>;
 	disconnect(location: Location): Promise<void>;
 	state(location: Location): Promise<ConnectionStatus | null>;
 	onChanged(listener: (change: ConnectionsChanged) => void): Unsubscribe;

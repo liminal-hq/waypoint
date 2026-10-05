@@ -23,6 +23,7 @@ import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/Plugi
 import { t } from '../i18n/messages';
 import { collectStatuses, type StatusSource } from './status';
 import { createTauriIntegrationsClient } from './tauriIntegrationsClient';
+import { protocolDetails } from './tauriProtocolsClient';
 
 /** One feature of a reusable plugin: whether it works and, when it does not, why. */
 interface FeatureReport {
@@ -181,14 +182,25 @@ export async function nativeDndServiceStatus(): Promise<PluginStatus> {
 
 /**
  * A remote protocol's line in the Services panel (D167): available while its provider is
- * registered, "Turned off in Settings → Experimental" while its switch is off, and "Not included in
- * this build" where the build has no provider for it. `schemes` are the URI schemes it serves.
+ * registered (with what it can do, and what it cannot, in the provider's own words when it has
+ * them), "Turned off in Settings → Experimental" while its switch is off, and "Not included in this
+ * build" where the build has no provider for it. `schemes` are the URI schemes it serves and `key`
+ * names it for `get_protocol_details`.
  */
-export function protocolServiceStatus(schemes: readonly string[]): StatusSource {
+export function protocolServiceStatus(schemes: readonly string[], key: string): StatusSource {
 	return async () => {
 		const support = await connectionSupport();
 		if (schemes.some((scheme) => support.schemes.includes(scheme))) {
-			return { available: true, reason: null, features: [...schemes] };
+			// What the provider can do is a nicety: the line is available without it.
+			const detail = await protocolDetails().then(
+				(all) => all[key],
+				() => undefined,
+			);
+			return {
+				available: true,
+				reason: detail?.reason ?? null,
+				features: detail && detail.features.length > 0 ? detail.features : [...schemes],
+			};
 		}
 		const off = schemes.some((scheme) => support.off.includes(scheme));
 		return {
@@ -250,10 +262,10 @@ export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'window-effects': windowEffectsServiceStatus,
 	'mime-apps': mimeAppsServiceStatus,
 	// The remote protocols are not plugins: each is a provider the file system plugin serves while its Settings → Experimental switch is on (D167).
-	sftp: protocolServiceStatus(['sftp']),
-	smb: protocolServiceStatus(['smb']),
-	webdav: protocolServiceStatus(['dav', 'davs']),
-	s3: protocolServiceStatus(['s3']),
+	sftp: protocolServiceStatus(['sftp'], 'sftp'),
+	smb: protocolServiceStatus(['smb'], 'smb'),
+	webdav: protocolServiceStatus(['dav', 'davs'], 'webdav'),
+	s3: protocolServiceStatus(['s3'], 's3'),
 	// Used only from Rust, so they report through the app's `get_integration_statuses` (A66).
 	'xdg-portal': integrationServiceStatus('xdg-portal'),
 	'desktop-integration': integrationServiceStatus('desktop-integration'),

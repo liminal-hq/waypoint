@@ -9,9 +9,13 @@ import {
 	draftOf,
 	draftProblem,
 	emptyForm,
+	familyOf,
 	formOf,
+	formProblem,
+	methodsFor,
 	questionOf,
 	rememberedText,
+	withScheme,
 } from './connectModel';
 import { draft, serverLocation } from './fakeConnectionsClient';
 
@@ -103,5 +107,90 @@ describe('a protocol that is turned off', () => {
 
 	it('asks no question', () => {
 		expect(questionOf({ kind: 'protocolOff', scheme: 'sftp' })).toBeNull();
+	});
+});
+
+describe('the form of each protocol', () => {
+	it('groups the protocols into the families the form is shaped for', () => {
+		expect(['sftp', 'smb', 'dav', 'davs', 's3', 'x'].map(familyOf)).toEqual([
+			'ssh',
+			'smb',
+			'dav',
+			'dav',
+			'other',
+			'other',
+		]);
+	});
+
+	it('offers each protocol only the ways to sign in it has', () => {
+		expect(methodsFor('sftp')).toEqual(['auto', 'password', 'keyFile']);
+		expect(methodsFor('smb')).toEqual(['auto', 'password']);
+		expect(methodsFor('davs')).toEqual(['auto', 'password', 'token']);
+		expect(methodsFor('s3')).toEqual(['auto', 'password']);
+	});
+
+	it('sends back to automatic a way to sign in that the chosen protocol lacks', () => {
+		const form = { ...emptyForm('sftp'), auth: 'keyFile' as const, keyFile: '~/.ssh/id' };
+		expect(withScheme(form, 'smb').auth).toBe('auto');
+		expect(withScheme({ ...form, auth: 'password' }, 'smb').auth).toBe('password');
+		expect(withScheme({ ...form, auth: 'password' }, 'davs').scheme).toBe('davs');
+	});
+
+	it('joins an SMB domain to its user, and a share to nothing but the start folder', () => {
+		const sent = draftOf({
+			...emptyForm('smb'),
+			host: 'files.lan',
+			domain: ' WORK ',
+			user: ' me ',
+			startFolder: '/Projects',
+			jumpHost: 'bastion',
+			auth: 'keyFile',
+			keyFile: '/k',
+		});
+		expect(sent.user).toBe('WORK;me');
+		expect(sent.startFolder).toBe('/Projects');
+		// What only SSH has is not sent for SMB, so a saved SMB connection never holds it.
+		expect([sent.jumpHost, sent.keyFile, sent.auth]).toEqual([null, null, 'auto']);
+		expect(draftOf({ ...emptyForm('smb'), host: 'h', user: 'me' }).user).toBe('me');
+	});
+
+	it('splits a saved SMB user back into its domain and user', () => {
+		const saved = formOf(draft({ scheme: 'smb', host: 'h', user: 'WORK;me' }));
+		expect([saved.domain, saved.user]).toEqual(['WORK', 'me']);
+		const plain = formOf(draft({ scheme: 'smb', host: 'h', user: 'me' }));
+		expect([plain.domain, plain.user]).toEqual(['', 'me']);
+		// A semicolon in an SSH user is just a character.
+		const ssh = formOf(draft({ scheme: 'sftp', host: 'h', user: 'a;b' }));
+		expect([ssh.domain, ssh.user]).toEqual(['', 'a;b']);
+	});
+
+	it('carries WebDAV’s sign-in and dialect as options, and only for WebDAV', () => {
+		const form = { ...emptyForm('davs'), host: 'h', davAuth: 'digest' as const, nextcloud: true };
+		const sent = draftOf(form);
+		expect([sent.options.davAuth, sent.options.davPreset]).toEqual(['digest', 'nextcloud']);
+		const auto = draftOf({ ...form, davAuth: 'auto', nextcloud: false });
+		expect([auto.options.davAuth, auto.options.davPreset]).toEqual([null, null]);
+		const ssh = draftOf({ ...form, scheme: 'sftp' });
+		expect([ssh.options.davAuth, ssh.options.davPreset]).toEqual([null, null]);
+		const back = formOf(
+			draft({
+				scheme: 'davs',
+				host: 'h',
+				options: { ...draft().options, davAuth: 'basic', davPreset: 'nextcloud' },
+			}),
+		);
+		expect([back.davAuth, back.nextcloud]).toEqual(['basic', true]);
+	});
+
+	it('keeps what a typed address cannot say when it is read over the form', () => {
+		const chosen = { ...emptyForm('davs'), davAuth: 'basic' as const, nextcloud: true };
+		const read = formOf(draft({ scheme: 'davs', host: 'cloud', user: 'alice' }), chosen);
+		expect([read.davAuth, read.nextcloud, read.user]).toEqual(['basic', true, 'alice']);
+	});
+
+	it('refuses a domain with no user, and nothing else', () => {
+		expect(formProblem({ ...emptyForm('smb'), domain: 'WORK' })).toMatchObject({ field: 'user' });
+		expect(formProblem({ ...emptyForm('smb'), domain: 'WORK', user: 'me' })).toBeNull();
+		expect(formProblem({ ...emptyForm('sftp'), domain: 'WORK' })).toBeNull();
 	});
 });

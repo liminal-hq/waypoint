@@ -11523,5 +11523,105 @@
     "message": "Dépôt Git {name}",
     "description": "Area: git. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
     "source": "46053dfe"
+  },
+  "connect.auth.token": {
+    "message": "Jeton d’accès",
+    "description": "Area: connect.",
+    "source": "9a911b08"
+  },
+  "connect.auth.tokenHint": {
+    "message": "Se connecte avec un jeton fourni par le serveur, demandé à la connexion.",
+    "description": "Area: connect.",
+    "source": "916993a1"
+  },
+  "connect.auth.autoHintSmb": {
+    "message": "Utilise le mot de passe que Waypoint a retenu pour ce serveur et cet utilisateur, et le demande s’il n’en a aucun.",
+    "description": "Area: connect.",
+    "source": "3b0736da"
+  },
+  "connect.auth.autoHintDav": {
+    "message": "Laisse le serveur indiquer comment se connecter, puis utilise un mot de passe retenu ou en demande un.",
+    "description": "Area: connect.",
+    "source": "9715f26b"
+  },
+  "connect.address.placeholderSmb": {
+    "message": "smb://domaine;utilisateur@hôte/partage",
+    "description": "Area: connect.",
+    "source": "aa20ea4e"
+  },
+  "connect.address.placeholderDav": {
+    "message": "davs://hôte/dossier",
+    "description": "Area: connect.",
+    "source": "4e236334"
+  },
+  "connect.field.domain": {
+    "message": "Domaine",
+    "description": "Area: connect.",
+    "source": "79fa3361"
+  },
+  "connect.field.domainHint": {
+    "message": "Facultatif. Pour un compte de domaine Windows, comme TRAVAIL.",
+    "description": "Area: connect.",
+    "source": "5ebaf4ff"
+  },
+  "connect.field.share": {
+    "message": "Partage",
+    "description": "Area: connect. A share is a folder that a Windows or Samba server offers on the network (SMB), not the verb.",
+    "source": "29887a5f"
+  },
+  "connect.field.shareHint": {
+    "message": "Facultatif. Laissez vide pour parcourir les partages du serveur.",
+    "description": "Area: connect.",
+    "source": "780d2c63"
+  },
+  "connect.field.token": {
+    "message": "Jeton d’accès",
+    "description": "Area: connect.",
+    "source": "9a911b08"
+  },
+  "connect.field.davAuth": {
+    "message": "Mot de passe envoyé en mode",
+    "description": "Area: connect.",
+    "source": "24b96146"
+  },
+  "connect.davAuth.auto": {
+    "message": "Au choix du serveur",
+    "description": "Area: connect.",
+    "source": "0f37e150"
+  },
+  "connect.davAuth.basic": {
+    "message": "Basique (un mot de passe d’application)",
+    "description": "Area: connect.",
+    "source": "568f00ed"
+  },
+  "connect.davAuth.digest": {
+    "message": "Condensé (Digest)",
+    "description": "Area: connect.",
+    "source": "6e2f80bf"
+  },
+  "connect.field.nextcloud": {
+    "message": "Ceci est un serveur Nextcloud",
+    "description": "Area: connect.",
+    "source": "9881c85a"
+  },
+  "connect.field.nextcloudHint": {
+    "message": "S’ouvre sur vos propres fichiers. Connectez-vous avec un mot de passe d’application créé dans les paramètres de sécurité de votre compte.",
+    "description": "Area: connect.",
+    "source": "342658d3"
+  },
+  "connect.nextcloud.fill": {
+    "message": "Remplir mon dossier de fichiers",
+    "description": "Area: connect.",
+    "source": "a40b044e"
+  },
+  "connect.dav.unencrypted": {
+    "message": "Cette connexion n’est pas chiffrée : toute personne sur le réseau peut lire ce qui est envoyé, mots de passe compris.",
+    "description": "Area: connect.",
+    "source": "934afebe"
+  },
+  "connect.problem.domainUser": {
+    "message": "Indiquez le nom d’utilisateur qui accompagne le domaine.",
+    "description": "Area: connect.",
+    "source": "64a4a301"
   }
 }
