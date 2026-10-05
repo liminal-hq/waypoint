@@ -625,3 +625,83 @@ fn capabilities_say_what_s3_is() {
     assert!(!caps.watch && !caps.symlinks && !caps.set_times);
     assert_eq!(caps.permissions, waypoint_vfs::PermissionModel::None);
 }
+
+/// A credential source that records the question it was asked, and answers it with a fixed secret.
+struct Recording {
+    asked: std::sync::Mutex<Vec<Option<String>>>,
+}
+
+impl waypoint_vfs::CredentialSource for Recording {
+    fn credential(
+        &self,
+        _: &waypoint_path::ConnectionKey,
+        prompt: &waypoint_protocol::AuthPrompt,
+    ) -> Option<waypoint_vfs::Credential> {
+        let waypoint_protocol::AuthPrompt::AccessKey { key_id } = prompt else {
+            return None;
+        };
+        self.asked.lock().unwrap().push(key_id.clone());
+        Some(waypoint_vfs::Credential::AccessKey {
+            key_id: key_id.clone()?,
+            secret: waypoint_vfs::Secret::from("secret"),
+            session_token: None,
+        })
+    }
+}
+
+#[test]
+fn a_saved_connections_key_id_is_part_of_the_question_the_credential_source_is_asked() {
+    let fake = FakeS3::start();
+    fake.bucket("keyed");
+    let source = Arc::new(Recording {
+        asked: std::sync::Mutex::new(Vec::new()),
+    });
+    let provider = S3Provider::new(S3Config::new(source.clone()));
+    let path = VfsPath::from_uri(&format!(
+        "s3://keyed?endpoint=http%3A%2F%2F127.0.0.1%3A{}",
+        fake.port
+    ))
+    .unwrap();
+    // With no key id known, the source is asked without one, and (as the app's source does) has
+    // nothing to offer: the login asks for an access key.
+    let Err(VfsError::AuthRequired { prompt, .. }) = provider.stat(&path) else {
+        panic!("a source that cannot pair a secret with an unnamed key asks the person");
+    };
+    assert_eq!(
+        *prompt,
+        waypoint_protocol::AuthPrompt::AccessKey { key_id: None }
+    );
+    assert_eq!(*source.asked.lock().unwrap(), [None]);
+
+    // With the id from the saved connection, the same source answers and the login works.
+    provider.set_options(
+        &path.connection_key().unwrap(),
+        S3Options {
+            access_key_id: Some("AKIA".to_owned()),
+            ..S3Options::default()
+        },
+    );
+    assert!(provider.stat(&path).is_ok());
+    assert_eq!(
+        *source.asked.lock().unwrap().last().unwrap(),
+        Some("AKIA".to_owned())
+    );
+    // And a prompt for a person to answer names the id, so the dialog starts with it filled in.
+    let nobody = S3Provider::new(S3Config::new(Arc::new(waypoint_vfs::NoCredentials)));
+    nobody.set_options(
+        &path.connection_key().unwrap(),
+        S3Options {
+            access_key_id: Some("AKIA".to_owned()),
+            ..S3Options::default()
+        },
+    );
+    let Err(VfsError::AuthRequired { prompt, .. }) = nobody.stat(&path) else {
+        panic!("no credential asks");
+    };
+    assert_eq!(
+        *prompt,
+        waypoint_protocol::AuthPrompt::AccessKey {
+            key_id: Some("AKIA".to_owned())
+        }
+    );
+}

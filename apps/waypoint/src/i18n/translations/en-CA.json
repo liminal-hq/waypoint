@@ -4079,6 +4079,138 @@
     "message": "WebDAV (HTTP, not encrypted)",
     "description": "Area: connect."
   },
+  "connect.s3.preset.aws": {
+    "message": "Amazon S3",
+    "description": "Area: connect."
+  },
+  "connect.s3.preset.b2": {
+    "message": "Backblaze B2",
+    "description": "Area: connect."
+  },
+  "connect.s3.preset.r2": {
+    "message": "Cloudflare R2",
+    "description": "Area: connect."
+  },
+  "connect.s3.preset.wasabi": {
+    "message": "Wasabi",
+    "description": "Area: connect."
+  },
+  "connect.s3.preset.minio": {
+    "message": "MinIO",
+    "description": "Area: connect."
+  },
+  "connect.s3.preset.spaces": {
+    "message": "DigitalOcean Spaces",
+    "description": "Area: connect."
+  },
+  "connect.s3.preset.custom": {
+    "message": "Another S3 service",
+    "description": "Area: connect."
+  },
+  "connect.s3.moveNote": {
+    "message": "S3 cannot rename: moving a file here copies it on the service and then deletes the original, which is not atomic.",
+    "description": "Area: connect."
+  },
+  "connect.field.bucket": {
+    "message": "Bucket",
+    "description": "Area: connect."
+  },
+  "connect.field.keyId": {
+    "message": "Access key ID",
+    "description": "Area: connect."
+  },
+  "connect.field.secretKey": {
+    "message": "Secret access key",
+    "description": "Area: connect."
+  },
+  "connect.field.secretKeyHint": {
+    "message": "Sent to the service to sign requests. With Remember it goes to the system keyring, never to Waypoint’s files.",
+    "description": "Area: connect."
+  },
+  "connect.field.sessionToken": {
+    "message": "Session token (optional)",
+    "description": "Area: connect."
+  },
+  "connect.field.sessionTokenHint": {
+    "message": "For temporary credentials. It is kept for this session only and never remembered.",
+    "description": "Area: connect."
+  },
+  "connect.field.s3Service": {
+    "message": "Service",
+    "description": "Area: connect."
+  },
+  "connect.field.s3Region": {
+    "message": "Region (optional)",
+    "description": "Area: connect."
+  },
+  "connect.field.s3RegionHint": {
+    "message": "Leave it empty to let the service say. An Amazon S3 bucket in another region is found by itself.",
+    "description": "Area: connect."
+  },
+  "connect.field.s3ServiceRegion": {
+    "message": "Region",
+    "description": "Area: connect."
+  },
+  "connect.field.s3ServiceRegionHint": {
+    "message": "The service’s region, such as us-west-004 or eu-central-1.",
+    "description": "Area: connect."
+  },
+  "connect.field.s3Account": {
+    "message": "Account ID",
+    "description": "Area: connect."
+  },
+  "connect.field.s3AccountHint": {
+    "message": "Your Cloudflare account ID, from the dashboard.",
+    "description": "Area: connect."
+  },
+  "connect.field.s3Host": {
+    "message": "Server",
+    "description": "Area: connect."
+  },
+  "connect.field.s3HostHint": {
+    "message": "The server’s address, such as minio.lan:9000. Write http:// first for a server without TLS.",
+    "description": "Area: connect."
+  },
+  "connect.field.s3Endpoint": {
+    "message": "Endpoint",
+    "description": "Area: connect."
+  },
+  "connect.field.s3EndpointHint": {
+    "message": "The service’s address, such as https://s3.example.com. Write http:// for a server without TLS.",
+    "description": "Area: connect."
+  },
+  "connect.field.s3PathStyle": {
+    "message": "Put the bucket in the path",
+    "description": "Area: connect."
+  },
+  "connect.field.s3PathStyleHint": {
+    "message": "Most services other than Amazon S3 need this; Amazon S3 puts the bucket in the host name. Leave it as it is unless the service says otherwise.",
+    "description": "Area: connect."
+  },
+  "connect.problem.s3Bucket": {
+    "message": "Type the name of the bucket.",
+    "description": "Area: connect."
+  },
+  "connect.problem.s3Endpoint": {
+    "message": "Type the service’s address, such as minio.lan:9000.",
+    "description": "Area: connect."
+  },
+  "connect.problem.s3Region": {
+    "message": "Type the service’s region, such as us-west-004.",
+    "description": "Area: connect."
+  },
+  "connect.problem.s3Account": {
+    "message": "Type your account ID.",
+    "description": "Area: connect."
+  },
+  "connect.problem.s3RegionName": {
+    "message": "A region is lower-case letters, digits and hyphens, such as eu-west-1.",
+    "description": "Area: connect."
+  },
+  "connect.address.placeholderS3": {
+    "message": "s3://bucket/folder",
+    "description": "Area: connect."
+  },
   "connect.scheme.s3": {
     "message": "S3 storage",
     "description": "Area: connect."

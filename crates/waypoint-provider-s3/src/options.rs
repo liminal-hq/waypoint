@@ -21,6 +21,9 @@ pub struct S3Options {
     /// The signing region. Without it AWS buckets start in `us-east-1` and follow the region the
     /// service names, and another service's preset (or `us-east-1`) is used.
     pub region: Option<String>,
+    /// The access key id this connection signs in with (a saved connection's), so the credential
+    /// source can be asked for its secret without asking for the id again. `None` asks for both.
+    pub access_key_id: Option<String>,
     /// The session token of temporary credentials. It goes with the access key the credential
     /// source gives; it is never stored by this crate.
     pub session_token: Option<Secret>,

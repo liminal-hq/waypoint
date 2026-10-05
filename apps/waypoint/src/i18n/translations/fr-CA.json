@@ -5174,6 +5174,171 @@
     "description": "Area: connect.",
     "source": "26519330"
   },
+  "connect.s3.preset.aws": {
+    "message": "Amazon S3",
+    "description": "Area: connect.",
+    "source": "a4f63529"
+  },
+  "connect.s3.preset.b2": {
+    "message": "Backblaze B2",
+    "description": "Area: connect.",
+    "source": "ed401873"
+  },
+  "connect.s3.preset.r2": {
+    "message": "Cloudflare R2",
+    "description": "Area: connect.",
+    "source": "9f2f1eda"
+  },
+  "connect.s3.preset.wasabi": {
+    "message": "Wasabi",
+    "description": "Area: connect.",
+    "source": "493861e0"
+  },
+  "connect.s3.preset.minio": {
+    "message": "MinIO",
+    "description": "Area: connect.",
+    "source": "fb97d5d9"
+  },
+  "connect.s3.preset.spaces": {
+    "message": "DigitalOcean Spaces",
+    "description": "Area: connect.",
+    "source": "c3f48e3f"
+  },
+  "connect.s3.preset.custom": {
+    "message": "Autre service S3",
+    "description": "Area: connect.",
+    "source": "05239b34"
+  },
+  "connect.s3.moveNote": {
+    "message": "S3 ne peut pas renommer : déplacer un fichier ici le copie sur le service, puis supprime l’original, ce qui n’est pas atomique.",
+    "description": "Area: connect.",
+    "source": "a7e7c005"
+  },
+  "connect.field.bucket": {
+    "message": "Compartiment",
+    "description": "Area: connect.",
+    "source": "c83b6579"
+  },
+  "connect.field.keyId": {
+    "message": "ID de clé d’accès",
+    "description": "Area: connect.",
+    "source": "14eb0f96"
+  },
+  "connect.field.secretKey": {
+    "message": "Clé d’accès secrète",
+    "description": "Area: connect.",
+    "source": "3de6b754"
+  },
+  "connect.field.secretKeyHint": {
+    "message": "Envoyée au service pour signer les requêtes. Avec Mémoriser, elle va dans le trousseau du système, jamais dans les fichiers de Waypoint.",
+    "description": "Area: connect.",
+    "source": "79b0aa9f"
+  },
+  "connect.field.sessionToken": {
+    "message": "Jeton de session (facultatif)",
+    "description": "Area: connect.",
+    "source": "0cd7fb3e"
+  },
+  "connect.field.sessionTokenHint": {
+    "message": "Pour des identifiants temporaires. Il n’est gardé que pour cette session et jamais mémorisé.",
+    "description": "Area: connect.",
+    "source": "78432a3a"
+  },
+  "connect.field.s3Service": {
+    "message": "Service",
+    "description": "Area: connect.",
+    "source": "d677190e"
+  },
+  "connect.field.s3Region": {
+    "message": "Région (facultatif)",
+    "description": "Area: connect.",
+    "source": "c59b0326"
+  },
+  "connect.field.s3RegionHint": {
+    "message": "Laissez vide pour que le service l’indique. Un compartiment Amazon S3 situé dans une autre région est trouvé automatiquement.",
+    "description": "Area: connect.",
+    "source": "539ed60c"
+  },
+  "connect.field.s3ServiceRegion": {
+    "message": "Région",
+    "description": "Area: connect.",
+    "source": "d3a008ef"
+  },
+  "connect.field.s3ServiceRegionHint": {
+    "message": "La région du service, par exemple us-west-004 ou eu-central-1.",
+    "description": "Area: connect.",
+    "source": "f85e9b87"
+  },
+  "connect.field.s3Account": {
+    "message": "ID de compte",
+    "description": "Area: connect.",
+    "source": "919bb4cb"
+  },
+  "connect.field.s3AccountHint": {
+    "message": "Votre ID de compte Cloudflare, indiqué dans le tableau de bord.",
+    "description": "Area: connect.",
+    "source": "8466a295"
+  },
+  "connect.field.s3Host": {
+    "message": "Serveur",
+    "description": "Area: connect.",
+    "source": "aef7de28"
+  },
+  "connect.field.s3HostHint": {
+    "message": "L’adresse du serveur, par exemple minio.lan:9000. Écrivez d’abord http:// pour un serveur sans TLS.",
+    "description": "Area: connect.",
+    "source": "faaf09b9"
+  },
+  "connect.field.s3Endpoint": {
+    "message": "Point de terminaison",
+    "description": "Area: connect.",
+    "source": "3df9726c"
+  },
+  "connect.field.s3EndpointHint": {
+    "message": "L’adresse du service, par exemple https://s3.example.com. Écrivez http:// pour un serveur sans TLS.",
+    "description": "Area: connect.",
+    "source": "d24f39c4"
+  },
+  "connect.field.s3PathStyle": {
+    "message": "Mettre le compartiment dans le chemin",
+    "description": "Area: connect.",
+    "source": "b52f65ad"
+  },
+  "connect.field.s3PathStyleHint": {
+    "message": "La plupart des services autres qu’Amazon S3 en ont besoin; Amazon S3 met le compartiment dans le nom d’hôte. Laissez ce réglage tel quel, sauf avis contraire du service.",
+    "description": "Area: connect.",
+    "source": "77b9470c"
+  },
+  "connect.problem.s3Bucket": {
+    "message": "Saisissez le nom du compartiment.",
+    "description": "Area: connect.",
+    "source": "ecae8c1f"
+  },
+  "connect.problem.s3Endpoint": {
+    "message": "Saisissez l’adresse du service, par exemple minio.lan:9000.",
+    "description": "Area: connect.",
+    "source": "a67e29b4"
+  },
+  "connect.problem.s3Region": {
+    "message": "Saisissez la région du service, par exemple us-west-004.",
+    "description": "Area: connect.",
+    "source": "1bdd5ad2"
+  },
+  "connect.problem.s3Account": {
+    "message": "Saisissez votre ID de compte.",
+    "description": "Area: connect.",
+    "source": "430dcf8f"
+  },
+  "connect.problem.s3RegionName": {
+    "message": "Une région est composée de lettres minuscules, de chiffres et de traits d’union, par exemple eu-west-1.",
+    "description": "Area: connect.",
+    "source": "08b0263c"
+  },
+  "connect.address.placeholderS3": {
+    "message": "s3://compartiment/dossier",
+    "description": "Area: connect.",
+    "source": "632d25f7"
+  },
   "connect.scheme.s3": {
     "message": "Stockage S3",
     "description": "Area: connect.",

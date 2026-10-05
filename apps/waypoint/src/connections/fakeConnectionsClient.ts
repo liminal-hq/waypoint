@@ -60,6 +60,10 @@ export function draft(fields: Partial<ConnectionDraft> = {}): ConnectionDraft {
 			windowKib: null,
 			davAuth: null,
 			davPreset: null,
+			s3Endpoint: null,
+			s3Region: null,
+			s3PathStyle: null,
+			s3Preset: null,
 		},
 		...fields,
 	};
@@ -103,6 +107,8 @@ export class FakeConnectionsClient implements ConnectionsClient {
 	private readonly stateListeners = new Set<(status: ConnectionStatus) => void>();
 	private readonly protocolListeners = new Set<(change: ProtocolsChanged) => void>();
 	readonly calls: { method: string; args: unknown[] }[] = [];
+	/** The answers sent with tests and connects, whole (a call records only the kind). */
+	readonly answers: AnswerInput[] = [];
 	schemes: string[];
 	/** Protocols the build has that are turned off (D167). */
 	off: string[];
@@ -166,6 +172,29 @@ export class FakeConnectionsClient implements ConnectionsClient {
 
 	async parseAddress(text: string): Promise<ParsedAddress> {
 		this.record('parseAddress', text);
+		const s3 = /^\s*s3:\/\/([^/?\s]+)(\/[^?\s]*)?(?:\?endpoint=(\S+))?\s*$/i.exec(text);
+		if (s3) {
+			if (this.off.includes('s3')) throw { kind: 'protocolOff', scheme: 's3' } satisfies VfsError;
+			if (!this.schemes.includes('s3'))
+				throw { kind: 'unsupported', what: 's3' } satisfies VfsError;
+			const path = s3[2] && s3[2] !== '/' ? s3[2].replace(/\/+$/, '') : null;
+			const d = draft({
+				scheme: 's3',
+				host: s3[1] ?? '',
+				startFolder: path,
+				options: {
+					...draft().options,
+					s3Endpoint: s3[3] ? decodeURIComponent(s3[3]) : null,
+				},
+			});
+			const key = keyOf(d);
+			return {
+				draft: d,
+				location: serverLocation(key, path ?? '/'),
+				key,
+				passwordDropped: false,
+			};
+		}
 		const match =
 			/^\s*([a-zA-Z]+):\/\/(?:([^:@/]+)(?::([^@/]*))?@)?([^:/]+)(?::(\d+))?(\/[^\s]*)?\s*$/.exec(
 				text,
@@ -204,7 +233,12 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		if (d.port === 0) throw refusal({ kind: 'draft', error: { kind: 'port' } });
 		if (d.startFolder && !d.startFolder.startsWith('/'))
 			throw refusal({ kind: 'draft', error: { kind: 'startFolder' } });
-		return { ...d, name: d.name.trim(), host: d.host.trim().toLowerCase() };
+		// A bucket keeps its letter case; a host name does not.
+		return {
+			...d,
+			name: d.name.trim(),
+			host: d.scheme === 's3' ? d.host.trim() : d.host.trim().toLowerCase(),
+		};
 	}
 
 	async add(d: ConnectionDraft): Promise<ConnectionEntry> {
@@ -321,6 +355,7 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		remember = false,
 	): Promise<TestedConnection> {
 		this.record('test', d, answer?.kind ?? null, remember);
+		if (answer) this.answers.push(answer);
 		const checked = this.check(d);
 		const key = keyOf(checked);
 		const remembered = await this.run(key, answer, remember);

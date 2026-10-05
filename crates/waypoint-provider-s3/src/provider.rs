@@ -193,8 +193,13 @@ impl Provider for S3Provider {
             input: key.as_str().to_owned(),
         })?;
         let a = address(&VfsPath::Remote(remote))?;
-        if let Some(ConnectAnswer::Credential(Credential::AccessKey { key_id, secret })) = answer {
-            let token = self.inner.options(key).session_token;
+        if let Some(ConnectAnswer::Credential(Credential::AccessKey {
+            key_id,
+            secret,
+            session_token,
+        })) = answer
+        {
+            let token = session_token.or_else(|| self.inner.options(key).session_token);
             self.inner.conn(key).set_credentials(Creds::Keys {
                 key_id,
                 secret,

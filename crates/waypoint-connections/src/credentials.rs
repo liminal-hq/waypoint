@@ -277,6 +277,7 @@ impl CredentialSource for Credentials {
             AuthPrompt::AccessKey { key_id } => Credential::AccessKey {
                 key_id: key_id.clone()?,
                 secret,
+                session_token: None,
             },
             AuthPrompt::Challenge { .. } => return None,
         })
@@ -361,6 +362,39 @@ mod tests {
         keyring.fail_with(Some(KeyringUnavailable::Locked));
         source.forget_session(&k);
         assert!(source.credential(&k, &password()).is_none());
+    }
+
+    #[test]
+    fn an_access_key_secret_is_found_when_the_key_id_is_known_and_never_without_it() {
+        let keyring = Arc::new(MemorySecrets::new());
+        let k = key("s3://photos?endpoint=https%3A%2F%2Fminio.lan%3A9000");
+        keyring
+            .store(&k, SecretKind::AccessKey, Secret::from("sssh"))
+            .unwrap();
+        let source = Credentials::new(keyring);
+        let named = AuthPrompt::AccessKey {
+            key_id: Some("AKIA".into()),
+        };
+        let Some(Credential::AccessKey {
+            key_id,
+            secret,
+            session_token,
+        }) = source.credential(&k, &named)
+        else {
+            panic!("the remembered secret answers a prompt that names its key id");
+        };
+        assert_eq!(
+            (key_id.as_str(), secret.expose_str()),
+            ("AKIA", Some("sssh"))
+        );
+        assert!(
+            session_token.is_none(),
+            "a session token is never remembered"
+        );
+        // Without the id there is nothing to pair the secret with: the dialog asks for both.
+        assert!(source
+            .credential(&k, &AuthPrompt::AccessKey { key_id: None })
+            .is_none());
     }
 
     #[test]

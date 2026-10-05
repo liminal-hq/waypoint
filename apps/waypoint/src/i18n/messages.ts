@@ -1209,6 +1209,47 @@ export const enMessages = {
 	'connect.scheme.smb': 'Windows share (SMB)',
 	'connect.scheme.davs': 'WebDAV (HTTPS)',
 	'connect.scheme.dav': 'WebDAV (HTTP, not encrypted)',
+	'connect.s3.preset.aws': 'Amazon S3',
+	'connect.s3.preset.b2': 'Backblaze B2',
+	'connect.s3.preset.r2': 'Cloudflare R2',
+	'connect.s3.preset.wasabi': 'Wasabi',
+	'connect.s3.preset.minio': 'MinIO',
+	'connect.s3.preset.spaces': 'DigitalOcean Spaces',
+	'connect.s3.preset.custom': 'Another S3 service',
+	'connect.s3.moveNote':
+		'S3 cannot rename: moving a file here copies it on the service and then deletes the original, which is not atomic.',
+	'connect.field.bucket': 'Bucket',
+	'connect.field.keyId': 'Access key ID',
+	'connect.field.secretKey': 'Secret access key',
+	'connect.field.secretKeyHint':
+		'Sent to the service to sign requests. With Remember it goes to the system keyring, never to Waypoint’s files.',
+	'connect.field.sessionToken': 'Session token (optional)',
+	'connect.field.sessionTokenHint':
+		'For temporary credentials. It is kept for this session only and never remembered.',
+	'connect.field.s3Service': 'Service',
+	'connect.field.s3Region': 'Region (optional)',
+	'connect.field.s3RegionHint':
+		'Leave it empty to let the service say. An Amazon S3 bucket in another region is found by itself.',
+	'connect.field.s3ServiceRegion': 'Region',
+	'connect.field.s3ServiceRegionHint': 'The service’s region, such as us-west-004 or eu-central-1.',
+	'connect.field.s3Account': 'Account ID',
+	'connect.field.s3AccountHint': 'Your Cloudflare account ID, from the dashboard.',
+	'connect.field.s3Host': 'Server',
+	'connect.field.s3HostHint':
+		'The server’s address, such as minio.lan:9000. Write http:// first for a server without TLS.',
+	'connect.field.s3Endpoint': 'Endpoint',
+	'connect.field.s3EndpointHint':
+		'The service’s address, such as https://s3.example.com. Write http:// for a server without TLS.',
+	'connect.field.s3PathStyle': 'Put the bucket in the path',
+	'connect.field.s3PathStyleHint':
+		'Most services other than Amazon S3 need this; Amazon S3 puts the bucket in the host name. Leave it as it is unless the service says otherwise.',
+	'connect.problem.s3Bucket': 'Type the name of the bucket.',
+	'connect.problem.s3Endpoint': 'Type the service’s address, such as minio.lan:9000.',
+	'connect.problem.s3Region': 'Type the service’s region, such as us-west-004.',
+	'connect.problem.s3Account': 'Type your account ID.',
+	'connect.problem.s3RegionName':
+		'A region is lower-case letters, digits and hyphens, such as eu-west-1.',
+	'connect.address.placeholderS3': 's3://bucket/folder',
 	'connect.scheme.s3': 'S3 storage',
 	'connect.signIn.title': 'Sign in to {server}',
 	'connect.signIn.passphraseTitle': 'Unlock {subject}',

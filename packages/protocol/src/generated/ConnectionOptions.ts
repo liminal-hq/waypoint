@@ -38,4 +38,22 @@ davAuth: DavAuth | null,
 /**
  * The dialect of a WebDAV server; `None` recognises Nextcloud by its path.
  */
-davPreset: DavPreset | null, };
+davPreset: DavPreset | null, 
+/**
+ * The origin of an S3-compatible service (`https://s3.us-west-004.backblazeb2.com`); `None`
+ * is AWS. A bucket's address carries it as `?endpoint=`.
+ */
+s3Endpoint: string | null, 
+/**
+ * The signing region of an S3 connection; `None` follows the service (AWS finds it).
+ */
+s3Region: string | null, 
+/**
+ * Whether an S3 connection puts the bucket in the path; `None` follows the service.
+ */
+s3PathStyle: boolean | null, 
+/**
+ * The preset the form filled the endpoint from (`b2`, `r2`, `minio`…), so the form shows it
+ * again; it changes nothing about how the connection works.
+ */
+s3Preset: string | null, };

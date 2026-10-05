@@ -230,6 +230,14 @@ impl Inner {
             .clone()
     }
 
+    /// The question a login asks: for an access key, which key id is known (a saved connection
+    /// names it), so the credential source can find the secret that goes with it.
+    fn prompt_for(options: &S3Options) -> AuthPrompt {
+        AuthPrompt::AccessKey {
+            key_id: options.access_key_id.clone(),
+        }
+    }
+
     fn prompt() -> AuthPrompt {
         AuthPrompt::AccessKey { key_id: None }
     }
@@ -243,15 +251,19 @@ impl Inner {
         let options = self.options(&conn.key);
         let creds = if options.anonymous {
             Some(Creds::Anonymous)
-        } else if let Some(Credential::AccessKey { key_id, secret }) = self
+        } else if let Some(Credential::AccessKey {
+            key_id,
+            secret,
+            session_token,
+        }) = self
             .config
             .credentials
-            .credential(&conn.key, &Self::prompt())
+            .credential(&conn.key, &Self::prompt_for(&options))
         {
             Some(Creds::Keys {
                 key_id,
                 secret,
-                token: options.session_token.clone(),
+                token: session_token.or_else(|| options.session_token.clone()),
                 region: None,
             })
         } else if self.config.ambient_credentials && self.preset(address).id == "aws" {
@@ -271,7 +283,7 @@ impl Inner {
             }
             None => Err(VfsError::AuthRequired {
                 location: address.location.clone(),
-                prompt: Box::new(Self::prompt()),
+                prompt: Box::new(Self::prompt_for(&options)),
             }),
         }
     }

@@ -34,6 +34,7 @@ import {
 import type { ConnectRequest } from './connectStore';
 import { useConnectionsView } from './ConnectionsContext';
 import { ExperimentalLink } from './ProtocolOff';
+import { S3_PRESETS, s3Preset } from './s3Presets';
 import styles from './Connect.module.css';
 
 /** How long typing in the address waits before Rust reads it. */
@@ -54,11 +55,28 @@ const METHODS: Record<AuthMethod, { label: MessageId; hint: (family: string) => 
 	token: { label: 'connect.auth.token', hint: () => 'connect.auth.tokenHint' },
 };
 
+/** What the one input under an S3 service asks for, and a line on it. */
+const S3_INPUT_LABEL = {
+	none: 'connect.field.s3Region',
+	region: 'connect.field.s3ServiceRegion',
+	accountId: 'connect.field.s3Account',
+	host: 'connect.field.s3Host',
+	endpoint: 'connect.field.s3Endpoint',
+} as const satisfies Record<string, MessageId>;
+const S3_INPUT_HINT = {
+	none: 'connect.field.s3RegionHint',
+	region: 'connect.field.s3ServiceRegionHint',
+	accountId: 'connect.field.s3AccountHint',
+	host: 'connect.field.s3HostHint',
+	endpoint: 'connect.field.s3EndpointHint',
+} as const satisfies Record<string, MessageId>;
+
 /** The address field's example, in the form of the protocol chosen. */
 const PLACEHOLDERS: Record<string, MessageId> = {
 	smb: 'connect.address.placeholderSmb',
 	davs: 'connect.address.placeholderDav',
 	dav: 'connect.address.placeholderDav',
+	s3: 'connect.address.placeholderS3',
 };
 
 export interface ConnectDialogProps {
@@ -111,6 +129,8 @@ export function ConnectDialog({
 	const [addressOff, setAddressOff] = useState(false);
 	const [problems, setProblems] = useState<Problems>({});
 	const [password, setPassword] = useState('');
+	// An S3 session token: it expires, so it is kept for this attempt and never remembered.
+	const [sessionToken, setSessionToken] = useState('');
 	const [remember, setRemember] = useState(false);
 	const [busy, setBusy] = useState<Busy>(null);
 	const [result, setResult] = useState<Result>(null);
@@ -135,6 +155,11 @@ export function ConnectDialog({
 		share: useId(),
 		davAuth: useId(),
 		nextcloud: useId(),
+		s3Preset: useId(),
+		s3Value: useId(),
+		s3Region: useId(),
+		s3PathStyle: useId(),
+		sessionToken: useId(),
 		password: useId(),
 		remember: useId(),
 		hosts: useId(),
@@ -228,6 +253,7 @@ export function ConnectDialog({
 		setAddressNote('');
 		setProblems({});
 		setPassword('');
+		setSessionToken('');
 		setRemember(false);
 		setResult(null);
 	};
@@ -235,6 +261,21 @@ export function ConnectDialog({
 	/** The password typed with "Password" chosen, sent with the first attempt. */
 	const firstAnswer = (): Answered | null => {
 		if (password === '') return null;
+		if (family === 's3') {
+			const keyId = form.user.trim();
+			// An access key is an id and its secret; the id is the connection's own field.
+			return keyId === ''
+				? null
+				: {
+						answer: {
+							kind: 'accessKey',
+							keyId,
+							secret: password,
+							sessionToken: sessionToken === '' ? null : sessionToken,
+						},
+						remember: keyring === null && remember,
+					};
+		}
 		if (form.auth === 'token') {
 			return {
 				answer: { kind: 'passphrase', passphrase: password },
@@ -299,6 +340,7 @@ export function ConnectDialog({
 		);
 		setBusy(null);
 		setPassword('');
+		setSessionToken('');
 		switch (outcome.kind) {
 			case 'connected': {
 				const tested = outcome.value;
@@ -551,7 +593,7 @@ export function ConnectDialog({
 							{field(
 								'host',
 								ids.host,
-								'connect.field.host',
+								family === 's3' ? 'connect.field.bucket' : 'connect.field.host',
 								<>
 									<input
 										id={ids.host}
@@ -574,10 +616,16 @@ export function ConnectDialog({
 									)}
 								</>,
 							)}
-							{field('port', ids.port, 'connect.field.port', text('port', ids.port, form.port))}
+							{family !== 's3' &&
+								field('port', ids.port, 'connect.field.port', text('port', ids.port, form.port))}
 						</div>
 						<div className={styles.row}>
-							{field('user', ids.user, 'connect.field.user', text('user', ids.user, form.user))}
+							{field(
+								'user',
+								ids.user,
+								family === 's3' ? 'connect.field.keyId' : 'connect.field.user',
+								text('user', ids.user, form.user),
+							)}
 							{family === 'smb' &&
 								field(
 									'domain',
@@ -640,26 +688,91 @@ export function ConnectDialog({
 								{t('connect.dav.unencrypted')}
 							</p>
 						)}
-						<fieldset className={styles.methods} disabled={working}>
-							<legend>{t('connect.field.auth')}</legend>
-							{methods.map((method) => (
-								<label
-									key={method}
-									className={styles.check}
-									title={t(METHODS[method].hint(family))}
-								>
-									<input
-										type="radio"
-										name={`${ids.password}-auth`}
-										value={method}
-										checked={form.auth === method}
-										onChange={() => change('auth', method)}
-									/>
-									{t(METHODS[method].label)}
-								</label>
-							))}
-						</fieldset>
-						<p className={styles.hint}>{t(METHODS[form.auth].hint(family))}</p>
+						{family === 's3' && (
+							<>
+								<div className={styles.row}>
+									<div className={styles.field}>
+										<label className={styles.label} htmlFor={ids.s3Preset}>
+											{t('connect.field.s3Service')}
+										</label>
+										<select
+											id={ids.s3Preset}
+											className={styles.input}
+											value={form.s3Preset}
+											disabled={working}
+											onChange={(event) => {
+												change('s3Preset', event.target.value);
+												change('s3Value', '');
+												change('s3PathStyle', null);
+											}}
+										>
+											{S3_PRESETS.map((preset) => (
+												<option key={preset.id} value={preset.id}>
+													{t(preset.label)}
+												</option>
+											))}
+										</select>
+									</div>
+									{s3Preset(form.s3Preset).input !== 'none' &&
+										field(
+											's3Value',
+											ids.s3Value,
+											S3_INPUT_LABEL[s3Preset(form.s3Preset).input],
+											text('s3Value', ids.s3Value, form.s3Value, true),
+											S3_INPUT_HINT[s3Preset(form.s3Preset).input],
+										)}
+								</div>
+								{s3Preset(form.s3Preset).input !== 'region' &&
+									field(
+										's3Region',
+										ids.s3Region,
+										'connect.field.s3Region',
+										text('s3Region', ids.s3Region, form.s3Region, true),
+										'connect.field.s3RegionHint',
+									)}
+								<div className={styles.field}>
+									<label className={styles.check} htmlFor={ids.s3PathStyle}>
+										<input
+											id={ids.s3PathStyle}
+											type="checkbox"
+											checked={form.s3PathStyle ?? s3Preset(form.s3Preset).pathStyle}
+											disabled={working}
+											aria-describedby={`${ids.s3PathStyle}-hint`}
+											onChange={(event) => change('s3PathStyle', event.target.checked)}
+										/>
+										{t('connect.field.s3PathStyle')}
+									</label>
+									<p id={`${ids.s3PathStyle}-hint`} className={styles.hint}>
+										{t('connect.field.s3PathStyleHint')}
+									</p>
+								</div>
+								<p className={styles.hint} role="note">
+									{t('connect.s3.moveNote')}
+								</p>
+							</>
+						)}
+						{family !== 's3' && (
+							<fieldset className={styles.methods} disabled={working}>
+								<legend>{t('connect.field.auth')}</legend>
+								{methods.map((method) => (
+									<label
+										key={method}
+										className={styles.check}
+										title={t(METHODS[method].hint(family))}
+									>
+										<input
+											type="radio"
+											name={`${ids.password}-auth`}
+											value={method}
+											checked={form.auth === method}
+											onChange={() => change('auth', method)}
+										/>
+										{t(METHODS[method].label)}
+									</label>
+								))}
+							</fieldset>
+						)}
+						{family !== 's3' && <p className={styles.hint}>{t(METHODS[form.auth].hint(family))}</p>}
 						{family === 'dav' && form.auth === 'password' && (
 							<div className={styles.field}>
 								<label className={styles.label} htmlFor={ids.davAuth}>
@@ -716,10 +829,14 @@ export function ConnectDialog({
 								text('keyFile', ids.keyFile, form.keyFile, true),
 								'connect.field.keyFileHint',
 							)}
-						{(form.auth === 'password' || form.auth === 'token') && (
+						{(form.auth === 'password' || form.auth === 'token' || family === 's3') && (
 							<div className={styles.field}>
 								<label className={styles.label} htmlFor={ids.password}>
-									{form.auth === 'token' ? t('connect.field.token') : t('connect.field.password')}
+									{family === 's3'
+										? t('connect.field.secretKey')
+										: form.auth === 'token'
+											? t('connect.field.token')
+											: t('connect.field.password')}
 								</label>
 								<input
 									id={ids.password}
@@ -733,8 +850,31 @@ export function ConnectDialog({
 									onChange={(event) => setPassword(event.target.value)}
 								/>
 								<p id={`${ids.password}-hint`} className={styles.hint}>
-									{t('connect.field.passwordHint')}
+									{family === 's3'
+										? t('connect.field.secretKeyHint')
+										: t('connect.field.passwordHint')}
 								</p>
+								{family === 's3' && (
+									<div className={styles.field}>
+										<label className={styles.label} htmlFor={ids.sessionToken}>
+											{t('connect.field.sessionToken')}
+										</label>
+										<input
+											id={ids.sessionToken}
+											type="password"
+											className={styles.input}
+											value={sessionToken}
+											disabled={working}
+											autoComplete="off"
+											spellCheck={false}
+											aria-describedby={`${ids.sessionToken}-hint`}
+											onChange={(event) => setSessionToken(event.target.value)}
+										/>
+										<p id={`${ids.sessionToken}-hint`} className={styles.hint}>
+											{t('connect.field.sessionTokenHint')}
+										</p>
+									</div>
+								)}
 								{keyring === null ? (
 									<label className={styles.check} htmlFor={ids.remember}>
 										<input

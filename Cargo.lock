@@ -9032,6 +9032,7 @@ dependencies = [
  "waypoint-protocol",
  "waypoint-provider-archive",
  "waypoint-provider-git",
+ "waypoint-provider-s3",
  "waypoint-provider-sftp",
  "waypoint-provider-smb",
  "waypoint-provider-webdav",

@@ -15,7 +15,7 @@ name: string,
  */
 scheme: string, 
 /**
- * A host name or an IP address (IPv6 with or without its brackets).
+ * A host name or an IP address (IPv6 with or without its brackets); for S3, the bucket.
  */
 host: string, 
 /**
@@ -23,8 +23,8 @@ host: string,
  */
 port: number | null, 
 /**
- * The user to log in as (`domain;user` on SMB); `None` lets the provider choose (for SSH,
- * `~/.ssh/config` or the local account).
+ * The user to log in as (`domain;user` on SMB; the access key id on S3, which is not a
+ * secret); `None` lets the provider choose (for SSH, `~/.ssh/config` or the local account).
  */
 user: string | null, auth: AuthMethod, 
 /**

@@ -91,6 +91,16 @@ pub struct ConnectionOptions {
     pub dav_auth: Option<DavAuth>,
     /// The dialect of a WebDAV server; `None` recognises Nextcloud by its path.
     pub dav_preset: Option<DavPreset>,
+    /// The origin of an S3-compatible service (`https://s3.us-west-004.backblazeb2.com`); `None`
+    /// is AWS. A bucket's address carries it as `?endpoint=`.
+    pub s3_endpoint: Option<String>,
+    /// The signing region of an S3 connection; `None` follows the service (AWS finds it).
+    pub s3_region: Option<String>,
+    /// Whether an S3 connection puts the bucket in the path; `None` follows the service.
+    pub s3_path_style: Option<bool>,
+    /// The preset the form filled the endpoint from (`b2`, `r2`, `minio`…), so the form shows it
+    /// again; it changes nothing about how the connection works.
+    pub s3_preset: Option<String>,
 }
 
 /// What a person fills in for a connection: the Connect dialog sends it to add or change one.
@@ -102,12 +112,12 @@ pub struct ConnectionDraft {
     pub name: String,
     /// `sftp`, `smb`, `davs`, `dav` or `s3`.
     pub scheme: String,
-    /// A host name or an IP address (IPv6 with or without its brackets).
+    /// A host name or an IP address (IPv6 with or without its brackets); for S3, the bucket.
     pub host: String,
     /// A port other than the scheme's default.
     pub port: Option<u16>,
-    /// The user to log in as (`domain;user` on SMB); `None` lets the provider choose (for SSH,
-    /// `~/.ssh/config` or the local account).
+    /// The user to log in as (`domain;user` on SMB; the access key id on S3, which is not a
+    /// secret); `None` lets the provider choose (for SSH, `~/.ssh/config` or the local account).
     pub user: Option<String>,
     pub auth: AuthMethod,
     /// The private key file, for `AuthMethod::KeyFile`.
@@ -184,6 +194,10 @@ pub enum DraftError {
     StartFolder,
     #[error("an option is out of range: {option}")]
     Option { option: String },
+    #[error("the S3 endpoint is not an origin such as `https://host:port`")]
+    Endpoint,
+    #[error("the S3 region is not a region name such as `us-west-004`")]
+    Region,
 }
 
 /// A draft brought to the one form it is saved in: trimmed, blank fields `None`, the host as the
@@ -239,6 +253,47 @@ fn check_range(value: Option<u32>, min: u32, max: u32, option: &str) -> Result<(
         }),
         _ => Ok(()),
     }
+}
+
+/// Percent-encodes everything but the unreserved characters, for an endpoint written as the value
+/// of `?endpoint=`.
+fn encode_query_value(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            other => out.push_str(&format!("%{other:02X}")),
+        }
+    }
+    out
+}
+
+/// The origin an S3 endpoint is written as (`https://minio.lan:9000`).
+pub(crate) fn endpoint_origin(endpoint: &waypoint_path::Endpoint) -> String {
+    let mut out = String::from(if endpoint.secure {
+        "https://"
+    } else {
+        "http://"
+    });
+    out.push_str(&match &endpoint.host {
+        Host::Ipv6 { addr, .. } => format!("[{addr}]"),
+        host => host_text(host),
+    });
+    if let Some(port) = endpoint.port {
+        out.push_str(&format!(":{port}"));
+    }
+    out
+}
+
+/// Whether `region` is a region name: lower-case letters, digits and hyphens.
+fn valid_region(region: &str) -> bool {
+    !region.is_empty()
+        && region.len() <= 64
+        && region
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
 fn check_options(options: &ConnectionOptions) -> Result<(), DraftError> {
@@ -310,11 +365,36 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
     if too_long(&user) {
         return Err(DraftError::User);
     }
-    if draft.port == Some(0) {
+    if draft.port == Some(0) || (scheme == RemoteScheme::S3 && draft.port.is_some()) {
         return Err(DraftError::Port);
     }
     let ssh = scheme == RemoteScheme::Sftp;
     let dav = matches!(scheme, RemoteScheme::Dav | RemoteScheme::Davs);
+    let s3 = scheme == RemoteScheme::S3;
+    // The S3 fields: the endpoint as an origin (blank is AWS), a region name and the form's preset.
+    let endpoint_text = blank_to_none(draft.options.s3_endpoint.clone()).filter(|_| s3);
+    if too_long(&endpoint_text) {
+        return Err(DraftError::Endpoint);
+    }
+    if let Some(endpoint) = &endpoint_text {
+        let probe = format!("s3://bucket/?endpoint={}", encode_query_value(endpoint));
+        if !matches!(
+            VfsPath::parse_input_reporting(&probe),
+            Ok((VfsPath::Remote(root), _)) if root.endpoint().is_some()
+        ) {
+            return Err(DraftError::Endpoint);
+        }
+    }
+    let region = blank_to_none(draft.options.s3_region.clone()).filter(|_| s3);
+    if region
+        .as_deref()
+        .is_some_and(|region| !valid_region(region))
+    {
+        return Err(DraftError::Region);
+    }
+    let preset = blank_to_none(draft.options.s3_preset.clone()).filter(|preset| {
+        s3 && preset.len() <= 32 && preset.bytes().all(|b| b.is_ascii_alphanumeric())
+    });
     // What a protocol does not have is left out, so two drafts of one server save the same: a key
     // file and a jump host are SSH's, and a password type and a dialect are WebDAV's.
     let key_file = blank_to_none(draft.key_file.clone()).filter(|_| ssh);
@@ -336,7 +416,8 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
     check_options(&draft.options)?;
 
     let mut text = format!("{scheme_name}://");
-    if let Some(user) = &user {
+    // An S3 location is a bucket: the access key id is the connection's, not part of the address.
+    if let (Some(user), false) = (&user, s3) {
         text.push_str(&encode_user(user));
         text.push('@');
     }
@@ -345,6 +426,10 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
         text.push_str(&format!(":{port}"));
     }
     text.push('/');
+    if let Some(endpoint) = &endpoint_text {
+        text.push_str("?endpoint=");
+        text.push_str(&encode_query_value(endpoint));
+    }
     let (root, dropped) = match VfsPath::parse_input_reporting(&text) {
         Ok((VfsPath::Remote(root), dropped)) => (root, dropped),
         _ => return Err(DraftError::Host),
@@ -352,8 +437,15 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
     if dropped {
         return Err(DraftError::Password);
     }
-    if root.endpoint().is_some() || root.scheme() != scheme {
+    if root.scheme() != scheme {
         return Err(DraftError::Host);
+    }
+    if root.endpoint().is_some() != endpoint_text.is_some() {
+        return Err(if s3 {
+            DraftError::Endpoint
+        } else {
+            DraftError::Host
+        });
     }
     let start = match &start_folder {
         Some(folder) => root.join(folder).map_err(|_| DraftError::StartFolder)?,
@@ -366,10 +458,12 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
         scheme: scheme.as_str().to_owned(),
         host: host_text(&authority.host),
         port: authority.port,
-        user: authority.user.clone(),
+        // An S3 user is the access key id, which the address does not carry.
+        user: if s3 { user } else { authority.user.clone() },
         auth: match draft.auth {
             AuthMethod::KeyFile if !ssh => AuthMethod::Auto,
             AuthMethod::Token if !dav => AuthMethod::Auto,
+            _ if s3 => AuthMethod::Auto,
             auth => auth,
         },
         key_file,
@@ -382,6 +476,10 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
         options: ConnectionOptions {
             dav_auth: draft.options.dav_auth.filter(|_| dav),
             dav_preset: draft.options.dav_preset.filter(|_| dav),
+            s3_endpoint: root.endpoint().map(endpoint_origin),
+            s3_region: region,
+            s3_path_style: draft.options.s3_path_style.filter(|_| s3),
+            s3_preset: preset,
             ..draft.options.clone()
         },
     };
@@ -695,5 +793,101 @@ mod tests {
         assert_eq!(json["host"], "h");
         assert_eq!(json["auth"], "auto");
         assert!(json.get("password").is_none());
+    }
+
+    fn s3(bucket: &str) -> ConnectionDraft {
+        ConnectionDraft {
+            scheme: "s3".into(),
+            host: bucket.into(),
+            ..ConnectionDraft::default()
+        }
+    }
+
+    #[test]
+    fn an_s3_draft_is_a_bucket_on_a_service_and_the_key_id_stays_out_of_the_address() {
+        let checked = check_draft(&ConnectionDraft {
+            user: Some(" AKIAEXAMPLE ".into()),
+            start_folder: Some("/2026/./trip/".into()),
+            options: ConnectionOptions {
+                s3_endpoint: Some("minio.lan:9000".into()),
+                s3_region: Some(" us-east-1 ".into()),
+                s3_path_style: Some(true),
+                s3_preset: Some("minio".into()),
+                ..ConnectionOptions::default()
+            },
+            ..s3("Photos")
+        })
+        .unwrap();
+        assert_eq!(
+            checked.draft.host, "Photos",
+            "a bucket keeps its letter case"
+        );
+        assert_eq!(checked.draft.user.as_deref(), Some("AKIAEXAMPLE"));
+        assert_eq!(
+            checked.draft.options.s3_endpoint.as_deref(),
+            Some("https://minio.lan:9000")
+        );
+        assert_eq!(
+            checked.draft.options.s3_region.as_deref(),
+            Some("us-east-1")
+        );
+        assert_eq!(checked.draft.start_folder.as_deref(), Some("/2026/trip"));
+        assert_eq!(
+            checked.root.connection_key().as_str(),
+            "s3://Photos?endpoint=https%3A%2F%2Fminio.lan%3A9000"
+        );
+        assert_eq!(
+            VfsPath::Remote(checked.start).to_uri(),
+            "s3://Photos/2026/trip?endpoint=https%3A%2F%2Fminio.lan%3A9000"
+        );
+        // Saving the saved form again changes nothing.
+        assert_eq!(check_draft(&checked.draft).unwrap().draft, checked.draft);
+    }
+
+    #[test]
+    fn an_aws_bucket_has_no_endpoint_and_other_protocols_drop_the_s3_options() {
+        let aws = check_draft(&s3("photos")).unwrap();
+        assert_eq!(aws.draft.options.s3_endpoint, None);
+        assert_eq!(aws.root.connection_key().as_str(), "s3://photos");
+        let sftp = check_draft(&ConnectionDraft {
+            options: ConnectionOptions {
+                s3_endpoint: Some("https://x".into()),
+                s3_region: Some("eu-west-1".into()),
+                s3_path_style: Some(true),
+                s3_preset: Some("aws".into()),
+                ..ConnectionOptions::default()
+            },
+            ..draft("nas.lan")
+        })
+        .unwrap();
+        assert_eq!(sftp.draft.options, ConnectionOptions::default());
+    }
+
+    #[test]
+    fn bad_s3_fields_are_named() {
+        let with = |options: ConnectionOptions| ConnectionDraft { options, ..s3("b") };
+        assert!(matches!(
+            check_draft(&with(ConnectionOptions {
+                s3_endpoint: Some("not an origin".into()),
+                ..ConnectionOptions::default()
+            })),
+            Err(DraftError::Endpoint)
+        ));
+        assert!(matches!(
+            check_draft(&with(ConnectionOptions {
+                s3_region: Some("US East".into()),
+                ..ConnectionOptions::default()
+            })),
+            Err(DraftError::Region)
+        ));
+        assert!(matches!(
+            check_draft(&ConnectionDraft {
+                port: Some(9000),
+                ..s3("b")
+            }),
+            Err(DraftError::Port)
+        ));
+        assert!(matches!(check_draft(&s3("")), Err(DraftError::Host)));
+        assert!(matches!(check_draft(&s3("a/b")), Err(DraftError::Host)));
     }
 }

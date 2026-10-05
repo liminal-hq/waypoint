@@ -151,8 +151,8 @@ impl SecretStore for KeyringSecrets {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Protocol {
     Sftp,
-    // The other protocols' providers are behind Cargo features (S3 is not built yet), so a
-    // variant can be unused in a build that leaves its provider out.
+    // The other protocols' providers are behind Cargo features, so a variant can be unused in a
+    // build that leaves its provider out.
     #[allow(dead_code)]
     Smb,
     #[allow(dead_code)]
@@ -234,6 +234,8 @@ pub struct Composed {
     smb: smb::Smb,
     #[cfg(feature = "webdav")]
     webdav: webdav::WebDav,
+    #[cfg(feature = "s3")]
+    s3: s3::S3,
 }
 
 /// The providers, the credential source and the storage the vfs plugin is built with.
@@ -267,6 +269,12 @@ pub fn compose(archives: &crate::archives::Archives) -> Composed {
         );
         webdav
     };
+    #[cfg(feature = "s3")]
+    let s3 = {
+        let s3 = s3::S3::new(credentials.clone());
+        gate.add(Protocol::S3, vec![Arc::new(s3.provider.clone())]);
+        s3
+    };
     // A revision of a local repository browses read-only like any other location (A85).
     #[cfg(feature = "git")]
     providers.push(Arc::new(waypoint_provider_git::GitProvider::new()));
@@ -291,6 +299,8 @@ pub fn compose(archives: &crate::archives::Archives) -> Composed {
         smb,
         #[cfg(feature = "webdav")]
         webdav,
+        #[cfg(feature = "s3")]
+        s3,
     }
 }
 
@@ -347,7 +357,9 @@ impl Composed {
         self.smb.follow(hub);
         #[cfg(feature = "webdav")]
         self.webdav.follow(hub);
-        #[cfg(not(any(feature = "sftp", feature = "smb", feature = "webdav")))]
+        #[cfg(feature = "s3")]
+        self.s3.follow(hub);
+        #[cfg(not(any(feature = "sftp", feature = "smb", feature = "webdav", feature = "s3")))]
         let _ = hub;
     }
 }
@@ -650,6 +662,71 @@ mod webdav {
     }
 }
 
+#[cfg(feature = "s3")]
+mod s3 {
+    //! The S3 provider (#295): buckets on AWS and on S3-compatible services, signing in with the
+    //! one credential source, and each saved connection's access key id, region and addressing.
+    //! The AWS environment and `~/.aws` files are not offered: the access key is the connection's
+    //! own.
+
+    use std::sync::Arc;
+
+    use waypoint_connections::{ConnectionsHub, Credentials, SavedConnection};
+    use waypoint_protocol::PluginStatus;
+    use waypoint_provider_s3::{S3Config, S3Options, S3Provider};
+
+    /// A saved connection's key id, region and addressing as the provider takes them. The
+    /// endpoint is part of the connection's address, so it is not an option.
+    pub(super) fn options_of(saved: &SavedConnection) -> S3Options {
+        let options = &saved.draft.options;
+        S3Options {
+            region: options.s3_region.clone(),
+            path_style: options.s3_path_style,
+            access_key_id: saved.draft.user.clone(),
+            ..S3Options::default()
+        }
+    }
+
+    pub(super) fn detail() -> PluginStatus {
+        PluginStatus::available(
+            [
+                "multipart",
+                "server-copy",
+                "resume",
+                "storage-class",
+                "presets",
+                "tls",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
+        )
+    }
+
+    pub struct S3 {
+        pub provider: S3Provider,
+    }
+
+    impl S3 {
+        pub fn new(credentials: Arc<Credentials>) -> Self {
+            Self {
+                provider: S3Provider::new(S3Config::new(credentials)),
+            }
+        }
+
+        /// Follows the saved connections: each one's access key id, region and addressing.
+        pub fn follow(&self, hub: &ConnectionsHub) {
+            let provider = self.provider.clone();
+            hub.observe(move |saved| {
+                for connection in saved.iter().filter(|c| c.draft.scheme == "s3") {
+                    if let Some(key) = connection.key() {
+                        provider.set_options(&key, options_of(connection));
+                    }
+                }
+            });
+        }
+    }
+}
+
 /// What each remote protocol this build includes can do, for the Services panel: the logins and
 /// protections that work and the first that does not, in the provider's own words. A protocol the
 /// build leaves out is not listed. Whether it is turned on is the vfs plugin's `connection_support`.
@@ -662,6 +739,8 @@ pub fn get_protocol_details() -> std::collections::HashMap<String, waypoint_prot
     details.insert("smb".to_owned(), smb::detail());
     #[cfg(feature = "webdav")]
     details.insert("webdav".to_owned(), webdav::detail());
+    #[cfg(feature = "s3")]
+    details.insert("s3".to_owned(), s3::detail());
     details
 }
 
@@ -911,12 +990,41 @@ mod tests {
         );
     }
 
-    #[cfg(all(feature = "smb", feature = "webdav"))]
+    #[cfg(feature = "s3")]
+    #[test]
+    fn an_s3_connections_key_id_region_and_addressing_reach_its_provider() {
+        let saved = |user: Option<&str>, path_style| SavedConnection {
+            id: "c1".into(),
+            draft: check_draft(&ConnectionDraft {
+                scheme: "s3".into(),
+                host: "photos".into(),
+                user: user.map(str::to_owned),
+                options: ConnectionOptions {
+                    s3_endpoint: Some("https://s3.us-west-004.backblazeb2.com".into()),
+                    s3_region: Some("us-west-004".into()),
+                    s3_path_style: path_style,
+                    ..ConnectionOptions::default()
+                },
+                ..ConnectionDraft::default()
+            })
+            .unwrap()
+            .draft,
+        };
+        let options = s3::options_of(&saved(Some("004abc"), Some(true)));
+        assert_eq!(options.access_key_id.as_deref(), Some("004abc"));
+        assert_eq!(options.region.as_deref(), Some("us-west-004"));
+        assert_eq!(options.path_style, Some(true));
+        let unnamed = s3::options_of(&saved(None, None));
+        assert_eq!(unnamed.access_key_id, None);
+        assert_eq!(unnamed.path_style, None);
+    }
+
+    #[cfg(all(feature = "smb", feature = "webdav", feature = "s3"))]
     #[test]
     fn the_details_list_the_protocols_this_build_includes() {
         let details = get_protocol_details();
         assert!(details.contains_key("smb") && details.contains_key("webdav"));
-        assert!(!details.contains_key("s3"), "no S3 provider is built yet");
+        assert!(details["s3"].features.iter().any(|f| f == "storage-class"));
         assert!(details["webdav"].features.iter().any(|f| f == "bearer"));
     }
 
@@ -961,6 +1069,11 @@ mod tests {
                 vec![Arc::new(dav.davs), Arc::new(dav.dav)],
             );
         }
+        #[cfg(feature = "s3")]
+        gate.add(
+            Protocol::S3,
+            vec![Arc::new(s3::S3::new(credentials.clone()).provider)],
+        );
         let _ = credentials;
         gate.apply(&registry, &ExperimentalSettings::default(), &|_| {});
         assert!(registry.schemes().is_empty());
@@ -969,6 +1082,7 @@ mod tests {
             &ExperimentalSettings {
                 smb: true,
                 webdav: true,
+                s3: true,
                 ..ExperimentalSettings::default()
             },
             &|_| {},
@@ -978,6 +1092,7 @@ mod tests {
         let expected: Vec<&str> = [
             cfg!(feature = "webdav").then_some("dav"),
             cfg!(feature = "webdav").then_some("davs"),
+            cfg!(feature = "s3").then_some("s3"),
             cfg!(feature = "smb").then_some("smb"),
         ]
         .into_iter()

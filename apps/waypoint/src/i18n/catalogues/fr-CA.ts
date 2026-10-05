@@ -2243,6 +2243,81 @@ const messages: Catalogue = {
 	'connect.scheme.davs': 'WebDAV (HTTPS)',
 	// source: 26519330
 	'connect.scheme.dav': 'WebDAV (HTTP, non chiffré)',
+	// source: a4f63529
+	'connect.s3.preset.aws': 'Amazon S3',
+	// source: ed401873
+	'connect.s3.preset.b2': 'Backblaze B2',
+	// source: 9f2f1eda
+	'connect.s3.preset.r2': 'Cloudflare R2',
+	// source: 493861e0
+	'connect.s3.preset.wasabi': 'Wasabi',
+	// source: fb97d5d9
+	'connect.s3.preset.minio': 'MinIO',
+	// source: c3f48e3f
+	'connect.s3.preset.spaces': 'DigitalOcean Spaces',
+	// source: 05239b34
+	'connect.s3.preset.custom': 'Autre service S3',
+	// source: a7e7c005
+	'connect.s3.moveNote':
+		'S3 ne peut pas renommer : déplacer un fichier ici le copie sur le service, puis supprime l’original, ce qui n’est pas atomique.',
+	// source: c83b6579
+	'connect.field.bucket': 'Compartiment',
+	// source: 14eb0f96
+	'connect.field.keyId': 'ID de clé d’accès',
+	// source: 3de6b754
+	'connect.field.secretKey': 'Clé d’accès secrète',
+	// source: 79b0aa9f
+	'connect.field.secretKeyHint':
+		'Envoyée au service pour signer les requêtes. Avec Mémoriser, elle va dans le trousseau du système, jamais dans les fichiers de Waypoint.',
+	// source: 0cd7fb3e
+	'connect.field.sessionToken': 'Jeton de session (facultatif)',
+	// source: 78432a3a
+	'connect.field.sessionTokenHint':
+		'Pour des identifiants temporaires. Il n’est gardé que pour cette session et jamais mémorisé.',
+	// source: d677190e
+	'connect.field.s3Service': 'Service',
+	// source: c59b0326
+	'connect.field.s3Region': 'Région (facultatif)',
+	// source: 539ed60c
+	'connect.field.s3RegionHint':
+		'Laissez vide pour que le service l’indique. Un compartiment Amazon S3 situé dans une autre région est trouvé automatiquement.',
+	// source: d3a008ef
+	'connect.field.s3ServiceRegion': 'Région',
+	// source: f85e9b87
+	'connect.field.s3ServiceRegionHint':
+		'La région du service, par exemple us-west-004 ou eu-central-1.',
+	// source: 919bb4cb
+	'connect.field.s3Account': 'ID de compte',
+	// source: 8466a295
+	'connect.field.s3AccountHint': 'Votre ID de compte Cloudflare, indiqué dans le tableau de bord.',
+	// source: aef7de28
+	'connect.field.s3Host': 'Serveur',
+	// source: faaf09b9
+	'connect.field.s3HostHint':
+		'L’adresse du serveur, par exemple minio.lan:9000. Écrivez d’abord http:// pour un serveur sans TLS.',
+	// source: 3df9726c
+	'connect.field.s3Endpoint': 'Point de terminaison',
+	// source: d24f39c4
+	'connect.field.s3EndpointHint':
+		'L’adresse du service, par exemple https://s3.example.com. Écrivez http:// pour un serveur sans TLS.',
+	// source: b52f65ad
+	'connect.field.s3PathStyle': 'Mettre le compartiment dans le chemin',
+	// source: 77b9470c
+	'connect.field.s3PathStyleHint':
+		'La plupart des services autres qu’Amazon S3 en ont besoin; Amazon S3 met le compartiment dans le nom d’hôte. Laissez ce réglage tel quel, sauf avis contraire du service.',
+	// source: ecae8c1f
+	'connect.problem.s3Bucket': 'Saisissez le nom du compartiment.',
+	// source: a67e29b4
+	'connect.problem.s3Endpoint': 'Saisissez l’adresse du service, par exemple minio.lan:9000.',
+	// source: 1bdd5ad2
+	'connect.problem.s3Region': 'Saisissez la région du service, par exemple us-west-004.',
+	// source: 430dcf8f
+	'connect.problem.s3Account': 'Saisissez votre ID de compte.',
+	// source: 08b0263c
+	'connect.problem.s3RegionName':
+		'Une région est composée de lettres minuscules, de chiffres et de traits d’union, par exemple eu-west-1.',
+	// source: 632d25f7
+	'connect.address.placeholderS3': 's3://compartiment/dossier',
 	// source: 80b078ca
 	'connect.scheme.s3': 'Stockage S3',
 	// source: f69ee155

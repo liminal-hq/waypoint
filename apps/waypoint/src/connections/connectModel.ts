@@ -15,6 +15,7 @@ import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError'
 import { t, tf, type MessageId } from '../i18n/messages';
 import { isVfsError } from '../services/vfsClient';
 import { isConnectionsRefusal } from './connectionsClient';
+import { s3Endpoint, s3Preset, s3PresetOf } from './s3Presets';
 
 /** The dialog's fields, as text. Rust checks them; the page only carries them. */
 export interface ConnectForm {
@@ -37,6 +38,14 @@ export interface ConnectForm {
 	davAuth: DavAuth;
 	/** WebDAV: the server is a Nextcloud (or ownCloud). */
 	nextcloud: boolean;
+	/** S3: the service (`aws`, `b2`, `r2`, `wasabi`, `minio`, `spaces` or `custom`). */
+	s3Preset: string;
+	/** S3: what the service needs to find its endpoint: a region, an account id, a host, or the whole endpoint. */
+	s3Value: string;
+	/** S3: the signing region, when the service does not say it; blank follows the service. */
+	s3Region: string;
+	/** S3: put the bucket in the path (`true`), in the host name (`false`), or as the service does (`null`). */
+	s3PathStyle: boolean | null;
 }
 
 /** The field a refusal is about, so its message goes under that field. */
@@ -51,7 +60,9 @@ export type FormField =
 	| 'jumpHost'
 	| 'startFolder'
 	| 'refreshSeconds'
-	| 'domain';
+	| 'domain'
+	| 's3Value'
+	| 's3Region';
 
 export function emptyForm(scheme = 'sftp'): ConnectForm {
 	return {
@@ -69,11 +80,15 @@ export function emptyForm(scheme = 'sftp'): ConnectForm {
 		domain: '',
 		davAuth: 'auto',
 		nextcloud: false,
+		s3Preset: 'aws',
+		s3Value: '',
+		s3Region: '',
+		s3PathStyle: null,
 	};
 }
 
 /** The families of protocol the form is shaped for: what is asked, and how a login is made. */
-export type SchemeFamily = 'ssh' | 'smb' | 'dav' | 'other';
+export type SchemeFamily = 'ssh' | 'smb' | 'dav' | 's3' | 'other';
 
 export function familyOf(scheme: string): SchemeFamily {
 	switch (scheme) {
@@ -84,6 +99,8 @@ export function familyOf(scheme: string): SchemeFamily {
 		case 'dav':
 		case 'davs':
 			return 'dav';
+		case 's3':
+			return 's3';
 		default:
 			return 'other';
 	}
@@ -96,6 +113,9 @@ export function methodsFor(scheme: string): readonly AuthMethod[] {
 			return ['auto', 'password', 'keyFile'];
 		case 'dav':
 			return ['auto', 'password', 'token'];
+		// An S3 login is an access key: the id and secret are their own fields, not a way to sign in.
+		case 's3':
+			return ['auto'];
 		default:
 			return ['auto', 'password'];
 	}
@@ -119,6 +139,10 @@ function splitDomain(user: string): { domain: string; user: string } {
 /** The fields of a draft Rust read (a typed address) or a saved connection. */
 export function formOf(draft: ConnectionDraft | SavedConnection, keep?: ConnectForm): ConnectForm {
 	const login = familyOf(draft.scheme) === 'smb' ? splitDomain(draft.user ?? '') : null;
+	const s3 =
+		familyOf(draft.scheme) === 's3'
+			? s3PresetOf(draft.options.s3Endpoint ?? null, draft.options.s3Preset)
+			: null;
 	return {
 		name: draft.name || keep?.name || '',
 		scheme: draft.scheme,
@@ -136,6 +160,11 @@ export function formOf(draft: ConnectionDraft | SavedConnection, keep?: ConnectF
 		thumbnails: draft.options.thumbnails,
 		refreshSeconds:
 			draft.options.refreshSeconds === null ? '' : String(draft.options.refreshSeconds),
+		s3Preset: s3 ? s3.preset : 'aws',
+		s3Value: s3 ? s3.value : '',
+		s3Region: draft.options.s3Region ?? (s3 && keep && !('id' in draft) ? keep.s3Region : ''),
+		s3PathStyle:
+			draft.options.s3PathStyle ?? (s3 && keep && !('id' in draft) ? keep.s3PathStyle : null),
 	};
 }
 
@@ -155,11 +184,13 @@ export function draftOf(form: ConnectForm): ConnectionDraft {
 	const family = familyOf(form.scheme);
 	const user = blank(form.user);
 	const domain = blank(form.domain);
+	const s3 = family === 's3';
+	const endpoint = s3 ? s3Endpoint(form.s3Preset, form.s3Value) : null;
 	return {
 		name: form.name.trim(),
 		scheme: form.scheme,
 		host: form.host.trim(),
-		port: port === null ? null : Number.isNaN(port) || port > 65535 ? 0 : port,
+		port: s3 ? null : port === null ? null : Number.isNaN(port) || port > 65535 ? 0 : port,
 		// A domain goes with a user: `domain;user`. A domain alone is refused before it is sent.
 		user: family === 'smb' && domain && user ? `${domain};${user}` : user,
 		auth: methodsFor(form.scheme).includes(form.auth) ? form.auth : 'auto',
@@ -175,6 +206,10 @@ export function draftOf(form: ConnectForm): ConnectionDraft {
 			windowKib: null,
 			davAuth: family === 'dav' && form.davAuth !== 'auto' ? form.davAuth : null,
 			davPreset: family === 'dav' && form.nextcloud ? 'nextcloud' : null,
+			s3Endpoint: endpoint ?? null,
+			s3Region: s3 ? blank(form.s3Region) : null,
+			s3PathStyle: s3 ? form.s3PathStyle : null,
+			s3Preset: s3 ? form.s3Preset : null,
 		},
 	};
 }
@@ -184,8 +219,22 @@ export function formProblem(form: ConnectForm): { field: FormField; message: str
 	if (familyOf(form.scheme) === 'smb' && form.domain.trim() !== '' && form.user.trim() === '') {
 		return { field: 'user', message: t('connect.problem.domainUser') };
 	}
+	if (familyOf(form.scheme) === 's3') {
+		if (form.host.trim() === '') return { field: 'host', message: t('connect.problem.s3Bucket') };
+		if (s3Endpoint(form.s3Preset, form.s3Value) === undefined) {
+			return { field: 's3Value', message: t(S3_VALUE_PROBLEM[s3Preset(form.s3Preset).input]) };
+		}
+	}
 	return null;
 }
+
+const S3_VALUE_PROBLEM = {
+	none: 'connect.problem.s3Endpoint',
+	region: 'connect.problem.s3Region',
+	accountId: 'connect.problem.s3Account',
+	host: 'connect.problem.s3Endpoint',
+	endpoint: 'connect.problem.s3Endpoint',
+} as const satisfies Record<string, MessageId>;
 
 const DRAFT_FIELDS: Record<DraftError['kind'], FormField> = {
 	name: 'name',
@@ -198,6 +247,8 @@ const DRAFT_FIELDS: Record<DraftError['kind'], FormField> = {
 	jumpHost: 'jumpHost',
 	startFolder: 'startFolder',
 	option: 'refreshSeconds',
+	endpoint: 's3Value',
+	region: 's3Region',
 };
 
 const DRAFT_MESSAGES: Record<DraftError['kind'], MessageId> = {
@@ -211,6 +262,8 @@ const DRAFT_MESSAGES: Record<DraftError['kind'], MessageId> = {
 	jumpHost: 'connect.problem.jumpHost',
 	startFolder: 'connect.problem.startFolder',
 	option: 'connect.problem.refresh',
+	endpoint: 'connect.problem.s3Endpoint',
+	region: 'connect.problem.s3RegionName',
 };
 
 /** Where a refused save goes in the form, and what it says; `null` for something else. */
