@@ -219,15 +219,13 @@ impl Inner {
     fn http_client(&self) -> SharedHttpClient {
         self.http
             .get_or_init(|| {
-                self.config.http_client.clone().unwrap_or_else(|| {
-                    // `ring` rather than the SDK's default `aws-lc`, as the SSH provider does: no
-                    // C build, and the same TLS stack on Windows. The system's roots are trusted.
-                    aws_smithy_http_client::Builder::new()
-                        .tls_provider(aws_smithy_http_client::tls::Provider::Rustls(
-                            aws_smithy_http_client::tls::rustls_provider::CryptoMode::Ring,
-                        ))
-                        .build_https()
-                })
+                // `ring` rather than the SDK's default `aws-lc`, as the SSH provider does: no C
+                // build, and the same TLS stack on Windows. The system's roots are trusted.
+                aws_smithy_http_client::Builder::new()
+                    .tls_provider(aws_smithy_http_client::tls::Provider::Rustls(
+                        aws_smithy_http_client::tls::rustls_provider::CryptoMode::Ring,
+                    ))
+                    .build_https()
             })
             .clone()
     }

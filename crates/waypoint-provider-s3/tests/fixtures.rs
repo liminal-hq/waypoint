@@ -10,39 +10,47 @@ mod support;
 
 use std::sync::Arc;
 
-use aws_sdk_s3::config::SharedHttpClient;
-use aws_sdk_s3::primitives::SdkBody;
-use aws_smithy_http_client::test_util::{ReplayEvent, StaticReplayClient};
+use support::canned::{Canned, Response};
 use support::FixedKey;
 use waypoint_path::VfsPath;
 use waypoint_protocol::VfsError;
-use waypoint_provider_s3::{S3Config, S3Provider, StorageClass};
+use waypoint_provider_s3::{S3Config, S3Options, S3Provider, StorageClass};
 use waypoint_vfs::{CancelToken, EntryKind, Provider};
 
-fn reply(status: u16, headers: &[(&str, &str)], body: &str) -> ReplayEvent {
-    let mut response = http::Response::builder().status(status);
-    for (name, value) in headers {
-        response = response.header(*name, *value);
-    }
-    ReplayEvent::new(
-        http::Request::builder()
-            .uri("https://bucket.s3.amazonaws.com/")
-            .body(SdkBody::empty())
-            .unwrap(),
-        response.body(SdkBody::from(body.to_owned())).unwrap(),
+fn reply(status: u16, headers: &[(&str, &str)], body: &str) -> Response {
+    (
+        status,
+        headers
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+        body.to_owned(),
     )
 }
 
-fn replayed(events: Vec<ReplayEvent>) -> (S3Provider, StaticReplayClient) {
-    let client = StaticReplayClient::new(events);
+/// A provider that talks to the canned server, and a location of `bucket` on it.
+fn replayed(responses: Vec<Response>) -> (S3Provider, Canned) {
+    let canned = Canned::start(responses);
     let provider = S3Provider::new(
         S3Config::new(Arc::new(FixedKey {
             key_id: "AKIAIOSFODNN7EXAMPLE".to_owned(),
             secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_owned(),
         }))
-        .with_http_client(SharedHttpClient::new(client.clone())),
+        .with_options(S3Options {
+            follow_region_redirects: Some(true),
+            max_attempts: Some(1),
+            ..S3Options::default()
+        }),
     );
-    (provider, client)
+    (provider, canned)
+}
+
+fn at(canned: &Canned, key: &str) -> VfsPath {
+    VfsPath::from_uri(&format!(
+        "s3://my-bucket/{key}?endpoint=http%3A%2F%2F127.0.0.1%3A{}",
+        canned.port
+    ))
+    .unwrap()
 }
 
 const LISTING: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -81,8 +89,8 @@ const LISTING: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 
 #[test]
 fn an_aws_listing_has_folders_files_decoded_names_and_storage_classes() {
-    let (provider, client) = replayed(vec![reply(200, &[], LISTING)]);
-    let folder = VfsPath::from_uri("s3://my-bucket/photos").unwrap();
+    let (provider, canned) = replayed(vec![reply(200, &[], LISTING)]);
+    let folder = at(&canned, "photos");
     let mut listed = Vec::new();
     provider
         .list_batches_with_attributes(&folder, &CancelToken::new(), &mut |b| listed.extend(b))
@@ -94,7 +102,6 @@ fn an_aws_listing_has_folders_files_decoded_names_and_storage_classes() {
     assert_eq!(names, ["café menu+1 #1.jpg", ".cover", "2025", "日本語"]);
     let find = |name: &str| listed.iter().find(|l| l.entry.name == name).unwrap();
     // The folder's own marker is not an entry, a URL-encoded key is decoded, and a prefix is a folder.
-    assert!(!names.iter().any(|n| n.is_empty()));
     let cafe = find("café menu+1 #1.jpg");
     assert_eq!(cafe.entry.kind, EntryKind::File);
     assert_eq!(cafe.entry.size, Some(12345));
@@ -113,11 +120,12 @@ fn an_aws_listing_has_folders_files_decoded_names_and_storage_classes() {
     );
     assert_eq!(find("日本語").entry.kind, EntryKind::Directory);
     assert!(find("2025").attributes.is_none());
-    let request = &client.actual_requests().next().unwrap();
-    let uri = request.uri().to_string();
+    let (line, _) = canned.lines().remove(0);
     assert!(
-        uri.contains("prefix=photos%2F") && uri.contains("delimiter=%2F"),
-        "{uri}"
+        line.contains("prefix=photos%2F")
+            && line.contains("delimiter=%2F")
+            && line.contains("encoding-type=url"),
+        "{line}"
     );
 }
 
@@ -126,13 +134,8 @@ fn an_empty_listing_is_a_missing_folder_unless_the_name_is_a_file() {
     let empty = r#"<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>my-bucket</Name><Prefix>nothing/</Prefix><KeyCount>0</KeyCount><MaxKeys>1000</MaxKeys><Delimiter>/</Delimiter><IsTruncated>false</IsTruncated></ListBucketResult>"#;
     let missing = reply(404, &[("x-amz-request-id", "R")], "");
-    let (provider, _) = replayed(vec![reply(200, &[], empty), missing]);
-    let result = provider.list(
-        &VfsPath::from_uri("s3://my-bucket/nothing").unwrap(),
-        &CancelToken::new(),
-        0,
-        &mut |_| {},
-    );
+    let (provider, canned) = replayed(vec![reply(200, &[], empty), missing]);
+    let result = provider.list(&at(&canned, "nothing"), &CancelToken::new(), 0, &mut |_| {});
     assert!(
         matches!(result, Err(VfsError::NotFound { .. })),
         "{result:?}"
@@ -147,13 +150,8 @@ fn an_empty_listing_is_a_missing_folder_unless_the_name_is_a_file() {
         ],
         "",
     );
-    let (provider, _) = replayed(vec![reply(200, &[], empty), head]);
-    let result = provider.list(
-        &VfsPath::from_uri("s3://my-bucket/nothing").unwrap(),
-        &CancelToken::new(),
-        0,
-        &mut |_| {},
-    );
+    let (provider, canned) = replayed(vec![reply(200, &[], empty), head]);
+    let result = provider.list(&at(&canned, "nothing"), &CancelToken::new(), 0, &mut |_| {});
     assert!(
         matches!(result, Err(VfsError::NotADirectory { .. })),
         "{result:?}"
@@ -169,10 +167,9 @@ fn errors_are_read_from_aws_s_xml_bodies() {
             &format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>{code}</Code><Message>m</Message><RequestId>R</RequestId></Error>"),
         )
     };
-    let folder = VfsPath::from_uri("s3://my-bucket/x").unwrap();
-    let run = |event: ReplayEvent| {
-        let (provider, _) = replayed(vec![event]);
-        provider.list(&folder, &CancelToken::new(), 0, &mut |_| {})
+    let run = |response: Response| {
+        let (provider, canned) = replayed(vec![response]);
+        provider.list(&at(&canned, "x"), &CancelToken::new(), 0, &mut |_| {})
     };
     assert!(matches!(
         run(error(404, "NoSuchBucket")),
@@ -199,27 +196,16 @@ fn a_bucket_in_another_region_is_followed_through_the_region_header() {
         &[("x-amz-bucket-region", "eu-west-1"), ("content-type", "application/xml")],
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>PermanentRedirect</Code><Message>The bucket you are attempting to access must be addressed using the specified endpoint.</Message><Endpoint>my-bucket.s3.eu-west-1.amazonaws.com</Endpoint></Error>",
     );
-    let (provider, client) = replayed(vec![moved, reply(200, &[], LISTING)]);
+    let (provider, canned) = replayed(vec![moved, reply(200, &[], LISTING)]);
     let listed = provider
-        .list(
-            &VfsPath::from_uri("s3://my-bucket/photos").unwrap(),
-            &CancelToken::new(),
-            0,
-            &mut |_| {},
-        )
+        .list(&at(&canned, "photos"), &CancelToken::new(), 0, &mut |_| {})
         .unwrap();
     assert_eq!(listed.len(), 4);
-    let requests: Vec<String> = client
-        .actual_requests()
-        .map(|r| r.uri().to_string())
-        .collect();
-    assert!(
-        requests[0].contains("us-east-1") || requests[0].contains("s3.amazonaws.com"),
-        "{requests:?}"
-    );
-    assert!(
-        requests[1].contains("eu-west-1"),
-        "the retry goes to the bucket's region: {requests:?}"
+    let regions: Vec<String> = canned.lines().into_iter().map(|(_, r)| r).collect();
+    assert_eq!(
+        regions,
+        ["us-east-1", "eu-west-1"],
+        "the retry is signed for the bucket's region"
     );
 }
 
@@ -230,21 +216,16 @@ fn an_archived_object_is_a_typed_error_not_a_download() {
         &[("content-type", "application/xml")],
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Error><Code>InvalidObjectState</Code><Message>The operation is not valid for the object's storage class</Message><StorageClass>DEEP_ARCHIVE</StorageClass></Error>",
     );
-    let (provider, client) = replayed(vec![archived]);
-    let result = provider.open_read(&VfsPath::from_uri("s3://my-bucket/cold.bin").unwrap());
+    let (provider, canned) = replayed(vec![archived]);
+    let result = provider.open_read(&at(&canned, "cold.bin"));
     assert!(
         matches!(&result, Err(VfsError::Unsupported { what }) if what.contains("restore")),
         "{:?}",
         result.err()
     );
     // One GET, and no restore request.
-    let uris: Vec<_> = client
-        .actual_requests()
-        .map(|r| (r.method().to_string(), r.uri().to_string()))
-        .collect();
-    assert_eq!(uris.len(), 1);
-    assert!(
-        uris.iter().all(|(_, uri)| !uri.contains("restore")),
-        "{uris:?}"
-    );
+    let lines = canned.lines();
+    assert_eq!(lines.len(), 1);
+    assert!(lines[0].0.starts_with("GET"), "{lines:?}");
+    assert!(!lines[0].0.contains("restore"));
 }

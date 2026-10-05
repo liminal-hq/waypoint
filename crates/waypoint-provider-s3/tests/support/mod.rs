@@ -18,6 +18,7 @@
 
 #![allow(dead_code)]
 
+pub mod canned;
 pub mod fake_s3;
 
 use std::fs;

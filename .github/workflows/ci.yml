@@ -283,7 +283,7 @@ jobs:
         env:
           WAYPOINT_SMB_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-smb
-      - name: Run the S3 provider against rclone and MinIO
+      - name: Run the S3 provider against rclone
         id: s3
         env:
           WAYPOINT_S3_REQUIRE: '1'

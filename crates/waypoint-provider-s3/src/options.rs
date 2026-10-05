@@ -5,7 +5,6 @@
 
 use std::sync::Arc;
 
-use aws_sdk_s3::config::SharedHttpClient;
 use waypoint_vfs::{CredentialSource, Secret};
 
 /// The smallest part S3 accepts in a multipart upload (every part but the last).
@@ -57,7 +56,6 @@ pub struct S3Config {
     /// Offer the AWS environment variables and shared files (`ambient`) to AWS endpoints when the
     /// source has no credential. Off unless the app turns it on.
     pub ambient_credentials: bool,
-    pub(crate) http_client: Option<SharedHttpClient>,
 }
 
 impl S3Config {
@@ -66,7 +64,6 @@ impl S3Config {
             credentials,
             options: S3Options::default(),
             ambient_credentials: false,
-            http_client: None,
         }
     }
 
@@ -78,13 +75,6 @@ impl S3Config {
     /// Also read the AWS environment and `~/.aws` files for AWS endpoints (see `ambient`).
     pub fn with_ambient_credentials(mut self) -> Self {
         self.ambient_credentials = true;
-        self
-    }
-
-    /// Replaces the HTTP client, which a test uses to replay recorded responses.
-    #[doc(hidden)]
-    pub fn with_http_client(mut self, client: SharedHttpClient) -> Self {
-        self.http_client = Some(client);
         self
     }
 }
