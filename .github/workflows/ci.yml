@@ -246,15 +246,20 @@ jobs:
           if-no-files-found: error
 
   # The remote providers against real servers (A85). OpenSSH's `sshd` runs as the runner's user
-  # with keys the tests generate (no root, no container); `WAYPOINT_SFTP_REQUIRE` makes a missing
-  # server a failure here, where elsewhere the same tests skip.
+  # with keys the tests generate (no root, no container), and Samba's `smbd` the same way with a
+  # private state directory and the runner's own account; `WAYPOINT_SFTP_REQUIRE` and
+  # `WAYPOINT_SMB_REQUIRE` make a missing server a failure here, where elsewhere the same tests skip.
   remote-conformance:
     name: Remote providers against real servers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install the OpenSSH server
-        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends openssh-server
+      - name: Install the OpenSSH and Samba servers
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends openssh-server samba
+          # The package starts system daemons on port 445 that the tests do not use.
+          sudo systemctl disable --now smbd nmbd winbind 2>/dev/null || true
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
 
@@ -264,6 +269,12 @@ jobs:
           WAYPOINT_SFTP_REQUIRE: '1'
         run: cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config
 
+      - name: Run the SMB provider against smbd
+        id: smb
+        env:
+          WAYPOINT_SMB_REQUIRE: '1'
+        run: cargo nextest run --profile ci -p waypoint-provider-smb
+
       - name: Job summary
         if: always()
         run: |
@@ -272,6 +283,7 @@ jobs:
             echo "| Step | Result | Command |"
             echo "|---|---|---|"
             echo "| SFTP | \`${{ steps.sftp.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-sftp -p openssh-config\` |"
+            echo "| SMB | \`${{ steps.smb.outcome }}\` | \`cargo nextest run --profile ci -p waypoint-provider-smb\` |"
             echo
             bash scripts/junit-summary.sh target/nextest/ci/junit.xml
           } >> "${GITHUB_STEP_SUMMARY}"
