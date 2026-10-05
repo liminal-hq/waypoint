@@ -5,7 +5,7 @@
 
 use tauri::plugin::TauriPlugin;
 use tauri::{Runtime, WebviewWindow};
-use tauri_plugin_window_state::{StateFlags, WindowExt};
+use tauri_plugin_window_state::StateFlags;
 
 use crate::ops_window::OPS_LABEL;
 use crate::properties_window::LABEL_PREFIX as PROPERTIES_PREFIX;
@@ -54,6 +54,7 @@ fn is_managed(key: &str) -> bool {
 #[cfg(not(windows))]
 pub fn restore_after_show<R: Runtime>(window: &WebviewWindow<R>) {
     use tauri::Manager;
+    use tauri_plugin_window_state::WindowExt;
     let window = window.clone();
     let app = window.app_handle().clone();
     let _ = app.run_on_main_thread(move || {
