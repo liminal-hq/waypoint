@@ -47,15 +47,15 @@ Brand values come from the liminal-hq site tokens (ember accent, warm neutrals, 
 
 ## Transparency (headline setting)
 
-| Control                        | Range                                                                                                   | Default                                                |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Enable transparency            | on/off                                                                                                  | off                                                    |
-| Opacity per part               | 40–100 % each: title bar and menu bar, tabs and toolbar, sidebar, file area                             | 82 %, 90 %, 94 %, 98 %                                 |
-| Background blur                | off / low / high (where the compositor supports it: KWin, Mutter with an extension, Win11 Mica/Acrylic) | low                                                    |
-| Regions                        | Title bar · Tabs · Sidebar · Content · Inspector                                                        | Title bar, tabs and sidebar translucent; content solid |
-| Menus (context menus, pop-ups) | on/off, own opacity 60–100 %                                                                            | on, 96 %                                               |
-| Solid when unfocused           | on/off                                                                                                  | on                                                     |
-| Tint                           | Neutral, accent, or wallpaper-derived                                                                   | Neutral                                                |
+| Control                        | Range                                                                                          | Default                                                |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Enable transparency            | on/off                                                                                         | off                                                    |
+| Opacity per part               | 40–100 % each: title bar and menu bar, tabs and toolbar, sidebar, file area                    | 82 %, 90 %, 94 %, 98 %                                 |
+| Background blur                | off / high (where the compositor supports it: KWin, Mutter with an extension, Windows Acrylic) | off                                                    |
+| Regions                        | Title bar · Tabs · Sidebar · Content · Inspector                                               | Title bar, tabs and sidebar translucent; content solid |
+| Menus (context menus, pop-ups) | on/off, own opacity 60–100 %                                                                   | on, 96 %                                               |
+| Solid when unfocused           | on/off                                                                                         | on                                                     |
+| Tint                           | Neutral, accent, or wallpaper-derived                                                          | Neutral                                                |
 
 Guardrails: no part of the window is more see-through than keeps its text at 4.5:1 over the worst backdrop (the floor, a pure function in `theme/transparency.ts`: black behind a light window, a light grey behind a dark one, worked out from the theme's own colours; it comes to roughly 40 to 55 % for the built-in themes, and a pure white wallpaper under a dark window can still dip below). Transparency is disabled under reduced transparency or high contrast, until the platform reports that windows can be see-through, and while the window is not in front when "Solid when unfocused" is on. The live preview in Settings draws a sample window over a bright, busy wallpaper with the same function the real windows use. As built (milestone 5): the regions are three switches (title bar and the rows under it, sidebar and panels, file area), each part has its own opacity (`opacity`, `rowsOpacity`, `sidebarOpacity`, `contentOpacity`; D135), the page has a Reset to defaults button that leaves the enable switch alone, menus default to solid, the blur setting is Off, Low or High, and the tint control is not built.
 

@@ -1403,6 +1403,10 @@
     "message": "To keep text readable on this theme, this part stays at least {percent}% opaque.",
     "description": "Area: settings. Placeholders, kept exactly as written: {percent} is a percentage, a number without the % sign."
   },
+  "settings.transparency.opacity.byBlur": {
+    "message": "High blur is on, so this part is drawn at {percent}% to let the blur show. Your setting comes back when blur is Off.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {percent} is a percentage, a number without the % sign."
+  },
   "settings.transparency.opacity.unit": {
     "message": "%",
     "description": "Area: settings."
@@ -1412,15 +1416,11 @@
     "description": "Area: settings."
   },
   "settings.transparency.blur.description": {
-    "message": "Blurs what is behind the window where it shows through. Low is a soft material, High a stronger one (Windows); on Linux both blur the same.",
+    "message": "Blurs what is behind the window where it shows through. While it is High, the title bar, tabs, toolbar, sidebar and file area are drawn see-through so the blur shows, and a window that is not in front keeps it.",
     "description": "Area: settings."
   },
   "settings.transparency.blur.off": {
     "message": "Off",
-    "description": "Area: settings."
-  },
-  "settings.transparency.blur.low": {
-    "message": "Low",
     "description": "Area: settings."
   },
   "settings.transparency.blur.high": {
@@ -1499,6 +1499,10 @@
     "message": "The list and the grid. Off keeps files on a solid background.",
     "description": "Area: settings."
   },
+  "settings.transparency.regions.byBlur": {
+    "message": "On while High blur is on, so the blur shows through this part. Your choice comes back when blur is Off.",
+    "description": "Area: settings."
+  },
   "settings.transparency.menus.label": {
     "message": "Translucent menus",
     "description": "Area: settings."
@@ -1520,7 +1524,11 @@
     "description": "Area: settings."
   },
   "settings.transparency.solidUnfocused.description": {
-    "message": "A window you are not using draws solid and gives up its blur, which also saves the compositor some work.",
+    "message": "A window you are not using draws solid, which also saves the compositor some work.",
+    "description": "Area: settings."
+  },
+  "settings.transparency.solidUnfocused.byBlur": {
+    "message": "Off while High blur is on, so the blur stays when the window is not in front.",
     "description": "Area: settings."
   },
   "settings.open.failed": {

@@ -835,17 +835,18 @@ const messages: Catalogue = {
 	// source: b43a26ec
 	'settings.transparency.opacity.raised':
 		'Pour que le texte reste lisible avec ce thème, cette partie reste opaque à au moins {percent} %.',
+	// source: 3fc4ee3c
+	'settings.transparency.opacity.byBlur':
+		'Le flou Élevé est activé : cette partie est dessinée à {percent} % pour laisser voir le flou. Votre réglage revient quand le flou est désactivé.',
 	// source: bbf3f11c
 	'settings.transparency.opacity.unit': '%',
 	// source: ff47e695
 	'settings.transparency.blur.label': 'Flou derrière la fenêtre',
-	// source: 88352b22
+	// source: d1dc7c97
 	'settings.transparency.blur.description':
-		'Rend flou ce qui se trouve derrière la fenêtre là où il transparaît. Faible donne une matière douce, Élevé une matière plus marquée (Windows); sous Linux, les deux produisent le même flou.',
+		'Rend flou ce qui se trouve derrière la fenêtre là où il transparaît. Lorsque le flou est Élevé, la barre de titre, les onglets, la barre d’outils, la barre latérale et la zone des fichiers sont dessinés en transparence pour que le flou se voie, et une fenêtre qui n’est pas au premier plan le conserve.',
 	// source: ca7981b4
 	'settings.transparency.blur.off': 'Désactivé',
-	// source: f793de20
-	'settings.transparency.blur.low': 'Faible',
 	// source: c4ebc6d4
 	'settings.transparency.blur.high': 'Élevé',
 	// source: 9b90ac35
@@ -889,6 +890,9 @@ const messages: Catalogue = {
 	// source: ca521b02
 	'settings.transparency.regions.content.description':
 		'La liste et la grille. Désactivé, les fichiers restent sur un arrière-plan opaque.',
+	// source: 96589691
+	'settings.transparency.regions.byBlur':
+		'Activé tant que le flou Élevé est activé, afin que le flou transparaisse à travers cette partie. Votre choix revient quand le flou est désactivé.',
 	// source: 34b1c65b
 	'settings.transparency.menus.label': 'Menus translucides',
 	// source: f3a31096
@@ -901,9 +905,12 @@ const messages: Catalogue = {
 		'Les menus restent presque opaques pour que leur texte soit facile à lire.',
 	// source: 7e7e9009
 	'settings.transparency.solidUnfocused.label': 'Opaque hors du premier plan',
-	// source: 15bb64cd
+	// source: 9af5e097
 	'settings.transparency.solidUnfocused.description':
-		'Une fenêtre que vous n’utilisez pas est dessinée opaque et renonce à son flou, ce qui épargne aussi du travail au compositeur.',
+		'Une fenêtre que vous n’utilisez pas est dessinée opaque, ce qui épargne aussi du travail au compositeur.',
+	// source: b085834a
+	'settings.transparency.solidUnfocused.byBlur':
+		'Désactivé tant que le flou Élevé est activé, afin que le flou reste visible quand la fenêtre n’est pas au premier plan.',
 	// source: 61a7a80b
 	'settings.open.failed': 'Impossible d’ouvrir la fenêtre des paramètres.',
 	// source: abc7e989

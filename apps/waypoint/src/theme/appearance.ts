@@ -177,6 +177,7 @@ export function resolveAppearance(
 		available: options.opacityAvailable === undefined ? true : options.opacityAvailable,
 		focused: options.focused ?? true,
 		solidWhenUnfocused: transparency.solidWhenUnfocused,
+		blur: transparency.blur,
 	});
 	return {
 		theme,

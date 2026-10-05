@@ -62,7 +62,9 @@ pub struct Plan {
 /// is asked for unless the master switch is on, the person has not forced high contrast or reduced
 /// transparency on (the OS's own preference is the page's to read, and the page then draws solid,
 /// which hides the effect), blur is not Off, a window that is not in front is allowed to be
-/// translucent, and the plugin says the system can do it.
+/// translucent, and the plugin says the system can do it. Blur is there to be seen, so it keeps
+/// showing in a window that is not in front whatever "Solid when not in front" says; the page
+/// switches that setting off while blur is on.
 fn effect_for(settings: &Settings, status: &PluginStatus, window: &WindowState) -> Option<Effects> {
     let wanted = &settings.transparency;
     let access = &settings.accessibility;
@@ -72,24 +74,21 @@ fn effect_for(settings: &Settings, status: &PluginStatus, window: &WindowState) 
     if access.high_contrast == OsPreference::On || access.reduced_transparency == OsPreference::On {
         return None;
     }
-    if wanted.solid_when_unfocused && !window.focused {
-        return None;
-    }
     if !status.has(FEATURE_OPACITY) {
         return None;
     }
     let kind = match status.flavour {
-        // Low is the quiet material (Mica), High the strong one (Acrylic); either stands in for the
-        // other where only one exists.
+        // Acrylic is the blur; Mica, which only tints the window with the wallpaper, stands in for it
+        // where it is all there is.
         Flavour::Windows => {
             let (mica, acrylic) = (status.has(FEATURE_MICA), status.has(FEATURE_ACRYLIC));
-            match (wanted.blur, mica, acrylic) {
-                (BlurLevel::Low, true, _) | (BlurLevel::High, true, false) => EffectKind::Mica,
-                (BlurLevel::High, _, true) | (BlurLevel::Low, false, true) => EffectKind::Acrylic,
+            match (mica, acrylic) {
+                (_, true) => EffectKind::Acrylic,
+                (true, false) => EffectKind::Mica,
                 _ => return None,
             }
         }
-        // The compositors have one blur and no strength to ask for: Low and High are the same.
+        // The compositors have one blur and no strength to ask for.
         Flavour::Wayland | Flavour::X11 => {
             if !status.has(FEATURE_BLUR) {
                 return None;
@@ -374,6 +373,7 @@ mod tests {
     fn settings(change: impl FnOnce(&mut Settings)) -> Settings {
         let mut s = Settings::default();
         s.transparency.enabled = true;
+        s.transparency.blur = BlurLevel::High;
         change(&mut s);
         s
     }
@@ -492,9 +492,11 @@ mod tests {
             focused: false,
             ..state()
         };
-        assert_eq!(plan(&settings(|_| {}), &kde, &unfocused).effect, None);
-        let kept = settings(|s| s.transparency.solid_when_unfocused = false);
-        assert!(plan(&kept, &kde, &unfocused).effect.is_some());
+        // The blur is there to be seen, so a window that is not in front keeps it whatever the
+        // setting that draws such a window solid says.
+        assert!(plan(&settings(|_| {}), &kde, &unfocused).effect.is_some());
+        let solid = settings(|s| s.transparency.solid_when_unfocused = true);
+        assert!(plan(&solid, &kde, &unfocused).effect.is_some());
     }
 
     #[test]
@@ -510,24 +512,19 @@ mod tests {
     }
 
     #[test]
-    fn windows_maps_low_to_mica_and_high_to_acrylic_and_covers_the_whole_window() {
+    fn windows_blurs_with_acrylic_and_covers_the_whole_window() {
         let both = windows(22621);
-        let low = plan(&settings(|_| {}), &both, &state()).effect.unwrap();
-        assert_eq!((low.kind, low.region), (EffectKind::Mica, None));
-        let high = plan(
-            &settings(|s| s.transparency.blur = BlurLevel::High),
-            &both,
-            &state(),
-        )
-        .effect
-        .unwrap();
-        assert_eq!(high.kind, EffectKind::Acrylic);
-        // Windows 10 has no Mica: Low falls back to Acrylic.
+        let blur = plan(&settings(|_| {}), &both, &state()).effect.unwrap();
+        assert_eq!((blur.kind, blur.region), (EffectKind::Acrylic, None));
+        // Windows 10 has no Mica and blurs the same way.
         let ten = windows(19045);
         assert_eq!(
             plan(&settings(|_| {}), &ten, &state()).effect.unwrap().kind,
             EffectKind::Acrylic
         );
+        // Off asks for nothing, on Windows too.
+        let off = settings(|s| s.transparency.blur = BlurLevel::Off);
+        assert_eq!(plan(&off, &both, &state()).effect, None);
         // And no inset: that is a GTK feature.
         assert_eq!(plan(&settings(|_| {}), &both, &state()).inset, None);
     }

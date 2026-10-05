@@ -491,12 +491,13 @@ export const enMessages = {
 	'settings.transparency.opacity.content.description': 'How solid the list and the grid are.',
 	'settings.transparency.opacity.raised':
 		'To keep text readable on this theme, this part stays at least {percent}% opaque.',
+	'settings.transparency.opacity.byBlur':
+		'High blur is on, so this part is drawn at {percent}% to let the blur show. Your setting comes back when blur is Off.',
 	'settings.transparency.opacity.unit': '%',
 	'settings.transparency.blur.label': 'Blur behind the window',
 	'settings.transparency.blur.description':
-		'Blurs what is behind the window where it shows through. Low is a soft material, High a stronger one (Windows); on Linux both blur the same.',
+		'Blurs what is behind the window where it shows through. While it is High, the title bar, tabs, toolbar, sidebar and file area are drawn see-through so the blur shows, and a window that is not in front keeps it.',
 	'settings.transparency.blur.off': 'Off',
-	'settings.transparency.blur.low': 'Low',
 	'settings.transparency.blur.high': 'High',
 	'settings.transparency.blur.unavailable': 'Blur is not available here: {reason}',
 	'settings.transparency.blur.unavailable.noReason':
@@ -521,6 +522,8 @@ export const enMessages = {
 	'settings.transparency.regions.content.label': 'File area',
 	'settings.transparency.regions.content.description':
 		'The list and the grid. Off keeps files on a solid background.',
+	'settings.transparency.regions.byBlur':
+		'On while High blur is on, so the blur shows through this part. Your choice comes back when blur is Off.',
 	'settings.transparency.menus.label': 'Translucent menus',
 	'settings.transparency.menus.description':
 		'Context menus and the application menu show what is behind them, blurred.',
@@ -529,7 +532,9 @@ export const enMessages = {
 		'Menus stay close to solid so their text is easy to read.',
 	'settings.transparency.solidUnfocused.label': 'Solid when not in front',
 	'settings.transparency.solidUnfocused.description':
-		'A window you are not using draws solid and gives up its blur, which also saves the compositor some work.',
+		'A window you are not using draws solid, which also saves the compositor some work.',
+	'settings.transparency.solidUnfocused.byBlur':
+		'Off while High blur is on, so the blur stays when the window is not in front.',
 	'settings.open.failed': 'Could not open the Settings window.',
 
 	'browse.list.label': 'Files',
