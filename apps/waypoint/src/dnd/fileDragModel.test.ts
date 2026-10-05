@@ -304,7 +304,7 @@ describe('sameFileTarget', () => {
 describe('the paths without a pointer', () => {
 	it('has one for every outcome and every kind of target', () => {
 		expect(Object.keys(NON_POINTER_PATHS).sort()).toEqual(
-			['ask', 'copy', 'link', 'move', 'open', 'shelf', 'trash'].sort(),
+			['ask', 'copy', 'link', 'move', 'open', 'shelf', 'split', 'trash'].sort(),
 		);
 		expect(Object.keys(TARGET_PATHS).sort()).toEqual(
 			['chip', 'crumb', 'folder', 'pane', 'place', 'plus', 'shelf', 'tab', 'trash'].sort(),

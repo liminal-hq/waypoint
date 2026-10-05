@@ -29,6 +29,7 @@ import {
 	LinkIcon,
 	MoveToIcon,
 	NewTabIcon,
+	SplitPaneIcon,
 	PasteIcon,
 	TrashIcon,
 	WindowIcon,
@@ -43,6 +44,8 @@ interface EntryContextMenuProps {
 	onClose: () => void;
 	onOpen: (entry: Entry, handle: ListingHandle) => void;
 	onOpenInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
+	/** Opens the folder in a new pane beside the one on show. */
+	onOpenInSplit?: (entry: Entry, handle: ListingHandle) => void;
 	onCopyPath: (entry: Entry, handle: ListingHandle) => void;
 	onAddToFavourites: (entry: Entry, handle: ListingHandle) => void;
 	/** The commands this menu may offer, by what the listing allows; omitted where nothing can be written. */
@@ -379,6 +382,12 @@ export function entryMenuItems(
 					} as const,
 					{
 						type: 'action',
+						id: 'openInSplit',
+						label: t('menu.openInSplit'),
+						icon: <SplitPaneIcon />,
+					} as const,
+					{
+						type: 'action',
 						id: 'openInNewWindow',
 						label: t('menu.openInNewWindow'),
 						icon: <WindowIcon />,
@@ -435,6 +444,7 @@ export function EntryContextMenu({
 	onClose,
 	onOpen,
 	onOpenInNewTab,
+	onOpenInSplit,
 	onCopyPath,
 	onAddToFavourites,
 	commands,
@@ -458,6 +468,7 @@ export function EntryContextMenu({
 				if (openWith.select(item.id)) return;
 				if (item.id === 'open') onOpen(entry, handle);
 				else if (item.id === 'openInNewTab') onOpenInNewTab(entry, handle);
+				else if (item.id === 'openInSplit') onOpenInSplit?.(entry, handle);
 				else if (item.id === 'openInNewWindow') onOpenInNewTab(entry, handle, true);
 				else if (item.id === 'copyPath') onCopyPath(entry, handle);
 				else if (item.id === 'addToFavourites') onAddToFavourites(entry, handle);

@@ -8,7 +8,10 @@ import type { SessionSnapshot } from '@liminal-hq/waypoint-protocol/generated/Se
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import { useMemo } from 'react';
 import type { TabsApi } from '../services/tabsApi';
+import { announce } from './announcer';
 import { useCloseGuard, type CloseGuard } from './closeGuard';
+import type { Edge } from './dragLayout';
+import { openInSplit } from './openInSplit';
 import { useHomeLocation, useTabsApi, useTabsSnapshot } from './TabsContext';
 
 export interface TabActions {
@@ -20,6 +23,8 @@ export interface TabActions {
 	newTabAtHome(): void;
 	/** Opens `location` in a tab next to the active one, without leaving the current tab. */
 	openInBackground(location: Location): void;
+	/** Opens `location` in a new pane beside the one on show (on its right unless `edge` says); says why when the tab is already split. */
+	openInSplit(location: Location, edge?: Edge): void;
 	activate(tab: TabId): void;
 	/**
 	 * Closes a tab. Closing a window's last tab closes the window (D91); the session plugin does that,
@@ -70,6 +75,8 @@ export function createTabActions(
 		newTabAtHome: () => run(api.openTab(home)),
 		openInBackground: (location) =>
 			run(api.openTab(location, { activate: false, ...(active ? { after: active.id } : {}) })),
+		openInSplit: (location, edge) =>
+			run(openInSplit({ api, snapshot: () => snapshot, announce }, location, edge)),
 		activate,
 		close: (tab) => {
 			const queued = (closeQueues.get(api) ?? Promise.resolve())

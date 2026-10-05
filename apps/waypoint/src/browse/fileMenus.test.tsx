@@ -128,6 +128,7 @@ describe('the entry menu', () => {
 		expect(shape(entryMenuItems(folder))).toEqual([
 			'open',
 			'openInNewTab',
+			'openInSplit',
 			'openInNewWindow',
 			'|',
 			'addToFavourites',
@@ -166,9 +167,10 @@ describe('the entry menu', () => {
 		const ids = shape(entryMenuItems(folder, writable));
 		expect(ids).toContain('pasteInto');
 		expect(ids).not.toContain('paste');
-		expect(ids.slice(0, 8)).toEqual([
+		expect(ids.slice(0, 9)).toEqual([
 			'open',
 			'openInNewTab',
+			'openInSplit',
 			'openInNewWindow',
 			'|',
 			'cut',

@@ -21,6 +21,13 @@ export const NewTabIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+export const SplitPaneIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<rect data-fill x="2" y="3" width="12" height="10" rx="1.2" />
+		<path d="M8 3v10" />
+	</Glyph>
+);
+
 export const TabsIcon = (props: IconProps) => (
 	<Glyph {...props}>
 		<rect data-fill x="2" y="5.5" width="12" height="8" rx="1.2" />

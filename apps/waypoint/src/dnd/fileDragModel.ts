@@ -7,7 +7,7 @@ import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGrou
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import type { TransferEnds } from '@liminal-hq/waypoint-protocol/generated/TransferEnds';
 import type { ListingSession } from '../browse/useListingSession';
-import { t, tf, tn } from '../i18n/messages';
+import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { normaliseUri } from '../ops/clipboardRules';
 import type { FileCommandId } from '../ops/fileCommands';
 import { isArchiveLocation } from '../archives/archiveNames';
@@ -21,6 +21,7 @@ import {
 	type DropVerb,
 	type VolumeRelation,
 } from './dropAction';
+import type { Edge } from '../tabs/dragLayout';
 import type { DropKind, DropSpot } from './dropTargets';
 
 /** Files that came from outside any listing of this window: from another application or window, or this window's own drag coming back. */
@@ -57,6 +58,8 @@ export interface SelectionDragSource extends FileDragBase {
 	session: ListingSession;
 	handle: ListingHandle;
 	spec: SelectionSpec;
+	/** The entry's id when the drag is of exactly one folder (or a link to one), which a held modifier can open in a split pane. */
+	folderEntry?: number | undefined;
 	external?: undefined;
 }
 
@@ -70,6 +73,11 @@ export interface LocationsDragSource extends FileDragBase {
 	locations: Location[];
 	/** Set for files that came from another application or window (or this window's own outbound drag coming back). */
 	external?: ExternalFiles;
+	/**
+	 * A sidebar place or Folders-tree item, not a file: it is dropped on a split zone to open it in a
+	 * new pane, and on nothing else. `locations` holds the one folder.
+	 */
+	place?: boolean;
 }
 
 export type FileDragSource = SelectionDragSource | LocationsDragSource;
@@ -80,7 +88,12 @@ export function isLocationsSource(source: FileDragSource): source is LocationsDr
 
 /** Items taken from the Shelf: references that did not come from outside the window. */
 export function isShelfSource(source: FileDragSource): source is LocationsDragSource {
-	return source.kind === 'locations' && !source.external;
+	return source.kind === 'locations' && !source.external && !source.place;
+}
+
+/** A sidebar place or tree folder being dragged to open in a new pane. */
+export function isPlaceSource(source: FileDragSource): source is LocationsDragSource {
+	return source.kind === 'locations' && source.place === true;
 }
 
 /** Why a target refuses the drop. */
@@ -97,11 +110,16 @@ export type BlockReason =
 	| { kind: 'shelfSource' }
 	/** The Shelf is the target and the items are already on it. */
 	| { kind: 'onShelf' }
+	/** A place or folder opens in a new pane, and the tab on show is already split. */
+	| { kind: 'alreadySplit' }
 	| { kind: 'unavailable' }
 	| { kind: 'refused'; error: OpsError };
 
-/** What a release does: a job (copy, move, link, trash), the picker, opening tabs, or putting references on the Shelf. */
-export type DropOutcome = DropVerb | 'trash' | 'open' | 'shelf';
+/**
+ * What a release does: a job (copy, move, link, trash), the picker, opening tabs, putting
+ * references on the Shelf, or opening a folder in a new pane on a side of the file area.
+ */
+export type DropOutcome = DropVerb | 'trash' | 'open' | 'shelf' | 'split';
 
 /** The target under the pointer and what a release over it would do. It is the drag's store `target`. */
 export interface FileDropTarget {
@@ -122,6 +140,8 @@ export interface FileDropTarget {
 	 * planner has answered.
 	 */
 	transfer?: Transfer | undefined;
+	/** The side of the file area a `split` drop opens its pane on. */
+	edge?: Edge;
 }
 
 /** Which way a drop sends files between this computer and a server, and the server it names. */
@@ -156,6 +176,7 @@ export function sameFileTarget(a: FileDropTarget, b: FileDropTarget): boolean {
 		a.label === b.label &&
 		a.outcome === b.outcome &&
 		a.pending === b.pending &&
+		a.edge === b.edge &&
 		a.location?.uri === b.location?.uri &&
 		a.transfer?.way === b.transfer?.way &&
 		a.transfer?.server === b.transfer?.server &&
@@ -321,6 +342,8 @@ export function blockedText(blocked: BlockReason, target: Pick<FileDropTarget, '
 			return t('dnd.blocked.shelfSource');
 		case 'onShelf':
 			return t('dnd.blocked.onShelf');
+		case 'alreadySplit':
+			return t('dnd.blocked.alreadySplit');
 		case 'unavailable':
 			return t('dnd.blocked.unavailable');
 		case 'refused':
@@ -329,6 +352,13 @@ export function blockedText(blocked: BlockReason, target: Pick<FileDropTarget, '
 				: tf('dnd.blocked.refused', { reason: errorText(blocked.error) });
 	}
 }
+
+const EDGE_WORDS = {
+	left: 'drag.edge.left',
+	right: 'drag.edge.right',
+	top: 'drag.edge.top',
+	bottom: 'drag.edge.bottom',
+} as const satisfies Record<Edge, MessageId>;
 
 /** The pill kinds, which the stylesheet and the badge key on. */
 export type PillKind =
@@ -372,6 +402,14 @@ export function pillFor(
 			text: tf('dnd.pill.blocked', { reason }),
 			kind: 'blocked',
 			announce: tf('dnd.announce.blocked', { target: name, reason }),
+		};
+	}
+	if (target.outcome === 'split' && target.edge) {
+		const edge = t(EDGE_WORDS[target.edge]);
+		return {
+			text: tf('dnd.pill.openPane', { what, edge }),
+			kind: 'open',
+			announce: tf('dnd.announce.overSplit', { what, edge }),
 		};
 	}
 	const announce = tf('dnd.announce.over', { target: name, action: verbWord(target) });
@@ -449,6 +487,8 @@ export const NON_POINTER_PATHS: Record<DropOutcome, NonPointerPath> = {
 	link: { kind: 'command', command: 'linkTo' },
 	trash: { kind: 'command', command: 'moveToTrash', keys: 'Delete' },
 	open: { kind: 'menu', item: 'openInNewTab' },
+	// A folder from the file view; a place or tree folder has the same item in the sidebar's menu.
+	split: { kind: 'menu', item: 'openInSplit' },
 	shelf: { kind: 'menu', item: 'addToShelf' },
 	ask: {
 		kind: 'none',
@@ -473,6 +513,10 @@ export const NATIVE_DROP_PATHS: Record<DropOutcome, NonPointerPath> = {
 		why: 'a drop never trashes files that came from another application: they are deleted where they are',
 	},
 	open: { kind: 'menu', item: 'openInNewTab' },
+	split: {
+		kind: 'none',
+		why: 'only a folder dragged from this window opens in a split pane; open a folder from another application in a pane yourself',
+	},
 	shelf: {
 		kind: 'none',
 		why: 'files in another application are put on the Shelf by dropping them there, or with Add to Shelf once they are in a Waypoint folder',

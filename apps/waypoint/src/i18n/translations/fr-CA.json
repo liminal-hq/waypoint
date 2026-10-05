@@ -3029,6 +3029,11 @@
     "description": "Area: dnd.",
     "source": "ab0222cc"
   },
+  "dnd.pill.openPane": {
+    "message": "Ouvrir {what} dans un nouveau panneau {edge}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {edge} is a side of the window: left, right, top or bottom; {what} is what is being dragged, such as “3 items”.",
+    "source": "c215b550"
+  },
   "dnd.pill.openInGroup": {
     "message": "Ouvrir dans un nouvel onglet de {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent.",
@@ -3078,6 +3083,16 @@
     "message": "ces éléments sont déjà sur l’Étagère",
     "description": "Area: dnd.",
     "source": "b3390913"
+  },
+  "dnd.blocked.alreadySplit": {
+    "message": "cet onglet est déjà divisé",
+    "description": "Area: dnd.",
+    "source": "76b42b2f"
+  },
+  "dnd.target.fileArea": {
+    "message": "la zone des fichiers",
+    "description": "Area: dnd.",
+    "source": "7f808173"
   },
   "dnd.blocked.unavailable": {
     "message": "la Corbeille n’est pas disponible",
@@ -3153,6 +3168,11 @@
     "message": "Au-dessus de {target} : non autorisé, {reason}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {target} is where something is being dropped or sent.",
     "source": "35d3078f"
+  },
+  "dnd.announce.overSplit": {
+    "message": "Au-dessus de la zone de division {edge} : action prévue, ouvrir {what} dans un nouveau panneau",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {edge} is a side of the window: left, right, top or bottom; {what} is what is being dragged, such as “3 items”.",
+    "source": "7adc4570"
   },
   "dnd.announce.sprungFolder": {
     "message": "{target} ouvert",
@@ -3543,6 +3563,21 @@
     "message": "La division n’a pas pu être dupliquée",
     "description": "Area: pair.",
     "source": "88a3b6e3"
+  },
+  "pair.announce.splitUnavailable": {
+    "message": "Impossible d’ouvrir dans un nouveau panneau : cet onglet est déjà divisé",
+    "description": "Area: pair.",
+    "source": "461716f9"
+  },
+  "pair.announce.openedSplit": {
+    "message": "{title} ouvert dans un nouveau panneau",
+    "description": "Area: pair. Placeholders, kept exactly as written: {title} is the title of a tab.",
+    "source": "eb066e99"
+  },
+  "pair.announce.splitFailed": {
+    "message": "{title} n’a pas pu être ouvert dans un nouveau panneau",
+    "description": "Area: pair. Placeholders, kept exactly as written: {title} is the title of a tab.",
+    "source": "30d20b34"
   },
   "pair.announce.closedPane": {
     "message": "Panneau {title} de la division fermé",
@@ -4133,6 +4168,11 @@
     "message": "Ouvrir dans une nouvelle fenêtre",
     "description": "Area: menu.",
     "source": "e8e0ccba"
+  },
+  "menu.openInSplit": {
+    "message": "Ouvrir dans un panneau divisé",
+    "description": "Area: menu.",
+    "source": "a034eb91"
   },
   "menu.openWith": {
     "message": "Ouvrir avec",

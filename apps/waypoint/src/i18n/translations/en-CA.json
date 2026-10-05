@@ -2383,6 +2383,10 @@
     "message": "Open in a split pair",
     "description": "Area: dnd."
   },
+  "dnd.pill.openPane": {
+    "message": "Open {what} in a new {edge} pane",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {edge} is a side of the window: left, right, top or bottom; {what} is what is being dragged, such as “3 items”."
+  },
   "dnd.pill.openInGroup": {
     "message": "Open in a new tab in {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent."
@@ -2421,6 +2425,14 @@
   },
   "dnd.blocked.onShelf": {
     "message": "these items are already on the Shelf",
+    "description": "Area: dnd."
+  },
+  "dnd.blocked.alreadySplit": {
+    "message": "this tab is already split",
+    "description": "Area: dnd."
+  },
+  "dnd.target.fileArea": {
+    "message": "the file area",
     "description": "Area: dnd."
   },
   "dnd.blocked.unavailable": {
@@ -2482,6 +2494,10 @@
   "dnd.announce.blocked": {
     "message": "Over {target}: not allowed, {reason}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {target} is where something is being dropped or sent."
+  },
+  "dnd.announce.overSplit": {
+    "message": "Over the {edge} split zone: will open {what} in a new pane",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {edge} is a side of the window: left, right, top or bottom; {what} is what is being dragged, such as “3 items”."
   },
   "dnd.announce.sprungFolder": {
     "message": "Opened {target}",
@@ -2790,6 +2806,18 @@
   "pair.announce.duplicateFailed": {
     "message": "The split could not be duplicated",
     "description": "Area: pair."
+  },
+  "pair.announce.splitUnavailable": {
+    "message": "Cannot open in a new pane: this tab is already split",
+    "description": "Area: pair."
+  },
+  "pair.announce.openedSplit": {
+    "message": "Opened {title} in a new pane",
+    "description": "Area: pair. Placeholders, kept exactly as written: {title} is the title of a tab."
+  },
+  "pair.announce.splitFailed": {
+    "message": "Could not open {title} in a new pane",
+    "description": "Area: pair. Placeholders, kept exactly as written: {title} is the title of a tab."
   },
   "pair.announce.closedPane": {
     "message": "Closed the split pane {title}",
@@ -3253,6 +3281,10 @@
   },
   "menu.openInNewWindow": {
     "message": "Open in New Window",
+    "description": "Area: menu."
+  },
+  "menu.openInSplit": {
+    "message": "Open in Split Pane",
     "description": "Area: menu."
   },
   "menu.openWith": {

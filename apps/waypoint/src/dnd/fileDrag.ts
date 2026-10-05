@@ -12,6 +12,8 @@ import { t, tf } from '../i18n/messages';
 import { normaliseUri } from '../ops/clipboardRules';
 import { errorText } from '../ops/jobText';
 import { selectionSpec } from '../ops/fileCommands';
+import type { Edge, Rect } from '../tabs/dragLayout';
+import { zoneAt } from '../tabs/splitRegions';
 import type {
 	JobRequest,
 	ListingHandle,
@@ -60,6 +62,7 @@ import {
 	dragText,
 	evaluateTarget,
 	isLocationsSource,
+	isPlaceSource,
 	isShelfSource,
 	isSourceFolder,
 	pillFor,
@@ -134,6 +137,8 @@ export interface LocationsDragPress {
 	/** The folder every item sits in, or `null` when they come from several. */
 	folder: Location | null;
 	modifiers: DropModifiers;
+	/** The row is a sidebar place or tree folder (not a file): it opens in a new pane when dropped on a split zone. */
+	place?: boolean;
 }
 
 /** What the picker needs to offer a choice and carry it out. */
@@ -238,6 +243,12 @@ export interface FileDragDeps {
 	/** Puts what the drag carries on the Shelf as references. */
 	addToShelf(source: FileDragSource): Promise<void>;
 	openFolders(request: OpenFoldersRequest): Promise<void>;
+	/** The file area's rectangle, for the split zones; the pane area in the document by default. */
+	area?(): Rect | null;
+	/** A new pane can be opened beside the one on show: it is a tab and not already in a pair. */
+	canSplit?(): boolean;
+	/** Opens `location` in a new pane on `edge` of the pane on show. */
+	openInSplit?(location: Location, edge: Edge): Promise<void>;
 	openPicker(request: PickerRequest): void;
 	trashAvailable(): boolean;
 	/** What the person calls a server's login (`sftp://me@nas.lan`): its saved name, or its address. */
@@ -388,6 +399,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 	let own: OwnDrag | null = null;
 	let ownTimer: unknown = null;
 	let pendingEnded: DragEnded | null = null;
+	/** The split zone the pointer is in, kept so a pointer riding a border between zones does not flicker. */
+	let zoneEdge: Edge | null = null;
 
 	const rootElement = () =>
 		deps.root ? deps.root() : typeof document === 'undefined' ? null : document.documentElement;
@@ -584,9 +597,87 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 
 	// --- The target under the pointer --------------------------------------------------------
 
+	const paneArea = (): Rect | null => {
+		if (deps.area) return deps.area();
+		const element =
+			typeof document === 'undefined' ? null : document.querySelector('[data-pane-area]');
+		if (!element) return null;
+		const { left, top, right, bottom } = element.getBoundingClientRect();
+		return { left, top, right, bottom };
+	};
+
+	/**
+	 * Whether this drag opens a folder in a new pane over the file area, and what it is: a sidebar
+	 * place always does (it is no file to copy); a lone folder dragged from a view does while Alt is
+	 * held, which is what Alt does on the + button too. Anything else is a drop as usual.
+	 */
+	const splitMode = (source: FileDragSource): 'place' | 'folder' | null => {
+		if (isPlaceSource(source)) return 'place';
+		return !isLocationsSource(source) &&
+			source.folderEntry !== undefined &&
+			!source.rightButton &&
+			modifiers.alt
+			? 'folder'
+			: null;
+	};
+
+	/** Drops the marks and holds of the target before this one. */
+	const clearSpot = (control: DragControl<FileDragSource, FileDropTarget>) => {
+		markOver(markedElement, null, null);
+		markedElement = null;
+		lastKey = '';
+		lastPlanKey = '';
+		control.clearHold('spring');
+		control.clearHold('plan');
+	};
+
+	/** The split zones, when this drag is one that uses them. True when they decided the target. */
+	const applySplit = (control: DragControl<FileDragSource, FileDropTarget>): boolean => {
+		const source = control.source;
+		const mode = splitMode(source);
+		if (!mode) {
+			zoneEdge = null;
+			return false;
+		}
+		const area = paneArea();
+		const edge = area ? zoneAt(area, lastPoint, zoneEdge) : null;
+		const canSplit = deps.canSplit?.() ?? false;
+		const label = t('dnd.target.fileArea');
+		const base: FileDropTarget = {
+			kind: 'pane',
+			ref: String(deps.activeTab() ?? ''),
+			label,
+			location: isPlaceSource(source) ? (source.locations[0] ?? null) : null,
+			outcome: null,
+			blocked: null,
+			volume: 'unknown',
+			pending: false,
+		};
+		if (edge && canSplit) {
+			zoneEdge = edge;
+			clearSpot(control);
+			control.setTarget({ ...base, label: t(`drag.zone.${edge}`), outcome: 'split', edge });
+			show(control, pillFor(source, control.target()));
+			return true;
+		}
+		zoneEdge = null;
+		if (mode === 'folder') return false;
+		// A place has nothing to do anywhere but a zone: over the file area it says why, elsewhere it is just carried.
+		clearSpot(control);
+		if (edge) {
+			control.setTarget({ ...base, blocked: { kind: 'alreadySplit' } });
+			show(control, pillFor(source, control.target()));
+		} else {
+			control.setTarget(null);
+			show(control, pillFor(source, null));
+		}
+		return true;
+	};
+
 	const apply = (control: DragControl<FileDragSource, FileDropTarget>, spot: DropSpot | null) => {
 		const source = control.source;
 		lastSpot = spot;
+		if (applySplit(control)) return;
 		// Once the pointer has moved off the place a spring opened, a target may arm another.
 		if (
 			springLock &&
@@ -723,6 +814,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		lastKey = '';
 		lastPlanKey = '';
 		springLock = null;
+		zoneEdge = null;
 		scroller = null;
 		locations.clear();
 		resolving.clear();
@@ -768,7 +860,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		const keep = spot !== null && springs.length > 0 && springs[springs.length - 1]!.stays(spot);
 		if (!keep) revertSprings();
 		else springs = [];
-		if (!spot || !target) {
+		// A split zone is the file area as a whole, so it needs no target under the pointer.
+		if (!target || (!spot && !target.blocked && target.outcome !== 'split')) {
 			deps.announce(t('dnd.announce.nothing'));
 			return done();
 		}
@@ -785,6 +878,11 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				case 'shelf':
 					await deps.addToShelf(source);
 					return;
+				case 'split': {
+					const location = await splitLocation(source);
+					if (location && target.edge) await deps.openInSplit?.(location, target.edge);
+					return;
+				}
 				case 'open':
 					if (isShelfSource(source)) return;
 					await deps.openFolders({
@@ -797,12 +895,12 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				case 'copy':
 				case 'move':
 				case 'link': {
-					const location = await destinationOf(spot, target);
+					const location = spot ? await destinationOf(spot, target) : null;
 					if (location) await transferFiles(source, target.outcome, location);
 					return;
 				}
 				case 'ask': {
-					const location = await destinationOf(spot, target);
+					const location = spot ? await destinationOf(spot, target) : null;
 					if (!location) return;
 					const verbs = pickerVerbs({
 						canMove:
@@ -846,6 +944,17 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		}
 	};
 
+	/** The folder a split drop opens: the place itself, or the folder dragged from the view. */
+	const splitLocation = async (source: FileDragSource): Promise<Location | null> => {
+		if (isLocationsSource(source)) return source.locations[0] ?? null;
+		if (source.folderEntry === undefined) return null;
+		return resolveFolder(
+			`${source.handle}:${source.folderEntry}`,
+			source.handle,
+			source.folderEntry,
+		);
+	};
+
 	/** Where the files would go: a folder row's location is asked for if it has not come yet. */
 	const destinationOf = async (
 		spot: DropSpot,
@@ -880,7 +989,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		const out = deps.outbound;
 		if (!out || !out.available() || handing || handOffFailed) return false;
 		// Only a drag of a selection or of the Shelf's items with the primary button can become a system drag.
-		if (source.external || source.rightButton) return false;
+		if (source.external || source.rightButton || isPlaceSource(source)) return false;
 		return leftDocument || out.outside(point);
 	};
 
@@ -1057,7 +1166,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		},
 		drop(control, point) {
 			// What a release does is read once more with the keys as they are now.
-			const spot = lastSpot ? hit(point) : null;
+			lastPoint = point;
+			const spot = lastSpot || zoneEdge ? hit(point) : null;
 			apply(control, spot);
 			const held = release;
 			release = null;
@@ -1176,6 +1286,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				folder: model.location,
 				readOnly: model.readOnly,
 				rightButton: input.button === 2,
+				folderEntry: count === 1 && isFolderEntry(input.entry) ? input.entry.id : undefined,
 			};
 			pressed = input;
 			return begin(input, source);
@@ -1193,6 +1304,7 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 				folder: input.folder,
 				readOnly: false,
 				rightButton: input.button === 2,
+				...(input.place ? { place: true } : {}),
 			};
 			pressed = null;
 			return begin(input, source);
@@ -1253,6 +1365,13 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		},
 	};
 	return drag;
+}
+
+/** Whether an entry is a folder, or a link to one. */
+function isFolderEntry(entry: Entry): boolean {
+	return (
+		entry.kind === 'directory' || (entry.kind === 'symlink' && entry.linkTarget === 'directory')
+	);
 }
 
 /** A sentence's first letter in capitals. */
