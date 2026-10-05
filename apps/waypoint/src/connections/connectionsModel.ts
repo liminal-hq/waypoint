@@ -126,3 +126,15 @@ export function stateOf(view: ConnectionsView, key: string): ConnectionState {
 export function savedFor(view: ConnectionsView, key: string): ConnectionEntry | undefined {
 	return view.connections.find((entry) => entry.key === key);
 }
+
+/**
+ * What the person calls a login (`sftp://me@nas.lan`): the saved connection's name, else the
+ * recent server's address as it was shown, else the login itself.
+ */
+export function serverLabel(view: ConnectionsView, key: string): string {
+	return (
+		savedFor(view, key)?.label ??
+		view.recent.find((server) => server.key === key)?.location.display ??
+		key
+	);
+}

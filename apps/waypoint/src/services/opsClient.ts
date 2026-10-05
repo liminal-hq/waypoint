@@ -132,6 +132,12 @@ export interface OpsClient {
 	 * drag of the selection out of the window. The clipboard is left alone; a selection of nothing is refused.
 	 */
 	resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]>;
+	/**
+	 * Downloads files dragged from a server into the app's cache and resolves to their local
+	 * locations, for a drag out of the window (D151); local locations come back as they are. Refuses
+	 * a folder from a server, or more than a drag may download.
+	 */
+	stageForDrag(items: Location[]): Promise<Location[]>;
 	getSettings(): Promise<OpsSettings>;
 	setSettings(settings: OpsSettings): Promise<OpsSettings>;
 	/** What start-up recovery found, once; `null` when there was nothing to tell and after the first call. */

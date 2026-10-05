@@ -2291,6 +2291,26 @@
     "message": "Move {what} to {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
   },
+  "dnd.pill.upload": {
+    "message": "Upload {what} to {target} on {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.download": {
+    "message": "Download {what} from {server} to {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.across": {
+    "message": "Copy {what} to {target} on {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.moveTo": {
+    "message": "Move {what} to {target} on {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.pill.moveFrom": {
+    "message": "Move {what} from {server} to {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
+  },
   "dnd.pill.moveOrCopy": {
     "message": "Move or copy {what} to {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”."
@@ -2407,6 +2427,18 @@
     "message": "Over {target}: will {action}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {action} is a verb such as “eject” or “copy”; {target} is where something is being dropped or sent."
   },
+  "dnd.announce.upload": {
+    "message": "Over {target} on {server}: will upload",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent."
+  },
+  "dnd.announce.download": {
+    "message": "Over {target}: will download from {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent."
+  },
+  "dnd.announce.across": {
+    "message": "Over {target} on {server}: will copy",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent."
+  },
   "dnd.announce.blocked": {
     "message": "Over {target}: not allowed, {reason}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {target} is where something is being dropped or sent."
@@ -2466,6 +2498,14 @@
   "dnd.out.unsupported": {
     "message": "{what} cannot be dragged out of the window",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.out.downloading": {
+    "message": "Downloading {what} for the drag",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
+  },
+  "dnd.out.downloadFailed": {
+    "message": "{what} could not be downloaded for the drag: {reason}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {what} is what is being dragged, such as “3 items”."
   },
   "dnd.picker.label": {
     "message": "Drop action",
@@ -4931,6 +4971,10 @@
     "message": "Favourites",
     "description": "Area: destination."
   },
+  "destination.section.servers": {
+    "message": "Servers",
+    "description": "Area: destination."
+  },
   "destination.section.tabs": {
     "message": "Open tabs",
     "description": "Area: destination."
@@ -5690,6 +5734,34 @@
   "ops.route": {
     "message": "{from} → {to}",
     "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value."
+  },
+  "ops.server.to": {
+    "message": "To {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}."
+  },
+  "ops.server.from": {
+    "message": "From {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}."
+  },
+  "ops.server.on": {
+    "message": "On {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}."
+  },
+  "ops.server.between": {
+    "message": "From {from} to {to}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value."
+  },
+  "ops.dropped.modifiedTimes": {
+    "message": "Modification times not kept: the destination cannot hold them",
+    "description": "Area: ops."
+  },
+  "ops.dropped.permissions": {
+    "message": "Permissions not kept: the destination has none",
+    "description": "Area: ops."
+  },
+  "ops.dropped.both": {
+    "message": "Modification times and permissions not kept: the destination cannot hold them",
+    "description": "Area: ops."
   },
   "ops.sources.one": {
     "message": "{count} item",
@@ -6512,8 +6584,8 @@
     "description": "Area: ops. Placeholders, kept exactly as written: {message} is a message from the system, which may be in English."
   },
   "ops.problem.message.connection": {
-    "message": "The connection to the server that holds {location} failed. Retry connects again.",
-    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path."
+    "message": "{reason} This stopped at {location}. Retry connects again.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path; {reason} is why something failed, in the system’s own words."
   },
   "ops.problem.message.archiveLimit": {
     "message": "{location} is larger than the archive limits allow, so extracting it was stopped. The limits are in Settings, under Operations.",

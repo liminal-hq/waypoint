@@ -6,6 +6,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
+import { useConnectionsView } from '../connections/ConnectionsContext';
+import { serverLabel } from '../connections/connectionsModel';
 import type { Location, OpsClient } from '../services/opsClient';
 import type { OsClipboardClient } from '../services/osClipboardClient';
 import { jobViews, type JobView } from './jobText';
@@ -104,7 +106,11 @@ export function useOpsViews(): JobView[] {
 	const ops = useOps();
 	const jobs = useOpsJobs();
 	const canShow = ops?.showInFolder != null;
-	return useMemo(() => jobViews(jobs, canShow), [jobs, canShow]);
+	const connections = useConnectionsView((view) => view);
+	return useMemo(
+		() => jobViews(jobs, canShow, (login) => serverLabel(connections, login)),
+		[jobs, canShow, connections],
+	);
 }
 
 // Hooks cannot be skipped, so a window with no provider reads a pair of empty stores.

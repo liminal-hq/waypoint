@@ -4,9 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ConnectionsProvider } from '../connections/ConnectionsContext';
+import { connectStore } from '../connections/connectStore';
+import { FakeConnectionsClient, serverLocation } from '../connections/fakeConnectionsClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import { fakeJobSnapshot } from '../trash/fakeTrashClient';
 import { OperationErrorDialog } from './OperationErrorDialog';
@@ -160,5 +163,58 @@ describe('focus and Escape', () => {
 		expect(dialog()).toHaveTextContent(
 			/skips this item and every later item that fails the same way/,
 		);
+	});
+});
+
+describe('a server that wants a login', () => {
+	const at = serverLocation('sftp://me@nas.lan', '/up/big.iso');
+
+	function mountWithConnections(error: OpsError) {
+		const onDecide = vi.fn();
+		const client = new FakeConnectionsClient({});
+		render(
+			<ConnectionsProvider client={client}>
+				<OperationErrorDialog
+					job={{
+						...fakeJobSnapshot(3, { kind: 'copy' }, { state: 'queued' }),
+						sources: { count: 1, first: 'big.iso' },
+					}}
+					error={error}
+					item={item}
+					onDecide={onDecide}
+					onLater={vi.fn()}
+				/>
+			</ConnectionsProvider>,
+		);
+		return { onDecide, client };
+	}
+
+	it('offers Sign In first, asks, connects and then retries the item', async () => {
+		const { onDecide, client } = mountWithConnections({
+			kind: 'connection',
+			error: { kind: 'authRequired', location: at, prompt: { kind: 'password', user: 'me' } },
+		});
+		// (The window's connections start in an effect, so the button joins once they have.)
+		const signIn = await screen.findByRole('button', { name: 'Sign In…' });
+		expect(buttons().indexOf('Sign In…')).toBeLessThan(buttons().indexOf('Retry'));
+		await userEvent.click(signIn);
+		await waitFor(() => expect(connectStore.getState().question).not.toBeNull());
+		act(() =>
+			connectStore.getState().answer({
+				answer: { kind: 'password', user: 'me', password: 'secret' },
+				remember: false,
+			}),
+		);
+		await waitFor(() => expect(onDecide).toHaveBeenCalledWith('retry'));
+		expect(client.calls.some((call) => call.method === 'connect')).toBe(true);
+	});
+
+	it('offers only Retry for a connection that was merely lost', () => {
+		mountWithConnections({
+			kind: 'connection',
+			error: { kind: 'disconnected', location: at },
+		});
+		expect(screen.queryByRole('button', { name: 'Sign In…' })).toBeNull();
+		expect(buttons()).toContain('Retry');
 	});
 });

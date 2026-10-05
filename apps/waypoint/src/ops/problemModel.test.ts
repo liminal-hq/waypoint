@@ -51,7 +51,7 @@ const CASES: Array<[OpsError, RegExp]> = [
 				location: { display: 'sftp://nas/srv', uri: 'sftp://nas/srv' },
 			},
 		},
-		/server that holds sftp:\/\/nas\/srv failed\. Retry connects again/,
+		/The connection was lost\. This stopped at sftp:\/\/nas\/srv\. Retry connects again/i,
 	],
 ];
 

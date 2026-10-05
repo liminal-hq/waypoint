@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useStore } from 'zustand';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { useConnectionsView } from '../connections/ConnectionsContext';
 import { t } from '../i18n/messages';
 import type { Location } from '../services/opsClient';
 import { LABELS } from '../sidebar/PlaceList';
@@ -53,6 +54,8 @@ export function DestinationHost({
 	const places = usePlaces(usePlacesClient());
 	const snapshot = useTabsSnapshot();
 	const ops = useOps();
+	const savedServers = useConnectionsView((view) => view.connections);
+	const recentServers = useConnectionsView((view) => view.recent);
 
 	useEffect(() => attachHost(store), [store]);
 
@@ -81,6 +84,13 @@ export function DestinationHost({
 				label: favourite.label,
 				location: favourite.location,
 			})),
+			servers: unique([
+				...savedServers.map((entry) => ({ label: entry.label, location: entry.location })),
+				...recentServers.map((server) => ({
+					label: server.location.display,
+					location: server.location,
+				})),
+			]),
 			tabs: unique(
 				(snapshot?.tabs ?? [])
 					.filter((tab) => !isTrashLocation(tab.location) && !isOverviewLocation(tab.location))
@@ -88,7 +98,7 @@ export function DestinationHost({
 			),
 			recent: recent.list().map((location) => ({ label: location.display, location })),
 		}),
-		[request, recent, places, snapshot],
+		[request, recent, places, snapshot, savedServers, recentServers],
 	);
 
 	if (!request) return null;

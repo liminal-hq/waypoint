@@ -121,6 +121,20 @@ describe('opening', () => {
 		expect(screen.queryByRole('region', { name: 'Recent' })).toBeNull();
 		expect(screen.queryByRole('region', { name: 'Open tabs' })).toBeNull();
 		expect(screen.getByRole('region', { name: 'Places' })).toBeInTheDocument();
+		expect(screen.queryByRole('region', { name: 'Servers' })).toBeNull();
+	});
+
+	it('lists the servers after the favourites, at the folder each opens at', () => {
+		const nas = { display: 'sftp://me@nas.lan/srv', uri: 'sftp://me@nas.lan/srv' };
+		setup({ choices: { ...choices, servers: [{ label: 'NAS', location: nas }] } });
+		const servers = screen.getByRole('region', { name: 'Servers' });
+		expect(within(servers).getByRole('button').textContent).toBe('NASsftp://me@nas.lan/srv');
+		const headings = screen
+			.getAllByRole('region')
+			.map((region) => region.getAttribute('aria-label') ?? region.textContent);
+		expect(headings.findIndex((h) => h?.startsWith('Servers'))).toBe(
+			headings.findIndex((h) => h?.startsWith('Favourites')) + 1,
+		);
 	});
 });
 

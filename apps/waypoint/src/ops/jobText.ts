@@ -6,6 +6,7 @@
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import { formatSize } from '../browse/format';
+import { connectionErrorText } from '../connections/connectModel';
 import { t, tf, tn, type MessageId, type PluralId } from '../i18n/messages';
 import type { JobPriority, Location, Schedule } from '../services/opsClient';
 import { isFinished, jobFraction, type JobWithProgress } from './opsSelectors';
@@ -63,6 +64,8 @@ export interface JobView {
 	schedule: Schedule | null;
 	/** Whether the row offers a schedule: a job that has not started. */
 	canSchedule: boolean;
+	/** The server the job uploads to, downloads from or copies between, in words; `''` for a local job. */
+	server: string;
 }
 
 export function baseName(display: string): string {
@@ -117,9 +120,45 @@ export function errorText(error: OpsError): string {
 			});
 		case 'invalidName':
 			return tf(key, { name: error.name });
+		case 'connection':
+			// The words the Connect dialog and a server's tab use, so a lost connection reads the same everywhere.
+			return connectionErrorText(error.error);
 		default:
 			return t(key);
 	}
+}
+
+/**
+ * The server a job reaches, in words ("Uploading to nas.lan", "From nas.lan", "From nas.lan to
+ * backup"), from the logins Rust found while planning; `name` turns a login into what the person
+ * calls it. `''` for a job between local folders.
+ */
+export function serverText(job: JobSnapshot, name: (login: string) => string): string {
+	const ends = job.ends;
+	if (!ends) return '';
+	const from = ends.from[0];
+	if (ends.to !== null && from !== undefined && from !== ends.to) {
+		return tf('ops.server.between', { from: name(from), to: name(ends.to) });
+	}
+	if (ends.to !== null) {
+		return tf(from === undefined ? 'ops.server.to' : 'ops.server.on', { server: name(ends.to) });
+	}
+	return from === undefined ? '' : tf('ops.server.from', { server: name(from) });
+}
+
+/** What the copies could not keep, in words, or `''` when they kept everything. */
+function droppedText(job: JobSnapshot): string {
+	const dropped = job.dropped ?? [];
+	if (dropped.length === 0) return '';
+	const times = dropped.includes('modifiedTimes');
+	const permissions = dropped.includes('permissions');
+	return t(
+		times && permissions
+			? 'ops.dropped.both'
+			: times
+				? 'ops.dropped.modifiedTimes'
+				: 'ops.dropped.permissions',
+	);
 }
 
 function formatDuration(ms: number): string {
@@ -164,9 +203,12 @@ export function stateText(job: JobSnapshot): string {
 			return tf('ops.state.failed', { reason: errorText(state.error) });
 		case 'done': {
 			const skipped = job.counts.skipped;
-			return skipped > 0
-				? `${t('ops.state.done')} · ${tn('ops.skipped', skipped)}`
-				: t('ops.state.done');
+			const dropped = droppedText(job);
+			return [
+				t('ops.state.done'),
+				...(skipped > 0 ? [tn('ops.skipped', skipped)] : []),
+				...(dropped ? [dropped] : []),
+			].join(' · ');
 		}
 		default:
 			return t(`ops.state.${state.state}` as MessageId);
@@ -198,7 +240,11 @@ function actionsFor(job: JobSnapshot, canShow: boolean): JobAction[] {
  * The rows for the queue UI, in queue order. `canShow` says whether this window can show a
  * location (the main windows can, the Operations window cannot).
  */
-export function jobViews(items: readonly JobWithProgress[], canShow: boolean): JobView[] {
+export function jobViews(
+	items: readonly JobWithProgress[],
+	canShow: boolean,
+	serverName: (login: string) => string = (login) => login,
+): JobView[] {
 	const queued = items.filter((item) => item.job.state.state === 'queued');
 	return items.map((item) => {
 		const { job, progress } = item;
@@ -229,6 +275,7 @@ export function jobViews(items: readonly JobWithProgress[], canShow: boolean): J
 			canPrioritise: state === 'planning' || state === 'queued',
 			schedule: job.options.schedule ?? null,
 			canSchedule: state === 'planning' || state === 'queued',
+			server: serverText(job, serverName),
 		};
 	});
 }

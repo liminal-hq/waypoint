@@ -2914,6 +2914,31 @@
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
     "source": "81ea6d06"
   },
+  "dnd.pill.upload": {
+    "message": "Téléverser {what} vers {target} sur {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "35f0f1dd"
+  },
+  "dnd.pill.download": {
+    "message": "Télécharger {what} de {server} vers {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "3624414d"
+  },
+  "dnd.pill.across": {
+    "message": "Copier {what} vers {target} sur {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "dd04625f"
+  },
+  "dnd.pill.moveTo": {
+    "message": "Déplacer {what} vers {target} sur {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "fefb5e6a"
+  },
+  "dnd.pill.moveFrom": {
+    "message": "Déplacer {what} de {server} vers {target}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
+    "source": "e77fecea"
+  },
   "dnd.pill.moveOrCopy": {
     "message": "Déplacer ou copier {what} vers {target}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {target} is where something is being dropped or sent; {what} is what is being dragged, such as “3 items”.",
@@ -3059,6 +3084,21 @@
     "description": "Area: dnd. Placeholders, kept exactly as written: {action} is a verb such as “eject” or “copy”; {target} is where something is being dropped or sent.",
     "source": "fc52c665"
   },
+  "dnd.announce.upload": {
+    "message": "Au-dessus de {target} sur {server} : action prévue, téléverser",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent.",
+    "source": "308a1926"
+  },
+  "dnd.announce.download": {
+    "message": "Au-dessus de {target} : action prévue, télécharger de {server}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent.",
+    "source": "1a77d5bb"
+  },
+  "dnd.announce.across": {
+    "message": "Au-dessus de {target} sur {server} : action prévue, copier",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {server}; {target} is where something is being dropped or sent.",
+    "source": "67062914"
+  },
   "dnd.announce.blocked": {
     "message": "Au-dessus de {target} : non autorisé, {reason}",
     "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {target} is where something is being dropped or sent.",
@@ -3133,6 +3173,16 @@
     "message": "{what} ne peut pas être glissé hors de la fenêtre",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
     "source": "c9cc358e"
+  },
+  "dnd.out.downloading": {
+    "message": "Téléchargement de {what} pour le glissement",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
+    "source": "deba875b"
+  },
+  "dnd.out.downloadFailed": {
+    "message": "{what} n’a pas pu être téléchargé pour le glissement : {reason}",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words; {what} is what is being dragged, such as “3 items”.",
+    "source": "e8e2cb79"
   },
   "dnd.picker.label": {
     "message": "Action de dépôt",
@@ -6284,6 +6334,11 @@
     "description": "Area: destination.",
     "source": "d97d51d3"
   },
+  "destination.section.servers": {
+    "message": "Serveurs",
+    "description": "Area: destination.",
+    "source": "68d7beb6"
+  },
   "destination.section.tabs": {
     "message": "Onglets ouverts",
     "description": "Area: destination.",
@@ -7258,6 +7313,41 @@
     "message": "{from} → {to}",
     "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value.",
     "source": "0bcc686f"
+  },
+  "ops.server.to": {
+    "message": "Vers {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}.",
+    "source": "825b82e6"
+  },
+  "ops.server.from": {
+    "message": "De {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}.",
+    "source": "bd07c630"
+  },
+  "ops.server.on": {
+    "message": "Sur {server}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {server}.",
+    "source": "3de93538"
+  },
+  "ops.server.between": {
+    "message": "De {from} vers {to}",
+    "description": "Area: ops. Placeholders, kept exactly as written: {from} is the original name or value; {to} is the new name or value.",
+    "source": "6eeb9b3a"
+  },
+  "ops.dropped.modifiedTimes": {
+    "message": "Dates de modification non conservées : la destination ne peut pas les garder",
+    "description": "Area: ops.",
+    "source": "26cb7e63"
+  },
+  "ops.dropped.permissions": {
+    "message": "Permissions non conservées : la destination n’en a pas",
+    "description": "Area: ops.",
+    "source": "38476048"
+  },
+  "ops.dropped.both": {
+    "message": "Dates de modification et permissions non conservées : la destination ne peut pas les garder",
+    "description": "Area: ops.",
+    "source": "362a0767"
   },
   "ops.sources.one": {
     "message": "{count} élément",
@@ -8425,9 +8515,9 @@
     "source": "89438320"
   },
   "ops.problem.message.connection": {
-    "message": "La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.",
-    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path.",
-    "source": "2fd894ca"
+    "message": "{reason} L’arrêt s’est produit à {location}. Réessayer rétablit la connexion.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {location} is a folder or path; {reason} is why something failed, in the system’s own words.",
+    "source": "79bc82df"
   },
   "ops.problem.message.archiveLimit": {
     "message": "{location} dépasse les limites prévues pour les archives; son extraction a donc été arrêtée. Les limites se règlent dans les paramètres, sous Opérations.",

@@ -1304,6 +1304,16 @@ const messages: Catalogue = {
 	'dnd.pill.copy': 'Copier {what} vers {target}',
 	// source: 81ea6d06
 	'dnd.pill.move': 'Déplacer {what} vers {target}',
+	// source: 35f0f1dd
+	'dnd.pill.upload': 'Téléverser {what} vers {target} sur {server}',
+	// source: 3624414d
+	'dnd.pill.download': 'Télécharger {what} de {server} vers {target}',
+	// source: dd04625f
+	'dnd.pill.across': 'Copier {what} vers {target} sur {server}',
+	// source: fefb5e6a
+	'dnd.pill.moveTo': 'Déplacer {what} vers {target} sur {server}',
+	// source: e77fecea
+	'dnd.pill.moveFrom': 'Déplacer {what} de {server} vers {target}',
 	// source: b23b3ae7
 	'dnd.pill.moveOrCopy': 'Déplacer ou copier {what} vers {target}',
 	// source: baa189b1
@@ -1362,6 +1372,12 @@ const messages: Catalogue = {
 	'dnd.verb.shelf': 'ajouter à l’Étagère',
 	// source: fc52c665
 	'dnd.announce.over': 'Au-dessus de {target} : action prévue, {action}',
+	// source: 308a1926
+	'dnd.announce.upload': 'Au-dessus de {target} sur {server} : action prévue, téléverser',
+	// source: 1a77d5bb
+	'dnd.announce.download': 'Au-dessus de {target} : action prévue, télécharger de {server}',
+	// source: 67062914
+	'dnd.announce.across': 'Au-dessus de {target} sur {server} : action prévue, copier',
 	// source: 35d3078f
 	'dnd.announce.blocked': 'Au-dessus de {target} : non autorisé, {reason}',
 	// source: 76fa68e4
@@ -1393,6 +1409,10 @@ const messages: Catalogue = {
 		'Impossible de faire glisser {what} hors de la fenêtre; le glissement reste ici',
 	// source: c9cc358e
 	'dnd.out.unsupported': '{what} ne peut pas être glissé hors de la fenêtre',
+	// source: deba875b
+	'dnd.out.downloading': 'Téléchargement de {what} pour le glissement',
+	// source: e8e2cb79
+	'dnd.out.downloadFailed': '{what} n’a pas pu être téléchargé pour le glissement : {reason}',
 	// source: 9cb5f3d4
 	'dnd.picker.label': 'Action de dépôt',
 	// source: 48f1b5e6
@@ -2717,6 +2737,8 @@ const messages: Catalogue = {
 	'destination.section.places': 'Emplacements',
 	// source: d97d51d3
 	'destination.section.favourites': 'Favoris',
+	// source: 68d7beb6
+	'destination.section.servers': 'Serveurs',
 	// source: 33c2eb40
 	'destination.section.tabs': 'Onglets ouverts',
 	// source: 690dbe9d
@@ -3117,6 +3139,22 @@ const messages: Catalogue = {
 	'ops.moveDown': 'Descendre',
 	// source: 0bcc686f
 	'ops.route': '{from} → {to}',
+	// source: 825b82e6
+	'ops.server.to': 'Vers {server}',
+	// source: bd07c630
+	'ops.server.from': 'De {server}',
+	// source: 3de93538
+	'ops.server.on': 'Sur {server}',
+	// source: 6eeb9b3a
+	'ops.server.between': 'De {from} vers {to}',
+	// source: 26cb7e63
+	'ops.dropped.modifiedTimes':
+		'Dates de modification non conservées : la destination ne peut pas les garder',
+	// source: 38476048
+	'ops.dropped.permissions': 'Permissions non conservées : la destination n’en a pas',
+	// source: 362a0767
+	'ops.dropped.both':
+		'Dates de modification et permissions non conservées : la destination ne peut pas les garder',
 	// source: 208a19d5
 	'ops.sources.one': '{count} élément',
 	// source: f65216b3
@@ -3609,9 +3647,9 @@ const messages: Catalogue = {
 		'Le service a refusé la requête parce que l’horloge de cet ordinateur retarde d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.',
 	// source: 89438320
 	'ops.problem.message.io': 'Le système a signalé un problème : {message}',
-	// source: 2fd894ca
+	// source: 79bc82df
 	'ops.problem.message.connection':
-		'La connexion au serveur qui contient {location} a échoué. Réessayer rétablit la connexion.',
+		'{reason} L’arrêt s’est produit à {location}. Réessayer rétablit la connexion.',
 	// source: c24681d1
 	'ops.problem.message.archiveLimit':
 		'{location} dépasse les limites prévues pour les archives; son extraction a donc été arrêtée. Les limites se règlent dans les paramètres, sous Opérations.',

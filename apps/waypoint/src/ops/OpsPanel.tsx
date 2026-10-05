@@ -261,6 +261,7 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 											{view.title}
 										</span>
 										{view.route && <span className={styles.route}>{view.route}</span>}
+										{view.server && <span className={styles.route}>{view.server}</span>}
 										<span id={stateId} className={styles.state}>
 											{view.schedule && view.state === 'queued'
 												? scheduleText(view.schedule, undefined, hourCycle)

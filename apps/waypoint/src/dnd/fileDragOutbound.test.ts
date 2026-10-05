@@ -5,6 +5,7 @@
 
 import { fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { fileLocation, makeEntry } from '../services/fakeVfsClient';
 import type { DragEnded } from '../services/nativeDndClient';
 import {
@@ -70,6 +71,33 @@ describe('leaving the window', () => {
 		const h = await nativeHarness({ folder: { display: 'host', uri: 'sftp://host/home' } });
 		await leave(h);
 		expect(h.started[0]?.actions).toEqual(['copy', 'move']);
+	});
+
+	it('downloads a server’s files first and hands the copies over, as copies only', async () => {
+		const h = await nativeHarness({ folder: { display: 'host', uri: 'sftp://host/home' } });
+		const remote = { display: 'sftp://host/home/notes.txt', uri: 'sftp://host/home/notes.txt' };
+		h.state.resolve = async () => [remote];
+		const staged: Location[][] = [];
+		h.state.stage = async (locations) => {
+			staged.push(locations);
+			return [fileLocation('/cache/drag-out/notes.txt')];
+		};
+		await leave(h);
+		expect(staged).toEqual([[remote]]);
+		expect(h.started).toEqual([{ uris: ['file:///cache/drag-out/notes.txt'], actions: ['copy'] }]);
+		expect(h.announced).toContain('Downloading notes.txt for the drag');
+	});
+
+	it('keeps a drag of a server’s files in the page, and says why, when they cannot be downloaded', async () => {
+		const h = await nativeHarness({ folder: { display: 'host', uri: 'sftp://host/home' } });
+		h.state.resolve = async () => [{ display: 'x', uri: 'sftp://host/home/dir' }];
+		h.state.stage = async () => {
+			throw { kind: 'ops', message: 'no', error: { kind: 'unsupported', what: 'a folder' } };
+		};
+		await leave(h);
+		expect(h.started).toEqual([]);
+		expect(h.phase()).toBe('dragging');
+		expect(h.say[0]).toMatch(/^Notes\.txt could not be downloaded for the drag/);
 	});
 
 	it('hands over when the pointer goes past any edge', async () => {

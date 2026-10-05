@@ -9,7 +9,14 @@ import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision'
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
+import { useState } from 'react';
+import { connectAnswering } from '../connections/connectFlow';
+import { useConnections } from '../connections/ConnectionsContext';
+import { connectionErrorText } from '../connections/connectModel';
+import { askQuestion } from '../connections/connectStore';
+import { remoteStateText } from '../connections/remoteModel';
 import { t, tf, type MessageId } from '../i18n/messages';
+import { announce } from '../tabs/announcer';
 import { jobTitle } from './jobText';
 import styles from './OperationErrorDialog.module.css';
 import { decisionsFor, problemText } from './problemModel';
@@ -55,6 +62,7 @@ export function OperationErrorDialog({
 }: OperationErrorDialogProps) {
 	const { message, details } = problemText(error);
 	const decisions = decisionsFor(error);
+	const signIn = useSignIn(error, onDecide);
 	const first: Decision = decisions[0] ?? 'retry';
 	const missingParent = error.kind === 'originMissingParent';
 
@@ -67,7 +75,7 @@ export function OperationErrorDialog({
 			onClose={(reason) => {
 				if (reason !== 'backdrop') onLater();
 			}}
-			initialFocus={`[data-decision="${first}"]`}
+			initialFocus={signIn ? '[data-decision="signIn"]' : `[data-decision="${first}"]`}
 			footer={
 				<DialogActions>
 					<DialogButton variant="secondary" onClick={onLater}>
@@ -78,10 +86,20 @@ export function OperationErrorDialog({
 							{t('ops.problem.chooseLocation')}
 						</DialogButton>
 					)}
+					{signIn && (
+						<DialogButton
+							variant="primary"
+							data-decision="signIn"
+							disabled={signIn.busy}
+							onClick={() => void signIn.run()}
+						>
+							{signIn.busy ? t('remote.action.connecting') : t(signIn.label)}
+						</DialogButton>
+					)}
 					{decisions.map((decision) => (
 						<DialogButton
 							key={decision}
-							variant={decision === first ? 'primary' : 'secondary'}
+							variant={decision === first && !signIn ? 'primary' : 'secondary'}
 							data-decision={decision}
 							onClick={() => onDecide(decision)}
 						>
@@ -108,8 +126,65 @@ export function OperationErrorDialog({
 						))}
 					</details>
 				)}
+				{signIn?.problem && (
+					<p className={styles.fact} role="alert">
+						{signIn.problem}
+					</p>
+				)}
 				<p className={styles.hint}>{t('ops.problem.skipAll.hint')}</p>
 			</div>
 		</Dialog>
 	);
+}
+
+interface SignIn {
+	label: MessageId;
+	busy: boolean;
+	/** Why the last attempt failed, in words, or `null`. */
+	problem: string | null;
+	run(): Promise<void>;
+}
+
+/**
+ * For a job stopped by a server that wants a login or a trust decision (D151): asks the question
+ * the way a server's tab does (the window's question dialogs), connects, and then retries the
+ * item. `null` for every other error, and where the window has no connections.
+ */
+function useSignIn(error: OpsError, onDecide: (decision: Decision) => void): SignIn | null {
+	const connections = useConnections();
+	const [busy, setBusy] = useState(false);
+	const [problem, setProblem] = useState<string | null>(null);
+	if (error.kind !== 'connection' || !connections) return null;
+	const cause = error.error;
+	const location = 'location' in cause ? cause.location : null;
+	const action = remoteStateText(cause).action;
+	if (!location || action === 'reconnect') return null;
+	return {
+		label: action === 'signIn' ? 'remote.action.signIn' : 'remote.action.review',
+		busy,
+		problem,
+		run: async () => {
+			if (busy) return;
+			setBusy(true);
+			setProblem(null);
+			const first = await askQuestion(cause);
+			if (first === null) {
+				setBusy(false);
+				return;
+			}
+			const outcome = await connectAnswering(
+				(answer, remember) => connections.client.connect(location, answer, remember),
+				askQuestion,
+				first,
+			);
+			setBusy(false);
+			if (outcome.kind === 'connected') {
+				onDecide('retry');
+			} else if (outcome.kind === 'failed') {
+				const words = connectionErrorText(outcome.error);
+				setProblem(words);
+				announce(words);
+			}
+		},
+	};
 }

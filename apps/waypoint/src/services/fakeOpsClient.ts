@@ -209,6 +209,7 @@ export class FakeOpsClient implements OpsClient {
 			items: totals.items,
 			bytes: totals.bytes,
 			sameVolume: true,
+			ends: { from: [], to: null },
 			conflicts: [],
 			notes: [],
 		};
@@ -502,6 +503,16 @@ export class FakeOpsClient implements OpsClient {
 			});
 		}
 		return this.setClipboard(mode, items, 'app');
+	}
+
+	/** Files "downloaded" for a drag out: a server's file comes back under `file:///cache/drag-out/`. */
+	async stageForDrag(items: Location[]): Promise<Location[]> {
+		this.calls.push(['stageForDrag', items]);
+		return items.map((item) => {
+			if (item.uri.startsWith('file:')) return item;
+			const name = item.uri.split('/').filter(Boolean).pop() ?? 'file';
+			return { display: `/cache/drag-out/${name}`, uri: `file:///cache/drag-out/${name}` };
+		});
 	}
 
 	async resolveSelection(handle: ListingHandle, spec: SelectionSpec): Promise<Location[]> {
