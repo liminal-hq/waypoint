@@ -11244,6 +11244,156 @@
     "description": "Area: services.",
     "source": "591239c6"
   },
+  "services.name.sftp": {
+    "message": "SFTP",
+    "description": "Area: services. A Services panel entry for a remote protocol. The protocol names (SFTP, SMB, WebDAV, S3) are not translated.",
+    "source": "b07c0f49"
+  },
+  "services.name.smb": {
+    "message": "SMB",
+    "description": "Area: services.",
+    "source": "f54ab2de"
+  },
+  "services.name.webdav": {
+    "message": "WebDAV",
+    "description": "Area: services.",
+    "source": "d92634e4"
+  },
+  "services.name.s3": {
+    "message": "S3",
+    "description": "Area: services.",
+    "source": "44d6a8a7"
+  },
+  "protocol.off.reason": {
+    "message": "Désactivé dans Paramètres → Expérimental",
+    "description": "Area: protocol. The reason a remote protocol is not available. Settings → Experimental is the name of a Settings page, written the way the page is named.",
+    "source": "82c08932"
+  },
+  "services.protocol.notBuilt": {
+    "message": "Non inclus dans cette version",
+    "description": "Area: services.",
+    "source": "d5b9458e"
+  },
+  "protocol.off.title": {
+    "message": "{protocol} est désactivé",
+    "description": "Area: protocol. Placeholders, kept exactly as written: {protocol}.",
+    "source": "9557af38"
+  },
+  "protocol.off.detail": {
+    "message": "Cette adresse utilise un protocole désactivé. Vous pouvez l’activer dans Paramètres → Expérimental.",
+    "description": "Area: protocol. Shown where a folder would be, for an address whose protocol is turned off. Settings → Experimental is the name of a Settings page.",
+    "source": "e9f631e8"
+  },
+  "protocol.off.action": {
+    "message": "Ouvrir les paramètres expérimentaux",
+    "description": "Area: protocol.",
+    "source": "c4dd57df"
+  },
+  "nav.path.protocolOff": {
+    "message": "{protocol} est désactivé. Vous pouvez l’activer dans Paramètres → Expérimental.",
+    "description": "Area: nav. Placeholders, kept exactly as written: {protocol}.",
+    "source": "d5d70220"
+  },
+  "connect.address.protocolOff": {
+    "message": "{protocol} est désactivé dans Paramètres → Expérimental.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {protocol}.",
+    "source": "86baf491"
+  },
+  "connect.error.protocolOff": {
+    "message": "Connexion impossible : {protocol} est désactivé dans Paramètres → Expérimental.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {protocol}.",
+    "source": "fcdcc355"
+  },
+  "connect.scheme.off": {
+    "message": "{protocol} (désactivé)",
+    "description": "Area: connect. Placeholders, kept exactly as written: {protocol}.",
+    "source": "1cd21129"
+  },
+  "network.menu.experimental": {
+    "message": "Ouvrir les paramètres expérimentaux…",
+    "description": "Area: network.",
+    "source": "74c6372b"
+  },
+  "destination.check.protocolOff": {
+    "message": "{protocol} est désactivé dans Paramètres → Expérimental.",
+    "description": "Area: destination. Placeholders, kept exactly as written: {protocol}.",
+    "source": "86baf491"
+  },
+  "ops.problem.message.protocolOff": {
+    "message": "{protocol} est désactivé dans Paramètres → Expérimental.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {protocol}.",
+    "source": "86baf491"
+  },
+  "ops.error.protocolOff": {
+    "message": "Protocole désactivé",
+    "description": "Area: ops.",
+    "source": "dd56cc14"
+  },
+  "settings.section.experimental": {
+    "message": "Expérimental",
+    "description": "Area: settings.",
+    "source": "3dc9f569"
+  },
+  "settings.group.protocols": {
+    "message": "Protocoles distants",
+    "description": "Area: settings.",
+    "source": "bc8d9fb3"
+  },
+  "settings.experimental.intro": {
+    "message": "Ces fonctions sont conçues, mais pas encore éprouvées à l’usage; elles peuvent mal se comporter. Chacune est désactivée tant que vous ne l’activez pas, et un changement s’applique immédiatement.",
+    "description": "Area: settings.",
+    "source": "a5bb8222"
+  },
+  "settings.experimental.badge": {
+    "message": "Expérimental",
+    "description": "Area: settings. A small badge beside each switch on the Experimental page, marking a feature that is not yet proven in daily use.",
+    "source": "3dc9f569"
+  },
+  "settings.experimental.sftp.label": {
+    "message": "SFTP",
+    "description": "Area: settings.",
+    "source": "b07c0f49"
+  },
+  "settings.experimental.sftp.description": {
+    "message": "Connectez-vous à des serveurs par SFTP (SSH), puis parcourez et copiez leurs fichiers.",
+    "description": "Area: settings.",
+    "source": "810ccd28"
+  },
+  "settings.experimental.smb.label": {
+    "message": "SMB",
+    "description": "Area: settings.",
+    "source": "f54ab2de"
+  },
+  "settings.experimental.smb.description": {
+    "message": "Parcourez les partages Windows et Samba par SMB.",
+    "description": "Area: settings.",
+    "source": "e7b2f24d"
+  },
+  "settings.experimental.webdav.label": {
+    "message": "WebDAV",
+    "description": "Area: settings.",
+    "source": "d92634e4"
+  },
+  "settings.experimental.webdav.description": {
+    "message": "Parcourez des serveurs WebDAV, y compris Nextcloud.",
+    "description": "Area: settings.",
+    "source": "ef668159"
+  },
+  "settings.experimental.s3.label": {
+    "message": "S3",
+    "description": "Area: settings.",
+    "source": "44d6a8a7"
+  },
+  "settings.experimental.s3.description": {
+    "message": "Parcourez le stockage S3 et les stockages compatibles S3.",
+    "description": "Area: settings.",
+    "source": "cd385c00"
+  },
+  "settings.experimental.unavailable": {
+    "message": "Pas encore dans cette version.",
+    "description": "Area: settings.",
+    "source": "011805aa"
+  },
   "inspector.tab.git": {
     "message": "Git",
     "description": "Area: inspector. A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.",

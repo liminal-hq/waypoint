@@ -4765,6 +4765,72 @@ const messages: Catalogue = {
 		'Dans un dossier d’une copie de travail Git, signale les fichiers et les dossiers modifiés, ajoute une colonne Git à la liste et affiche la branche dans la barre d’état et dans l’Inspecteur. Waypoint ne fait que lire le dépôt et ne le modifie jamais. Désactivé, Waypoint ne lit rien des dépôts.',
 	// source: 591239c6
 	'services.name.waypoint-git': 'État Git',
+	// source: b07c0f49
+	'services.name.sftp': 'SFTP',
+	// source: f54ab2de
+	'services.name.smb': 'SMB',
+	// source: d92634e4
+	'services.name.webdav': 'WebDAV',
+	// source: 44d6a8a7
+	'services.name.s3': 'S3',
+	// source: 82c08932
+	'protocol.off.reason': 'Désactivé dans Paramètres → Expérimental',
+	// source: d5b9458e
+	'services.protocol.notBuilt': 'Non inclus dans cette version',
+	// source: 9557af38
+	'protocol.off.title': '{protocol} est désactivé',
+	// source: e9f631e8
+	'protocol.off.detail':
+		'Cette adresse utilise un protocole désactivé. Vous pouvez l’activer dans Paramètres → Expérimental.',
+	// source: c4dd57df
+	'protocol.off.action': 'Ouvrir les paramètres expérimentaux',
+	// source: d5d70220
+	'nav.path.protocolOff':
+		'{protocol} est désactivé. Vous pouvez l’activer dans Paramètres → Expérimental.',
+	// source: 86baf491
+	'connect.address.protocolOff': '{protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: fcdcc355
+	'connect.error.protocolOff':
+		'Connexion impossible : {protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: 1cd21129
+	'connect.scheme.off': '{protocol} (désactivé)',
+	// source: 74c6372b
+	'network.menu.experimental': 'Ouvrir les paramètres expérimentaux…',
+	// source: 86baf491
+	'destination.check.protocolOff': '{protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: 86baf491
+	'ops.problem.message.protocolOff': '{protocol} est désactivé dans Paramètres → Expérimental.',
+	// source: dd56cc14
+	'ops.error.protocolOff': 'Protocole désactivé',
+	// source: 3dc9f569
+	'settings.section.experimental': 'Expérimental',
+	// source: bc8d9fb3
+	'settings.group.protocols': 'Protocoles distants',
+	// source: a5bb8222
+	'settings.experimental.intro':
+		'Ces fonctions sont conçues, mais pas encore éprouvées à l’usage; elles peuvent mal se comporter. Chacune est désactivée tant que vous ne l’activez pas, et un changement s’applique immédiatement.',
+	// source: 3dc9f569
+	'settings.experimental.badge': 'Expérimental',
+	// source: b07c0f49
+	'settings.experimental.sftp.label': 'SFTP',
+	// source: 810ccd28
+	'settings.experimental.sftp.description':
+		'Connectez-vous à des serveurs par SFTP (SSH), puis parcourez et copiez leurs fichiers.',
+	// source: f54ab2de
+	'settings.experimental.smb.label': 'SMB',
+	// source: e7b2f24d
+	'settings.experimental.smb.description': 'Parcourez les partages Windows et Samba par SMB.',
+	// source: d92634e4
+	'settings.experimental.webdav.label': 'WebDAV',
+	// source: ef668159
+	'settings.experimental.webdav.description': 'Parcourez des serveurs WebDAV, y compris Nextcloud.',
+	// source: 44d6a8a7
+	'settings.experimental.s3.label': 'S3',
+	// source: cd385c00
+	'settings.experimental.s3.description':
+		'Parcourez le stockage S3 et les stockages compatibles S3.',
+	// source: 011805aa
+	'settings.experimental.unavailable': 'Pas encore dans cette version.',
 	// source: b949c922
 	'inspector.tab.git': 'Git',
 	// source: 13d6ff07

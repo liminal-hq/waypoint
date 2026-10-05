@@ -24,6 +24,7 @@ const GROUP_LABELS: Record<string, MessageId> = {
 	appearance: 'settings.section.appearance',
 	accessibility: 'settings.section.accessibility',
 	integrations: 'settings.section.integrations',
+	experimental: 'settings.section.experimental',
 	previews: 'settings.section.previews',
 	transparency: 'settings.section.transparency',
 	locale: 'settings.section.language',

@@ -8,6 +8,7 @@ import { t } from '../i18n/messages';
 import { AccessibilityPage } from './AccessibilityPage';
 import { AppearancePage } from './AppearancePage';
 import { DragDropPage } from './DragDropPage';
+import { ExperimentalPage } from './ExperimentalPage';
 import { GeneralPage } from './GeneralPage';
 import { IntegrationsPage } from './IntegrationsPage';
 import { LanguagePage } from './LanguagePage';
@@ -24,7 +25,8 @@ export type SectionId =
 	| 'previews'
 	| 'operations'
 	| 'dnd'
-	| 'integrations';
+	| 'integrations'
+	| 'experimental';
 
 /**
  * A page that is not built yet is absent, not a placeholder: the other pages of SPEC 11
@@ -52,6 +54,11 @@ export function settingsSections(): SettingsSectionDef[] {
 			id: 'integrations',
 			label: t('settings.section.integrations'),
 			render: () => <IntegrationsPage />,
+		},
+		{
+			id: 'experimental',
+			label: t('settings.section.experimental'),
+			render: () => <ExperimentalPage />,
 		},
 	];
 }

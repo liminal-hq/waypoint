@@ -94,7 +94,11 @@ export type RowKey =
 	| 'rememberVolumePassphrases'
 	| 'fileManagerService'
 	| 'shortcutEnabled'
-	| 'shortcut';
+	| 'shortcut'
+	| 'protocolSftp'
+	| 'protocolSmb'
+	| 'protocolWebdav'
+	| 'protocolS3';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {
@@ -105,6 +109,12 @@ export interface OpsSettingsApi {
 /** Whether the system can drag files out to other applications, and why not when it cannot. */
 export interface DndAvailability {
 	outbound: { available: boolean; reason: string | null };
+}
+
+/** The remote protocols this build serves: the ones registered now, and the ones it has that are turned off (D167). */
+export interface ProtocolSupport {
+	schemes: readonly string[];
+	off: readonly string[];
 }
 
 export interface SettingsEditor {
@@ -122,6 +132,8 @@ export interface SettingsEditor {
 	windowEffects: WindowEffectsStatus | null;
 	/** What each integration can do here; `null` until read, and for good when it could not be. */
 	availability: IntegrationAvailability | null;
+	/** Which remote protocols this build has; `null` until read, and when it could not be. */
+	protocols: ProtocolSupport | null;
 	/** Why `availability` could not be read, when it could not. */
 	availabilityUnreadable: string | null;
 	/** Making Waypoint the default file manager; `null` when the page was given no client for it. */
@@ -171,6 +183,8 @@ interface SettingsEditorProviderProps {
 	windowEffectsStatus?: () => Promise<WindowEffectsStatus>;
 	/** What the OS integrations can do here, for the Integrations page; a failure leaves its switches off, saying so. */
 	integrations?: IntegrationsClient;
+	/** Reads which remote protocols this build has, for the Experimental page; a failure leaves every switch usable. */
+	protocolSupport?: () => Promise<ProtocolSupport>;
 	/** The default file manager action and who is default now, for the Integrations page. */
 	fileManager?: DefaultFileManagerClient;
 	/** Export and import of the settings, for the General page's Back up and restore group. */
@@ -190,6 +204,7 @@ export function SettingsEditorProvider({
 	thumbnailsStatus,
 	windowEffectsStatus,
 	integrations,
+	protocolSupport,
 	fileManager,
 	transfer,
 	children,
@@ -201,6 +216,7 @@ export function SettingsEditorProvider({
 	const [dnd, setDnd] = useState<DndAvailability | null>(null);
 	const [thumbnails, setThumbnails] = useState<PluginStatus | null>(null);
 	const [windowEffects, setWindowEffects] = useState<WindowEffectsStatus | null>(null);
+	const [protocols, setProtocols] = useState<ProtocolSupport | null>(null);
 	const [availability, setAvailability] = useState<IntegrationAvailability | null>(null);
 	const [availabilityUnreadable, setAvailabilityUnreadable] = useState<string | null>(null);
 	const [errors, setErrors] = useState<Partial<Record<RowKey, string>>>({});
@@ -269,6 +285,20 @@ export function SettingsEditorProvider({
 			active = false;
 		};
 	}, [windowEffectsStatus]);
+
+	useEffect(() => {
+		if (!protocolSupport) return;
+		let active = true;
+		protocolSupport().then(
+			(value) => {
+				if (active) setProtocols(value);
+			},
+			(error: unknown) => console.warn('could not read which protocols this build has', error),
+		);
+		return () => {
+			active = false;
+		};
+	}, [protocolSupport]);
 
 	useEffect(() => {
 		if (!integrations) return;
@@ -352,6 +382,7 @@ export function SettingsEditorProvider({
 			dnd,
 			thumbnails,
 			windowEffects,
+			protocols,
 			availability,
 			availabilityUnreadable,
 			fileManager: fileManager ?? null,
@@ -371,6 +402,7 @@ export function SettingsEditorProvider({
 			dnd,
 			thumbnails,
 			windowEffects,
+			protocols,
 			availability,
 			availabilityUnreadable,
 			fileManager,

@@ -8687,6 +8687,126 @@
     "message": "Git status",
     "description": "Area: services."
   },
+  "services.name.sftp": {
+    "message": "SFTP",
+    "description": "Area: services. A Services panel entry for a remote protocol. The protocol names (SFTP, SMB, WebDAV, S3) are not translated."
+  },
+  "services.name.smb": {
+    "message": "SMB",
+    "description": "Area: services."
+  },
+  "services.name.webdav": {
+    "message": "WebDAV",
+    "description": "Area: services."
+  },
+  "services.name.s3": {
+    "message": "S3",
+    "description": "Area: services."
+  },
+  "protocol.off.reason": {
+    "message": "Turned off in Settings → Experimental",
+    "description": "Area: protocol. The reason a remote protocol is not available. Settings → Experimental is the name of a Settings page, written the way the page is named."
+  },
+  "services.protocol.notBuilt": {
+    "message": "Not included in this build",
+    "description": "Area: services."
+  },
+  "protocol.off.title": {
+    "message": "{protocol} is turned off",
+    "description": "Area: protocol. Placeholders, kept exactly as written: {protocol}."
+  },
+  "protocol.off.detail": {
+    "message": "This address uses a protocol that is turned off. You can turn it on in Settings → Experimental.",
+    "description": "Area: protocol. Shown where a folder would be, for an address whose protocol is turned off. Settings → Experimental is the name of a Settings page."
+  },
+  "protocol.off.action": {
+    "message": "Open Experimental settings",
+    "description": "Area: protocol."
+  },
+  "nav.path.protocolOff": {
+    "message": "{protocol} is turned off. You can turn it on in Settings → Experimental.",
+    "description": "Area: nav. Placeholders, kept exactly as written: {protocol}."
+  },
+  "connect.address.protocolOff": {
+    "message": "{protocol} is turned off in Settings → Experimental.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {protocol}."
+  },
+  "connect.error.protocolOff": {
+    "message": "Not connected: {protocol} is turned off in Settings → Experimental.",
+    "description": "Area: connect. Placeholders, kept exactly as written: {protocol}."
+  },
+  "connect.scheme.off": {
+    "message": "{protocol} (turned off)",
+    "description": "Area: connect. Placeholders, kept exactly as written: {protocol}."
+  },
+  "network.menu.experimental": {
+    "message": "Open Experimental Settings…",
+    "description": "Area: network."
+  },
+  "destination.check.protocolOff": {
+    "message": "{protocol} is turned off in Settings → Experimental.",
+    "description": "Area: destination. Placeholders, kept exactly as written: {protocol}."
+  },
+  "ops.problem.message.protocolOff": {
+    "message": "{protocol} is turned off in Settings → Experimental.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {protocol}."
+  },
+  "ops.error.protocolOff": {
+    "message": "Protocol turned off",
+    "description": "Area: ops."
+  },
+  "settings.section.experimental": {
+    "message": "Experimental",
+    "description": "Area: settings."
+  },
+  "settings.group.protocols": {
+    "message": "Remote protocols",
+    "description": "Area: settings."
+  },
+  "settings.experimental.intro": {
+    "message": "These features are built but not yet proven in daily use, so they may misbehave. Each one is off until you turn it on, and a change takes effect at once.",
+    "description": "Area: settings."
+  },
+  "settings.experimental.badge": {
+    "message": "Experimental",
+    "description": "Area: settings. A small badge beside each switch on the Experimental page, marking a feature that is not yet proven in daily use."
+  },
+  "settings.experimental.sftp.label": {
+    "message": "SFTP",
+    "description": "Area: settings."
+  },
+  "settings.experimental.sftp.description": {
+    "message": "Connect to servers over SFTP (SSH), and browse and copy their files.",
+    "description": "Area: settings."
+  },
+  "settings.experimental.smb.label": {
+    "message": "SMB",
+    "description": "Area: settings."
+  },
+  "settings.experimental.smb.description": {
+    "message": "Browse Windows and Samba shares over SMB.",
+    "description": "Area: settings."
+  },
+  "settings.experimental.webdav.label": {
+    "message": "WebDAV",
+    "description": "Area: settings."
+  },
+  "settings.experimental.webdav.description": {
+    "message": "Browse WebDAV servers, including Nextcloud.",
+    "description": "Area: settings."
+  },
+  "settings.experimental.s3.label": {
+    "message": "S3",
+    "description": "Area: settings."
+  },
+  "settings.experimental.s3.description": {
+    "message": "Browse S3 and S3-compatible storage.",
+    "description": "Area: settings."
+  },
+  "settings.experimental.unavailable": {
+    "message": "Not in this build yet.",
+    "description": "Area: settings."
+  },
   "inspector.tab.git": {
     "message": "Git",
     "description": "Area: inspector. A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”."
