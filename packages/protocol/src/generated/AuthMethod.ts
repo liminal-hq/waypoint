@@ -4,4 +4,4 @@
  * How a connection logs in. Whatever is chosen, the SSH agent and key files are never used for
  * anything but SSH, and no secret is part of the choice.
  */
-export type AuthMethod = "auto" | "password" | "keyFile";
+export type AuthMethod = "auto" | "password" | "keyFile" | "token";

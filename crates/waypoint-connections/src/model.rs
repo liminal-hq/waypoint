@@ -38,6 +38,35 @@ pub enum AuthMethod {
     Password,
     /// The key file the connection names, with its passphrase asked for or remembered.
     KeyFile,
+    /// An access token (WebDAV), asked for or remembered.
+    Token,
+}
+
+/// How a WebDAV connection sends a password, once it has one (`AuthMethod::Password`). The
+/// provider's own choice follows the server's challenge.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum DavAuth {
+    /// Whatever the server's challenge offers, the strongest first.
+    #[default]
+    Auto,
+    /// Basic, sent with the first request: for an app password (Nextcloud and the like).
+    Basic,
+    /// Digest only.
+    Digest,
+}
+
+/// The dialect of a WebDAV server.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum DavPreset {
+    /// Nextcloud when the path runs through `remote.php`, plain WebDAV otherwise.
+    #[default]
+    Auto,
+    Generic,
+    Nextcloud,
 }
 
 /// The tuning and choices of one connection (A81). Every field has a provider default, so `None`
@@ -58,6 +87,10 @@ pub struct ConnectionOptions {
     pub transfer_requests: Option<u32>,
     /// The SSH channel window in KiB (8 MiB by default).
     pub window_kib: Option<u32>,
+    /// How a WebDAV connection sends a password; `None` follows the server.
+    pub dav_auth: Option<DavAuth>,
+    /// The dialect of a WebDAV server; `None` recognises Nextcloud by its path.
+    pub dav_preset: Option<DavPreset>,
 }
 
 /// What a person fills in for a connection: the Connect dialog sends it to add or change one.
@@ -280,7 +313,11 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
     if draft.port == Some(0) {
         return Err(DraftError::Port);
     }
-    let key_file = blank_to_none(draft.key_file.clone());
+    let ssh = scheme == RemoteScheme::Sftp;
+    let dav = matches!(scheme, RemoteScheme::Dav | RemoteScheme::Davs);
+    // What a protocol does not have is left out, so two drafts of one server save the same: a key
+    // file and a jump host are SSH's, and a password type and a dialect are WebDAV's.
+    let key_file = blank_to_none(draft.key_file.clone()).filter(|_| ssh);
     if too_long(&key_file)
         || key_file.as_ref().is_some_and(|path| {
             !(path.starts_with("~/") || std::path::Path::new(path).is_absolute())
@@ -288,7 +325,7 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
     {
         return Err(DraftError::KeyFile);
     }
-    let jump_host = blank_to_none(draft.jump_host.clone());
+    let jump_host = blank_to_none(draft.jump_host.clone()).filter(|_| ssh);
     if too_long(&jump_host) || jump_host.as_deref().is_some_and(|jump| !valid_jump(jump)) {
         return Err(DraftError::JumpHost);
     }
@@ -330,7 +367,11 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
         host: host_text(&authority.host),
         port: authority.port,
         user: authority.user.clone(),
-        auth: draft.auth,
+        auth: match draft.auth {
+            AuthMethod::KeyFile if !ssh => AuthMethod::Auto,
+            AuthMethod::Token if !dav => AuthMethod::Auto,
+            auth => auth,
+        },
         key_file,
         jump_host,
         start_folder: if start.is_root() {
@@ -338,7 +379,11 @@ pub fn check_draft(draft: &ConnectionDraft) -> Result<Checked, DraftError> {
         } else {
             Some(server_path(&start))
         },
-        options: draft.options.clone(),
+        options: ConnectionOptions {
+            dav_auth: draft.options.dav_auth.filter(|_| dav),
+            dav_preset: draft.options.dav_preset.filter(|_| dav),
+            ..draft.options.clone()
+        },
     };
     Ok(Checked {
         draft: canonical,
@@ -536,6 +581,107 @@ mod tests {
         assert_eq!(entry.label, "me@nas.lan");
         assert_eq!(entry.key, "sftp://me@nas.lan");
         assert_eq!(entry.location.uri, "sftp://me@nas.lan/srv");
+    }
+
+    fn of(scheme: &str, host: &str) -> ConnectionDraft {
+        ConnectionDraft {
+            scheme: scheme.into(),
+            host: host.into(),
+            ..ConnectionDraft::default()
+        }
+    }
+
+    #[test]
+    fn an_smb_connection_names_a_domain_and_a_share_in_its_canonical_form() {
+        let checked = check_draft(&ConnectionDraft {
+            user: Some("WORK;me".into()),
+            start_folder: Some("/Projects/./2026/".into()),
+            ..of("SMB", "Files.lan")
+        })
+        .unwrap();
+        assert_eq!(checked.draft.host, "files.lan");
+        assert_eq!(checked.draft.user.as_deref(), Some("WORK;me"));
+        assert_eq!(
+            checked.draft.start_folder.as_deref(),
+            Some("/Projects/2026")
+        );
+        assert_eq!(
+            checked.root.connection_key().as_str(),
+            "smb://WORK;me@files.lan"
+        );
+        let saved = SavedConnection {
+            id: "c1".into(),
+            draft: checked.draft,
+        };
+        let entry = saved.entry().unwrap();
+        assert_eq!(entry.location.uri, "smb://WORK;me@files.lan/Projects/2026");
+        // No share is the share browser: the server's root.
+        let browser = check_draft(&of("smb", "files.lan")).unwrap();
+        assert!(browser.start.is_root());
+        assert_eq!(browser.draft.port, None, "445 is the default");
+    }
+
+    #[test]
+    fn a_webdav_connection_keeps_its_sign_in_and_dialect_and_nothing_else_does() {
+        let dav = ConnectionDraft {
+            auth: AuthMethod::Token,
+            options: ConnectionOptions {
+                dav_auth: Some(DavAuth::Basic),
+                dav_preset: Some(DavPreset::Nextcloud),
+                ..ConnectionOptions::default()
+            },
+            start_folder: Some("/remote.php/dav/files/alice".into()),
+            ..of("davs", "cloud.example.com")
+        };
+        let checked = check_draft(&dav).unwrap();
+        assert_eq!(checked.draft.auth, AuthMethod::Token);
+        assert_eq!(checked.draft.options.dav_auth, Some(DavAuth::Basic));
+        assert_eq!(checked.draft.options.dav_preset, Some(DavPreset::Nextcloud));
+        assert_eq!(
+            checked.root.connection_key().as_str(),
+            "davs://cloud.example.com"
+        );
+        assert_eq!(check_draft(&checked.draft).unwrap().draft, checked.draft);
+        // The same fields on SSH are not kept: a token, a dialect and a password type are not its.
+        let ssh = check_draft(&ConnectionDraft {
+            scheme: "sftp".into(),
+            ..dav
+        })
+        .unwrap();
+        assert_eq!(ssh.draft.auth, AuthMethod::Auto);
+        assert_eq!(ssh.draft.options.dav_auth, None);
+        assert_eq!(ssh.draft.options.dav_preset, None);
+    }
+
+    #[test]
+    fn a_key_file_and_a_jump_host_belong_to_ssh_alone() {
+        let draft = ConnectionDraft {
+            auth: AuthMethod::KeyFile,
+            key_file: Some("~/.ssh/id".into()),
+            jump_host: Some("bastion".into()),
+            ..of("smb", "files.lan")
+        };
+        let smb = check_draft(&draft).unwrap().draft;
+        assert_eq!(
+            (smb.auth, smb.key_file, smb.jump_host),
+            (AuthMethod::Auto, None, None)
+        );
+        let ssh = check_draft(&ConnectionDraft {
+            scheme: "sftp".into(),
+            ..draft
+        })
+        .unwrap()
+        .draft;
+        assert_eq!(ssh.auth, AuthMethod::KeyFile);
+        assert_eq!(ssh.key_file.as_deref(), Some("~/.ssh/id"));
+        assert_eq!(ssh.jump_host.as_deref(), Some("bastion"));
+    }
+
+    #[test]
+    fn a_document_from_before_the_webdav_options_reads_them_as_the_defaults() {
+        let old: ConnectionOptions = serde_json::from_str(r#"{"thumbnails":true}"#).unwrap();
+        assert_eq!((old.dav_auth, old.dav_preset), (None, None));
+        assert!(old.thumbnails);
     }
 
     #[test]
