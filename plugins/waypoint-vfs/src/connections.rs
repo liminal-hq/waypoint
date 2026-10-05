@@ -17,7 +17,7 @@ use waypoint_connections::{
     KeyringUnavailable, ParsedAddress, ProtocolsChanged, Remembered, SuggestedServer,
     TestedConnection,
 };
-use waypoint_path::{ConnectionKey, VfsPath};
+use waypoint_path::{ConnectionKey, RemoteScheme, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{CancelToken, ConnectAnswer};
 
@@ -112,10 +112,13 @@ pub async fn list_connections(state: State<'_, Vfs>) -> Result<ConnectionsOvervi
 #[tauri::command]
 pub async fn connection_support(state: State<'_, Vfs>) -> Result<ConnectionSupport, Error> {
     let hub = hub(&state)?;
+    // The protocols a connection can be made to: the archive provider is registered beside them
+    // and serves `archive:` locations, which nobody connects to.
     let schemes: Vec<String> = state
         .remote()
         .schemes()
         .into_iter()
+        .filter(|scheme| RemoteScheme::from_name(scheme).is_some())
         .map(str::to_owned)
         .collect();
     let off: Vec<String> = state
