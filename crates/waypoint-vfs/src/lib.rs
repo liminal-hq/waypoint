@@ -67,7 +67,9 @@ pub use memory::{MemOp, MemoryProvider};
 pub use mime::{guess as guess_mime, SNIFF_LEN};
 pub use model::*;
 pub use names::{child_path, validate_name};
-pub use navigation::{describe_location, parse_location, parse_location_with};
+pub use navigation::{
+    describe_location, parse_location, parse_location_gated, parse_location_with,
+};
 pub use order::natural_key;
 pub use overlay::{FolderMarks, FolderOverlay, MarkSink, OverlayGuard};
 pub use places::*;

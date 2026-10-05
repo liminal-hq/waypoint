@@ -308,7 +308,7 @@ mod tests {
         let credentials = Arc::new(Credentials::new(keyring.clone()));
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive)
             .with_credentials(credentials.clone());
-        let mut registry = ProviderRegistry::new();
+        let registry = ProviderRegistry::new();
         registry.register(Arc::new(server));
         let manager = Arc::new(ConnectionManager::new(Arc::new(registry), credentials));
         let storage = Arc::new(MemoryConnections::default());

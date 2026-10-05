@@ -249,6 +249,25 @@ impl ConnectionManager {
         Ok(())
     }
 
+    /// Closes every login of `scheme` and forgets its state, for a protocol that is being turned
+    /// off (D167): call it while the provider is still registered, so it can end the sessions.
+    /// Each login's windows hear it go idle.
+    pub fn close_scheme(&self, scheme: &str) {
+        let prefix = format!("{scheme}://");
+        let keys: Vec<ConnectionKey> = self
+            .lock()
+            .keys()
+            .filter(|key| key.as_str().starts_with(&prefix))
+            .cloned()
+            .collect();
+        for key in keys {
+            if let Ok(provider) = self.provider(&key) {
+                provider.disconnect(&key);
+            }
+            self.set(&key, ConnectionState::Idle);
+        }
+    }
+
     /// What a call on a login found: success means the session works, a connection error is the
     /// login's new state, and any other error (a missing file) says nothing about the login.
     pub fn observe(&self, key: &ConnectionKey, outcome: Result<(), &VfsError>) {
@@ -369,7 +388,7 @@ mod tests {
         let credentials = Arc::new(Credentials::new(keyring.clone()));
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive)
             .with_credentials(credentials.clone());
-        let mut registry = ProviderRegistry::new();
+        let registry = ProviderRegistry::new();
         registry.register(Arc::new(server.clone()));
         let manager = Arc::new(ConnectionManager::new(Arc::new(registry), credentials));
         let events = Arc::new(StdMutex::new(Vec::new()));
@@ -582,5 +601,29 @@ mod tests {
             Err(VfsError::Unsupported { .. })
         ));
         assert_eq!(fx.manager.statuses().len(), 0);
+    }
+
+    #[test]
+    fn turning_a_protocol_off_ends_its_logins_and_refuses_new_ones() {
+        let fx = fixture();
+        fx.manager
+            .connect(&fx.key, None, false, &CancelToken::new())
+            .unwrap();
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Connected);
+        fx.manager.close_scheme("sftp");
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Idle);
+        assert_eq!(
+            fx.server.connection_state(&fx.key),
+            ConnectionState::Idle,
+            "the provider's session is closed too"
+        );
+        fx.manager.registry().turn_off("sftp");
+        assert!(matches!(
+            fx.manager
+                .connect(&fx.key, None, false, &CancelToken::new()),
+            Err(VfsError::ProtocolOff { scheme }) if scheme == "sftp"
+        ));
+        // A login of another scheme is left alone.
+        fx.manager.close_scheme("smb");
     }
 }

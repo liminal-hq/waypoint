@@ -10,6 +10,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     const LISTING_EVENT = 'waypoint-vfs://listing';
     const CONNECTIONS_EVENT = 'waypoint-vfs://connections';
     const CONNECTION_STATE_EVENT = 'waypoint-vfs://connection-state';
+    const PROTOCOLS_EVENT = 'waypoint-vfs://protocols';
     function cmd(name, args) {
         return core.invoke(`${PREFIX}${name}`, args);
     }
@@ -275,6 +276,10 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     function onConnectionsChanged(handler) {
         return event.listen(CONNECTIONS_EVENT, (event) => handler(event.payload));
     }
+    /** Hears every time a remote protocol is turned on or off in Settings → Experimental, in any window. */
+    function onProtocolsChanged(handler) {
+        return event.listen(PROTOCOLS_EVENT, (event) => handler(event.payload));
+    }
     /** Hears every change of a login's state. */
     function onConnectionState(handler) {
         return event.listen(CONNECTION_STATE_EVENT, (event) => handler(event.payload));
@@ -311,6 +316,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     exports.onConnectionState = onConnectionState;
     exports.onConnectionsChanged = onConnectionsChanged;
     exports.onListingEvent = onListingEvent;
+    exports.onProtocolsChanged = onProtocolsChanged;
     exports.openEntry = openEntry;
     exports.openListing = openListing;
     exports.parseAddress = parseAddress;

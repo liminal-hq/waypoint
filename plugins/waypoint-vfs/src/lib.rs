@@ -22,7 +22,9 @@ use waypoint_connections::{
 use waypoint_vfs::{Provider, ProviderRegistry};
 
 pub use commands::{OpenOptions, Suggestions, Vfs, LISTING_EVENT};
-pub use connections::{CONNECTIONS_EVENT, CONNECTION_STATE_EVENT};
+pub use connections::{
+    announce_protocols, CONNECTIONS_EVENT, CONNECTION_STATE_EVENT, PROTOCOLS_EVENT,
+};
 pub use error::Error;
 pub use wpfile::SCHEME as PREVIEW_SCHEME;
 
@@ -155,11 +157,10 @@ pub fn init_with<R: Runtime>(options: Options<R>) -> TauriPlugin<R> {
             });
         })
         .setup(move |app, _api| {
-            let mut registry = ProviderRegistry::new();
+            let registry = Arc::new(ProviderRegistry::new());
             for provider in &providers {
                 registry.register(provider.clone());
             }
-            let registry = Arc::new(registry);
             let credentials = credentials
                 .clone()
                 .unwrap_or_else(|| Arc::new(Credentials::new(Arc::new(NoKeyring))));

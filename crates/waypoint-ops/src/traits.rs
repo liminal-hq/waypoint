@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
-use waypoint_vfs::{ArchiveCatalog, ArchiveWriters, ListingHandle, Provider, SelectionSpec};
+use waypoint_vfs::{
+    ArchiveCatalog, ArchiveWriters, ListingHandle, Provider, ProviderRegistry, SelectionSpec,
+};
 
 use crate::model::{OpsError, OpsSettings};
 
@@ -151,6 +153,9 @@ pub struct Providers {
     catalog: Option<Arc<dyn ArchiveCatalog>>,
     /// What makes archives, when they can be made.
     writers: Option<Arc<dyn ArchiveWriters>>,
+    /// Providers that come and go while the app runs (the remote protocols, D167), looked up
+    /// after the fixed ones.
+    live: Option<ProviderRegistry>,
 }
 
 impl Providers {
@@ -170,6 +175,13 @@ impl Providers {
         self.by_scheme.insert(provider.scheme(), provider);
     }
 
+    /// Serves the schemes of `registry` too, as they are at each lookup: a protocol turned on
+    /// while the app runs is served from then on, and one turned off stops being.
+    pub fn with_live(mut self, registry: ProviderRegistry) -> Self {
+        self.live = Some(registry);
+        self
+    }
+
     /// Registers an archive provider: as the provider of the `archive` scheme, and as what lists
     /// archives for extraction and makes them for compression.
     pub fn register_archives<P>(&mut self, provider: Arc<P>)
@@ -183,7 +195,10 @@ impl Providers {
 
     /// The provider of a scheme, if there is one.
     pub fn get(&self, scheme: &str) -> Option<Arc<dyn Provider>> {
-        self.by_scheme.get(scheme).cloned()
+        self.by_scheme
+            .get(scheme)
+            .cloned()
+            .or_else(|| self.live.as_ref().and_then(|live| live.get(scheme)))
     }
 
     /// The catalogue of archive entries, or `Unsupported` when archives are not served.
@@ -201,12 +216,15 @@ impl Providers {
     }
 
     pub fn for_path(&self, path: &VfsPath) -> Result<Arc<dyn Provider>, OpsError> {
-        self.by_scheme
-            .get(path.scheme())
-            .cloned()
-            .ok_or_else(|| OpsError::Unsupported {
+        if let Some(provider) = self.by_scheme.get(path.scheme()) {
+            return Ok(provider.clone());
+        }
+        match &self.live {
+            Some(live) => live.for_path(path).map_err(OpsError::from),
+            None => Err(OpsError::Unsupported {
                 what: format!("the {} scheme", path.scheme()),
-            })
+            }),
+        }
     }
 
     /// Reads a location's URI to a path and finds its provider.
@@ -263,6 +281,33 @@ mod tests {
             if cfg!(windows) { r"C:\" } else { "/" }
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn a_live_registry_is_looked_up_at_each_use_so_a_protocol_turned_off_is_refused_with_its_reason(
+    ) {
+        let registry = ProviderRegistry::new();
+        let providers = Providers::new().with_live(registry.clone());
+        let here = path("tmp/x");
+        assert!(matches!(
+            providers.for_path(&here),
+            Err(OpsError::Unsupported { .. })
+        ));
+        // Registered after the engine was built: served from then on.
+        registry.register(Arc::new(waypoint_vfs::LocalProvider::new()));
+        assert!(providers.get("file").is_some());
+        assert!(providers.for_path(&here).is_ok());
+        // Turned off: refused with the typed reason, and served again once it is back.
+        let provider = registry.turn_off("file").unwrap();
+        assert!(providers.get("file").is_none());
+        assert_eq!(
+            providers.for_path(&here).err(),
+            Some(OpsError::ProtocolOff {
+                scheme: "file".to_owned()
+            })
+        );
+        registry.register(provider);
+        assert!(providers.for_path(&here).is_ok());
     }
 
     #[test]

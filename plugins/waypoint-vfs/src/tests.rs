@@ -1225,6 +1225,76 @@ mod connections {
         ));
         assert!(parsed.is_err(), "no provider serves smb here");
     }
+
+    #[test]
+    fn a_protocol_turned_off_while_the_app_runs_says_so_and_turning_it_on_again_needs_no_restart() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        let root = server.root("me@nas.lan");
+        let app = app_with(&server);
+        let (sender, heard) = channel();
+        app.listen_any(crate::PROTOCOLS_EVENT, move |event| {
+            let _ = sender.send(
+                serde_json::from_str::<waypoint_connections::ProtocolsChanged>(event.payload())
+                    .expect("the protocols"),
+            );
+        });
+        let state = app.state::<Vfs>();
+        let support =
+            || tauri::async_runtime::block_on(cmd::connection_support(app.state::<Vfs>())).unwrap();
+        assert_eq!(
+            (support().schemes, support().off),
+            (vec!["sftp".to_owned()], vec![])
+        );
+
+        // The app turns the provider off: nothing serves the scheme, and the reason is typed.
+        let provider = state.remote().turn_off("sftp").expect("it was serving");
+        crate::announce_protocols(app.handle());
+        let change = heard
+            .recv_timeout(Duration::from_secs(10))
+            .expect("an event");
+        assert_eq!(
+            (change.schemes, change.off),
+            (vec![], vec!["sftp".to_owned()])
+        );
+        assert_eq!(support().off, ["sftp"]);
+        let refused = open(&app, "main", root.to_location()).unwrap_err();
+        assert!(
+            matches!(refused, Error::Vfs(VfsError::ProtocolOff { ref scheme }) if scheme == "sftp"),
+            "{refused:?}"
+        );
+        let parsed = tauri::async_runtime::block_on(cmd::parse_address_text(
+            app.state::<Vfs>(),
+            "sftp://me@nas.lan/".into(),
+        ))
+        .unwrap_err();
+        assert!(
+            matches!(parsed, Error::Vfs(VfsError::ProtocolOff { .. })),
+            "{parsed:?}"
+        );
+        let connect = tauri::async_runtime::block_on(cmd::connect(
+            app.state::<Vfs>(),
+            root.to_location(),
+            None,
+            Some(false),
+        ))
+        .unwrap_err();
+        assert!(
+            matches!(connect, Error::Vfs(VfsError::ProtocolOff { .. })),
+            "{connect:?}"
+        );
+
+        // Turned on again, the same address opens.
+        state.remote().register(provider);
+        crate::announce_protocols(app.handle());
+        let change = heard
+            .recv_timeout(Duration::from_secs(10))
+            .expect("an event");
+        assert_eq!(
+            (change.schemes, change.off),
+            (vec!["sftp".to_owned()], vec![])
+        );
+        open(&app, "main", root.to_location()).expect("opens once it is on");
+    }
 }
 
 /// An overlay that marks `b.txt` modified as soon as a listing is attached, and again later.

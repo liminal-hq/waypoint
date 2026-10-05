@@ -39,6 +39,6 @@ pub use store::{
     ConnectionsSnapshot, CONNECTIONS_VERSION, MAX_CONNECTIONS, MAX_RECENT,
 };
 pub use wire::{
-    parse_address, AnswerInput, ConnectionSupport, ConnectionsOverview, NoKeyring, ParsedAddress,
-    SuggestedServer, TestedConnection,
+    parse_address, parse_address_gated, AnswerInput, ConnectionSupport, ConnectionsOverview,
+    NoKeyring, ParsedAddress, ProtocolsChanged, SuggestedServer, TestedConnection,
 };
