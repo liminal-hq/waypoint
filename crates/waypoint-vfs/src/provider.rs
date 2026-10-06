@@ -116,6 +116,10 @@ pub struct Capabilities {
     pub set_times: bool,
     /// The longest name in bytes, when known; a longer one is `InvalidName`.
     pub max_name_len: Option<u32>,
+    /// The finest modification time the provider keeps, in milliseconds: 1000 for SFTP, which
+    /// drops the fraction of a second. Times are compared at this precision so a copy that was
+    /// given the source's time is the same date as its source.
+    pub time_resolution_ms: u32,
 }
 
 impl Capabilities {
@@ -135,6 +139,7 @@ impl Capabilities {
             symlinks: false,
             set_times: false,
             max_name_len: None,
+            time_resolution_ms: 1,
         }
     }
 
@@ -158,7 +163,18 @@ impl Capabilities {
             symlinks: true,
             set_times: true,
             max_name_len: Some(255),
+            time_resolution_ms: 1,
         }
+    }
+
+    /// `modified_ms` as this provider would store it: rounded down to `time_resolution_ms`.
+    pub const fn at_time_resolution(&self, modified_ms: i64) -> i64 {
+        let step = if self.time_resolution_ms == 0 {
+            1
+        } else {
+            self.time_resolution_ms as i64
+        };
+        modified_ms.div_euclid(step) * step
     }
 }
 

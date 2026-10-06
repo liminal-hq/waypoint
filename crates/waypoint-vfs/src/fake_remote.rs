@@ -763,7 +763,19 @@ impl Provider for FakeRemoteProvider {
     }
 
     fn set_times(&self, path: &VfsPath, times: FileTimes) -> Result<(), VfsError> {
-        self.claims(self.capabilities().set_times, "setting times")?;
+        let caps = self.capabilities();
+        self.claims(caps.set_times, "setting times")?;
+        // A server that keeps coarser times drops the rest, as SFTP drops the fraction of a second.
+        let times = FileTimes {
+            modified: times.modified.map(|time| {
+                let ms = time
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(0, |d| d.as_millis() as i64);
+                std::time::UNIX_EPOCH
+                    + std::time::Duration::from_millis(caps.at_time_resolution(ms) as u64)
+            }),
+            ..times
+        };
         self.run(path, |local| self.memory.set_times(local, times))
     }
 

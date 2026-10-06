@@ -424,7 +424,14 @@ impl Planner<'_, '_> {
             let archive_provider = self.ctx.providers.for_path(&source)?;
             let entry = archive_provider.stat(&source)?;
             if let Some(clash) = existing[folder].get(&key) {
-                conflicts.push(Self::conflict(&source, &entry, &target, clash, false));
+                conflicts.push(Self::conflict(
+                    &source,
+                    &entry,
+                    &target,
+                    clash,
+                    false,
+                    provider.as_ref(),
+                ));
             } else if let Some(first) = claimed.get(&(folder.clone(), key.clone())) {
                 conflicts.push(Conflict {
                     source: source.to_location(),
@@ -548,6 +555,7 @@ impl Planner<'_, '_> {
                 &target,
                 &existing,
                 false,
+                provider.as_ref(),
             ));
         }
         let mut plan = self.finish(items, Some(folder), false, conflicts);

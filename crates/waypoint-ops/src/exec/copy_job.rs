@@ -28,8 +28,8 @@ use std::sync::Arc;
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{
-    child_path, CancelToken, EntryKind, PermissionModel, Provider, RenameSupport, ScannedEntry,
-    WriteOptions,
+    child_path, CancelToken, Capabilities, EntryKind, PermissionModel, Provider, RenameSupport,
+    ScannedEntry, WriteOptions,
 };
 
 use super::copy_engine::{copy_file_bytes, hash_file, is_lost, FileCopy, CHUNK_BYTES};
@@ -744,6 +744,7 @@ impl Transfer<'_> {
         existing: &ScannedEntry,
         linking: bool,
         within_batch: bool,
+        caps: &Capabilities,
     ) -> Conflict {
         // A link to a folder is a link, not a folder, so only a like clash replaces it.
         let src_dir = entry.kind == EntryKind::Directory && !linking;
@@ -761,8 +762,8 @@ impl Transfer<'_> {
             within_batch,
             source_size: entry.size,
             existing_size: existing.size,
-            source_modified_ms: entry.modified_ms,
-            existing_modified_ms: existing.modified_ms,
+            source_modified_ms: entry.modified_ms.map(|ms| caps.at_time_resolution(ms)),
+            existing_modified_ms: existing.modified_ms.map(|ms| caps.at_time_resolution(ms)),
         }
     }
 
@@ -816,13 +817,14 @@ impl Transfer<'_> {
                 &existing,
                 ctx.mode == Mode::Link,
                 within_batch,
+                &provider.capabilities(),
             );
             let mut policy = match chosen.or_else(|| self.resolutions.policy_for(&conflict.source))
             {
                 Some(policy) => policy,
                 None => self.ask(&conflict)?,
             };
-            let newer = match (entry.modified_ms, existing.modified_ms) {
+            let newer = match (conflict.source_modified_ms, conflict.existing_modified_ms) {
                 (Some(a), Some(b)) => Some(a > b),
                 _ => None,
             };
