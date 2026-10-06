@@ -82,6 +82,11 @@
 	opacity: 0.6;
 }
 
+/* A row with a selected name shown whole is raised over the rows after it, which paint later. */
+.row[data-lifted] {
+	z-index: 1;
+}
+
 .cell:hover {
 	background: var(--wp-bg-hover);
 }
@@ -91,8 +96,27 @@
 	opacity: 0.5;
 }
 
+/*
+ * The selected cell is solid, so the cell it covers does not show through (the selection colour can be
+ * translucent), and it grows downward to hold its whole name; rows keep their height.
+ */
 .cell[data-selected] {
-	background: var(--wp-bg-selected);
+	background-color: var(--wp-bg-content);
+	background-image: linear-gradient(var(--wp-bg-selected), var(--wp-bg-selected));
+}
+
+.cell[data-selected],
+.cell[data-room] {
+	align-self: start;
+	min-height: calc(var(--wp-grid-size) + 64px);
+}
+
+.cell[data-selected] .label,
+.cell[data-room] .label {
+	display: block;
+	overflow: visible;
+	-webkit-line-clamp: none;
+	line-clamp: none;
 }
 
 /* The keyboard focus stays visible whether or not the item is selected. */

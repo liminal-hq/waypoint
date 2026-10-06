@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { cellFor, columnsFor, gridMove, GRID_PADDING } from './gridLayout';
+import { cellFor, columnsFor, gridMove, GRID_PADDING, hasRoomBelow } from './gridLayout';
 import { GroupLayout } from './groupLayout';
 import { MAX_SCROLL_HEIGHT, visibleRows } from './scrollCap';
 
@@ -89,5 +89,35 @@ describe('gridMove', () => {
 		expect(move('ArrowRight', null)).toBe(0);
 		expect(move('a', 3)).toBeNull();
 		expect(move('Enter', 3)).toBeNull();
+	});
+});
+
+describe('hasRoomBelow', () => {
+	it('gives room to every cell of the last row, and to a column the last row does not reach', () => {
+		// Ten items in rows of four: 4, 4 and 2.
+		const layout = new GroupLayout([], new Set(), 10, 4);
+		expect([0, 1, 2, 3].map((column) => hasRoomBelow(layout, 2, column))).toEqual([
+			true,
+			true,
+			true,
+			true,
+		]);
+		expect([0, 1, 2, 3].map((column) => hasRoomBelow(layout, 1, column))).toEqual([
+			false,
+			false,
+			true,
+			true,
+		]);
+		expect([0, 1, 2, 3].map((column) => hasRoomBelow(layout, 0, column))).toEqual([
+			false,
+			false,
+			false,
+			false,
+		]);
+	});
+
+	it('gives room to the only row of a short listing', () => {
+		const layout = new GroupLayout([], new Set(), 3, 6);
+		expect(hasRoomBelow(layout, 0, 0)).toBe(true);
 	});
 });
