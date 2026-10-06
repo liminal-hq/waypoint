@@ -72,6 +72,10 @@ pub const CINNAMON: Keys = Keys {
     desktop: "Cinnamon",
 };
 
+/// The schema whose changes mean an appearance preference may have changed on GNOME (the portal
+/// does not announce `enable-animations`).
+pub const GNOME_SCHEMA: &str = "org.gnome.desktop.interface";
+
 /// The schemas whose changes mean an appearance preference may have changed on Cinnamon.
 pub const CINNAMON_SCHEMAS: [&str; 3] = [
     "org.cinnamon.desktop.interface",

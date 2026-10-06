@@ -77,7 +77,13 @@ async fn gather(
     kdeglobals_reader: fn() -> SourceReading,
     gsettings_reader: GsettingsReader,
 ) -> Vec<SourceReading> {
-    let missing = portal.values.missing();
+    let mut missing = portal.values.missing();
+    // The portal's `reduced-motion` does not follow GNOME's Reduce Animation switch
+    // (`enable-animations`), so a portal that says "no preference" is still checked against the
+    // desktop's own key; `resolve` lets a request for less motion win.
+    if portal.values.reduced_motion == Some(false) {
+        missing.push(AppearanceFeature::ReducedMotion);
+    }
     let mut readings = vec![portal];
     match desktop {
         DesktopEnvironment::Kde => {
@@ -119,7 +125,17 @@ pub fn watch(changed: UnboundedSender<()>) -> Watcher {
             // The monitors are child processes whose subscription cannot be observed.
             Readiness::Unconfirmed
         }
-        _ => Readiness::Signal(portal_ready),
+        DesktopEnvironment::Mate | DesktopEnvironment::Xfce => Readiness::Signal(portal_ready),
+        _ => {
+            // The portal does not announce `enable-animations`, which is how GNOME turns animation
+            // off, so the schema that holds it is watched too (a child process, as for Cinnamon).
+            guards.extend(cli::monitor_guard(
+                "gsettings",
+                &["monitor", gsettings::GNOME_SCHEMA],
+                changed.clone(),
+            ));
+            Readiness::Signal(portal_ready)
+        }
     };
     Watcher {
         _guards: guards,
@@ -179,12 +195,19 @@ mod tests {
     #[test]
     fn gsettings_is_spawned_only_when_it_could_answer_something() {
         // The portal answered all it can: only reduced transparency is missing, which no
-        // desktop's keys hold.
-        assert_eq!(gathered(DesktopEnvironment::Gnome, full_portal()), 0);
-        assert_eq!(gathered(DesktopEnvironment::Unknown, full_portal()), 0);
-        // Cinnamon has no accent key either, so a portal without one leaves nothing to ask.
+        // desktop's keys hold. The one thing still asked is the animations key, because the
+        // portal's "no preference" does not follow GNOME's Reduce Animation switch.
+        let mut settled = full_portal();
+        settled.values.reduced_motion = Some(true);
+        assert_eq!(gathered(DesktopEnvironment::Gnome, settled.clone()), 0);
+        assert_eq!(gathered(DesktopEnvironment::Unknown, settled), 0);
+        assert_eq!(gathered(DesktopEnvironment::Gnome, full_portal()), 1);
+        assert_eq!(gathered(DesktopEnvironment::Unknown, full_portal()), 1);
+        // Cinnamon has no accent key either, so a portal without one adds nothing to ask beyond
+        // the animations key.
         let mut no_accent = full_portal();
         no_accent.values.accent = None;
+        no_accent.values.reduced_motion = Some(true);
         assert_eq!(gathered(DesktopEnvironment::Cinnamon, no_accent), 0);
         // A feature a key could hold is still asked for, once.
         let mut no_icons = full_portal();

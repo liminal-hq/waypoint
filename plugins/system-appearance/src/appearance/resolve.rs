@@ -118,7 +118,7 @@ pub struct Resolution {
 
 /// Picks, for each preference, the value of the first reading that has one. `readings` run from
 /// the most to the least authoritative source, so the first answer wins and its source is
-/// recorded. A preference nobody answers keeps a neutral value and reports the first miss any
+/// recorded (reduced motion is the exception: any source that asks for it wins). A preference nobody answers keeps a neutral value and reports the first miss any
 /// source recorded for it, or `NoSource` when none did.
 pub fn resolve(readings: &[SourceReading]) -> Resolution {
     fn first<T: Clone>(
@@ -133,7 +133,14 @@ pub fn resolve(readings: &[SourceReading]) -> Resolution {
     let colour_scheme = first(readings, |p| p.colour_scheme.as_ref());
     let accent = first(readings, |p| p.accent.as_ref());
     let contrast = first(readings, |p| p.contrast.as_ref());
-    let reduced_motion = first(readings, |p| p.reduced_motion.as_ref());
+    // Asking for less motion in any source counts: GNOME's portal reports `reduced-motion` as 0 while
+    // the person has turned animations off in `org.gnome.desktop.interface`, so a source that says
+    // "reduce" overrides one that says "no preference", whichever is more authoritative.
+    let reduced_motion = readings
+        .iter()
+        .find(|reading| reading.values.reduced_motion == Some(true))
+        .map(|reading| (true, reading.source))
+        .or_else(|| first(readings, |p| p.reduced_motion.as_ref()));
     let reduced_transparency = first(readings, |p| p.reduced_transparency.as_ref());
     let text_scale = first(readings, |p| p.text_scale.as_ref());
     let icon_theme = first(readings, |p| p.icon_theme.as_ref());
@@ -266,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn an_explicit_false_from_the_first_source_is_not_overridden() {
+    fn a_request_for_reduced_motion_from_any_source_wins() {
         let portal = reading(
             AppearanceSource::Portal,
             Partial {
@@ -282,6 +289,29 @@ mod tests {
             },
         );
         let values = resolve(&[portal, kde]).values;
+        assert!(values.reduced_motion);
+        assert_eq!(
+            values.sources.reduced_motion,
+            Some(AppearanceSource::KdeGlobals)
+        );
+    }
+
+    #[test]
+    fn no_preference_everywhere_stays_with_the_first_source() {
+        let answer = |source, value| {
+            reading(
+                source,
+                Partial {
+                    reduced_motion: Some(value),
+                    ..Partial::default()
+                },
+            )
+        };
+        let values = resolve(&[
+            answer(AppearanceSource::Portal, false),
+            answer(AppearanceSource::Gsettings, false),
+        ])
+        .values;
         assert!(!values.reduced_motion);
         assert_eq!(
             values.sources.reduced_motion,
