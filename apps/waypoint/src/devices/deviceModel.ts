@@ -25,8 +25,12 @@ export interface Usage {
 	/** Whole percent used, 0 to 100. */
 	percent: number;
 	almostFull: boolean;
-	/** "120 GB free of 500 GB", and "Almost full" appended when it is. */
+	/** "120 GB free of 500 GB", and ". Almost full" appended when it is. */
 	text: string;
+	/** "120 GB free of 500 GB" alone, so the warning can sit on a line of its own. */
+	summary: string;
+	/** "Almost full" when it is, else `null`. */
+	warning: string | null;
 }
 
 export function usageOf(volume: Volume): Usage | null {
@@ -36,7 +40,14 @@ export function usageOf(volume: Volume): Usage | null {
 	const percent = Math.round((used / total) * 100);
 	const almostFull = percent >= ALMOST_FULL_PERCENT;
 	const base = tf('devices.space', { free: formatSize(free), total: formatSize(total) });
-	return { percent, almostFull, text: almostFull ? `${base}. ${t('devices.almostFull')}` : base };
+	const warning = almostFull ? t('devices.almostFull') : null;
+	return {
+		percent,
+		almostFull,
+		text: warning ? `${base}. ${warning}` : base,
+		summary: base,
+		warning,
+	};
 }
 
 /** The one line under a volume's name: its space, or its state when there is no space to show. */

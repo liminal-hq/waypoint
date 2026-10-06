@@ -52,6 +52,17 @@ export function DeviceList({ volumes, status, busy, onActivate, onAction }: Devi
 				const working = busy.has(volume.id);
 				const usage = usageOf(volume);
 				const actions = actionsFor(volume, status);
+				// The warning gets a line of its own, so a narrow sidebar or a long translation wraps it
+				// rather than cutting it off. Locked and busy rows have no space line to warn on.
+				const warning = !working && !volume.locked ? (usage?.warning ?? null) : null;
+				const detail = working
+					? t('devices.busy')
+					: warning && usage
+						? usage.summary
+						: statusText(volume);
+				const description = [volume.label, working ? t('devices.busy') : statusText(volume)].join(
+					'. ',
+				);
 				return (
 					<li key={volume.id} className={styles.row} aria-busy={working || undefined}>
 						<button
@@ -60,15 +71,19 @@ export function DeviceList({ volumes, status, busy, onActivate, onAction }: Devi
 							className={`${sidebar.item} ${styles.item}`}
 							disabled={working}
 							data-unmounted={volume.mountPoint === null ? '' : undefined}
-							title={volume.device ?? volume.mountPoint ?? undefined}
+							title={[description, volume.device ?? volume.mountPoint].filter(Boolean).join('\n')}
 							onClick={() => onActivate(volume)}
 						>
 							<DriveIcon className={sidebar.itemIcon} />
 							<span className={styles.text}>
 								<span className={sidebar.label}>{volume.label}</span>
-								<span className={styles.detail}>
-									{working ? t('devices.busy') : statusText(volume)}
-								</span>
+								<span className={styles.detail}>{detail}</span>
+								{warning && (
+									<>
+										{' '}
+										<span className={styles.warning}>{warning}</span>
+									</>
+								)}
 								{usage && (
 									<span
 										className={styles.bar}
