@@ -747,6 +747,7 @@ impl<R: Runtime> Shared<R> {
                     container: edit.container.to_location(),
                     size: edit.size,
                     entries: edit.entries.iter().filter(|e| !e.synthetic).count() as u64,
+                    undo: (&edit.undo).into(),
                 }),
             conflicts: planned.conflicts.clone(),
             notes: planned

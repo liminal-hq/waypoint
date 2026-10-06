@@ -611,6 +611,11 @@ fn finish<R: Runtime>(
                     .set_dropped(id, report.transfer.dropped.clone())
                     .unwrap_or_default(),
             );
+            store_events.extend(
+                core.store
+                    .set_left_out(id, plan.left_out_note())
+                    .unwrap_or_default(),
+            );
             // What the run kept to continue later replaces what it recorded on the way, and the
             // job whose partial files it continued is done with (D165).
             let made_at = core.store.job(id).map_or(0, |job| job.created_ms);

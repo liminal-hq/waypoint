@@ -12,6 +12,9 @@ import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError'
 import type { PartialNote } from '@liminal-hq/waypoint-protocol/generated/PartialNote';
 import { formatSize } from '../browse/format';
 import { useState } from 'react';
+import { useArchiveClient } from '../archives/ArchiveContext';
+import { commandErrorMessage } from '../archives/askPassphrase';
+import { isArchiveLock, lockedName } from '../archives/lockModel';
 import { connectAnswering } from '../connections/connectFlow';
 import { useConnections } from '../connections/ConnectionsContext';
 import { connectionErrorText } from '../connections/connectModel';
@@ -157,10 +160,42 @@ interface SignIn {
  */
 function useSignIn(error: OpsError, onDecide: (decision: Decision) => void): SignIn | null {
 	const connections = useConnections();
+	const archives = useArchiveClient();
 	const [busy, setBusy] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
-	if (error.kind !== 'connection' || !connections) return null;
+	if (error.kind !== 'connection') return null;
 	const cause = error.error;
+	// An archive's password is asked for as one and given to the archive provider, not to a server.
+	if (isArchiveLock(cause)) {
+		if (!archives) return null;
+		return {
+			label: 'archive.locked.action',
+			busy,
+			problem,
+			run: async () => {
+				if (busy) return;
+				setBusy(true);
+				setProblem(null);
+				try {
+					const answered = await askQuestion({
+						kind: 'authRequired',
+						location: cause.location,
+						prompt: { kind: 'passphrase', subject: lockedName(cause.location) },
+					});
+					if (answered?.answer.kind !== 'passphrase') return;
+					await archives.unlock(cause.location, answered.answer.passphrase);
+					onDecide('retry');
+				} catch (failure) {
+					const words = commandErrorMessage(failure);
+					setProblem(words);
+					announce(words);
+				} finally {
+					setBusy(false);
+				}
+			},
+		};
+	}
+	if (!connections) return null;
 	const location = 'location' in cause ? cause.location : null;
 	const action = remoteStateText(cause).action;
 	if (!location || action === 'reconnect') return null;

@@ -14,7 +14,8 @@ use waypoint_vfs::{validate_name, ArchiveEntryInfo, EntryKind, Writability};
 
 use super::archive::check_limits;
 use super::{
-    check, conflict_kind, failure, ArchiveChange, ArchiveEditPlan, Plan, PlanItem, Planner,
+    check, conflict_kind, failure, ArchiveChange, ArchiveEditPlan, ArchiveUndo, Plan, PlanItem,
+    Planner,
 };
 use crate::model::{ArchiveSpec, Conflict, ConflictPolicy, JobKind, OpsError};
 use crate::names::{archive_path, file_name_of, name_bytes, unique_full_name};
@@ -133,7 +134,13 @@ impl Planner<'_, '_> {
                 what: "an archive that holds a device or a pipe".to_owned(),
             });
         }
+        let undo = match self.ctx.trash.available() {
+            _ if !matches!(container, VfsPath::File(_)) => ArchiveUndo::Remote,
+            Ok(()) => ArchiveUndo::Trash,
+            Err(reason) => ArchiveUndo::Unavailable(reason),
+        };
         let plan = ArchiveEditPlan {
+            undo,
             container,
             kind,
             change: ArchiveChange::Delete { paths: Vec::new() },

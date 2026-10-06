@@ -26,6 +26,18 @@ function sizeFormat(locale: string | undefined, unit: string, digits: number): I
 	return format;
 }
 
+/** A whole number with the digit grouping of the Language & region setting ("20,020"). */
+export function formatCount(value: number, locale?: string): string {
+	const tag = locale ?? formatLocale();
+	const key = tag ?? '';
+	let format = numberFormats.get(`count:${key}`);
+	if (!format) {
+		format = new Intl.NumberFormat(tag);
+		numberFormats.set(`count:${key}`, format);
+	}
+	return format.format(value);
+}
+
 /**
  * A byte count in the largest unit that keeps it under 1000 (decimal units, as GNOME Files shows),
  * with one decimal below ten and none above.

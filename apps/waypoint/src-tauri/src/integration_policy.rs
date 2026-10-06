@@ -1955,6 +1955,7 @@ mod tests {
             ends: None,
             dropped: None,
             partial: None,
+            left_out: None,
         }
     }
 

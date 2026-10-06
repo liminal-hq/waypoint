@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { ArchivePreview } from '@liminal-hq/waypoint-protocol/generated/ArchivePreview';
 import type { PlanPreview } from '@liminal-hq/waypoint-protocol/generated/PlanPreview';
 import { formatSize } from '../browse/format';
 import { t, tf, tn } from '../i18n/messages';
@@ -24,6 +25,16 @@ function archiveName(preview: PlanPreview): string {
 	return display.split(/[\\/]/).filter(Boolean).pop() ?? display;
 }
 
+/** What becomes of the old archive, in words: it goes to the Trash, or it is replaced for good and Undo is not available (D186). */
+export function undoText(archive: ArchivePreview | undefined): string {
+	const undo = archive?.undo;
+	if (undo?.kind === 'remote') return t('archive.rewrite.undo.remote');
+	if (undo?.kind === 'unavailable') {
+		return tf('archive.rewrite.undo.unavailable', { reason: undo.reason });
+	}
+	return t('archive.rewrite.undo.trash');
+}
+
 /** The question for adding files to an archive that already has the name chosen in Compress: which file, how large, and that its format stays. */
 export function addConfirm(preview: PlanPreview, what: string): ConfirmSpec {
 	return {
@@ -32,6 +43,7 @@ export function addConfirm(preview: PlanPreview, what: string): ConfirmSpec {
 			archive: `“${archiveName(preview)}”`,
 			what,
 			size: formatSize(preview.archive?.size ?? 0),
+			undo: undoText(preview.archive),
 		}),
 		confirmLabel: t('compress.exists.action'),
 		danger: false,
@@ -50,6 +62,7 @@ export function rewriteConfirm(preview: PlanPreview, subject: RewriteSubject): C
 				newName: `“${subject.newName}”`,
 				archive,
 				size,
+				undo: undoText(preview.archive),
 			}),
 			confirmLabel: t('archive.rewrite.rename.action'),
 			danger: false,
@@ -62,11 +75,46 @@ export function rewriteConfirm(preview: PlanPreview, subject: RewriteSubject): C
 			what: subject.count === 1 && only ? `“${only}”` : tn('dnd.items', subject.count),
 			archive,
 			size,
+			undo: undoText(preview.archive),
 		}),
 		items: subject.names,
 		confirmLabel: t('archive.rewrite.delete.action'),
 		danger: true,
 	};
+}
+
+/** The question for a change that replaces the archive for good, which a drop, a paste or a new entry would otherwise do without asking (D186). */
+export function forGoodConfirm(preview: PlanPreview): ConfirmSpec {
+	return {
+		title: t('archive.rewrite.forGood.title'),
+		message: tf('archive.rewrite.forGood.message', {
+			archive: `“${archiveName(preview)}”`,
+			size: formatSize(preview.archive?.size ?? 0),
+			undo: undoText(preview.archive),
+		}),
+		confirmLabel: t('archive.rewrite.forGood.action'),
+		danger: true,
+	};
+}
+
+/**
+ * For a change that is made without asking (a drop, a paste, a new file or folder in an open
+ * archive): plans it and, when the old archive would be replaced for good, asks first. `true` when
+ * it can go ahead: nothing is lost, or the person agreed. A plan that fails is left to the job to
+ * report.
+ */
+export async function confirmIfForGood(
+	deps: Pick<RewriteDeps, 'ops' | 'confirm'>,
+	request: JobRequest,
+): Promise<boolean> {
+	let preview: PlanPreview;
+	try {
+		preview = await deps.ops.client.plan(request);
+	} catch {
+		return true;
+	}
+	if (!preview.archive || preview.archive.undo.kind === 'trash') return true;
+	return deps.confirm(forGoodConfirm(preview));
 }
 
 export interface RewriteDeps {

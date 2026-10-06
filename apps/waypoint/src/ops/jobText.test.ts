@@ -7,7 +7,15 @@ import { describe, expect, it } from 'vitest';
 import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import { request } from '../test/opsHarness';
-import { errorText, jobDoneText, jobTitle, jobViews, serverText, stateText } from './jobText';
+import {
+	errorText,
+	jobDoneText,
+	jobTitle,
+	jobViews,
+	leftOutLines,
+	serverText,
+	stateText,
+} from './jobText';
 import { withProgress } from './opsSelectors';
 
 const views = (fake: ReturnType<typeof createFakeOpsClient>, canShow = true) =>
@@ -219,6 +227,34 @@ describe('jobs that reach a server', () => {
 		expect(stateText({ ...job, dropped: ['modifiedTimes', 'permissions'] })).toMatch(
 			/times and permissions not kept/,
 		);
+	});
+
+	it('list what an extraction left out, with `..` written as `..`', async () => {
+		const fake = createFakeOpsClient();
+		await fake.submit({ ...request(['evil.zip']), kind: { kind: 'extract' } });
+		const job = {
+			...fake.jobs()[0]!,
+			state: { state: 'done' as const },
+			leftOut: {
+				count: 5,
+				shown: [
+					{ name: '../evil.txt', why: 'traversal' as const },
+					{ name: 'abs.txt', why: 'absolute' as const },
+				],
+			},
+		};
+		expect(stateText(job)).toBe('Done · 5 entries left out');
+		// (The list's own comma rules come from the runtime's locale data.)
+		expect(jobDoneText(job)).toMatch(
+			/^Extracted evil\.zip\. 5 entries of the archive were left out: \.\.\/evil\.txt, abs\.txt,? and 3 more\.$/,
+		);
+		expect(leftOutLines(job.leftOut)).toEqual([
+			'../evil.txt (its stored name climbed out of the folder with “..”)',
+			'abs.txt (its stored name started at the root)',
+			'and 3 more',
+		]);
+		// Nothing left out, nothing said.
+		expect(jobDoneText({ ...job, leftOut: undefined })).toBe('Extracted evil.zip');
 	});
 
 	it('word a lost connection as a server tab does', () => {

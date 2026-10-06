@@ -38,7 +38,7 @@ import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError'
 import { normaliseUri, pastedUris, pasteRefusal, pasteRequest } from './clipboardRules';
 import type { ClipboardService } from './clipboardService';
 import { pickDestination, type DestinationOptions } from './destinationStore';
-import { prepareRewrite, rewriteConfirm } from './archiveRewrite';
+import { confirmIfForGood, prepareRewrite, rewriteConfirm } from './archiveRewrite';
 import { errorText } from './jobText';
 import { createArchiveCommands } from './archiveCommands';
 import type { CompressChoice, CompressOptions } from './compressStore';
@@ -499,6 +499,15 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		return waitForJob(ops, id);
 	};
 
+	/**
+	 * Whether a request that adds to an open archive may go ahead: one that would replace the old
+	 * archive for good (no Trash for it) asks first, so nothing is lost without being said (D186).
+	 */
+	const mayChangeArchive = async (request: JobRequest): Promise<boolean> =>
+		request.destination && isArchiveLocation(request.destination)
+			? confirmIfForGood({ ops, confirm: deps.confirm }, request)
+			: true;
+
 	/** A job that ended badly says so; true when it did. */
 	const reportFailure = (job: JobSnapshot | null): boolean => {
 		if (job?.state.state !== 'failed') return false;
@@ -510,7 +519,9 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		const found = writable(session);
 		if (!found) return;
 		const fallback = t(kind === 'createFolder' ? 'files.default.folder' : 'files.default.file');
-		const job = await run(createRequest(kind, found.model.location, fallback, windowLabel));
+		const request = createRequest(kind, found.model.location, fallback, windowLabel);
+		if (!(await mayChangeArchive(request))) return;
+		const job = await run(request);
 		if (reportFailure(job) || job?.state.state !== 'done') return;
 		// The planner picked the first free name; the listing shows it once its watcher has seen it.
 		// Inline rename starts with it selected. Escape keeps the name as made, and Enter renames it
@@ -640,9 +651,11 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			say(errorText(refusal));
 			return;
 		}
+		const request = pasteRequest(board, destination, windowLabel);
+		if (!(await mayChangeArchive(request))) return;
 		let id: JobId;
 		try {
-			id = await ops.submitJob(pasteRequest(board, destination, windowLabel));
+			id = await ops.submitJob(request);
 		} catch (error) {
 			say(tf('files.failed', { reason: commandErrorText(error) }));
 			return;
@@ -679,6 +692,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			options: NO_OPTIONS,
 			originWindow: windowLabel,
 		};
+		if (!(await mayChangeArchive(request))) return;
 		reportFailure(await run(request));
 	};
 
@@ -897,6 +911,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 							destination,
 							windowLabel,
 						);
+			if (!(await mayChangeArchive(request))) return null;
 			const job = await run(request);
 			reportFailure(job);
 			return job;

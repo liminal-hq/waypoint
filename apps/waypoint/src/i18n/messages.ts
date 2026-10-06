@@ -1446,12 +1446,21 @@ export const enMessages = {
 	'files.extract.nothing': 'None of the selected items is an archive.',
 	'files.extract.limit.title': 'Extract a very large archive?',
 	'files.extract.limit.message':
-		'{name} is larger than the archive limits allow ({reason}). Extracting it could fill the disk.',
+		'{name} is larger than the archive limits allow. {reason} Extracting it could fill the disk.',
 	'files.extract.limit.action': 'Extract anyway',
-	'files.extract.leftOut.one':
-		'{count} entry of the archive was left out: its name or link was unsafe.',
-	'files.extract.leftOut.other':
-		'{count} entries of the archive were left out: their names or links were unsafe.',
+	'ops.leftOut.one': '{count} entry left out',
+	'ops.leftOut.other': '{count} entries left out',
+	'ops.leftOut.sentence.one': '{count} entry of the archive was left out: {names}.',
+	'ops.leftOut.sentence.other': '{count} entries of the archive were left out: {names}.',
+	'ops.leftOut.more': '{count} more',
+	'ops.leftOut.details': 'Entries left out',
+	'ops.leftOut.line': '{name} ({why})',
+	'ops.leftOut.why.absolute': 'its stored name started at the root',
+	'ops.leftOut.why.traversal': 'its stored name climbed out of the folder with “..”',
+	'ops.leftOut.why.controlCharacters': 'its name held a control character',
+	'ops.leftOut.why.throughLink': 'it was stored below a link',
+	'ops.leftOut.why.linkOutside': 'it is a link that points outside the archive',
+	'ops.leftOut.why.special': 'it is a device or another special file',
 	'files.extract.unlockFailed': 'The archive’s password could not be given: {reason}',
 	'files.extract.stillLocked': 'The archive is still locked.',
 	'files.compress.nothing': 'Select something to compress first.',
@@ -1479,18 +1488,26 @@ export const enMessages = {
 	'files.paste.intoArchive':
 		'Items are added to an archive, not moved into it, so the originals stay where they are.',
 	'files.delete.action': 'Delete Permanently',
+	'archive.rewrite.undo.trash': 'The previous archive goes to the Trash, and Undo brings it back.',
+	'archive.rewrite.undo.remote':
+		'This archive is not on this computer, so it has no Trash: the previous archive is replaced for good, and Undo is not available.',
+	'archive.rewrite.undo.unavailable':
+		'The Trash is not available ({reason}), so the previous archive is replaced for good, and Undo is not available.',
+	'archive.rewrite.forGood.title': 'Replace the archive for good?',
+	'archive.rewrite.forGood.message': 'This rewrites the whole archive {archive} ({size}). {undo}',
+	'archive.rewrite.forGood.action': 'Replace for good',
 	'archive.rewrite.delete.title': 'Delete from the archive?',
 	'archive.rewrite.delete.message':
-		'Delete {what} from {archive}? This rewrites the whole archive ({size}). The previous archive goes to the Trash, and Undo brings it back.',
+		'Delete {what} from {archive}? This rewrites the whole archive ({size}). {undo}',
 	'archive.rewrite.delete.action': 'Delete',
 	'archive.rewrite.rename.title': 'Rename in the archive?',
 	'archive.rewrite.rename.message':
-		'Rename {name} to {newName}? This rewrites the whole archive {archive} ({size}). The previous archive goes to the Trash, and Undo brings it back.',
+		'Rename {name} to {newName}? This rewrites the whole archive {archive} ({size}). {undo}',
 	'archive.rewrite.rename.action': 'Rename',
 	'archive.rewrite.rename.declined': 'The rename was not confirmed.',
 	'archive.rewrite.limit.title': 'Change a very large archive?',
 	'archive.rewrite.limit.message':
-		'{name} is larger than the archive limits allow ({reason}). Changing it rewrites all of it, which could take a long time and fill the disk.',
+		'{name} is larger than the archive limits allow. {reason} Changing it rewrites all of it, which could take a long time and fill the disk.',
 	'archive.rewrite.limit.action': 'Change anyway',
 	'files.copied.one': 'Copied {count} item',
 	'files.copied.other': 'Copied {count} items',
@@ -1687,7 +1704,8 @@ export const enMessages = {
 		'Stopped when its connection was lost; {count} files were partly sent',
 	'ops.interrupted.discard': 'Discard',
 	'ops.interrupted.discardEllipsis': 'Discard…',
-	'ops.interrupted.discard.title': 'Discard “{label}”?',
+	'ops.interrupted.discard.title': 'Discard the interrupted transfer?',
+	'ops.interrupted.discard.intro': 'Transfer: {label}.',
 	'ops.interrupted.discard.message.one':
 		'What was sent of this file is removed from the server, and the transfer can no longer be resumed.',
 	'ops.interrupted.discard.message.other':
@@ -1978,6 +1996,10 @@ export const enMessages = {
 	'ops.problem.message.clockSkew.behind':
 		'The service refused the request because this computer’s clock is about {minutes} minutes behind its own. Set the date and time automatically, then retry.',
 	'ops.problem.message.io': 'The system reported a problem: {message}',
+	'ops.problem.message.archiveLocked':
+		'{name} is encrypted and needs its password. Enter it, and the item is tried again.',
+	'ops.problem.message.archiveRefused':
+		'The password for {name} was not accepted. Enter it again, and the item is tried again.',
 	'ops.problem.message.connection': '{reason} This stopped at {location}. Retry connects again.',
 	'ops.problem.message.archiveLimit':
 		'{location} is larger than the archive limits allow, so extracting it was stopped. The limits are in Settings, under Operations.',
@@ -2798,7 +2820,7 @@ export const enMessages = {
 	'compress.default': 'Archive',
 	'compress.exists.title': 'Add to the existing archive?',
 	'compress.exists.message':
-		'{archive} already exists here. Add {what} to it? This rewrites the whole archive ({size}), which keeps its own format. The previous archive goes to the Trash, and Undo brings it back.',
+		'{archive} already exists here. Add {what} to it? This rewrites the whole archive ({size}), which keeps its own format. {undo}',
 	'compress.exists.action': 'Add to archive',
 	'compress.error.empty': 'Give the archive a name.',
 	'compress.error.invalid': 'A name cannot hold a slash.',
@@ -2841,10 +2863,18 @@ export type PluralId = MessageId extends infer K
  * nor English spells out uses `.other`. `{count}` is replaced with the number formatted for that
  * locale.
  */
-export function tn(id: PluralId, count: number, locale?: string): string {
+export function tn(
+	id: PluralId,
+	count: number,
+	locale?: string,
+	extra: Record<string, string | number> = {},
+): string {
 	const form = new Intl.PluralRules(locale ?? pluralLocale()).select(count);
 	const exact = `${id}.${form}`;
 	const own = activeMessages() as Record<string, string | undefined>;
 	const chosen = (exact in enMessages || exact in own ? exact : `${id}.other`) as MessageId;
-	return tf(chosen, { count: new Intl.NumberFormat(locale ?? formatLocale()).format(count) });
+	return tf(chosen, {
+		...extra,
+		count: new Intl.NumberFormat(locale ?? formatLocale()).format(count),
+	});
 }

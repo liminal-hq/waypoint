@@ -15,7 +15,7 @@ import type { JobRequest, Location } from '../services/opsClient';
 import { commandsHarness, select, type CommandsHarness } from '../test/fileCommandsHarness';
 import { FOLDER } from '../test/browseHarness';
 import { createFileCommands, commandStates, type CommandContext } from './fileCommands';
-import { compressRequest, extractRequest, leftOutCount, limitOf } from './archiveRequests';
+import { compressRequest, extractRequest, limitOf } from './archiveRequests';
 import { nameProblem } from './CompressDialog';
 
 const context = (overrides: Partial<CommandContext> = {}): CommandContext => ({
@@ -118,17 +118,8 @@ describe('the requests', () => {
 		});
 	});
 
-	it('count what planning left out and find the limit that stopped it', () => {
+	it('find the limit that stopped planning', () => {
 		const at: Location = { display: '', uri: '' };
-		expect(
-			leftOutCount({
-				notes: [
-					{ kind: 'leftOut', location: at, why: 'traversal' },
-					{ kind: 'emptyArchive', location: at },
-					{ kind: 'leftOut', location: at, why: 'linkOutside' },
-				],
-			}),
-		).toBe(2);
 		const limit: OpsError = {
 			kind: 'archiveLimit',
 			location: at,
@@ -233,30 +224,6 @@ describe('Extract Here and Extract To…', () => {
 		await commands.extractTo();
 		expect(submitted(h)).toEqual([]);
 	});
-
-	it('mentions the entries planning left out', async () => {
-		const { h, commands } = await rig();
-		vi.spyOn(h.fake, 'plan').mockResolvedValue({
-			kind: { kind: 'extract' },
-			sources: { count: 1, first: 'photos.zip' },
-			items: 3,
-			bytes: 0,
-			sameVolume: true,
-			ends: { from: [], to: null },
-			conflicts: [],
-			notes: [
-				{ kind: 'leftOut', location: { display: '', uri: '' }, why: 'traversal' },
-				{ kind: 'leftOut', location: { display: '', uri: '' }, why: 'absolute' },
-			],
-		});
-		await select(h, 1);
-		const done = commands.extractHere();
-		await h.finish();
-		await done;
-		expect(h.said).toContain(
-			'2 entries of the archive were left out: their names or links were unsafe.',
-		);
-	});
 });
 
 describe('an archive past the limits', () => {
@@ -274,7 +241,7 @@ describe('an archive past the limits', () => {
 		await select(h, 1);
 		const done = commands.extractHere();
 		await vi.waitFor(() => expect(h.confirms).toHaveLength(1));
-		expect(h.confirms[0]?.message).toContain('expands to 5000 times its own size');
+		expect(h.confirms[0]?.message).toContain('expands to 5,000 times its own size');
 		expect(h.confirms[0]?.danger).toBe(true);
 		await vi.waitFor(() => expect(submitted(h)).toHaveLength(1));
 		expect(submitted(h)[0]?.archive).toEqual({ kind: 'extract', layout: 'auto', allowLarge: true });

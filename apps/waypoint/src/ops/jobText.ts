@@ -4,9 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
+import type { LeftOutName } from '@liminal-hq/waypoint-protocol/generated/LeftOutName';
+import type { LeftOutNote } from '@liminal-hq/waypoint-protocol/generated/LeftOutNote';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
-import { formatSize } from '../browse/format';
+import { formatCount, formatSize } from '../browse/format';
 import { connectionErrorText } from '../connections/connectModel';
+import { formatLocale } from '../i18n/active';
 import { t, tf, tn, type MessageId, type PluralId } from '../i18n/messages';
 import type { JobPriority, Location, Schedule } from '../services/opsClient';
 import { archiveRefusalText } from './archiveRefusal';
@@ -38,6 +41,8 @@ export interface JobView {
 	/** "source → destination", or what the job works on when it has no destination. */
 	route: string;
 	stateText: string;
+	/** The entries an extraction left out, one line each, for a disclosure under the state; empty for every other job. */
+	leftOut: string[];
 	/** 0 to 1, or `null` before the job is sized. */
 	fraction: number | null;
 	/** Whether the row draws a progress bar. */
@@ -98,9 +103,42 @@ export function jobTitle(job: JobSnapshot): string {
 	return wordedTitle('ops.title', job) ?? job.title;
 }
 
+/** The entries shown by name in a notice; the rest are counted. */
+const LEFT_OUT_NAMED = 3;
+
+/** Why an entry was left out, in words. */
+export function leftOutWhyText(why: LeftOutName['why']): string {
+	return t(`ops.leftOut.why.${why}` as MessageId);
+}
+
+/** The sentence that says which entries an extraction left out, or `''` when it left none out. */
+export function leftOutSentence(note: LeftOutNote | undefined): string {
+	if (!note || note.count === 0) return '';
+	const named = note.shown.slice(0, LEFT_OUT_NAMED).map((entry) => entry.name);
+	const rest = note.count - named.length;
+	const parts = rest > 0 ? [...named, tf('ops.leftOut.more', { count: formatCount(rest) })] : named;
+	return tn('ops.leftOut.sentence', note.count, undefined, { names: listOf(parts) });
+}
+
+/** One line for each entry in a note's details, as the Operations list shows them. */
+export function leftOutLines(note: LeftOutNote | undefined): string[] {
+	if (!note) return [];
+	const lines = note.shown.map((entry) =>
+		tf('ops.leftOut.line', { name: entry.name, why: leftOutWhyText(entry.why) }),
+	);
+	const rest = note.count - note.shown.length;
+	return rest > 0 ? [...lines, tf('files.delete.more', { count: formatCount(rest) })] : lines;
+}
+
+function listOf(parts: string[]): string {
+	return new Intl.ListFormat(formatLocale(), { style: 'long', type: 'conjunction' }).format(parts);
+}
+
 /** What the job did, in the past tense ("Copied 3 items"), for the toast when it ends. */
 export function jobDoneText(job: JobSnapshot): string {
-	return wordedTitle('ops.done', job) ?? tf('ops.done.generic', { title: jobTitle(job) });
+	const done = wordedTitle('ops.done', job) ?? tf('ops.done.generic', { title: jobTitle(job) });
+	const left = leftOutSentence(job.leftOut);
+	return left ? `${done}. ${left}` : done;
 }
 
 export function errorText(error: OpsError): string {
@@ -213,6 +251,7 @@ export function stateText(job: JobSnapshot): string {
 			return [
 				t('ops.state.done'),
 				...(skipped > 0 ? [tn('ops.skipped', skipped)] : []),
+				...(job.leftOut ? [tn('ops.leftOut', job.leftOut.count)] : []),
 				...(dropped ? [dropped] : []),
 			].join(' · ');
 		}
@@ -266,6 +305,7 @@ export function jobViews(
 			title: jobTitle(job),
 			route: from && to ? tf('ops.route', { from, to }) : from || to,
 			stateText: stateText(job),
+			leftOut: leftOutLines(job.leftOut),
 			fraction: jobFraction(progress),
 			showProgress:
 				state === 'running' || state === 'paused' || state === 'waiting' || state === 'offline',

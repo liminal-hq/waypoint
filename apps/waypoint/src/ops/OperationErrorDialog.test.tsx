@@ -7,6 +7,9 @@ import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ArchiveClientProvider } from '../archives/ArchiveContext';
+import { archiveTopUri } from '../archives/archiveNames';
+import { FakeArchiveClient } from '../archives/fakeArchiveClient';
 import { ConnectionsProvider } from '../connections/ConnectionsContext';
 import { connectStore } from '../connections/connectStore';
 import { FakeConnectionsClient, serverLocation } from '../connections/fakeConnectionsClient';
@@ -216,6 +219,59 @@ describe('a server that wants a login', () => {
 		});
 		expect(screen.queryByRole('button', { name: 'Sign In…' })).toBeNull();
 		expect(buttons()).toContain('Retry');
+	});
+});
+
+describe('an encrypted archive', () => {
+	const zip = fileLocation('/home/me/enc.zip');
+
+	function mountLocked(kind: 'authRequired' | 'authFailed', archives: FakeArchiveClient) {
+		const onDecide = vi.fn();
+		render(
+			<ArchiveClientProvider client={archives}>
+				<OperationErrorDialog
+					job={{
+						...fakeJobSnapshot(3, { kind: 'copy' }, { state: 'queued' }),
+						sources: { count: 1, first: 'enc.zip' },
+					}}
+					error={{
+						kind: 'connection',
+						error: {
+							kind,
+							location: { display: 'enc.zip', uri: archiveTopUri(zip) },
+							prompt: { kind: 'passphrase', subject: 'enc.zip' },
+						},
+					}}
+					item={item}
+					onDecide={onDecide}
+					onLater={vi.fn()}
+				/>
+			</ArchiveClientProvider>,
+		);
+		return onDecide;
+	}
+
+	it('speaks of the archive and its password, not of a server', () => {
+		mountLocked('authRequired', new FakeArchiveClient());
+		expect(dialog()).toHaveTextContent('enc.zip is encrypted and needs its password');
+		expect(dialog()).not.toHaveTextContent(/server|Not connected/);
+		expect(buttons()).toContain('Enter password');
+		expect(buttons()).not.toContain('Sign In…');
+	});
+
+	it('gives the password to the archive provider and retries the item', async () => {
+		const archives = new FakeArchiveClient();
+		const onDecide = mountLocked('authRequired', archives);
+		await userEvent.click(screen.getByRole('button', { name: 'Enter password' }));
+		await waitFor(() => expect(connectStore.getState().question).not.toBeNull());
+		act(() =>
+			connectStore.getState().answer({
+				answer: { kind: 'passphrase', passphrase: 'secret' },
+				remember: false,
+			}),
+		);
+		await waitFor(() => expect(onDecide).toHaveBeenCalledWith('retry'));
+		expect(archives.unlocked.map((given) => given.passphrase)).toEqual(['secret']);
 	});
 });
 

@@ -2669,20 +2669,41 @@ const messages: Catalogue = {
 	'files.extract.nothing': 'Aucun des éléments sélectionnés n’est une archive.',
 	// source: 034bb0fb
 	'files.extract.limit.title': 'Extraire une très grosse archive?',
-	// source: 54549af9
+	// source: 2b8ee085
 	'files.extract.limit.message':
-		'{name} dépasse les limites prévues pour les archives ({reason}). L’extraire pourrait remplir le disque.',
+		'{name} dépasse les limites prévues pour les archives. {reason} L’extraire pourrait remplir le disque.',
 	// source: 05f8be5b
 	'files.extract.limit.action': 'Extraire quand même',
-	// source: 3608510b
-	'files.extract.leftOut.one':
-		'{count} entrée de l’archive a été laissée de côté : son nom ou son lien n’était pas sûr.',
-	// source: a82b46a4
-	'files.extract.leftOut.many':
-		'{count} d’entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.',
-	// source: a82b46a4
-	'files.extract.leftOut.other':
-		'{count} entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.',
+	// source: 7bf99e7c
+	'ops.leftOut.one': '{count} entrée laissée de côté',
+	// source: 987ea590
+	'ops.leftOut.many': '{count} d’entrées laissées de côté',
+	// source: 987ea590
+	'ops.leftOut.other': '{count} entrées laissées de côté',
+	// source: db29d7e0
+	'ops.leftOut.sentence.one': '{count} entrée de l’archive a été laissée de côté : {names}.',
+	// source: ce7767ab
+	'ops.leftOut.sentence.many': '{count} d’entrées de l’archive ont été laissées de côté : {names}.',
+	// source: ce7767ab
+	'ops.leftOut.sentence.other': '{count} entrées de l’archive ont été laissées de côté : {names}.',
+	// source: 5f4f590a
+	'ops.leftOut.more': '{count} autres',
+	// source: d6aa93b8
+	'ops.leftOut.details': 'Entrées laissées de côté',
+	// source: a24e7168
+	'ops.leftOut.line': '{name} ({why})',
+	// source: 10c0588a
+	'ops.leftOut.why.absolute': 'son nom enregistré partait de la racine',
+	// source: b0747498
+	'ops.leftOut.why.traversal': 'son nom enregistré sortait du dossier avec « .. »',
+	// source: 108f878e
+	'ops.leftOut.why.controlCharacters': 'son nom contenait un caractère de contrôle',
+	// source: e547fd37
+	'ops.leftOut.why.throughLink': 'elle était enregistrée sous un lien',
+	// source: 657e8c1a
+	'ops.leftOut.why.linkOutside': 'c’est un lien qui pointe hors de l’archive',
+	// source: 1da6270f
+	'ops.leftOut.why.special': 'c’est un périphérique ou un autre fichier spécial',
 	// source: b5351143
 	'files.extract.unlockFailed': 'Le mot de passe de l’archive n’a pas pu être transmis : {reason}',
 	// source: d92e94e8
@@ -2745,27 +2766,42 @@ const messages: Catalogue = {
 		'Les éléments sont ajoutés à une archive, et non déplacés dedans : les originaux restent où ils sont.',
 	// source: 48c015ad
 	'files.delete.action': 'Supprimer définitivement',
+	// source: 73b46423
+	'archive.rewrite.undo.trash':
+		'L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+	// source: a533cb9a
+	'archive.rewrite.undo.remote':
+		'Cette archive n’est pas sur cet ordinateur, donc elle n’a pas de Corbeille : l’archive précédente est remplacée définitivement, et l’annulation n’est pas possible.',
+	// source: 334658c8
+	'archive.rewrite.undo.unavailable':
+		'La Corbeille n’est pas disponible ({reason}); l’archive précédente est donc remplacée définitivement, et l’annulation n’est pas possible.',
+	// source: 33433e72
+	'archive.rewrite.forGood.title': 'Remplacer l’archive définitivement?',
+	// source: 747d917b
+	'archive.rewrite.forGood.message': 'Cela réécrit toute l’archive {archive} ({size}). {undo}',
+	// source: 5fc2040b
+	'archive.rewrite.forGood.action': 'Remplacer définitivement',
 	// source: 491ac3fa
 	'archive.rewrite.delete.title': 'Supprimer de l’archive?',
-	// source: 6b5a1a01
+	// source: a90682ab
 	'archive.rewrite.delete.message':
-		'Supprimer {what} de {archive}? Cela réécrit toute l’archive ({size}). L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+		'Supprimer {what} de {archive}? Cela réécrit toute l’archive ({size}). {undo}',
 	// source: e2d0a549
 	'archive.rewrite.delete.action': 'Supprimer',
 	// source: 52d64331
 	'archive.rewrite.rename.title': 'Renommer dans l’archive?',
-	// source: 4b8a9c78
+	// source: 2e61e945
 	'archive.rewrite.rename.message':
-		'Renommer {name} en {newName}? Cela réécrit toute l’archive {archive} ({size}). L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+		'Renommer {name} en {newName}? Cela réécrit toute l’archive {archive} ({size}). {undo}',
 	// source: 3064d79a
 	'archive.rewrite.rename.action': 'Renommer',
 	// source: 50519c99
 	'archive.rewrite.rename.declined': 'Le changement de nom n’a pas été confirmé.',
 	// source: 117d55fc
 	'archive.rewrite.limit.title': 'Modifier une très grande archive?',
-	// source: 885da2e7
+	// source: e6b3c30e
 	'archive.rewrite.limit.message':
-		'{name} dépasse les limites prévues pour les archives ({reason}). La modifier la réécrit en entier, ce qui peut être long et remplir le disque.',
+		'{name} dépasse les limites prévues pour les archives. {reason} La modifier la réécrit en entier, ce qui peut être long et remplir le disque.',
 	// source: 0e8aba0c
 	'archive.rewrite.limit.action': 'Modifier quand même',
 	// source: c6dd4fe8
@@ -3169,8 +3205,10 @@ const messages: Catalogue = {
 	'ops.interrupted.discard': 'Abandonner',
 	// source: b163bbda
 	'ops.interrupted.discardEllipsis': 'Abandonner…',
-	// source: c78ba562
-	'ops.interrupted.discard.title': 'Abandonner « {label} »?',
+	// source: 4b982eaa
+	'ops.interrupted.discard.title': 'Abandonner le transfert interrompu?',
+	// source: a5d79ce4
+	'ops.interrupted.discard.intro': 'Transfert : {label}.',
 	// source: af085c53
 	'ops.interrupted.discard.message.one':
 		'Ce qui a été envoyé de ce fichier est supprimé du serveur, et le transfert ne pourra plus reprendre.',
@@ -3782,6 +3820,12 @@ const messages: Catalogue = {
 		'Le service a refusé la requête parce que l’horloge de cet ordinateur retarde d’environ {minutes} minutes sur la sienne. Réglez la date et l’heure automatiquement, puis réessayez.',
 	// source: 89438320
 	'ops.problem.message.io': 'Le système a signalé un problème : {message}',
+	// source: bb6f1aee
+	'ops.problem.message.archiveLocked':
+		'{name} est chiffrée et exige son mot de passe. Entrez-le, et l’élément sera réessayé.',
+	// source: af2bec63
+	'ops.problem.message.archiveRefused':
+		'Le mot de passe de {name} n’a pas été accepté. Entrez-le de nouveau, et l’élément sera réessayé.',
 	// source: 79bc82df
 	'ops.problem.message.connection':
 		'{reason} L’arrêt s’est produit à {location}. Réessayer rétablit la connexion.',
@@ -5375,9 +5419,9 @@ const messages: Catalogue = {
 	'compress.default': 'Archive',
 	// source: bc70f3aa
 	'compress.exists.title': 'Ajouter à l’archive existante?',
-	// source: 1d58840c
+	// source: b7b2fa31
 	'compress.exists.message':
-		'{archive} existe déjà ici. Y ajouter {what}? Cela réécrit toute l’archive ({size}), qui garde son propre format. L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+		'{archive} existe déjà ici. Y ajouter {what}? Cela réécrit toute l’archive ({size}), qui garde son propre format. {undo}',
 	// source: 8e3facb4
 	'compress.exists.action': 'Ajouter à l’archive',
 	// source: b839bf5a

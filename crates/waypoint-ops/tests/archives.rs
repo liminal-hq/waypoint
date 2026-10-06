@@ -1302,3 +1302,124 @@ fn deleting_everything_leaves_an_empty_archive_that_still_opens() {
         assert!(contents(&mut h, &name).is_empty(), "{format:?}");
     }
 }
+
+/// A Trash that says it works but refuses every file, as the real one does on a file system with
+/// no Trash folder the person may make.
+struct RefusesFiles(Arc<waypoint_ops::testing::trash::FakeTrash>);
+
+impl Trash for RefusesFiles {
+    fn available(&self) -> Result<(), String> {
+        Ok(())
+    }
+    fn trash(&self, items: &[Location]) -> Vec<Result<TrashReceipt, OpsError>> {
+        items
+            .iter()
+            .map(|_| {
+                Err(OpsError::TrashUnavailable {
+                    reason: "cannot create /home/.Trash-1000: Permission denied".to_owned(),
+                })
+            })
+            .collect()
+    }
+    fn restore(&self, receipt: &TrashReceipt) -> Result<Location, OpsError> {
+        self.0.restore(receipt)
+    }
+    fn delete(&self, receipt: &TrashReceipt) -> Result<(), OpsError> {
+        self.0.delete(receipt)
+    }
+    fn empty(&self, older_than_days: Option<u32>) -> Result<u64, OpsError> {
+        self.0.empty(older_than_days)
+    }
+    fn receipt_for(&self, trashed: &Location) -> Result<TrashReceipt, OpsError> {
+        self.0.receipt_for(trashed)
+    }
+}
+
+#[test]
+fn a_trash_that_refuses_the_archive_stops_the_change_instead_of_replacing_it_for_good() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    let before = jwork(&h);
+    let original = contents(&mut h, "pack.zip");
+    h.harness.env.trash = Arc::new(RefusesFiles(h.harness.trash.clone()));
+
+    for request in [
+        add_request(&h, &["extra/new.txt"], "pack.zip", ""),
+        edit_request(&h, JobKind::Delete, "pack.zip", &["src/a.txt"], None),
+        edit_request(
+            &h,
+            JobKind::Rename,
+            "pack.zip",
+            &["src/a.txt"],
+            Some("z.txt"),
+        ),
+    ] {
+        let run = h.run_journalled(request);
+        assert!(
+            matches!(failed_with(&run), OpsError::TrashUnavailable { .. }),
+            "{:?}",
+            run.state
+        );
+        let now = jwork(&h);
+        assert_eq!(
+            now.get("pack.zip"),
+            before.get("pack.zip"),
+            "the archive was not replaced"
+        );
+        assert!(partials(&now).is_empty(), "no partial file is left");
+    }
+    h.harness.env.trash = h.harness.trash.clone();
+    assert_eq!(contents(&mut h, "pack.zip"), original);
+}
+
+#[test]
+fn a_plan_says_whether_undo_can_bring_the_old_archive_back() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    let request = add_request(&h, &["extra/new.txt"], "pack.zip", "");
+    let undo = |h: &Jh| h.plan(&request).unwrap().archive_edit.unwrap().undo;
+    assert_eq!(undo(&h), ArchiveUndo::Trash);
+    h.trash.set_available(Err("no Trash here".to_owned()));
+    assert_eq!(
+        undo(&h),
+        ArchiveUndo::Unavailable("no Trash here".to_owned())
+    );
+    // With no Trash the plan said so up front, and the change goes ahead as that plan told it.
+    ok(&h.run_journalled(request));
+}
+
+#[test]
+fn what_an_extraction_leaves_out_is_listed_with_names_written_for_reading() {
+    let (h, _g) = archives();
+    jbuild(&h, &tree(&[("out/", "")]));
+    put(
+        &h,
+        "evil.zip",
+        &raw_zip(&[
+            ("ok.txt", b"ok", 2),
+            ("../evil.txt", b"slip", 4),
+            ("/abs.txt", b"abs", 3),
+        ]),
+    );
+    let request = extract(&h, &["evil.zip"], Some("out"), ExtractLayout::Contents);
+    let note = h.plan(&request).unwrap().left_out_note().unwrap();
+    assert_eq!(note.count, 2);
+    let shown: Vec<(&str, LeftOutWhy)> = note
+        .shown
+        .iter()
+        .map(|left| (left.name.as_str(), left.why))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            ("../evil.txt", LeftOutWhy::Traversal),
+            ("abs.txt", LeftOutWhy::Absolute)
+        ]
+    );
+    // A plan that leaves nothing out has no note.
+    put(&h, "fine.zip", &raw_zip(&[("ok.txt", b"ok", 2)]));
+    let fine = extract(&h, &["fine.zip"], Some("out"), ExtractLayout::Contents);
+    assert_eq!(h.plan(&fine).unwrap().left_out_note(), None);
+}

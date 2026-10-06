@@ -101,13 +101,21 @@ describe('problemText', () => {
 		expect(
 			detail({ kind: 'archiveLimit', location: at, limit: { kind: 'entries', found: 5, max: 2 } }),
 		).toEqual(['It holds 5 entries; the limit is 2.']);
+		// Counts are grouped as everywhere else.
+		expect(
+			detail({
+				kind: 'archiveLimit',
+				location: at,
+				limit: { kind: 'entries', found: 20_020, max: 10_000 },
+			}),
+		).toEqual(['It holds 20,020 entries; the limit is 10,000.']);
 		expect(
 			detail({
 				kind: 'archiveLimit',
 				location: at,
 				limit: { kind: 'ratio', ratio: 5000, max: 1000 },
 			}),
-		).toEqual(['It expands to 5000 times its own size; the limit is 1000 times.']);
+		).toEqual(['It expands to 5,000 times its own size; the limit is 1,000 times.']);
 		expect(
 			detail({
 				kind: 'archiveLimit',

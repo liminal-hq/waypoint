@@ -5,6 +5,7 @@ import type { JobId } from "./JobId";
 import type { JobKind } from "./JobKind";
 import type { JobOptions } from "./JobOptions";
 import type { JobState } from "./JobState";
+import type { LeftOutNote } from "./LeftOutNote";
 import type { Location } from "./Location";
 import type { PartialNote } from "./PartialNote";
 import type { Progress } from "./Progress";
@@ -44,4 +45,9 @@ dropped?: Array<DroppedDetail>,
 /**
  * The file a lost connection stopped part way, and what Retry does with it (D165).
  */
-partial?: PartialNote, };
+partial?: PartialNote, 
+/**
+ * The entries of an archive an extraction left out and why, once it ends; `None` when it left
+ * nothing out (D186).
+ */
+leftOut?: LeftOutNote, };
