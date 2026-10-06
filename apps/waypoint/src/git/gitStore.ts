@@ -3,9 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { GitChanged } from '@liminal-hq/waypoint-protocol/generated/GitChanged';
 import type { GitSummary } from '@liminal-hq/waypoint-protocol/generated/GitSummary';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { GitClient } from '../services/gitClient';
+
+const MAX_EARLY = 32;
 
 /** A repository a folder is in, and how it stands. */
 export interface Repository {
@@ -40,15 +43,22 @@ interface Entry {
 export class GitStore {
 	private readonly entries = new Map<string, Entry>();
 	private readonly listeners = new Set<() => void>();
+	/**
+	 * The newest event for a watch whose reply has not arrived: the plugin can send a repository's
+	 * first status (the reply had none yet) before the reply that names the watch reaches the page.
+	 */
+	private readonly early = new Map<number, GitChanged>();
 	private version = 0;
 	private readonly stop: () => void;
 	private disposed = false;
 
 	constructor(private readonly client: GitClient) {
 		this.stop = client.onChanged((changed) => {
+			let held = false;
 			for (const entry of this.entries.values()) {
 				const repository = entry.repository;
 				if (!repository || repository.id !== changed.id) continue;
+				held = true;
 				if (changed.revision <= repository.revision) continue;
 				entry.repository = {
 					...repository,
@@ -57,7 +67,17 @@ export class GitStore {
 				};
 				this.notify();
 			}
+			if (!held) this.keepEarly(changed);
 		});
+	}
+
+	private keepEarly(changed: GitChanged) {
+		const known = this.early.get(changed.id);
+		if (known && known.revision >= changed.revision) return;
+		this.early.delete(changed.id);
+		this.early.set(changed.id, changed);
+		// Watches that were let go before their reply never claim theirs.
+		if (this.early.size > MAX_EARLY) this.early.delete(this.early.keys().next().value as number);
 	}
 
 	/** Starts watching the repository of `location`; call the result to stop caring about it. */
@@ -89,18 +109,21 @@ export class GitStore {
 					}
 					return;
 				}
+				const early = this.early.get(watch.id);
+				this.early.delete(watch.id);
 				if (!live) {
 					void this.client.unwatch(watch.id);
 					return;
 				}
 				entry.known = true;
 				// An event that beat the reply carries a higher revision than the reply's.
+				const newer = early && early.revision > watch.revision ? early : null;
 				entry.repository = {
 					id: watch.id,
 					root: watch.root,
 					name: watch.name,
-					summary: watch.summary,
-					revision: watch.revision,
+					summary: newer ? newer.summary : watch.summary,
+					revision: newer ? newer.revision : watch.revision,
 				};
 				this.notify();
 			},
@@ -161,6 +184,7 @@ export class GitStore {
 			if (entry.repository) void this.client.unwatch(entry.repository.id);
 		}
 		this.entries.clear();
+		this.early.clear();
 		this.listeners.clear();
 	}
 }

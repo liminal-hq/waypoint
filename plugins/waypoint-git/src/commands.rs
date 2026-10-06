@@ -106,9 +106,11 @@ pub async fn git_watch<R: Runtime>(
         })
     };
     let subscription = state.service.subscribe(&root, sink);
-    let snapshot = subscription.snapshot();
     let id = state.add_watch(&label, subscription);
     *id_slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(id);
+    // Read once the id is set: a first status that finished before it was dropped by the sink above
+    // (it had no id to carry), so reading earlier could leave the page with neither the reply nor an event.
+    let snapshot = state.watch_snapshot(id);
     let name = root
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
