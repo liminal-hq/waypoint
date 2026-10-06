@@ -9,7 +9,7 @@ import { resolveIconTheme, type ResolvedIconTheme } from '../icons/iconTheme';
 import type { Palette } from '../services/osPaletteClient';
 import { resolveAccent } from './accent';
 import { PALETTE_TOKENS, decidePalette, type LiftedColour, type PaletteState } from './palette';
-import { transparencyState, type TransparencyOffReason } from './transparency';
+import { blurInForce, transparencyState, type TransparencyOffReason } from './transparency';
 
 /** What the OS says about the look. `null` means it did not say. */
 export interface OsAppearance {
@@ -136,6 +136,8 @@ export function resolveAppearance(
 		focused?: boolean;
 		/** Whether the platform reports that windows can be see-through: `null` until it has said (default true). */
 		opacityAvailable?: boolean | null;
+		/** Whether the platform can blur behind the window: `null` until it has said (default true, as for `opacityAvailable`). */
+		blurAvailable?: boolean | null;
 		/** The OS palette, or `null` until the plugin has answered or where it cannot. */
 		palette?: Palette | null;
 	},
@@ -177,7 +179,10 @@ export function resolveAppearance(
 		available: options.opacityAvailable === undefined ? true : options.opacityAvailable,
 		focused: options.focused ?? true,
 		solidWhenUnfocused: transparency.solidWhenUnfocused,
-		blur: transparency.blur,
+		blur: blurInForce(
+			transparency.blur,
+			options.blurAvailable === undefined ? true : options.blurAvailable,
+		),
 	});
 	return {
 		theme,
