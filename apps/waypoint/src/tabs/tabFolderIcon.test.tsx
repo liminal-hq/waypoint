@@ -3,6 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
@@ -68,5 +70,15 @@ describe('a tab’s folder icon', () => {
 		await settle();
 		expect(container.querySelector('svg[data-system]')).toBeNull();
 		expect(container.querySelector('svg[data-group="folder"]')).not.toBeNull();
+	});
+});
+
+describe('the tab switcher’s candidate row', () => {
+	it('draws its folder icon in the contrast colour, as the accent icon would vanish on the accent fill', () => {
+		const css = readFileSync(join(import.meta.dirname, 'TabSwitcher.module.css'), 'utf8');
+		expect(css).toMatch(
+			/\.row\[data-candidate\] \.icon \{[^}]*color: var\(--wp-accent-contrast\);[^}]*\}/,
+		);
+		expect(css).toMatch(/\.row\[data-candidate\] \.icon \[data-fill\] \{[^}]*fill: /);
 	});
 });

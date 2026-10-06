@@ -45,6 +45,15 @@
 	flex: none;
 }
 
+/* A folder icon is accent-coloured, which would vanish on the candidate's accent fill: it takes the row's contrast colour there. */
+.row[data-candidate] .icon {
+	color: var(--wp-accent-contrast);
+}
+
+.row[data-candidate] .icon [data-fill] {
+	fill: color-mix(in srgb, var(--wp-accent-contrast) 25%, transparent);
+}
+
 .title {
 	flex: 1;
 	min-width: 0;
