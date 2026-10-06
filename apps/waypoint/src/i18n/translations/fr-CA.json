@@ -1984,6 +1984,11 @@
     "description": "Area: browse.",
     "source": "bda05058"
   },
+  "browse.archive.leftOut": {
+    "message": "Exclu lors de l’extraction",
+    "description": "Area: browse.",
+    "source": "8cdee7c5"
+  },
   "browse.row.loading": {
     "message": "Chargement",
     "description": "Area: browse.",

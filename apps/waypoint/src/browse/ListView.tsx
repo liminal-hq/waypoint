@@ -41,6 +41,7 @@ import {
 import { useViewportThumbnails } from '../thumbnails/useViewportThumbnails';
 import { FileIcon } from './FileIcon';
 import { InlineRename } from './InlineRename';
+import { leftOutNote } from './leftOut';
 import styles from './ListView.module.css';
 import { formatModified, formatSize } from './format';
 import { useHourCycle } from './TimeFormatContext';
@@ -682,6 +683,16 @@ function ListingBody({
 													/>
 												) : (
 													<span className={styles.nameText}>{entry.name}</span>
+												)}
+												{leftOutNote(entry) && (
+													<span
+														className={styles.leftOut}
+														role="img"
+														title={leftOutNote(entry) ?? undefined}
+														aria-label={leftOutNote(entry) ?? undefined}
+													>
+														{'\u2298'}
+													</span>
 												)}
 											</span>
 											{trash ? (

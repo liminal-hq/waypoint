@@ -53,7 +53,7 @@ fn zip_slip_names_are_shown_safely_and_flagged() {
             .clone()
     };
     assert_eq!(flagged(&["ok.txt"]).unsafe_name, None);
-    let slip = flagged(&["%2E%2E", "%2E%2E", "evil.txt"]);
+    let slip = flagged(&["..\u{2215}..\u{2215}evil.txt"]);
     assert_eq!(slip.unsafe_name, Some(UnsafeName::Traversal));
     assert_eq!(slip.raw_name.as_deref(), Some(&b"../../evil.txt"[..]));
     assert_eq!(
@@ -61,7 +61,7 @@ fn zip_slip_names_are_shown_safely_and_flagged() {
         Some(UnsafeName::Absolute)
     );
     assert_eq!(
-        flagged(&["a", "%2E%2E", "%2E%2E", "up.txt"]).unsafe_name,
+        flagged(&["a\u{2215}..\u{2215}..\u{2215}up.txt"]).unsafe_name,
         Some(UnsafeName::Traversal)
     );
     assert_eq!(
@@ -80,7 +80,10 @@ fn zip_slip_names_are_shown_safely_and_flagged() {
         5
     );
     // The safe names browse and read like any others.
-    assert_eq!(read(&*p, &at(&root, "%2E%2E/%2E%2E/evil.txt")), b"slip");
+    assert_eq!(
+        read(&*p, &at(&root, "..\u{2215}..\u{2215}evil.txt")),
+        b"slip"
+    );
     assert_eq!(read(&*p, &at(&root, "etc/cron.d/job")), b"abs");
     // And the top level shows no `..` or root.
     let top_names = names(&*p, &root);
@@ -152,7 +155,7 @@ fn tar_traversal_and_link_attacks_are_flagged() {
         Some(UnsafeName::ThroughLink)
     );
     assert_eq!(
-        find(&["%2E%2E", "%2E%2E", "outside.txt"])
+        find(&["..\u{2215}..\u{2215}outside.txt"])
             .unwrap()
             .unsafe_name,
         Some(UnsafeName::Traversal)
@@ -364,4 +367,55 @@ fn the_provider_is_read_only_and_says_so() {
         ),
         "unsupported"
     );
+}
+
+/// Names that Windows would read as something else (a drive, a parent) are listed as stored, as
+/// one name each, marked as left out of an extraction, and never as a folder that opens.
+#[test]
+fn unsafe_names_are_listed_as_stored_and_marked() {
+    let dir = scratch();
+    let zip = RawZip::new()
+        .file("../evil.txt", b"slip")
+        .file("ok.txt", b"fine")
+        .file("CON.txt", b"con")
+        .file("a:b.txt", b"drive")
+        .unix(b"../", b"", 0o040_755)
+        .unix(b"..", b"", 0o040_755)
+        .write(&dir.path().join("windows.zip"));
+    let p = provider();
+    let root = top(&zip);
+    let listed = p
+        .list(&root, &CancelToken::new(), usize::MAX, &mut |_| {})
+        .unwrap();
+    let find = |name: &str| {
+        listed
+            .iter()
+            .find(|entry| entry.name == std::ffi::OsStr::new(name))
+            .unwrap_or_else(|| panic!("no {name:?} in {:?}", names(&*p, &root)))
+    };
+    let marked = |name: &str| {
+        find(name)
+            .attributes
+            .as_ref()
+            .and_then(|a| a.get("archive.unsafe").map(str::to_owned))
+    };
+    // `a:b.txt` is not read as drive `a:` and `b.txt`.
+    assert_eq!(marked("a:b.txt").as_deref(), Some("absolute"));
+    assert_eq!(read(&*p, &at(&root, "a:b.txt")), b"drive");
+    assert_eq!(marked("..\u{2215}evil.txt").as_deref(), Some("traversal"));
+    // `..` is one name that does not open as a folder.
+    assert_eq!(marked("%2E%2E").as_deref(), Some("traversal"));
+    assert_ne!(find("%2E%2E").kind, EntryKind::Directory);
+    assert_ne!(find("..\u{2215}evil.txt").kind, EntryKind::Directory);
+    assert!(p
+        .list(
+            &at(&root, "%2E%2E"),
+            &CancelToken::new(),
+            usize::MAX,
+            &mut |_| {}
+        )
+        .is_err());
+    // An ordinary name carries nothing.
+    assert_eq!(marked("ok.txt"), None);
+    assert_eq!(marked("CON.txt"), None);
 }

@@ -547,6 +547,7 @@ export const enMessages = {
 	'browse.sort.ascending': 'sorted ascending',
 	'browse.sort.descending': 'sorted descending',
 	'browse.value.none': '—',
+	'browse.archive.leftOut': 'Left out when extracting',
 	'browse.row.loading': 'Loading',
 	'browse.group.folder': 'Folder',
 	'browse.group.image': 'Image',

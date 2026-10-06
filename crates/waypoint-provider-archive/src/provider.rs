@@ -20,7 +20,7 @@ use crate::errors::{corrupt, from_io, password_required, unsupported};
 use crate::format::{self, ArchiveFormat, Magic, TarCompression};
 use crate::index::{ArchiveIndex, Locator, Node};
 use crate::info::{ArchiveInfo, EntryInfo};
-use crate::names::{name_bytes, os_name, resolve_link_target};
+use crate::names::{name_bytes, os_name, resolve_link_target, UnsafeName};
 use crate::options::{ArchiveNotice, ArchiveOptions, ContainerSource, NoticeSink};
 use crate::sevenz::{self, SevenScan};
 use crate::source::SourceSpec;
@@ -655,7 +655,22 @@ fn scanned_entry(
         size: entry.size,
         modified_ms: entry.modified_ms,
         trashed: None,
-        attributes: None,
+        attributes: entry.unsafe_name.map(|why| {
+            Box::new(waypoint_vfs::EntryAttributes::new().with(UNSAFE_ATTRIBUTE, unsafe_word(why)))
+        }),
+    }
+}
+
+/// The attribute a listing carries on an entry that extracting leaves out because of its stored
+/// name; the page marks the row (`Left out when extracting`). Its value says which kind it is.
+pub const UNSAFE_ATTRIBUTE: &str = "archive.unsafe";
+
+fn unsafe_word(why: UnsafeName) -> &'static str {
+    match why {
+        UnsafeName::Absolute => "absolute",
+        UnsafeName::Traversal => "traversal",
+        UnsafeName::ControlCharacters => "controlCharacters",
+        UnsafeName::ThroughLink => "throughLink",
     }
 }
 
