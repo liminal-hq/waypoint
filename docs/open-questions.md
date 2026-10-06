@@ -6,8 +6,8 @@
 2. Should the unified title bar ship as a shared package (for example `@liminal-hq/titlebar`) that the other apps adopt, or be copied into each app?
 3. Plugin runtime: WASM only, or JS as well? Is a native sidecar ever allowed? **Answered (2026-10-03): WebAssembly only (the component model); no JavaScript runtime and no native sidecar.**
 4. Is there a public plugin index hosted by Liminal HQ, or is sideloading enough? **Answered (2026-10-03): sideloading only for now (a file, a URL or a Git repository); the manifest should let an index be added later.**
-5. Flow integration: what exactly gets logged (paths, or only workspace names)?
-6. Is Windows 11 a real target, or only a portability showcase?
+5. Flow integration: what exactly gets logged (paths, or only workspace names)? **Still open (2026-10-06):** milestone 7 fixes only the boundary (opt-in, through the `flo` command, D215, A127); the Flow integration (#334) waits for this answer.
+6. Is Windows 11 a real target, or only a portability showcase? **Answered (2026-10-06): a first-class target (D46), for search and the index as for everything else (D210).**
 7. Should groups be able to span windows in a later version? **Answered (2026-10-03): yes (reverses D36); planned in milestone 10.**
 
 8. Windows: who owns the sparse MSIX package and code signing for the modern Explorer menu? **Deferred (2026-10-03): out of scope until an undetermined date; Windows builds are unsigned and the modern Explorer menu waits (D198, A147).**
