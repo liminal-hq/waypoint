@@ -347,18 +347,22 @@ fn a_change_made_elsewhere_arrives_as_a_patch_by_polling() {
     wait_until("the removal", || names(&listing).len() == 3);
     assert_eq!(names(&listing), ["Banana.txt", "mango.md", "zebra.txt"]);
 
-    let changes: Vec<PatchOp> = events
-        .lock()
-        .unwrap()
-        .iter()
-        .filter_map(|e| match e {
-            ListingEvent::Changed { ops, .. } => Some(ops.clone()),
-            _ => None,
-        })
-        .flatten()
-        .collect();
+    // The listing shows a change a moment before its event is recorded, so wait for both events.
+    let changes_so_far = || -> Vec<PatchOp> {
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|e| match e {
+                ListingEvent::Changed { ops, .. } => Some(ops.clone()),
+                _ => None,
+            })
+            .flatten()
+            .collect()
+    };
+    wait_until("both patches reported", || changes_so_far().len() >= 2);
     assert_eq!(
-        changes,
+        changes_so_far(),
         [
             PatchOp::Insert { at: 1, count: 1 },
             PatchOp::Remove { at: 0, count: 1 }
