@@ -7,7 +7,7 @@ import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTa
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { MenuItem, SelectableMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Group } from '@liminal-hq/waypoint-protocol/generated/Group';
-import { CloseSmallIcon, FolderTabIcon, HomeIcon, PinIcon, PlusIcon } from '../icons/AppIcons';
+import { CloseSmallIcon, HomeIcon, PinIcon, PlusIcon } from '../icons/AppIcons';
 import {
 	CircleIcon,
 	CloseOthersIcon,
@@ -29,6 +29,7 @@ import { TabColourSwatch } from './TabColourSwatch';
 import type { TabActions } from './tabActions';
 import type { TabExtras } from './tabExtras';
 import { locationLabel } from './tabTitle';
+import { LocationIcon } from '../nav/LocationIcon';
 import { createElement } from 'react';
 import { ServerIcon } from '../connections/ConnectionIcons';
 import { openConnectDialog } from '../connections/connectStore';
@@ -62,7 +63,7 @@ export function closedTabItems(closed: readonly ClosedTab[]): MenuItem[] {
 				type: 'action' as const,
 				id: `${CLOSED_PREFIX}${entry.tab.id}`,
 				label: locationLabel(entry.tab.location),
-				icon: createElement(FolderTabIcon),
+				icon: createElement(LocationIcon, { location: entry.tab.location }),
 			})),
 		},
 	];

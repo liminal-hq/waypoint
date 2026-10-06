@@ -15,8 +15,8 @@ import {
 	type PointerEvent as ReactPointerEvent,
 	type ReactNode,
 } from 'react';
-import { FolderTabIcon } from '../icons/AppIcons';
 import { isolateLtr } from '../i18n/bidi';
+import { LocationIcon } from './LocationIcon';
 import styles from './NavButton.module.css';
 
 /** How long the pointer stays down before the history menu opens. */
@@ -31,7 +31,7 @@ export function historyMenuItems(history: readonly Location[], menuLabel?: strin
 			type: 'action',
 			id: String(index),
 			label: isolateLtr(location.display),
-			icon: <FolderTabIcon />,
+			icon: <LocationIcon location={location} />,
 		})),
 	];
 }

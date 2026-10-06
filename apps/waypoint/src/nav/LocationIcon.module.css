@@ -1,0 +1,33 @@
+/* A server badge: the server glyph, with a corner dot for its state (the words are in the tab's description). */
+.remote {
+	position: relative;
+	display: inline-flex;
+	flex: none;
+	color: var(--wp-accent);
+}
+
+.remote::after {
+	position: absolute;
+	inset-block-end: -1px;
+	inset-inline-end: -2px;
+	inline-size: 6px;
+	block-size: 6px;
+	border-radius: 50%;
+	background: var(--wp-text-muted);
+	content: '';
+}
+
+.remote[data-tone='connected']::after {
+	background: var(--wp-success);
+}
+
+.remote[data-tone='connecting']::after,
+.remote[data-tone='signIn']::after,
+.remote[data-tone='trust']::after {
+	background: var(--wp-warning);
+}
+
+.remote[data-tone='offline']::after,
+.remote[data-tone='error']::after {
+	background: var(--wp-danger);
+}
