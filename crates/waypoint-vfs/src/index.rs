@@ -223,6 +223,43 @@ struct Staged {
     new: Option<Record>,
 }
 
+/// What an ungrouped sort compares first: the folder flag and a numeric rank held inline, so the
+/// records (and the cache) are reached only when two ranks tie.
+struct Item {
+    rank: u128,
+    /// The first 16 bytes of the name key: the tie-break every column shares.
+    tie: u128,
+    id: u32,
+    folder: bool,
+}
+
+impl Item {
+    fn of(record: &Record, id: u32, sort: SortSpec) -> Self {
+        Self {
+            rank: record.rank(sort),
+            tie: record.prefix,
+            id,
+            folder: record.is_directory(),
+        }
+    }
+
+    /// The order of two items under an ungrouped `sort`, with `full` the whole comparison of their
+    /// records for when the inline numbers tie.
+    fn cmp_with(&self, other: &Self, sort: SortSpec, full: impl FnOnce() -> Ordering) -> Ordering {
+        if sort.directories_first && self.folder != other.folder {
+            return other.folder.cmp(&self.folder);
+        }
+        // The name prefix is only a valid tie-break when the rank already covers the whole sort
+        // column; a Kind rank sees just the first bytes of the extension.
+        let tie = if sort.key == SortKey::Kind {
+            Ordering::Equal
+        } else {
+            self.tie.cmp(&other.tie)
+        };
+        self.rank.cmp(&other.rank).then(tie).then_with(full)
+    }
+}
+
 fn runs(sorted: &[u32]) -> Vec<(u32, u32)> {
     let mut out: Vec<(u32, u32)> = Vec::new();
     for &at in sorted {
@@ -266,6 +303,11 @@ impl Index {
         self.view.len() as u32
     }
 
+    /// How many entries the index holds, the filtered-out ones included.
+    pub fn held(&self) -> u32 {
+        self.records.iter().flatten().count() as u32
+    }
+
     /// Replaces the contents with a scan's entries, numbering them from zero.
     pub fn load(&mut self, entries: Vec<ScannedEntry>) {
         let marks = &self.marks;
@@ -302,23 +344,32 @@ impl Index {
     }
 
     /// Filters and sorts every record into a fresh view.
-    ///
-    /// The sort runs over small items that carry the folder flag and a numeric rank inline, which
-    /// keeps the comparison out of the records (and the cache) for nearly every pair.
     fn rebuild(&mut self) {
         if self.sort.group_by == GroupBy::Modified {
             self.clock = (self.clock_source)();
         }
-        if self.sort.group_by != GroupBy::None {
+        let ids = self.visible_from(0);
+        self.view = self.sorted(ids);
+    }
+
+    /// The ids from `first` on whose records the filter lets through, in id order.
+    fn visible_from(&self, first: usize) -> Vec<u32> {
+        let filter = self.filter;
+        self.records[first..]
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.as_ref().is_some_and(|r| r.visible(&filter)))
+            .map(|(offset, _)| (first + offset) as u32)
+            .collect()
+    }
+
+    /// `ids` in view order. An ungrouped sort runs over `Item`s, so nearly every pair is decided
+    /// without reaching the records.
+    fn sorted(&self, mut ids: Vec<u32>) -> Vec<u32> {
+        let (sort, clock) = (self.sort, self.clock);
+        let records = &self.records;
+        if sort.group_by != GroupBy::None {
             // The group comes before the sort column, so the numeric ranks below do not apply.
-            let (sort, filter, clock) = (self.sort, self.filter, self.clock);
-            let records = &self.records;
-            let mut ids: Vec<u32> = records
-                .iter()
-                .enumerate()
-                .filter(|(_, r)| r.as_ref().is_some_and(|r| r.visible(&filter)))
-                .map(|(id, _)| id as u32)
-                .collect();
             ids.sort_unstable_by(|&a, &b| {
                 let (a, b) = (
                     records[a as usize].as_ref().expect("live"),
@@ -326,44 +377,14 @@ impl Index {
                 );
                 compare(sort, &clock, &a.sortable(), &b.sortable())
             });
-            self.view = ids;
-            return;
+            return ids;
         }
-        struct Item {
-            rank: u128,
-            /// The first 16 bytes of the name key: the tie-break every column shares.
-            tie: u128,
-            id: u32,
-            folder: bool,
-        }
-        let (sort, filter, clock) = (self.sort, self.filter, self.clock);
-        let mut items: Vec<Item> = self
-            .records
-            .iter()
-            .enumerate()
-            .filter_map(|(id, r)| {
-                let r = r.as_ref().filter(|r| r.visible(&filter))?;
-                Some(Item {
-                    rank: r.rank(sort),
-                    tie: r.prefix,
-                    id: id as u32,
-                    folder: r.is_directory(),
-                })
-            })
+        let mut items: Vec<Item> = ids
+            .into_iter()
+            .map(|id| Item::of(records[id as usize].as_ref().expect("live"), id, sort))
             .collect();
-        let records = &self.records;
         items.sort_unstable_by(|a, b| {
-            if sort.directories_first && a.folder != b.folder {
-                return b.folder.cmp(&a.folder);
-            }
-            // The name prefix is only a valid tie-break when the rank already covers the whole
-            // sort column; a Kind rank sees just the first bytes of the extension.
-            let tie = if sort.key == SortKey::Kind {
-                Ordering::Equal
-            } else {
-                a.tie.cmp(&b.tie)
-            };
-            a.rank.cmp(&b.rank).then(tie).then_with(|| {
+            a.cmp_with(b, sort, || {
                 let (a, b) = (
                     records[a.id as usize].as_ref().expect("live"),
                     records[b.id as usize].as_ref().expect("live"),
@@ -371,7 +392,74 @@ impl Index {
                 compare(sort, &clock, &a.sortable(), &b.sortable())
             })
         });
-        self.view = items.into_iter().map(|item| item.id).collect();
+        items.into_iter().map(|item| item.id).collect()
+    }
+
+    /// Adds entries a scan is still delivering (A83, A115): each lands at its sorted place among
+    /// those already held, numbered after them, so a reader can fetch the rows that have arrived
+    /// while the rest are on their way. The view stays exactly what `load` of the same entries
+    /// would give.
+    pub fn extend(&mut self, entries: Vec<ScannedEntry>) {
+        if entries.is_empty() {
+            return;
+        }
+        let first = self.records.len();
+        let marks = &self.marks;
+        self.records.extend(
+            entries
+                .into_iter()
+                .map(|e| Some(Record::from_scan(e, marks))),
+        );
+        if let Some(names) = &mut self.names {
+            for (offset, record) in self.records[first..].iter().enumerate() {
+                if let Some(record) = record {
+                    names.insert(record.name.clone(), (first + offset) as u32);
+                }
+            }
+        }
+        let fresh = self.visible_from(first);
+        if fresh.is_empty() {
+            return;
+        }
+        let fresh = self.sorted(fresh);
+        if self.view.is_empty() {
+            self.view = fresh;
+            return;
+        }
+        // Each arrival lands after the held entries that sort no later than it (a tie keeps the
+        // held entry first). A galloping search from where the last one landed makes this
+        // O(b log(n / b)) comparisons for b arrivals among n, cheap whether a batch is small
+        // against the view or as large as it.
+        let (sort, clock) = (self.sort, self.clock);
+        let records = &self.records;
+        let record = |id: u32| records[id as usize].as_ref().expect("live");
+        let ranked = sort.group_by == GroupBy::None;
+        let order = |a: u32, b: u32| {
+            let full = || compare(sort, &clock, &record(a).sortable(), &record(b).sortable());
+            if ranked {
+                Item::of(record(a), a, sort).cmp_with(&Item::of(record(b), b, sort), sort, full)
+            } else {
+                full()
+            }
+        };
+        let view = &self.view;
+        let mut merged = Vec::with_capacity(view.len() + fresh.len());
+        let mut taken = 0;
+        for &id in &fresh {
+            let goes_first = |held: &u32| order(*held, id) != Ordering::Greater;
+            let rest = &view[taken..];
+            let mut bound = 1;
+            while bound <= rest.len() && goes_first(&rest[bound - 1]) {
+                bound *= 2;
+            }
+            let low = bound / 2;
+            let upto = taken + low + rest[low..bound.min(rest.len())].partition_point(goes_first);
+            merged.extend_from_slice(&view[taken..upto]);
+            merged.push(id);
+            taken = upto;
+        }
+        merged.extend_from_slice(&view[taken..]);
+        self.view = merged;
     }
 
     /// The groups of the view in order, each a contiguous run of rows; empty when the sort does not
@@ -1231,6 +1319,105 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn extending_in_batches_gives_the_view_a_load_gives_under_every_sort_and_grouping() {
+        let mut seed = 0x0DDB_A11C_AFE5_EED5u64;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        let entries: Vec<ScannedEntry> = (0..700)
+            .map(|i| {
+                let name = format!(
+                    "{}{}_{}.{}",
+                    ["a", "B", "é", ".hid", "file", "Zed"][next() as usize % 6],
+                    next() % 30,
+                    i,
+                    ["txt", "TXT", "png", "rs", "", "tar.gz"][next() as usize % 6]
+                );
+                ScannedEntry {
+                    size: (next() % 3 != 0).then(|| next() % 5_000_000),
+                    modified_ms: (next() % 4 != 0).then(|| NOW - (next() % 900) as i64 * DAY),
+                    kind: if next() % 6 == 0 {
+                        EntryKind::Directory
+                    } else {
+                        EntryKind::File
+                    },
+                    hidden: name.starts_with('.'),
+                    group: [IconGroup::Image, IconGroup::Code, IconGroup::Other]
+                        [next() as usize % 3],
+                    ..file(&name, 0)
+                }
+            })
+            .collect();
+        let sorts = [
+            SortKey::Name,
+            SortKey::Size,
+            SortKey::Modified,
+            SortKey::Kind,
+        ]
+        .into_iter()
+        .flat_map(|key| {
+            [
+                GroupBy::None,
+                GroupBy::Name,
+                GroupBy::Size,
+                GroupBy::Modified,
+            ]
+            .into_iter()
+            .flat_map(move |group_by| {
+                [(false, true), (true, false)].map(|(descending, directories_first)| SortSpec {
+                    key,
+                    descending,
+                    directories_first,
+                    group_by,
+                })
+            })
+        });
+        for sort in sorts {
+            for show_hidden in [false, true] {
+                let filter = Filter {
+                    show_hidden,
+                    only: None,
+                };
+                let mut whole = Index::with_clock(sort, filter, fixed);
+                whole.load(entries.clone());
+                let mut streamed = Index::with_clock(sort, filter, fixed);
+                let mut rest = entries.as_slice();
+                while !rest.is_empty() {
+                    let take = (1 + next() as usize % 90).min(rest.len());
+                    streamed.extend(rest[..take].to_vec());
+                    // What has arrived is in order at every step, not only at the end.
+                    for pair in streamed.view.windows(2) {
+                        assert_ne!(
+                            streamed.cmp_ids(pair[0], pair[1]),
+                            Ordering::Greater,
+                            "{sort:?}"
+                        );
+                    }
+                    rest = &rest[take..];
+                }
+                assert_eq!(names(&streamed), names(&whole), "{sort:?} {filter:?}");
+                assert_eq!(streamed.groups(), whole.groups(), "{sort:?}");
+                // The ids are the scan's order, as a load numbers them.
+                assert_eq!(streamed.view, whole.view, "{sort:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn an_entry_that_arrives_late_is_found_by_name_once_the_names_are_known() {
+        let mut index = Index::new(SortSpec::default(), Filter::default());
+        index.extend(vec![file("b", 1), file("d", 1)]);
+        assert_eq!(index.id_of(OsStr::new("d")), Some(1));
+        index.extend(vec![file("a", 1), file("c", 1)]);
+        assert_eq!(index.id_of(OsStr::new("c")), Some(3));
+        assert_eq!(names(&index), ["a", "b", "c", "d"]);
+        assert_eq!(index.position_of(3), Some(2));
     }
 
     #[test]
