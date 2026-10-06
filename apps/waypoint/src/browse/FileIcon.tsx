@@ -8,9 +8,12 @@ import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/Spec
 import { useIconLook, type ResolvedIconTheme } from '../icons/iconTheme';
 import type { PortageFolderBadge } from '../icons/portage/portageFolderArt';
 import type { FolderColour, FolderTone } from '../icons/portage/portagePalette';
+import { cssUrl, glyphSvg, pictureUrl } from '../icons/iconPictures';
 import { PortageIcon } from '../icons/PortageIcon';
+import { portageIconSvg } from '../icons/portageIcons';
 import { WAYPOINT_FILE_GLYPHS, WAYPOINT_FOLDER_GLYPHS } from '../icons/waypointFileIcons';
 import styles from './FileIcon.module.css';
+import { useIconPictures } from './IconPictures';
 import { SystemIcon } from './SystemIcon';
 
 interface FileIconProps {
@@ -49,9 +52,50 @@ export function FileIcon({
 	...override
 }: FileIconProps) {
 	const look = useIconLook();
+	const pictures = useIconPictures();
 	const theme = override.theme ?? look.theme;
 	const colour = override.colour ?? look.colour;
 	const tone = override.tone ?? look.tone;
+	const marked = group === 'folder' && special ? special : undefined;
+	if (pictures) {
+		// Under `IconPictures` (the grid): the same art as a shared picture, not an inline SVG.
+		const picture = (svg: string, system?: boolean) => (
+			<span
+				className={className ? `${styles.picture} ${className}` : styles.picture}
+				data-group={group}
+				data-special={marked}
+				data-system={system ? '' : undefined}
+				data-icon-picture=""
+				aria-hidden="true"
+				style={{ backgroundImage: cssUrl(pictureUrl(svg)) }}
+			/>
+		);
+		if (theme === 'portage') {
+			return picture(portageIconSvg({ group, special, colour, tone, badge }));
+		}
+		const key = marked ? `folder:${marked}` : group;
+		const glyph = picture(
+			glyphSvg(
+				key,
+				marked ? WAYPOINT_FOLDER_GLYPHS[marked] : WAYPOINT_FILE_GLYPHS[group],
+				group === 'folder' ? pictures.folder : pictures.file,
+				size,
+			),
+		);
+		if (theme !== 'system') return glyph;
+		return (
+			<SystemIcon
+				group={group}
+				special={special}
+				name={name}
+				size={size}
+				tone={tone}
+				className={className}
+				fallback={glyph}
+				picture
+			/>
+		);
+	}
 	if (theme === 'portage') {
 		return (
 			<PortageIcon
@@ -64,7 +108,6 @@ export function FileIcon({
 			/>
 		);
 	}
-	const marked = group === 'folder' && special ? special : undefined;
 	const glyph = (
 		<svg
 			className={className ? `${styles.icon} ${className}` : styles.icon}

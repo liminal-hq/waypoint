@@ -22,3 +22,17 @@
 .icon[data-group='folder'] [data-fill] {
 	fill: var(--wp-folder-fill);
 }
+
+/*
+ * The same art as a picture (under `IconPictures`, in the grid): a background image every cell with
+ * the icon shares, decoded once, instead of an inline SVG laid out and stroked again in each cell.
+ */
+.picture {
+	display: block;
+	flex: none;
+	width: 16px;
+	height: 16px;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: contain;
+}

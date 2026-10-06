@@ -5,11 +5,12 @@
 
 import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGroup';
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useContext, useState, useSyncExternalStore } from 'react';
 import { FileIcon } from '../browse/FileIcon';
 import type { PortageFolderBadge } from '../icons/portage/portageFolderArt';
 import styles from './Thumbnail.module.css';
 import type { ThumbnailLoader } from './thumbnailLoader';
+import { ThumbnailPauseContext } from './thumbnailPause';
 
 interface ThumbnailProps {
 	/** `null` where no thumbnails are asked for (off, unavailable, or a view too small for them). */
@@ -32,6 +33,7 @@ interface ThumbnailProps {
 }
 
 const noUnsubscribe = () => undefined;
+const noSubscribe = () => noUnsubscribe;
 
 /**
  * The icon in a frame of the caller's size, with the thumbnail drawn over it once it is ready. The
@@ -62,6 +64,15 @@ export function Thumbnail({
 		state: 'loading' | 'loaded' | 'broken';
 	} | null>(null);
 	const state = url !== null && shown?.url === url ? shown.state : url !== null ? 'loading' : null;
+	// While the view scrolls, a picture not drawn here yet waits (the icon stays) until it stops. Only
+	// a frame with a picture to wait for reads the pause, so a scroll starting or stopping redraws
+	// those few and not every frame in view.
+	const pause = useContext(ThumbnailPauseContext);
+	const waiting = url !== null && state !== 'loaded';
+	const held = useSyncExternalStore(
+		pause && waiting ? pause.subscribe : noSubscribe,
+		() => waiting && pause !== null && pause.paused(),
+	);
 	return (
 		<span
 			className={className ? `${styles.frame} ${className}` : styles.frame}
@@ -75,11 +86,16 @@ export function Thumbnail({
 				badge={badge}
 				className={iconClassName}
 			/>
-			{url !== null && state !== 'broken' && (
+			{url !== null && state !== 'broken' && !held && (
 				<img
+					// A new element for each picture: a recycled grid cell must not show the last item's
+					// picture (an image keeps its old picture until the new one loads) or fade it out.
+					key={url}
 					className={styles.picture}
 					src={url}
 					alt=""
+					// Decoded off the main thread, so a screen of pictures arriving does not hold up a frame.
+					decoding="async"
 					draggable={false}
 					onLoad={() => setShown({ url, state: 'loaded' })}
 					onError={() => setShown({ url, state: 'broken' })}

@@ -2873,12 +2873,29 @@ export function tn(
 	locale?: string,
 	extra: Record<string, string | number> = {},
 ): string {
-	const form = new Intl.PluralRules(locale ?? pluralLocale()).select(count);
+	const form = pluralRules(locale ?? pluralLocale()).select(count);
 	const exact = `${id}.${form}`;
 	const own = activeMessages() as Record<string, string | undefined>;
 	const chosen = (exact in enMessages || exact in own ? exact : `${id}.other`) as MessageId;
 	return tf(chosen, {
 		...extra,
-		count: new Intl.NumberFormat(locale ?? formatLocale()).format(count),
+		count: numberFormat(locale ?? formatLocale()).format(count),
 	});
+}
+
+// Made once per locale: building an `Intl` object costs far more than using one, and a view asks for
+// its counts at every render (a scrolling grid renders every frame).
+const PLURAL_RULES = new Map<string, Intl.PluralRules>();
+const NUMBER_FORMATS = new Map<string, Intl.NumberFormat>();
+
+function pluralRules(locale: string | undefined): Intl.PluralRules {
+	let rules = PLURAL_RULES.get(locale ?? '');
+	if (!rules) PLURAL_RULES.set(locale ?? '', (rules = new Intl.PluralRules(locale)));
+	return rules;
+}
+
+function numberFormat(locale: string | undefined): Intl.NumberFormat {
+	let format = NUMBER_FORMATS.get(locale ?? '');
+	if (!format) NUMBER_FORMATS.set(locale ?? '', (format = new Intl.NumberFormat(locale)));
+	return format;
 }

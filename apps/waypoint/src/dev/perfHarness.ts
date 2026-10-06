@@ -66,6 +66,26 @@ function findList(): ListElements {
 const placeholders = (list: ListElements) =>
 	list.listbox.querySelectorAll('[data-placeholder]').length;
 
+/**
+ * Whether the rows drawn leave part of the viewport empty: the view has not caught up with the
+ * scroll, so the frame about to be painted shows blank space where rows should be. Checked in the
+ * frame's animation callback, after the scroll's own render and before the paint.
+ */
+export function leavesGap(list: ListElements): boolean {
+	const view = list.scroller.getBoundingClientRect();
+	const end = Math.min(view.bottom, list.listbox.getBoundingClientRect().bottom);
+	let top = Number.POSITIVE_INFINITY;
+	let bottom = Number.NEGATIVE_INFINITY;
+	for (const row of list.listbox.querySelectorAll('[role="option"], [role="row"]')) {
+		const box = row.getBoundingClientRect();
+		if (box.height === 0) continue;
+		top = Math.min(top, box.top);
+		bottom = Math.max(bottom, box.bottom);
+	}
+	if (top === Number.POSITIVE_INFINITY) return true;
+	return top > view.top + 1 || bottom < end - 1;
+}
+
 /** Scrolls at a steady rate, recording frame intervals and how often rows were still loading. */
 export async function sweep(pxPerFrame: number, maxFrames: number, fromPx = 0) {
 	const list = findList();
@@ -77,12 +97,20 @@ export async function sweep(pxPerFrame: number, maxFrames: number, fromPx = 0) {
 	const limit = scroller.scrollHeight - scroller.clientHeight;
 	const frames: number[] = [];
 	let blankFrames = 0;
+	let blankTiles = 0;
+	let gapFrames = 0;
 	for (let i = 0; i < maxFrames && scroller.scrollTop < limit; i++) {
-		scroller.scrollTop = Math.min(limit, scroller.scrollTop + pxPerFrame);
+		// The step is taken between frames, as a wheel event is, not inside the animation callback.
+		setTimeout(() => {
+			scroller.scrollTop = Math.min(limit, scroller.scrollTop + pxPerFrame);
+		}, 0);
 		const now = await raf();
 		frames.push(now - last);
 		last = now;
-		if (placeholders(list) > 0) blankFrames++;
+		const loading = placeholders(list);
+		if (loading > 0) blankFrames++;
+		blankTiles += loading;
+		if (leavesGap(list)) gapFrames++;
 	}
 	return {
 		pxPerFrame,
@@ -91,6 +119,9 @@ export async function sweep(pxPerFrame: number, maxFrames: number, fromPx = 0) {
 		over20ms: frames.filter((f) => f > 20).length,
 		over33ms: frames.filter((f) => f > 33).length,
 		blankFrames,
+		// Items drawn as placeholders, summed over the frames, and frames whose rows left a gap.
+		blankTiles,
+		gapFrames,
 		scrolledPx: scroller.scrollTop - fromPx,
 		scrollHeight: scroller.scrollHeight,
 		// The view replaced its scroller while the sweep ran: the measurement above is then void.

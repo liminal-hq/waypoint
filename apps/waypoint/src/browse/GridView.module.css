@@ -56,6 +56,13 @@
 	height: calc(var(--wp-grid-size) + 64px);
 	box-sizing: border-box;
 	transform: translateY(var(--wp-row-y));
+	/*
+	 * Each row is a layer of its own. The grid recycles its rows (`GridRow`), so a scroll step moves a
+	 * few layers and redraws only the rows whose items changed; drawn into the scroller's own tiles, a
+	 * moved row repainted the tiles it left and the tiles it reached, which with the names and icons of
+	 * a wide grid at 2× missed the frame budget (#565).
+	 */
+	will-change: transform;
 }
 
 .cell {
@@ -164,11 +171,13 @@
 }
 
 .skeleton {
-	display: block;
-	width: var(--wp-grid-size);
-	height: var(--wp-grid-size);
 	border-radius: 8px;
 	background: color-mix(in srgb, var(--wp-text-primary) 8%, transparent);
+}
+
+/* A placeholder keeps the frame of an item's icon (see `GridCell`) and shows none of it. */
+.skeleton > * {
+	visibility: hidden;
 }
 
 .srOnly {
@@ -196,6 +205,8 @@
 	padding: 0 16px;
 	box-sizing: border-box;
 	transform: translateY(var(--wp-row-y));
+	/* A layer, as a row of cells is (see `.row`): headers take the same recycled slots. */
+	will-change: transform;
 	border-bottom: 1px solid var(--wp-border-subtle);
 	color: var(--wp-text-primary);
 	font-size: calc(12px * var(--wp-text-scale));
