@@ -14,6 +14,7 @@ import {
 	type ReactNode,
 } from 'react';
 import type { WindowControls } from '../TitleBar/windowControls';
+import { createWindowTitleStore, type WindowTitleStore } from '../WindowTitle/windowTitleStore';
 
 interface WindowChromeState {
 	controls: WindowControls;
@@ -23,6 +24,8 @@ interface WindowChromeState {
 	focused: boolean;
 	/** False until the adapter's initial focus read has settled. */
 	focusSettled: boolean;
+	titleStore: WindowTitleStore;
+	formatTitle?: (title: string) => string;
 }
 
 /**
@@ -36,6 +39,8 @@ const WindowChromeContext = createContext<WindowChromeState | null>(null);
 export interface WindowChromeProviderProps {
 	/** Pass a stable object: the provider resubscribes when its identity changes. */
 	controls: WindowControls;
+	/** Shapes the title text the title bar shows (a prefix, say). The host's title and `document.title` stay plain. */
+	formatTitle?: (title: string) => string;
 	children: ReactNode;
 }
 
@@ -44,7 +49,12 @@ export interface WindowChromeProviderProps {
  * `{ controls, maximised, focused }` with every chrome component below it. A host that cannot
  * report focus is treated as always focused.
  */
-export function WindowChromeProvider({ controls, children }: WindowChromeProviderProps) {
+export function WindowChromeProvider({
+	controls,
+	formatTitle,
+	children,
+}: WindowChromeProviderProps) {
+	const [titleStore] = useState(createWindowTitleStore);
 	const [maximised, setMaximised] = useState(false);
 	const [focused, setFocused] = useState(true);
 	const [focusSettled, setFocusSettled] = useState(!controls.isFocused);
@@ -115,8 +125,16 @@ export function WindowChromeProvider({ controls, children }: WindowChromeProvide
 	);
 
 	const value = useMemo(
-		() => ({ controls, maximised, expectMaximised, focused, focusSettled }),
-		[controls, maximised, expectMaximised, focused, focusSettled],
+		() => ({
+			controls,
+			maximised,
+			expectMaximised,
+			focused,
+			focusSettled,
+			titleStore,
+			formatTitle,
+		}),
+		[controls, maximised, expectMaximised, focused, focusSettled, titleStore, formatTitle],
 	);
 	return <WindowChromeContext.Provider value={value}>{children}</WindowChromeContext.Provider>;
 }
@@ -167,4 +185,14 @@ export function useWindowFocused(): boolean {
 export function useOptionalWindowFocus(): { focused: boolean; settled: boolean } | undefined {
 	const state = useContext(WindowChromeContext);
 	return state ? { focused: state.focused, settled: state.focusSettled } : undefined;
+}
+
+/** The window's title store, or `undefined` outside a `WindowChromeProvider`. */
+export function useOptionalWindowTitleStore(): WindowTitleStore | undefined {
+	return useContext(WindowChromeContext)?.titleStore;
+}
+
+/** The provider's `formatTitle`, or `undefined` when it has none or there is no provider. */
+export function useOptionalTitleFormat(): ((title: string) => string) | undefined {
+	return useContext(WindowChromeContext)?.formatTitle;
 }

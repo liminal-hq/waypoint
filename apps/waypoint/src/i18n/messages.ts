@@ -20,8 +20,8 @@ import { activeMessages, formatLocale, pluralLocale } from './active';
 export const enMessages = {
 	// translator: The name of the main window (the one with the file browser), not “primary” or “principal”.
 	'window.main.title': 'Main',
-	// translator: A window title: the product name “Waypoint” (not translated), an em dash, then the window’s name.
-	'window.main.titleWithApp': 'Waypoint — Main',
+	// translator: The Main window’s title with the product name “Waypoint” (not translated), an em dash, then {title}: the name of the open folder, or “Main”.
+	'window.main.titleWithApp': 'Waypoint — {title}',
 	'window.main.description': 'The tabbed file browser — coming soon.',
 	'window.main.startFailed': 'Waypoint could not start the file browser.',
 	'window.settings.title': 'Waypoint — Settings',

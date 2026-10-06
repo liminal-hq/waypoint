@@ -4,8 +4,8 @@
     "description": "Area: window. The name of the main window (the one with the file browser), not “primary” or “principal”."
   },
   "window.main.titleWithApp": {
-    "message": "Waypoint — Main",
-    "description": "Area: window. A window title: the product name “Waypoint” (not translated), an em dash, then the window’s name."
+    "message": "Waypoint — {title}",
+    "description": "Area: window. Placeholders, kept exactly as written: {title} is the title of a tab. The Main window’s title with the product name “Waypoint” (not translated), an em dash, then {title}: the name of the open folder, or “Main”."
   },
   "window.main.description": {
     "message": "The tabbed file browser — coming soon.",

@@ -13,8 +13,8 @@ import type { Catalogue } from '../active';
 const messages: Catalogue = {
 	// source: eb814be3
 	'window.main.title': 'Principale',
-	// source: 45d10e1b
-	'window.main.titleWithApp': 'Waypoint — Principale',
+	// source: 87faa149
+	'window.main.titleWithApp': 'Waypoint — {title}',
 	// source: a72f1d0b
 	'window.main.description': 'L’explorateur de fichiers à onglets — bientôt disponible.',
 	// source: 12b1b753

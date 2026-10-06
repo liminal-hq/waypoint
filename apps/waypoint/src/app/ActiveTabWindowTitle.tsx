@@ -7,7 +7,7 @@ import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSna
 import { useActiveTab } from '../tabs/TabsContext';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { locationLabel, useTabTitle } from '../tabs/tabTitle';
-import { useWindowTitle } from './useWindowTitle';
+import { useWindowTitle } from '@liminal-hq/waypoint-chrome/WindowTitle/useWindowTitle';
 
 /**
  * The OS title for a tab: its folder's name, and until Rust has resolved the location (when `useTabTitle`

@@ -9,7 +9,8 @@ Every export maps to the file that defines it.
 | Import                                                                  | Provides                                                                                           |
 | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `@liminal-hq/waypoint-chrome/TitleBar`                                  | `TitleBar` and its props: `start`, `center`, `end` slots plus built-in window buttons              |
-| `@liminal-hq/waypoint-chrome/TitleBar/TitleBarTitle`                    | `TitleBarTitle`: draggable, truncating title text for the `center` slot                            |
+| `@liminal-hq/waypoint-chrome/TitleBar/TitleBarTitle`                    | `TitleBarTitle`: draggable, truncating title text for the `center` slot; follows `useWindowTitle`  |
+| `@liminal-hq/waypoint-chrome/WindowTitle/useWindowTitle`                | `useWindowTitle(title)`: sets the title bar text, the host's title and `document.title` together   |
 | `@liminal-hq/waypoint-chrome/TitleBar/buttonLayout`                     | `ButtonLayout`, `TitlebarActions` types and their `DEFAULT_*` values                               |
 | `@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider` | `WindowChromeProvider`, `useWindowControls`, `useWindowMaximised`, `useWindowFocused`              |
 | `@liminal-hq/waypoint-chrome/TitleBar/AppMenuButton`                    | App mark and menu button, opened by click, `F10` or a lone `Alt` press                             |
@@ -77,6 +78,7 @@ Pass a stable object (create it once at module level or memoise it) because `Win
 ```
 
 - `useWindowControls()`, `useWindowMaximised()` and `useWindowFocused()` read the shared values for app code that needs them. They throw outside a provider.
+- `useWindowTitle(title: string | Promise<string> | undefined)` (from `WindowTitle/useWindowTitle`) sets the window's title in every place it shows in one call: the text of a `<TitleBarTitle fallback="…" />` (read from a store the provider owns), the host's title through `WindowControls.setTitle`, and `document.title`. The latest call wins; a promise keeps the previous title until it resolves, and a stale resolution or a rejection is ignored; `undefined` and unmounting leave the title as it was; a host whose `setTitle` is missing, throws or refuses is skipped; outside a provider it does nothing. `TitleBarTitle` shows `fallback` until a title is set, and shows its children, unchanged, when it has any. The provider's optional `formatTitle={(title) => …}` shapes only the text the title bar shows; the host's title and `document.title` stay plain.
 - `TitleBar`, `WindowFrame` and `WindowMenu` throw a clear error when no provider is mounted. `ContextMenu` works without one.
 - There is no `windowControls` prop on any component.
 

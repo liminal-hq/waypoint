@@ -55,6 +55,8 @@
 		"./TitleBar/buttonLayout": "./src/TitleBar/buttonLayout.ts",
 		"./TitleBar/windowControls": "./src/TitleBar/windowControls.ts",
 		"./WindowChromeProvider/WindowChromeProvider": "./src/WindowChromeProvider/WindowChromeProvider.tsx",
+		"./WindowTitle/useWindowTitle": "./src/WindowTitle/useWindowTitle.ts",
+		"./WindowTitle/windowTitleStore": "./src/WindowTitle/windowTitleStore.ts",
 		"./WindowFrame": "./src/WindowFrame/WindowFrame.tsx",
 		"./WindowMenu": "./src/WindowMenu/WindowMenu.tsx",
 		"./WindowMenu/windowMenuModel": "./src/WindowMenu/windowMenuModel.ts",

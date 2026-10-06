@@ -12,19 +12,22 @@ import { titlebarConfigFor } from './titlebarConfig';
 import { useWindowCapabilities } from './windowCapabilities';
 
 interface AppTitleBarProps {
-	title: string;
+	/** Fixed text for the title. */
+	title?: string;
+	/** Instead of a fixed title, follow the window's title (`useWindowTitle`), and show this until one is set. */
+	fallbackTitle?: string;
 	/** The start slot, after any start-side window buttons: the Main window puts its application menu here. */
 	start?: ReactNode;
 }
 
-export function AppTitleBar({ title, start }: AppTitleBarProps) {
+export function AppTitleBar({ title, fallbackTitle, start }: AppTitleBarProps) {
 	const preferences = useTitlebarPreferences();
 	const capabilities = useWindowCapabilities();
 	const config = titlebarConfigFor(preferences, document.documentElement.dataset.platform);
 	return (
 		<TitleBar
 			start={start}
-			center={<TitleBarTitle>{title}</TitleBarTitle>}
+			center={<TitleBarTitle fallback={fallbackTitle}>{title}</TitleBarTitle>}
 			controlsStyle={config.controlsStyle}
 			buttonLayout={config.buttonLayout}
 			titlebarActions={config.titlebarActions}
