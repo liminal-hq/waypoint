@@ -412,3 +412,53 @@ fn an_archive_that_is_open_for_reading_can_still_be_replaced() {
         .rename(&file(&beside), &file(&path), true)
         .expect("a file open for reading is replaced");
 }
+
+/// The order of an edit: the archive's entries are read, the new archive is written beside it, the
+/// old file is replaced, and the view reads the new file. A stream of an entry that is dropped has
+/// closed the archive file by then, and on Windows even one still open does not stop the replace.
+#[test]
+fn an_archive_is_replaced_between_reads_of_its_entries() {
+    let dir = scratch();
+    let path = dir.path().join("job.zip");
+    let beside = dir.path().join("job.partial.zip");
+    RawZip::new().file("big.bin", &big_bytes()).write(&path);
+    RawZip::new()
+        .file("big.bin", &big_bytes())
+        .file("new.txt", b"added")
+        .write(&beside);
+    let p = provider();
+    let local = LocalProvider::new();
+    {
+        let mut stream = p.open_read(&at(&top(&path), "big.bin")).unwrap();
+        let mut some = [0u8; 10];
+        std::io::Read::read_exact(&mut stream, &mut some).unwrap();
+        // Dropped part way: the decoder lets go of the file before the drop returns.
+    }
+    local
+        .rename(&file(&beside), &file(&path), true)
+        .expect("the archive is replaced");
+    assert_eq!(read(&*p, &at(&top(&path), "new.txt")), b"added");
+}
+
+/// As above, but the reader is still open when the file is replaced (an open listing, a verify
+/// read): the replace goes through, and the file is read again afterwards.
+#[cfg(windows)]
+#[test]
+fn an_archive_is_replaced_while_an_entry_is_still_open_and_read_again() {
+    let dir = scratch();
+    let path = dir.path().join("open.zip");
+    let beside = dir.path().join("open.partial.zip");
+    RawZip::new().file("big.bin", &big_bytes()).write(&path);
+    RawZip::new()
+        .file("big.bin", &big_bytes())
+        .file("new.txt", b"added")
+        .write(&beside);
+    let p = provider();
+    let local = LocalProvider::new();
+    let held = local.open_read(&file(&path)).unwrap();
+    local
+        .rename(&file(&beside), &file(&path), true)
+        .expect("the archive is replaced under an open reader");
+    drop(held);
+    assert_eq!(read(&*p, &at(&top(&path), "new.txt")), b"added");
+}
