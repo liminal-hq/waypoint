@@ -624,8 +624,25 @@ impl Edit<'_> {
                         }
                         inner.to_vec()
                     }
+                    ArchiveChange::Make { .. } => inner.to_vec(),
                 };
                 self.copy_original(builder.as_mut(), entry, &comps, &mut manifest)?;
+            }
+            if let ArchiveChange::Make { into, name, folder } = &edit.change {
+                let mut comps = into.clone();
+                comps.push(name.clone());
+                let attrs = EntryAttrs {
+                    mode: Some(if *folder { 0o755 } else { 0o644 }),
+                    modified_ms: Some(self.options.clock.now_ms()),
+                };
+                if *folder {
+                    builder.add_dir(&joined(&comps), attrs)?;
+                    manifest.push((comps, EntryKind::Directory, None));
+                } else {
+                    builder.add_file(&joined(&comps), 0, attrs, &mut std::io::empty())?;
+                    manifest.push((comps, EntryKind::File, Some(0)));
+                }
+                self.entry_done(&String::from_utf8_lossy(name));
             }
             for item in new.iter().filter(|n| !n.dropped) {
                 self.sink.between_items();

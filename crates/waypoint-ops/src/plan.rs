@@ -114,6 +114,12 @@ pub enum ArchiveChange {
     Rename { from: Vec<Vec<u8>>, name: Vec<u8> },
     /// Removes the entries and what is below them.
     Delete { paths: Vec<Vec<Vec<u8>>> },
+    /// Makes an empty folder or file called `name` in the folder `into`.
+    Make {
+        into: Vec<Vec<u8>>,
+        name: Vec<u8>,
+        folder: bool,
+    },
 }
 
 /// What a change to an archive adds to the plan (D170): the archive file that is rewritten, the

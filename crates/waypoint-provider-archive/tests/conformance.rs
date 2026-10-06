@@ -26,7 +26,8 @@ fn an_archive_passes_the_conformance_suite() {
 fn the_capabilities_are_honest() {
     let p = provider();
     let caps = p.capabilities();
-    assert!(!caps.write && !caps.watch && !caps.remote);
+    assert!(!caps.write && !caps.remote);
+    assert!(caps.watch, "the archive file is watched for a rewrite");
     assert!(caps.symlinks);
     assert_eq!(caps.case_rule, waypoint_path::CaseRule::Sensitive);
     assert_eq!(caps.permissions, waypoint_vfs::PermissionModel::Unix);

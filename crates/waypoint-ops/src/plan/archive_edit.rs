@@ -16,8 +16,8 @@ use super::archive::check_limits;
 use super::{
     check, conflict_kind, failure, ArchiveChange, ArchiveEditPlan, Plan, PlanItem, Planner,
 };
-use crate::model::{ArchiveSpec, Conflict, JobKind, OpsError};
-use crate::names::{archive_path, file_name_of, name_bytes};
+use crate::model::{ArchiveSpec, Conflict, ConflictPolicy, JobKind, OpsError};
+use crate::names::{archive_path, file_name_of, name_bytes, unique_full_name};
 
 /// The names inside an archive of an `archive:` path.
 pub(crate) fn inner_names(path: &VfsPath) -> Option<(&VfsPath, &[Vec<u8>])> {
@@ -50,6 +50,15 @@ impl Planner<'_, '_> {
                     });
                 }
                 self.archive_add().map(Some)
+            }
+            JobKind::CreateFolder | JobKind::CreateFile => {
+                let Some(destination) = &self.request.destination else {
+                    return Ok(None);
+                };
+                if !waypoint_path::ArchivePath::is_archive_uri(&destination.uri) {
+                    return Ok(None);
+                }
+                self.archive_make().map(Some)
             }
             JobKind::Rename | JobKind::Delete | JobKind::Trash => {
                 let first_is_archive = match &self.request.sources {
@@ -263,6 +272,72 @@ impl Planner<'_, '_> {
             sources: paths,
         };
         self.finish_edit(items, conflicts, entries, edit, change, new)
+    }
+
+    fn archive_make(&mut self) -> Result<Plan, OpsError> {
+        let location = self
+            .request
+            .destination
+            .clone()
+            .ok_or_else(|| failure("the request has no destination folder"))?;
+        let (dest, _) = self.ctx.providers.for_location(&location)?;
+        let (_, into) = inner_names(&dest)
+            .map(|(c, i)| (c.clone(), i.to_vec()))
+            .ok_or_else(|| failure("the destination is not inside an archive"))?;
+        let (entries, edit) = self.archive_ground(&dest)?;
+        let by_path: HashMap<Vec<Vec<u8>>, &ArchiveEntryInfo> = entries
+            .iter()
+            .filter_map(|e| inner_names(&e.path).map(|(_, inner)| (inner.to_vec(), e)))
+            .collect();
+        if !into.is_empty() && by_path.get(&into).map(|e| e.kind) != Some(EntryKind::Directory) {
+            return Err(failure(format!("{} is not a folder", dest.display())));
+        }
+        let is_folder = self.request.kind == JobKind::CreateFolder;
+        let fallback = if is_folder { "New folder" } else { "New file" };
+        let wanted = self.request.name.as_deref().unwrap_or(fallback);
+        validate_name(OsStr::new(wanted), CaseRule::Sensitive)?;
+        let keep_both = self.request.name.is_none()
+            || self.request.options.conflict == Some(ConflictPolicy::KeepBoth);
+        let taken = |name: &str| {
+            let mut comps = into.clone();
+            comps.push(name.as_bytes().to_vec());
+            by_path.contains_key(&comps)
+        };
+        let name = if keep_both {
+            unique_full_name(&mut |n| taken(n), wanted)
+        } else if taken(wanted) {
+            let mut comps = into.clone();
+            comps.push(wanted.as_bytes().to_vec());
+            return Err(OpsError::NameInUse {
+                location: archive_path(&edit.container, &comps)
+                    .map_or_else(|_| dest.to_location(), |p| p.to_location()),
+            });
+        } else {
+            wanted.to_owned()
+        };
+        let mut comps = into.clone();
+        comps.push(name.clone().into_bytes());
+        let target = archive_path(&edit.container, &comps)
+            .map_err(|_| failure("not a usable name in an archive"))?;
+        let item = PlanItem {
+            source: None,
+            target: Some(target),
+            kind: if is_folder {
+                EntryKind::Directory
+            } else {
+                EntryKind::File
+            },
+            size: None,
+            entries: 1,
+            bytes: 0,
+            case_only: false,
+        };
+        let change = ArchiveChange::Make {
+            into,
+            name: name.into_bytes(),
+            folder: is_folder,
+        };
+        self.finish_edit(vec![item], Vec::new(), entries, edit, change, (1, 0))
     }
 
     fn archive_rename(&mut self) -> Result<Plan, OpsError> {

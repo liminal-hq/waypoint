@@ -118,6 +118,22 @@ impl Recorded {
                         _ => format!("Add {} items to {}", placed.len(), quoted(&archive)),
                     }
                 }
+                crate::plan::ArchiveChange::Make { name, folder, .. } => {
+                    // A redo makes it under the name it got.
+                    let made = String::from_utf8_lossy(name).into_owned();
+                    forward.name = Some(made.clone());
+                    forward.options.conflict = None;
+                    format!(
+                        "{} {} in {}",
+                        if *folder {
+                            "Create folder"
+                        } else {
+                            "Create file"
+                        },
+                        quoted(&made),
+                        quoted(&archive)
+                    )
+                }
                 crate::plan::ArchiveChange::Rename { .. } => {
                     forward.sources = Sources::Locations {
                         locations: items.clone(),

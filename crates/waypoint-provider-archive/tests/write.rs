@@ -310,3 +310,31 @@ fn an_archive_says_whether_it_can_be_rewritten_and_in_what_format() {
     );
     assert!(!p.rewritable(&top(&evil)));
 }
+
+#[test]
+fn a_view_of_an_archive_hears_that_the_file_was_rewritten() {
+    use std::sync::mpsc;
+    use waypoint_vfs::WatchEvent;
+    let dir = scratch();
+    let path = dir.path().join("watched.zip");
+    RawZip::new().file("a.txt", b"one").write(&path);
+    let p = provider();
+    let (sender, receiver) = mpsc::channel();
+    let sender = std::sync::Mutex::new(sender);
+    let _watch = p
+        .watch(
+            &top(&path),
+            std::sync::Arc::new(move |event| {
+                let _ = sender.lock().unwrap().send(event);
+            }),
+        )
+        .unwrap();
+    RawZip::new()
+        .file("a.txt", b"one")
+        .file("b.txt", b"two, and longer")
+        .write(&path);
+    let event = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("a rewrite is noticed");
+    assert!(matches!(event, WatchEvent::Rescan(_)), "{event:?}");
+}

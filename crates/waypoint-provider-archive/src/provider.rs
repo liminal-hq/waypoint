@@ -668,11 +668,31 @@ impl Provider for ArchiveProvider {
         let mut caps = Capabilities::new(CaseRule::Sensitive);
         caps.permissions = PermissionModel::Unix;
         caps.symlinks = true;
+        // The archive file is looked at now and then, so a view reads it again once an edit (or another
+        // program) has rewritten it.
+        caps.watch = true;
         caps
     }
 
     fn read_only(&self) -> bool {
         true
+    }
+
+    fn watch(
+        &self,
+        path: &VfsPath,
+        sink: waypoint_vfs::WatchSink,
+    ) -> Result<Box<dyn waypoint_vfs::Watch>, VfsError> {
+        let VfsPath::Archive(top) = path else {
+            return Err(VfsError::Unsupported {
+                what: path.scheme().to_owned(),
+            });
+        };
+        let container = top.container().clone();
+        let holder = self.provider_of(&container)?;
+        Ok(Box::new(crate::watch::FileWatch::start(
+            holder, container, sink,
+        )?))
     }
 
     fn rewritable(&self, path: &VfsPath) -> bool {

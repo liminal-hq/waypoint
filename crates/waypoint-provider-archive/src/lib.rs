@@ -40,6 +40,7 @@ mod sevenz;
 mod source;
 mod stream;
 mod tar_scan;
+mod watch;
 mod write;
 mod zip_read;
 mod zip_scan;

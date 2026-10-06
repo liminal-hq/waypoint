@@ -1246,3 +1246,45 @@ fn archives_made_by_the_real_tools_are_changed_and_still_read_by_them() {
     }
     eprintln!("{ran} of 3 real tools were available");
 }
+
+#[test]
+fn a_new_folder_and_a_new_file_are_made_inside_an_archive() {
+    for format in ArchiveFormat::ALL {
+        let (mut h, _g) = archives();
+        let name = format!("pack{}", format.extension());
+        jbuild(&h, &small());
+        ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+        let before = jwork(&h);
+        let mut folder = h.request(JobKind::CreateFolder, &[], None, Some("fresh"));
+        folder.destination = Some(inside(&h, &name, "src/d"));
+        let made = h.run_journalled(folder);
+        ok(&made);
+        let mut file_request = h.request(JobKind::CreateFile, &[], None, Some("empty.txt"));
+        file_request.destination = Some(inside(&h, &name, "src/d/fresh"));
+        ok(&h.run_journalled(file_request));
+        let now = contents(&mut h, &name);
+        assert_eq!(now.get("src/d/fresh"), Some(&Node::Dir), "{format:?}");
+        assert_eq!(
+            now.get("src/d/fresh/empty.txt"),
+            Some(&file("")),
+            "{format:?}"
+        );
+        assert_eq!(now.get("src/d/b.txt"), Some(&file("beta")), "{format:?}");
+        // With no name, or a name that is taken and Keep both, the next free one is used.
+        let mut again = h.request(JobKind::CreateFolder, &[], None, Some("fresh"));
+        again.destination = Some(inside(&h, &name, "src/d"));
+        again.options.conflict = Some(ConflictPolicy::KeepBoth);
+        let last = h.run_journalled(again);
+        ok(&last);
+        assert_eq!(
+            contents(&mut h, &name).get("src/d/fresh (2)"),
+            Some(&Node::Dir)
+        );
+        // Undo brings back the archive as it was before the last change.
+        let kept = jwork(&h);
+        ok(&h.undo(last.entry.expect("journalled")));
+        assert_ne!(jwork(&h).get(&name), kept.get(&name), "{format:?}");
+        assert!(!contents(&mut h, &name).contains_key("src/d/fresh (2)"));
+        let _ = (before, made);
+    }
+}
