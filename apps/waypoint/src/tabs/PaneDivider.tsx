@@ -80,7 +80,8 @@ export function PaneDivider({
 		if (!area) return;
 		const box = area.getBoundingClientRect();
 		const thickness = divider.getBoundingClientRect()[horizontal ? 'width' : 'height'];
-		const dividers = area.querySelectorAll('[role="separator"]').length;
+		// Only this area's own dividers: a list's column handles inside the panes are separators too.
+		const dividers = area.querySelectorAll(':scope > [role="separator"]').length;
 		const total = horizontal ? box.width : box.height;
 		divider.setPointerCapture?.(event.pointerId);
 		event.preventDefault();
