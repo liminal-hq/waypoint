@@ -42,6 +42,23 @@ describe('pickerItems', () => {
 		expectEveryItemHasIcon(items);
 	});
 
+	it('offers Compress Here and Extract Here, and reads Copy as Add to Archive in an archive', () => {
+		const items = pickerItems(['copy', 'compress', 'extract'], true);
+		expect(items.flatMap((item) => (item.type === 'separator' ? [] : [item.id]))).toEqual([
+			'copy',
+			'compress',
+			'extract',
+			'cancel',
+		]);
+		expect(items.flatMap((item) => (item.type === 'action' ? [item.label] : []))).toEqual([
+			'Add to Archive',
+			'Compress Here…',
+			'Extract Here',
+			'Cancel',
+		]);
+		expectEveryItemHasIcon(items);
+	});
+
 	it('leaves out what is not on offer', () => {
 		expect(pickerItems(['copy']).filter((item) => item.type === 'action')).toHaveLength(2);
 	});

@@ -793,6 +793,9 @@ export const enMessages = {
 	'dnd.picker.copy': 'Copy Here',
 	'dnd.picker.move': 'Move Here',
 	'dnd.picker.link': 'Link Here',
+	'dnd.picker.add': 'Add to Archive',
+	'dnd.picker.compress': 'Compress Here…',
+	'dnd.picker.extract': 'Extract Here',
 	'dnd.picker.cancel': 'Cancel',
 	'dnd.badge.copy': 'Copy',
 	'dnd.badge.move': 'Move',
@@ -1451,7 +1454,22 @@ export const enMessages = {
 	'files.delete.more': 'and {count} more',
 	'files.delete.size': 'Total size: {size}',
 	'files.delete.list.label': 'Items to delete',
+	'files.paste.intoArchive':
+		'Items are added to an archive, not moved into it, so the originals stay where they are.',
 	'files.delete.action': 'Delete Permanently',
+	'archive.rewrite.delete.title': 'Delete from the archive?',
+	'archive.rewrite.delete.message':
+		'Delete {what} from {archive}? This rewrites the whole archive ({size}). The previous archive goes to the Trash, and Undo brings it back.',
+	'archive.rewrite.delete.action': 'Delete',
+	'archive.rewrite.rename.title': 'Rename in the archive?',
+	'archive.rewrite.rename.message':
+		'Rename {name} to {newName}? This rewrites the whole archive {archive} ({size}). The previous archive goes to the Trash, and Undo brings it back.',
+	'archive.rewrite.rename.action': 'Rename',
+	'archive.rewrite.rename.declined': 'The rename was not confirmed.',
+	'archive.rewrite.limit.title': 'Change a very large archive?',
+	'archive.rewrite.limit.message':
+		'{name} is larger than the archive limits allow ({reason}). Changing it rewrites all of it, which could take a long time and fill the disk.',
+	'archive.rewrite.limit.action': 'Change anyway',
 	'files.copied.one': 'Copied {count} item',
 	'files.copied.other': 'Copied {count} items',
 	'files.cut.one': 'Cut {count} item',
@@ -1973,6 +1991,17 @@ export const enMessages = {
 	'ops.error.cannotReplace': '{name} cannot be replaced by an entry of another kind',
 	'ops.error.connection': 'A server could not be reached, or asked for a login.',
 	'ops.error.archiveLimit': '{name} is larger than the archive limits allow',
+	'ops.error.archiveNotWritable.readOnlyFormat':
+		'{name} is a {format} archive, which can be read but not changed',
+	'ops.error.archiveNotWritable.encrypted': '{name} is encrypted, so it cannot be changed',
+	'ops.error.archiveNotWritable.nested':
+		'{name} is inside another archive, so it cannot be changed',
+	'ops.error.archiveNotWritable.unsafeNames':
+		'{name} holds names that were changed to be shown safely, so changing it would rename them',
+	'ops.error.archiveNotWritable.noAtomicReplace':
+		'Where {name} is kept, a file cannot be replaced in one step, so it cannot be changed',
+	'ops.error.archiveNotWritable.containerReadOnly':
+		'Where {name} is kept cannot be written to, so it cannot be changed',
 	'ops.error.undoStale.missing': '{name} is no longer where it was',
 	'ops.error.undoStale.changed': '{name} has been changed since',
 	'ops.error.undoStale.nameTaken': 'something else now has the name {name} had',
@@ -2745,6 +2774,10 @@ export const enMessages = {
 	'compress.confirm': 'Compress',
 	'compress.cancel': 'Cancel',
 	'compress.default': 'Archive',
+	'compress.exists.title': 'Add to the existing archive?',
+	'compress.exists.message':
+		'{archive} already exists here. Add {what} to it? This rewrites the whole archive ({size}), which keeps its own format. The previous archive goes to the Trash, and Undo brings it back.',
+	'compress.exists.action': 'Add to archive',
 	'compress.error.empty': 'Give the archive a name.',
 	'compress.error.invalid': 'A name cannot hold a slash.',
 	'archive.locked.title': '{name} is locked',

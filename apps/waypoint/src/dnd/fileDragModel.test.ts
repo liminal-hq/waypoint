@@ -70,6 +70,36 @@ const evaluate = (over: Partial<EvaluateInput> = {}): FileDropTarget =>
 		...over,
 	});
 
+describe('evaluateTarget into an archive', () => {
+	const ARCHIVE = { display: '/home/test/a.zip', uri: 'archive:file:///home/test/a.zip!/' };
+
+	it('adds a copy and never a move, even on one volume, because the originals stay (D170)', () => {
+		const target = evaluate({
+			spot: spot('folder'),
+			location: ARCHIVE,
+			plan: { volume: 'same', error: null },
+		});
+		expect(target.outcome).toBe('copy');
+		expect(target.blocked).toBeNull();
+	});
+
+	it('refuses with the reason the planner gave for an archive that cannot be changed', () => {
+		const target = evaluate({
+			spot: spot('folder'),
+			location: ARCHIVE,
+			plan: {
+				volume: 'unknown',
+				error: {
+					kind: 'archiveNotWritable',
+					location: ARCHIVE,
+					reason: { kind: 'encrypted' },
+				},
+			},
+		});
+		expect(target.blocked).toMatchObject({ kind: 'refused' });
+	});
+});
+
 describe('evaluateTarget', () => {
 	it('moves on one volume and copies across, by default', () => {
 		expect(evaluate().outcome).toBe('move');

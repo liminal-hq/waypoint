@@ -8,6 +8,7 @@ import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError'
 import { formatSize } from '../browse/format';
 import { connectionErrorText, schemeLabel } from '../connections/connectModel';
 import { t, tf, type MessageId } from '../i18n/messages';
+import { archiveRefusalText } from './archiveRefusal';
 
 export interface ProblemText {
 	/** What went wrong, in plain words. */
@@ -30,6 +31,9 @@ export function problemText(error: OpsError): ProblemText {
 		case 'changedSince':
 		case 'cannotReplace':
 			message = tf(key(error.kind), { location: error.location.display });
+			break;
+		case 'archiveNotWritable':
+			message = archiveRefusalText(error.location, error.reason);
 			break;
 		case 'verifyFailed':
 			message = tf(key(error.kind), { location: error.location.display });

@@ -7,7 +7,12 @@ import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { JobSnapshot } from '@liminal-hq/waypoint-protocol/generated/JobSnapshot';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
-import { containerUri, defaultArchiveName, isArchiveEntry } from '../archives/archiveNames';
+import {
+	containerUri,
+	defaultArchiveName,
+	isArchiveEntry,
+	isArchiveName,
+} from '../archives/archiveNames';
 import type { ArchiveClient } from '../archives/archiveClient';
 import { commandErrorMessage, lockOf } from '../archives/askPassphrase';
 import type { ArchiveLock } from '../archives/lockModel';
@@ -18,7 +23,9 @@ import type { Answered } from '../connections/connectFlow';
 import { t, tf, tn } from '../i18n/messages';
 import type { JobRequest } from '../services/opsClient';
 import type { VfsClient } from '../services/vfsClient';
+import { addConfirm, prepareRewrite } from './archiveRewrite';
 import {
+	addRequest,
 	compressRequest,
 	extractRequest,
 	leftOutCount,
@@ -61,6 +68,10 @@ export interface ArchiveCommands {
 	/** Extracts the archive the pane is in (the whole of it, not what is shown). */
 	extractAll(session?: ListingSession | null): Promise<void>;
 	compress(session?: ListingSession | null): Promise<void>;
+	/** Compress… for files dropped on a folder: the dialog asks the name and format, and the archive is made in `folder`. */
+	compressDropped(locations: Location[], folder: Location): Promise<void>;
+	/** Extracts archives dropped on a folder into it. */
+	extractDropped(archives: Location[], destination: Location): Promise<void>;
 }
 
 /** The entries of `selection` that are archives, in listing order. */
@@ -78,6 +89,11 @@ export async function selectedArchives(
 		}
 	}
 	return found;
+}
+
+/** The last part of an address or a path. */
+function baseNameOf(display: string): string {
+	return display.split(/[\\/]/).filter(Boolean).pop() ?? display;
 }
 
 /** How many times a password is asked for in one command before it is given up. */
@@ -199,6 +215,59 @@ export function createArchiveCommands(deps: ArchiveCommandDeps): ArchiveCommands
 	const archiveName = (locations: Location[]): string =>
 		locations.length === 1 ? (locations[0]?.display.split(/[\\/]/).pop() ?? '') : '';
 
+	/**
+	 * Packs `locations` into the archive `choice` names in `folder`. A name an archive there already
+	 * has, one that can be written, offers to add to it in its own format (D170); declining goes on
+	 * to the usual answer for a name that is taken (Replace, Keep both or Skip).
+	 */
+	const compressLocations = async (
+		locations: Location[],
+		names: string[],
+		folder: Location,
+		choice: CompressChoice,
+	): Promise<void> => {
+		const request = compressRequest(
+			locations,
+			folder,
+			choice.name,
+			choice.format,
+			deps.windowLabel,
+		);
+		let preview;
+		try {
+			preview = await ops.client.plan(request);
+		} catch (failure) {
+			say(tf('files.failed', { reason: commandErrorText(failure) }));
+			return;
+		}
+		const taken = preview.conflicts[0]?.existing;
+		if (taken && isArchiveName(baseNameOf(taken.display))) {
+			const add = addRequest(locations, taken, deps.windowLabel);
+			const addable = await ops.client.plan(add).then(
+				() => true,
+				() => false,
+			);
+			if (addable) {
+				const what =
+					locations.length === 1 && names[0] ? `“${names[0]}”` : tn('dnd.items', locations.length);
+				const prepared = await prepareRewrite({ ops, confirm: deps.confirm, say }, add, (found) =>
+					addConfirm(found, what),
+				);
+				if (prepared) {
+					const job = await deps.run(prepared);
+					if (job?.state.state === 'failed') {
+						say(tf('files.failed', { reason: errorText(job.state.error) }));
+					}
+					return;
+				}
+			}
+		}
+		const job = await deps.run(request);
+		if (job?.state.state === 'failed') {
+			say(tf('files.failed', { reason: errorText(job.state.error) }));
+		}
+	};
+
 	return {
 		async extractHere(session) {
 			const found = deps.writable(session);
@@ -272,23 +341,21 @@ export function createArchiveCommands(deps: ArchiveCommandDeps): ArchiveCommands
 				count: locations.length,
 			});
 			if (!choice) return;
-			const request = compressRequest(
-				locations,
-				model.location,
-				choice.name,
-				choice.format,
-				deps.windowLabel,
-			);
-			try {
-				await ops.client.plan(request);
-			} catch (failure) {
-				say(tf('files.failed', { reason: commandErrorText(failure) }));
-				return;
-			}
-			const job = await deps.run(request);
-			if (job?.state.state === 'failed') {
-				say(tf('files.failed', { reason: errorText(job.state.error) }));
-			}
+			await compressLocations(locations, names, model.location, choice);
+		},
+
+		async compressDropped(locations, folder) {
+			const choose = deps.pickCompression ?? pickCompression;
+			const names = locations.map((location) => baseNameOf(location.display));
+			const choice = await choose({
+				name: defaultArchiveName(names, t('compress.default')),
+				count: locations.length,
+			});
+			if (choice) await compressLocations(locations, names, folder, choice);
+		},
+
+		async extractDropped(archives, destination) {
+			await extractLocations(archives, destination, archiveName(archives));
 		},
 	};
 }

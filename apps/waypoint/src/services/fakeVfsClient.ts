@@ -300,6 +300,7 @@ export class FakeVfsClient implements VfsClient {
 	private trashes = new Set<string>();
 	/** The locations nothing can be written to besides the Trash (an archive, a read-only share). */
 	private readOnly = new Set<string>();
+	private rewritable = new Set<string>();
 	/** The files `openEntry` was asked to open, in order, as `(handle, id)` pairs. */
 	readonly opened: Array<{ handle: ListingHandle; id: EntryId }> = [];
 
@@ -309,6 +310,12 @@ export class FakeVfsClient implements VfsClient {
 	setReadOnly(location: Location, readOnly = true): void {
 		if (readOnly) this.readOnly.add(location.uri);
 		else this.readOnly.delete(location.uri);
+	}
+
+	/** Marks a read-only folder as one whose changes are made by rewriting its file (an archive that can be written, D170). */
+	setRewritable(location: Location, rewritable = true): void {
+		if (rewritable) this.rewritable.add(location.uri);
+		else this.rewritable.delete(location.uri);
 	}
 
 	/** Defines (or replaces) the contents of a folder. Open listings of it are refreshed. */
@@ -403,6 +410,7 @@ export class FakeVfsClient implements VfsClient {
 			sort: listing.sort,
 			filter: listing.filter,
 			readOnly: this.trashes.has(listing.location.uri) || this.readOnly.has(listing.location.uri),
+			rewritable: this.rewritable.has(listing.location.uri),
 			layout: this.trashes.has(listing.location.uri) ? 'trash' : 'folder',
 			groups: fakeGroups(listing.view, listing.sort),
 		};

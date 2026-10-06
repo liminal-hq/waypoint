@@ -191,12 +191,12 @@ export function edgeScrollStep(top: number, bottom: number, y: number): number {
 /** The drop attributes of a listing's row: a folder (or a link to one) in a listing that can be dropped into; nothing otherwise. */
 export function entryDropAttributes(
 	entry: { id: number; name: string; kind: string; linkTarget: string | null },
-	listing: { handle: number; readOnly: boolean; layout: string },
+	listing: { handle: number; readOnly: boolean; rewritable?: boolean; layout: string },
 ): Record<string, string | undefined> | undefined {
 	const folder =
 		entry.kind === 'directory' || (entry.kind === 'symlink' && entry.linkTarget === 'directory');
 	if (!folder || listing.layout === 'trash') return undefined;
 	return dropAttributes('folder', folderRef(listing.handle, entry.id), entry.name, {
-		readOnly: listing.readOnly,
+		readOnly: listing.readOnly && !listing.rewritable,
 	});
 }

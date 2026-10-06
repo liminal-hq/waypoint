@@ -36,7 +36,14 @@ import {
 	type DragSession,
 	type Point,
 } from './dragSession';
-import { modifiersOf, NO_MODIFIERS, pickerVerbs, type DropModifiers } from './dropAction';
+import { isArchiveLocation, isArchiveName } from '../archives/archiveNames';
+import {
+	modifiersOf,
+	NO_MODIFIERS,
+	pickerVerbs,
+	type DropModifiers,
+	type PickerVerb,
+} from './dropAction';
 import {
 	clearMark,
 	dropSpotAt,
@@ -134,9 +141,11 @@ export interface PickerRequest {
 	position: Point;
 	what: string;
 	target: FileDropTarget;
-	verbs: Array<'copy' | 'move' | 'link'>;
+	verbs: PickerVerb[];
+	/** The files would be added to an archive, so Copy reads as Add to Archive. */
+	intoArchive?: boolean;
 	/** Carries out the verb chosen. */
-	choose(verb: 'copy' | 'move' | 'link'): void;
+	choose(verb: PickerVerb): void;
 	/** The picker was dismissed. */
 	cancel(): void;
 }
@@ -220,6 +229,12 @@ export interface FileDragDeps {
 		destination: Location,
 	): Promise<void>;
 	moveToTrash(session: ListingSession): Promise<void>;
+	/** Makes an archive of the dropped files in `destination`, or extracts the dropped archives into it. Without it the picker offers neither. */
+	archive?(
+		kind: 'compress' | 'extract',
+		source: FileDragSource,
+		destination: Location,
+	): Promise<void>;
 	/** Puts what the drag carries on the Shelf as references. */
 	addToShelf(source: FileDragSource): Promise<void>;
 	openFolders(request: OpenFoldersRequest): Promise<void>;
@@ -275,6 +290,18 @@ interface Spring {
 const NO_OPTIONS = { conflict: null, verify: null } as const;
 
 const SPRING_KINDS = new Set(['folder', 'place', 'tab']);
+
+/** Whether everything the drag carries is named like an archive: all the items when they are known by name, and the one item of a single-row drag. */
+function onlyArchives(source: FileDragSource): boolean {
+	const names = isLocationsSource(source)
+		? source.locations.map(
+				(location) => location.display.split(/[\\/]/).filter(Boolean).pop() ?? '',
+			)
+		: source.name !== null && source.count === 1
+			? [source.name]
+			: [];
+	return names.length > 0 && names.every(isArchiveName);
+}
 
 function commandFailure(error: unknown): OpsError | null {
 	const inner = (error as Partial<OpsCommandError> | null)?.error ?? error;
@@ -778,8 +805,13 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 					const location = await destinationOf(spot, target);
 					if (!location) return;
 					const verbs = pickerVerbs({
-						canMove: !source.readOnly && !isSourceFolder(source, location),
+						canMove:
+							!source.readOnly && !isSourceFolder(source, location) && !isArchiveLocation(location),
 						canLink: canLink(source, location),
+						// An archive is made, or opened, in a folder that is not itself an archive.
+						canCompress: deps.archive !== undefined && !isArchiveLocation(location),
+						canExtract:
+							deps.archive !== undefined && !isArchiveLocation(location) && onlyArchives(source),
 					});
 					const handOver = done;
 					done = () => {};
@@ -791,8 +823,13 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 						what: subjectText(source),
 						target: { ...target, location },
 						verbs,
+						...(isArchiveLocation(location) ? { intoArchive: true } : {}),
 						choose: (verb) => {
-							void transferFiles(source, verb, location).finally(handOver);
+							const run =
+								verb === 'compress' || verb === 'extract'
+									? (deps.archive?.(verb, source, location) ?? Promise.resolve())
+									: transferFiles(source, verb, location);
+							void run.finally(handOver);
 						},
 						cancel: () => {
 							deps.announce(t('dnd.announce.pickerCancelled'));

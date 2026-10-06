@@ -10,6 +10,7 @@ import type { ListingSession } from '../browse/useListingSession';
 import { t, tf, tn } from '../i18n/messages';
 import { normaliseUri } from '../ops/clipboardRules';
 import type { FileCommandId } from '../ops/fileCommands';
+import { isArchiveLocation } from '../archives/archiveNames';
 import { errorText } from '../ops/jobText';
 import type { ListingHandle, Location, SelectionSpec } from '../services/opsClient';
 import type { DragPill } from './dragSession';
@@ -272,7 +273,8 @@ export function evaluateTarget(input: EvaluateInput): FileDropTarget {
 		volume,
 		modifiers,
 		rightButton: source.rightButton,
-		canMove: !source.readOnly,
+		// Nothing is moved into an archive: it is added to, and the originals stay (D170).
+		canMove: !source.readOnly && !(location && isArchiveLocation(location)),
 		canLink: input.canLink,
 		// This window's own drag coming back is known to be movable; anything else from outside is not.
 		foreign: source.external !== undefined && !source.external.own,

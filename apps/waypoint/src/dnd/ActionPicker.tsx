@@ -10,22 +10,23 @@ import { t, type MessageId } from '../i18n/messages';
 import { CloseSmallIcon } from '../icons/AppIcons';
 import { CopyToIcon, LinkIcon, MoveToIcon } from '../icons/MenuIcons';
 import type { PickerRequest } from './fileDrag';
-
-type Verb = PickerRequest['verbs'][number];
+import type { PickerVerb as Verb } from './dropAction';
 
 const ITEMS: Record<Verb, { label: MessageId; icon: () => ReactNode }> = {
 	copy: { label: 'dnd.picker.copy', icon: () => <CopyToIcon /> },
 	move: { label: 'dnd.picker.move', icon: () => <MoveToIcon /> },
 	link: { label: 'dnd.picker.link', icon: () => <LinkIcon /> },
+	compress: { label: 'dnd.picker.compress', icon: () => <CopyToIcon /> },
+	extract: { label: 'dnd.picker.extract', icon: () => <MoveToIcon /> },
 };
 
 /** The menu items for the verbs on offer, ending with Cancel. */
-export function pickerItems(verbs: readonly Verb[]): MenuItem[] {
+export function pickerItems(verbs: readonly Verb[], intoArchive = false): MenuItem[] {
 	return [
 		...verbs.map((verb): MenuItem => ({
 			type: 'action',
 			id: verb,
-			label: t(ITEMS[verb].label),
+			label: t(intoArchive && verb === 'copy' ? 'dnd.picker.add' : ITEMS[verb].label),
 			icon: ITEMS[verb].icon(),
 		})),
 		{ type: 'separator', id: 'picker-separator' },
@@ -48,7 +49,7 @@ export function ActionPicker({ request, onDone }: ActionPickerProps) {
 	const finished = useRef(false);
 	return (
 		<ContextMenu
-			items={pickerItems(request.verbs)}
+			items={pickerItems(request.verbs, request.intoArchive === true)}
 			position={request.position}
 			ariaLabel={t('dnd.picker.label')}
 			onSelect={(item) => {

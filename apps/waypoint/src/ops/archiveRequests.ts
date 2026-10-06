@@ -8,6 +8,7 @@ import type { ExtractLayout } from '@liminal-hq/waypoint-protocol/generated/Extr
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import type { PlanPreview } from '@liminal-hq/waypoint-protocol/generated/PlanPreview';
 import type { Location, JobRequest } from '../services/opsClient';
+import { archiveTopUri } from '../archives/archiveNames';
 import { opsErrorOf } from '../archives/askPassphrase';
 import { tn } from '../i18n/messages';
 
@@ -56,6 +57,25 @@ export function compressRequest(
 		options: NO_OPTIONS,
 		originWindow: windowLabel,
 		archive: { kind: 'compress', format },
+	};
+}
+
+/**
+ * Adds `sources` to the archive file `archive` (its top): a copy whose destination is the inside of
+ * the archive, which rewrites it (D170). `allowLarge` answers an `archiveLimit`.
+ */
+export function addRequest(
+	sources: readonly Location[],
+	archive: Location,
+	windowLabel: string,
+): JobRequest {
+	return {
+		kind: { kind: 'copy' },
+		sources: { kind: 'locations', locations: [...sources] },
+		destination: { display: archive.display, uri: archiveTopUri(archive) },
+		name: null,
+		options: NO_OPTIONS,
+		originWindow: windowLabel,
 	};
 }
 

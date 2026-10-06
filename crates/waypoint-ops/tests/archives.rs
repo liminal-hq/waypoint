@@ -1288,3 +1288,16 @@ fn a_new_folder_and_a_new_file_are_made_inside_an_archive() {
         let _ = (before, made);
     }
 }
+
+#[test]
+fn deleting_everything_leaves_an_empty_archive_that_still_opens() {
+    for format in ArchiveFormat::ALL {
+        let (mut h, _g) = archives();
+        let name = format!("pack{}", format.extension());
+        jbuild(&h, &small());
+        ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+        let run = h.run_journalled(edit_request(&h, JobKind::Delete, &name, &["src"], None));
+        ok(&run);
+        assert!(contents(&mut h, &name).is_empty(), "{format:?}");
+    }
+}

@@ -67,6 +67,8 @@ export class ListingModel {
 	private _error: VfsError | null = null;
 	/** What the listing's provider offers, which never changes for an open listing. */
 	readonly readOnly: boolean;
+	/** The provider writes nothing here but a change is made by rewriting the file that holds it: an archive that can be written (D170). */
+	readonly rewritable: boolean;
 	readonly layout: ListingLayout;
 
 	private entries = new Map<number, Entry>();
@@ -94,9 +96,14 @@ export class ListingModel {
 		this._filter = snapshot.filter;
 		this._groups = snapshot.groups;
 		this.readOnly = snapshot.readOnly;
+		this.rewritable = snapshot.rewritable === true;
 		this.layout = snapshot.layout;
 	}
 
+	/** Whether nothing can be dropped, pasted, created or renamed here: read only, and not an archive that can be rewritten. */
+	get blocksWrites(): boolean {
+		return this.readOnly && !this.rewritable;
+	}
 	get count(): number {
 		return this._count;
 	}
