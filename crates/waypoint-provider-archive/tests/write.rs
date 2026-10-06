@@ -338,3 +338,77 @@ fn a_view_of_an_archive_hears_that_the_file_was_rewritten() {
         .expect("a rewrite is noticed");
     assert!(matches!(event, WatchEvent::Rescan(_)), "{event:?}");
 }
+
+type Heard = std::sync::mpsc::Receiver<waypoint_vfs::WatchEvent>;
+
+fn watched(path: &Path) -> (Box<dyn waypoint_vfs::Watch>, Heard) {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let sender = std::sync::Mutex::new(sender);
+    let watch = provider()
+        .watch(
+            &top(path),
+            std::sync::Arc::new(move |event| {
+                let _ = sender.lock().unwrap().send(event);
+            }),
+        )
+        .unwrap();
+    (watch, receiver)
+}
+
+/// An edit replaces the archive in two steps with a gap between them (the old file goes to the
+/// Trash, then the new one is renamed in), so a view must follow the new file and not report the
+/// archive lost.
+#[test]
+fn a_view_follows_an_archive_replaced_after_a_gap() {
+    use waypoint_vfs::WatchEvent;
+    let dir = scratch();
+    let path = dir.path().join("replaced.zip");
+    let beside = dir.path().join("replacement.zip");
+    RawZip::new().file("a.txt", b"one").write(&path);
+    let (_watch, receiver) = watched(&path);
+    std::fs::remove_file(&path).unwrap();
+    // Longer than a poll of the file, shorter than the grace.
+    assert!(receiver
+        .recv_timeout(std::time::Duration::from_millis(2500))
+        .is_err());
+    RawZip::new().file("a.txt", b"one").write(&beside);
+    std::fs::rename(&beside, &path).unwrap();
+    let event = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("the replacement is noticed");
+    assert!(matches!(event, WatchEvent::Rescan(_)), "{event:?}");
+}
+
+#[test]
+fn a_view_hears_that_an_archive_is_gone_for_good() {
+    use waypoint_vfs::WatchEvent;
+    let dir = scratch();
+    let path = dir.path().join("gone.zip");
+    RawZip::new().file("a.txt", b"one").write(&path);
+    let (_watch, receiver) = watched(&path);
+    std::fs::remove_file(&path).unwrap();
+    let event = receiver
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .expect("a missing archive is reported");
+    assert!(matches!(event, WatchEvent::Lost(_)), "{event:?}");
+}
+
+/// A reader of the archive file (the listing, while it reads) must not stop the file being
+/// replaced: Windows refuses to rename over, or delete, a file opened without delete sharing.
+#[cfg(windows)]
+#[test]
+fn an_archive_that_is_open_for_reading_can_still_be_replaced() {
+    let dir = scratch();
+    let path = dir.path().join("held.zip");
+    let beside = dir.path().join("beside.zip");
+    RawZip::new().file("a.txt", b"one").write(&path);
+    RawZip::new()
+        .file("a.txt", b"one")
+        .file("b.txt", b"two")
+        .write(&beside);
+    let local = LocalProvider::new();
+    let _held = local.open_read(&file(&path)).unwrap();
+    local
+        .rename(&file(&beside), &file(&path), true)
+        .expect("a file open for reading is replaced");
+}
