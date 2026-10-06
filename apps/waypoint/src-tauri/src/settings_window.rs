@@ -7,6 +7,8 @@ use tauri::{
     AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
+use crate::dialog_window_state;
+
 /// The label `WindowKind::Settings` routes to `SettingsScreen`.
 pub const SETTINGS_LABEL: &str = "settings";
 
@@ -58,9 +60,11 @@ pub fn open<R: Runtime>(
         .transparent(true)
         .shadow(true)
         .visible(false)
+        .center()
         .build()
         .map_err(|e| e.to_string())?;
     window.show().map_err(|e| e.to_string())?;
+    dialog_window_state::restore_after_show(&window);
     let _ = window.set_focus();
     Ok(window)
 }
@@ -88,6 +92,7 @@ mod tests {
     #[test]
     fn opening_twice_gives_one_window() {
         let app = mock_builder()
+            .plugin(dialog_window_state::plugin(&[]))
             .build(mock_context(noop_assets()))
             .expect("the mock app builds");
         let first = open(app.handle(), None).expect("the window opens");

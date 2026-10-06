@@ -12,6 +12,8 @@ use tauri::{
 };
 use waypoint_protocol::Location;
 
+use crate::dialog_window_state;
+
 /// The most Properties windows open at once (D122).
 pub const MAX_WINDOWS: usize = 4;
 
@@ -119,9 +121,11 @@ fn build<R: Runtime>(app: &AppHandle<R>, label: &str) -> Result<WebviewWindow<R>
         .transparent(true)
         .shadow(true)
         .visible(false)
+        .center()
         .build()
         .map_err(|e| e.to_string())?;
     window.show().map_err(|e| e.to_string())?;
+    dialog_window_state::restore_after_show(&window);
     let _ = window.set_focus();
     Ok(window)
 }
@@ -307,6 +311,7 @@ mod tests {
     #[test]
     fn a_request_makes_a_window_and_the_same_request_focuses_it() {
         let app = mock_builder()
+            .plugin(dialog_window_state::plugin(&[]))
             .build(mock_context(noop_assets()))
             .expect("the mock app builds");
         let windows = PropertiesWindows::default();
