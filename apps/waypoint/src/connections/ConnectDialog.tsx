@@ -11,6 +11,7 @@ import type { ConnectionSupport } from '@liminal-hq/waypoint-protocol/generated/
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { SuggestedServer } from '@liminal-hq/waypoint-protocol/generated/SuggestedServer';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Ltr, Own, isolateLtr } from '../i18n/bidi';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { isVfsError } from '../services/vfsClient';
 import { connectAnswering, type Answered, type Ask } from './connectFlow';
@@ -411,7 +412,10 @@ export function ConnectDialog({
 			case 'connected': {
 				const tested = outcome.value;
 				const note = rememberedText(tested.remembered);
-				const text = [tf('connect.result.connected', { server: tested.location.display }), note]
+				const text = [
+					tf('connect.result.connected', { server: isolateLtr(tested.location.display) }),
+					note,
+				]
 					.filter(Boolean)
 					.join(' ');
 				announce(text);
@@ -526,6 +530,8 @@ export function ConnectDialog({
 	) => (
 		<input
 			id={id}
+			// A name is for people to read in their own language; the rest is addresses, paths and numbers.
+			dir={key === 'name' ? undefined : 'ltr'}
 			className={styles.input}
 			value={value}
 			disabled={working}
@@ -604,8 +610,12 @@ export function ConnectDialog({
 											aria-label={tf('connect.saved.edit', { name: entry.label })}
 											onClick={() => load(entry)}
 										>
-											<span className={styles.pickLabel}>{entry.label}</span>
-											<span className={styles.pickDetail}>{entry.location.display}</span>
+											<span className={styles.pickLabel}>
+												<Own>{entry.label}</Own>
+											</span>
+											<span className={styles.pickDetail}>
+												<Ltr>{entry.location.display}</Ltr>
+											</span>
 										</button>
 										<button
 											type="button"
@@ -640,6 +650,7 @@ export function ConnectDialog({
 							</label>
 							<input
 								id={ids.address}
+								dir="ltr"
 								className={styles.input}
 								value={address}
 								disabled={working}
@@ -666,6 +677,7 @@ export function ConnectDialog({
 								<>
 									<input
 										id={ids.host}
+										dir="ltr"
 										className={styles.input}
 										value={form.host}
 										disabled={working}
@@ -738,6 +750,7 @@ export function ConnectDialog({
 								'connect.field.share',
 								<input
 									id={ids.share}
+									dir="ltr"
 									className={styles.input}
 									value={form.startFolder.replace(/^\/+/, '')}
 									disabled={working}

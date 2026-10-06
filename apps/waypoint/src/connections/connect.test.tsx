@@ -83,6 +83,20 @@ describe('the Connect dialog', () => {
 		expect(client.calls.some((c) => c.method === 'test')).toBe(false);
 	});
 
+	it('keeps the address and the other server fields left to right in a right-to-left window', async () => {
+		document.documentElement.dir = 'rtl';
+		try {
+			const { dialog } = await setup();
+			for (const name of ['Address', 'Host', 'Port', 'User']) {
+				expect(field(dialog, name)).toHaveAttribute('dir', 'ltr');
+			}
+			// A name is for reading in the person's own language.
+			expect(field(dialog, /^Name/)).not.toHaveAttribute('dir');
+		} finally {
+			document.documentElement.dir = '';
+		}
+	});
+
 	it('says why a test failed and keeps every field', async () => {
 		const script: ConnectScript = () => ({ kind: 'unreachable', location: at, reason: 'refused' });
 		const { dialog } = await setup(new FakeConnectionsClient({ connect: script }));

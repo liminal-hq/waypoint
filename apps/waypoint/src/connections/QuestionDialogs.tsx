@@ -11,6 +11,7 @@ import type { KeyringUnavailable } from '@liminal-hq/waypoint-protocol/generated
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import { useId, useState, type FormEvent } from 'react';
 import { isArchiveLocation } from '../archives/archiveNames';
+import { Ltr, isolateLtr } from '../i18n/bidi';
 import { t, tf } from '../i18n/messages';
 import type { Answered } from './connectFlow';
 import { keyringText } from './connectModel';
@@ -55,7 +56,7 @@ export function QuestionDialog(props: QuestionProps) {
 
 /** Where the question is about, for its title. */
 function serverOf(error: VfsError): string {
-	return 'location' in error && error.location ? error.location.display : '';
+	return 'location' in error && error.location ? isolateLtr(error.location.display) : '';
 }
 
 /** "Remember" when the keyring answers, or the line saying why it cannot (D147). */
@@ -315,7 +316,7 @@ function HostKeyDialog({ error, onAnswer }: QuestionProps) {
 		<Dialog
 			open
 			size="medium"
-			title={tf('connect.hostKey.title', { host: key.host })}
+			title={tf('connect.hostKey.title', { host: isolateLtr(key.host) })}
 			description={t('connect.hostKey.description')}
 			initialFocus="[data-cancel]"
 			onClose={() => onAnswer(null)}
@@ -335,11 +336,15 @@ function HostKeyDialog({ error, onAnswer }: QuestionProps) {
 		>
 			<dl className={styles.facts}>
 				<dt>{t('connect.hostKey.host')}</dt>
-				<dd>{key.host}</dd>
+				<dd>
+					<Ltr>{key.host}</Ltr>
+				</dd>
 				<dt>{t('connect.hostKey.algorithm')}</dt>
 				<dd>{key.algorithm}</dd>
 				<dt>{t('connect.hostKey.fingerprint')}</dt>
-				<dd className={styles.fingerprint}>{key.fingerprint}</dd>
+				<dd className={styles.fingerprint}>
+					<Ltr>{key.fingerprint}</Ltr>
+				</dd>
 			</dl>
 		</Dialog>
 	);
@@ -357,7 +362,7 @@ function HostKeyChangedDialog({ error, onAnswer }: QuestionProps) {
 		<Dialog
 			open
 			size="medium"
-			title={tf('connect.hostKeyChanged.title', { host: change.host })}
+			title={tf('connect.hostKeyChanged.title', { host: isolateLtr(change.host) })}
 			description={t('connect.hostKeyChanged.description')}
 			initialFocus="[data-cancel]"
 			onClose={() => onAnswer(null)}
@@ -390,16 +395,22 @@ function HostKeyChangedDialog({ error, onAnswer }: QuestionProps) {
 			</p>
 			<dl className={styles.facts}>
 				<dt>{t('connect.hostKey.host')}</dt>
-				<dd>{change.host}</dd>
+				<dd>
+					<Ltr>{change.host}</Ltr>
+				</dd>
 				<dt>{t('connect.hostKeyChanged.recorded')}</dt>
 				<dd>
 					{change.recordedAlgorithm}{' '}
-					<span className={styles.fingerprint}>{change.recordedFingerprint}</span>
+					<span className={styles.fingerprint}>
+						<Ltr>{change.recordedFingerprint}</Ltr>
+					</span>
 				</dd>
 				<dt>{t('connect.hostKeyChanged.offered')}</dt>
 				<dd>
 					{change.offeredAlgorithm}{' '}
-					<span className={styles.fingerprint}>{change.offeredFingerprint}</span>
+					<span className={styles.fingerprint}>
+						<Ltr>{change.offeredFingerprint}</Ltr>
+					</span>
 				</dd>
 			</dl>
 		</Dialog>
@@ -439,13 +450,17 @@ function CertificateDialog({ error, onAnswer }: QuestionProps) {
 		>
 			<dl className={styles.facts}>
 				<dt>{t('connect.certificate.subject')}</dt>
-				<dd>{certificate.subject}</dd>
+				<dd>
+					<Ltr>{certificate.subject}</Ltr>
+				</dd>
 				<dt>{t('connect.certificate.issuer')}</dt>
 				<dd>{certificate.issuer}</dd>
 				<dt>{t('connect.certificate.reason')}</dt>
 				<dd>{certificate.reason}</dd>
 				<dt>{t('connect.hostKey.fingerprint')}</dt>
-				<dd className={styles.fingerprint}>{certificate.fingerprint}</dd>
+				<dd className={styles.fingerprint}>
+					<Ltr>{certificate.fingerprint}</Ltr>
+				</dd>
 			</dl>
 		</Dialog>
 	);

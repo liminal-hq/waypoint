@@ -23,6 +23,7 @@ import { useVfsClient } from '../browse/VfsClientContext';
 import { dropAttributes } from '../dnd/dropTargets';
 import { ChevronRightSmallIcon } from '../icons/AppIcons';
 import { endScrollLeft, isRtl } from '../i18n/direction';
+import { Own } from '../i18n/bidi';
 import { t, tf } from '../i18n/messages';
 import { toVfsError } from '../browse/listingModel';
 import { useLocationInfo } from './locationInfo';
@@ -123,7 +124,7 @@ function Breadcrumbs({ location, onEdit, onNavigate, onOpenInNewTab }: Breadcrum
 										onOpenInNewTab(segment.location, event.ctrlKey);
 									}}
 								>
-									{segment.label}
+									<Own>{segment.label}</Own>
 								</button>
 							</li>
 						);
@@ -226,6 +227,8 @@ function PathEditor({ location, onClose, onNavigate, onCommitted }: PathEditorPr
 		<form className={styles.bar} onSubmit={submit} onBlur={onBlur} noValidate>
 			<input
 				ref={field}
+				// A path or an address is left to right in any layout.
+				dir="ltr"
 				className={styles.input}
 				type="text"
 				spellCheck={false}
