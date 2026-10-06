@@ -1227,6 +1227,15 @@ mod connections {
     }
 
     #[test]
+    fn only_server_protocols_are_connectable() {
+        let all = vec!["archive", "dav", "davs", "git+file", "s3", "sftp", "smb"];
+        assert_eq!(
+            crate::connections::connectable(all),
+            ["dav", "davs", "s3", "sftp", "smb"]
+        );
+    }
+
+    #[test]
     fn a_protocol_turned_off_while_the_app_runs_says_so_and_turning_it_on_again_needs_no_restart() {
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
         let root = server.root("me@nas.lan");
