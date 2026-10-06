@@ -60,7 +60,7 @@ pub struct EnterEvent {
     pub uris: Vec<String>,
     pub position: Position,
     pub modifiers: Modifiers,
-    /// The action the drag has been negotiated to, where the platform reports one (GTK: the drag context's suggested action, kept to what the source offers). On Wayland the compositor chooses it from the keys it holds, which the app cannot read, so Shift reads as `move` here and nowhere else. `null` where nothing is reported (Windows, which reports modifiers instead) or the platform names no action a drop can take.
+    /// The action the drag has been negotiated to, where the platform reports one (GTK: on Wayland the drag context's selected action, which the compositor sets, and on X11 its suggested action, kept to what the source offers). On Wayland the compositor chooses it from the keys it holds, which the app cannot read, so Shift reads as `move` here and nowhere else. `null` where nothing is reported (Windows, which reports modifiers instead) or the platform names no action a drop can take.
     pub action: Option<DragAction>,
 }
 
