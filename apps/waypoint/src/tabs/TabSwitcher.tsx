@@ -6,7 +6,8 @@
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { createPortal } from 'react-dom';
 import { t } from '../i18n/messages';
-import { FolderTabIcon, PinIcon } from '../icons/AppIcons';
+import { PinIcon } from '../icons/AppIcons';
+import { FileIcon } from '../browse/FileIcon';
 import { useSwitcherWalk } from './mruSwitcher';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabTitle } from './tabTitle';
@@ -43,7 +44,7 @@ function SwitcherRow({ tab, candidate }: { tab: TabSnapshot; candidate: boolean 
 			data-candidate={candidate ? '' : undefined}
 			aria-current={candidate ? 'true' : undefined}
 		>
-			<FolderTabIcon className={styles.icon} />
+			<FileIcon group="folder" className={styles.icon} />
 			<span className={styles.title}>{title}</span>
 			{tab.pinned ? <PinIcon className={styles.pin} width={12} height={12} /> : null}
 		</li>

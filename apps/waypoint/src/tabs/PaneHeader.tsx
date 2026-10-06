@@ -6,7 +6,8 @@
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { PointerEvent } from 'react';
 import { t, tf } from '../i18n/messages';
-import { CloseSmallIcon, FolderTabIcon } from '../icons/AppIcons';
+import { CloseSmallIcon } from '../icons/AppIcons';
+import { FileIcon } from '../browse/FileIcon';
 import { GripIcon } from './PairIcons';
 import { useTabTitle } from './tabTitle';
 import styles from './PaneHeader.module.css';
@@ -37,7 +38,7 @@ export function PaneHeader({ tab, active, onClose, onGrip }: PaneHeaderProps) {
 			>
 				<GripIcon className={styles.grip} width={12} height={12} />
 			</span>
-			<FolderTabIcon className={styles.icon} width={14} height={14} />
+			<FileIcon group="folder" className={styles.icon} />
 			<span className={styles.title} title={tab.location.display}>
 				{title}
 			</span>
