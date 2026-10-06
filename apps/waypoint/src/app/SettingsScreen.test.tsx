@@ -1227,6 +1227,31 @@ describe('the Transparency page', () => {
 		expect(slider('Title bar and menu bar opacity')).toBeEnabled();
 	});
 
+	describe('with native context menus', () => {
+		const NOTE =
+			/Native context menus \(experimental\) use the system’s look and ignore this setting/;
+		const transparent = (nativeContextMenus: boolean) => ({
+			...DEFAULT_SETTINGS,
+			transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true, menus: true },
+			experimental: { ...DEFAULT_SETTINGS.experimental, nativeContextMenus },
+		});
+
+		it('says under both menu rows that they ignore the setting, and leaves the rows usable', async () => {
+			await open({ settings: transparent(true) });
+			await goTo('Transparency');
+			expect(screen.getAllByText(NOTE)).toHaveLength(2);
+			expect(screen.getByRole('switch', { name: /Translucent menus/ })).toBeEnabled();
+			expect(slider('Menu opacity')).toBeEnabled();
+		});
+
+		it('shows no note while they are off', async () => {
+			await open({ settings: transparent(false) });
+			await goTo('Transparency');
+			expect(screen.queryByText(NOTE)).toBeNull();
+			expect(slider('Menu opacity')).toBeEnabled();
+		});
+	});
+
 	it('previews the opacity while the slider is dragged and saves only when it is let go', async () => {
 		const { settings } = await open({
 			settings: {

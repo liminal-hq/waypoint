@@ -11,6 +11,7 @@ This is the structural architecture under the hood. `SPEC.md` and `docs/decision
 | `frontend.md`           | Front-end framework evaluation, the chosen stack and the front-end structure       |
 | `ci-cd.md`              | The CI/CD pipeline, following the Liminal HQ house conventions                     |
 | `remote-locations.md`   | The remote and virtual location contract: URIs, providers, credentials, transfers  |
+| `native-menus.md`       | Experimental native context menus: the seam, the command, the `muda` fork, risks   |
 | `decisions.md`          | Architecture decision log                                                          |
 
 ## 1. Where this comes from

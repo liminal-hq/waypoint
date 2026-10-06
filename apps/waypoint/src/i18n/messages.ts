@@ -527,6 +527,8 @@ export const enMessages = {
 	'settings.transparency.menus.label': 'Translucent menus',
 	'settings.transparency.menus.description':
 		'Context menus and the application menu show what is behind them, blurred.',
+	'settings.transparency.menus.nativeNote':
+		'Native context menus (experimental) use the system’s look and ignore this setting.',
 	'settings.transparency.menuOpacity.label': 'Menu opacity',
 	'settings.transparency.menuOpacity.description':
 		'Menus stay close to solid so their text is easy to read.',
@@ -2763,6 +2765,11 @@ export const enMessages = {
 	'settings.experimental.s3.label': 'S3',
 	'settings.experimental.s3.description': 'Browse S3 and S3-compatible storage.',
 	'settings.experimental.unavailable': 'Not in this build yet.',
+	'settings.group.menus': 'Menus',
+	// translator: “Native” means the operating system’s own, as opposed to Waypoint’s drawn-in-the-window menus.
+	'settings.experimental.nativeMenus.label': 'Native context menus',
+	'settings.experimental.nativeMenus.description':
+		'Open the right-click menus of the file list, sidebar, Trash and tabs as your system’s own menus, so they can reach past the edge of the window. They take the system’s look, so they ignore Waypoint’s theming and the menu transparency settings, and they have no blur, red for destructive items or tooltips. They may behave differently on Wayland. A menu the system cannot show as it is stays a Waypoint menu.',
 
 	// translator: A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.
 	'inspector.tab.git': 'Git',

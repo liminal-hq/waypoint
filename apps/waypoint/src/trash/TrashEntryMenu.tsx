@@ -3,9 +3,9 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import { t } from '../i18n/messages';
+import { HostedContextMenu } from '../menus/HostedContextMenu';
 import { RestoreIcon, TrashIcon } from '../icons/MenuIcons';
 
 /** The Trash item menu's items. An item cannot be opened, renamed or copied from here. */
@@ -41,7 +41,7 @@ export function TrashEntryMenu({
 	onClose,
 }: TrashEntryMenuProps) {
 	return (
-		<ContextMenu
+		<HostedContextMenu
 			items={trashEntryMenuItems()}
 			position={position}
 			ariaLabel={t('menu.entry.label')}

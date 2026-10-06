@@ -1909,6 +1909,11 @@
     "description": "Area: settings.",
     "source": "f3a31096"
   },
+  "settings.transparency.menus.nativeNote": {
+    "message": "Les menus contextuels natifs (expérimentaux) adoptent l’apparence du système et ignorent ce réglage.",
+    "description": "Area: settings.",
+    "source": "141948eb"
+  },
   "settings.transparency.menuOpacity.label": {
     "message": "Opacité des menus",
     "description": "Area: settings.",
@@ -12448,6 +12453,21 @@
     "message": "Pas encore dans cette version.",
     "description": "Area: settings.",
     "source": "011805aa"
+  },
+  "settings.group.menus": {
+    "message": "Menus",
+    "description": "Area: settings.",
+    "source": "93534e3e"
+  },
+  "settings.experimental.nativeMenus.label": {
+    "message": "Menus contextuels natifs",
+    "description": "Area: settings. “Native” means the operating system’s own, as opposed to Waypoint’s drawn-in-the-window menus.",
+    "source": "15dcaf0d"
+  },
+  "settings.experimental.nativeMenus.description": {
+    "message": "Ouvre les menus du clic droit de la liste de fichiers, de la barre latérale, de la corbeille et des onglets sous forme de menus propres à votre système, afin qu’ils puissent dépasser le bord de la fenêtre. Ils adoptent l’apparence du système : ils ignorent donc le thème de Waypoint et les réglages de transparence des menus, et n’ont ni flou, ni rouge pour les éléments destructeurs, ni info-bulles. Leur comportement peut différer sous Wayland. Un menu que le système ne peut pas afficher tel quel reste un menu de Waypoint.",
+    "description": "Area: settings.",
+    "source": "f7ce0830"
   },
   "inspector.tab.git": {
     "message": "Git",

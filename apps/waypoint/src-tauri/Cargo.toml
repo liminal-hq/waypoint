@@ -29,6 +29,10 @@ tauri-build = { workspace = true }
 
 [dependencies]
 tauri = { workspace = true }
+# The menu library `tauri` builds its menus with, named here only to set the size menu icons are
+# drawn at (`native_menu`). It must stay the same version as `tauri`'s so there is one copy, and the
+# workspace patches it to a fork that adds that setting (remove with the patch).
+muda = { version = "0.20", default-features = false }
 tauri-plugin-log = "2"
 tauri-plugin-os = "2"
 tauri-plugin-store = "2"

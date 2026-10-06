@@ -3,8 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
+import { HostedContextMenu } from '../menus/HostedContextMenu';
 import type { ReactNode } from 'react';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
@@ -295,7 +295,7 @@ export function BackgroundContextMenu({
 	});
 
 	return (
-		<ContextMenu
+		<HostedContextMenu
 			items={items}
 			position={position}
 			ariaLabel={t('menu.background.label')}

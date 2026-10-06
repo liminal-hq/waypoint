@@ -27,6 +27,8 @@ export interface OpenWithTarget {
 export interface OpenWithMenu {
 	/** The submenu to add to the entry menu, or `null` where Open With is not offered. */
 	item: SubmenuMenuItem | null;
+	/** The applications are still being read, so the submenu holds its placeholder row. */
+	loading: boolean;
 	/** Runs a chosen row; false when `id` is not one of the submenu's. */
 	select(id: string): boolean;
 }
@@ -114,5 +116,5 @@ export function useOpenWithMenu(
 		[read, client, chooser],
 	);
 
-	return { item, select };
+	return { item, select, loading: item !== null && read.state === 'loading' };
 }

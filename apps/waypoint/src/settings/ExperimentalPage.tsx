@@ -1,4 +1,4 @@
-// The Experimental page: one switch per remote protocol, each off until it is turned on
+// The Experimental page: a switch per remote protocol and one for native context menus, each off until it is turned on
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -7,11 +7,10 @@ import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/Setting
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { t, type MessageId } from '../i18n/messages';
-import type { Settings } from '../services/settingsClient';
 import styles from './ExperimentalPage.module.css';
 import { useSettingsEditor, type RowKey } from './SettingsEditor';
 
-type Switch = keyof Settings['experimental'];
+type Switch = 'sftp' | 'smb' | 'webdav' | 's3';
 
 interface ProtocolRow {
 	switch: Switch;
@@ -92,6 +91,25 @@ export function ExperimentalPage() {
 						}
 					/>
 				))}
+			</SettingsGroup>
+			<SettingsGroup title={t('settings.group.menus')}>
+				<ToggleRow
+					label={
+						<>
+							{t('settings.experimental.nativeMenus.label')}
+							<span className={styles.badge}>{t('settings.experimental.badge')}</span>
+						</>
+					}
+					description={t('settings.experimental.nativeMenus.description')}
+					error={errors.nativeContextMenus}
+					checked={settings.experimental.nativeContextMenus}
+					onChange={(value) =>
+						changeSettings('nativeContextMenus', (s) => ({
+							...s,
+							experimental: { ...s.experimental, nativeContextMenus: value },
+						}))
+					}
+				/>
 			</SettingsGroup>
 		</SettingsSection>
 	);

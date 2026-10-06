@@ -1,0 +1,76 @@
+# Native context menus (experimental)
+
+Status: **proposed** (2026-10-06) · an experiment behind Settings → Experimental → Native context menus, off by default · decisions D196 in [`../decisions.md`](../decisions.md) and A146 in [`decisions.md`](decisions.md) · **nothing here has been seen on screen yet**: the code and its tests were written without being able to run the app, so every platform claim below is a hypothesis until the [spike checklist](#6-spike-checklist) is done.
+
+Waypoint draws its context menus in the page, so a menu is clipped by the window: near the right or bottom edge it is pushed back inside (`clampToViewport`), and it can never hang past the window onto the desktop. A system menu can. This experiment lets a person choose the system's own menu for the plain context menus of the file browser, and leaves everything else as it is.
+
+## 1. Scope
+
+| Native when the setting is on (and the items convert)                     | Always the page's own menu                                                                                    |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| The file list's entry menu and empty-space menu, in the list and the grid | The title bar, the menu bar, the app menu and the window menu                                                 |
+| The sidebar item menus (places, favourites, folders, Trash)               | The menus a button opens: Back and Forward history, the panel toggles, the Action bar                         |
+| The Trash item menu and the Trash's empty-space menu                      | The + button's menu, the list's column header menu, group, pair and workspace menus, the Network list's menus |
+| The tab's right-click menu                                                | The Shelf's menu and the drop action picker, which belong to a drag in progress                               |
+
+Open With is a submenu of the entry menu. Its applications are read when the menu opens, so the page holds the menu for up to 400 ms (`NATIVE_SETTLE_MS`) for them to arrive, then shows it natively with their names and no application icons (an application's icon is an image, not a glyph). If they have not arrived in that time, that menu is the page's own and fills in as the applications are read. The Open With chooser dialog is unchanged.
+
+## 2. The seam
+
+Every native-eligible call site renders `HostedContextMenu` (`apps/waypoint/src/menus`) where it rendered `ContextMenu`. It takes the same props. Everything that decides what a menu holds and what a choice does (the item builders, `onSelect`, the item ids) is unchanged, so the in-page menu behaves exactly as before and every existing menu test passes with the setting off.
+
+With the setting on, in a `main-*` window on Linux or Windows, `HostedContextMenu`:
+
+1. rasterises the icons (`menuIconRaster.ts`): each SVG glyph is rendered in a hidden stage so it takes the styles and the menu text colour it has in a menu, serialised as a stand-alone SVG, drawn on a canvas at 16 logical pixels times the device pixel ratio (at most 64 pixels a side) and read back as RGBA, then cached by icon, colour, scale and icon style. Anything that is not an SVG (an application's image, a colour swatch) has no picture and its row has no icon;
+2. converts the items (`nativeMenu.ts`) to a serialisable description, or finds a reason it cannot (nothing to choose, more than 200 items, submenus nested more than 3 deep, an id longer than 256 characters) and keeps the page's menu;
+3. calls the app command `show_native_menu(items, at)` with the position of the click or, for a menu opened with the Menu key or Shift+F10, of the focused row's anchor: the same viewport coordinates the page's menu takes, which are the window-relative logical coordinates the popup wants;
+4. on an answer, runs the same `onSelect` with the same item the page's menu would have passed, then `onClose`; on a dismissal, runs `onClose`; and when the host goes away it puts the focus back where it was, as the page's menu does.
+
+A menu is never lost. If the preparation takes longer than 1.5 s, the items do not convert, or the command rejects, the page's menu opens instead; after a rejection the window keeps to its own menus until it reloads. `Esc` and a click outside are the system's own.
+
+### What a native menu cannot show
+
+The converter keeps the choices and drops what the system menu cannot draw: `danger` (no red for destructive items), `title` (no tooltips, so the reason a row is disabled is not shown), `ariaLabel`, the page's blur, translucency and theming, and the icons of checkboxes and submenus (neither can carry one, which includes the colour swatches of the tab menu's Colour submenu: the colour names stay with a check mark on the current one). A section heading ("Sort by") becomes a disabled item, because the system has no heading. There is no radio item: the sort and group choices stay checkboxes, as in the model. Items are fixed once the menu is up, so nothing can change while it is open.
+
+A shortcut is passed on and shown only on Windows, where a menu item draws it as right-aligned accelerator text; a GTK 3 popup has no accelerator group and shows none.
+
+## 3. The command
+
+`show_native_menu` (`apps/waypoint/src-tauri/src/native_menu.rs`) is an app command, not a plugin, because it has no reuse beyond Waypoint's window kinds and needs no state beyond a registry. It:
+
+- accepts only a `main-*` window as the caller, and nothing it is given is trusted: the description is checked against the limits above plus a text length of 256 characters, icon edges of 1 to 64 pixels, icon bytes that fill the size, 1 MiB of icon bytes in all and a finite position within 100,000 pixels;
+- gives every call a token and every item an id made from the token and its place in the menu (`wpnm-<token>-<n>`), and keeps the page's own ids on its side; a `MenuEvent` is delivered through the event loop, so a late event from an earlier menu finds no registered token and is dropped, and one menu is up at a time (a second call answers "dismissed");
+- builds a `tauri::menu::Menu` (`MenuItem`, `IconMenuItem`, `CheckMenuItem`, `Submenu`, separators; a label's `&` is doubled so it is not a mnemonic), pops it up on a blocking worker with `popup_at`, and keeps it alive until a main-thread task posted after the popup returns has run, which orders it after the choice's event;
+- answers with the page's id of the chosen item, or `None` when dismissed, and fails when the menu closed within 40 ms without a choice, which is how a popup that never really showed (tauri#13608, GTK 3 on Wayland) is told apart from a dismissal.
+
+## 4. The `muda` fork
+
+`tauri::menu` is `muda`. Native menus need two things it lacks: on GTK 3 an icon is drawn at 16 pixels whatever the screen's scale, and on Windows a bitmap is drawn at a fixed 16 physical pixels whatever the screen's scale. The fork `ScottMorris/tauri-muda`, branch `waypoint/menu-icons-gtk`, adds `muda::set_default_menu_icon_size(Option<u32>)` (the app calls it once with 16, logical, and the fork scales it) and `muda::gtk_style::{set_css, set_menu_css_class, …}` for GTK 3 theming; the app does not use the second. The workspace patches `muda` to the fork's pinned commit (`[patch.crates-io]` in the root `Cargo.toml`) and `apps/waypoint/src-tauri` names `muda` at the same version as `tauri`'s, `0.20`, so there is one copy. The changes are additive. The plan is to propose them upstream, and when they are in a release to remove the patch and the direct dependency, and with it the icon-size call if the default has become scale-aware.
+
+## 5. Risks and limits
+
+- **Wayland and GTK 3.** A GTK 3 popup needs the compositor's pointer grab, and a menu opened from a click that has already been consumed can close at once (tauri#13608). The 40 ms rule turns that into the page's menu, but a popup that is shown in the wrong place, or flickers, is not caught.
+- **Windows.** `TrackPopupMenu` in a frameless, transparent window with a custom frame has not been tried here: the position, the menu's own shadow, and whether the window keeps its focus appearance are unknown. In a right-to-left layout the menu opens at the same point and takes the system's direction for its own layout; Waypoint does not mirror it.
+- **The main thread.** The popup blocks the thread that shows it (a Win32 modal loop, or a nested GTK main loop) while it is up. The command runs it on a blocking worker and Tauri hands the popup to the main thread, so events that thread would handle (a listing arriving, a job's progress) wait until the menu closes. Rust still owns state, so nothing is lost, but the page is not repainted meanwhile.
+- **Accessibility is unverified.** The system's menus are accessible to the platform's assistive technology (UI Automation, AT-SPI), but nothing here has been tried with Narrator or Orca, and the page's ARIA is not involved: its name (`ariaLabel`) is not passed on.
+- **Tooling.** The vitest suite and the MCP bridge see the page, not a native menu, so a native menu cannot be driven or screenshotted by them: tests use a fake client for the command, and the on-screen behaviour is checked by hand.
+- **The look.** A native menu takes the system's look: no Waypoint theme, translucency or blur, no red destructive item, no tooltips. The Transparency page says so next to "Translucent menus" and "Menu opacity" when the setting is on, and does not disable them.
+
+## 6. Spike checklist
+
+Done by hand on **Windows 11** and on **KDE Plasma and GNOME, both on Wayland** (X11 where it is available), with Settings → Experimental → Native context menus on. Record what is seen in the decision's row, and turn the experiment off or fix it if a "must" fails.
+
+- [ ] **Appears at the pointer.** Right-click a file, the empty space of a folder, a sidebar item, a Trash item and a tab: the menu opens with its top-left corner at the pointer (must), at 100 % and 200 % scale (Windows), at 100 %, 150 % and 200 % (Wayland).
+- [ ] **Hangs past the window.** Right-click near the window's right and bottom edges, and with the window at a monitor's edge: the menu reaches beyond the window onto the desktop and flips to stay on the screen (must).
+- [ ] **Two monitors.** With the window on the second monitor, and the monitors at different scales, the menu opens on the right monitor at the pointer and at the right size.
+- [ ] **Look.** Light and dark mode, and a high-contrast theme: the menu is legible, the icons are the right colour and size and not blurred, and a checked item shows its check.
+- [ ] **Right-to-left.** Language Arabic (`ar-XB` in a development build): the menu follows the system's direction and the page does not break.
+- [ ] **Selection.** Right-click an unselected entry: it is selected first and the menu acts on it. Right-click a selected one in a multiple selection: the selection is kept. Choosing every kind of item (an action, a checkbox, a submenu's item, a disabled one, Open With) does the same as the page's menu.
+- [ ] **Closing.** `Esc`, a click outside, a click on another row, a right-click on another row, `Alt+Tab` away and a click on the title bar close it with nothing run (must). The focus goes back to the list, the sidebar item or the tab.
+- [ ] **Rapid use.** Open and close the menu 20 times in a row, right-click twice quickly in different places, and right-click while a job's progress is updating: no menu is lost, none is stuck open, and one never answers for another.
+- [ ] **Events after close.** After a choice, nothing runs twice, and a choice made in a menu that was closed (a late event) does nothing.
+- [ ] **Keyboard.** The Menu key and `Shift+F10` on a focused row and on a focused tab open the menu at the row's anchor, the arrow keys, `Enter` and `Esc` work in it, and the focus returns.
+- [ ] **Fallbacks.** On a system where the popup closes at once (GTK 3 on Wayland, tauri#13608), the page's menu opens instead (must), and the console says why.
+- [ ] **The rest is unchanged.** The title bar, the menus a button opens, the Shelf and the drop action picker are still the page's.
+- [ ] **Narrator or Orca.** The menu is announced with its items, state and shortcuts.
+- [ ] **A main window that is busy.** With a large folder loading, the menu still opens promptly and closes without a stall.

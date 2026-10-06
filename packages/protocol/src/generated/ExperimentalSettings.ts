@@ -3,6 +3,8 @@
 /**
  * The Experimental page: one switch per remote protocol, each off until it is turned on (D167).
  * A protocol that is off has no provider registered, so nothing connects, listens or reads a
- * credential for it, and its addresses fail with a reason that points here.
+ * credential for it, and its addresses fail with a reason that points here. `native_context_menus`
+ * is the one switch that is not a protocol: it makes the file list, sidebar, Trash and tab menus
+ * open as the system's own menus, which can hang past the window's edge (D196).
  */
-export type ExperimentalSettings = { sftp: boolean, smb: boolean, webdav: boolean, s3: boolean, };
+export type ExperimentalSettings = { sftp: boolean, smb: boolean, webdav: boolean, s3: boolean, nativeContextMenus: boolean, };

@@ -12,6 +12,7 @@ import { SliderRow } from '@liminal-hq/waypoint-chrome/SettingsShell/SliderRow';
 import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { useMemo, useState } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
+import { useNativeContextMenusSetting } from '../menus/nativeMenuSetting';
 import { MENU_OPACITY_MIN, OPACITY_MAX, OPACITY_MIN } from '../services/settingsClient';
 import {
 	effectiveAlphas,
@@ -90,6 +91,7 @@ type OpacityKey = (typeof OPACITY_ROWS)[number]['key'];
 export function TransparencyPage() {
 	const { settings, windowEffects, errors, changeSettings } = useSettingsEditor();
 	const transparency = settings.transparency;
+	const nativeMenus = useNativeContextMenusSetting();
 	const colours = useSurfaceColours();
 	const reason = useRootData('transparencyReason');
 	// The values a slider holds while it is dragged, before they are saved.
@@ -289,7 +291,14 @@ export function TransparencyPage() {
 			<SettingsGroup title={t('settings.group.transparencyMenus')}>
 				<ToggleRow
 					label={t('settings.transparency.menus.label')}
-					description={t('settings.transparency.menus.description')}
+					description={
+						<>
+							{t('settings.transparency.menus.description')}
+							{nativeMenus && (
+								<span className={styles.note}>{t('settings.transparency.menus.nativeNote')}</span>
+							)}
+						</>
+					}
 					error={errors.menus}
 					checked={transparency.menus}
 					disabled={off}
@@ -299,7 +308,14 @@ export function TransparencyPage() {
 				/>
 				<SliderRow
 					label={t('settings.transparency.menuOpacity.label')}
-					description={t('settings.transparency.menuOpacity.description')}
+					description={
+						<>
+							{t('settings.transparency.menuOpacity.description')}
+							{nativeMenus && (
+								<span className={styles.note}>{t('settings.transparency.menus.nativeNote')}</span>
+							)}
+						</>
+					}
 					error={errors.menuOpacity}
 					value={transparency.menuOpacity}
 					min={MENU_OPACITY_MIN}

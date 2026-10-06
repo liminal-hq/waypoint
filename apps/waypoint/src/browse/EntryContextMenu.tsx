@@ -3,12 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuItem, SubmenuMenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { isArchiveEntry } from '../archives/archiveNames';
 import { t } from '../i18n/messages';
+import { HostedContextMenu } from '../menus/HostedContextMenu';
 import { PropertiesIcon } from '../inspector/InspectorIcons';
 import { useOpenWithMenu } from '../openWith/useOpenWithMenu';
 import { useShelfActions } from '../shelf/ShelfContext';
@@ -457,9 +457,10 @@ export function EntryContextMenu({
 	const openWith = useOpenWithMenu({ session, entry, handle });
 	const items = entryMenuItems(entry, commands, batchRename, openWith.item, propertiesWindow);
 	return (
-		<ContextMenu
+		<HostedContextMenu
 			items={items}
 			position={position}
+			settling={openWith.loading}
 			ariaLabel={t('menu.entry.label')}
 			openedWithKeyboard={keyboard}
 			onClose={onClose}
