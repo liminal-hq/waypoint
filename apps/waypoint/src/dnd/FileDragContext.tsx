@@ -10,6 +10,7 @@ import {
 	useMemo,
 	useRef,
 	useState,
+	useSyncExternalStore,
 	type ReactNode,
 } from 'react';
 import { frameMargin, outsideVisibleWindow } from '../app/frameMargin';
@@ -30,6 +31,8 @@ import { useSettings } from '../settings/SettingsContext';
 import { useShelfActions } from '../shelf/ShelfContext';
 import { useTrashActions } from '../trash/trashJobs';
 import { announce } from '../tabs/announcer';
+import type { Edge } from '../tabs/dragLayout';
+import { canOpenInSplit, openInSplit } from '../tabs/openInSplit';
 import { useSeparateSession, useTabDragSession } from '../tabs/TabDragContext';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
 import { ActionPicker } from './ActionPicker';
@@ -41,7 +44,8 @@ import {
 	type LocationsDragPress,
 	type PickerRequest,
 } from './fileDrag';
-import { isLocationsSource } from './fileDragModel';
+import { isLocationsSource, type FileDragSource, type FileDropTarget } from './fileDragModel';
+import type { DragSession } from './dragSession';
 import { connectNativeDnd } from './nativeDndHost';
 import { openFolders } from './openFolders';
 import './dropTargets.css';
@@ -56,6 +60,33 @@ export interface FileDragApi {
 }
 
 const FileDragContext = createContext<FileDragApi | null>(null);
+/** The window's file drag session, for what draws it (the split zones); set by `FileDragProvider`. */
+export const FileDragSessionContext = createContext<DragSession<
+	FileDragSource,
+	FileDropTarget
+> | null>(null);
+
+const NEVER_SUBSCRIBE = () => () => {};
+const NO_ZONE = () => null;
+
+/**
+ * The split zone a file drag is over (a place dragged from the sidebar, or a folder dragged with
+ * Alt held), or `null`: the pane area draws the zones from it, as it does for a dragged tab.
+ */
+export function useFileDragZone(): Edge | null {
+	const session = useContext(FileDragSessionContext);
+	return useSyncExternalStore(
+		session ? session.store.subscribe : NEVER_SUBSCRIBE,
+		session
+			? () => {
+					const state = session.store.getState();
+					return state.phase === 'dragging' && state.target?.outcome === 'split'
+						? (state.target.edge ?? null)
+						: null;
+				}
+			: NO_ZONE,
+	);
+}
 
 /** The file drag, or `null` outside a provider (a view on its own, with no window around it). */
 export function useFileDragApi(): FileDragApi | null {
@@ -192,6 +223,14 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 					console.warn('could not open the dropped folders', error);
 					void showNotice(t('dnd.open.failed'));
 				}),
+			canSplit: () => canOpenInSplit(now().snapshot),
+			openInSplit: async (location, edge) => {
+				await openInSplit(
+					{ api: now().api, snapshot: () => now().snapshot, announce },
+					location,
+					edge,
+				);
+			},
 			openPicker: setPicker,
 			trashAvailable: () => now().trash !== null,
 			serverName: (login) => serverLabel(now().connections, login),
@@ -258,9 +297,11 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 
 	return (
 		<FileDragContext.Provider value={value}>
-			{children}
-			<DragStack session={drag.session} />
-			{picker && <ActionPicker request={picker} onDone={() => setPicker(null)} />}
+			<FileDragSessionContext.Provider value={drag.session}>
+				{children}
+				<DragStack session={drag.session} />
+				{picker && <ActionPicker request={picker} onDone={() => setPicker(null)} />}
+			</FileDragSessionContext.Provider>
 		</FileDragContext.Provider>
 	);
 }

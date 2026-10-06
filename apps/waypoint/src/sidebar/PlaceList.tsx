@@ -8,6 +8,7 @@ import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKin
 import type { SpecialFolder } from '@liminal-hq/waypoint-protocol/generated/SpecialFolder';
 import type { TrashInfo } from '@liminal-hq/waypoint-protocol/generated/TrashInfo';
 import { FileIcon } from '../browse/FileIcon';
+import { useFileDragApi } from '../dnd/FileDragContext';
 import type { GitBadge } from '../services/gitClient';
 import { t, tn, type MessageId } from '../i18n/messages';
 import { HomeIcon } from '../icons/AppIcons';
@@ -58,6 +59,7 @@ export function PlaceList({
 	trash = null,
 	gitBadges,
 }: PlaceListProps) {
+	const drag = useFileDragApi();
 	return (
 		<ul className={styles.list} onKeyDown={moveFocusInList}>
 			{places.map((place) => {
@@ -82,8 +84,11 @@ export function PlaceList({
 									location: place.location,
 									label,
 								},
-								// Overview is a page, so nothing is dropped on it.
-								{ droppable: place.kind !== 'overview' },
+								// Overview is a page, so nothing is dropped on it, and neither it nor the Trash is dragged to a pane.
+								{
+									droppable: place.kind !== 'overview',
+									drag: place.kind === 'overview' ? null : drag,
+								},
 							)}
 						>
 							{place.kind === 'overview' ? (

@@ -28,6 +28,7 @@ const OUTCOMES = [
 	'ask',
 	'trash',
 	'open',
+	'split',
 	'shelf',
 ] as const satisfies readonly DropOutcome[];
 type Missing = Exclude<DropOutcome, (typeof OUTCOMES)[number]>;

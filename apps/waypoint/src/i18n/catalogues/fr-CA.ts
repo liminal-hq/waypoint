@@ -1352,6 +1352,8 @@ const messages: Catalogue = {
 	'dnd.pill.openTabs': 'Ouvrir dans de nouveaux onglets',
 	// source: ab0222cc
 	'dnd.pill.openSplit': 'Ouvrir dans une paire divisée',
+	// source: c215b550
+	'dnd.pill.openPane': 'Ouvrir {what} dans un nouveau panneau {edge}',
 	// source: e28fda3c
 	'dnd.pill.openInGroup': 'Ouvrir dans un nouvel onglet de {target}',
 	// source: 7bb8ab98
@@ -1372,6 +1374,10 @@ const messages: Catalogue = {
 	'dnd.blocked.shelfSource': 'les éléments de l’Étagère vont dans des dossiers',
 	// source: b3390913
 	'dnd.blocked.onShelf': 'ces éléments sont déjà sur l’Étagère',
+	// source: 76b42b2f
+	'dnd.blocked.alreadySplit': 'cet onglet est déjà divisé',
+	// source: 7f808173
+	'dnd.target.fileArea': 'la zone des fichiers',
 	// source: cd2d06ba
 	'dnd.blocked.unavailable': 'la Corbeille n’est pas disponible',
 	// source: a4ba81b6
@@ -1402,6 +1408,9 @@ const messages: Catalogue = {
 	'dnd.announce.across': 'Au-dessus de {target} sur {server} : action prévue, copier',
 	// source: 35d3078f
 	'dnd.announce.blocked': 'Au-dessus de {target} : non autorisé, {reason}',
+	// source: 7adc4570
+	'dnd.announce.overSplit':
+		'Au-dessus de la zone de division {edge} : action prévue, ouvrir {what} dans un nouveau panneau',
 	// source: 76fa68e4
 	'dnd.announce.sprungFolder': '{target} ouvert',
 	// source: 4f7a4a81
@@ -1559,6 +1568,13 @@ const messages: Catalogue = {
 	'pair.announce.separated': 'Séparés : {titles}',
 	// source: 88a3b6e3
 	'pair.announce.duplicateFailed': 'La division n’a pas pu être dupliquée',
+	// source: 461716f9
+	'pair.announce.splitUnavailable':
+		'Impossible d’ouvrir dans un nouveau panneau : cet onglet est déjà divisé',
+	// source: eb066e99
+	'pair.announce.openedSplit': '{title} ouvert dans un nouveau panneau',
+	// source: 30d20b34
+	'pair.announce.splitFailed': '{title} n’a pas pu être ouvert dans un nouveau panneau',
 	// source: 9b45e1ba
 	'pair.announce.closedPane': 'Panneau {title} de la division fermé',
 	// source: 8456f39e
@@ -1797,6 +1813,8 @@ const messages: Catalogue = {
 	'menu.openInNewTab': 'Ouvrir dans un nouvel onglet',
 	// source: e8e0ccba
 	'menu.openInNewWindow': 'Ouvrir dans une nouvelle fenêtre',
+	// source: a034eb91
+	'menu.openInSplit': 'Ouvrir dans un panneau divisé',
 	// source: e7d0eeb7
 	'menu.openWith': 'Ouvrir avec',
 	// source: 0e026918

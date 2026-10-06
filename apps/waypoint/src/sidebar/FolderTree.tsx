@@ -16,6 +16,7 @@ import {
 } from 'react';
 import { TypeAheadBuffer } from '../browse/typeAhead';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { useFileDragApi } from '../dnd/FileDragContext';
 import { FileIcon } from '../browse/FileIcon';
 import { inlineKey, isRtl } from '../i18n/direction';
 import { tf, t } from '../i18n/messages';
@@ -53,6 +54,7 @@ interface FolderTreeProps {
 
 export function FolderTree({ location, showHidden, actions }: FolderTreeProps) {
 	const client = useVfsClient();
+	const drag = useFileDragApi();
 	const store = useSidebarStore();
 	const expanded = useSidebarState((state) => state.expanded);
 	const info = useLocationInfo(client, location);
@@ -146,11 +148,11 @@ export function FolderTree({ location, showHidden, actions }: FolderTreeProps) {
 	};
 
 	const renderRow = (row: TreeRow) => {
-		const gestures = itemGestures(actions, {
-			kind: 'folder',
-			location: row.location,
-			label: row.name,
-		});
+		const gestures = itemGestures(
+			actions,
+			{ kind: 'folder', location: row.location, label: row.name },
+			{ drag },
+		);
 		return (
 			<div
 				key={row.key}

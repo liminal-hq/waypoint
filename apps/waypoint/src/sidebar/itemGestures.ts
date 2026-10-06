@@ -5,7 +5,9 @@
 
 import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
-import type { KeyboardEvent, MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
+import { modifiersOf } from '../dnd/dropAction';
+import type { FileDragApi } from '../dnd/FileDragContext';
 import { dropAttributes } from '../dnd/dropTargets';
 
 export type ItemKind = 'place' | 'trash' | 'favourite' | 'folder';
@@ -34,6 +36,7 @@ export interface ItemGestureProps {
 	[dropAttribute: `data-drop${string}`]: string | undefined;
 	onClick(event: MouseEvent<HTMLElement>): void;
 	onMouseDown(event: MouseEvent<HTMLElement>): void;
+	onPointerDown(event: PointerEvent<HTMLElement>): void;
 	onAuxClick(event: MouseEvent<HTMLElement>): void;
 	onContextMenu(event: MouseEvent<HTMLElement>): void;
 	onKeyDown(event: KeyboardEvent<HTMLElement>): void;
@@ -43,8 +46,20 @@ export interface ItemGestureProps {
 export function itemGestures(
 	actions: ItemActions,
 	item: { kind: ItemKind; location: Location; label: string },
-	{ droppable = true }: { droppable?: boolean } = {},
+	{
+		droppable = true,
+		drag = null,
+	}: {
+		droppable?: boolean;
+		/**
+		 * The window's file drag, which makes the item draggable: dropped on a split zone of the file
+		 * area it opens in a new pane. Only a place or a tree folder is (the Trash is not a folder to
+		 * open, and a favourite already uses the platform's drag to reorder).
+		 */
+		drag?: FileDragApi | null;
+	} = {},
 ): ItemGestureProps {
+	const draggable = drag !== null && (item.kind === 'place' || item.kind === 'folder');
 	const menu = (element: HTMLElement, position: MenuPosition, keyboard: boolean) =>
 		actions.openMenu({ ...item, position, keyboard, returnFocus: element });
 	return {
@@ -52,8 +67,26 @@ export function itemGestures(
 			? dropAttributes(item.kind === 'trash' ? 'trash' : 'place', item.location.uri, item.label)
 			: {}),
 		onClick: (event) => {
+			// The click that ends a drag is not a click.
+			if (drag?.consumeClick()) return;
 			// A click with the middle button is reported by `auxclick`, never here; Ctrl-click has no meaning yet.
 			if (event.button === 0) actions.open(item.location);
+		},
+		onPointerDown: (event) => {
+			if (!draggable || event.button !== 0) return;
+			drag.pressLocations({
+				pointerId: event.pointerId,
+				clientX: event.clientX,
+				clientY: event.clientY,
+				button: 0,
+				element: event.currentTarget,
+				locations: [item.location],
+				name: item.label,
+				groups: ['folder'],
+				folder: null,
+				modifiers: modifiersOf(event.nativeEvent),
+				place: true,
+			});
 		},
 		// Stops the middle button starting autoscroll on Linux before `auxclick` arrives.
 		onMouseDown: (event) => {

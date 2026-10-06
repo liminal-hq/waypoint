@@ -83,6 +83,20 @@ describe('opening an archive', () => {
 		expect(snapshot.tabs.find((tab) => tab.id === snapshot.active)?.location.uri).toBe(HOME.uri);
 	});
 
+	it('opens it in a pane beside this one from Open in Split Pane, as a folder does', async () => {
+		const client = treeWithArchive();
+		const tabs = new FakeTabsApi();
+		await renderWorkspace(client, tabs, undefined, {
+			archives: new FakeArchiveClient(),
+			ops: createFakeOpsClient(),
+		});
+		fireEvent.contextMenu(await screen.findByText('pack.zip'));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Open in Split Pane' }));
+		await waitFor(async () => expect((await tabs.getSnapshot()).pairs).toHaveLength(1));
+		const snapshot = await tabs.getSnapshot();
+		expect(snapshot.tabs.some((tab) => tab.location.uri === PACK.uri)).toBe(true);
+	});
+
 	it('opens it in a new tab with the middle button, as a folder does', async () => {
 		const client = treeWithArchive();
 		const tabs = new FakeTabsApi();
@@ -189,8 +203,9 @@ describe('a locked archive', () => {
 		const dialog = await screen.findByRole('dialog', { name: /pack\.zip/ });
 		fireEvent.change(within(dialog).getByLabelText('Passphrase'), { target: { value: 'x' } });
 		fireEvent.click(within(dialog).getByRole('button', { name: 'Sign In' }));
-		// Shown under the button and read out through the live region.
-		expect((await screen.findAllByText('archives in this build')).length).toBeGreaterThanOrEqual(2);
+		// Shown under the button and read out through the live region. The live region ends a message with a
+		// zero-width character on every second announcement, so the text is matched, not compared whole.
+		expect((await screen.findAllByText(/archives in this build/)).length).toBeGreaterThanOrEqual(2);
 		expect(screen.getByRole('heading', { name: 'pack.zip is locked' })).toBeVisible();
 	});
 

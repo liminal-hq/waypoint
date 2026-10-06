@@ -12,6 +12,7 @@ import {
 	EditIcon,
 	FolderOpenIcon,
 	NewTabIcon,
+	SplitPaneIcon,
 	StarOffIcon,
 	TrashIcon,
 	WindowIcon,
@@ -22,6 +23,8 @@ import type { ItemMenuRequest } from './itemGestures';
 export interface MenuActions {
 	open(location: Location): void;
 	openInNewTab(location: Location, inNewWindow?: boolean): void;
+	/** Opens the folder in a new pane beside the one on show. */
+	openInSplit(location: Location): void;
 	startRename(location: Location): void;
 	remove(location: Location): void;
 	move(location: Location, by: number): void;
@@ -64,6 +67,17 @@ export function sidebarMenuItems(
 	const items: MenuItem[] = [
 		{ type: 'action', id: 'open', label: t('menu.open'), icon: <FolderOpenIcon /> },
 		{ type: 'action', id: 'openInNewTab', label: t('menu.openInNewTab'), icon: <NewTabIcon /> },
+		// The Trash is not a folder to open beside another: it has its own view.
+		...(kind === 'trash'
+			? []
+			: [
+					{
+						type: 'action' as const,
+						id: 'openInSplit',
+						label: t('menu.openInSplit'),
+						icon: <SplitPaneIcon />,
+					},
+				]),
 		{
 			type: 'action',
 			id: 'openInNewWindow',
@@ -163,6 +177,8 @@ export function SidebarMenu({
 						return actions.open(location);
 					case 'openInNewTab':
 						return actions.openInNewTab(location);
+					case 'openInSplit':
+						return actions.openInSplit(location);
 					case 'openInNewWindow':
 						return actions.openInNewTab(location, true);
 					case 'rename':

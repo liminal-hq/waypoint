@@ -42,6 +42,8 @@ export interface EntryOpeners {
 	 * window when `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
 	 */
 	openInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
+	/** The menu's Open in Split Pane: a folder or an archive opens in a new pane beside the one on show; anything else does nothing. */
+	openInSplit: (entry: Entry, handle: ListingHandle) => void;
 	/** Puts the entry's path, as Rust displays it, on the clipboard. */
 	copyPath: (entry: Entry, handle: ListingHandle) => void;
 	/** Pins a folder to the Favourites; anything else does nothing. */
@@ -61,7 +63,7 @@ export function useOpenEntry(
 	const addFavourite = useAddFavourite();
 	const tabs = useTabActions();
 	const { goTo } = navigation;
-	const { openInBackground } = tabs;
+	const { openInBackground, openInSplit } = tabs;
 	const { openInNewWindow } = useWindowActions();
 	return useMemo(() => {
 		const fail = (entry: Entry, action: EntryAction) => (error: unknown) => {
@@ -92,6 +94,15 @@ export function useOpenEntry(
 						: null;
 				location?.then(inNewWindow ? openInNewWindow : openInBackground, fail(entry, 'open'));
 			},
+			openInSplit: (entry, handle) => {
+				// An archive opens like a folder, so it splits the way it opens in a new tab.
+				const location = isFolder(entry)
+					? client.entryLocation(handle, entry.id)
+					: isArchiveEntry(entry)
+						? archiveOf(entry, handle)
+						: null;
+				location?.then((resolved) => openInSplit(resolved), fail(entry, 'open'));
+			},
 			copyPath: (entry, handle) => {
 				client
 					.entryLocation(handle, entry.id)
@@ -103,5 +114,5 @@ export function useOpenEntry(
 				client.entryLocation(handle, entry.id).then(addFavourite).catch(fail(entry, 'favourite'));
 			},
 		};
-	}, [client, addFavourite, goTo, openInBackground, openInNewWindow, onFailure]);
+	}, [client, addFavourite, goTo, openInBackground, openInSplit, openInNewWindow, onFailure]);
 }

@@ -641,6 +641,7 @@ function WorkspaceBody({
 												onClose={() => setMenu(null)}
 												onOpen={menu.openers.open}
 												onOpenInNewTab={menu.openers.openInNewTab}
+												onOpenInSplit={menu.openers.openInSplit}
 												onCopyPath={menu.openers.copyPath}
 												session={menu.session}
 												onAddToFavourites={menu.openers.addToFavourites}

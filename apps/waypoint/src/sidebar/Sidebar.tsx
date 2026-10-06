@@ -142,7 +142,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const trashInfo = useTrashInfo(useTrashClient());
 	const trashActions = useTrashActions();
 	const navigation = useNavigation();
-	const { openInBackground } = useTabActions();
+	const { openInBackground, openInSplit } = useTabActions();
 	const { openInNewWindow } = useWindowActions();
 	const openInNewTab = useCallback(
 		(location: Location, inNewWindow = false) =>
@@ -262,6 +262,7 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 		() => ({
 			open: goTo,
 			openInNewTab,
+			openInSplit: (location: Location) => openInSplit(location),
 			startRename: (location: Location) => setRenaming(location.uri),
 			remove: (location: Location) => void source.remove(location).catch(fail),
 			move: (location: Location, by: number) => {
@@ -271,7 +272,17 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 			add: (location: Location) => void source.add(location).catch(fail),
 			emptyTrash: () => trashActions?.emptyTrash(trashInfo?.count ?? 0),
 		}),
-		[goTo, openInNewTab, source, favourites, move, fail, trashActions, trashInfo?.count],
+		[
+			goTo,
+			openInNewTab,
+			openInSplit,
+			source,
+			favourites,
+			move,
+			fail,
+			trashActions,
+			trashInfo?.count,
+		],
 	);
 
 	const failWorkspace = useCallback(
