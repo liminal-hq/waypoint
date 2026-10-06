@@ -9098,6 +9098,7 @@ name = "waypoint-provider-archive"
 version = "0.1.0"
 dependencies = [
  "bzip2",
+ "chrono",
  "flate2",
  "log",
  "lzma-rust2 0.21.0",
