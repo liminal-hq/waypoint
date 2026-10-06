@@ -29,11 +29,18 @@ interface ThemeRootProps {
 	osPalette?: OsPaletteClient;
 	/** Whether the platform can make windows see-through: the window effects plugin's `opacity` feature unless supplied. */
 	opacityAvailable?: () => Promise<boolean>;
+	/** Whether the platform can blur behind windows: the window effects plugin's `blur`, `mica` or `acrylic` feature unless supplied. */
+	blurAvailable?: () => Promise<boolean>;
 	children: ReactNode;
 }
 
 async function pluginOpacityAvailable(): Promise<boolean> {
 	return hasFeature(await windowEffectsStatus(), 'opacity');
+}
+
+async function pluginBlurAvailable(): Promise<boolean> {
+	const status = await windowEffectsStatus();
+	return hasFeature(status, 'blur') || hasFeature(status, 'mica') || hasFeature(status, 'acrylic');
 }
 
 /** Whether this window is in front: the document's focus, followed through the window's own events. */
@@ -71,7 +78,14 @@ function hasFinePointer(): boolean {
  * until the first answer) and the OS preferences, and writes the result on the root so no media
  * query is the only signal (A58). It renders its children untouched.
  */
-export function ThemeRoot({ client, os, osPalette, opacityAvailable, children }: ThemeRootProps) {
+export function ThemeRoot({
+	client,
+	os,
+	osPalette,
+	opacityAvailable,
+	blurAvailable,
+	children,
+}: ThemeRootProps) {
 	const [settingsClient] = useState(() => client ?? createTauriSettingsClient());
 	const [source] = useState(
 		() => os ?? pluginOsAppearance(createTauriOsAppearanceClient(), webOsAppearance()),
@@ -82,6 +96,7 @@ export function ThemeRoot({ client, os, osPalette, opacityAvailable, children }:
 	const [touchPointer, setTouchPointer] = useState(false);
 	const [osVersion, setOsVersion] = useState(0);
 	const [canBeSeeThrough, setCanBeSeeThrough] = useState<boolean | null>(null);
+	const [canBlur, setCanBlur] = useState<boolean | null>(null);
 	const inFront = useWindowInFront();
 
 	// What the platform can do decides whether transparency may draw at all (A60): until it has
@@ -96,6 +111,18 @@ export function ThemeRoot({ client, os, osPalette, opacityAvailable, children }:
 			live = false;
 		};
 	}, [opacityAvailable]);
+
+	// A blur is only in force where the platform can draw one, so a saved `high` does not take over the opacities elsewhere.
+	useEffect(() => {
+		let live = true;
+		(blurAvailable ?? pluginBlurAvailable)().then(
+			(available) => live && setCanBlur(available),
+			() => live && setCanBlur(false),
+		);
+		return () => {
+			live = false;
+		};
+	}, [blurAvailable]);
 
 	useEffect(() => {
 		let live = true;
@@ -157,6 +184,7 @@ export function ThemeRoot({ client, os, osPalette, opacityAvailable, children }:
 			hasFinePointer: hasFinePointer(),
 			focused: inFront,
 			opacityAvailable: canBeSeeThrough,
+			blurAvailable: canBlur,
 			palette,
 		});
 		applyAppearance(root, look);
@@ -167,7 +195,7 @@ export function ThemeRoot({ client, os, osPalette, opacityAvailable, children }:
 		});
 		// After the attributes, so the floor is worked out from the colours of the scheme now in force.
 		applyTransparency(root, look.transparency === 'on', settings.transparency);
-	}, [settings, source, touchPointer, osVersion, inFront, canBeSeeThrough, palette]);
+	}, [settings, source, touchPointer, osVersion, inFront, canBeSeeThrough, canBlur, palette]);
 
 	return <>{children}</>;
 }

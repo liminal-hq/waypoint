@@ -1131,6 +1131,34 @@ describe('the Transparency page', () => {
 		expect(screen.getByText(/Off while High blur is on/)).toBeInTheDocument();
 	});
 
+	it('leaves the sliders and the unfocused switch alone when a saved High blur cannot be drawn here', async () => {
+		await open({
+			effects: gnomeEffects(),
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: {
+					...DEFAULT_SETTINGS.transparency,
+					enabled: true,
+					blur: 'high',
+					regions: { sidebar: true, content: true, titleBar: true },
+				},
+			},
+		});
+		await goTo('Transparency');
+		expect(screen.getByText(/Blur is not available here/)).toBeInTheDocument();
+		for (const name of [
+			'Title bar and menu bar opacity',
+			'Tabs and toolbar opacity',
+			'Sidebar opacity',
+			'File area opacity',
+		]) {
+			expect(slider(name), name).toBeEnabled();
+			expect(slider(name), name).not.toHaveValue('40');
+		}
+		expect(screen.queryByText(/High blur is on/)).toBeNull();
+		expect(screen.getByRole('switch', { name: /Solid when not in front/ })).toBeEnabled();
+	});
+
 	it('gives the sliders back their own values, and the unfocused switch its own, when the blur goes Off', async () => {
 		const { settings } = await open({
 			effects: kdeEffects(),

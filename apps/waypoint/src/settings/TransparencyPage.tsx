@@ -13,7 +13,13 @@ import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { useMemo, useState } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { MENU_OPACITY_MIN, OPACITY_MAX, OPACITY_MIN } from '../services/settingsClient';
-import { effectiveAlphas, BLUR_OPACITY, blurShows, type Region } from '../theme/transparency';
+import {
+	effectiveAlphas,
+	BLUR_OPACITY,
+	blurInForce,
+	blurShows,
+	type Region,
+} from '../theme/transparency';
 import { useRootData, useSurfaceColours } from './rootLook';
 import { useSettingsEditor } from './SettingsEditor';
 import styles from './TransparencyPage.module.css';
@@ -90,6 +96,15 @@ export function TransparencyPage() {
 	const [drag, setDrag] = useState<Partial<Record<OpacityKey, number>>>({});
 	const [dragMenuOpacity, setDragMenuOpacity] = useState<number | null>(null);
 
+	const known = windowEffects !== null;
+	const blurFeature =
+		known &&
+		(hasFeature(windowEffects, 'blur') ||
+			hasFeature(windowEffects, 'mica') ||
+			hasFeature(windowEffects, 'acrylic'));
+	// A saved level only counts where the system can blur; elsewhere the parts keep their own opacities.
+	const blur = blurInForce(transparency.blur, blurFeature);
+
 	const effective = useMemo(
 		() =>
 			effectiveAlphas(
@@ -98,25 +113,19 @@ export function TransparencyPage() {
 					rowsOpacity: drag.rowsOpacity ?? transparency.rowsOpacity,
 					sidebarOpacity: drag.sidebarOpacity ?? transparency.sidebarOpacity,
 					contentOpacity: drag.contentOpacity ?? transparency.contentOpacity,
-					blur: transparency.blur,
+					blur,
 					regions: transparency.regions,
 					menus: transparency.menus,
 					menuOpacity: dragMenuOpacity ?? transparency.menuOpacity,
 				},
 				colours,
 			),
-		[drag, dragMenuOpacity, transparency, colours],
+		[drag, dragMenuOpacity, transparency, blur, colours],
 	);
 	// While the blur shows, the parts of the window are drawn at `BLUR_OPACITY` and their own opacity and the switch that draws an unfocused window solid wait.
-	const blurred = blurShows(transparency.blur);
+	const blurred = blurShows(blur);
 
-	const known = windowEffects !== null;
 	const canBeSeeThrough = known && hasFeature(windowEffects, 'opacity');
-	const blurFeature =
-		known &&
-		(hasFeature(windowEffects, 'blur') ||
-			hasFeature(windowEffects, 'mica') ||
-			hasFeature(windowEffects, 'acrylic'));
 	// Where windows are not translucent by default, the effect is the compositor's and WebKitGTK's to get right.
 	const experimental =
 		known && windowEffects.flavour !== 'windows' && windowEffects.flavour !== 'unsupported';

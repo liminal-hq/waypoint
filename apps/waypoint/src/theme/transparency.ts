@@ -106,6 +106,14 @@ export interface TransparencyInput {
  */
 export const BLUR_OPACITY = 40;
 
+/**
+ * The blur that counts: the saved level where the system can draw a blur behind the window, and Off where it cannot
+ * (or has not said yet), so a saved `high` neither takes over the opacities nor locks the sliders.
+ */
+export function blurInForce(blur: BlurLevel, available: boolean | null | undefined): BlurLevel {
+	return available ? blur : 'off';
+}
+
 /** Whether a blur is being drawn behind the window, which takes over the opacity of its parts and keeps the window from drawing solid when it is not in front. */
 export function blurShows(blur: BlurLevel): boolean {
 	return blur === 'high';

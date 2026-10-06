@@ -11,6 +11,7 @@ import {
 	BACKDROP_UNDER_DARK,
 	BACKDROP_UNDER_LIGHT,
 	BLUR_OPACITY,
+	blurInForce,
 	blurShows,
 	effectiveAlphas,
 	FALLBACK_FLOOR,
@@ -255,6 +256,14 @@ describe('transparencyState', () => {
 });
 
 describe('the blur', () => {
+	it('counts only where the system can blur, whatever level is saved', () => {
+		expect(blurInForce('high', true)).toBe('high');
+		expect(blurInForce('high', false)).toBe('off');
+		expect(blurInForce('high', null)).toBe('off');
+		expect(blurInForce('high', undefined)).toBe('off');
+		expect(blurInForce('off', true)).toBe('off');
+	});
+
 	it('shows only when it is High, and takes the four parts to the least opacity the settings allow', () => {
 		expect(blurShows('off')).toBe(false);
 		expect(blurShows('high')).toBe(true);
