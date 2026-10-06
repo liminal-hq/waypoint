@@ -60,6 +60,7 @@ export function applyTransparency(
 			rowsOpacity: settings.rowsOpacity,
 			sidebarOpacity: settings.sidebarOpacity,
 			contentOpacity: settings.contentOpacity,
+			blur: settings.blur,
 			regions: settings.regions,
 			menus: settings.menus,
 			menuOpacity: settings.menuOpacity,

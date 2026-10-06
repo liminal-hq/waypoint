@@ -53,7 +53,7 @@ describe('transparencyAtDefaults', () => {
 			{ rowsOpacity: 91 },
 			{ sidebarOpacity: 95 },
 			{ contentOpacity: 97 },
-			{ blur: 'off' as const },
+			{ blur: 'high' as const },
 			{ menus: true },
 			{ menuOpacity: 95 },
 			{ solidWhenUnfocused: false },

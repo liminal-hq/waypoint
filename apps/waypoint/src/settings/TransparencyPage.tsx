@@ -13,7 +13,7 @@ import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
 import { useMemo, useState } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { MENU_OPACITY_MIN, OPACITY_MAX, OPACITY_MIN } from '../services/settingsClient';
-import { effectiveAlphas, type Region } from '../theme/transparency';
+import { effectiveAlphas, BLUR_OPACITY, blurShows, type Region } from '../theme/transparency';
 import { useRootData, useSurfaceColours } from './rootLook';
 import { useSettingsEditor } from './SettingsEditor';
 import styles from './TransparencyPage.module.css';
@@ -98,6 +98,7 @@ export function TransparencyPage() {
 					rowsOpacity: drag.rowsOpacity ?? transparency.rowsOpacity,
 					sidebarOpacity: drag.sidebarOpacity ?? transparency.sidebarOpacity,
 					contentOpacity: drag.contentOpacity ?? transparency.contentOpacity,
+					blur: transparency.blur,
 					regions: transparency.regions,
 					menus: transparency.menus,
 					menuOpacity: dragMenuOpacity ?? transparency.menuOpacity,
@@ -106,6 +107,8 @@ export function TransparencyPage() {
 			),
 		[drag, dragMenuOpacity, transparency, colours],
 	);
+	// While the blur shows, the parts of the window are drawn at `BLUR_OPACITY` and their own opacity and the switch that draws an unfocused window solid wait.
+	const blurred = blurShows(transparency.blur);
 
 	const known = windowEffects !== null;
 	const canBeSeeThrough = known && hasFeature(windowEffects, 'opacity');
@@ -189,7 +192,6 @@ export function TransparencyPage() {
 						disabled={off}
 						options={[
 							{ value: 'off', label: t('settings.transparency.blur.off') },
-							{ value: 'low', label: t('settings.transparency.blur.low') },
 							{ value: 'high', label: t('settings.transparency.blur.high') },
 						]}
 						onChange={(blur) =>
@@ -210,6 +212,11 @@ export function TransparencyPage() {
 						description={
 							<>
 								{t(description)}
+								{blurred && (
+									<span className={styles.note}>
+										{tf('settings.transparency.opacity.byBlur', { percent: BLUR_OPACITY })}
+									</span>
+								)}
 								{effective.raised[region] && (
 									<span className={styles.note}>
 										{tf('settings.transparency.opacity.raised', {
@@ -220,11 +227,11 @@ export function TransparencyPage() {
 							</>
 						}
 						error={errors[row]}
-						value={transparency[key]}
+						value={blurred ? BLUR_OPACITY : transparency[key]}
 						min={OPACITY_MIN}
 						max={OPACITY_MAX}
 						unit={t('settings.transparency.opacity.unit')}
-						disabled={off || (switchedBy !== null && !transparency.regions[switchedBy])}
+						disabled={off || blurred || (switchedBy !== null && !transparency.regions[switchedBy])}
 						onInput={(value) => setDrag((current) => ({ ...current, [key]: value }))}
 						onChange={(value) => {
 							setDrag((current) => ({ ...current, [key]: undefined }));
@@ -247,10 +254,17 @@ export function TransparencyPage() {
 					<ToggleRow
 						key={region}
 						label={t(`settings.transparency.regions.${region}.label`)}
-						description={t(`settings.transparency.regions.${region}.description`)}
+						description={
+							<>
+								{t(`settings.transparency.regions.${region}.description`)}
+								{blurred && (
+									<span className={styles.note}>{t('settings.transparency.regions.byBlur')}</span>
+								)}
+							</>
+						}
 						error={errors[key]}
-						checked={transparency.regions[region]}
-						disabled={off}
+						checked={transparency.regions[region] || blurred}
+						disabled={off || blurred}
 						onChange={(value) =>
 							changeSettings(key, (s) => ({
 								...s,
@@ -299,19 +313,24 @@ export function TransparencyPage() {
 					description={
 						<>
 							{t('settings.transparency.solidUnfocused.description')}
+							{blurred && (
+								<span className={styles.note}>
+									{t('settings.transparency.solidUnfocused.byBlur')}
+								</span>
+							)}
 							{/* Always laid out, so the note appearing never moves the rows below it. */}
 							<span
 								className={styles.reservedNote}
 								role="status"
-								data-active={transparency.solidWhenUnfocused && reason === 'unfocused'}
+								data-active={transparency.solidWhenUnfocused && !blurred && reason === 'unfocused'}
 							>
 								{t('settings.transparency.off.unfocused')}
 							</span>
 						</>
 					}
 					error={errors.solidUnfocused}
-					checked={transparency.solidWhenUnfocused}
-					disabled={off}
+					checked={transparency.solidWhenUnfocused && !blurred}
+					disabled={off || blurred}
 					onChange={(solidWhenUnfocused) =>
 						changeSettings('solidUnfocused', (s) => ({
 							...s,

@@ -4,18 +4,23 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
+import type { BlurLevel } from '@liminal-hq/waypoint-protocol/generated/BlurLevel';
 import { contrastRatio, parseHex, TEXT_CONTRAST } from './accent';
 import {
 	alphaFloor,
 	BACKDROP_UNDER_DARK,
 	BACKDROP_UNDER_LIGHT,
+	BLUR_OPACITY,
+	blurShows,
 	effectiveAlphas,
 	FALLBACK_FLOOR,
 	NO_SURFACE_COLOURS,
 	requestedAlphas,
 	transparencyState,
 	type SurfaceColours,
+	type TransparencyInput,
 } from './transparency';
+import { OPACITY_MIN } from '../services/settingsClient';
 
 const LIGHT: SurfaceColours = {
 	text: '#211d1a',
@@ -34,11 +39,12 @@ const DARK: SurfaceColours = {
 	menu: '#292524',
 };
 const regions = { sidebar: true, content: false, titleBar: true };
-const input = {
+const input: TransparencyInput = {
 	opacity: 82,
 	rowsOpacity: 90,
 	sidebarOpacity: 94,
 	contentOpacity: 98,
+	blur: 'off',
 	regions,
 	menus: false,
 	menuOpacity: 96,
@@ -197,6 +203,7 @@ describe('transparencyState', () => {
 		available: true,
 		focused: true,
 		solidWhenUnfocused: true,
+		blur: 'off' as BlurLevel,
 	};
 
 	it('is on when it is asked for and nothing stands in the way', () => {
@@ -237,5 +244,53 @@ describe('transparencyState', () => {
 			reason: 'unfocused',
 		});
 		expect(transparencyState({ ...base, focused: false, solidWhenUnfocused: false }).on).toBe(true);
+	});
+
+	it('keeps drawing translucent while the blur shows, whatever the solid setting says', () => {
+		expect(transparencyState({ ...base, focused: false, blur: 'high' })).toEqual({
+			on: true,
+			reason: null,
+		});
+	});
+});
+
+describe('the blur', () => {
+	it('shows only when it is High, and takes the four parts to the least opacity the settings allow', () => {
+		expect(blurShows('off')).toBe(false);
+		expect(blurShows('high')).toBe(true);
+		expect(BLUR_OPACITY).toBe(OPACITY_MIN);
+		const all = { ...input, regions: { sidebar: true, content: true, titleBar: true } };
+		expect(requestedAlphas({ ...all, blur: 'high' })).toEqual({
+			titleBar: 0.4,
+			rows: 0.4,
+			sidebar: 0.4,
+			content: 0.4,
+			menu: 1,
+		});
+		// Off leaves every part at its own opacity.
+		expect(requestedAlphas({ ...all, blur: 'off' }).titleBar).toBe(0.82);
+	});
+
+	it('leaves the menus at their own opacity, and makes a part whose switch is off translucent too', () => {
+		const menus = requestedAlphas({ ...input, blur: 'high', menus: true, menuOpacity: 80 });
+		expect(menus.menu).toBe(0.8);
+		// The file area's switch is off in `input`'s regions, and the blur is behind it all the same.
+		expect(menus.content).toBe(0.4);
+		// Off puts it back to solid.
+		expect(requestedAlphas({ ...input, blur: 'off' }).content).toBe(1);
+		const none = { sidebar: false, content: false, titleBar: false };
+		expect(requestedAlphas({ ...input, blur: 'high', regions: none })).toMatchObject({
+			titleBar: 0.4,
+			rows: 0.4,
+			sidebar: 0.4,
+			content: 0.4,
+		});
+	});
+
+	it('still lifts a part to the contrast floor', () => {
+		const lit = effectiveAlphas({ ...input, blur: 'high' }, NO_SURFACE_COLOURS);
+		expect(lit.requested.titleBar).toBe(0.4);
+		expect(lit.alphas.titleBar).toBe(FALLBACK_FLOOR);
+		expect(lit.raised.titleBar).toBe(true);
 	});
 });

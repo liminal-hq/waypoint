@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { BlurLevel } from '@liminal-hq/waypoint-protocol/generated/BlurLevel';
 import type { TransparencyRegions } from '@liminal-hq/waypoint-protocol/generated/TransparencyRegions';
 import { luminance, parseHex, TEXT_CONTRAST } from './accent';
 
@@ -88,10 +89,26 @@ export interface TransparencyInput {
 	sidebarOpacity: number;
 	/** The file area's opacity in percent (40 to 100). */
 	contentOpacity: number;
+	/** The blur behind the window. `high` draws the four parts above at `BLUR_OPACITY` so it shows. */
+	blur: BlurLevel;
 	regions: TransparencyRegions;
 	menus: boolean;
 	/** The menus' opacity in percent (60 to 100). */
 	menuOpacity: number;
+}
+
+/**
+ * The opacity, in percent, that the title bar, the tabs and toolbar, the sidebar and the file area
+ * are drawn at while the blur is on: the least the settings allow, so the blur behind the window
+ * shows through instead of being covered by their own opacity. Their sliders and their switches
+ * keep what the person set and are dimmed meanwhile (the switches read as on: the blur is behind
+ * every part); the contrast floor still lifts any part whose text would not read.
+ */
+export const BLUR_OPACITY = 40;
+
+/** Whether a blur is being drawn behind the window, which takes over the opacity of its parts and keeps the window from drawing solid when it is not in front. */
+export function blurShows(blur: BlurLevel): boolean {
+	return blur === 'high';
 }
 
 export interface EffectiveTransparency {
@@ -111,14 +128,19 @@ const hundredths = (value: number): number => Math.round(clamp01(value) * 100) /
 /**
  * What each part of the window would be at the person's settings, before the contrast floor: its
  * own opacity, or solid when its switch is off. The tabs and toolbar follow the title bar's switch.
+ * With the blur on, the four parts are all translucent whatever their switches say, at `BLUR_OPACITY`.
  */
 export function requestedAlphas(input: TransparencyInput): RegionAlphas {
 	const own = (percent: number): number => hundredths(percent / 100);
+	const blurred = blurShows(input.blur);
+	// The menus keep their own switch and opacity.
+	const part = (on: boolean, percent: number): number =>
+		blurred || on ? own(blurred ? BLUR_OPACITY : percent) : 1;
 	return {
-		titleBar: input.regions.titleBar ? own(input.opacity) : 1,
-		rows: input.regions.titleBar ? own(input.rowsOpacity) : 1,
-		sidebar: input.regions.sidebar ? own(input.sidebarOpacity) : 1,
-		content: input.regions.content ? own(input.contentOpacity) : 1,
+		titleBar: part(input.regions.titleBar, input.opacity),
+		rows: part(input.regions.titleBar, input.rowsOpacity),
+		sidebar: part(input.regions.sidebar, input.sidebarOpacity),
+		content: part(input.regions.content, input.contentOpacity),
 		menu: input.menus ? own(input.menuOpacity) : 1,
 	};
 }
@@ -171,11 +193,15 @@ export function transparencyState(input: {
 	available: boolean | null;
 	focused: boolean;
 	solidWhenUnfocused: boolean;
+	/** The blur behind the window; while it shows, a window that is not in front keeps drawing translucent. */
+	blur: BlurLevel;
 }): { on: boolean; reason: TransparencyOffReason } {
 	if (!input.enabled) return { on: false, reason: null };
 	if (input.highContrast) return { on: false, reason: 'high-contrast' };
 	if (input.reducedTransparency) return { on: false, reason: 'reduced-transparency' };
 	if (input.available !== true) return { on: false, reason: 'unavailable' };
-	if (input.solidWhenUnfocused && !input.focused) return { on: false, reason: 'unfocused' };
+	if (input.solidWhenUnfocused && !blurShows(input.blur) && !input.focused) {
+		return { on: false, reason: 'unfocused' };
+	}
 	return { on: true, reason: null };
 }

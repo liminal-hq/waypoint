@@ -285,15 +285,33 @@ pub struct AppearanceSettings {
     pub match_system_colours: bool,
 }
 
-/// How strongly the background shows through behind the window.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+/// Whether a blur is put behind the window, where the system can. There is one strength: on Linux the
+/// compositors have no other, and on Windows the quieter material (Mica) only tints the window with the
+/// wallpaper and shows no blur at all, so a "low" the settings once stored reads as `High`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
 pub enum BlurLevel {
-    Off,
     #[default]
-    Low,
+    Off,
     High,
+}
+
+impl<'de> Deserialize<'de> for BlurLevel {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        /// What the settings file may hold, `low` included.
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        enum Stored {
+            Off,
+            Low,
+            High,
+        }
+        Ok(match Stored::deserialize(deserializer)? {
+            Stored::Off => BlurLevel::Off,
+            Stored::Low | Stored::High => BlurLevel::High,
+        })
+    }
 }
 
 /// Which parts of the window are translucent.
@@ -348,7 +366,7 @@ impl Default for TransparencySettings {
             rows_opacity: 90,
             sidebar_opacity: 94,
             content_opacity: 98,
-            blur: BlurLevel::Low,
+            blur: BlurLevel::Off,
             regions: TransparencyRegions::default(),
             menus: false,
             menu_opacity: 96,
@@ -900,6 +918,7 @@ mod tests {
         assert_eq!(s.appearance.density, Density::Comfortable);
         assert!(!s.transparency.enabled);
         assert_eq!(s.transparency.opacity, 82);
+        assert_eq!(s.transparency.blur, BlurLevel::Off);
         assert!(s.transparency.solid_when_unfocused);
         assert_eq!(s.accessibility.text_size, 100);
         assert_eq!(s.accessibility.touch_mode, TouchMode::Auto);
@@ -1126,6 +1145,21 @@ mod tests {
         assert_eq!(old.transparency.sidebar_opacity, 94);
         assert_eq!(old.transparency.content_opacity, 98);
         assert_eq!(old.validate(), Ok(()));
+    }
+
+    #[test]
+    fn a_stored_low_blur_reads_as_the_one_blur_and_is_written_back_as_high() {
+        let low: Settings = serde_json::from_str(r#"{"transparency":{"blur":"low"}}"#).unwrap();
+        assert_eq!(low.transparency.blur, BlurLevel::High);
+        let high: Settings = serde_json::from_str(r#"{"transparency":{"blur":"high"}}"#).unwrap();
+        assert_eq!(high.transparency.blur, BlurLevel::High);
+        let off: Settings = serde_json::from_str(r#"{"transparency":{"blur":"off"}}"#).unwrap();
+        assert_eq!(off.transparency.blur, BlurLevel::Off);
+        assert_eq!(
+            serde_json::to_value(low.transparency).unwrap()["blur"],
+            "high"
+        );
+        assert!(serde_json::from_str::<Settings>(r#"{"transparency":{"blur":"medium"}}"#).is_err());
     }
 
     #[test]

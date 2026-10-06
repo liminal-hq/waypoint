@@ -1774,6 +1774,11 @@
     "description": "Area: settings. Placeholders, kept exactly as written: {percent} is a percentage, a number without the % sign.",
     "source": "b43a26ec"
   },
+  "settings.transparency.opacity.byBlur": {
+    "message": "Le flou Élevé est activé : cette partie est dessinée à {percent} % pour laisser voir le flou. Votre réglage revient quand le flou est désactivé.",
+    "description": "Area: settings. Placeholders, kept exactly as written: {percent} is a percentage, a number without the % sign.",
+    "source": "3fc4ee3c"
+  },
   "settings.transparency.opacity.unit": {
     "message": "%",
     "description": "Area: settings.",
@@ -1785,19 +1790,14 @@
     "source": "ff47e695"
   },
   "settings.transparency.blur.description": {
-    "message": "Rend flou ce qui se trouve derrière la fenêtre là où il transparaît. Faible donne une matière douce, Élevé une matière plus marquée (Windows); sous Linux, les deux produisent le même flou.",
+    "message": "Rend flou ce qui se trouve derrière la fenêtre là où il transparaît. Lorsque le flou est Élevé, la barre de titre, les onglets, la barre d’outils, la barre latérale et la zone des fichiers sont dessinés en transparence pour que le flou se voie, et une fenêtre qui n’est pas au premier plan le conserve.",
     "description": "Area: settings.",
-    "source": "88352b22"
+    "source": "d1dc7c97"
   },
   "settings.transparency.blur.off": {
     "message": "Désactivé",
     "description": "Area: settings.",
     "source": "ca7981b4"
-  },
-  "settings.transparency.blur.low": {
-    "message": "Faible",
-    "description": "Area: settings.",
-    "source": "f793de20"
   },
   "settings.transparency.blur.high": {
     "message": "Élevé",
@@ -1894,6 +1894,11 @@
     "description": "Area: settings.",
     "source": "ca521b02"
   },
+  "settings.transparency.regions.byBlur": {
+    "message": "Activé tant que le flou Élevé est activé, afin que le flou transparaisse à travers cette partie. Votre choix revient quand le flou est désactivé.",
+    "description": "Area: settings.",
+    "source": "96589691"
+  },
   "settings.transparency.menus.label": {
     "message": "Menus translucides",
     "description": "Area: settings.",
@@ -1920,9 +1925,14 @@
     "source": "7e7e9009"
   },
   "settings.transparency.solidUnfocused.description": {
-    "message": "Une fenêtre que vous n’utilisez pas est dessinée opaque et renonce à son flou, ce qui épargne aussi du travail au compositeur.",
+    "message": "Une fenêtre que vous n’utilisez pas est dessinée opaque, ce qui épargne aussi du travail au compositeur.",
     "description": "Area: settings.",
-    "source": "15bb64cd"
+    "source": "9af5e097"
+  },
+  "settings.transparency.solidUnfocused.byBlur": {
+    "message": "Désactivé tant que le flou Élevé est activé, afin que le flou reste visible quand la fenêtre n’est pas au premier plan.",
+    "description": "Area: settings.",
+    "source": "b085834a"
   },
   "settings.open.failed": {
     "message": "Impossible d’ouvrir la fenêtre des paramètres.",

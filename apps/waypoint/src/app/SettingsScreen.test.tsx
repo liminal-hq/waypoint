@@ -1081,6 +1081,116 @@ describe('the Transparency page', () => {
 		await waitFor(() => expect(settings.current().settings.transparency.blur).toBe('high'));
 	});
 
+	it('offers Off and High only, and starts with the blur Off', async () => {
+		await open({
+			effects: kdeEffects(),
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		const blur = screen.getByRole('radiogroup', { name: /Blur behind the window/ });
+		expect(
+			within(blur)
+				.getAllByRole('radio')
+				.map((radio) => radio.textContent),
+		).toEqual(['Off', 'High']);
+		expect(within(blur).getByRole('radio', { name: 'Off' })).toBeChecked();
+	});
+
+	it('dims the four opacity sliders at the least and the unfocused switch while the blur is High, but not the menu opacity', async () => {
+		await open({
+			effects: kdeEffects(),
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: {
+					...DEFAULT_SETTINGS.transparency,
+					enabled: true,
+					blur: 'high',
+					menus: true,
+					regions: { sidebar: true, content: true, titleBar: true },
+				},
+			},
+		});
+		await goTo('Transparency');
+		for (const name of [
+			'Title bar and menu bar opacity',
+			'Tabs and toolbar opacity',
+			'Sidebar opacity',
+			'File area opacity',
+		]) {
+			expect(slider(name), name).toBeDisabled();
+			expect(slider(name), name).toHaveValue('40');
+		}
+		expect(screen.getAllByText(/High blur is on, so this part is drawn at 40%/)).toHaveLength(4);
+		expect(slider('Menu opacity')).toBeEnabled();
+		const solid = screen.getByRole('switch', { name: /Solid when not in front/ });
+		expect(solid).toBeDisabled();
+		expect(solid).toHaveAttribute('aria-checked', 'false');
+		expect(screen.getByText(/Off while High blur is on/)).toBeInTheDocument();
+	});
+
+	it('gives the sliders back their own values, and the unfocused switch its own, when the blur goes Off', async () => {
+		const { settings } = await open({
+			effects: kdeEffects(),
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: {
+					...DEFAULT_SETTINGS.transparency,
+					enabled: true,
+					blur: 'high',
+					opacity: 70,
+				},
+			},
+		});
+		await goTo('Transparency');
+		expect(slider('Title bar and menu bar opacity')).toHaveValue('40');
+		await userEvent.click(
+			within(screen.getByRole('radiogroup', { name: /Blur behind the window/ })).getByRole(
+				'radio',
+				{ name: 'Off' },
+			),
+		);
+		await waitFor(() => expect(settings.current().settings.transparency.blur).toBe('off'));
+		expect(slider('Title bar and menu bar opacity')).toBeEnabled();
+		expect(slider('Title bar and menu bar opacity')).toHaveValue('70');
+		const solid = screen.getByRole('switch', { name: /Solid when not in front/ });
+		expect(solid).toBeEnabled();
+		expect(solid).toHaveAttribute('aria-checked', 'true');
+	});
+
+	it('shows every part as translucent while the blur is High, whatever its switch says, and gives the choice back when it is Off', async () => {
+		const { settings } = await open({
+			effects: kdeEffects(),
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true, blur: 'high' },
+			},
+		});
+		await goTo('Transparency');
+		// The file area's switch is off by default, and reads as on while the blur is.
+		const fileArea = screen.getByRole('switch', { name: /File area/ });
+		expect(fileArea).toBeDisabled();
+		expect(fileArea).toHaveAttribute('aria-checked', 'true');
+		expect(screen.getAllByText(/On while High blur is on/)).toHaveLength(3);
+		expect(document.querySelector<HTMLElement>('[data-region="content"]')!.dataset.alpha).not.toBe(
+			'1',
+		);
+		await userEvent.click(
+			within(screen.getByRole('radiogroup', { name: /Blur behind the window/ })).getByRole(
+				'radio',
+				{ name: 'Off' },
+			),
+		);
+		await waitFor(() => expect(settings.current().settings.transparency.blur).toBe('off'));
+		expect(screen.getByRole('switch', { name: /File area/ })).toBeEnabled();
+		expect(screen.getByRole('switch', { name: /File area/ })).toHaveAttribute(
+			'aria-checked',
+			'false',
+		);
+	});
+
 	it('turns the master switch on through Rust', async () => {
 		const { settings } = await open();
 		await goTo('Transparency');
@@ -1215,6 +1325,27 @@ describe('the Transparency page', () => {
 		expect(settings.calls).toHaveLength(1);
 		await waitFor(() => expect(reset).toBeDisabled());
 		expect(slider('Tabs and toolbar opacity')).toHaveValue('90');
+		expect(slider('Title bar and menu bar opacity')).toHaveValue('82');
+	});
+
+	it('puts the title bar slider back to its default after it was dragged and saved', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true },
+			},
+		});
+		await goTo('Transparency');
+		const titleBar = slider('Title bar and menu bar opacity');
+		fireEvent.input(titleBar, { target: { value: '45' } });
+		fireEvent.change(titleBar);
+		await waitFor(() => expect(settings.current().settings.transparency.opacity).toBe(45));
+		await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+		await waitFor(() => expect(settings.current().settings.transparency.opacity).toBe(82));
+		await waitFor(() => expect(slider('Title bar and menu bar opacity')).toHaveValue('82'));
+		expect(document.querySelector<HTMLElement>('[data-region="titleBar"]')!.dataset.alpha).toBe(
+			'0.82',
+		);
 	});
 
 	it('has nothing to reset at the defaults, whether the page is on or off', async () => {
