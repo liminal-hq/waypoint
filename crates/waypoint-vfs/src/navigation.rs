@@ -78,6 +78,7 @@ pub fn parse_location_gated(
     // Text relative to a server, archive or revision folder stays there.
     let relative = !(text.starts_with('/')
         || text.starts_with('~')
+        || scheme_of(text).is_some()
         || (cfg!(windows) && (text.starts_with('\\') || text.get(1..2) == Some(":"))));
     if relative {
         if let Ok(base @ (VfsPath::Remote(_) | VfsPath::Archive(_) | VfsPath::Git(_))) =
@@ -386,6 +387,12 @@ mod tests {
         let (location, _) =
             parse_location_with("../logs", &remote, home, &serves_everything).unwrap();
         assert_eq!(location.uri, "sftp://h/logs");
+        // A `file://` address is absolute even inside an archive (Extract All reads the archive's
+        // own file this way).
+        let inside = Location::new("x", "archive:file:///tmp/a.zip!/src");
+        let (location, _) =
+            parse_location_with("file:///tmp/a.zip", &inside, home, &serves_everything).unwrap();
+        assert_eq!(location.uri, "file:///tmp/a.zip");
         // Nothing serves `sftp` here: the old answer.
         let only_files = |scheme: &str| scheme == "file";
         assert_eq!(
