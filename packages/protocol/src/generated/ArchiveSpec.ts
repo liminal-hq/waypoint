@@ -10,4 +10,4 @@ export type ArchiveSpec = { "kind": "extract", layout: ExtractLayout,
  * Go ahead although an archive claims more entries or bytes than the limits allow, or
  * compresses so well that it looks like a bomb: the answer to `OpsError::ArchiveLimit`.
  */
-allowLarge: boolean, } | { "kind": "compress", format: ArchiveFormat, };
+allowLarge: boolean, } | { "kind": "compress", format: ArchiveFormat, } | { "kind": "edit", allowLarge: boolean, };

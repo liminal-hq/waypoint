@@ -54,8 +54,42 @@ pub struct ArchiveEntryInfo {
     pub synthetic: bool,
 }
 
+/// Why an archive cannot be rewritten to add, rename or delete entries (D170). Each is a reason a
+/// person can act on, so the app words each one.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ArchiveRefusal {
+    /// Waypoint reads this format but cannot write it (zstd-compressed tar).
+    ReadOnlyFormat { format: String },
+    /// Entries (or the header) need a password, and an archive is never rewritten without being
+    /// able to keep what it holds readable.
+    Encrypted,
+    /// The archive is inside another archive, which is read only.
+    Nested,
+    /// Some entry names were changed to be safe when the archive was read, so writing them back
+    /// would rename what the archive stores.
+    UnsafeNames,
+    /// The place the archive file is kept cannot replace a file in one step.
+    NoAtomicReplace,
+    /// The place the archive file is kept cannot be written to.
+    ContainerReadOnly,
+}
+
+/// Whether an archive can be rewritten, and as what.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Writability {
+    /// It can, in this format (the one it already has).
+    Writable(ArchiveKind),
+    Refused(ArchiveRefusal),
+}
+
 /// The entries of an archive. Implemented by the archive provider.
 pub trait ArchiveCatalog: Send + Sync {
+    /// Whether the archive whose top is `archive` can be rewritten: its format has a writer, nothing
+    /// in it is encrypted, no name was changed on reading, and the file's own provider can write and
+    /// replace a file.
+    fn writability(&self, archive: &VfsPath, cancel: &CancelToken)
+        -> Result<Writability, VfsError>;
+
     /// Every entry of the archive whose top is `archive` (an `archive:` path with no inner path),
     /// in the order the archive lists them, folders it omits made up before what is in them.
     /// `progress` receives the entries read so far while the archive is read.

@@ -115,6 +115,7 @@ pub fn prepare_undo(
         batch: None,
         extract: None,
         compress: None,
+        archive_edit: None,
         ends: Default::default(),
     };
     Ok(UndoPlan { entry, steps, plan })
@@ -359,7 +360,10 @@ fn check_step(
                     return Err(stale(&folder.to_location(), StaleReason::Missing));
                 }
             }
-            if exists(provider.as_ref(), &original)? {
+            // A step of the same undo may be about to remove what holds the name (the archive an
+            // edit rewrote, whose old file was trashed).
+            let rule = provider.capabilities().case_rule;
+            if exists(provider.as_ref(), &original)? && !listed(&original, &around.vacated, rule) {
                 return Err(stale(&receipt.original, StaleReason::NameTaken));
             }
             Ok(())

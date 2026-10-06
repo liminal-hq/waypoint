@@ -23,6 +23,7 @@ use crate::names::{file_name_of, fold_name, is_within, same_name, same_path, uni
 use crate::traits::{Protected, Providers, SelectionResolver, Trash};
 
 mod archive;
+mod archive_edit;
 mod batch;
 pub use archive::LeftOut;
 pub use batch::{preview_batch, BatchPlan, BatchStep};
@@ -101,6 +102,37 @@ pub struct CompressPlan {
     pub target: VfsPath,
 }
 
+/// What a change to an archive does to it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArchiveChange {
+    /// Adds the sources into the folder `into` of the archive (names inside it, empty for its top).
+    Add {
+        into: Vec<Vec<u8>>,
+        sources: Vec<VfsPath>,
+    },
+    /// Renames the entry `from` (and what is below it) to `name`, in its own folder.
+    Rename { from: Vec<Vec<u8>>, name: Vec<u8> },
+    /// Removes the entries and what is below them.
+    Delete { paths: Vec<Vec<Vec<u8>>> },
+}
+
+/// What a change to an archive adds to the plan (D170): the archive file that is rewritten, the
+/// entries it held when planned, and what changes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArchiveEditPlan {
+    /// The archive file.
+    pub container: VfsPath,
+    /// The format it is written in, which is the one it has.
+    pub kind: waypoint_vfs::ArchiveKind,
+    pub change: ArchiveChange,
+    /// Every entry the archive listed, in its order, folders it omits made up before what is in
+    /// them (`synthetic`).
+    pub entries: Vec<waypoint_vfs::ArchiveEntryInfo>,
+    /// The archive file's size and time when planned, so a run can tell that it changed since.
+    pub size: u64,
+    pub modified_ms: Option<i64>,
+}
+
 /// Everything known before the first write.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Plan {
@@ -121,6 +153,8 @@ pub struct Plan {
     pub batch: Option<BatchPlan>,
     pub extract: Option<ExtractPlan>,
     pub compress: Option<CompressPlan>,
+    /// What a change to an archive adds: its file, entries and change.
+    pub archive_edit: Option<ArchiveEditPlan>,
     /// The servers a copy, move or link reads from and writes to (A84); empty otherwise.
     pub ends: TransferEnds,
 }
@@ -298,6 +332,9 @@ pub fn plan_with_progress(
         walked: PlanProgress::default(),
         warnings: Vec::new(),
     };
+    if let Some(plan) = planner.archive_edit()? {
+        return Ok(plan);
+    }
     match request.kind {
         JobKind::CreateFolder | JobKind::CreateFile => planner.create(),
         JobKind::Rename => planner.rename(),
@@ -383,6 +420,7 @@ impl Planner<'_, '_> {
             batch: None,
             extract: None,
             compress: None,
+            archive_edit: None,
             ends: TransferEnds::default(),
         }
     }

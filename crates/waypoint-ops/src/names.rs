@@ -46,6 +46,31 @@ pub fn is_within(path: &VfsPath, ancestor: &VfsPath, rule: CaseRule) -> bool {
     false
 }
 
+/// The name an archive's stored bytes make (lossy on Windows, which holds no names that are not
+/// Unicode).
+pub fn os_of(bytes: &[u8]) -> OsString {
+    #[cfg(unix)]
+    {
+        std::os::unix::ffi::OsStringExt::from_vec(bytes.to_vec())
+    }
+    #[cfg(not(unix))]
+    {
+        OsString::from(String::from_utf8_lossy(bytes).into_owned())
+    }
+}
+
+/// The path inside the archive whose file is `container`, made of the names `inner`.
+pub fn archive_path(
+    container: &VfsPath,
+    inner: &[Vec<u8>],
+) -> Result<VfsPath, waypoint_path::PathError> {
+    let mut path = VfsPath::Archive(waypoint_path::ArchivePath::new(container.clone())?);
+    for name in inner {
+        path = path.join(os_of(name))?;
+    }
+    Ok(path)
+}
+
 /// The bytes of a name, as an archive stores it (a name that is not Unicode is lossy on Windows,
 /// which holds none).
 pub fn name_bytes(name: &OsStr) -> Vec<u8> {

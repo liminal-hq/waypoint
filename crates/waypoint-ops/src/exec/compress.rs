@@ -28,17 +28,17 @@ use crate::speed::SpeedEstimator;
 /// How much a file has to have been read for the progress to be sent again.
 const REPORT_EVERY: u64 = 1024 * 1024;
 
-type R<T> = Result<T, Stop>;
+pub(super) type R<T> = Result<T, Stop>;
 
 /// Why the run stops.
-enum Stop {
+pub(super) enum Stop {
     Cancelled,
     /// Fails the job at this item.
     Failed(Box<OpsError>, Option<Box<Location>>),
 }
 
 impl Stop {
-    fn failed(error: OpsError, item: Option<Location>) -> Self {
+    pub(super) fn failed(error: OpsError, item: Option<Location>) -> Self {
         Stop::Failed(Box::new(error), item.map(Box::new))
     }
 }
@@ -59,15 +59,15 @@ impl From<VfsError> for Stop {
 }
 
 /// What a read of a source file reports as it goes, and where it stops for a cancel.
-struct Meter<'a, 'b> {
-    inner: Box<dyn Read + Send>,
-    cancel: &'a CancelToken,
-    sink: &'b mut dyn ExecSink,
-    progress: &'b mut Progress,
-    counts: &'b Counts,
-    speed: &'b mut SpeedEstimator,
-    clock: &'b dyn crate::traits::Clock,
-    since_report: u64,
+pub(super) struct Meter<'a, 'b> {
+    pub(super) inner: Box<dyn Read + Send>,
+    pub(super) cancel: &'a CancelToken,
+    pub(super) sink: &'b mut dyn ExecSink,
+    pub(super) progress: &'b mut Progress,
+    pub(super) counts: &'b Counts,
+    pub(super) speed: &'b mut SpeedEstimator,
+    pub(super) clock: &'b dyn crate::traits::Clock,
+    pub(super) since_report: u64,
 }
 
 impl Read for Meter<'_, '_> {
@@ -92,6 +92,30 @@ impl Read for Meter<'_, '_> {
     }
 }
 
+/// A name beside `target` that nothing else uses, for what is written before it is renamed into
+/// place.
+pub(super) fn partial_beside(
+    env: &ExecEnv,
+    job: JobId,
+    provider: &dyn Provider,
+    target: &VfsPath,
+) -> R<VfsPath> {
+    let folder = target.parent().ok_or_else(|| OpsError::Protected {
+        location: target.to_location(),
+    })?;
+    let name = file_name_of(target).unwrap_or_default();
+    let prefix = format!(".waypoint-partial-{}-{}-", job.0, env.ids.next());
+    let mut text = name.to_string_lossy().into_owned();
+    while prefix.len() + text.len() > 255 && text.pop().is_some() {}
+    let text = text.trim_end_matches(['.', ' ']);
+    Ok(child_path(
+        &folder,
+        OsStr::new(&format!("{prefix}{text}")),
+        provider.capabilities().case_rule,
+    )
+    .map_err(OpsError::from)?)
+}
+
 struct Compress<'a> {
     env: &'a ExecEnv,
     job: JobId,
@@ -105,7 +129,11 @@ struct Compress<'a> {
     skip_all: bool,
 }
 
-fn attrs_of(provider: &dyn Provider, path: &VfsPath, entry: &ScannedEntry) -> EntryAttrs {
+pub(super) fn attrs_of(
+    provider: &dyn Provider,
+    path: &VfsPath,
+    entry: &ScannedEntry,
+) -> EntryAttrs {
     EntryAttrs {
         mode: provider.permissions(path).ok().and_then(|p| p.mode),
         modified_ms: entry.modified_ms,
@@ -123,20 +151,7 @@ impl Compress<'_> {
 
     /// A name beside `target` that nothing else uses.
     fn partial(&self, provider: &dyn Provider, target: &VfsPath) -> R<VfsPath> {
-        let folder = target.parent().ok_or_else(|| OpsError::Protected {
-            location: target.to_location(),
-        })?;
-        let name = file_name_of(target).unwrap_or_default();
-        let prefix = format!(".waypoint-partial-{}-{}-", self.job.0, self.env.ids.next());
-        let mut text = name.to_string_lossy().into_owned();
-        while prefix.len() + text.len() > 255 && text.pop().is_some() {}
-        let text = text.trim_end_matches(['.', ' ']);
-        Ok(child_path(
-            &folder,
-            OsStr::new(&format!("{prefix}{text}")),
-            provider.capabilities().case_rule,
-        )
-        .map_err(OpsError::from)?)
+        partial_beside(self.env, self.job, provider, target)
     }
 
     fn discard(&self, provider: &dyn Provider, path: &VfsPath) {

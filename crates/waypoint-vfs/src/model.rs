@@ -455,6 +455,11 @@ pub struct ListingSnapshot {
     pub filter: Filter,
     /// The provider writes nothing here, so the view offers no new, rename, paste or drop.
     pub read_only: bool,
+    /// The view is read only as a folder but its changes can be made by rewriting the file that
+    /// holds it: an archive that can be written (D170). Drops, paste, rename and delete work; a
+    /// new folder or file does not.
+    #[serde(default)]
+    pub rewritable: bool,
     pub layout: ListingLayout,
     /// The groups of the view in order, covering every row; empty when the sort does not group.
     pub groups: Vec<GroupRun>,

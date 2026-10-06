@@ -98,6 +98,58 @@ impl Recorded {
             conflict: None,
             ..request.options
         };
+        if let Some(edit) = plan.and_then(|p| p.archive_edit.as_ref()) {
+            // A change to an archive: a redo does the same change to the same archive.
+            let archive = name_of(&edit.container.to_location());
+            let items = plan.map(|p| locations_of(&p.items)).unwrap_or_default();
+            let label = match &edit.change {
+                crate::plan::ArchiveChange::Add { .. } => {
+                    let placed = report.transfer.placed_sources.clone();
+                    if !placed.is_empty() {
+                        forward.sources = Sources::Locations {
+                            locations: placed.clone(),
+                        };
+                    }
+                    forward.options.conflict = report.transfer.policy.or(request.options.conflict);
+                    match (placed.as_slice(), placed.first()) {
+                        ([_], Some(one)) => {
+                            format!("Add {} to {}", quoted(&name_of(one)), quoted(&archive))
+                        }
+                        _ => format!("Add {} items to {}", placed.len(), quoted(&archive)),
+                    }
+                }
+                crate::plan::ArchiveChange::Rename { .. } => {
+                    forward.sources = Sources::Locations {
+                        locations: items.clone(),
+                    };
+                    let from = items.first().map(name_of).unwrap_or_default();
+                    let to = request.name.clone().unwrap_or_default();
+                    format!(
+                        "Rename {} to {} in {}",
+                        quoted(&from),
+                        quoted(&to),
+                        quoted(&archive)
+                    )
+                }
+                crate::plan::ArchiveChange::Delete { .. } => {
+                    forward.sources = Sources::Locations {
+                        locations: items.clone(),
+                    };
+                    match items.as_slice() {
+                        [one] => {
+                            format!("Delete {} from {}", quoted(&name_of(one)), quoted(&archive))
+                        }
+                        _ => format!("Delete {} items from {}", items.len(), quoted(&archive)),
+                    }
+                }
+            };
+            return Some(Recorded {
+                kind,
+                label,
+                forward,
+                inverse: report.inverse.clone(),
+            });
+        }
         let names: Vec<String>;
         let count: usize;
         match kind {

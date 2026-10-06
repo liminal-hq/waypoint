@@ -86,6 +86,56 @@ fn link_stays_inside(folder: &[Vec<u8>], target: &[u8]) -> bool {
     true
 }
 
+/// Refuses an archive past the limits (entries, bytes extracted, expansion ratio) unless the
+/// request said to go ahead (D155). Returns the bytes its files declare.
+pub(super) fn check_limits(
+    entries: &[ArchiveEntryInfo],
+    limits: crate::model::ArchiveLimits,
+    file_size: Option<u64>,
+    allow_large: bool,
+    location: &waypoint_protocol::Location,
+) -> Result<u64, OpsError> {
+    let location = location.clone();
+    let total: u64 = entries
+        .iter()
+        .filter(|e| e.kind == EntryKind::File)
+        .map(|e| e.size.unwrap_or(0))
+        .sum();
+    if !allow_large {
+        if entries.len() as u64 > limits.max_entries {
+            return Err(OpsError::ArchiveLimit {
+                location,
+                limit: ArchiveLimit::Entries {
+                    found: entries.len() as u64,
+                    max: limits.max_entries,
+                },
+            });
+        }
+        if total > limits.max_bytes {
+            return Err(OpsError::ArchiveLimit {
+                location,
+                limit: ArchiveLimit::Bytes {
+                    found: total,
+                    max: limits.max_bytes,
+                },
+            });
+        }
+        if let Some(stored) = file_size.filter(|stored| *stored > 0) {
+            let ratio = total / stored;
+            if total >= limits.ratio_floor_bytes && ratio > u64::from(limits.max_ratio) {
+                return Err(OpsError::ArchiveLimit {
+                    location,
+                    limit: ArchiveLimit::Ratio {
+                        ratio,
+                        max: u64::from(limits.max_ratio),
+                    },
+                });
+            }
+        }
+    }
+    Ok(total)
+}
+
 /// What the walk of one archive's entries found.
 struct Examined {
     skip: HashSet<VfsPath>,
@@ -118,44 +168,13 @@ impl Planner<'_, '_> {
             })
             .map_err(OpsError::from)?;
         check(self.ctx.cancel)?;
-        let total: u64 = entries
-            .iter()
-            .filter(|e| e.kind == EntryKind::File)
-            .map(|e| e.size.unwrap_or(0))
-            .sum();
-        let limits = self.ctx.archive_limits;
-        if !allow_large {
-            if entries.len() as u64 > limits.max_entries {
-                return Err(OpsError::ArchiveLimit {
-                    location,
-                    limit: ArchiveLimit::Entries {
-                        found: entries.len() as u64,
-                        max: limits.max_entries,
-                    },
-                });
-            }
-            if total > limits.max_bytes {
-                return Err(OpsError::ArchiveLimit {
-                    location,
-                    limit: ArchiveLimit::Bytes {
-                        found: total,
-                        max: limits.max_bytes,
-                    },
-                });
-            }
-            if let Some(stored) = file_size.filter(|stored| *stored > 0) {
-                let ratio = total / stored;
-                if total >= limits.ratio_floor_bytes && ratio > u64::from(limits.max_ratio) {
-                    return Err(OpsError::ArchiveLimit {
-                        location,
-                        limit: ArchiveLimit::Ratio {
-                            ratio,
-                            max: u64::from(limits.max_ratio),
-                        },
-                    });
-                }
-            }
-        }
+        check_limits(
+            &entries,
+            self.ctx.archive_limits,
+            file_size,
+            allow_large,
+            &location,
+        )?;
         let mut examined = Examined {
             skip: HashSet::new(),
             left_out: Vec::new(),

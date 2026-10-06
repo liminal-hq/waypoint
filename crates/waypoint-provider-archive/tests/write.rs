@@ -287,3 +287,26 @@ fn a_very_long_tar_name_is_written() {
     builder.finish(false).unwrap();
     assert_eq!(read(&*provider(), &at(&top(&path), &long)), b"hi");
 }
+
+#[test]
+fn an_archive_says_whether_it_can_be_rewritten_and_in_what_format() {
+    use waypoint_vfs::{ArchiveCatalog, ArchiveRefusal, CancelToken, Writability};
+    let dir = scratch();
+    let p = provider();
+    for kind in ArchiveKind::ALL {
+        let path = dir.path().join(format!("w{}", kind.extension()));
+        write_sample(kind, &path);
+        let found = p.writability(&top(&path), &CancelToken::new()).unwrap();
+        assert_eq!(found, Writability::Writable(kind), "{kind:?}");
+        assert!(p.rewritable(&top(&path)), "{kind:?}");
+    }
+    // A name that had to be made safe is a reason: a rewrite would store the safe name.
+    let evil = RawZip::new()
+        .file("../escape.txt", b"x")
+        .write(&dir.path().join("evil.zip"));
+    assert_eq!(
+        p.writability(&top(&evil), &CancelToken::new()).unwrap(),
+        Writability::Refused(ArchiveRefusal::UnsafeNames)
+    );
+    assert!(!p.rewritable(&top(&evil)));
+}
