@@ -27,7 +27,7 @@
 	min-inline-size: 0;
 	margin: 0;
 	overflow: hidden;
-	font-size: 14px;
+	font-size: calc(14px * var(--wp-text-scale, 1));
 	font-weight: 600;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -70,13 +70,13 @@
 	border: 1px solid var(--wp-text-secondary);
 	border-radius: 999px;
 	color: var(--wp-text-secondary);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale, 1));
 }
 
 .system {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .numbers {
@@ -93,20 +93,20 @@
 
 .numbers dt {
 	color: var(--wp-text-secondary);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale, 1));
 }
 
 .numbers dd {
 	margin: 0;
 	color: var(--wp-text-primary);
-	font-size: 15px;
+	font-size: calc(15px * var(--wp-text-scale, 1));
 	font-variant-numeric: tabular-nums;
 }
 
 .state {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .actions {
@@ -126,7 +126,7 @@
 	background: var(--wp-control-bg);
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	cursor: default;
 }
 

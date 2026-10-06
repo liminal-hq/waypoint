@@ -10,7 +10,7 @@
 	border-radius: 12px;
 	box-shadow: var(--wp-palette-shadow);
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .palette::backdrop {
@@ -64,7 +64,7 @@
 	border: 0;
 	border-radius: 8px;
 	font: inherit;
-	font-size: 15px;
+	font-size: calc(15px * var(--wp-text-scale, 1));
 	outline: none;
 }
 
@@ -138,12 +138,12 @@
 
 .hint {
 	color: var(--wp-palette-hint);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .reason {
 	flex-basis: 100%;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-style: italic;
 }
 
@@ -152,7 +152,7 @@
 	align-items: center;
 	gap: 10px;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	white-space: nowrap;
 }
 
@@ -162,7 +162,7 @@
 
 .shortcut {
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .check {

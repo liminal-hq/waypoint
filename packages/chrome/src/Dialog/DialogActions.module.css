@@ -14,7 +14,7 @@
 	border: 1px solid transparent;
 	border-radius: 6px;
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 	cursor: default;
 }
 

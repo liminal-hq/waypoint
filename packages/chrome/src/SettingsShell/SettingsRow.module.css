@@ -23,20 +23,20 @@
 
 .description {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	line-height: 1.4;
 }
 
 .reason {
 	color: var(--wp-text-muted);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-style: italic;
 	line-height: 1.4;
 }
 
 .error {
 	color: var(--wp-danger);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 500;
 	line-height: 1.4;
 }

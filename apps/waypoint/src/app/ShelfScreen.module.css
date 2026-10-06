@@ -61,7 +61,7 @@
 	background: var(--wp-bg-window);
 	border: 1px solid var(--wp-drop-ok-outline);
 	border-radius: 999px;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 @keyframes shelf-drop-cue {

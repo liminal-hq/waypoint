@@ -8,5 +8,5 @@
 	border-bottom: 1px dashed var(--wp-warning);
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }

@@ -25,7 +25,7 @@
 .detail,
 .warning {
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale, 1));
 	/* Wraps, never cuts: the space and the warning are the whole point of the line, and a long
 	   translation or a narrow sidebar must not hide the end of it (the end is the left in RTL). */
 	overflow-wrap: anywhere;
@@ -100,7 +100,7 @@
 
 .label {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -129,7 +129,7 @@
 	min-block-size: 1.4em;
 	margin: 0;
 	color: var(--wp-danger);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .remember {
@@ -142,12 +142,12 @@
 
 .remember label {
 	color: var(--wp-text-primary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .hint {
 	grid-column: 1 / -1;
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }

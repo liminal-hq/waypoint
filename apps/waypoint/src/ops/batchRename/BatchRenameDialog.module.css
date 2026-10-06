@@ -8,7 +8,7 @@
 .sectionHeading {
 	margin: 0 0 8px;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -36,7 +36,7 @@
 
 .cardHeading {
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -99,7 +99,7 @@
 .error {
 	margin: 8px 0 0;
 	color: var(--wp-danger);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 	line-height: 1.4;
 }
@@ -113,7 +113,7 @@
 .capped {
 	margin: 6px 0 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	line-height: 1.4;
 }
 
@@ -128,7 +128,7 @@
 .table {
 	inline-size: 100%;
 	border-collapse: collapse;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .table th {

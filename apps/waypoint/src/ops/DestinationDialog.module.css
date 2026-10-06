@@ -14,7 +14,7 @@
 .heading {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -46,7 +46,7 @@
 	min-block-size: 1.4em;
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .status[data-state='problem'] {
@@ -107,7 +107,7 @@
 	min-inline-size: 0;
 	overflow: hidden;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }

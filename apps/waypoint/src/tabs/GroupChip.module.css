@@ -63,7 +63,7 @@
 	background: color-mix(in srgb, var(--wp-group-accent) 22%, var(--wp-bg-window));
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -123,7 +123,7 @@
 
 .count {
 	flex: none;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
 }

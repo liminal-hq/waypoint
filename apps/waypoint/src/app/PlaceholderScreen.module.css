@@ -7,7 +7,7 @@
 
 .title {
 	margin: 0;
-	font-size: 14px;
+	font-size: calc(14px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -19,7 +19,7 @@
 
 .heading {
 	margin: 0 0 8px;
-	font-size: 20px;
+	font-size: calc(20px * var(--wp-text-scale, 1));
 }
 
 .description {

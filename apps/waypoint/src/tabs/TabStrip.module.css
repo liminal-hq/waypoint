@@ -100,7 +100,7 @@
 	background: var(--wp-tab-fill);
 	/* Primary text: it is the colour held to 4.5:1 on both the window colour and the title bar's tones, which the tab's fill is a blend of. */
 	color: var(--wp-text-primary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 	transform: translate(var(--wp-tab-shift, 0px), var(--wp-tab-lift, 0px));
 	touch-action: pan-x;
 	user-select: none;
@@ -376,7 +376,7 @@
 	border-radius: 6px;
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-primary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 /* A pair: its tabs sit together as one pill, with the joint on the seam (PairPill.tsx). */

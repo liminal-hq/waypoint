@@ -21,7 +21,7 @@
 .heading {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -83,7 +83,7 @@
 
 .pickDetail {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .small {
@@ -94,7 +94,7 @@
 	background: transparent;
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .small:hover:not(:disabled) {
@@ -104,7 +104,7 @@
 .empty {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .form {
@@ -129,7 +129,7 @@
 
 .label {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -157,7 +157,7 @@
 .problem {
 	margin: 0;
 	color: var(--wp-danger);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .problem:empty {
@@ -167,7 +167,7 @@
 .hint {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .methods {
@@ -183,7 +183,7 @@
 	margin-block-end: 4px;
 	padding: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -191,12 +191,12 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .result {
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .result[data-tone='ok'] {
@@ -209,7 +209,7 @@
 
 .more {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .more summary {
@@ -221,7 +221,7 @@
 	grid-template-columns: auto 1fr;
 	gap: 4px 12px;
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .facts dt {
@@ -235,7 +235,7 @@
 
 .fingerprint {
 	font-family: var(--wp-font-mono);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .warning {
@@ -246,7 +246,7 @@
 	border-radius: 6px;
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-primary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 }
 
 .warningTitle {

@@ -14,14 +14,14 @@
 
 .title {
 	margin: 0;
-	font-size: 14px;
+	font-size: calc(14px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
 .status {
 	flex: 1 1 auto;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-variant-numeric: tabular-nums;
 }
 
@@ -36,7 +36,7 @@
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	cursor: default;
 }
 
@@ -66,7 +66,7 @@
 	background: transparent;
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 	text-align: start;
 }
 
@@ -112,7 +112,7 @@ button.row:hover {
 .size,
 .share {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-variant-numeric: tabular-nums;
 	text-align: end;
 	white-space: nowrap;
@@ -121,5 +121,5 @@ button.row:hover {
 .quiet {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }

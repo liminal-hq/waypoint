@@ -90,7 +90,7 @@
 	margin: 0;
 	max-inline-size: 100%;
 	overflow-wrap: anywhere;
-	font-size: 15px;
+	font-size: calc(15px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -129,7 +129,7 @@
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 6px;
 	font-family: ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', monospace;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	line-height: 1.5;
 	white-space: pre;
 	tab-size: 4;

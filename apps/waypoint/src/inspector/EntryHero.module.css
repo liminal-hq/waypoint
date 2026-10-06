@@ -48,7 +48,7 @@
 .title {
 	max-inline-size: 100%;
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 	font-weight: 600;
 	overflow-wrap: anywhere;
 }
@@ -56,7 +56,7 @@
 .subtitle {
 	margin: 0;
 	color: var(--wp-text-muted);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 :root[data-contrast='high'] .stage {

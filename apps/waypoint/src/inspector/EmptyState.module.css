@@ -18,12 +18,12 @@
 
 .title {
 	color: var(--wp-text-secondary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
 .hint {
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 /* Drawn at 36 px on the 16 px grid, so the strokes scale up with it: take less of the style's weight to land near it. */

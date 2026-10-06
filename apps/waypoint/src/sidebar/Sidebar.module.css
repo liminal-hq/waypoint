@@ -19,7 +19,7 @@
 
 .heading {
 	margin: 0;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 	font-weight: 600;
 }
 
@@ -127,7 +127,7 @@
 	border-radius: 8px;
 	background: color-mix(in srgb, var(--wp-text-primary) 10%, transparent);
 	color: var(--wp-text-secondary);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale, 1));
 	font-variant-numeric: tabular-nums;
 }
 
@@ -141,7 +141,7 @@
 	margin: 0;
 	padding: 4px 12px;
 	color: var(--wp-text-muted);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .renameField {
@@ -189,7 +189,7 @@
 	padding: 2px 8px;
 	padding-inline-start: calc(26px + var(--wp-tree-level, 0) * 14px);
 	color: var(--wp-text-muted);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .srOnly {
@@ -221,7 +221,7 @@
 	background: transparent;
 	color: var(--wp-text-muted);
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale, 1));
 }
 
 .viewTab[aria-selected='true'] {
