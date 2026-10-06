@@ -503,6 +503,10 @@
     "message": "the focus ring",
     "description": "Area: settings. Part of a list of what was adjusted, after “adjusted”: the outline that shows keyboard focus."
   },
+  "settings.appearance.systemColours.part.titleBar": {
+    "message": "the title bar",
+    "description": "Area: settings. Part of a list of what was adjusted, after “adjusted”: the colour of the bar across the top of the window that holds its title."
+  },
   "settings.appearance.systemColours.highContrast": {
     "message": "High contrast is on, which already uses the system’s own colours, so this setting has no effect now.",
     "description": "Area: settings."

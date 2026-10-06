@@ -174,6 +174,8 @@ export const enMessages = {
 	'settings.appearance.systemColours.part.status': 'the warning, error and success colours',
 	// translator: Part of a list of what was adjusted, after “adjusted”: the outline that shows keyboard focus.
 	'settings.appearance.systemColours.part.focus': 'the focus ring',
+	// translator: Part of a list of what was adjusted, after “adjusted”: the colour of the bar across the top of the window that holds its title.
+	'settings.appearance.systemColours.part.titleBar': 'the title bar',
 	'settings.appearance.systemColours.highContrast':
 		'High contrast is on, which already uses the system’s own colours, so this setting has no effect now.',
 	'settings.appearance.systemColours.otherVariant':

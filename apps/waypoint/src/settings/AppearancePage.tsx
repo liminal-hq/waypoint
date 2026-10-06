@@ -30,6 +30,12 @@ function liftedParts(lifted: readonly LiftedColour[]): string {
 		has('bg-selected') && t('settings.appearance.systemColours.part.selection'),
 		has('danger', 'success', 'warning') && t('settings.appearance.systemColours.part.status'),
 		has('focus-ring') && t('settings.appearance.systemColours.part.focus'),
+		has(
+			'title-bar-top',
+			'title-bar-bottom',
+			'title-bar-top-unfocused',
+			'title-bar-bottom-unfocused',
+		) && t('settings.appearance.systemColours.part.titleBar'),
 	].filter((part): part is string => part !== false);
 	return new Intl.ListFormat(formatLocale(), { style: 'long', type: 'conjunction' }).format(parts);
 }

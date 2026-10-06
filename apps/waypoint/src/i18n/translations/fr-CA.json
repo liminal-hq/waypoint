@@ -629,6 +629,11 @@
     "description": "Area: settings. Part of a list of what was adjusted, after “adjusted”: the outline that shows keyboard focus.",
     "source": "c2c23e6d"
   },
+  "settings.appearance.systemColours.part.titleBar": {
+    "message": "la barre de titre",
+    "description": "Area: settings. Part of a list of what was adjusted, after “adjusted”: the colour of the bar across the top of the window that holds its title.",
+    "source": "7c5680e0"
+  },
   "settings.appearance.systemColours.highContrast": {
     "message": "Le contraste élevé est activé et utilise déjà les couleurs propres au système : ce réglage n’a donc aucun effet pour le moment.",
     "description": "Area: settings.",
