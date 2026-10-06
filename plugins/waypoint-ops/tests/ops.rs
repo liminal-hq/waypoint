@@ -841,16 +841,17 @@ fn exit_cancels_a_running_job_and_it_removes_its_partial_files() {
     let id = env.submit("main-1", env.copy(&["big.bin"], "dst"));
     env.wait_state(id, "running", |s| *s == JobState::Running);
     tauri_plugin_waypoint_ops::on_exit(env.app.handle());
-    let state = env.state(id);
-    assert!(
-        matches!(state, JobState::Cancelled | JobState::Done),
-        "{state:?}"
-    );
-    assert!(partials(&env, "dst").is_empty());
-    assert!(env
-        .journal
-        .current_document()
-        .is_some_and(|d| d.body.pending.is_empty()));
+    // The worker notices the cancel and writes its record a moment after `on_exit` returns, more
+    // slowly on a busy machine, so each is waited for rather than read at once.
+    env.wait_for("the job to end", |e| {
+        matches!(e.state(id), JobState::Cancelled | JobState::Done)
+    });
+    env.wait_for("the partial files to go", |e| partials(e, "dst").is_empty());
+    env.wait_for("the write-ahead record to go", |e| {
+        e.journal
+            .current_document()
+            .is_some_and(|d| d.body.pending.is_empty())
+    });
 }
 
 #[test]
@@ -1894,6 +1895,8 @@ fn a_job_held_by_a_window_that_is_closed_waits_and_others_pass_it() {
     let held = env.submit("main-1", held);
     let free = env.submit("main-1", env.copy(&["b.txt"], "dst"));
     env.wait_done(free);
+    // The held job is planned on its own time; it waits in the queue once it has been.
+    env.wait_state(held, "queued", |s| *s == JobState::Queued);
     assert_eq!(env.state(held), JobState::Queued);
     assert!(!env.exists("dst/a.txt"));
 }

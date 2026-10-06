@@ -1149,7 +1149,7 @@ fn archives_made_by_the_real_tools_are_changed_and_still_read_by_them() {
     let (mut h, _g) = archives();
     jbuild(&h, &small());
     let dir = os_path(&h, "");
-    let dir = dir.trim_end_matches('/').to_owned();
+    let dir = dir.trim_end_matches(['/', '\\']).to_owned();
     let mut ran = 0;
     if have("zip") && have("unzip") {
         ran += 1;
@@ -1234,7 +1234,8 @@ fn archives_made_by_the_real_tools_are_changed_and_still_read_by_them() {
             None,
         )));
         run_tool("7z", &["t", "-bd", "tool.7z"], &dir);
-        let listing = run_tool("7z", &["l", "-ba", "tool.7z"], &dir);
+        // 7-Zip lists with the separator of the system it runs on.
+        let listing = run_tool("7z", &["l", "-ba", "tool.7z"], &dir).replace('\\', "/");
         assert!(
             listing.contains("src/new.txt") && listing.contains("src/first.txt"),
             "{listing}"
