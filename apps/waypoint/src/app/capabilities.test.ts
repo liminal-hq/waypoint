@@ -208,7 +208,7 @@ describe('window capabilities', () => {
 		}
 	});
 
-	it('lets no window read a secret back, and gives the keyring plugin to the Settings window for its status only', () => {
+	it('lets no window read a secret back, and gives the keyring plugin to the main and Settings windows for its status only', () => {
 		for (const capability of capabilities) {
 			expect(
 				capability.permissions.filter(
@@ -221,6 +221,13 @@ describe('window capabilities', () => {
 			capabilities
 				.filter((capability) => capability.permissions.some((p) => p.startsWith('secrets:')))
 				.map((capability) => capability.identifier),
-		).toEqual(['settings']);
+		).toEqual(['main', 'settings']);
+		// The main windows log the keyring's status at start-up; without it the log says "not allowed by ACL".
+		for (const id of ['main', 'settings']) {
+			expect(
+				byId(id).permissions.filter((p) => p.startsWith('secrets:')),
+				id,
+			).toEqual(['secrets:allow-get-status']);
+		}
 	});
 });
