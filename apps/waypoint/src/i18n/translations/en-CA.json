@@ -9319,6 +9319,18 @@
     "message": "Columns",
     "description": "Area: browse."
   },
+  "browse.column.resize": {
+    "message": "Resize the {column} column",
+    "description": "Area: browse. Placeholders, kept exactly as written: {column}. The name of the draggable divider on the left edge of a column heading in the file list (on the right edge in a right-to-left language), which makes that column wider or narrower. {column} is the column’s heading (Size, Modified, Kind…)."
+  },
+  "browse.column.resize.value": {
+    "message": "{width} pixels wide",
+    "description": "Area: browse. Placeholders, kept exactly as written: {width} is a width in pixels. What a screen reader says for the current width of a list column, in pixels. {width} is a number."
+  },
+  "browse.columns.resetWidths": {
+    "message": "Reset Column Widths",
+    "description": "Area: browse. An item in the menu of the list’s column header: puts every column back to its original width."
+  },
   "git.column.show": {
     "message": "Git status",
     "description": "Area: git. A checkbox in the menu of the list’s column header: show or hide the Git column. “Git” stays “Git”."

@@ -8,6 +8,32 @@
 	container-name: list;
 	background: var(--wp-bg-content);
 	color: var(--wp-text-primary);
+
+	/* Each column's own width and the narrowest it may shrink to when the view is too narrow for its width; a width the person has set replaces the former from script. */
+	--wp-col-size: 88px;
+	--wp-col-size-min: 64px;
+	--wp-col-modified: 168px;
+	--wp-col-modified-min: 96px;
+	--wp-col-kind: 96px;
+	--wp-col-kind-min: 64px;
+	--wp-col-git: 56px;
+	--wp-col-git-min: 40px;
+	--wp-col-storage-class: 128px;
+	--wp-col-storage-class-min: 96px;
+	/* Where an item was trashed from has no width of its own: it shares what Name leaves, until it is resized. */
+	--wp-col-original: 1fr;
+	--wp-col-original-min: 120px;
+	--wp-col-deleted: 168px;
+	--wp-col-deleted-min: 96px;
+
+	/* The grid tracks of the resizable columns, read by the header and by every row. */
+	--wp-track-size: minmax(var(--wp-col-size-min), var(--wp-col-size));
+	--wp-track-modified: minmax(var(--wp-col-modified-min), var(--wp-col-modified));
+	--wp-track-kind: minmax(var(--wp-col-kind-min), var(--wp-col-kind));
+	--wp-track-git: minmax(var(--wp-col-git-min), var(--wp-col-git));
+	--wp-track-storage-class: minmax(var(--wp-col-storage-class-min), var(--wp-col-storage-class));
+	--wp-track-original: minmax(var(--wp-col-original-min), var(--wp-col-original));
+	--wp-track-deleted: minmax(var(--wp-col-deleted-min), var(--wp-col-deleted));
 }
 
 /* The header and every row share one grid, so the columns line up. */
@@ -15,7 +41,9 @@
 	--wp-name-min: 120px;
 	display: grid;
 	/* Name never gets less than a readable stub; Kind, Modified and Size give way to it, in that order. */
-	grid-template-columns: minmax(var(--wp-name-min), 1fr) 88px 168px 96px;
+	grid-template-columns:
+		minmax(var(--wp-name-min), 1fr) var(--wp-track-size) var(--wp-track-modified)
+		var(--wp-track-kind);
 	align-items: center;
 	column-gap: 12px;
 	padding: 0 12px;
@@ -24,7 +52,9 @@
 
 @container list (max-width: 571px) {
 	.columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 88px 168px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-size) var(
+				--wp-track-modified
+			);
 	}
 
 	.columns [data-column='kind'] {
@@ -34,7 +64,7 @@
 
 @container list (max-width: 463px) {
 	.columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 88px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-size);
 	}
 
 	.columns [data-column='modified'] {
@@ -54,18 +84,22 @@
 
 /* In a folder of a Git working tree the Git column follows Name. Each breakpoint is the one above plus the column and its gap (100px), and it gives way last of the three. */
 .view[data-git] .columns {
-	grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px 88px 168px 96px;
+	grid-template-columns:
+		minmax(var(--wp-name-min), 1fr) var(--wp-track-git) var(--wp-track-size)
+		var(--wp-track-modified) var(--wp-track-kind);
 }
 
 @container list (max-width: 671px) {
 	.view[data-git] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px 88px 168px;
+		grid-template-columns:
+			minmax(var(--wp-name-min), 1fr) var(--wp-track-git) var(--wp-track-size)
+			var(--wp-track-modified);
 	}
 }
 
 @container list (max-width: 563px) {
 	.view[data-git] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px 88px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-git) var(--wp-track-size);
 	}
 
 	.view[data-git] .columns [data-column='modified'] {
@@ -75,7 +109,7 @@
 
 @container list (max-width: 383px) {
 	.view[data-git] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 56px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-git);
 	}
 
 	.view[data-git] .columns [data-column='size'] {
@@ -95,12 +129,16 @@
 
 /* On S3 the Storage class column follows Name, as Git's does. Each breakpoint is the one for the plain columns plus the column and its gap (140px), and it gives way last of the four. */
 .view[data-storage] .columns {
-	grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px 88px 168px 96px;
+	grid-template-columns:
+		minmax(var(--wp-name-min), 1fr) var(--wp-track-storage-class) var(--wp-track-size)
+		var(--wp-track-modified) var(--wp-track-kind);
 }
 
 @container list (max-width: 711px) {
 	.view[data-storage] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px 88px 168px;
+		grid-template-columns:
+			minmax(var(--wp-name-min), 1fr) var(--wp-track-storage-class) var(--wp-track-size)
+			var(--wp-track-modified);
 	}
 
 	.view[data-storage] .columns [data-column='kind'] {
@@ -110,7 +148,9 @@
 
 @container list (max-width: 603px) {
 	.view[data-storage] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px 88px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-storage-class) var(
+				--wp-track-size
+			);
 	}
 
 	.view[data-storage] .columns [data-column='modified'] {
@@ -120,7 +160,7 @@
 
 @container list (max-width: 423px) {
 	.view[data-storage] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 128px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-storage-class);
 	}
 
 	.view[data-storage] .columns [data-column='size'] {
@@ -140,12 +180,16 @@
 
 /* The Trash lists where an item was and when it was trashed in place of Modified and Kind: Name, Original location, Date deleted, Size. */
 .view[data-layout='trash'] .columns {
-	grid-template-columns: minmax(var(--wp-name-min), 1.2fr) minmax(120px, 1fr) 168px 88px;
+	grid-template-columns:
+		minmax(var(--wp-name-min), 1.2fr) var(--wp-track-original) var(--wp-track-deleted)
+		var(--wp-track-size);
 }
 
 @container list (max-width: 639px) {
 	.view[data-layout='trash'] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 168px 88px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-deleted) var(
+				--wp-track-size
+			);
 	}
 
 	.view[data-layout='trash'] .columns [data-column='original'] {
@@ -155,7 +199,7 @@
 
 @container list (max-width: 463px) {
 	.view[data-layout='trash'] .columns {
-		grid-template-columns: minmax(var(--wp-name-min), 1fr) 168px;
+		grid-template-columns: minmax(var(--wp-name-min), 1fr) var(--wp-track-deleted);
 	}
 
 	.view[data-layout='trash'] .columns [data-column='size'] {
@@ -185,8 +229,16 @@
 	overflow-y: hidden;
 }
 
+.headerCell {
+	position: relative;
+	display: flex;
+	min-width: 0;
+	height: 100%;
+}
+
 .headerButton {
 	display: flex;
+	flex: 1;
 	align-items: center;
 	gap: 4px;
 	min-width: 0;
@@ -221,6 +273,13 @@
 .headerButton[data-sorted] {
 	color: var(--wp-text-primary);
 	font-weight: 600;
+}
+
+.headerLabel {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .iconSpacer {

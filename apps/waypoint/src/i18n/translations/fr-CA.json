@@ -12039,6 +12039,21 @@
     "description": "Area: browse.",
     "source": "53aade77"
   },
+  "browse.column.resize": {
+    "message": "Redimensionner la colonne {column}",
+    "description": "Area: browse. Placeholders, kept exactly as written: {column}. The name of the draggable divider on the left edge of a column heading in the file list (on the right edge in a right-to-left language), which makes that column wider or narrower. {column} is the column’s heading (Size, Modified, Kind…).",
+    "source": "96b21403"
+  },
+  "browse.column.resize.value": {
+    "message": "{width} pixels de largeur",
+    "description": "Area: browse. Placeholders, kept exactly as written: {width} is a width in pixels. What a screen reader says for the current width of a list column, in pixels. {width} is a number.",
+    "source": "a3fa0138"
+  },
+  "browse.columns.resetWidths": {
+    "message": "Rétablir la largeur des colonnes",
+    "description": "Area: browse. An item in the menu of the list’s column header: puts every column back to its original width.",
+    "source": "9503d211"
+  },
   "git.column.show": {
     "message": "État Git",
     "description": "Area: git. A checkbox in the menu of the list’s column header: show or hide the Git column. “Git” stays “Git”.",

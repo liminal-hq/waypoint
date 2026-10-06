@@ -136,6 +136,46 @@ pub struct UiSettings {
     /// choice; off by default, since most folders are not on S3 and most people need the class
     /// only now and then).
     pub storage_class_column: bool,
+    /// The widths the list's columns were dragged to, the same in every folder (D176).
+    pub column_widths: ListColumnWidths,
+}
+
+/// The shortest and longest width a list column may be given, in pixels. The list keeps each
+/// column to its own narrower range (so its heading still fits); these bounds only stop a
+/// hand-edited document from asking for a column that cannot be seen or one wider than any screen.
+pub const COLUMN_WIDTH_MIN: u16 = 32;
+pub const COLUMN_WIDTH_MAX: u16 = 1200;
+
+/// The widths, in pixels, a person has dragged the list's columns to. `None` is the column's own
+/// width. Name is not here: it is the flexible column and takes what the others leave.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ListColumnWidths {
+    pub size: Option<u16>,
+    pub modified: Option<u16>,
+    pub kind: Option<u16>,
+    pub git: Option<u16>,
+    pub storage_class: Option<u16>,
+    /// Where an item was trashed from (the Trash's own column).
+    pub original: Option<u16>,
+    /// When an item was trashed (the Trash's own column).
+    pub deleted: Option<u16>,
+}
+
+impl ListColumnWidths {
+    /// Each column with its setting name, for checks that treat them alike.
+    fn named(&mut self) -> [(&'static str, &mut Option<u16>); 7] {
+        [
+            ("ui.columnWidths.size", &mut self.size),
+            ("ui.columnWidths.modified", &mut self.modified),
+            ("ui.columnWidths.kind", &mut self.kind),
+            ("ui.columnWidths.git", &mut self.git),
+            ("ui.columnWidths.storageClass", &mut self.storage_class),
+            ("ui.columnWidths.original", &mut self.original),
+            ("ui.columnWidths.deleted", &mut self.deleted),
+        ]
+    }
 }
 
 impl Default for UiSettings {
@@ -147,6 +187,7 @@ impl Default for UiSettings {
             menu_bar: false,
             git_column: true,
             storage_class_column: false,
+            column_widths: ListColumnWidths::default(),
         }
     }
 }
@@ -630,6 +671,17 @@ impl Settings {
             PREVIEW_MAX_MB_MIN,
             PREVIEW_MAX_MB_MAX,
         )?;
+        let mut widths = self.ui.column_widths;
+        for (field, width) in widths.named() {
+            if let Some(width) = *width {
+                out_of_range(
+                    field,
+                    width.into(),
+                    COLUMN_WIDTH_MIN.into(),
+                    COLUMN_WIDTH_MAX.into(),
+                )?;
+            }
+        }
         if !TEXT_SIZES.contains(&self.accessibility.text_size) {
             return Err(SettingsError::Invalid {
                 field: "accessibility.textSize",
@@ -682,6 +734,9 @@ impl Settings {
             .previews
             .max_file_mb
             .clamp(PREVIEW_MAX_MB_MIN, PREVIEW_MAX_MB_MAX);
+        for (_, width) in self.ui.column_widths.named() {
+            *width = width.map(|width| width.clamp(COLUMN_WIDTH_MIN, COLUMN_WIDTH_MAX));
+        }
         if !TEXT_SIZES.contains(&self.accessibility.text_size) {
             let size = self.accessibility.text_size;
             self.accessibility.text_size = TEXT_SIZES
@@ -802,6 +857,10 @@ mod tests {
                 menu_bar: true,
                 git_column: false,
                 storage_class_column: true,
+                column_widths: ListColumnWidths {
+                    size: Some(120),
+                    ..ListColumnWidths::default()
+                },
             },
             ..Settings::default()
         };
@@ -832,6 +891,47 @@ mod tests {
             serde_json::to_value(Settings::default()).unwrap()["ui"]["storageClassColumn"],
             false
         );
+    }
+
+    #[test]
+    fn column_widths_default_to_the_columns_own_and_are_read_one_by_one() {
+        let old: Settings = serde_json::from_str(r#"{"ui":{"gitColumn":false}}"#).unwrap();
+        assert_eq!(old.ui.column_widths, ListColumnWidths::default());
+        let one: Settings =
+            serde_json::from_str(r#"{"ui":{"columnWidths":{"storageClass":150}}}"#).unwrap();
+        assert_eq!(one.ui.column_widths.storage_class, Some(150));
+        assert_eq!(one.ui.column_widths.size, None);
+        let json = serde_json::to_value(one).unwrap();
+        assert_eq!(json["ui"]["columnWidths"]["storageClass"], 150);
+        assert!(json["ui"]["columnWidths"]["modified"].is_null());
+    }
+
+    #[test]
+    fn a_column_width_is_bounded_at_both_ends() {
+        let with = |width: u16| {
+            let mut s = Settings::default();
+            s.ui.column_widths.original = Some(width);
+            s
+        };
+        assert_eq!(with(COLUMN_WIDTH_MIN).validate(), Ok(()));
+        assert_eq!(with(COLUMN_WIDTH_MAX).validate(), Ok(()));
+        for width in [0, COLUMN_WIDTH_MIN - 1, COLUMN_WIDTH_MAX + 1] {
+            assert_eq!(
+                with(width).validate(),
+                Err(SettingsError::OutOfRange {
+                    field: "ui.columnWidths.original",
+                    min: COLUMN_WIDTH_MIN.into(),
+                    max: COLUMN_WIDTH_MAX.into(),
+                })
+            );
+        }
+        let repaired = with(u16::MAX).clamped();
+        assert_eq!(repaired.ui.column_widths.original, Some(COLUMN_WIDTH_MAX));
+        assert_eq!(
+            with(1).clamped().ui.column_widths.original,
+            Some(COLUMN_WIDTH_MIN)
+        );
+        assert_eq!(with(1).clamped().ui.column_widths.size, None);
     }
 
     #[test]

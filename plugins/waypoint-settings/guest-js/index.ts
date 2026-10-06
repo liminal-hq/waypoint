@@ -18,6 +18,7 @@ import type { FolderViewsSnapshot } from '@liminal-hq/waypoint-protocol/generate
 import type { ExportReceipt } from '@liminal-hq/waypoint-protocol/generated/ExportReceipt';
 import type { GeneralSettings } from '@liminal-hq/waypoint-protocol/generated/GeneralSettings';
 import type { ImportPreview } from '@liminal-hq/waypoint-protocol/generated/ImportPreview';
+import type { ListColumnWidths } from '@liminal-hq/waypoint-protocol/generated/ListColumnWidths';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
 import type { SettingsSnapshot } from '@liminal-hq/waypoint-protocol/generated/SettingsSnapshot';
@@ -76,6 +77,8 @@ export interface UiSettingsChange {
 	actionBarLabels?: boolean;
 	gitColumn?: boolean;
 	storageClassColumn?: boolean;
+	/** Replaces every column width at once (`null` is a column's own width); send the whole set with your change. */
+	columnWidths?: ListColumnWidths;
 }
 
 /**
@@ -168,6 +171,7 @@ export type {
 	ExportReceipt,
 	GeneralSettings,
 	ImportPreview,
+	ListColumnWidths,
 	PluginStatus,
 	Settings,
 	SettingsSnapshot,

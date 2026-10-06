@@ -213,6 +213,7 @@ Item context menu: Open · Preview (Quick Look) · Open in New Tab · Open in Ne
 | Ctrl+I                    | File view                              | Invert selection                                                               |
 | Ctrl+D                    | Anywhere                               | Add the current folder to Favourites                                           |
 | Right-click               | List header                            | Columns                                                                        |
+| Drag, or Left and Right   | List column divider                    | Resize the column (double-click or Backspace restores it)                      |
 | Right-click               | Sidebar Places, Favourites, servers    | Rename, move, remove                                                           |
 | Drag                      | Sidebar Places, Favourites rows        | Reorder                                                                        |
 | Drop folder               | Places or Favourites heading           | Add it                                                                         |

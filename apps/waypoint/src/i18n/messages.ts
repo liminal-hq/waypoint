@@ -2673,6 +2673,12 @@ export const enMessages = {
 	// translator: The column of the file list that says what Git thinks of each file and folder (changed, new, ignored…). “Git” is the program’s name and stays “Git”.
 	'browse.column.git': 'Git',
 	'browse.columns.menu.label': 'Columns',
+	// translator: The name of the draggable divider on the left edge of a column heading in the file list (on the right edge in a right-to-left language), which makes that column wider or narrower. {column} is the column’s heading (Size, Modified, Kind…).
+	'browse.column.resize': 'Resize the {column} column',
+	// translator: What a screen reader says for the current width of a list column, in pixels. {width} is a number.
+	'browse.column.resize.value': '{width} pixels wide',
+	// translator: An item in the menu of the list’s column header: puts every column back to its original width.
+	'browse.columns.resetWidths': 'Reset Column Widths',
 	// translator: A checkbox in the menu of the list’s column header: show or hide the Git column. “Git” stays “Git”.
 	'git.column.show': 'Git status',
 	// translator: Sorting the file list by what Git says about each item (conflicts first, then changes, then new files, then clean ones). “Git” stays “Git”.

@@ -65,6 +65,9 @@ import {
 import { formatLocale } from '../i18n/active';
 import { hasStorageClasses } from './storageClass';
 import { StorageClassCell } from './StorageClassCell';
+import { ColumnResizeHandle } from './ColumnResizeHandle';
+import { isResizable, widthProperties } from './columnWidths';
+import { useColumnWidths } from './useColumnWidths';
 
 /** Rows drawn beyond the viewport on each side, so a fast scroll meets rows, not gaps. */
 const OVERSCAN = 12;
@@ -262,6 +265,7 @@ function ListingBody({
 	const storageClassWanted = useSettings(selectStorageClassColumn);
 	const onS3 = !trash && hasStorageClasses(model.location.uri);
 	const showStorageClass = onS3 && storageClassWanted;
+	const columnWidths = useColumnWidths();
 	const columns = trash
 		? TRASH_COLUMNS
 		: showGit
@@ -273,7 +277,7 @@ function ListingBody({
 		position: { x: number; y: number };
 		keyboard: boolean;
 	} | null>(null);
-	const headerMenuItems: MenuItem[] = [
+	const columnToggles: MenuItem[] = [
 		...(repository
 			? [
 					{
@@ -295,6 +299,16 @@ function ListingBody({
 					},
 				]
 			: []),
+	];
+	const headerMenuItems: MenuItem[] = [
+		...columnToggles,
+		...(columnToggles.length > 0 ? [{ type: 'separator' as const }] : []),
+		{
+			type: 'action' as const,
+			id: 'resetWidths',
+			label: t('browse.columns.resetWidths'),
+			disabled: !columnWidths.resized,
+		},
 	];
 	useLayoutEffect(() => {
 		if (scroller.current) setRowHeight(measureRowHeight(scroller.current));
@@ -473,20 +487,24 @@ function ListingBody({
 			data-layout={model.layout}
 			data-git={showGit ? '' : undefined}
 			data-storage={showStorageClass ? '' : undefined}
-			style={withPictures ? ({ '--wp-list-icon': `${pictureSize}px` } as CSSProperties) : undefined}
+			style={
+				{
+					...(withPictures ? { '--wp-list-icon': `${pictureSize}px` } : undefined),
+					...widthProperties(columnWidths.widths),
+				} as CSSProperties
+			}
 		>
 			<div
 				className={`${styles.columns} ${styles.header}`}
 				role="group"
 				aria-label={t('browse.columns.label')}
 				onContextMenu={(event) => {
-					if (headerMenuItems.length === 0) return;
 					event.preventDefault();
 					setHeaderMenu({ position: { x: event.clientX, y: event.clientY }, keyboard: false });
 				}}
 				onKeyDown={(event) => {
 					const menuKey = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
-					if (!menuKey || headerMenuItems.length === 0) return;
+					if (!menuKey) return;
 					event.preventDefault();
 					const box = (event.target as HTMLElement).getBoundingClientRect();
 					setHeaderMenu({ position: { x: box.left, y: box.bottom }, keyboard: true });
@@ -494,45 +512,60 @@ function ListingBody({
 			>
 				{columns.map((column, index) => {
 					const { sort } = column;
+					const label = t(column.label);
+					const resizable = isResizable(column.id) ? column.id : null;
+					const handle = resizable && (
+						<ColumnResizeHandle
+							column={resizable}
+							label={label}
+							width={columnWidths.widths[resizable]}
+							onPreview={(width) => columnWidths.preview(resizable, width)}
+							onCommit={(width) => columnWidths.commit(resizable, width)}
+							onCommitSoon={(width) => columnWidths.commitSoon(resizable, width)}
+							onFlush={columnWidths.flush}
+						/>
+					);
 					if (sort === undefined) {
 						return (
-							<span
-								key={column.id}
-								className={`${styles.headerButton} ${styles.headerStatic}`}
-								data-column={column.id}
-							>
-								<span>{t(column.label)}</span>
-							</span>
+							<div key={column.id} className={styles.headerCell} data-column={column.id}>
+								<span className={`${styles.headerButton} ${styles.headerStatic}`}>
+									<span className={styles.headerLabel}>{label}</span>
+								</span>
+								{handle}
+							</div>
 						);
 					}
 					const active = model.sort.key === sort;
 					return (
-						<button
-							key={column.id}
-							type="button"
-							className={styles.headerButton}
-							data-column={column.id}
-							data-sorted={
-								active ? (model.sort.descending ? 'descending' : 'ascending') : undefined
-							}
-							onClick={() => onSort(sort)}
-						>
-							{index === 0 && <span className={styles.iconSpacer} aria-hidden="true" />}
-							<span>{t(column.label)}</span>
-							{active && (
-								<>
-									<span className={styles.sortMark} aria-hidden="true" />
-									<span className={styles.srOnly}>
-										{t(model.sort.descending ? 'browse.sort.descending' : 'browse.sort.ascending')}
-									</span>
-								</>
-							)}
-						</button>
+						<div key={column.id} className={styles.headerCell} data-column={column.id}>
+							<button
+								type="button"
+								className={styles.headerButton}
+								data-sorted={
+									active ? (model.sort.descending ? 'descending' : 'ascending') : undefined
+								}
+								onClick={() => onSort(sort)}
+							>
+								{index === 0 && <span className={styles.iconSpacer} aria-hidden="true" />}
+								<span className={styles.headerLabel}>{label}</span>
+								{active && (
+									<>
+										<span className={styles.sortMark} aria-hidden="true" />
+										<span className={styles.srOnly}>
+											{t(
+												model.sort.descending ? 'browse.sort.descending' : 'browse.sort.ascending',
+											)}
+										</span>
+									</>
+								)}
+							</button>
+							{handle}
+						</div>
 					);
 				})}
 			</div>
 
-			{headerMenu && headerMenuItems.length > 0 && (
+			{headerMenu && (
 				<ContextMenu
 					items={headerMenuItems}
 					position={headerMenu.position}
@@ -545,6 +578,8 @@ function ListingBody({
 							settingsHandle?.saveUi({ gitColumn: !gitColumnWanted }).catch((error: unknown) => {
 								console.warn('could not save the Git column choice', error);
 							});
+						} else if (item.id === 'resetWidths') {
+							columnWidths.resetAll();
 						} else if (item.id === 'storageClass') {
 							settingsHandle
 								?.saveUi({ storageClassColumn: !storageClassWanted })

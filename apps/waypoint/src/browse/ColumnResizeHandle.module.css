@@ -1,0 +1,35 @@
+/* The divider on a list column's start edge, in the gap between it and the column before: drag it, or use the keys, to resize the column. */
+.handle {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: -12px;
+	inline-size: 12px;
+	z-index: 1;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.handle::after {
+	content: '';
+	position: absolute;
+	inset-block: 6px;
+	inset-inline-start: 50%;
+	inline-size: 1px;
+	background: var(--wp-border-subtle);
+}
+
+.handle:hover::after,
+.handle[data-dragging]::after {
+	inline-size: 2px;
+	background: var(--wp-accent);
+}
+
+.handle:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: -2px;
+}
+
+.handle:focus-visible::after {
+	inline-size: 2px;
+	background: var(--wp-accent);
+}

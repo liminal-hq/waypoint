@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import {
+	COLUMN_WIDTH_MAX,
+	COLUMN_WIDTH_MIN,
 	DEFAULT_SETTINGS,
 	MENU_OPACITY_MIN,
 	OPACITY_MAX,
@@ -67,6 +69,11 @@ function refusal(settings: Settings): SettingsCommandError | null {
 	];
 	for (const [field, value, min, max] of ranges) {
 		if (value < min || value > max) return rangeError(field, min, max);
+	}
+	for (const [column, width] of Object.entries(settings.ui.columnWidths)) {
+		if (width !== null && (width < COLUMN_WIDTH_MIN || width > COLUMN_WIDTH_MAX)) {
+			return rangeError(`ui.columnWidths.${column}`, COLUMN_WIDTH_MIN, COLUMN_WIDTH_MAX);
+		}
 	}
 	if (!(TEXT_SIZES as readonly number[]).includes(settings.accessibility.textSize)) {
 		return invalidError('accessibility.textSize', 'use 100, 115 or 130');

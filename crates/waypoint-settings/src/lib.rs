@@ -37,8 +37,9 @@ pub use import::{
 };
 pub use model::{
     BlurLevel, ClickMode, ColourMode, DefaultView, DndSettings, DropActionRule,
-    ExperimentalSettings, GeneralSettings, OsPreference, Settings, SettingsError, SettingsSnapshot,
-    StartupMode, UiSettings, SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
+    ExperimentalSettings, GeneralSettings, ListColumnWidths, OsPreference, Settings, SettingsError,
+    SettingsSnapshot, StartupMode, UiSettings, COLUMN_WIDTH_MAX, COLUMN_WIDTH_MIN,
+    SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
 };
 pub use storage::{
     KeyValue, MemoryStorage, Persistence, SettingsDocument, SettingsStorage, StorageError,
