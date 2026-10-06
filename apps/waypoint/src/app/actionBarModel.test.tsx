@@ -164,6 +164,18 @@ describe('the menu buttons', () => {
 		expect(menu.filter((row) => row.type === 'separator')).toHaveLength(2);
 	});
 
+	it('Sort stays one flat list of checkbox rows in three runs, with no submenu and no heading', () => {
+		const menu = byId(items(factsFor({})), 'sort').menu!;
+		expect(menu.map((row) => row.type)).toEqual([
+			...Array<string>(4).fill('checkbox'),
+			'separator',
+			...Array<string>(2).fill('checkbox'),
+			'separator',
+			...Array<string>(6).fill('checkbox'),
+		]);
+		expect(menu.some((row) => row.type === 'submenu' || row.type === 'section')).toBe(false);
+	});
+
 	it('Sort in a working tree adds Git status after Kind', () => {
 		const menu = byId(items(factsFor({}, { git: true })), 'sort').menu!;
 		const keys = menu.flatMap((row) => (row.type === 'checkbox' ? [row.id] : []));

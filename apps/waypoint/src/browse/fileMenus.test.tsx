@@ -326,6 +326,16 @@ describe('the entry menu', () => {
 	});
 });
 
+const SORT_BY = 'sortBy[sort:name,sort:size,sort:modified,sort:kind,|,descending,foldersFirst]';
+const GROUP_BY = 'groupBy[group:none,group:kind,group:modified,group:size,group:name,group:type]';
+
+/** True when no row, at any depth, is a section heading. */
+function noSections(items: readonly MenuItem[]): boolean {
+	return items.every(
+		(item) => item.type !== 'section' && (item.type !== 'submenu' || noSections(item.items)),
+	);
+}
+
 describe('the empty-space menu', () => {
 	const sort = { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' } as const;
 	const commands = (overrides: Partial<BackgroundCommands> = {}): BackgroundCommands => ({
@@ -337,25 +347,79 @@ describe('the empty-space menu', () => {
 
 	it('keeps its current order without commands', () => {
 		expect(shape(backgroundMenuItems(sort, false))).toEqual([
-			'sort:name',
-			'sort:size',
-			'sort:modified',
-			'sort:kind',
-			'|',
-			'descending',
-			'foldersFirst',
-			'|',
-			'group:none',
-			'group:kind',
-			'group:modified',
-			'group:size',
-			'group:name',
-			'group:type',
+			SORT_BY,
+			GROUP_BY,
 			'|',
 			'showHidden',
 			'|',
 			'properties',
 		]);
+	});
+
+	it('nests the sort and grouping choices in Sort by and Group by submenus, with no heading rows', () => {
+		const items = backgroundMenuItems(sort, false, {
+			commands: commands(),
+			folderView: 'remembered',
+		});
+		expect(noSections(items)).toBe(true);
+		const sortBy = items.find((item) => item.type === 'submenu' && item.id === 'sortBy');
+		const groupBy = items.find((item) => item.type === 'submenu' && item.id === 'groupBy');
+		expect(sortBy).toMatchObject({ id: 'sortBy', label: 'Sort by' });
+		expect(groupBy).toMatchObject({ id: 'groupBy', label: 'Group by' });
+		expect(shape([sortBy!])).toEqual([SORT_BY]);
+		expect(shape([groupBy!])).toEqual([GROUP_BY]);
+		const topLevel = items.flatMap((item) => ('id' in item && item.id ? [item.id] : []));
+		expect(topLevel).not.toContain('sort:name');
+		expect(topLevel).not.toContain('descending');
+		expect(topLevel).not.toContain('group:kind');
+	});
+
+	it('keeps what is checked inside the submenus', () => {
+		const chosen = {
+			key: 'size',
+			descending: true,
+			directoriesFirst: false,
+			groupBy: 'kind',
+		} as const;
+		const [sortBy, groupBy] = backgroundMenuItems(chosen, false).filter(
+			(item): item is Extract<MenuItem, { type: 'submenu' }> => item.type === 'submenu',
+		);
+		const checked = (submenu: Extract<MenuItem, { type: 'submenu' }>) =>
+			submenu.items.flatMap((item) => (item.type === 'checkbox' && item.checked ? [item.id] : []));
+		expect(checked(sortBy!)).toEqual(['sort:size', 'descending']);
+		expect(checked(groupBy!)).toEqual(['group:kind']);
+	});
+
+	it('adds Git status to Sort by in a working tree, and Reset This Folder’s View after Show hidden files', () => {
+		const items = backgroundMenuItems(sort, false, { git: true, folderView: 'remembered' });
+		expect(shape(items)[0]).toContain('sort:kind,sort:git,|');
+		expect(shape(items)).toEqual([
+			SORT_BY.replace('sort:kind,', 'sort:kind,sort:git,'),
+			GROUP_BY,
+			'|',
+			'showHidden',
+			'resetFolderView',
+			'|',
+			'properties',
+		]);
+	});
+
+	it('has no stray or doubled rule, with commands, without them, and with no listing', () => {
+		for (const items of [
+			backgroundMenuItems(sort, false),
+			backgroundMenuItems(sort, false, { commands: commands(), folderView: 'default' }),
+			backgroundMenuItems(undefined, false, { commands: commands() }),
+			backgroundMenuItems(sort, false, { trash: { count: 1 } }),
+		]) {
+			const rows = shape(items);
+			expect(rows[0]).not.toBe('|');
+			expect(rows.at(-1)).not.toBe('|');
+			expect(rows.join(' ')).not.toContain('| |');
+		}
+	});
+
+	it('leaves Sort by and Group by out when there is no listing', () => {
+		expect(shape(backgroundMenuItems(undefined, false))).toEqual(['showHidden', '|', 'properties']);
 	});
 
 	it('puts New (a submenu of Folder and File) and Paste, then Undo and Redo, ahead of the view items', () => {
@@ -367,8 +431,8 @@ describe('the empty-space menu', () => {
 			'undo',
 			'redo',
 			'|',
-			'sort:name',
-			'sort:size',
+			SORT_BY,
+			GROUP_BY,
 		]);
 		const submenu = items[0]!;
 		expect(submenu).toMatchObject({ type: 'submenu', label: 'New' });

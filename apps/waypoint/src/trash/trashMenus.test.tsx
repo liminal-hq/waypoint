@@ -13,6 +13,12 @@ const state = { favouritePosition: null, pinned: false, canRename: false };
 const ids = (items: MenuItem[]) => items.flatMap((item) => ('id' in item ? [item.id] : []));
 const find = (items: MenuItem[], id: string) =>
 	items.find((item) => 'id' in item && item.id === id);
+/** The ids of every row, with each submenu's rows following it. */
+const allIds = (items: MenuItem[]): string[] =>
+	items.flatMap((item) => [
+		...('id' in item && item.id ? [item.id] : []),
+		...(item.type === 'submenu' ? allIds(item.items) : []),
+	]);
 
 describe('the Trash item menu', () => {
 	it('restores or deletes, and offers nothing that opens, renames, copies or pastes', () => {
@@ -32,10 +38,29 @@ describe('the Trash empty-space menu', () => {
 
 	it('sorts by name, size and date deleted, never modified or kind', () => {
 		const items = backgroundMenuItems(sort, false, { trash: { count: 2 } });
-		expect(ids(items).filter((id) => id?.startsWith('sort:'))).toEqual([
+		expect(allIds(items).filter((id) => id?.startsWith('sort:'))).toEqual([
 			'sort:name',
 			'sort:size',
 			'sort:deleted',
+		]);
+	});
+
+	it('has a Sort by submenu and no Group by, with no heading rows and one rule before Empty Trash', () => {
+		const items = backgroundMenuItems(sort, false, { trash: { count: 2 } });
+		expect(
+			items.map((item) => (item.type === 'separator' ? '|' : (item as { id: string }).id)),
+		).toEqual(['sortBy', '|', 'emptyTrash']);
+		expect(find(items, 'sortBy')).toMatchObject({ type: 'submenu', label: 'Sort by' });
+		expect(allIds(items).some((id) => id.startsWith('group'))).toBe(false);
+		expect(items.some((item) => item.type === 'section')).toBe(false);
+		const sortBy = find(items, 'sortBy') as Extract<MenuItem, { type: 'submenu' }>;
+		expect(sortBy.items.some((item) => item.type === 'section')).toBe(false);
+		expect(ids(sortBy.items)).toEqual([
+			'sort:name',
+			'sort:size',
+			'sort:deleted',
+			'descending',
+			'foldersFirst',
 		]);
 	});
 
@@ -53,13 +78,15 @@ describe('the Trash empty-space menu', () => {
 
 	it('is unchanged for a folder, which has no date deleted and no Empty Trash', () => {
 		const items = backgroundMenuItems(sort, true);
-		expect(ids(items)).toEqual([
+		expect(allIds(items)).toEqual([
+			'sortBy',
 			'sort:name',
 			'sort:size',
 			'sort:modified',
 			'sort:kind',
 			'descending',
 			'foldersFirst',
+			'groupBy',
 			'group:none',
 			'group:kind',
 			'group:modified',

@@ -123,11 +123,13 @@ describe('a folder that remembers its own view', () => {
 		await renderWorkspace(twoFolders(), tabs, undefined, { folderViews });
 		await option('docs');
 		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Sort by' }));
 		fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: /^Size/ }));
 		await waitFor(() => expect(folderViews.view(HOME.uri)?.sort?.key).toBe('size'));
 		expect(folderViews.view(HOME.uri)?.mode).toBeNull();
 
 		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Group by' }));
 		fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: /^Group by Kind/ }));
 		await waitFor(() => expect(folderViews.view(HOME.uri)?.sort?.groupBy).toBe('kind'));
 
@@ -248,6 +250,7 @@ describe('with remembering turned off', () => {
 		await option('docs');
 		await waitFor(() => expect(gridButton()).toHaveAttribute('aria-pressed', 'true'));
 		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Sort by' }));
 		fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: /^Size/ }));
 		await waitFor(() => expect(names().map((n) => n?.[0])).toEqual(['d', 'b', 'c', 'a']));
 		await go(tabs, DOCS);
