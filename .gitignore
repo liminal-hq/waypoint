@@ -2,7 +2,7 @@
 /target/
 
 # JS / Bun
-node_modules/
+node_modules
 dist/
 dist-js/
 coverage/
