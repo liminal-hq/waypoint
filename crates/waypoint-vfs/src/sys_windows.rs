@@ -14,8 +14,9 @@ use std::path::Path;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Storage::FileSystem::{
-    CopyFileExW, GetFileInformationByHandle, MoveFileExW, BY_HANDLE_FILE_INFORMATION,
-    COPYFILE_FLAGS, COPYPROGRESSROUTINE_PROGRESS, COPY_FILE_FAIL_IF_EXISTS,
+    CopyFileExW, FileRenameInfoEx, GetFileInformationByHandle, MoveFileExW,
+    SetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, COPYFILE_FLAGS,
+    COPYPROGRESSROUTINE_PROGRESS, COPY_FILE_FAIL_IF_EXISTS, FILE_RENAME_INFO,
     LPPROGRESS_ROUTINE_CALLBACK_REASON, MOVEFILE_REPLACE_EXISTING, MOVE_FILE_FLAGS,
     PROGRESS_CANCEL, PROGRESS_CONTINUE,
 };
@@ -39,6 +40,15 @@ const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
 const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
 const ERROR_REQUEST_ABORTED: i32 = 1235;
 const ERROR_ALREADY_EXISTS: i32 = 183;
+const ERROR_ACCESS_DENIED: i32 = 5;
+const ERROR_SHARING_VIOLATION: i32 = 32;
+const ERROR_INVALID_FUNCTION: i32 = 1;
+const ERROR_INVALID_PARAMETER: i32 = 87;
+const ERROR_NOT_SUPPORTED: i32 = 50;
+const ERROR_CALL_NOT_IMPLEMENTED: i32 = 120;
+const DELETE: u32 = 0x1_0000;
+const FILE_RENAME_FLAG_REPLACE_IF_EXISTS: u32 = 0x1;
+const FILE_RENAME_FLAG_POSIX_SEMANTICS: u32 = 0x2;
 
 fn wide(path: &Path) -> Vec<u16> {
     path.as_os_str()
@@ -92,6 +102,13 @@ pub(crate) fn set_times(path: &Path, times: FileTimes) -> io::Result<()> {
 /// Renames within a volume. Without `MOVEFILE_REPLACE_EXISTING` an existing target is
 /// `ERROR_ALREADY_EXISTS`, atomically; without `MOVEFILE_COPY_ALLOWED` another volume is
 /// `ERROR_NOT_SAME_DEVICE`.
+///
+/// A replacing rename uses POSIX semantics (`FileRenameInfoEx`, Windows 10 1809 and later): the
+/// target's name is unlinked at once and a reader that still has it open (an open listing, a
+/// verify read) keeps its handle, where `MoveFileExW(MOVEFILE_REPLACE_EXISTING)` is refused with
+/// `ERROR_ACCESS_DENIED` while any handle to the target is open. A system without it falls back to
+/// `MoveFileExW`, and a replace that is still refused after a few short waits is reported as a
+/// sharing violation (`InUse`) when the target is a writable file.
 pub(crate) fn rename(from: &Path, to: &Path, overwrite: bool) -> io::Result<()> {
     // `MoveFileExW` treats a rename onto the very same path as a successful no-op, but a target
     // that is there is `AlreadyExists` without `overwrite`, itself included. (A case-only rename
@@ -99,6 +116,61 @@ pub(crate) fn rename(from: &Path, to: &Path, overwrite: bool) -> io::Result<()> 
     if !overwrite && from == to && fs::symlink_metadata(to).is_ok() {
         return Err(io::Error::from_raw_os_error(ERROR_ALREADY_EXISTS));
     }
+    if !overwrite || from == to {
+        return move_file(from, to, overwrite);
+    }
+    // Only a file target is worth waiting for: a folder that would be replaced is refused for good.
+    let patient = fs::symlink_metadata(to).is_ok_and(|meta| meta.is_file());
+    let mut waited = 0;
+    loop {
+        match posix_replace(from, to) {
+            Ok(()) => return Ok(()),
+            Err(error) if is_unsupported(&error) => match move_file(from, to, true) {
+                Err(error) if patient && is_busy(&error) && waited < RETRY_WAITS.len() => {}
+                other => return other.map_err(|error| busy_if_held(error, to)),
+            },
+            Err(error) if patient && is_busy(&error) && waited < RETRY_WAITS.len() => {}
+            Err(error) => return Err(busy_if_held(error, to)),
+        }
+        std::thread::sleep(std::time::Duration::from_millis(RETRY_WAITS[waited]));
+        waited += 1;
+    }
+}
+
+/// How long to wait before each new try of a refused replace.
+const RETRY_WAITS: [u64; 5] = [10, 25, 50, 100, 200];
+
+fn is_busy(error: &io::Error) -> bool {
+    matches!(
+        error.raw_os_error(),
+        Some(ERROR_ACCESS_DENIED | ERROR_SHARING_VIOLATION)
+    )
+}
+
+fn is_unsupported(error: &io::Error) -> bool {
+    matches!(
+        error.raw_os_error(),
+        Some(
+            ERROR_INVALID_FUNCTION
+                | ERROR_INVALID_PARAMETER
+                | ERROR_NOT_SUPPORTED
+                | ERROR_CALL_NOT_IMPLEMENTED
+        )
+    )
+}
+
+/// A refusal of a replace that comes from an open handle is a sharing violation, which callers
+/// word as "in use"; a read-only or missing target keeps the error it had.
+fn busy_if_held(error: io::Error, target: &Path) -> io::Error {
+    if error.raw_os_error() == Some(ERROR_ACCESS_DENIED)
+        && fs::metadata(target).is_ok_and(|meta| meta.is_file() && !meta.permissions().readonly())
+    {
+        return io::Error::from_raw_os_error(ERROR_SHARING_VIOLATION);
+    }
+    error
+}
+
+fn move_file(from: &Path, to: &Path, overwrite: bool) -> io::Result<()> {
     let flags = if overwrite {
         MOVEFILE_REPLACE_EXISTING
     } else {
@@ -107,6 +179,52 @@ pub(crate) fn rename(from: &Path, to: &Path, overwrite: bool) -> io::Result<()> 
     let (a, b) = (wide(from), wide(to));
     // SAFETY: both are NUL-terminated and outlive the call.
     unsafe { MoveFileExW(PCWSTR(a.as_ptr()), PCWSTR(b.as_ptr()), flags) }.map_err(win_error)
+}
+
+/// Renames `from` over `to` through a handle to `from`, replacing an existing target with POSIX
+/// semantics.
+fn posix_replace(from: &Path, to: &Path) -> io::Result<()> {
+    // The new name as a full path, in the `\\?\` form the call takes.
+    let full = std::path::absolute(to)?;
+    let mut name: Vec<u16> = full.as_os_str().encode_wide().collect();
+    let verbatim: Vec<u16> = r"\\?\".encode_utf16().collect();
+    if !name.starts_with(&verbatim) {
+        let unc: Vec<u16> = r"\\".encode_utf16().collect();
+        if name.starts_with(&unc) {
+            let mut with: Vec<u16> = r"\\?\UNC\".encode_utf16().collect();
+            with.extend_from_slice(&name[2..]);
+            name = with;
+        } else {
+            let mut with = verbatim;
+            with.extend_from_slice(&name);
+            name = with;
+        }
+    }
+    let source = open_entry(from, DELETE)?;
+    let header = std::mem::offset_of!(FILE_RENAME_INFO, FileName);
+    let bytes = header + name.len() * 2;
+    // A buffer aligned for the struct, which ends in the name.
+    let mut buffer = vec![0u64; bytes.div_ceil(8) + 1];
+    let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+    // SAFETY: the buffer is zeroed, aligned and large enough for the header and the name, which is
+    // copied in after it; the handle is open for the call.
+    unsafe {
+        (*info).Anonymous.Flags =
+            FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_POSIX_SEMANTICS;
+        (*info).FileNameLength = (name.len() * 2) as u32;
+        std::ptr::copy_nonoverlapping(
+            name.as_ptr(),
+            std::ptr::addr_of_mut!((*info).FileName).cast::<u16>(),
+            name.len(),
+        );
+        SetFileInformationByHandle(
+            HANDLE(source.as_raw_handle()),
+            FileRenameInfoEx,
+            info.cast::<c_void>(),
+            bytes as u32,
+        )
+    }
+    .map_err(win_error)
 }
 
 /// Opens `path` for writing, creating it.
@@ -225,4 +343,39 @@ pub(crate) fn lower_thread_priority() {
     };
     // SAFETY: the pseudo-handle of the current thread is always valid.
     let _ = unsafe { SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN) };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_replacing_rename_goes_through_while_the_target_is_open_for_reading() {
+        let dir = tempfile::tempdir().unwrap();
+        let (from, to) = (dir.path().join("new"), dir.path().join("old"));
+        fs::write(&from, b"new").unwrap();
+        fs::write(&to, b"old").unwrap();
+        let held = File::open(&to).unwrap();
+        rename(&from, &to, true).expect("POSIX semantics replace an open target");
+        drop(held);
+        assert_eq!(fs::read(&to).unwrap(), b"new");
+        assert!(!from.exists());
+    }
+
+    #[test]
+    fn a_replacing_rename_refused_for_good_is_a_sharing_violation() {
+        let dir = tempfile::tempdir().unwrap();
+        let (from, to) = (dir.path().join("new"), dir.path().join("old"));
+        fs::write(&from, b"new").unwrap();
+        fs::write(&to, b"old").unwrap();
+        // Opened without delete sharing, as most programs do: nothing can replace it.
+        let _held = OpenOptions::new()
+            .read(true)
+            .share_mode(1)
+            .open(&to)
+            .unwrap();
+        let error = rename(&from, &to, true).unwrap_err();
+        assert_eq!(error.raw_os_error(), Some(ERROR_SHARING_VIOLATION));
+        assert_eq!(fs::read(&to).unwrap(), b"old");
+    }
 }

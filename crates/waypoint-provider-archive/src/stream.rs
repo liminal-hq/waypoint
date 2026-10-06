@@ -137,6 +137,19 @@ pub(crate) struct ChannelReader {
     chunk: Vec<u8>,
     at: usize,
     done: bool,
+    /// The thread that decodes into `rx`; dropping the stream waits for it, so the archive file it
+    /// has open is closed by the time the drop returns (Windows will not replace an open file).
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl Drop for ChannelReader {
+    fn drop(&mut self) {
+        // Hang up first so a decoder waiting to send stops, then wait for it to let go of the file.
+        self.rx = sync_channel(0).1;
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
 }
 
 impl Read for ChannelReader {
@@ -180,7 +193,7 @@ pub(crate) fn spawn(
     let (data_tx, data_rx) = sync_channel(WINDOW);
     let thread_location = location.clone();
     let builder = thread::Builder::new().name("waypoint-archive-read".to_owned());
-    builder
+    let handle = builder
         .spawn(move || {
             let mut pump = Pump {
                 location: thread_location,
@@ -214,6 +227,7 @@ pub(crate) fn spawn(
         chunk: Vec::new(),
         at: 0,
         done: false,
+        thread: Some(handle),
     }))
 }
 
