@@ -7,6 +7,11 @@ import type { Favourite } from '@liminal-hq/waypoint-protocol/generated/Favourit
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { FileIcon } from '../browse/FileIcon';
+import { ServerIcon } from '../connections/ConnectionIcons';
+import { useConnectionsView } from '../connections/ConnectionsContext';
+import { isProtocolOff, schemeOfKey, stateOf } from '../connections/connectionsModel';
+import { stateTone, stateWords } from '../connections/remoteModel';
+import network from '../connections/NetworkList.module.css';
 import { t } from '../i18n/messages';
 import type { GitBadge } from '../services/gitClient';
 import { itemGestures, type ItemActions } from './itemGestures';
@@ -44,6 +49,9 @@ export function FavouriteList({
 	canRename = true,
 	gitBadges,
 }: FavouriteListProps) {
+	// A favourite on a server shows its connection's state, read from what the window already
+	// holds: drawing the sidebar never opens a connection (D195).
+	const view = useConnectionsView((current) => current);
 	const [dragging, setDragging] = useState<string | null>(null);
 	const [dropOn, setDropOn] = useState<string | null>(null);
 	const list = useRef<HTMLUListElement | null>(null);
@@ -105,16 +113,25 @@ export function FavouriteList({
 						</li>
 					);
 				}
+				const server = favourite.connection;
+				const off = server !== undefined && isProtocolOff(view, schemeOfKey(server));
+				const state = server === undefined ? undefined : stateOf(view, server);
 				return (
-					<li key={uri}>
+					<li
+						key={uri}
+						className={server === undefined ? undefined : network.row}
+						data-off={off ? '' : undefined}
+					>
 						<button
 							type="button"
 							{...{ [ITEM_ATTRIBUTE]: '' }}
 							data-favourite={uri}
+							data-server={server === undefined ? undefined : ''}
+							title={server === undefined ? undefined : favourite.location.display}
 							data-drop-target={dropOn === uri || undefined}
 							data-dragging={dragging === uri || undefined}
 							draggable
-							className={styles.item}
+							className={server === undefined ? styles.item : `${styles.item} ${network.item}`}
 							aria-current={uri === currentUri ? 'page' : undefined}
 							{...gestures}
 							onKeyDown={(event) => {
@@ -145,8 +162,29 @@ export function FavouriteList({
 								setDropOn(null);
 							}}
 						>
-							<FileIcon group="folder" special={favourite.special} />
-							<span className={styles.label}>{favourite.label}</span>
+							{state === undefined ? (
+								<>
+									<FileIcon group="folder" special={favourite.special} />
+									<span className={styles.label}>{favourite.label}</span>
+								</>
+							) : (
+								<>
+									<span className={network.iconWrap}>
+										<ServerIcon className={styles.itemIcon} />
+										<span
+											className={network.dot}
+											data-tone={off ? 'idle' : stateTone(state)}
+											aria-hidden="true"
+										/>
+									</span>
+									<span className={network.text}>
+										<span className={styles.label}>{favourite.label}</span>
+										<span className={network.detail}>
+											{off ? t('protocol.off.reason') : stateWords(state)}
+										</span>
+									</span>
+								</>
+							)}
 							<SidebarGitMark badge={gitBadges?.get(uri)} />
 						</button>
 					</li>
