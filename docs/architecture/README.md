@@ -104,6 +104,7 @@ Each milestone scaffolds only what it needs.
 | 10  | **Customisation and polish**                  | Keyboard shortcut editor and Nemo/Dolphin/Explorer presets, context-menu customisation, Window Layouts, the "Open startup tabs" setting and the Tabs & windows toggles, Sync Navigation, Vim mode, touchpad gestures, groups spanning windows (`open-questions.md`), multi-selection travelling with a hand-off, the remaining Settings pages (Keyboard, Tabs & windows); the Columns, Compact and Disk usage views, groups that span windows, and a FileChooser portal backend                                                                                                             |
 
 Status: milestones 0 (the listing spike and the milestone 3 spikes), 1, 2, 3 and 4 are merged; milestone 5 is merged (verified in `milestone-5-verification.md`); milestone 6 is built on `main`, with a first Linux pass in `milestone-6-verification.md` and a Windows 11 pass in `milestone-6-verification-windows.md`; milestones 7 to 10 have not started.
+Status: milestones 0 (the listing spike and the milestone 3 spikes), 1, 2, 3 and 4 are merged; milestone 5 is merged (verified in `milestone-5-verification.md`); milestone 6 is built on `main`, with two headless Linux passes in `milestone-6-verification.md` and a pass on a live GNOME desktop in `milestone-6-verification-gnome.md`; milestones 7 to 10 have not started.
 
 Windows modules are written alongside each Linux module from milestone 2 onward, not deferred to milestone 9; milestone 9 is the parity audit and packaging.
 

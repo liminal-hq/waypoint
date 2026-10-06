@@ -1,6 +1,6 @@
 # Accessibility and Focus Review
 
-Status: prototype review, 2026-09-29. Findings are from reading the markup and behaviour, not from testing with a screen reader yet.
+Status: prototype review, 2026-09-29. Findings are from reading the markup and behaviour. The AT-SPI tree of the main and Settings windows was read on a live GNOME desktop in milestone 6 (`architecture/milestone-6-verification-gnome.md`), which is what Orca reads, but no screen reader has spoken it yet.
 
 ## What is in place
 
