@@ -5,8 +5,7 @@
 
 import { ContextMenu, type ContextMenuProps } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { NativeMenuIcon } from './nativeMenuClient';
-import { collectIcons, toNativeMenu } from './nativeMenu';
+import { collectIcons, toNativeMenu, type IconLook, type IconPicture } from './nativeMenu';
 import { useNativeContextMenusSetting } from './nativeMenuSetting';
 import { useNativeMenuService } from './NativeMenuContext';
 
@@ -70,9 +69,14 @@ export function HostedContextMenu({ settling = false, ...props }: HostedContextM
 			try {
 				const prepare = (async () => {
 					const { items } = latest.current;
-					const pictures = new Map<ReactNode, NativeMenuIcon | null>();
-					for (const icon of collectIcons(items)) pictures.set(icon, await service.rasterise(icon));
-					return toNativeMenu(items, (icon) => pictures.get(icon));
+					const pictures = new Map<ReactNode, Map<string, IconPicture | null>>();
+					const lookKey = (look: IconLook) => `${look.danger === true}/${look.checked === true}`;
+					for (const { icon, ...look } of collectIcons(items)) {
+						const kept = pictures.get(icon) ?? new Map<string, IconPicture | null>();
+						pictures.set(icon, kept);
+						kept.set(lookKey(look), await service.rasterise(icon, look));
+					}
+					return toNativeMenu(items, (icon, look) => pictures.get(icon)?.get(lookKey(look)));
 				})();
 				const expiry = new Promise<typeof timedOut>((resolve) => {
 					timer = window.setTimeout(() => resolve(timedOut), NATIVE_PREPARE_MS);

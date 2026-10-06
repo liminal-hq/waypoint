@@ -69,7 +69,7 @@ describe('toNativeMenu', () => {
 		expect(result.selectable.get('name')).toBe(nested);
 	});
 
-	it('carries disabled through, and a danger action is an ordinary one', () => {
+	it('carries disabled through, and a danger action is an ordinary one with no flag of its own', () => {
 		const result = converted([
 			{ type: 'action', id: 'a', label: 'A', disabled: true },
 			{ type: 'action', id: 'b', label: 'Delete', danger: true, title: 'Gone for good' },
@@ -155,6 +155,66 @@ describe('toNativeMenu', () => {
 		expect(result.droppedIcons).toBe(2);
 	});
 
+	it('asks for a dangerous action’s icon in its danger look, and an ordinary one’s without', () => {
+		const looks: Array<[string, boolean | undefined]> = [];
+		const danger = picture();
+		const result = converted(
+			[
+				{ type: 'action', id: 'a', label: 'Delete', danger: true, icon: <svg data-testid="a" /> },
+				{ type: 'action', id: 'b', label: 'Copy', icon: <svg data-testid="b" /> },
+			],
+			(icon, look) => {
+				looks.push([
+					(icon as { props: { 'data-testid': string } }).props['data-testid'],
+					look.danger,
+				]);
+				return danger;
+			},
+		);
+		expect(looks).toEqual([
+			['a', true],
+			['b', false],
+		]);
+		expect(result.items[0]).toMatchObject({ icon: danger });
+		expect(result.items[0]).not.toHaveProperty('danger');
+	});
+
+	it('turns a checkbox whose picture marks its own check into an icon action, and keeps the rest', () => {
+		const swatch = <span data-testid="swatch" />;
+		const glyph = <svg data-testid="glyph" />;
+		const marked = { ...picture(), marksCheck: true };
+		const looks: Array<boolean | undefined> = [];
+		const result = converted(
+			[
+				{ type: 'checkbox', id: 'colour:red', label: 'Red', checked: true, icon: swatch },
+				{ type: 'checkbox', id: 'sort:name', label: 'Name', checked: true, icon: glyph },
+				{ type: 'checkbox', id: 'colour:none', label: 'None', checked: false },
+			],
+			(icon, look) => {
+				if (icon === swatch) looks.push(look.checked);
+				return icon === swatch ? marked : picture();
+			},
+		);
+		expect(looks).toEqual([true]);
+		expect(result.items[0]).toMatchObject({ kind: 'action', id: 'colour:red', label: 'Red' });
+		expect(result.items[0]).not.toHaveProperty('checked');
+		expect(result.items[0]).not.toHaveProperty('icon.marksCheck');
+		expect(result.items[1]).toMatchObject({ kind: 'checkbox', checked: true });
+		expect(result.items[1]).not.toHaveProperty('icon');
+		expect(result.items[2]).toMatchObject({ kind: 'checkbox', checked: false });
+		expect(result.droppedIcons).toBe(1);
+		expect([...result.selectable.keys()]).toEqual(['colour:red', 'sort:name', 'colour:none']);
+	});
+
+	it('keeps a swatch checkbox as a checkbox when its picture cannot be had', () => {
+		const result = converted(
+			[{ type: 'checkbox', id: 'colour:red', label: 'Red', checked: true, icon: <span /> }],
+			() => null,
+		);
+		expect(result.items[0]).toMatchObject({ kind: 'checkbox', checked: true });
+		expect(result.droppedIcons).toBe(1);
+	});
+
 	it('keeps to the icon byte budget by dropping the icons past it', () => {
 		const big = picture(MAX_NATIVE_ICON_BYTES / 2 + 4);
 		const result = converted(
@@ -238,13 +298,13 @@ describe('toNativeMenu', () => {
 });
 
 describe('collectIcons', () => {
-	it('lists the icons of actions, in order, through submenus, and skips the items that cannot carry one', () => {
+	it('lists the icons of actions and checkboxes, in order, through submenus, with the look each is drawn in, and skips a submenu’s own', () => {
 		const a = <svg data-testid="a" />;
 		const b = <svg data-testid="b" />;
 		const c = <svg data-testid="c" />;
 		expect(
 			collectIcons([
-				{ type: 'action', id: 'a', label: 'A', icon: a },
+				{ type: 'action', id: 'a', label: 'A', icon: a, danger: true },
 				{ type: 'section', label: 'Heading' },
 				{ type: 'separator' },
 				{ type: 'action', id: 'none', label: 'No icon' },
@@ -255,8 +315,12 @@ describe('collectIcons', () => {
 					icon: <svg data-testid="submenu" />,
 					items: [{ type: 'action', id: 'b', label: 'B', icon: b }],
 				},
-				{ type: 'checkbox', id: 'c', label: 'C', checked: false, icon: c },
+				{ type: 'checkbox', id: 'c', label: 'C', checked: true, icon: c },
 			]),
-		).toEqual([a, b]);
+		).toEqual([
+			{ icon: a, danger: true },
+			{ icon: b, danger: false },
+			{ icon: c, checked: true },
+		]);
 	});
 });

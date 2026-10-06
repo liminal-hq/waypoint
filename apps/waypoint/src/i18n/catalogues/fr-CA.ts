@@ -5316,9 +5316,9 @@ const messages: Catalogue = {
 	'settings.group.menus': 'Menus',
 	// source: 15dcaf0d
 	'settings.experimental.nativeMenus.label': 'Menus contextuels natifs',
-	// source: f7ce0830
+	// source: ba7d14e2
 	'settings.experimental.nativeMenus.description':
-		'Ouvre les menus du clic droit de la liste de fichiers, de la barre latérale, de la corbeille et des onglets sous forme de menus propres à votre système, afin qu’ils puissent dépasser le bord de la fenêtre. Ils adoptent l’apparence du système : ils ignorent donc le thème de Waypoint et les réglages de transparence des menus, et n’ont ni flou, ni rouge pour les éléments destructeurs, ni info-bulles. Leur comportement peut différer sous Wayland. Un menu que le système ne peut pas afficher tel quel reste un menu de Waypoint.',
+		'Ouvre les menus du clic droit de la liste de fichiers, de la barre latérale, de la corbeille et des onglets sous forme de menus propres à votre système, afin qu’ils puissent dépasser le bord de la fenêtre. Ils adoptent l’apparence du système : ils ignorent donc le thème de Waypoint et les réglages de transparence des menus, et n’ont ni flou ni info-bulles. Un élément destructeur n’est rouge que dans son icône, non dans son libellé. Leur comportement peut différer sous Wayland. Un menu que le système ne peut pas afficher tel quel reste un menu de Waypoint.',
 	// source: b949c922
 	'inspector.tab.git': 'Git',
 	// source: 13d6ff07

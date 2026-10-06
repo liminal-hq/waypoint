@@ -13,8 +13,24 @@ export const MAX_NATIVE_DEPTH = 3;
 export const MAX_NATIVE_TEXT = 256;
 export const MAX_NATIVE_ICON_BYTES = 1 << 20;
 
-/** The picture for an icon node, if it was rasterised ahead of the conversion. */
-export type IconLookup = (icon: ReactNode) => NativeMenuIcon | null | undefined;
+/** What colours an item's icon: the page's menu draws a dangerous item's icon in the danger colour, and marks a checked swatch. */
+export interface IconLook {
+	danger?: boolean;
+	checked?: boolean;
+}
+
+/** A picture of an icon. `marksCheck` says the picture itself shows whether its item is checked (a swatch's ring). */
+export interface IconPicture extends NativeMenuIcon {
+	marksCheck?: boolean;
+}
+
+/** An icon to rasterise before the conversion, and the look it is drawn in. */
+export interface IconRequest extends IconLook {
+	icon: ReactNode;
+}
+
+/** The picture for an icon node in a look, if it was rasterised ahead of the conversion. */
+export type IconLookup = (icon: ReactNode, look: IconLook) => IconPicture | null | undefined;
 
 export type NativeMenuConversion =
 	| {
@@ -27,13 +43,18 @@ export type NativeMenuConversion =
 	  }
 	| { ok: false; reason: string };
 
-/** The icon nodes of the actions in `items`, in order, for the host to rasterise before it converts. */
-export function collectIcons(items: readonly MenuItem[]): ReactNode[] {
-	const found: ReactNode[] = [];
+/**
+ * The icons of the actions and checkboxes in `items`, in order, with the look each is drawn in, for
+ * the host to rasterise before it converts. A submenu's own icon is not asked for: it cannot carry one.
+ */
+export function collectIcons(items: readonly MenuItem[]): IconRequest[] {
+	const found: IconRequest[] = [];
 	for (const item of items) {
 		if (item.type === 'submenu') found.push(...collectIcons(item.items));
 		else if (item.type === 'action' && item.icon !== undefined && item.icon !== null) {
-			found.push(item.icon);
+			found.push({ icon: item.icon, danger: item.danger === true });
+		} else if (item.type === 'checkbox' && item.icon !== undefined && item.icon !== null) {
+			found.push({ icon: item.icon, checked: item.checked });
 		}
 	}
 	return found;
@@ -55,11 +76,14 @@ class Unconvertible extends Error {}
  * nested deeper than the command accepts.
  *
  * What the system's menu cannot draw is left out and the menu is still used: a section heading
- * becomes a disabled item (the system has no heading), an icon on a checkbox or a submenu is
- * dropped (neither can carry one), an icon that was not rasterised is dropped, and `title`,
- * `ariaLabel` and `danger` have no native counterpart. A radio-like group stays checkboxes, as it is
- * in the model. `shortcut` is passed on, and the command shows it only where the system's menu
- * draws one.
+ * becomes a disabled item (the system has no heading), an icon on a submenu is dropped (it cannot
+ * carry one), an icon that was not rasterised is dropped, and `title` and `ariaLabel` have no native
+ * counterpart. `danger` is shown through the icon alone: the page draws a dangerous item's icon in
+ * the danger colour, and the label keeps the system's colour. A checkbox cannot carry an icon, so
+ * its icon is dropped unless the picture marks the check itself (a colour swatch with a ring round
+ * it when checked), and then the item is an icon action instead, with no check mark of the
+ * system's. A radio-like group stays checkboxes, as it is in the model. `shortcut` is passed on, and
+ * the command shows it only where the system's menu draws one.
  */
 export function toNativeMenu(
 	items: readonly MenuItem[],
@@ -77,15 +101,17 @@ export function toNativeMenu(
 	const checkId = (id: string) => {
 		if (Array.from(id).length > MAX_NATIVE_TEXT) throw new Unconvertible('an id is too long');
 	};
-	const iconOf = (icon: ReactNode): NativeMenuIcon | undefined => {
-		if (icon === undefined || icon === null || icon === false) return undefined;
-		const picture = iconFor(icon);
+	const take = (picture: IconPicture | null | undefined): NativeMenuIcon | undefined => {
 		if (!picture || iconBytes + picture.rgba.length > MAX_NATIVE_ICON_BYTES) {
 			droppedIcons += 1;
 			return undefined;
 		}
 		iconBytes += picture.rgba.length;
-		return picture;
+		return { width: picture.width, height: picture.height, rgba: picture.rgba };
+	};
+	const iconOf = (icon: ReactNode, look: IconLook): NativeMenuIcon | undefined => {
+		if (icon === undefined || icon === null || icon === false) return undefined;
+		return take(iconFor(icon, look));
 	};
 
 	const convert = (level: readonly MenuItem[], depth: number): NativeMenuItem[] => {
@@ -107,7 +133,7 @@ export function toNativeMenu(
 					counted();
 					checkId(item.id);
 					selectable.set(item.id, item);
-					const icon = iconOf(item.icon);
+					const icon = iconOf(item.icon, { danger: item.danger === true });
 					return {
 						kind: 'action',
 						id: item.id,
@@ -121,7 +147,24 @@ export function toNativeMenu(
 					counted();
 					checkId(item.id);
 					selectable.set(item.id, item);
-					if (item.icon !== undefined && item.icon !== null) droppedIcons += 1;
+					if (item.icon !== undefined && item.icon !== null && item.icon !== false) {
+						const picture = iconFor(item.icon, { checked: item.checked });
+						if (picture?.marksCheck) {
+							const icon = take(picture);
+							if (icon) {
+								return {
+									kind: 'action',
+									id: item.id,
+									label: clip(item.label),
+									enabled: !item.disabled,
+									...(item.shortcut ? { shortcut: item.shortcut } : {}),
+									icon,
+								};
+							}
+						} else {
+							droppedIcons += 1;
+						}
+					}
 					return {
 						kind: 'checkbox',
 						id: item.id,

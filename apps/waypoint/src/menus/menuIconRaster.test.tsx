@@ -9,6 +9,7 @@ import { createIconRasteriser, standaloneSvg, type RasteriserEnvironment } from 
 afterEach(() => {
 	document.body.replaceChildren();
 	document.documentElement.removeAttribute('style');
+	document.head.replaceChildren();
 });
 
 function environment(scale = 1) {
@@ -81,7 +82,7 @@ describe('createIconRasteriser', () => {
 		expect(drawn).toHaveLength(4);
 	});
 
-	it('has no picture for what is not an SVG, such as an application’s image or a swatch', async () => {
+	it('has no picture for what is neither an SVG nor a filled swatch, such as an application’s image', async () => {
 		const { stub } = environment();
 		const rasterise = createIconRasteriser(stub);
 		expect(await rasterise(<img alt="" src="appicon://x" />)).toBeNull();
@@ -90,6 +91,86 @@ describe('createIconRasteriser', () => {
 		expect(await rasterise(undefined)).toBeNull();
 		expect(await rasterise(false)).toBeNull();
 		expect(stub.draw).not.toHaveBeenCalled();
+	});
+
+	it('draws a dangerous item’s icon in the danger colour and any other in the text colour, and keeps them apart', async () => {
+		const style = document.createElement('style');
+		style.textContent =
+			'div[aria-hidden] { color: rgb(1, 2, 3); } div[aria-hidden][data-danger] { color: rgb(200, 10, 20); }';
+		document.head.append(style);
+		const { stub, drawn } = environment(1);
+		const rasterise = createIconRasteriser(stub);
+		const plain = await rasterise(glyph, { danger: false });
+		const danger = await rasterise(glyph, { danger: true });
+		expect(drawn[0]?.markup).toContain('color: rgb(1, 2, 3)');
+		expect(drawn[1]?.markup).toContain('color: rgb(200, 10, 20)');
+		expect(danger).not.toBe(plain);
+		expect(await rasterise(glyph, { danger: true })).toBe(danger);
+		expect(await rasterise(glyph)).toBe(plain);
+		expect(drawn).toHaveLength(2);
+	});
+
+	it('draws again when the theme changes the colour an icon has', async () => {
+		const style = document.createElement('style');
+		style.textContent = 'div[aria-hidden] { color: rgb(1, 2, 3); }';
+		document.head.append(style);
+		const { stub, drawn } = environment(1);
+		const rasterise = createIconRasteriser(stub);
+		await rasterise(glyph);
+		style.textContent = 'div[aria-hidden] { color: rgb(250, 250, 250); }';
+		await rasterise(glyph);
+		expect(drawn).toHaveLength(2);
+		expect(drawn[1]?.markup).toContain('color: rgb(250, 250, 250)');
+	});
+
+	describe('a colour swatch', () => {
+		const dot = (colour: string) => (
+			<span
+				style={{
+					display: 'inline-block',
+					width: 10,
+					height: 10,
+					borderRadius: '50%',
+					backgroundColor: colour,
+				}}
+			/>
+		);
+
+		it('is drawn as its shape in its colour, and says its picture marks the check', async () => {
+			const { stub, drawn } = environment(2);
+			const picture = await createIconRasteriser(stub)(dot('rgb(220, 38, 38)'));
+			expect(picture).toMatchObject({ width: 32, height: 32, marksCheck: true });
+			const markup = drawn[0]?.markup ?? '';
+			expect(markup).toContain('fill="rgb(220, 38, 38)"');
+			expect(markup).toContain('width="10"');
+			expect(markup).toContain('rx="5"');
+			expect(markup).not.toContain('<circle');
+		});
+
+		it('has a ring round it when its item is checked, and is kept apart from the unchecked one', async () => {
+			const style = document.createElement('style');
+			style.textContent = 'div[aria-hidden] { color: rgb(1, 2, 3); }';
+			document.head.append(style);
+			const { stub, drawn } = environment(1);
+			const rasterise = createIconRasteriser(stub);
+			const unchecked = await rasterise(dot('rgb(37, 99, 235)'), { checked: false });
+			const checked = await rasterise(dot('rgb(37, 99, 235)'), { checked: true });
+			expect(checked).not.toBe(unchecked);
+			expect(drawn[0]?.markup).not.toContain('<circle');
+			expect(drawn[1]?.markup).toContain('<circle');
+			expect(drawn[1]?.markup).toContain('stroke="rgb(1, 2, 3)"');
+			expect(await rasterise(dot('rgb(37, 99, 235)'), { checked: true })).toBe(checked);
+			expect(drawn).toHaveLength(2);
+		});
+
+		it('is drawn again in the colour a theme gives it', async () => {
+			const { stub, drawn } = environment(1);
+			const rasterise = createIconRasteriser(stub);
+			await rasterise(dot('rgb(220, 38, 38)'));
+			await rasterise(dot('rgb(248, 113, 113)'));
+			expect(drawn).toHaveLength(2);
+			expect(drawn[1]?.markup).toContain('fill="rgb(248, 113, 113)"');
+		});
 	});
 
 	it('has no picture when the canvas gives the wrong number of bytes, or fails', async () => {

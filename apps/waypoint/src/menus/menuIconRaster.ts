@@ -1,4 +1,4 @@
-// Draws a menu icon (an SVG glyph) as RGBA pixels, in the menu's text colour, for the native menu
+// Draws a menu icon (an SVG glyph or a colour swatch) as RGBA pixels, in the colour the page's menu shows it in, for the native menu
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -6,7 +6,7 @@
 import { isValidElement, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
-import type { NativeMenuIcon } from './nativeMenuClient';
+import type { IconLook, IconPicture } from './nativeMenu';
 import styles from './MenuIconStage.module.css';
 
 /** The icon's size in logical pixels, which the command tells the system to draw it at. */
@@ -32,7 +32,7 @@ const PAINT = [
 ] as const;
 
 /** An icon rasteriser: the picture of `icon`, or `null` where there is none to make. */
-export type IconRasteriser = (icon: ReactNode) => Promise<NativeMenuIcon | null>;
+export type IconRasteriser = (icon: ReactNode, look?: IconLook) => Promise<IconPicture | null>;
 
 export interface RasteriserEnvironment {
 	/** Screen pixels per logical pixel. */
@@ -62,9 +62,10 @@ const DOM_ENVIRONMENT: RasteriserEnvironment = {
 
 /**
  * `svg` as a stand-alone image `px` square, with the paint it has in the document written onto each
- * element. `svg` must be in the document so its styles resolve.
+ * element, and `colour` (the text colour the glyph is in) as the colour `currentColor` takes. `svg`
+ * must be in the document so its styles resolve.
  */
-export function standaloneSvg(svg: SVGSVGElement, px: number): string {
+export function standaloneSvg(svg: SVGSVGElement, px: number, colour?: string): string {
 	const copy = svg.cloneNode(true) as SVGSVGElement;
 	const from = [svg, ...Array.from(svg.querySelectorAll('*'))];
 	const to = [copy, ...Array.from(copy.querySelectorAll('*'))];
@@ -79,6 +80,7 @@ export function standaloneSvg(svg: SVGSVGElement, px: number): string {
 		target.removeAttribute('class');
 		target.setAttribute('style', style);
 	});
+	if (colour) copy.style.setProperty('color', colour);
 	copy.setAttribute('xmlns', SVG_NAMESPACE);
 	copy.setAttribute('width', String(px));
 	copy.setAttribute('height', String(px));
@@ -110,17 +112,72 @@ function iconKey(icon: ReactNode): string | null {
 	}
 }
 
+/** The width of the ring that marks a checked swatch, in the 16-unit box a swatch is drawn in. */
+const RING_WIDTH = 1.5;
+const RING_RADIUS = 7.25;
+const DEFAULT_SWATCH = 10;
+
+function isClear(colour: string): boolean {
+	const value = colour.replace(/\s+/g, '').toLowerCase();
+	return (
+		value === '' ||
+		value === 'transparent' ||
+		/^rgba\(.*,0(\.0+)?\)$/.test(value) ||
+		/\/0(\.0+)?\)$/.test(value)
+	);
+}
+
+/** A swatch's look: the colour it fills with and how it is shaped, read from the element drawn in the stage. */
+interface Swatch {
+	fill: string;
+	diameter: number;
+	/** The corner radius in the 16-unit box; a circle when it is at least half the diameter. */
+	radius: number;
+}
+
+function swatchOf(element: Element | null): Swatch | null {
+	if (!element) return null;
+	const computed = getComputedStyle(element);
+	const fill = computed.backgroundColor;
+	if (isClear(fill)) return null;
+	const width = parseFloat(computed.width);
+	const diameter = Math.min(14, Math.max(4, Number.isFinite(width) ? width : DEFAULT_SWATCH));
+	const corner = computed.borderRadius;
+	const radius = corner.includes('%')
+		? (parseFloat(corner) / 100) * diameter
+		: Number.isFinite(parseFloat(corner))
+			? parseFloat(corner)
+			: 0;
+	return { fill, diameter, radius: Math.min(radius, diameter / 2) };
+}
+
+/** A swatch as a stand-alone image: its shape in its colour, and a ring in `ring` round it when checked. */
+function swatchMarkup(swatch: Swatch, px: number, checked: boolean, ring: string): string {
+	const offset = (16 - swatch.diameter) / 2;
+	const shape = `<rect x="${offset}" y="${offset}" width="${swatch.diameter}" height="${swatch.diameter}" rx="${swatch.radius}" fill="${escapeAttribute(swatch.fill)}"/>`;
+	const mark = checked
+		? `<circle cx="8" cy="8" r="${RING_RADIUS}" fill="none" stroke="${escapeAttribute(ring)}" stroke-width="${RING_WIDTH}"/>`
+		: '';
+	return `<svg xmlns="${SVG_NAMESPACE}" viewBox="0 0 16 16" width="${px}" height="${px}">${shape}${mark}</svg>`;
+}
+
+function escapeAttribute(value: string): string {
+	return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 /**
  * Makes the rasteriser a window uses. An icon is rendered in a hidden stage in the document, so it
- * takes the styles and the text colour it has in a menu, then drawn at 16 logical pixels at the
- * screen's scale. Pictures are kept by icon, colour, scale and icon style, so a menu opened again
- * draws nothing. Only an SVG can be drawn: anything else (an application's icon, a colour swatch)
- * gives `null`, and its item goes without.
+ * takes the styles it has in a menu, then drawn at 16 logical pixels at the screen's scale in the
+ * colour the page's menu gives it: the danger colour for an item that is `danger`, the menu text
+ * colour otherwise. A colour swatch (an element that fills with a colour rather than an SVG) is drawn
+ * as the shape and colour it has, and with a ring round it when its item is checked. Pictures are
+ * kept by icon, colours, scale and icon style, so a menu opened again draws nothing. Anything else
+ * (an application's icon) gives `null`, and its item goes without.
  */
 export function createIconRasteriser(
 	environment: RasteriserEnvironment = DOM_ENVIRONMENT,
 ): IconRasteriser {
-	const cache = new Map<string, NativeMenuIcon | null>();
+	const cache = new Map<string, IconPicture | null>();
 	let made: { stage: HTMLElement; root: Root } | null = null;
 
 	const stageOf = () => {
@@ -134,30 +191,51 @@ export function createIconRasteriser(
 		return made;
 	};
 
-	return async (icon) => {
+	return async (icon, look = {}) => {
 		if (icon === undefined || icon === null || typeof icon === 'boolean') return null;
 		const { stage, root } = stageOf();
 		const px = Math.min(MAX_EDGE, Math.max(1, Math.round(LOGICAL_SIZE * environment.scale())));
-		const look = getComputedStyle(document.documentElement);
+		const theme = getComputedStyle(document.documentElement);
+		if (look.danger) stage.setAttribute('data-danger', '');
+		else stage.removeAttribute('data-danger');
+		const colour = getComputedStyle(stage).color;
 		const identity = iconKey(icon);
+
+		try {
+			flushSync(() => root.render(icon));
+		} catch (error) {
+			console.debug('could not draw a menu icon for the native menu', error);
+			return null;
+		}
+		const svg = stage.querySelector('svg');
+		const swatch = svg ? null : swatchOf(stage.firstElementChild);
+		if (!svg && !swatch) return null;
+
+		const checked = swatch !== null && look.checked === true;
 		const key =
 			identity === null
 				? null
 				: [
 						identity,
-						getComputedStyle(stage).color,
+						colour,
+						swatch ? `${swatch.fill}/${swatch.diameter}/${swatch.radius}/${checked}` : '',
 						px,
-						look.getPropertyValue('--wp-icon-stroke'),
-						look.getPropertyValue('--wp-icon-fill'),
+						theme.getPropertyValue('--wp-icon-stroke'),
+						theme.getPropertyValue('--wp-icon-fill'),
 					].join('|');
 		if (key !== null && cache.has(key)) return cache.get(key) ?? null;
 
-		let picture: NativeMenuIcon | null = null;
+		let picture: IconPicture | null = null;
 		try {
-			flushSync(() => root.render(icon));
-			const svg = stage.querySelector('svg');
-			const rgba = svg ? await environment.draw(standaloneSvg(svg, px), px) : null;
-			if (rgba && rgba.length === px * px * 4) picture = { width: px, height: px, rgba };
+			const markup = swatch
+				? swatchMarkup(swatch, px, checked, colour)
+				: svg
+					? standaloneSvg(svg, px, colour)
+					: null;
+			const rgba = markup ? await environment.draw(markup, px) : null;
+			if (rgba && rgba.length === px * px * 4) {
+				picture = { width: px, height: px, rgba, ...(swatch ? { marksCheck: true } : {}) };
+			}
 		} catch (error) {
 			console.debug('could not draw a menu icon for the native menu', error);
 		}
