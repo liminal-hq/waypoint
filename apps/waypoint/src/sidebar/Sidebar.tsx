@@ -225,7 +225,10 @@ export function Sidebar({ showHidden, onNotice }: SidebarProps) {
 	const gitVersion = useGitVersion();
 	const gitLocations = useMemo(
 		() => [
-			...source.favourites.map((favourite) => favourite.location),
+			// A folder on a server is never asked about: Git reads local folders only.
+			...source.favourites
+				.filter((favourite) => favourite.connection === undefined)
+				.map((favourite) => favourite.location),
 			...(places?.places ?? [])
 				.filter((place) => place.kind !== 'trash' && place.kind !== 'overview')
 				.map((place) => place.location),

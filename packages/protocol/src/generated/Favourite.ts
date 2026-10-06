@@ -9,4 +9,9 @@ export type Favourite = { label: string, location: Location,
 /**
  * Which of the user's standard folders this is, when it is one, so its icon can say so.
  */
-special?: SpecialFolder, };
+special?: SpecialFolder, 
+/**
+ * The login a server folder belongs to (`sftp://me@nas.lan`), the key the sidebar looks the
+ * connection's state up by. Absent for a local folder.
+ */
+connection?: string, };

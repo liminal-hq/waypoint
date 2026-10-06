@@ -11,6 +11,14 @@
 //! it does not understand (and every other app's bookmark) exactly as found, and writes the file
 //! by renaming a finished temporary file over it, so a crash never leaves half a file. Windows has
 //! no such shared file, so favourites live in an app-owned file of the same format.
+//!
+//! A favourite is a local folder or a folder on a server (`sftp://user@host/path`, `smb://`,
+//! `dav://`, `davs://`, `s3://`), written in the canonical address, which never holds a password
+//! (D149): a line whose address carries one is not a favourite, so it is kept and not shown, and a
+//! password cannot be written. A bookmark in a form Waypoint cannot read (`ftp://`, `ssh://`,
+//! `network://`, `x-nautilus-desktop://`, a malformed address) is kept exactly as found and not
+//! listed. Reading never opens a connection: whether a server is reachable is the sidebar's
+//! question, answered from the connection state it already holds.
 
 use std::collections::HashMap;
 use std::fs;
@@ -90,6 +98,11 @@ pub struct Favourite {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub special: Option<SpecialFolder>,
+    /// The login a server folder belongs to (`sftp://me@nas.lan`), the key the sidebar looks the
+    /// connection's state up by. Absent for a local folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub connection: Option<String>,
 }
 
 /// Everything the sidebar's Places and Favourites sections show.
@@ -284,7 +297,7 @@ pub fn standard_places(env: &PlacesEnv) -> Vec<Place> {
     places
 }
 
-/// One line of a bookmarks file. Lines that are not a `file://` bookmark are kept verbatim.
+/// One line of a bookmarks file. Lines that are not a favourite Waypoint can read are kept verbatim.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Line {
     Bookmark {
@@ -302,14 +315,17 @@ impl Line {
             Some((uri, label)) => (uri, Some(label.trim()).filter(|l| !l.is_empty())),
             None => (trimmed, None),
         };
-        // Only local folders are favourites; another file manager's server bookmarks
-        // (`smb://…`, `sftp://…`) are kept as they are, untouched.
+        // Local folders and server folders are favourites. `from_uri` refuses a server address
+        // that holds a password, so such a line (and any other file manager's bookmark in a form
+        // Waypoint does not read) is kept as it is, untouched.
         match VfsPath::from_uri(uri) {
-            Ok(path @ VfsPath::File(_)) if uri.contains("://") => Line::Bookmark {
-                raw: raw.to_owned(),
-                path,
-                label: label.map(str::to_owned),
-            },
+            Ok(path @ (VfsPath::File(_) | VfsPath::Remote(_))) if uri.contains("://") => {
+                Line::Bookmark {
+                    raw: raw.to_owned(),
+                    path,
+                    label: label.map(str::to_owned),
+                }
+            }
             _ => Line::Other(raw.to_owned()),
         }
     }
@@ -380,6 +396,7 @@ impl Bookmarks {
                     label: label.clone().unwrap_or_else(|| default_label(path)),
                     location: path.to_location(),
                     special: None,
+                    connection: path.connection_key().map(|key| key.as_str().to_owned()),
                 }),
                 Line::Other(_) => None,
             })
@@ -438,8 +455,15 @@ fn default_label(path: &VfsPath) -> String {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| file.display()),
-        other => other.display(),
+        other => other.label(),
     }
+}
+
+/// Whether a location can be a favourite: a local folder or a folder on a server. The Trash, an
+/// archive and a Git revision are views Waypoint opens, not places another file manager could
+/// share, and a line for one would not read back.
+fn can_pin(path: &VfsPath) -> bool {
+    matches!(path, VfsPath::File(_) | VfsPath::Remote(_))
 }
 
 /// Writes `contents` to `path` by renaming a finished temporary file over it, creating parent
@@ -519,6 +543,11 @@ pub fn add_favourite(
     location: &Location,
     label: Option<&str>,
 ) -> Result<Places, VfsError> {
+    if !can_pin(&parse_location(location)?) {
+        return Err(VfsError::InvalidLocation {
+            input: location.uri.clone(),
+        });
+    }
     edit(env, location, |bookmarks, path| {
         let before = bookmarks.lines.len();
         bookmarks.add(path, label);
@@ -636,7 +665,7 @@ mod tests {
 
     #[test]
     fn bookmarks_parse_labels_and_keep_unknown_lines() {
-        let text = "file:///a/b Bee\nfile:///c\n# odd\nsmb://host/share Remote\n";
+        let text = "file:///a/b Bee\nfile:///c\n# odd\nftp://host/share Remote\n";
         let bookmarks = Bookmarks::parse(text);
         let favourites = bookmarks.favourites();
         assert_eq!(favourites.len(), 2);
@@ -647,20 +676,20 @@ mod tests {
 
     #[test]
     fn edits_leave_other_apps_lines_intact() {
-        let mut bookmarks = Bookmarks::parse("file:///keep Keep\nsmb://host/share Remote\n");
+        let mut bookmarks = Bookmarks::parse("file:///keep Keep\nftp://host/share Remote\n");
         let added = FilePath::parse("/new/folder").unwrap().into();
         bookmarks.add(&added, Some("  My   folder "));
         bookmarks.add(&added, Some("duplicate"));
         assert_eq!(
             bookmarks.to_text(),
-            "file:///keep Keep\nsmb://host/share Remote\nfile:///new/folder My folder\n"
+            "file:///keep Keep\nftp://host/share Remote\nfile:///new/folder My folder\n"
         );
         assert!(bookmarks.rename(&added, None));
         assert!(bookmarks.remove(&VfsPath::parse_input("/keep").unwrap()));
         assert!(!bookmarks.remove(&VfsPath::parse_input("/keep").unwrap()));
         assert_eq!(
             bookmarks.to_text(),
-            "smb://host/share Remote\nfile:///new/folder\n"
+            "ftp://host/share Remote\nfile:///new/folder\n"
         );
     }
 
@@ -730,6 +759,134 @@ mod tests {
         assert_eq!(fs::read_to_string(&target).unwrap(), "old\n");
         let names = fs::read_dir(tmp.path()).unwrap().count();
         assert_eq!(names, 2);
+    }
+
+    const SERVER_FILE: &str = "# my bookmarks\n\
+        file:///srv/data Data\n\
+        sftp://scott@nas.lan/home/scott/My%20Pictures Pictures on the NAS\n\
+        smb://host/share\n\
+        ssh://old@host/path SSH form\n\
+        ftp://ftp.example.org/pub\n\
+        network:///\n\
+        x-nautilus-desktop:///computer Computer\n\
+        sftp://me:hunter2@host/secret Has password\n\
+        davs://user@dav.example.org/files/\n\
+        \n\
+        sftp://[bad/x\n";
+
+    #[test]
+    fn server_bookmarks_are_favourites_and_what_waypoint_cannot_read_stays_as_found() {
+        let bookmarks = Bookmarks::parse(SERVER_FILE);
+        let favourites = bookmarks.favourites();
+        let seen: Vec<_> = favourites
+            .iter()
+            .map(|f| {
+                (
+                    f.label.as_str(),
+                    f.location.uri.as_str(),
+                    f.connection.as_deref(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("Data", "file:///srv/data", None),
+                (
+                    "Pictures on the NAS",
+                    "sftp://scott@nas.lan/home/scott/My%20Pictures",
+                    Some("sftp://scott@nas.lan")
+                ),
+                ("share", "smb://host/share", Some("smb://host")),
+                (
+                    "files",
+                    "davs://user@dav.example.org/files",
+                    Some("davs://user@dav.example.org")
+                ),
+            ]
+        );
+        // Nothing is rewritten by reading, and a password never becomes a favourite.
+        assert_eq!(bookmarks.to_text(), SERVER_FILE);
+        assert!(!favourites
+            .iter()
+            .any(|f| f.location.uri.contains("hunter2")));
+    }
+
+    #[test]
+    fn editing_server_favourites_keeps_every_other_line_byte_for_byte() {
+        let mut bookmarks = Bookmarks::parse(SERVER_FILE);
+        let nas = VfsPath::from_uri("sftp://scott@nas.lan/home/scott/My%20Pictures").unwrap();
+        assert!(bookmarks.rename(&nas, Some("  NAS   pictures ")));
+        let moved = VfsPath::from_uri("davs://user@dav.example.org/files").unwrap();
+        assert!(bookmarks.move_to(&moved, 0));
+        let new = VfsPath::parse_input("sftp://scott@nas.lan/home/scott/Odd #1 & 100%").unwrap();
+        bookmarks.add(&new, Some("Odd"));
+        let text = bookmarks.to_text();
+        assert!(text.contains("sftp://scott@nas.lan/home/scott/My%20Pictures NAS pictures\n"));
+        assert!(text.contains("sftp://me:hunter2@host/secret Has password\n"));
+        assert!(text.contains("ssh://old@host/path SSH form\n"));
+        assert!(text.contains("network:///\n"));
+        assert!(text.contains("sftp://[bad/x\n"));
+        assert!(text.starts_with("# my bookmarks\ndavs://user@dav.example.org/files/\n"));
+        // The odd characters are percent-encoded, so the line reads back as the same folder.
+        let line = text.lines().last().unwrap();
+        assert!(line.ends_with(" Odd"), "{line}");
+        assert!(!line.split(' ').next().unwrap().contains(['#', '&', ' ']));
+        let again = Bookmarks::parse(&text);
+        assert!(again
+            .favourites()
+            .iter()
+            .any(|f| f.location.uri == new.to_uri()));
+        assert!(bookmarks.remove(&nas));
+        assert!(!bookmarks.to_text().contains("My%20Pictures"));
+    }
+
+    #[test]
+    fn a_server_folder_is_pinned_without_a_password_and_round_trips_through_the_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let env = env(tmp.path());
+        let places = add_favourite(
+            &env,
+            &Location::new("", "sftp://scott@192.168.1.100/home/scott/Pictures"),
+            None,
+        )
+        .unwrap();
+        assert_eq!(places.favourites[0].label, "Pictures");
+        assert_eq!(
+            places.favourites[0].connection.as_deref(),
+            Some("sftp://scott@192.168.1.100")
+        );
+        assert_eq!(
+            fs::read_to_string(&env.bookmarks_file).unwrap(),
+            "sftp://scott@192.168.1.100/home/scott/Pictures\n"
+        );
+        // A stored address never holds a password: one that does is refused, not stripped.
+        let error = add_favourite(
+            &env,
+            &Location::new("", "sftp://scott:pw@192.168.1.100/home"),
+            None,
+        )
+        .unwrap_err();
+        assert!(matches!(error, VfsError::InvalidLocation { .. }));
+        // The Trash, an archive and a Git revision are not favourites.
+        for uri in ["trash:///", "archive+file:///a.zip!/"] {
+            assert!(
+                add_favourite(&env, &Location::new("", uri), None).is_err(),
+                "{uri}"
+            );
+        }
+        rename_favourite(
+            &env,
+            &Location::new("", "sftp://scott@192.168.1.100/home/scott/Pictures"),
+            Some("NAS"),
+        )
+        .unwrap();
+        let places = remove_favourite(
+            &env,
+            &Location::new("", "sftp://scott@192.168.1.100/home/scott/Pictures"),
+        )
+        .unwrap();
+        assert!(places.favourites.is_empty());
     }
 
     #[test]

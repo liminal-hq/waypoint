@@ -126,6 +126,7 @@ export class FakePlacesClient implements PlacesClient {
 			favourites: this.favourites.map((favourite): Favourite => ({
 				label: favourite.label ?? defaultLabel(favourite.location),
 				location: favourite.location,
+				...serverKey(favourite.location),
 			})),
 		});
 	}
@@ -139,4 +140,10 @@ function cleanLabel(label: string | null): string | null {
 function defaultLabel(location: Location): string {
 	const path = pathOf(location);
 	return path.split('/').filter(Boolean).pop() ?? location.display;
+}
+
+/** The login of a server folder (`sftp://me@nas.lan`), as the plugin reports it; nothing for a local folder. */
+function serverKey(location: Location): { connection?: string } {
+	const match = /^(sftp|smb|davs?|s3):\/\/([^/?]*)/i.exec(location.uri);
+	return match ? { connection: `${match[1]!.toLowerCase()}://${match[2]}` } : {};
 }
