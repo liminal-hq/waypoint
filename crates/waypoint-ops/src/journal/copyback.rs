@@ -80,6 +80,7 @@ fn copy_tree(
                     throttle: None,
                     offset: 0,
                     resumable: false,
+                    keep_on_cancel: false,
                 },
                 buf,
                 &mut |_| {},

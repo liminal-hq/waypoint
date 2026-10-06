@@ -1120,7 +1120,11 @@ impl Transfer<'_> {
         ) {
             self.meter.progress.bytes_done = base;
             let lost = matches!(&error, Flow::Item(e) if is_transient(e));
-            if lost && resumable {
+            // Quitting mid-transfer is not giving up: the partial is recorded like one a lost
+            // connection left, so the next start offers Resume and Discard instead of leaving an
+            // orphan on the server.
+            let quitting = matches!(&error, Flow::Cancelled) && self.sink.keep_on_cancel();
+            if (lost || quitting) && resumable {
                 // Kept, so Retry, the offline wait or a later run continues it (D165). The server
                 // is likely gone just now, so the length it holds is asked again when the copy
                 // continues; this is only what it said, if it said.
@@ -1396,6 +1400,7 @@ impl Transfer<'_> {
             resumable: dp.capabilities().resume_write
                 && entry.kind == EntryKind::File
                 && partial != target,
+            keep_on_cancel: self.sink.keep_on_cancel(),
         };
         let copied = {
             let Transfer {

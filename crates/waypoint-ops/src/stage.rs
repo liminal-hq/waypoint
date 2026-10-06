@@ -95,6 +95,7 @@ pub fn stage_files(
                     throttle: None,
                     offset: 0,
                     resumable: false,
+                    keep_on_cancel: false,
                 },
                 &mut buf,
                 &mut |_| {},
