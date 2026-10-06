@@ -5,11 +5,20 @@
 
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { useActiveTab } from '../tabs/TabsContext';
-import { useTabTitle } from '../tabs/tabTitle';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
+import { locationLabel, useTabTitle } from '../tabs/tabTitle';
 import { useWindowTitle } from './useWindowTitle';
 
+/**
+ * The OS title for a tab: its folder's name, and until Rust has resolved the location (when `useTabTitle`
+ * stands in the whole display path) the last part of that path, so the title never flashes a full path.
+ */
+export function windowTitleFor(title: string, location: Pick<Location, 'display'>): string {
+	return title === location.display ? locationLabel(location) : title;
+}
+
 function TabWindowTitle({ tab }: { tab: TabSnapshot }) {
-	useWindowTitle(useTabTitle(tab));
+	useWindowTitle(windowTitleFor(useTabTitle(tab), tab.location));
 	return null;
 }
 
