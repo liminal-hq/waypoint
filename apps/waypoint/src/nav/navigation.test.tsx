@@ -199,6 +199,25 @@ describe('the path bar', () => {
 		expect(await screen.findByRole('textbox', { name: /Type a location/ })).toHaveFocus();
 	});
 
+	it('keeps a typed path left to right and each breadcrumb isolated in a right-to-left window', async () => {
+		document.documentElement.dir = 'rtl';
+		try {
+			await renderWorkspace();
+			await option('docs');
+			const crumbs = await screen.findByRole('navigation', { name: 'Location' });
+			for (const button of within(crumbs).getAllByRole('button')) {
+				expect(button.querySelector('bdi')).not.toBeNull();
+			}
+			fireEvent.click(screen.getByRole('button', { name: 'Edit location' }));
+			expect(screen.getByRole('textbox', { name: /Type a location/ })).toHaveAttribute(
+				'dir',
+				'ltr',
+			);
+		} finally {
+			document.documentElement.dir = '';
+		}
+	});
+
 	it('moves focus to the list after a typed path is accepted, so the arrow keys work at once', async () => {
 		const user = userEvent.setup();
 		await renderWorkspace();

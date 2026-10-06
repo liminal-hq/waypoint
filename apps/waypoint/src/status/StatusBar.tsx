@@ -11,6 +11,7 @@ import type { ListingSession } from '../browse/useListingSession';
 import { useRepository } from '../git/GitContext';
 import { branchText, summaryWords } from '../git/gitModel';
 import { GitIcon } from '../icons/MenuIcons';
+import { Ltr } from '../i18n/bidi';
 import { t, tf, tn } from '../i18n/messages';
 import { OpsIndicator } from '../ops/OpsIndicator';
 import { MeasuringHome } from './MeasuringHome';
@@ -75,7 +76,9 @@ export function StatusBar({ session, location, notice, children }: StatusBarProp
 					data-operation={branch.operation ?? undefined}
 				>
 					<GitIcon aria-hidden="true" />
-					<span aria-hidden="true">{branchText(branch)}</span>
+					<span aria-hidden="true">
+						<Ltr>{branchText(branch)}</Ltr>
+					</span>
 					{dirty && (
 						<span aria-hidden="true" className={styles.dirty}>
 							●

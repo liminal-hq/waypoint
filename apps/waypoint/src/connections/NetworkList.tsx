@@ -20,6 +20,7 @@ import {
 	type MouseEvent,
 } from 'react';
 import { dropAttributes } from '../dnd/dropTargets';
+import { Ltr, Own } from '../i18n/bidi';
 import { t, tf } from '../i18n/messages';
 import { ITEM_ATTRIBUTE, moveFocusInList } from '../sidebar/itemList';
 import sidebar from '../sidebar/Sidebar.module.css';
@@ -284,7 +285,9 @@ export function NetworkList({
 						<span className={styles.dot} data-tone={off ? 'idle' : tone} aria-hidden="true" />
 					</span>
 					<span className={styles.text}>
-						<span className={sidebar.label}>{label}</span>
+						<span className={sidebar.label}>
+							{row.kind === 'saved' ? <Own>{label}</Own> : <Ltr>{label}</Ltr>}
+						</span>
 						<span className={styles.detail}>
 							{off ? t('protocol.off.reason') : detailOf(state)}
 						</span>

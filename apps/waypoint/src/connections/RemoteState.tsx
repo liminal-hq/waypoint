@@ -7,6 +7,7 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useVfsClient } from '../browse/VfsClientContext';
+import { isolateOwn } from '../i18n/bidi';
 import { t, tf } from '../i18n/messages';
 import { useLocationInfo } from '../nav/locationInfo';
 import { announce } from '../tabs/announcer';
@@ -34,7 +35,7 @@ export function RetryProvider({ retry, children }: { retry: () => void; children
 /** The server a location is on, as the breadcrumbs name it (its saved name, or its login). */
 function useServerName(location: Location): string {
 	const info = useLocationInfo(useVfsClient(), location);
-	return info?.segments[0]?.label ?? location.display;
+	return isolateOwn(info?.segments[0]?.label ?? location.display);
 }
 
 /**
@@ -113,7 +114,9 @@ export function RemoteOpening({ location, fallback }: { location: Location; fall
 		<div className={styles.state} role="status" data-state="connecting">
 			<span className={styles.spinner} aria-hidden="true" />
 			<p className={styles.detail}>
-				{tf('remote.connecting', { server: info?.segments[0]?.label ?? location.display })}
+				{tf('remote.connecting', {
+					server: isolateOwn(info?.segments[0]?.label ?? location.display),
+				})}
 			</p>
 		</div>
 	);
