@@ -325,6 +325,9 @@ fn initialise_ole() {
     }
 }
 
+/// Nothing to tear down: a drag runs to its end inside `begin_drag`, so none is ever left running.
+pub fn cancel_drag(_id: u32) {}
+
 /// Runs a drag to its end on the main thread. The drag image is drawn by Windows, so `request.icon` is not used.
 pub fn begin_drag<R: Runtime>(
     app: &AppHandle<R>,

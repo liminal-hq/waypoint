@@ -107,6 +107,10 @@ impl<R: Runtime> Driver for NativeDriver<'_, R> {
     fn begin(&self, id: u32, request: &DragRequest, finisher: Finisher) -> Result<Begun> {
         platform::begin_drag(self.app, self.window, id, request, finisher)
     }
+
+    fn cancel(&self, id: u32) {
+        platform::cancel_drag(id)
+    }
 }
 
 impl<R: Runtime> NativeDnd<R> {

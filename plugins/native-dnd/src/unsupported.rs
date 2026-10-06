@@ -43,6 +43,8 @@ pub fn begin_drag<R: Runtime>(
     Err(Error::Unsupported(UNAVAILABLE.into()))
 }
 
+pub fn cancel_drag(_id: u32) {}
+
 pub fn set_files(_files: &ClipboardFiles) -> Result<()> {
     Err(Error::Unsupported(UNAVAILABLE.into()))
 }

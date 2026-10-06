@@ -1,4 +1,4 @@
-// The outbound drag state machine: the guards, the one-at-a-time rule, the self-drop record and how a drag's end is classified
+// The outbound drag state machine: the guards, the one-at-a-time rule, the watchdog that ends a drag the system will never finish, the self-drop record and how a drag's end is classified
 //
 // The platform code starts the real drag behind the `Driver` trait, so everything here runs headless.
 //
@@ -18,6 +18,17 @@ use crate::{
 
 /// How long after an outbound drag ends a drop of the same files still counts as its own. Windows delivers the drop to the page after the drag's modal loop has returned, and GTK can finish the drag before the drop event reaches the plugin.
 pub const SELF_DROP_GRACE: Duration = Duration::from_millis(1500);
+
+/// How long a drag may wait for its end once the system has said the drop happened or the drag was cancelled. A target finishes a drop as soon as it has read the files, so a drag still not ended after this will never end; the plugin ends it itself so the next drag can start.
+pub const FINISH_GRACE: Duration = Duration::from_secs(30);
+
+/// The reason a drag is refused when a key event came after the press (see `PressSerial`).
+pub const KEY_AFTER_PRESS: &str =
+    "a key was pressed or released during the press, so the system would ignore the drag; release the keys and drag again";
+/// The reason given for a drag the system said was dropped or cancelled but never finished.
+pub const NEVER_FINISHED: &str = "the system did not finish the drag";
+/// The reason given for a drag that was still recorded as running when a new one began: a new press means the old drag is over, whatever the system said of it.
+pub const SUPERSEDED: &str = "the system never reported how the drag ended";
 
 /// The actions a drag offers, as flags.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -162,6 +173,95 @@ pub enum Begun {
     Done(DragOutcome, Option<String>),
 }
 
+/// Whether the latest input serial a GTK 3 client on Wayland holds is still the primary press's.
+///
+/// GTK 3 starts a Wayland drag with the latest serial it has seen, not the press's, and a key event after the press (Shift pressed to ask for a move, for one) or a change of keyboard focus makes it the key's. Mutter ignores a `start_drag` whose serial is not the pointer grab's without telling the client: the compositor never takes the pointer, GTK waits for an end that never comes, and the press's release is lost, so WebKit also keeps believing the button is down. Such a drag is refused before it starts instead. Pointer events cannot move the serial during the press: the compositor keeps the pointer on the window, so there is no crossing.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PressSerial {
+    pressed: bool,
+    stale: bool,
+}
+
+impl PressSerial {
+    /// No press seen yet, usable in a `const` context.
+    pub const fn default_const() -> Self {
+        PressSerial {
+            pressed: false,
+            stale: false,
+        }
+    }
+
+    /// The primary button was pressed in the window: its serial is the latest.
+    pub fn pressed(&mut self) {
+        *self = PressSerial {
+            pressed: true,
+            stale: false,
+        };
+    }
+
+    /// A key was pressed or released, or the keyboard focus moved: each carries a newer serial.
+    pub fn key_or_focus(&mut self) {
+        self.stale = true;
+    }
+
+    /// Whether a drag started now would carry the press's serial. Before any press there is nothing to compare, so a drag is not refused here; the caller's button check refuses it.
+    pub fn press_is_latest(&self) -> bool {
+        !(self.pressed && self.stale)
+    }
+}
+
+/// What the platform has seen of a running drag, so it can end one whose end will never be reported: a drag the system dropped or cancelled but never finished is ended after `FINISH_GRACE`. A drag held for any length of time is never timed out.
+#[derive(Debug, Default, Clone)]
+pub struct Watchdog {
+    settled: Option<Instant>,
+    ended: bool,
+}
+
+/// What the watchdog makes of a running drag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verdict {
+    /// Nothing says the drag is over; wait for the system.
+    Live,
+    /// The drop or cancel was reported `FINISH_GRACE` ago or more and the end never followed (`NEVER_FINISHED`).
+    Unfinished,
+}
+
+impl Verdict {
+    /// The reason a drag ended by the watchdog reports, `None` while it is live.
+    pub fn reason(self) -> Option<&'static str> {
+        match self {
+            Verdict::Live => None,
+            Verdict::Unfinished => Some(NEVER_FINISHED),
+        }
+    }
+}
+
+impl Watchdog {
+    /// The system reported the drop as performed, or the drag as cancelled: its end should follow at once.
+    pub fn settled(&mut self, now: Instant) {
+        self.settled.get_or_insert(now);
+    }
+
+    /// Whether a drag that settled has waited too long for its end.
+    pub fn check(&self, now: Instant) -> Verdict {
+        match self.settled {
+            Some(at) if !self.ended && now.saturating_duration_since(at) >= FINISH_GRACE => {
+                Verdict::Unfinished
+            }
+            _ => Verdict::Live,
+        }
+    }
+
+    /// The end was reported; nothing the watchdog sees afterwards matters.
+    pub fn ended(&mut self) {
+        self.ended = true;
+    }
+
+    pub fn is_ended(&self) -> bool {
+        self.ended
+    }
+}
+
 /// Reports the end of a drag that was `Running`. Safe to call from the platform's event handlers; calling it a second time does nothing.
 pub type Finisher = Arc<dyn Fn(DragOutcome, Option<String>) + Send + Sync>;
 
@@ -176,6 +276,8 @@ pub trait Driver {
     fn primary_button_down(&self) -> bool;
     /// Starts the drag; runs on the main thread.
     fn begin(&self, id: u32, request: &DragRequest, finisher: Finisher) -> Result<Begun>;
+    /// Tears down what is left of drag `id` on the platform, if anything: called for a drag still recorded as running when a new one starts. Its end may be reported through its `Finisher` or not at all; the state machine has already recorded it.
+    fn cancel(&self, id: u32);
 }
 
 struct Active {
@@ -266,6 +368,11 @@ impl Outbound {
         self.lock().active.is_some()
     }
 
+    /// The id of the live drag, if there is one.
+    pub fn active_id(&self) -> Option<u32> {
+        self.lock().active.as_ref().map(|active| active.id)
+    }
+
     /// Whether a drop of `dropped` is the end of this process's own drag: the same files as the live drag, or as one that ended less than `SELF_DROP_GRACE` ago. The URIs must be normalised.
     pub fn is_self_drop(&self, dropped: &[String], now: Instant) -> bool {
         let mut inner = self.lock();
@@ -294,7 +401,9 @@ impl Outbound {
     }
 }
 
-/// Starts an outbound drag: checks the platform and the request, refuses a second drag and a drag with no button down, then asks the driver. `emit` receives the end of a drag that ends inside the call; a drag that is `Running` reports through its `Finisher`, which calls `emit` too.
+/// Starts an outbound drag: checks the platform and the request, refuses a drag with no button down, ends a drag still recorded as running, then asks the driver. `emit` receives the end of a drag that ends inside the call; a drag that is `Running` reports through its `Finisher`, which calls `emit` too.
+///
+/// A request with the button down is a new press in the page, which cannot reach it while the system holds a drag, so a drag still recorded as running is over whatever the system said of it: it ends as `Failed` (`SUPERSEDED`) and the platform tears down what is left, instead of every later drag being refused.
 pub fn start(
     outbound: &Arc<Outbound>,
     driver: &dyn Driver,
@@ -303,11 +412,20 @@ pub fn start(
 ) -> Result<StartDragReport> {
     driver.available()?;
     let request = DragRequest::validate(request)?;
-    if outbound.is_active() {
-        return Err(Error::AlreadyActive);
-    }
     if !driver.primary_button_down() {
         return Err(Error::ButtonNotPressed);
+    }
+    if let Some(stale) = outbound.active_id() {
+        let ended = outbound.finish(
+            stale,
+            DragOutcome::Failed,
+            Some(SUPERSEDED.to_string()),
+            Instant::now(),
+        );
+        driver.cancel(stale);
+        if let Some(ended) = ended {
+            emit(ended);
+        }
     }
     let id = outbound.begin(&request.uris)?;
     let finisher: Finisher = {
@@ -347,6 +465,9 @@ mod tests {
         begun: Mutex<Option<Result<Begun>>>,
         calls: AtomicUsize,
         finisher: Mutex<Option<Finisher>>,
+        cancelled: Mutex<Vec<u32>>,
+        /// Whether `cancel` reports the end through the finisher, as GTK's `gtk_drag_cancel` does.
+        cancel_reports: bool,
     }
 
     impl Fake {
@@ -357,7 +478,13 @@ mod tests {
                 begun: Mutex::new(Some(result)),
                 calls: AtomicUsize::new(0),
                 finisher: Mutex::new(None),
+                cancelled: Mutex::new(Vec::new()),
+                cancel_reports: false,
             }
+        }
+
+        fn finisher(&self) -> Finisher {
+            self.finisher.lock().unwrap().clone().unwrap()
         }
     }
 
@@ -376,6 +503,14 @@ mod tests {
                 .unwrap()
                 .take()
                 .unwrap_or(Ok(Begun::Running))
+        }
+        fn cancel(&self, id: u32) {
+            self.cancelled.lock().unwrap().push(id);
+            if self.cancel_reports {
+                if let Some(finisher) = self.finisher.lock().unwrap().clone() {
+                    finisher(DragOutcome::Cancelled, None);
+                }
+            }
         }
     }
 
@@ -448,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn a_second_drag_is_refused_while_one_runs_and_allowed_after_it_ends() {
+    fn a_drag_that_ends_lets_the_next_start_and_reports_once() {
         let outbound = Arc::new(Outbound::default());
         let first = Fake::new(Ok(Begun::Running));
         let (emit, seen) = sink();
@@ -456,14 +591,7 @@ mod tests {
         assert_eq!(report.ended, None);
         assert!(outbound.is_active());
 
-        let second = Fake::new(Ok(Begun::Running));
-        assert_eq!(
-            start(&outbound, &second, &request(&["file:///b"]), emit.clone()).unwrap_err(),
-            Error::AlreadyActive
-        );
-        assert_eq!(second.calls.load(Ordering::SeqCst), 0);
-
-        let finisher = first.finisher.lock().unwrap().clone().unwrap();
+        let finisher = first.finisher();
         finisher(DragOutcome::DroppedCopy, None);
         assert!(!outbound.is_active());
         assert_eq!(
@@ -479,7 +607,193 @@ mod tests {
         finisher(DragOutcome::Cancelled, None);
         assert_eq!(seen.lock().unwrap().len(), 1);
 
+        let second = Fake::new(Ok(Begun::Running));
         assert!(start(&outbound, &second, &request(&["file:///b"]), emit).is_ok());
+        assert!(first.cancelled.lock().unwrap().is_empty());
+    }
+
+    /// Every way a running drag can end leaves the plugin ready for the next one.
+    #[test]
+    fn every_end_path_resets_the_drag() {
+        for outcome in [
+            DragOutcome::DroppedCopy,
+            DragOutcome::DroppedMove,
+            DragOutcome::DroppedLink,
+            DragOutcome::Cancelled,
+            DragOutcome::Failed,
+        ] {
+            let outbound = Arc::new(Outbound::default());
+            let fake = Fake::new(Ok(Begun::Running));
+            let (emit, seen) = sink();
+            let id = start(&outbound, &fake, &request(&["file:///a"]), emit.clone())
+                .unwrap()
+                .id;
+            fake.finisher()(outcome, None);
+            assert!(!outbound.is_active(), "{outcome:?} left the drag active");
+            assert_eq!(seen.lock().unwrap()[0].outcome, outcome);
+            let next = Fake::new(Ok(Begun::Running));
+            let again = start(&outbound, &next, &request(&["file:///a"]), emit).unwrap();
+            assert_eq!(again.id, id + 1);
+            assert!(fake.cancelled.lock().unwrap().is_empty());
+        }
+    }
+
+    /// The bug the live GNOME pass found: a drag whose end the system never reports (here, as Mutter does when it ignores the drag) used to make every later drag fail with `AlreadyActive` until the app restarted.
+    #[test]
+    fn a_drag_that_never_reports_its_end_is_superseded_by_the_next_press() {
+        let outbound = Arc::new(Outbound::default());
+        let lost = Fake::new(Ok(Begun::Running));
+        let (emit, seen) = sink();
+        let first = start(
+            &outbound,
+            &lost,
+            &request(&["file:///t/page.html"]),
+            emit.clone(),
+        )
+        .unwrap()
+        .id;
+        // No end ever comes. The next press starts a drag all the same.
+        let next = Fake::new(Ok(Begun::Running));
+        let second = start(
+            &outbound,
+            &next,
+            &request(&["file:///t/data.json"]),
+            emit.clone(),
+        )
+        .unwrap()
+        .id;
+        assert_ne!(first, second);
+        assert_eq!(next.cancelled.lock().unwrap().as_slice(), [first]);
+        assert_eq!(
+            seen.lock().unwrap().as_slice(),
+            [DragEnded {
+                id: first,
+                outcome: DragOutcome::Failed,
+                uris: vec!["file:///t/page.html".into()],
+                reason: Some(SUPERSEDED.into())
+            }]
+        );
+        assert_eq!(outbound.active_id(), Some(second));
+        // A late end of the lost drag changes nothing.
+        lost.finisher()(DragOutcome::DroppedCopy, None);
+        assert_eq!(seen.lock().unwrap().len(), 1);
+        assert_eq!(outbound.active_id(), Some(second));
+    }
+
+    #[test]
+    fn a_platform_that_reports_the_cancel_does_not_report_the_stale_drag_twice() {
+        let outbound = Arc::new(Outbound::default());
+        let mut fake = Fake::new(Ok(Begun::Running));
+        fake.cancel_reports = true;
+        let (emit, seen) = sink();
+        let first = start(&outbound, &fake, &request(&["file:///a"]), emit.clone())
+            .unwrap()
+            .id;
+        // The same driver: its cancel calls the stale drag's finisher, as `gtk_drag_cancel` emits `drag-end`.
+        let second = start(&outbound, &fake, &request(&["file:///b"]), emit)
+            .unwrap()
+            .id;
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!((seen[0].id, seen[0].outcome), (first, DragOutcome::Failed));
+        assert_eq!(outbound.active_id(), Some(second));
+    }
+
+    #[test]
+    fn a_press_without_the_button_down_does_not_end_the_running_drag() {
+        let outbound = Arc::new(Outbound::default());
+        let fake = Fake::new(Ok(Begun::Running));
+        let (emit, seen) = sink();
+        let id = start(&outbound, &fake, &request(&["file:///a"]), emit.clone())
+            .unwrap()
+            .id;
+        let late = Fake::new(Ok(Begun::Running));
+        late.button.store(false, Ordering::SeqCst);
+        assert_eq!(
+            start(&outbound, &late, &request(&["file:///b"]), emit).unwrap_err(),
+            Error::ButtonNotPressed
+        );
+        assert_eq!(outbound.active_id(), Some(id));
+        assert!(seen.lock().unwrap().is_empty());
+        assert!(late.cancelled.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_key_after_the_press_makes_the_serial_stale() {
+        let mut serial = PressSerial::default();
+        assert!(serial.press_is_latest());
+        // A key before the press does not matter: the press's serial is newer.
+        serial.key_or_focus();
+        serial.pressed();
+        assert!(serial.press_is_latest());
+        // Shift pressed during the press, as in the live GNOME pass: a drag now would be ignored by Mutter.
+        serial.key_or_focus();
+        assert!(!serial.press_is_latest());
+        // Releasing the key does not bring the press's serial back.
+        serial.key_or_focus();
+        assert!(!serial.press_is_latest());
+        // The next press does.
+        serial.pressed();
+        assert!(serial.press_is_latest());
+    }
+
+    #[test]
+    fn a_refused_start_leaves_the_next_drag_free() {
+        // What the Linux driver does with a stale serial: refuse before GTK starts anything.
+        let outbound = Arc::new(Outbound::default());
+        let refused = Fake::new(Err(Error::Failed(KEY_AFTER_PRESS.into())));
+        let (emit, seen) = sink();
+        assert_eq!(
+            start(
+                &outbound,
+                &refused,
+                &request(&["file:///t/page.html"]),
+                emit.clone()
+            )
+            .unwrap_err(),
+            Error::Failed(KEY_AFTER_PRESS.into())
+        );
+        assert!(!outbound.is_active());
+        assert!(seen.lock().unwrap().is_empty());
+        let next = Fake::new(Ok(Begun::Running));
+        assert!(start(&outbound, &next, &request(&["file:///t/page.html"]), emit).is_ok());
+        assert!(next.cancelled.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_watchdog_ends_a_drop_or_cancel_that_never_finishes() {
+        let t0 = Instant::now();
+        let mut watchdog = Watchdog::default();
+        // A drag held for any length of time is not timed out: only a settled one is.
+        assert_eq!(watchdog.check(t0 + FINISH_GRACE * 10), Verdict::Live);
+        watchdog.settled(t0);
+        // A second report keeps the first time.
+        watchdog.settled(t0 + FINISH_GRACE);
+        assert_eq!(
+            watchdog.check(t0 + FINISH_GRACE - Duration::from_millis(1)),
+            Verdict::Live
+        );
+        assert_eq!(watchdog.check(t0 + FINISH_GRACE), Verdict::Unfinished);
+        assert_eq!(Verdict::Unfinished.reason(), Some(NEVER_FINISHED));
+        assert_eq!(Verdict::Live.reason(), None);
+        watchdog.ended();
+        assert_eq!(watchdog.check(t0 + FINISH_GRACE * 2), Verdict::Live);
+    }
+
+    #[test]
+    fn a_drag_ended_by_the_watchdog_frees_the_next() {
+        let outbound = Arc::new(Outbound::default());
+        let fake = Fake::new(Ok(Begun::Running));
+        let (emit, seen) = sink();
+        start(&outbound, &fake, &request(&["file:///a"]), emit.clone()).unwrap();
+        // What the platform does on the verdict: end the drag as failed with the watchdog's reason.
+        let reason = Verdict::Unfinished.reason();
+        fake.finisher()(DragOutcome::Failed, reason.map(str::to_string));
+        assert!(!outbound.is_active());
+        assert_eq!(seen.lock().unwrap()[0].reason.as_deref(), reason);
+        let next = Fake::new(Ok(Begun::Running));
+        assert!(start(&outbound, &next, &request(&["file:///a"]), emit).is_ok());
+        assert!(next.cancelled.lock().unwrap().is_empty());
     }
 
     #[test]
