@@ -627,3 +627,43 @@ fn a_protocol_turned_off_refuses_a_transfer_with_its_typed_reason_and_writes_not
         Some(&b"alpha"[..])
     );
 }
+
+#[test]
+fn a_copy_on_a_server_that_keeps_whole_seconds_is_the_same_date_as_its_source() {
+    let server = FakeRemoteProvider::sftp();
+    server.set_capabilities(|caps| caps.time_resolution_ms = 1000);
+    server.put_dir(&on(&server, "up"));
+    let (mut h, _dir) = engine(&[&server]);
+    jbuild(&h, &tree(&[("src/", ""), ("src/a.txt", "first")]));
+    set_mtime(&h.harness, "src/a.txt", 1_791_279_681_430);
+
+    let run = h.run_journalled(request(
+        JobKind::Copy,
+        &[h.path("src/a.txt")],
+        &on(&server, "up"),
+    ));
+    finished(&run);
+    let kept = server.stat(&on(&server, "up/a.txt")).unwrap();
+    assert_eq!(
+        kept.modified_ms,
+        Some(1_791_279_681_000),
+        "the server drops the fraction"
+    );
+
+    // The same file again: the conflict says both are the same date, so Replace if newer leaves the
+    // existing copy alone even though the source now holds other bytes.
+    jbuild(&h, &tree(&[("other/", ""), ("other/a.txt", "second")]));
+    set_mtime(&h.harness, "other/a.txt", 1_791_279_681_430);
+    let mut asked = request(JobKind::Copy, &[h.path("other/a.txt")], &on(&server, "up"));
+    asked.options.conflict = Some(ConflictPolicy::ReplaceIfNewer);
+    let run = h.run_journalled(asked);
+    finished(&run);
+    assert_eq!(
+        content(&server, &on(&server, "up/a.txt")).as_deref(),
+        Some(&b"first"[..])
+    );
+    let plan = run.plan.as_ref().unwrap();
+    for conflict in &plan.conflicts {
+        assert_eq!(conflict.source_modified_ms, conflict.existing_modified_ms);
+    }
+}

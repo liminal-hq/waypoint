@@ -658,9 +658,14 @@ impl Planner<'_, '_> {
             let entry = provider.stat(&source)?;
             let (origin, origin_provider) = self.ctx.providers.for_location(&receipt.original)?;
             match origin_provider.stat(&origin) {
-                Ok(existing) => {
-                    conflicts.push(Self::conflict(&source, &entry, &origin, &existing, false))
-                }
+                Ok(existing) => conflicts.push(Self::conflict(
+                    &source,
+                    &entry,
+                    &origin,
+                    &existing,
+                    false,
+                    origin_provider.as_ref(),
+                )),
                 Err(VfsError::NotFound { .. } | VfsError::NotADirectory { .. }) => {}
                 Err(error) => return Err(error.into()),
             }
@@ -831,7 +836,14 @@ impl Planner<'_, '_> {
                 target = child_path(&dest, OsStr::new(&unique), rule)?;
                 claimed.insert(fold_name(OsStr::new(&unique), rule), target.clone());
             } else if let Some(clash) = clash {
-                conflicts.push(Self::conflict(&source, &clash_entry, &target, clash, false));
+                conflicts.push(Self::conflict(
+                    &source,
+                    &clash_entry,
+                    &target,
+                    clash,
+                    false,
+                    dest_provider.as_ref(),
+                ));
             } else if let Some(first) = claimed.get(&key) {
                 let first_target = first.clone();
                 conflicts.push(Conflict {
@@ -893,7 +905,9 @@ impl Planner<'_, '_> {
         target: &VfsPath,
         existing: &ScannedEntry,
         within_batch: bool,
+        dest: &dyn Provider,
     ) -> Conflict {
+        let caps = dest.capabilities();
         Conflict {
             source: source.to_location(),
             existing: target.to_location(),
@@ -902,8 +916,8 @@ impl Planner<'_, '_> {
             within_batch,
             source_size: entry.size,
             existing_size: existing.size,
-            source_modified_ms: entry.modified_ms,
-            existing_modified_ms: existing.modified_ms,
+            source_modified_ms: entry.modified_ms.map(|ms| caps.at_time_resolution(ms)),
+            existing_modified_ms: existing.modified_ms.map(|ms| caps.at_time_resolution(ms)),
         }
     }
 

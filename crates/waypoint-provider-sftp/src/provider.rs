@@ -262,6 +262,8 @@ impl Provider for SftpProvider {
         caps.rename = RenameSupport::Replacing;
         caps.resume_write = true;
         caps.set_times = true;
+        // SFTP v3 carries whole seconds.
+        caps.time_resolution_ms = 1000;
         caps
     }
 
