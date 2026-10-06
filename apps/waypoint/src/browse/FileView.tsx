@@ -23,6 +23,8 @@ interface FileViewProps {
 	gridSize: number;
 	/** Where the listing is, so a Trash that cannot be read is explained as such. */
 	location?: Location | undefined;
+	/** The file list's accessible name, when more than one list is on screen (the panes of a pair). */
+	listLabel?: string | undefined;
 	onOpen: OpenHandler;
 	onOpenInNewTab: OpenInNewHandler;
 	onMenu: (request: MenuRequest) => void;
@@ -42,6 +44,7 @@ export function FileView({
 	mode,
 	gridSize,
 	location,
+	listLabel,
 	onOpen,
 	onOpenInNewTab,
 	onMenu,
@@ -61,6 +64,7 @@ export function FileView({
 		onOpenInNewTab: openInNewTab,
 		onMenu,
 		announceSelection: false,
+		label: listLabel,
 	};
 	const body =
 		mode === 'grid' ? <GridView {...shared} size={gridSize} /> : <ListingView {...shared} />;

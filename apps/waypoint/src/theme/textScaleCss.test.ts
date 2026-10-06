@@ -36,7 +36,7 @@ describe('the text scale in stylesheets', () => {
 			for (const { line, value } of fontSizes(readFileSync(join(root, file), 'utf8'))) {
 				// `inherit` takes the already scaled size of the parent: scaling it again would apply the factor twice.
 				if (value === 'inherit') continue;
-				const scaled = /^calc\([0-9.]+px \* var\(--wp-text-scale, 1\)\)$/.test(value);
+				const scaled = /^calc\([0-9.]+px \* var\(--wp-text-scale\)\)$/.test(value);
 				if (!scaled) offences.push(`${file}:${line}: font-size: ${value}`);
 			}
 		}

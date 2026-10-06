@@ -66,7 +66,7 @@ async function mount(
 }
 
 const options = () =>
-	within(screen.getAllByRole('listbox', { name: 'Files' })[0]!).getAllByRole('option');
+	within(screen.getAllByRole('listbox', { name: /^Files/ })[0]!).getAllByRole('option');
 const row = (name: string) => options().find((option) => option.textContent?.includes(name))!;
 const submits = (ops: FakeOpsClient) => ops.calls.filter((call) => call[0] === 'submit');
 const lastSubmit = (ops: FakeOpsClient) => submits(ops).at(-1)![1] as Record<string, unknown>;

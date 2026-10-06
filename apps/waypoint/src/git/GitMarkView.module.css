@@ -3,7 +3,7 @@
 	align-items: center;
 	gap: 2px;
 	font-family: var(--wp-font-mono, monospace);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 	line-height: 1;
 	color: var(--wp-text-secondary);
@@ -23,7 +23,7 @@
 }
 
 .dot {
-	font-size: calc(8px * var(--wp-text-scale, 1));
+	font-size: calc(8px * var(--wp-text-scale));
 }
 
 /* The colour repeats what the letters and the words say; it is never the only signal. */

@@ -18,7 +18,7 @@
 	border-bottom: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-secondary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .notice[data-notice='capped'] {
@@ -150,7 +150,7 @@
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;
 	line-clamp: 2;
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	line-height: 16px;
 	text-align: center;
 	/* A word splits only when it cannot fit a line of its own, so a name that nearly fits is not cut. */
@@ -192,7 +192,7 @@
 	transform: translateY(var(--wp-row-y));
 	border-bottom: 1px solid var(--wp-border-subtle);
 	color: var(--wp-text-primary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 	cursor: default;
 	user-select: none;

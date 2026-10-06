@@ -47,7 +47,7 @@
 	background: transparent;
 	color: inherit;
 	font: inherit;
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 	white-space: nowrap;
 	cursor: default;
 }

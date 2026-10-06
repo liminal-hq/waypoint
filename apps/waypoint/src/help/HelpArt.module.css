@@ -67,7 +67,7 @@
 	inset-block-end: 8px;
 	inset-inline-start: 14px;
 	color: var(--wp-text-muted);
-	font-size: calc(11.5px * var(--wp-text-scale, 1));
+	font-size: calc(11.5px * var(--wp-text-scale));
 }
 
 /* A webview without motion paths cannot lay the mark on the route, so the route stands alone. */

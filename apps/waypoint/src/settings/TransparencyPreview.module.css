@@ -24,7 +24,7 @@
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 10px;
 	box-shadow: var(--wp-preview-window-shadow);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .titleBar {
@@ -132,5 +132,5 @@
 .caption {
 	margin-block-start: 6px;
 	color: var(--wp-text-muted);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }

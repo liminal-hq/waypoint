@@ -75,7 +75,7 @@ async function mountWorkspace(options: { paired?: boolean } = {}): Promise<Rende
 }
 
 const options = (pane = 0) =>
-	within(screen.getAllByRole('listbox', { name: 'Files' })[pane]!).getAllByRole('option');
+	within(screen.getAllByRole('listbox', { name: /^Files/ })[pane]!).getAllByRole('option');
 const row = (name: string, pane = 0) =>
 	options(pane).find((option) => option.textContent?.includes(name))!;
 const submits = (ops: FakeOpsClient) => ops.calls.filter((call) => call[0] === 'submit');
@@ -88,7 +88,7 @@ async function choose(name: string, pane = 0) {
 }
 
 const keyOn = (_name: string, key: string, init: KeyboardEventInit = {}, pane = 0) =>
-	fireEvent.keyDown(screen.getAllByRole('listbox', { name: 'Files' })[pane]!, { key, ...init });
+	fireEvent.keyDown(screen.getAllByRole('listbox', { name: /^Files/ })[pane]!, { key, ...init });
 
 describe('Ctrl+C, Ctrl+X and Ctrl+V', () => {
 	it('copy a file and paste it into the other folder as a copy job', async () => {
@@ -174,7 +174,7 @@ describe('the menus', () => {
 	it('offer Paste after New in the empty-space menu', async () => {
 		await mountWorkspace();
 		await waitFor(() => expect(options()).not.toHaveLength(0));
-		fireEvent.contextMenu(screen.getAllByRole('listbox', { name: 'Files' })[0]!.parentElement!);
+		fireEvent.contextMenu(screen.getAllByRole('listbox', { name: /^Files/ })[0]!.parentElement!);
 		const menu = await screen.findByRole('menu', { name: 'Folder actions' });
 		const items = within(menu).getAllByRole('menuitem');
 		const at = (name: RegExp) => items.findIndex((item) => name.test(item.textContent ?? ''));

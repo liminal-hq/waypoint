@@ -15,7 +15,7 @@
 
 .label {
 	color: var(--wp-text-secondary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .input {
@@ -48,7 +48,7 @@
 .note {
 	margin: 0;
 	color: var(--wp-text-muted);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	line-height: 1.4;
 }
 

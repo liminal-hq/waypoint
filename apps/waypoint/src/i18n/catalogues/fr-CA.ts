@@ -1526,6 +1526,8 @@ const messages: Catalogue = {
 	'pair.divider.value': '{first} % et {second} %',
 	// source: 074a42d5
 	'pair.pane.label': 'Panneau {position} sur {count} : {title}',
+	// source: dd22ef49
+	'pair.pane.files': 'Fichiers, panneau {position} sur {count} : {title}',
 	// source: bde93980
 	'pair.pane.close': 'Fermer le panneau {title}',
 	// source: 92340695

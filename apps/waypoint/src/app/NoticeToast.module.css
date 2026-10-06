@@ -20,7 +20,7 @@
 	border-radius: 8px;
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-primary);
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 	box-shadow: 0 4px 16px color-mix(in srgb, var(--wp-text-primary) 22%, transparent);
 	pointer-events: auto;
 	animation: wp-toast-in 140ms ease-out;

@@ -15,7 +15,7 @@
 	padding-block: 6px;
 	min-inline-size: 0;
 	border-block-end: 1px solid var(--wp-border-subtle);
-	font-size: calc(12.5px * var(--wp-text-scale, 1));
+	font-size: calc(12.5px * var(--wp-text-scale));
 }
 
 /* The Name field: the label over a bordered, full-width value. */
@@ -42,7 +42,7 @@
 }
 
 .row[data-stacked] .label {
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	white-space: normal;
 }
 
@@ -62,7 +62,7 @@
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 8px;
 	background: var(--wp-control-bg);
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .nameText {
@@ -72,7 +72,7 @@
 .detail {
 	display: block;
 	color: var(--wp-text-muted);
-	font-size: calc(11px * var(--wp-text-scale, 1));
+	font-size: calc(11px * var(--wp-text-scale));
 }
 
 .unavailable {
@@ -97,7 +97,7 @@
 	background: transparent;
 	color: inherit;
 	font: inherit;
-	font-size: calc(11px * var(--wp-text-scale, 1));
+	font-size: calc(11px * var(--wp-text-scale));
 	cursor: pointer;
 }
 
@@ -114,7 +114,7 @@
 .note {
 	margin: 0;
 	color: var(--wp-text-muted);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .srOnly {

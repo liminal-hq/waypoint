@@ -47,7 +47,7 @@ const openShelf = async () => {
 	return await screen.findByRole('complementary', { name: 'Shelf' });
 };
 const options = () =>
-	within(screen.getAllByRole('listbox', { name: 'Files' })[0]!).getAllByRole('option');
+	within(screen.getAllByRole('listbox', { name: /^Files/ })[0]!).getAllByRole('option');
 const row = (name: string) => options().find((option) => option.textContent?.includes(name))!;
 const levelled = (level: number) => {
 	const tree = screen.queryByRole('tree', { name: 'Shelf items' });

@@ -300,7 +300,7 @@ body,
 
 body {
 	font-family: system-ui, sans-serif;
-	font-size: calc(14px * var(--wp-text-scale, 1));
+	font-size: calc(14px * var(--wp-text-scale));
 	/* A window is not a web page: labels, file names and chrome are not selectable text. */
 	-webkit-user-select: none;
 	user-select: none;

@@ -22,7 +22,7 @@
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 8px;
 	box-shadow: var(--wp-shadow-menu);
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .row {

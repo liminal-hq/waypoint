@@ -36,7 +36,7 @@
 	justify-content: center;
 	border: 2px dashed var(--wp-split-zone-outline);
 	color: var(--wp-split-zone-label);
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 	transition:
 		border-color var(--wp-drag-motion) ease-out,
 		color var(--wp-drag-motion) ease-out;

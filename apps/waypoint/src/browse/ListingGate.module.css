@@ -6,7 +6,7 @@
 
 .messageTitle {
 	margin: 0 0 4px;
-	font-size: calc(15px * var(--wp-text-scale, 1));
+	font-size: calc(15px * var(--wp-text-scale));
 	color: var(--wp-text-primary);
 }
 

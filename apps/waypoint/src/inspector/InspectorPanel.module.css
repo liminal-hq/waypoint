@@ -62,7 +62,7 @@
 	background: transparent;
 	color: var(--wp-text-muted);
 	font: inherit;
-	font-size: calc(12.5px * var(--wp-text-scale, 1));
+	font-size: calc(12.5px * var(--wp-text-scale));
 	font-weight: 500;
 	cursor: pointer;
 }
@@ -147,7 +147,7 @@
 	gap: 12px;
 	padding-block: 6px;
 	border-block-end: 1px solid var(--wp-border-subtle);
-	font-size: calc(12.5px * var(--wp-text-scale, 1));
+	font-size: calc(12.5px * var(--wp-text-scale));
 }
 
 .fact > dt {
@@ -171,7 +171,7 @@
 
 .summaryTitle {
 	margin: 0;
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 	font-weight: 600;
 	overflow-wrap: anywhere;
 }
@@ -179,7 +179,7 @@
 .summaryFacts {
 	margin: 0;
 	color: var(--wp-text-muted);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 :root[data-contrast='high'] .inspector {

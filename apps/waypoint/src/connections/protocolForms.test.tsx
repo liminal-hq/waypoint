@@ -278,6 +278,21 @@ describe('an SFTP connection', () => {
 		expect(box(dialog, 'Start folder')).toBeInTheDocument();
 	});
 
+	it('offers More options as a disclosure button with its state', async () => {
+		const dialog = await setup(everything());
+		const toggle = within(dialog).getByRole('button', { name: 'More options' });
+		expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		expect(maybe(dialog, 'Jump host')).toBeNull();
+		fireEvent.click(toggle);
+		expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		const panel = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+		expect(panel).not.toHaveAttribute('hidden');
+		expect(within(panel).getByRole('textbox', { name: 'Jump host' })).toBeInTheDocument();
+		fireEvent.click(toggle);
+		expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		expect(panel).toHaveAttribute('hidden');
+	});
+
 	it('drops a way to sign in the protocol it changes to does not have', async () => {
 		const dialog = await setup(everything());
 		fireEvent.click(within(dialog).getByRole('radio', { name: 'Key file' }));

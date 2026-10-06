@@ -179,7 +179,7 @@
 	border-bottom: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-window);
 	color: var(--wp-text-secondary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	/* Reserves the width of the rows' scrollbar so the columns line up, without drawing a scrollbar of its own. */
 	scrollbar-gutter: stable;
 	overflow-y: hidden;
@@ -249,7 +249,7 @@
 	border-bottom: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-secondary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .notice[data-notice='capped'] {
@@ -283,7 +283,7 @@
 	width: 100%;
 	height: var(--wp-row-height);
 	transform: translateY(var(--wp-row-y));
-	font-size: calc(13px * var(--wp-text-scale, 1));
+	font-size: calc(13px * var(--wp-text-scale));
 	cursor: default;
 	user-select: none;
 }
@@ -341,7 +341,7 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	color: var(--wp-text-secondary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	font-variant-numeric: tabular-nums;
 }
 
@@ -381,7 +381,7 @@
 	border-bottom: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-window);
 	color: var(--wp-text-primary);
-	font-size: calc(12px * var(--wp-text-scale, 1));
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 	cursor: default;
 	user-select: none;
