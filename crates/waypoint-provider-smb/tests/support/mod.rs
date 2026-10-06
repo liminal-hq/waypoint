@@ -191,16 +191,30 @@ impl Smbd {
             return skip("pdbedit could not add the account");
         }
         let log = fs::File::create(root.join("smbd.out")).unwrap();
-        let child = Command::new(&smbd)
+        let mut command = Command::new(&smbd);
+        command
             .args(["-F", "--no-process-group", "-s"])
             .arg(&conf)
             .arg("-l")
             .arg(root)
             .arg("--debug-stdout")
             .stdout(log.try_clone().unwrap())
-            .stderr(log)
-            .spawn()
-            .expect("smbd starts");
+            .stderr(log);
+        // Its own session, so the group can be stopped as one, and a server that outlives the
+        // test process (a SIGKILL, an abort) is stopped by the kernel.
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::process::CommandExt;
+            // SAFETY: only async-signal-safe calls (`setsid`, `prctl`) run between fork and exec.
+            unsafe {
+                command.pre_exec(|| {
+                    libc::setsid();
+                    libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
+                    Ok(())
+                });
+            }
+        }
+        let child = command.spawn().expect("smbd starts");
         let server = Smbd {
             child,
             port,
@@ -269,14 +283,69 @@ impl Smbd {
 
 impl Drop for Smbd {
     fn drop(&mut self) {
+        #[cfg(target_os = "linux")]
+        stop_group(self.child.id());
         let _ = self.child.kill();
         let _ = self.child.wait();
+        #[cfg(target_os = "linux")]
+        stop_helpers(self.dir.path());
         // A debugging aid: with `WAYPOINT_SMB_KEEP=1` the configuration and the server's logs stay.
         if std::env::var_os("WAYPOINT_SMB_KEEP").is_some_and(|v| v == "1") {
             let kept = std::mem::replace(&mut self.dir, temp_dir());
             eprintln!("kept {}", kept.path().display());
             std::mem::forget(kept);
         }
+    }
+}
+
+/// Stops the process group `smbd` leads (it is its own session leader).
+#[cfg(target_os = "linux")]
+fn stop_group(pid: u32) {
+    // SAFETY: signals a process group this harness created.
+    unsafe {
+        libc::kill(-(pid as libc::pid_t), libc::SIGKILL);
+    }
+}
+
+/// Stops what `smbd` started outside its group: `samba-dcerpcd` and its `rpcd_*` workers, each of
+/// which has the server's temporary folder on its command line (`--configfile=` and
+/// `--log-basename=`). They are stopped parent first, so none is restarted, and the scan repeats
+/// until no process names the folder.
+#[cfg(target_os = "linux")]
+fn stop_helpers(root: &std::path::Path) {
+    let needle = root.to_string_lossy().into_owned();
+    let me = std::process::id();
+    for _ in 0..20 {
+        let mut found = false;
+        let Ok(procs) = fs::read_dir("/proc") else {
+            return;
+        };
+        for entry in procs.flatten() {
+            let Some(pid) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<u32>().ok())
+            else {
+                continue;
+            };
+            if pid == me {
+                continue;
+            }
+            let Ok(cmdline) = fs::read(entry.path().join("cmdline")) else {
+                continue;
+            };
+            if String::from_utf8_lossy(&cmdline).contains(&needle) {
+                found = true;
+                // SAFETY: signals a process that was started with this server's folder.
+                unsafe {
+                    libc::kill(pid as libc::pid_t, libc::SIGKILL);
+                }
+            }
+        }
+        if !found {
+            return;
+        }
+        thread::sleep(Duration::from_millis(25));
     }
 }
 

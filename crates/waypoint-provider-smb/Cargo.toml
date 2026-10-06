@@ -30,6 +30,7 @@ tokio = { version = "1", optional = true, features = ["rt-multi-thread", "net", 
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_NetworkManagement_NetManagement", "Win32_NetworkManagement_WNet", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
+libc = "0.2"
 serde_json = { workspace = true }
 tempfile = "3"
 waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }
