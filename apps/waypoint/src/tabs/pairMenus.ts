@@ -10,7 +10,7 @@ import type { TabColour } from '@liminal-hq/waypoint-protocol/generated/TabColou
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { WindowSummary } from '@liminal-hq/waypoint-protocol/generated/WindowSummary';
 import { createElement } from 'react';
-import { CloseSmallIcon, FolderTabIcon, PinIcon } from '../icons/AppIcons';
+import { CloseSmallIcon, PinIcon } from '../icons/AppIcons';
 import {
 	CircleIcon,
 	ColumnsIcon,
@@ -29,6 +29,7 @@ import { colourMessageId, TAB_COLOURS } from './tabColours';
 import { TabColourSwatch } from './TabColourSwatch';
 import { runWindowMoveChoice, windowMoveItems } from './windowMoveMenu';
 import { locationLabel } from './tabTitle';
+import { LocationIcon } from '../nav/LocationIcon';
 
 const PAIR_PREFIX = 'pair:';
 const LAYOUT_PREFIX = 'pair:layout:';
@@ -205,7 +206,7 @@ export function pairTabItems(
 				type: 'action' as const,
 				id: `${SPLIT_WITH_PREFIX}${other.id}`,
 				label: locationLabel(other.location),
-				icon: createElement(FolderTabIcon),
+				icon: createElement(LocationIcon, { location: other.location }),
 			})),
 		},
 	];

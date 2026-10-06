@@ -83,6 +83,11 @@
 	color: inherit;
 }
 
+/* An icon that sets its own colour (a folder in the accent colour) would vanish on the highlighted row's accent fill, so it takes the row's. */
+.item:focus .icon > * {
+	color: inherit;
+}
+
 .label {
 	flex: 1;
 	overflow: hidden;

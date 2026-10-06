@@ -231,39 +231,6 @@
 	color: var(--wp-accent);
 }
 
-/* A server tab's badge: the server glyph, with a corner dot for its state (the words are in the tab's description). */
-.remoteIcon {
-	position: relative;
-	display: inline-flex;
-	flex: none;
-}
-
-.remoteIcon::after {
-	position: absolute;
-	inset-block-end: -1px;
-	inset-inline-end: -2px;
-	inline-size: 6px;
-	block-size: 6px;
-	border-radius: 50%;
-	background: var(--wp-text-muted);
-	content: '';
-}
-
-.remoteIcon[data-tone='connected']::after {
-	background: var(--wp-success);
-}
-
-.remoteIcon[data-tone='connecting']::after,
-.remoteIcon[data-tone='signIn']::after,
-.remoteIcon[data-tone='trust']::after {
-	background: var(--wp-warning);
-}
-
-.remoteIcon[data-tone='offline']::after,
-.remoteIcon[data-tone='error']::after {
-	background: var(--wp-danger);
-}
-
 .title {
 	overflow: hidden;
 	text-overflow: ellipsis;

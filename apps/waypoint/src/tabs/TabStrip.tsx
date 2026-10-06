@@ -53,12 +53,11 @@ import { locationLabel } from './tabTitle';
 import { PlusMenu, TabContextMenu } from './TabMenus';
 import { TabSwitcher } from './TabSwitcher';
 import { useTabTitle } from './tabTitle';
-import { FileIcon } from '../browse/FileIcon';
+import { LocationGlyph } from '../nav/LocationIcon';
 import { useVfsClient } from '../browse/VfsClientContext';
-import { ServerIcon } from '../connections/ConnectionIcons';
 import { useConnectionsView } from '../connections/ConnectionsContext';
 import { stateOf } from '../connections/connectionsModel';
-import { stateTone, stateWords } from '../connections/remoteModel';
+import { stateWords } from '../connections/remoteModel';
 import { useLocationInfo } from '../nav/locationInfo';
 import { useClosedTabs } from './useClosedTabs';
 import styles from './TabStrip.module.css';
@@ -712,13 +711,7 @@ function TabButton({
 				onFocus={onFocus}
 				onKeyDown={onKeyDown}
 			>
-				{remote ? (
-					<span className={styles.remoteIcon} data-tone={stateTone(remote)}>
-						<ServerIcon className={styles.icon} />
-					</span>
-				) : (
-					<FileIcon group="folder" className={styles.icon} />
-				)}
+				<LocationGlyph remote={remote} className={styles.icon} />
 				{tab.pinned ? <PinIcon className={styles.pinBadge} width={10} height={10} /> : null}
 				{tab.pinned ? null : <span className={styles.title}>{title}</span>}
 			</div>
