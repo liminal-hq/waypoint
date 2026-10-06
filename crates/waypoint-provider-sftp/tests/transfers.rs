@@ -1,17 +1,19 @@
-// The operations engine over a real OpenSSH server (A84, D151): an upload and a download of a tree
-// with its times and modes, a move within one login by rename, and the undo of an upload. Each
-// test skips with a message when there is no `sshd` (see `support`).
+// The operations engine over the in-process SFTP server and a real OpenSSH server (A84, D151): an
+// upload and a download of a tree with its times and modes, a move within one login by rename, the
+// undo of an upload, and an upload cut part way. The OpenSSH half of each test skips with a message
+// when there is no `sshd` (see `support`).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+#[macro_use]
 mod support;
 
 use std::fs;
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 
-use support::{temp_dir, Sshd};
+use support::{temp_dir, Backend};
 use waypoint_ops::testing::journal_harness::JournalHarness;
 use waypoint_ops::{JobKind, JobOptions, JobRequest, JobState, OpsError, Sources};
 use waypoint_path::{FilePath, VfsPath};
@@ -24,7 +26,7 @@ struct Engine {
     _dir: tempfile::TempDir,
 }
 
-fn engine(server: &Sshd) -> Engine {
+fn engine(server: &dyn Backend) -> Engine {
     let dir = temp_dir();
     let base = VfsPath::File(FilePath::from_path(dir.path()).unwrap());
     let mut h = JournalHarness::new(LocalProvider::new(), base);
@@ -65,10 +67,8 @@ fn mtime(path: &std::path::Path) -> u64 {
         .as_secs()
 }
 
-#[test]
-fn a_tree_goes_up_and_comes_back_with_its_bytes_times_and_modes() {
-    let Some(server) = Sshd::start() else { return };
-    let mut e = engine(&server);
+fn a_tree_goes_up_and_comes_back_with_its_bytes_times_and_modes(server: &dyn Backend) {
+    let mut e = engine(server);
     let src = e.work.join("tree");
     fs::create_dir_all(src.join("sub")).unwrap();
     let big: Vec<u8> = (0..3_000_000u32).map(|n| (n * 7 % 253) as u8).collect();
@@ -94,22 +94,16 @@ fn a_tree_goes_up_and_comes_back_with_its_bytes_times_and_modes() {
     let plan = run.plan.unwrap();
     assert!(!plan.same_volume);
     assert!(plan.ends.to.unwrap().starts_with("sftp://"));
-    assert_eq!(fs::read(server.data.join("tree/big.bin")).unwrap(), big);
-    assert_eq!(mtime(&server.data.join("tree/sub/note.txt")), 1_500_000_000);
+    assert_eq!(server.get("tree/big.bin"), big);
+    assert_eq!(server.mtime("tree/sub/note.txt"), 1_500_000_000);
+    // Only a Unix machine gave the source its mode.
     #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mode = fs::metadata(server.data.join("tree/big.bin"))
-            .unwrap()
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o777, 0o640);
-    }
-    let names: Vec<_> = fs::read_dir(&server.data)
-        .unwrap()
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .collect();
-    assert_eq!(names, ["tree"], "no partial is left on the server");
+    assert_eq!(server.mode("tree/big.bin") & 0o777, 0o640);
+    assert_eq!(
+        server.names(""),
+        ["tree"],
+        "no partial is left on the server"
+    );
 
     // And back down, verified.
     fs::create_dir_all(e.work.join("back")).unwrap();
@@ -125,22 +119,12 @@ fn a_tree_goes_up_and_comes_back_with_its_bytes_times_and_modes() {
     assert_eq!(mtime(&e.work.join("back/tree/sub/note.txt")), 1_500_000_000);
 }
 
-#[test]
-fn a_move_within_one_login_renames_on_the_server() {
-    let Some(server) = Sshd::start() else { return };
-    let mut e = engine(&server);
-    fs::create_dir_all(server.data.join("a")).unwrap();
-    fs::create_dir_all(server.data.join("b")).unwrap();
-    fs::write(server.data.join("a/f.txt"), b"moved").unwrap();
-    let inode = {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::MetadataExt;
-            fs::metadata(server.data.join("a/f.txt")).unwrap().ino()
-        }
-        #[cfg(not(unix))]
-        0
-    };
+fn a_move_within_one_login_renames_on_the_server(server: &dyn Backend) {
+    let mut e = engine(server);
+    server.mkdir("a");
+    server.mkdir("b");
+    server.put("a/f.txt", b"moved");
+    let identity = server.identity("a/f.txt");
     let root = server.data_location();
     let run = e.h.run_journalled(request(
         JobKind::Move,
@@ -149,20 +133,13 @@ fn a_move_within_one_login_renames_on_the_server() {
     ));
     done(&run.state);
     assert!(run.plan.unwrap().same_volume, "one login is one volume");
-    assert!(!server.data.join("a/f.txt").exists());
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        let moved = fs::metadata(server.data.join("b/f.txt")).unwrap().ino();
-        assert_eq!(moved, inode, "renamed, not copied");
-    }
-    let _ = inode;
+    assert!(!server.exists("a/f.txt"));
+    assert_eq!(server.get("b/f.txt"), b"moved");
+    assert_eq!(server.identity("b/f.txt"), identity, "renamed, not copied");
 }
 
-#[test]
-fn undoing_an_upload_removes_it_and_refuses_once_it_changed() {
-    let Some(server) = Sshd::start() else { return };
-    let mut e = engine(&server);
+fn undoing_an_upload_removes_it_and_refuses_once_it_changed(server: &dyn Backend) {
+    let mut e = engine(server);
     fs::create_dir_all(&e.work).unwrap();
     fs::write(e.work.join("a.txt"), b"alpha").unwrap();
     let up = server.data_location();
@@ -171,12 +148,12 @@ fn undoing_an_upload_removes_it_and_refuses_once_it_changed() {
     done(&run.state);
     let undo = e.h.undo_last();
     done(&undo.state);
-    assert!(!server.data.join("a.txt").exists());
+    assert!(!server.exists("a.txt"));
 
     let redo =
         e.h.run_journalled(request(JobKind::Copy, &[e.h.path("a.txt")], &up));
     done(&redo.state);
-    fs::write(server.data.join("a.txt"), b"changed on the server").unwrap();
+    server.put("a.txt", b"changed on the server");
     let refused = e.h.undo_last();
     assert!(
         matches!(
@@ -189,10 +166,7 @@ fn undoing_an_upload_removes_it_and_refuses_once_it_changed() {
         "{:?}",
         refused.state
     );
-    assert_eq!(
-        fs::read(server.data.join("a.txt")).unwrap(),
-        b"changed on the server"
-    );
+    assert_eq!(server.get("a.txt"), b"changed on the server");
     let _ = e.h.provider.stat(&e.h.path("a.txt")).unwrap();
 }
 
@@ -234,10 +208,8 @@ impl waypoint_ops::ExecSink for Severing<'_> {
     }
 }
 
-#[test]
-fn an_upload_cut_part_way_continues_from_what_the_server_holds() {
-    let Some(server) = Sshd::start() else { return };
-    let proxy = support::Proxy::start(server.port, Duration::from_millis(4));
+fn an_upload_cut_part_way_continues_from_what_the_server_holds(server: &dyn Backend) {
+    let proxy = server.proxy(Duration::from_millis(4));
     let dir = temp_dir();
     let base = VfsPath::File(FilePath::from_path(dir.path()).unwrap());
     let mut h = waypoint_ops::testing::harness::Harness::new(LocalProvider::new(), base);
@@ -247,7 +219,7 @@ fn an_upload_cut_part_way_continues_from_what_the_server_holds() {
     let work = dir.path().join("work");
     let content: Vec<u8> = (0..12_000_000u32).map(|n| (n * 17 % 241) as u8).collect();
     fs::write(work.join("big.bin"), &content).unwrap();
-    let up = server.location(proxy.port, &server.data);
+    let up = server.location(proxy.port, "");
     let request = request(JobKind::Copy, &[h.path("big.bin")], &up);
     let plan = h.plan(&request).unwrap();
     let mut sink = Severing {
@@ -279,11 +251,14 @@ fn an_upload_cut_part_way_continues_from_what_the_server_holds() {
     assert!(sink.severed);
     assert!(sink.offline >= 1, "the cut was waited out");
     assert_eq!(sink.kept.len(), 1, "the partial file was kept");
-    assert_eq!(fs::read(server.data.join("big.bin")).unwrap(), content);
-    let names: Vec<_> = fs::read_dir(&server.data)
-        .unwrap()
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .collect();
-    assert_eq!(names, ["big.bin"]);
+    assert_eq!(server.get("big.bin"), content);
+    assert_eq!(server.names(""), ["big.bin"]);
     assert!(proxy.connections() >= 2, "it connected again");
 }
+
+on_both!(
+    a_tree_goes_up_and_comes_back_with_its_bytes_times_and_modes,
+    a_move_within_one_login_renames_on_the_server,
+    undoing_an_upload_removes_it_and_refuses_once_it_changed,
+    an_upload_cut_part_way_continues_from_what_the_server_holds,
+);

@@ -21,6 +21,8 @@ waypoint-protocol = { path = "../waypoint-protocol" }
 waypoint-vfs = { path = "../waypoint-vfs" }
 
 [dev-dependencies]
+bytes = "1"
+rand = "0.10"
 tempfile = "3"
 waypoint-ops = { path = "../waypoint-ops", features = ["testing"] }
 waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }
