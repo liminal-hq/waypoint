@@ -34,9 +34,17 @@ export function hasRoomBelow(
 	rowIndex: number,
 	column: number,
 ): boolean {
-	if (rowIndex >= layout.rowCount - 1) return true;
+	return column >= firstColumnWithRoom(layout, rowIndex);
+}
+
+/** The first column of row `rowIndex` whose cells have room below (see `hasRoomBelow`); infinite for none. */
+export function firstColumnWithRoom(
+	layout: Pick<GroupLayout, 'rowCount' | 'rowAt'>,
+	rowIndex: number,
+): number {
+	if (rowIndex >= layout.rowCount - 1) return 0;
 	const next = layout.rowAt(rowIndex + 1);
-	return next.kind === 'entries' && next.count <= column;
+	return next.kind === 'entries' ? next.count : Number.POSITIVE_INFINITY;
 }
 
 /** How many columns of `cell` fit in `width` pixels; always at least one. */

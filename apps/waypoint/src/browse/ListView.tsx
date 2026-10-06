@@ -24,6 +24,7 @@ import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import { entryDropAttributes, SCROLL_ATTRIBUTE } from '../dnd/dropTargets';
 import { t, tf, tn, type MessageId } from '../i18n/messages';
 import { useCutNames } from '../ops/ClipboardContext';
+import { useScrollStepRender } from './scrollStepRender';
 import { useFileCommands } from '../ops/FileCommandsContext';
 import { useRepository } from '../git/GitContext';
 import { GitMarkView } from '../git/GitMarkView';
@@ -211,14 +212,17 @@ function ListingBody({
 	layoutRef.current = layout;
 	const { shown, hidden } = visibleRows(layout.rowCount, rowHeight);
 
+	const drawStep = useScrollStepRender();
 	const virtualizer = useVirtualizer({
 		count: shown,
 		getScrollElement: () => scroller.current,
 		estimateSize: () => rowHeight,
 		overscan: OVERSCAN,
 		// Off: the default flushes a state update synchronously from the scroll and resize callbacks, which React
-		// rejects (and logs) whenever one lands during a render. A batched update is a frame at most later.
+		// rejects (and logs) whenever one lands during a render. A scroll step is drawn in its own frame
+		// by `drawStep` instead (see `useScrollStepRender`).
 		useFlushSync: false,
+		onChange: (_instance, sync) => drawStep(sync),
 	});
 	const items = virtualizer.getVirtualItems();
 	const first = items[0]?.index ?? 0;

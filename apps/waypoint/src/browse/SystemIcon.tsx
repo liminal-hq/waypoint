@@ -14,6 +14,7 @@ import {
 	useSystemIcons,
 	useSystemImage,
 } from '../icons/systemIcons';
+import { cssUrl } from '../icons/iconPictures';
 import styles from './FileIcon.module.css';
 
 interface SystemIconProps {
@@ -27,6 +28,8 @@ interface SystemIconProps {
 	className?: string;
 	/** What is drawn until the system's icon is there, and for good where the system has none. Never nothing. */
 	fallback: ReactNode;
+	/** Draw the icon as a background picture (under `IconPictures`) rather than an SVG `<image>`. */
+	picture?: boolean;
 }
 
 /**
@@ -44,6 +47,7 @@ export function SystemIcon({
 	tone,
 	className,
 	fallback,
+	picture = false,
 }: SystemIconProps) {
 	const icons = useSystemIcons();
 	const kind = group === 'folder' ? icons.folder : icons.type;
@@ -65,6 +69,18 @@ export function SystemIcon({
 		if (url !== null && image === 'idle') requestSystemImage(url);
 	}, [url, image]);
 	if (url === null || image !== 'loaded') return <>{fallback}</>;
+	if (picture) {
+		return (
+			<span
+				className={className ? `${styles.picture} ${className}` : styles.picture}
+				data-group={group}
+				data-system=""
+				data-icon-picture=""
+				aria-hidden="true"
+				style={{ backgroundImage: cssUrl(url) }}
+			/>
+		);
+	}
 	return (
 		<svg
 			className={className ? `${styles.icon} ${className}` : styles.icon}

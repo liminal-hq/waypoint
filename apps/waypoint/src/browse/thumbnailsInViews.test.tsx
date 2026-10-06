@@ -116,10 +116,10 @@ describe('the grid', () => {
 		await waitFor(() => expect(pictures()).toHaveLength(1));
 		fireEvent.error(pictures()[0]!);
 		await waitFor(() => expect(pictures()).toHaveLength(0));
-		// Every item still has its icon.
+		// Every item still has its icon (the grid draws it as a picture).
 		for (const option of options()) {
 			if (option.getAttribute('data-placeholder') === null) {
-				expect(option.querySelector('svg[data-group]')).not.toBeNull();
+				expect(option.querySelector('[data-icon-picture][data-group]')).not.toBeNull();
 			}
 		}
 	});

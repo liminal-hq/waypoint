@@ -47,7 +47,11 @@ describe('the virtualisers', () => {
 			</VfsClientProvider>,
 		);
 		await waitFor(() => expect(screen.queryAllByRole('option').length).toBeGreaterThan(0));
-		for (const options of optionsUsed()) expect(options.useFlushSync).toBe(false);
+		for (const options of optionsUsed()) {
+			expect(options.useFlushSync).toBe(false);
+			// A scroll step is drawn by the view itself (`useScrollStepRender`).
+			expect(options.onChange).toBeTypeOf('function');
+		}
 	});
 
 	it('keep useFlushSync off in the grid', async () => {
@@ -58,6 +62,10 @@ describe('the virtualisers', () => {
 			</VfsClientProvider>,
 		);
 		await waitFor(() => expect(screen.queryAllByRole('option').length).toBeGreaterThan(0));
-		for (const options of optionsUsed()) expect(options.useFlushSync).toBe(false);
+		for (const options of optionsUsed()) {
+			expect(options.useFlushSync).toBe(false);
+			// A scroll step is drawn by the view itself (`useScrollStepRender`).
+			expect(options.onChange).toBeTypeOf('function');
+		}
 	});
 });
