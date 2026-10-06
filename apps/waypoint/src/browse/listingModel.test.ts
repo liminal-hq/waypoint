@@ -391,6 +391,52 @@ describe('progress and failure', () => {
 		expect(model.count).toBe(1000);
 	});
 
+	it('draws the rows a streaming scan has published, and keeps them on screen as more arrive', async () => {
+		// A remote listing publishes each batch in sort order with a new revision (A115): the page
+		// fetches what has arrived and never shows the rows it already has as blank.
+		const client = new FakeVfsClient();
+		let rows = ['c', 'm', 'x'].map((name, id) => makeEntry(id, name));
+		vi.spyOn(client, 'getRange').mockImplementation(async (_, start, count) =>
+			rows.slice(start, start + count),
+		);
+		const model = new ListingModel(client, {
+			handle: 7,
+			location: FOLDER,
+			revision: 1,
+			count: 0,
+			phase: 'scanning',
+			sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
+			filter: { showHidden: false },
+			readOnly: false,
+			layout: 'folder',
+			groups: [],
+		});
+		const progress = (revision: number, count: number) =>
+			model.applyEvent({
+				kind: 'progress',
+				handle: 7,
+				revision,
+				phase: 'scanning',
+				scanned: count,
+				count,
+			});
+		const names = () => Array.from({ length: model.count }, (_, i) => model.entryAt(i)?.name);
+		model.ensure(0, 30);
+		progress(2, 3);
+		await settle();
+		expect(names()).toEqual(['c', 'm', 'x']);
+		expect(model.phase).toBe('scanning');
+
+		rows = ['a', 'c', 'm', 'q', 'x'].map((name, i) => makeEntry([3, 0, 1, 4, 2][i]!, name));
+		progress(3, 5);
+		// Until the fresh page lands, what was drawn stays drawn.
+		expect(model.entryAt(0)?.name).toBe('c');
+		expect(model.hasFresh(0)).toBe(false);
+		await settle();
+		expect(names()).toEqual(['a', 'c', 'm', 'q', 'x']);
+		expect(model.hasFresh(4)).toBe(true);
+	});
+
 	it('records a failed listing', async () => {
 		const { client, model } = await open(10);
 		client.failListing(model.handle, { kind: 'permissionDenied', location: FOLDER });
