@@ -55,6 +55,34 @@ describe('the Connect dialog', () => {
 		expect(within(dialog).getByText(/password in the address was not kept/)).toBeVisible();
 	});
 
+	it('connects with what the address says when Enter comes before the address has been read', async () => {
+		const { client, dialog } = await setup();
+		const address = field(dialog, 'Address');
+		// Slow Rust: the address is still being read when Enter is pressed.
+		const parse = client.parseAddress.bind(client);
+		client.parseAddress = async (text) => {
+			await new Promise((resolve) => setTimeout(resolve, 150));
+			return parse(text);
+		};
+		fireEvent.change(address, { target: { value: 'sftp://me@nas.lan:2222/srv' } });
+		fireEvent.submit(address.closest('form') as HTMLFormElement);
+		await waitFor(() => expect(client.calls.some((c) => c.method === 'test')).toBe(true));
+		expect(within(dialog).queryByText(/Type a host name/)).toBeNull();
+		const tested = client.calls.find((c) => c.method === 'test')?.args[0] as { host: string };
+		expect(tested.host).toBe('nas.lan');
+	});
+
+	it('does not connect when the address cannot be read, and says why', async () => {
+		const { client, dialog } = await setup();
+		const address = field(dialog, 'Address');
+		fireEvent.change(address, { target: { value: 'nonsense://' } });
+		fireEvent.submit(address.closest('form') as HTMLFormElement);
+		expect(
+			await within(dialog).findByText(/address/i, { selector: '[role="alert"]' }),
+		).toBeVisible();
+		expect(client.calls.some((c) => c.method === 'test')).toBe(false);
+	});
+
 	it('says why a test failed and keeps every field', async () => {
 		const script: ConnectScript = () => ({ kind: 'unreachable', location: at, reason: 'refused' });
 		const { dialog } = await setup(new FakeConnectionsClient({ connect: script }));
@@ -128,6 +156,29 @@ describe('the Connect dialog', () => {
 		expect(
 			client.calls.filter((call) => call.method === 'test').map((call) => call.args[1]),
 		).toEqual([null, 'trustHostKey']);
+	});
+
+	it('puts focus back in the Connect dialog when the trust prompt over it is cancelled', async () => {
+		const script: ConnectScript = (_key, answer) =>
+			answer
+				? null
+				: {
+						kind: 'hostKeyUnknown',
+						location: at,
+						key: { host: 'nas.lan', algorithm: 'ssh-ed25519', fingerprint: 'SHA256:abc' },
+					};
+		const { dialog } = await setup(new FakeConnectionsClient({ connect: script }));
+		fireEvent.change(field(dialog, 'Host'), { target: { value: 'nas.lan' } });
+		const connect = within(dialog).getByRole('button', { name: 'Connect' });
+		connect.focus();
+		fireEvent.click(connect);
+		const trust = await screen.findByRole('dialog', { name: 'Trust nas.lan?' });
+		// The attempt disabled the button that had focus: the page body has it, as in the webview.
+		expect(document.activeElement).not.toBe(connect);
+		fireEvent.click(within(trust).getByRole('button', { name: 'Cancel' }));
+		expect(await within(dialog).findByText('Not connected: cancelled.')).toBeVisible();
+		await waitFor(() => expect(connect).toHaveFocus());
+		expect(dialog.contains(document.activeElement)).toBe(true);
 	});
 
 	it('warns about a changed host key and trusts it only through its own action', async () => {

@@ -44,6 +44,34 @@ export interface DialogProps {
 	returnFocusTo?: HTMLElement | null;
 }
 
+// The control that last took focus anywhere in the page. A control that is disabled or hidden while
+// it has focus (the button that started a connection) leaves `document.activeElement` on the page
+// body without telling anyone, so a dialog opened then still knows where focus came from.
+let lastFocused: HTMLElement | null = null;
+let tracking = false;
+
+function trackFocus() {
+	if (tracking || typeof document === 'undefined') return;
+	tracking = true;
+	document.addEventListener(
+		'focusin',
+		(event) => {
+			if (event.target instanceof HTMLElement && event.target.tagName !== 'BODY') {
+				lastFocused = event.target;
+			}
+		},
+		true,
+	);
+}
+trackFocus();
+
+/** What has focus, or failing that what had it last (when the focus was lost with no one asking). */
+function focusOrigin(): HTMLElement | null {
+	const active = document.activeElement;
+	if (active instanceof HTMLElement && active !== document.body) return active;
+	return lastFocused?.isConnected ? lastFocused : null;
+}
+
 // Open dialogs, bottom first. Only the top one answers Esc and lifts above the others.
 const stack: HTMLDialogElement[] = [];
 
@@ -114,7 +142,7 @@ function OpenDialog({
 		const dialog = dialogRef.current;
 		const surface = surfaceRef.current;
 		if (!dialog || !surface) return;
-		const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		const opener = focusOrigin();
 		stack.push(dialog);
 		setDepth(stack.length - 1);
 		lockScroll();
