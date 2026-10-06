@@ -4571,6 +4571,10 @@
     "message": "Forgot {name}",
     "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
   },
+  "network.announce.forgottenKeyring": {
+    "message": "Forgot {name}. Its password could not be forgotten: {reason}.",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words."
+  },
   "remote.state.idle": {
     "message": "Not connected",
     "description": "Area: remote."

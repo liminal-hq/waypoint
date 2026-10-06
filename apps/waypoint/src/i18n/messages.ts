@@ -1353,6 +1353,8 @@ export const enMessages = {
 	'network.announce.disconnected': 'Disconnected from {name}',
 	'network.announce.moved': 'Moved {name} to position {position}',
 	'network.announce.forgotten': 'Forgot {name}',
+	'network.announce.forgottenKeyring':
+		'Forgot {name}. Its password could not be forgotten: {reason}.',
 	'remote.state.idle': 'Not connected',
 	'remote.state.connecting': 'Connecting…',
 	'remote.state.connected': 'Connected',

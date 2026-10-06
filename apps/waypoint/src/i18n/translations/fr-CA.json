@@ -5789,6 +5789,11 @@
     "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
     "source": "e835e6cb"
   },
+  "network.announce.forgottenKeyring": {
+    "message": "{name} oublié. Son mot de passe n’a pas pu être oublié : {reason}.",
+    "description": "Area: network. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words.",
+    "source": "5928abe3"
+  },
   "remote.state.idle": {
     "message": "Non connecté",
     "description": "Area: remote.",

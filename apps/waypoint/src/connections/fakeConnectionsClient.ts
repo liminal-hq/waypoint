@@ -304,10 +304,11 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		this.changed({ changes: [], order: this.entries.map((e) => e.connection.id), recent: null });
 	}
 
-	async forgetRecent(key: string | null): Promise<void> {
+	async forgetRecent(key: string | null): Promise<KeyringUnavailable | null> {
 		this.record('forgetRecent', key);
 		this.recent = key === null ? [] : this.recent.filter((server) => server.key !== key);
 		this.changed({ changes: [], order: null, recent: [...this.recent] });
+		return this.keyring;
 	}
 
 	async forgetLogin(location: Location): Promise<KeyringUnavailable | null> {

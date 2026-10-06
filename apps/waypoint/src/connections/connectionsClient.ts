@@ -36,7 +36,7 @@ export interface ConnectionsClient {
 	duplicate(id: string, name: string): Promise<ConnectionEntry>;
 	remove(id: string, forgetLogin: boolean): Promise<KeyringUnavailable | null>;
 	move(id: string, to: number): Promise<void>;
-	forgetRecent(key: string | null): Promise<void>;
+	forgetRecent(key: string | null): Promise<KeyringUnavailable | null>;
 	forgetLogin(location: Location): Promise<KeyringUnavailable | null>;
 	/** Connects now with the person's answer; the answer is sent once and never kept here. */
 	connect(location: Location, answer?: AnswerInput | null, remember?: boolean): Promise<Remembered>;
