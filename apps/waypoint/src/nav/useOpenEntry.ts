@@ -42,7 +42,7 @@ export interface EntryOpeners {
 	 * window when `inNewWindow` (Ctrl+middle-click), and anything else does nothing.
 	 */
 	openInNewTab: (entry: Entry, handle: ListingHandle, inNewWindow?: boolean) => void;
-	/** The menu's Open in Split Pane: a folder opens in a new pane beside the one on show; anything else does nothing. */
+	/** The menu's Open in Split Pane: a folder or an archive opens in a new pane beside the one on show; anything else does nothing. */
 	openInSplit: (entry: Entry, handle: ListingHandle) => void;
 	/** Puts the entry's path, as Rust displays it, on the clipboard. */
 	copyPath: (entry: Entry, handle: ListingHandle) => void;
@@ -95,11 +95,13 @@ export function useOpenEntry(
 				location?.then(inNewWindow ? openInNewWindow : openInBackground, fail(entry, 'open'));
 			},
 			openInSplit: (entry, handle) => {
-				if (isFolder(entry)) {
-					client
-						.entryLocation(handle, entry.id)
-						.then((location) => openInSplit(location), fail(entry, 'open'));
-				}
+				// An archive opens like a folder, so it splits the way it opens in a new tab.
+				const location = isFolder(entry)
+					? client.entryLocation(handle, entry.id)
+					: isArchiveEntry(entry)
+						? archiveOf(entry, handle)
+						: null;
+				location?.then((resolved) => openInSplit(resolved), fail(entry, 'open'));
 			},
 			copyPath: (entry, handle) => {
 				client

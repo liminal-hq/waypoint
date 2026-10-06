@@ -83,6 +83,20 @@ describe('opening an archive', () => {
 		expect(snapshot.tabs.find((tab) => tab.id === snapshot.active)?.location.uri).toBe(HOME.uri);
 	});
 
+	it('opens it in a pane beside this one from Open in Split Pane, as a folder does', async () => {
+		const client = treeWithArchive();
+		const tabs = new FakeTabsApi();
+		await renderWorkspace(client, tabs, undefined, {
+			archives: new FakeArchiveClient(),
+			ops: createFakeOpsClient(),
+		});
+		fireEvent.contextMenu(await screen.findByText('pack.zip'));
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Open in Split Pane' }));
+		await waitFor(async () => expect((await tabs.getSnapshot()).pairs).toHaveLength(1));
+		const snapshot = await tabs.getSnapshot();
+		expect(snapshot.tabs.some((tab) => tab.location.uri === PACK.uri)).toBe(true);
+	});
+
 	it('opens it in a new tab with the middle button, as a folder does', async () => {
 		const client = treeWithArchive();
 		const tabs = new FakeTabsApi();

@@ -51,9 +51,15 @@ describe('the entry menu on an archive', () => {
 	const archive = { id: 5, name: 'a.zip', kind: 'file', linkTarget: null } as unknown as Entry;
 	const onArchive = commandStates({ ...base, archive: true });
 
-	it('opens like a folder: Open, then Open in New Tab and Open in New Window', () => {
+	it('opens like a folder: Open, then Open in New Tab, Open in Split Pane and Open in New Window', () => {
 		const ids = shape(entryMenuItems(archive, onArchive));
-		expect(ids.slice(0, 4)).toEqual(['open', 'openInNewTab', 'openInNewWindow', '|']);
+		expect(ids.slice(0, 5)).toEqual([
+			'open',
+			'openInNewTab',
+			'openInSplit',
+			'openInNewWindow',
+			'|',
+		]);
 		expect(ids).not.toContain('openAsFolder');
 	});
 
