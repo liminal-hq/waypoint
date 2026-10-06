@@ -928,6 +928,8 @@ const messages: Catalogue = {
 	'browse.sort.descending': 'tri décroissant',
 	// source: bda05058
 	'browse.value.none': '—',
+	// source: 8cdee7c5
+	'browse.archive.leftOut': 'Exclu lors de l’extraction',
 	// source: dc380888
 	'browse.row.loading': 'Chargement',
 	// source: 74ccd433

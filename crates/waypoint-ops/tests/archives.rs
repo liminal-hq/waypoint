@@ -1401,11 +1401,13 @@ fn what_an_extraction_leaves_out_is_listed_with_names_written_for_reading() {
             ("ok.txt", b"ok", 2),
             ("../evil.txt", b"slip", 4),
             ("/abs.txt", b"abs", 3),
+            ("a/../deep.txt", b"deep", 4),
+            ("a:b.txt", b"drive", 5),
         ]),
     );
     let request = extract(&h, &["evil.zip"], Some("out"), ExtractLayout::Contents);
     let note = h.plan(&request).unwrap().left_out_note().unwrap();
-    assert_eq!(note.count, 2);
+    assert_eq!(note.count, 4);
     let shown: Vec<(&str, LeftOutWhy)> = note
         .shown
         .iter()
@@ -1415,7 +1417,9 @@ fn what_an_extraction_leaves_out_is_listed_with_names_written_for_reading() {
         shown,
         [
             ("../evil.txt", LeftOutWhy::Traversal),
-            ("abs.txt", LeftOutWhy::Absolute)
+            ("abs.txt", LeftOutWhy::Absolute),
+            ("a/../deep.txt", LeftOutWhy::Traversal),
+            ("a:b.txt", LeftOutWhy::Absolute),
         ]
     );
     // A plan that leaves nothing out has no note.

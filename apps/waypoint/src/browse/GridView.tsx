@@ -25,6 +25,7 @@ import { devicePixelRatio, useEntryThumbnailLoader } from '../thumbnails/Thumbna
 import { entryThumbKey, thumbSizeFor, wantsThumbnail } from '../thumbnails/thumbnailModel';
 import { useViewportThumbnails } from '../thumbnails/useViewportThumbnails';
 import { InlineRename } from './InlineRename';
+import { leftOutNote } from './leftOut';
 import { cellFor, columnsFor, GROUP_HEADER_HEIGHT, gridMove, hasRoomBelow } from './gridLayout';
 import { groupCount, groupLabel, groupTitle } from './groupHeader';
 import { GroupLayout, groupId } from './groupLayout';
@@ -441,7 +442,11 @@ function GridBody({
 												role="option"
 												className={styles.cell}
 												title={
-													entry?.originalPath ? `${entry.name}\n${entry.originalPath}` : entry?.name
+													entry?.originalPath
+														? `${entry.name}\n${entry.originalPath}`
+														: entry && leftOutNote(entry)
+															? `${entry.name}\n${leftOutNote(entry)}`
+															: entry?.name
 												}
 												aria-selected={selected}
 												aria-setsize={count}
@@ -497,6 +502,15 @@ function GridBody({
 															/>
 														) : (
 															<span className={styles.label}>{entry.name}</span>
+														)}
+														{leftOutNote(entry) && (
+															<span
+																className={styles.leftOut}
+																role="img"
+																aria-label={leftOutNote(entry) ?? undefined}
+															>
+																{'\u2298'}
+															</span>
 														)}
 													</>
 												) : (

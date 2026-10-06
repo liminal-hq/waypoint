@@ -1571,6 +1571,10 @@
     "message": "—",
     "description": "Area: browse."
   },
+  "browse.archive.leftOut": {
+    "message": "Left out when extracting",
+    "description": "Area: browse."
+  },
   "browse.row.loading": {
     "message": "Loading",
     "description": "Area: browse."

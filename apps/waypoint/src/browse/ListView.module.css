@@ -293,7 +293,14 @@
 }
 
 /* Git's ignored paths are dimmed; the "!" in the Git column says it too. */
-.row[data-ignored] .nameText {
+.row[data-ignored] /* The mark on an archive entry that an extraction leaves out because of its name. */
+.leftOut {
+	flex: none;
+	margin-inline-start: 6px;
+	opacity: 0.75;
+}
+
+.nameText {
 	opacity: 0.6;
 }
 

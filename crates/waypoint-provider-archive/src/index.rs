@@ -165,7 +165,11 @@ impl ArchiveIndex {
         for part in folders {
             parent = self.step_into(parent, part, &mut flag);
         }
-        let kind = entry.kind.unwrap_or(EntryKind::File);
+        let mut kind = entry.kind.unwrap_or(EntryKind::File);
+        if safe.flat && kind == EntryKind::Directory {
+            // A folder whose name climbs out is listed, but is not one that opens.
+            kind = EntryKind::File;
+        }
         let existing = self.lookup.get(&(parent, last.as_slice().into())).copied();
         let index = match existing {
             Some(index) => {
@@ -386,7 +390,7 @@ mod tests {
         let mut index = index();
         index.insert(b"../../evil", false, file(1));
         index.insert(b"/abs/path", false, file(1));
-        let evil = index.find(&path(&["%2E%2E", "%2E%2E", "evil"])).unwrap();
+        let evil = index.find(&path(&["..\u{2215}..\u{2215}evil"])).unwrap();
         assert_eq!(index.node(evil).unsafe_name, Some(UnsafeName::Traversal));
         assert_eq!(
             index.node(evil).raw_name.as_deref(),

@@ -15,8 +15,8 @@
 //! stays in memory until it is replaced or the archive changes.
 //!
 //! Names are never trusted. Every name is split into components that cannot leave the folder they
-//! are joined onto (a leading `/` or drive is dropped, a `..` is shown as `%2E%2E`, control
-//! characters are replaced), and `EntryInfo::unsafe_name` records what was changed, so an
+//! are joined onto (a leading `/` or drive is dropped, a name with a `..` is one flat name
+//! with `∕` for its separators, control characters are replaced), and `EntryInfo::unsafe_name` records what was changed, so an
 //! extraction refuses or skips such an entry. An entry stored below a link is flagged too.
 //!
 //! Reads are streams: each entry is decoded on a thread of its own and handed over in chunks, so

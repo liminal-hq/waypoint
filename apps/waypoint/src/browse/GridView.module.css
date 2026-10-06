@@ -78,7 +78,13 @@
 	inset-inline-end: 4px;
 }
 
-.cell[data-ignored] .label {
+.cell[data-ignored] /* The mark on an archive entry that an extraction leaves out because of its name. */
+.leftOut {
+	margin-inline-start: 4px;
+	opacity: 0.75;
+}
+
+.label {
 	opacity: 0.6;
 }
 
