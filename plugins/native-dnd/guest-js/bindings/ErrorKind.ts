@@ -3,4 +3,4 @@
 /**
  * The kinds of failure a command reports.
  */
-export type ErrorKind = "unsupported" | "buttonNotPressed" | "alreadyActive" | "invalid" | "failed";
+export type ErrorKind = "unsupported" | "buttonNotPressed" | "alreadyActive" | "keysHeld" | "invalid" | "failed";

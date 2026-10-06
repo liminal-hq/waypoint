@@ -1447,6 +1447,9 @@ const messages: Catalogue = {
 	// source: 95977e26
 	'dnd.out.refused':
 		'Impossible de faire glisser {what} hors de la fenêtre; le glissement reste ici',
+	// source: 420d133e
+	'dnd.out.keysHeld':
+		'Impossible de faire glisser {what} hors de la fenêtre, car une touche a été enfoncée pendant que le bouton de la souris était maintenu; relâchez les touches et glissez de nouveau',
 	// source: c9cc358e
 	'dnd.out.unsupported': '{what} ne peut pas être glissé hors de la fenêtre',
 	// source: deba875b

@@ -19,6 +19,9 @@ pub enum Error {
     /// An outbound drag is already running.
     #[error("an outbound drag is already active")]
     AlreadyActive,
+    /// A key was pressed or released during the press; on Wayland the system would ignore the drag.
+    #[error("{}", crate::outbound::KEY_AFTER_PRESS)]
+    KeysHeld,
     #[error("invalid request: {0}")]
     Invalid(String),
     #[error("{0}")]
@@ -31,6 +34,7 @@ impl Error {
             Error::Unsupported(_) => ErrorKind::Unsupported,
             Error::ButtonNotPressed => ErrorKind::ButtonNotPressed,
             Error::AlreadyActive => ErrorKind::AlreadyActive,
+            Error::KeysHeld => ErrorKind::KeysHeld,
             Error::Invalid(_) => ErrorKind::Invalid,
             Error::Failed(_) => ErrorKind::Failed,
         }

@@ -90,13 +90,13 @@ await setFiles({ uris, cut: false });
 
 ### Commands
 
-| Command                   | What it does                                                                                                                    |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `get_status`              | Which features work, and why the others do not                                                                                  |
-| `start_drag`              | Starts an outbound drag of `uris` with the allowed `actions` (`copy`, `move`, `link`) and an optional PNG `icon`; one at a time |
-| `set_files` / `get_files` | Writes and reads the file clipboard                                                                                             |
+| Command                   | What it does                                                                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_status`              | Which features work, and why the others do not                                                                                                                                     |
+| `start_drag`              | Starts an outbound drag of `uris` with the allowed `actions` (`copy`, `move`, `link`) and an optional PNG `icon`; one at a time, and a start ends a drag still recorded as running |
+| `set_files` / `get_files` | Writes and reads the file clipboard                                                                                                                                                |
 
-Failures reject with `{ kind, message }`; `kind` is `unsupported`, `buttonNotPressed`, `alreadyActive`, `invalid` or `failed`.
+Failures reject with `{ kind, message }`; `kind` is `unsupported`, `buttonNotPressed`, `alreadyActive`, `keysHeld` (a key was pressed or released during the press, so the system would ignore the drag: Wayland), `invalid` or `failed`.
 
 ### Events
 
@@ -121,7 +121,8 @@ Findings from running the plugin on GNOME's Mutter (headless, Wayland and XWayla
 
 ### Linux
 
-- **Outbound needs no Wayland serial code.** GTK's drag from the webview widget carries the pointer-press serial itself. The command refuses with `buttonNotPressed` unless the primary button is down, because Wayland silently ignores a stale-serial drag and X11 would start a ghost drag with no button.
+- **A key during the press would break a Wayland drag, so it is refused.** GTK 3 starts the drag with the latest input serial it has seen, which is the press's only while no key or keyboard-focus event has come since. A key pressed between the press and `start_drag` (Shift, to ask for a move) makes it the key's, and Mutter then ignores the drag without a word: GTK waits for an end that never comes, GDK drops the press's release, and WebKit keeps believing the button is down, so the next click starts nothing. The plugin follows the press and the key and focus events and, on Wayland, rejects such a `start_drag` with `keysHeld` before GTK starts anything, so the page can keep its own drag and ask for the keys to be released. A key pressed once the drag has started is fine: the compositor turns it into the action. The command refuses with `buttonNotPressed` unless the primary button is down, because X11 would start a ghost drag with no button.
+- **Every drag ends.** Besides GTK's own end, a drag the system reported as dropped or cancelled but did not finish within 30 seconds is ended as `failed`, and a `start_drag` with the button down ends a drag still recorded as running (also `failed`, with its own reason): a new press cannot reach the page while the system holds a drag, so the old one is over. `alreadyActive` is left only for a race between two starts.
 - **WebKit keeps believing the button is down** after GTK takes the release that ends the drag: the next click gets a `pointerup` with no `pointerdown` and a second drag does not start. The plugin sends a synthetic button release to the webview when the drag ends. Use `drag-ended` to reset the page's own drag state; the page gets no pointer events between the start and the end.
 - **Wayland has no link action**, so `link` is ignored by the compositor. GDK reports Escape and a drop on nothing as the same error, so both end as `cancelled`.
 - **Modifier keys during a drag:** X11 and Windows read them natively. A Wayland compositor takes the keyboard for the drag and tells the app nothing, so the events report all modifiers released and `modifiers` is unavailable in the status.

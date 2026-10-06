@@ -63,7 +63,7 @@ export function hasFeature(status: PluginStatus, feature: Feature): boolean {
 
 /**
  * Starts an outbound drag of `request.uris` (`file://` URIs) from the calling window, which must be in the middle of a press of the primary mouse button.
- * Rejects with `buttonNotPressed` if it is not, `alreadyActive` while another drag runs, `invalid` for a malformed request and `unsupported` where outbound drags do not work.
+ * Rejects with `buttonNotPressed` if it is not, `alreadyActive` while another drag runs, `keysHeld` when a key was pressed or released during the press (the system would ignore the drag: Wayland), `invalid` for a malformed request and `unsupported` where outbound drags do not work.
  * On Linux it resolves as soon as the drag has started (`ended` is null) and `onDragEnded` reports the end; on Windows it resolves when the drag has finished, with `ended` set (`onDragEnded` still fires).
  * The page gets no pointer events from the moment the drag starts, so reset its own pointer state in `onDragEnded`.
  */

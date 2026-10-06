@@ -212,6 +212,20 @@ describe('where the drag stays in the page', () => {
 		expect(h.phase()).not.toBe('dragging');
 	});
 
+	it('asks for the keys to be released when a key during the press would make the system ignore the drag', async () => {
+		const h = await nativeHarness();
+		h.state.start = async () => {
+			throw { kind: 'keysHeld', message: 'a key was pressed or released during the press' };
+		};
+		h.startDrag();
+		h.move(-5);
+		await settle();
+		expect(h.say).toEqual([
+			'Could not drag notes.txt out of the window because a key was pressed while the mouse button was down; release the keys and drag again',
+		]);
+		expect(h.phase()).toBe('dragging');
+	});
+
 	it('says what failed for any other refusal', async () => {
 		const h = await nativeHarness();
 		h.state.start = async () => {

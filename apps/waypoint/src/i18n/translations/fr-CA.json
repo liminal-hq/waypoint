@@ -3254,6 +3254,11 @@
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
     "source": "95977e26"
   },
+  "dnd.out.keysHeld": {
+    "message": "Impossible de faire glisser {what} hors de la fenêtre, car une touche a été enfoncée pendant que le bouton de la souris était maintenu; relâchez les touches et glissez de nouveau",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",
+    "source": "420d133e"
+  },
   "dnd.out.unsupported": {
     "message": "{what} ne peut pas être glissé hors de la fenêtre",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”.",

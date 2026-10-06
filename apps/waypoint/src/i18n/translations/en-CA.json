@@ -2563,6 +2563,10 @@
     "message": "Could not drag {what} out of the window, so the drag stays here",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
   },
+  "dnd.out.keysHeld": {
+    "message": "Could not drag {what} out of the window because a key was pressed while the mouse button was down; release the keys and drag again",
+    "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."
+  },
   "dnd.out.unsupported": {
     "message": "{what} cannot be dragged out of the window",
     "description": "Area: dnd. Placeholders, kept exactly as written: {what} is what is being dragged, such as “3 items”."

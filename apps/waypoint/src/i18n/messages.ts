@@ -806,6 +806,8 @@ export const enMessages = {
 	'dnd.out.linked': 'Linked {what} in another application',
 	'dnd.out.failed': 'The drag out of the window failed: {reason}',
 	'dnd.out.refused': 'Could not drag {what} out of the window, so the drag stays here',
+	'dnd.out.keysHeld':
+		'Could not drag {what} out of the window because a key was pressed while the mouse button was down; release the keys and drag again',
 	'dnd.out.unsupported': '{what} cannot be dragged out of the window',
 	'dnd.out.downloading': 'Downloading {what} for the drag',
 	'dnd.out.downloadFailed': '{what} could not be downloaded for the drag: {reason}',

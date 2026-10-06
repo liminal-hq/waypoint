@@ -24,7 +24,10 @@ use crate::{
     error::{Error, Result},
     inbound::{modifiers_from_gdk_mask, negotiated_action, PositionUnit},
     models::{ClipboardFiles, DisplayServer, DragAction, Modifiers, CLIPBOARD_CHANGED_EVENT},
-    outbound::{classify, Actions, Begun, DragRequest, Failure, Finisher},
+    outbound::{
+        classify, Actions, Begun, DragRequest, Failure, Finisher, PressSerial, Verdict, Watchdog,
+        FINISH_GRACE,
+    },
     platform::InboundExtras,
     uri,
 };
@@ -180,6 +183,7 @@ pub fn on_webview_ready<R: Runtime>(webview: &Webview<R>) {
         debug!("native-dnd: no webview in `{}` to watch", window.label());
         return;
     };
+    watch_press_serial(&view, gtk_window.upcast_ref());
     let label = window.label().to_string();
     view.connect_drag_data_received({
         let label = label.clone();
@@ -255,6 +259,50 @@ fn clear_source(label: &str) {
     });
 }
 
+// ---- The press's serial ----------------------------------------------------------------
+
+thread_local! {
+    /// Input serials are per display, so one record serves every window.
+    static PRESS: Cell<PressSerial> = const { Cell::new(PressSerial::default_const()) };
+}
+
+/// Follows what moves GDK's latest input serial past the primary press's: the press itself on the webview, and key and keyboard-focus events, which GTK delivers to the toplevel first. See `PressSerial`.
+fn watch_press_serial(view: &gtk::Widget, toplevel: &gtk::Widget) {
+    view.connect_button_press_event(|_, event| {
+        if event.button() == 1 && !event.is_send_event() {
+            PRESS.with(|press| {
+                let mut serial = press.get();
+                serial.pressed();
+                press.set(serial);
+            });
+        }
+        glib::Propagation::Proceed
+    });
+    let stale = || {
+        PRESS.with(|press| {
+            let mut serial = press.get();
+            serial.key_or_focus();
+            press.set(serial);
+        })
+    };
+    toplevel.connect_key_press_event(move |_, _| {
+        stale();
+        glib::Propagation::Proceed
+    });
+    toplevel.connect_key_release_event(move |_, _| {
+        stale();
+        glib::Propagation::Proceed
+    });
+    toplevel.connect_focus_in_event(move |_, _| {
+        stale();
+        glib::Propagation::Proceed
+    });
+    toplevel.connect_focus_out_event(move |_, _| {
+        stale();
+        glib::Propagation::Proceed
+    });
+}
+
 // ---- Outbound -----------------------------------------------------------------------------
 
 fn gdk_actions(actions: Actions) -> gdk::DragAction {
@@ -325,18 +373,59 @@ struct Running {
     failure: RefCell<Option<Failure>>,
     deleted: Cell<bool>,
     last_action: Cell<gdk::DragAction>,
+    watchdog: RefCell<Watchdog>,
     handlers: RefCell<Vec<glib::SignalHandlerId>>,
     context_handlers: RefCell<Vec<glib::SignalHandlerId>>,
+}
+
+impl Running {
+    /// Records why the drag failed, unless a reason is already recorded: the watchdog's reason is set before it cancels the drag, and GTK's `drag-failed` that follows must not replace it.
+    fn fail(&self, failure: Option<Failure>) {
+        let mut slot = self.failure.borrow_mut();
+        if slot.is_none() {
+            *slot = failure;
+        }
+    }
+}
+
+/// The live drag, so a drag still recorded as running when the next one starts can be torn down. Main thread only.
+struct Live {
+    id: u32,
+    end: Rc<dyn Fn(Option<Failure>)>,
+}
+
+thread_local! {
+    static LIVE: RefCell<Option<Live>> = const { RefCell::new(None) };
+}
+
+/// Ends drag `id` on the GTK side if it is still live: what the state machine calls for a drag that was superseded. Must run on the main thread.
+pub fn cancel_drag(id: u32) {
+    let end = LIVE.with(|live| {
+        let live = live.borrow();
+        live.as_ref()
+            .filter(|live| live.id == id)
+            .map(|live| live.end.clone())
+    });
+    if let Some(end) = end {
+        end(Some(Failure::Other(crate::outbound::SUPERSEDED.into())));
+    }
 }
 
 /// Starts a GTK drag from the webview of `window`. Must run on the main thread with the primary button down (checked by the caller).
 pub fn begin_drag<R: Runtime>(
     _app: &AppHandle<R>,
     window: &WebviewWindow<R>,
-    _id: u32,
+    id: u32,
     request: &DragRequest,
     finisher: Finisher,
 ) -> Result<Begun> {
+    // Mutter would ignore the drag without a word and GTK would wait for its end for ever; see `PressSerial`.
+    if display_server() == DisplayServer::Wayland
+        && !PRESS.with(|press| press.get().press_is_latest())
+    {
+        return Err(Error::KeysHeld);
+    }
+
     let view = web_view(window)
         .ok_or_else(|| Error::Failed("the window has no webview to drag from".into()))?;
     let cut_only = request.actions.r#move && !request.actions.copy && !request.actions.link;
@@ -361,9 +450,56 @@ pub fn begin_drag<R: Runtime>(
         failure: RefCell::new(None),
         deleted: Cell::new(false),
         last_action: Cell::new(gdk::DragAction::empty()),
+        watchdog: RefCell::new(Watchdog::default()),
         handlers: RefCell::new(Vec::new()),
         context_handlers: RefCell::new(Vec::new()),
     });
+
+    // The one way the drag ends on this side, whoever noticed: GTK's `drag-end`, or the watchdog or a superseding drag when GTK will never emit it. Runs once.
+    let finish: Rc<dyn Fn()> = {
+        let (view, context, running) = (view.clone(), context.clone(), running.clone());
+        Rc::new(move || {
+            if running.watchdog.borrow().is_ended() {
+                return;
+            }
+            running.watchdog.borrow_mut().ended();
+            LIVE.with(|live| {
+                let mut live = live.borrow_mut();
+                if live.as_ref().is_some_and(|live| live.id == id) {
+                    *live = None;
+                }
+            });
+            for handler in running.handlers.borrow_mut().drain(..) {
+                view.disconnect(handler);
+            }
+            for handler in running.context_handlers.borrow_mut().drain(..) {
+                context.disconnect(handler);
+            }
+            release_primary_button(&view);
+            let mut selected = actions_from_gdk(context.selected_action());
+            if selected.is_empty() {
+                selected = actions_from_gdk(running.last_action.get());
+            }
+            let (outcome, reason) = classify(
+                selected,
+                running.failure.borrow().as_ref(),
+                running.deleted.get(),
+            );
+            finisher(outcome, reason);
+        })
+    };
+    // Ends the drag with `failure` from outside GTK's own flow: cancels it in GTK, which emits `drag-failed` and `drag-end` at once, and finishes it here should GTK have nothing left to cancel.
+    let end: Rc<dyn Fn(Option<Failure>)> = {
+        let (context, running, finish) = (context.clone(), running.clone(), finish.clone());
+        Rc::new(move |failure| {
+            if running.watchdog.borrow().is_ended() {
+                return;
+            }
+            running.fail(failure);
+            context.drag_cancel();
+            finish();
+        })
+    };
 
     let data_get = view.connect_drag_data_get({
         let context = context.clone();
@@ -392,47 +528,31 @@ pub fn begin_drag<R: Runtime>(
         let (context, running) = (context.clone(), running.clone());
         move |_, asked, result| {
             if asked == &context {
-                *running.failure.borrow_mut() = match result {
+                running.fail(match result {
                     gtk::DragResult::UserCancelled => Some(Failure::UserCancelled),
                     // Wayland ends an abandoned drag and a drop on nothing with a plain error.
                     gtk::DragResult::NoTarget | gtk::DragResult::Error => Some(Failure::NoTarget),
                     gtk::DragResult::Success => None,
                     other => Some(Failure::Other(format!("the drag failed: {other:?}"))),
-                };
+                });
             }
             // Not handled: GTK plays its failure animation and still ends the drag.
             glib::Propagation::Proceed
         }
     });
-    let end = view.connect_drag_end({
-        let (context, running) = (context.clone(), running.clone());
-        move |view, ended| {
-            if ended != &context {
-                return;
+    let drag_end = view.connect_drag_end({
+        let (context, finish) = (context.clone(), finish.clone());
+        move |_, ended| {
+            if ended == &context {
+                finish();
             }
-            for id in running.handlers.borrow_mut().drain(..) {
-                view.disconnect(id);
-            }
-            for id in running.context_handlers.borrow_mut().drain(..) {
-                context.disconnect(id);
-            }
-            release_primary_button(view.upcast_ref());
-            let mut selected = actions_from_gdk(context.selected_action());
-            if selected.is_empty() {
-                selected = actions_from_gdk(running.last_action.get());
-            }
-            let (outcome, reason) = classify(
-                selected,
-                running.failure.borrow().as_ref(),
-                running.deleted.get(),
-            );
-            finisher(outcome, reason);
         }
     });
     running
         .handlers
         .borrow_mut()
-        .extend([data_get, data_delete, failed, end]);
+        .extend([data_get, data_delete, failed, drag_end]);
+
     let changed = context.connect_action_changed({
         let running = running.clone();
         move |_, action| {
@@ -441,7 +561,35 @@ pub fn begin_drag<R: Runtime>(
             }
         }
     });
-    running.context_handlers.borrow_mut().push(changed);
+    // Once the system reports the drop or the cancel, the end follows at once; the watchdog ends a drag that is still running `FINISH_GRACE` later.
+    let settle = {
+        let (running, end) = (running.clone(), end.clone());
+        move || {
+            running
+                .watchdog
+                .borrow_mut()
+                .settled(std::time::Instant::now());
+            let (running, end) = (running.clone(), end.clone());
+            glib::timeout_add_local_once(FINISH_GRACE, move || {
+                let verdict = running.watchdog.borrow().check(std::time::Instant::now());
+                if verdict == Verdict::Unfinished {
+                    warn!("native-dnd: drag {id} was never finished; ending it");
+                    end(verdict.reason().map(|reason| Failure::Other(reason.into())));
+                }
+            });
+        }
+    };
+    let performed = context.connect_drop_performed({
+        let settle = settle.clone();
+        move |_, _| settle()
+    });
+    let cancelled = context.connect_cancel(move |_, _| settle());
+    running
+        .context_handlers
+        .borrow_mut()
+        .extend([changed, performed, cancelled]);
+
+    LIVE.with(|live| *live.borrow_mut() = Some(Live { id, end }));
     Ok(Begun::Running)
 }
 
