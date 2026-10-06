@@ -14,8 +14,9 @@
 //! `WAYPOINT_SMB_BENCH_ENTRIES` changes the number of entries (default 100,000). The fixture goes
 //! in a temporary folder under `WAYPOINT_TEST_TMP` (use a disk, not a small tmpfs) and is deleted
 //! afterwards. The budget is asserted in release builds only. The library's directory queries are
-//! not pipelined, so the 100 ms case is expected to miss it (the spike measured 19.7 s), which is
-//! why the listing's first rows wait for the whole folder (A99).
+//! not pipelined, so the listing's first rows wait for the whole folder (A99, #466); the provider
+//! asks for up to 4 MiB of entries a query, so 100 000 entries are a handful of round trips (#512)
+//! rather than the 185 of the library's 64 KiB (the spike measured 19.7 s at 100 ms).
 
 #![cfg(all(feature = "client", not(windows)))]
 
@@ -45,9 +46,13 @@ fn listing_budget() {
     fs::write(server.data.join("big.bin"), &big).unwrap();
     drop(big);
     let scale = entries as f64 / 100_000.0;
+    // The contract's budgets at 10 and 100 ms (`remote-locations.md`). On loopback `smbd` itself
+    // needs about 0.8 s to answer for 100 000 files (it reads every one's attributes), which no
+    // client can beat, so the LAN case keeps the looser figure it was built against.
     let conditions = [
         ("LAN", Duration::ZERO, 1.5),
-        ("10 ms", Duration::from_millis(10), 4.0),
+        ("10 ms", Duration::from_millis(10), 1.0),
+        ("100 ms", Duration::from_millis(100), 5.0),
     ];
     let mut over = Vec::new();
     for (name, round_trip, budget) in conditions {

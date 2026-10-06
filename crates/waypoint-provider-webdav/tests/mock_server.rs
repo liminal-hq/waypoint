@@ -99,6 +99,8 @@ fn a_server_that_leaves_properties_out_still_lists() {
     assert_eq!(sent.header("depth"), Some("1"));
     let body = String::from_utf8_lossy(&sent.body);
     assert!(body.contains("<resourcetype/>") && !body.contains("checksums"));
+    // A listing asks only for what its rows show.
+    assert!(!body.contains("getetag") && !body.contains("getcontenttype"));
     assert_eq!(
         sent.target, "/files",
         "a folder is asked for without a slash"

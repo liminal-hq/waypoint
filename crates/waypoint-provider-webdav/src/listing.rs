@@ -19,6 +19,11 @@ use crate::xml::{parse_multistatus, Multi, Props, XmlError};
 
 const STAT_PROPS: &str = "<resourcetype/><getcontentlength/><getlastmodified/><getetag/>\
                           <getcontenttype/>";
+/// What a listing shows of each entry: its kind, size and modification time, and nothing more. An
+/// entity tag, a content type or checksums are asked for when one entry is looked at (`stat`), so a
+/// server answering for 100 000 entries neither computes nor sends them (a quarter of
+/// `rclone serve webdav`'s answer, #512).
+const LIST_PROPS: &str = "<resourcetype/><getcontentlength/><getlastmodified/>";
 const NEXTCLOUD_PROPS: &str = "<oc:checksums/>";
 const QUOTA_PROPS: &str = "<quota-available-bytes/><quota-used-bytes/>";
 
@@ -110,7 +115,7 @@ impl WebDavProvider {
         }
         let target = self.target(path)?;
         // No trailing slash: a name that turns out to be a file is then a file, not a missing folder.
-        let request = propfind(target.url(false), "1", &entry_props(&target));
+        let request = propfind(target.url(false), "1", LIST_PROPS);
         let reply = self.exec(&target, &request, Op::Read, Some(cancel))?;
         let options = target.session.options;
         let (send, chunks) = ChannelReader::channel();

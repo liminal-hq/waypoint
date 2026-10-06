@@ -98,6 +98,71 @@ fn hundred_thousand_entries() {
     }
 }
 
+/// Lists `count` empty files from `server`, after timing the server alone (the same `PROPFIND` read
+/// to its end with nothing parsed), and prints both.
+fn measure_server(server: &support::Server, count: usize) {
+    for n in 0..count {
+        std::fs::write(
+            server
+                .data
+                .join(format!("a file with a longish name {n:07}.txt")),
+            "",
+        )
+        .unwrap();
+    }
+    // Once to let the server read the folder into whatever cache it keeps, then timed.
+    raw_propfind(server);
+    let raw = Instant::now();
+    let bytes = raw_propfind(server);
+    let raw = raw.elapsed().as_secs_f64();
+    let provider = server.provider();
+    for run in 0..3 {
+        let started = Instant::now();
+        let (mut first, mut total) = (None, 0);
+        provider
+            .list_batches(&server.root(), &CancelToken::new(), 0, &mut |batch| {
+                first.get_or_insert_with(|| started.elapsed().as_secs_f64());
+                total += batch.len();
+            })
+            .unwrap();
+        println!(
+            "{}, {count} entries, run {run}: first batch {:.3} s, all {:.3} s (the server alone: {raw:.3} s for {bytes} bytes)",
+            server.name,
+            first.unwrap_or_default(),
+            started.elapsed().as_secs_f64(),
+        );
+        assert_eq!(total, count);
+    }
+}
+
+/// A depth-1 `PROPFIND` of the server's root over a plain socket, read to its end; returns the
+/// bytes read.
+fn raw_propfind(server: &support::Server) -> usize {
+    use std::io::{Read, Write};
+    let body = "<?xml version=\"1.0\" encoding=\"utf-8\"?><propfind xmlns=\"DAV:\"><prop><resourcetype/><getcontentlength/><getlastmodified/><getetag/><getcontenttype/></prop></propfind>";
+    let mut socket = std::net::TcpStream::connect(("127.0.0.1", server.port)).unwrap();
+    write!(
+        socket,
+        "PROPFIND {}/ HTTP/1.1\r\nHost: 127.0.0.1\r\nDepth: 1\r\nContent-Type: application/xml\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        server.base,
+        body.len()
+    )
+    .unwrap();
+    let mut out = Vec::new();
+    socket.read_to_end(&mut out).unwrap();
+    out.len()
+}
+
+/// The provider against `rclone serve webdav`, the server the milestone 6 verification pass used.
+#[test]
+#[ignore = "a measurement: run by hand with --release"]
+fn hundred_thousand_entries_from_rclone() {
+    let Some(server) = support::rclone(support::Login::Anonymous) else {
+        return;
+    };
+    measure_server(&server, 100_000);
+}
+
 /// The same measurement against Apache, which has to read 100 000 files' attributes and write the
 /// answer itself, so its time is the server's more than the provider's.
 #[test]

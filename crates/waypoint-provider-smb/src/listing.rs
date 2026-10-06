@@ -55,9 +55,29 @@ pub(crate) async fn cancelled(cancel: &CancelToken) {
     }
 }
 
+/// The most a directory query asks for at once (#512). The library asks for 64 KiB, about 540
+/// entries, so 100 000 entries were 185 round trips (2.8 s at 10 ms); 4 MiB makes them 6.
+const QUERY_BUFFER: u32 = 4 * 1024 * 1024;
+
+/// The output buffer for one directory query: `QUERY_BUFFER`, within the server's largest
+/// transaction and half the credits on hand (a request charges one credit per 64 KiB, and one the
+/// window cannot fund would fail rather than wait), and never less than the library's 64 KiB.
+fn query_buffer(connection: &smb2::client::connection::Connection) -> u32 {
+    const CREDIT: u32 = 64 * 1024;
+    let transact = connection
+        .params()
+        .map_or(CREDIT, |params| params.max_transact_size);
+    let funded = u32::from(connection.credits() / 2).saturating_mul(CREDIT);
+    QUERY_BUFFER
+        .min(transact)
+        .min(funded)
+        .max(CREDIT.min(transact))
+}
+
 /// Lists a folder, handing the entries over in batches of at most `batch`. The library reads a
-/// whole folder before it returns one (its directory queries are not pipelined), so the first
-/// batch waits for the last entry; the batches keep the page's work in steps.
+/// whole folder before it returns one (its directory queries are not pipelined, #466), so the
+/// first batch waits for the last entry; each query asks for up to `QUERY_BUFFER`, so a large
+/// folder takes a few round trips, and the batches keep the page's work in steps.
 pub(crate) async fn list(
     session: &Session,
     target: &Target,
@@ -77,13 +97,28 @@ pub(crate) async fn list(
         }
         Target::Inside { share, inner } => {
             let (mut client, mut tree) = session.share(share, location).await?;
-            let request = client.list_directory(&mut tree, inner);
-            let entries = tokio::select! {
-                result = tokio::time::timeout(session.options.timeout, request) => result,
+            let buffer = query_buffer(client.connection());
+            let fast =
+                tree.list_directory_instrumented(client.connection_mut(), inner, Some(buffer));
+            let fast = tokio::select! {
+                result = tokio::time::timeout(session.options.timeout, fast) => result,
                 () = cancelled(cancel) => return Err(VfsError::Cancelled),
             }
-            .map_err(|_| timed_out(location))?
-            .map_err(|error| from_smb2(&error, location))?;
+            .map_err(|_| timed_out(location))?;
+            let entries = match fast {
+                Ok((entries, _)) => entries,
+                // The direct call does not follow a DFS link or renew a lost session; the
+                // library's own listing does both, and says what is wrong if anything still is.
+                Err(_) => {
+                    let request = client.list_directory(&mut tree, inner);
+                    tokio::select! {
+                        result = tokio::time::timeout(session.options.timeout, request) => result,
+                        () = cancelled(cancel) => return Err(VfsError::Cancelled),
+                    }
+                    .map_err(|_| timed_out(location))?
+                    .map_err(|error| from_smb2(&error, location))?
+                }
+            };
             entries
                 .iter()
                 .filter(|e| e.name != "." && e.name != "..")
