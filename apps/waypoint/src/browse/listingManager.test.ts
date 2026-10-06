@@ -36,6 +36,31 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 afterEach(() => vi.useRealTimers());
 
 describe('ListingManager', () => {
+	it('shows the turned-off state of a protocol at once, closes its listing and opens it again when it is back', async () => {
+		const { client, manager } = setup();
+		const server = { display: 'nas', uri: 'sftp://me@nas.lan/home' };
+		client.setFolder(server, syntheticEntries(5));
+		manager.sync([tab(1, server), tab(2, B)], new Set([1, 2]));
+		await settle();
+		expect(manager.stateFor(1)?.status).toBe('ready');
+		const open = client.openCount;
+		const seen = vi.fn();
+		manager.subscribe(seen);
+		expect(manager.applyProtocols(['sftp'])).toBe(1);
+		expect(seen).toHaveBeenCalled();
+		expect(manager.stateFor(1)).toEqual({
+			status: 'error',
+			error: { kind: 'protocolOff', scheme: 'sftp' },
+		});
+		expect(manager.stateFor(2)?.status).toBe('ready');
+		// Saying it again changes nothing.
+		expect(manager.applyProtocols(['sftp'])).toBe(0);
+		expect(client.openCount).toBe(open - 1);
+		expect(manager.applyProtocols([])).toBe(1);
+		await settle();
+		expect(manager.stateFor(1)?.status).toBe('ready');
+	});
+
 	it('opens again only the failed listings on screen that the caller retries', async () => {
 		const { client, manager } = setup();
 		const offline = { kind: 'disconnected' as const, location: A };
