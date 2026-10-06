@@ -203,8 +203,9 @@ describe('a locked archive', () => {
 		const dialog = await screen.findByRole('dialog', { name: /pack\.zip/ });
 		fireEvent.change(within(dialog).getByLabelText('Passphrase'), { target: { value: 'x' } });
 		fireEvent.click(within(dialog).getByRole('button', { name: 'Sign In' }));
-		// Shown under the button and read out through the live region.
-		expect((await screen.findAllByText('archives in this build')).length).toBeGreaterThanOrEqual(2);
+		// Shown under the button and read out through the live region. The live region ends a message with a
+		// zero-width character on every second announcement, so the text is matched, not compared whole.
+		expect((await screen.findAllByText(/archives in this build/)).length).toBeGreaterThanOrEqual(2);
 		expect(screen.getByRole('heading', { name: 'pack.zip is locked' })).toBeVisible();
 	});
 
