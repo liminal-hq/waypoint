@@ -148,6 +148,35 @@ fn watching_a_folder_in_a_repository_replies_and_then_reports_changes() {
     assert!(dirty.summary.is_dirty());
 }
 
+/// The page draws the branch from the reply or from the first event for the watch's id. A status
+/// that finished before the id was known must still reach it: through the reply.
+#[test]
+fn a_watch_always_reaches_the_page_through_its_reply_or_an_event() {
+    let Some(dir) = repo() else { return };
+    let app = app();
+    let events = changes(&window(&app, "main"));
+    for round in 0..40 {
+        let watch = watch(&app, "main", dir.path()).expect("a repository");
+        if watch.summary.is_none() {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                let left = deadline.saturating_duration_since(Instant::now());
+                match events.recv_timeout(left) {
+                    Ok(event) if event.id == watch.id => break,
+                    Ok(_) => {}
+                    Err(_) => panic!("round {round}: neither the reply nor an event had a status"),
+                }
+            }
+        }
+        tauri::async_runtime::block_on(commands::git_unwatch(
+            window(&app, "main"),
+            app.state::<Git>(),
+            watch.id,
+        ))
+        .unwrap();
+    }
+}
+
 #[test]
 fn a_folder_outside_a_repository_has_nothing_to_watch() {
     let Some(_repo) = repo() else { return };

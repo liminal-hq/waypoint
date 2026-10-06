@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use waypoint_provider_git::{
-    compute, RepoStatus, StatusOptions, StatusService, Subscription, TrackerOptions,
+    compute, RepoStatus, Snapshot, StatusOptions, StatusService, Subscription, TrackerOptions,
 };
 use waypoint_vfs::{CancelToken, FolderOverlay};
 
@@ -127,6 +127,16 @@ impl Git {
                 },
             );
         id
+    }
+
+    /// The latest status of the repository watch `id` follows: read after the watch is known by its
+    /// id, so a status that finished before then is not lost between the reply and the events.
+    pub(crate) fn watch_snapshot(&self, id: u32) -> Option<Arc<Snapshot>> {
+        self.watches
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&id)
+            .and_then(|watch| watch._subscription.snapshot())
     }
 
     /// Ends one watch; `false` when it was not there (or is another window's).

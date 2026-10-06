@@ -5,6 +5,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { cleanSummary, createFakeGitClient } from '../services/fakeGitClient';
+import type { GitChanged, GitClient } from '../services/gitClient';
 import { fileLocation } from '../services/fakeVfsClient';
 import { GitStore } from './gitStore';
 
@@ -90,6 +91,31 @@ describe('hearing changes', () => {
 		client.emit({ id: watch.id + 99, revision: 9, summary: cleanSummary({ head: 'nobody' }) });
 		expect(listener).not.toHaveBeenCalled();
 		expect(store.repository(INSIDE)?.summary?.head).toBe('newer');
+	});
+
+	it('keeps the first status when its event arrives before the reply that names the watch', async () => {
+		const base = createFakeGitClient();
+		let listener: ((changed: GitChanged) => void) | undefined;
+		const client: GitClient = {
+			...base,
+			onChanged: (next) => {
+				listener = next;
+				return () => {};
+			},
+			// The plugin had no status yet when it replied; the status followed at once, and the event
+			// reached the page before the reply did.
+			watch: async () => {
+				listener?.({ id: 7, revision: 1, summary: cleanSummary({ head: 'feature' }) });
+				await settle();
+				return { id: 7, root: ROOT, name: 'repo', summary: null, revision: 0 };
+			},
+		};
+		const store = new GitStore(client);
+		store.acquire(INSIDE);
+		await settle();
+		await settle();
+		expect(store.repository(INSIDE)?.summary?.head).toBe('feature');
+		expect(store.repository(INSIDE)?.revision).toBe(1);
 	});
 
 	it('hands out the same repository object until something changes, for useSyncExternalStore', async () => {
