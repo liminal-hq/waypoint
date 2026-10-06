@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::io;
 use std::os::unix::ffi::OsStringExt;
-use std::os::unix::fs::{symlink, MetadataExt, PermissionsExt};
+use std::os::unix::fs::{symlink, DirBuilderExt, MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -184,6 +184,16 @@ fn write(path: &Path, content: &str) -> PathBuf {
     path.to_path_buf()
 }
 
+/// Makes `path` and any parents missing with mode `700`, the mode a trash folder needs, whatever the
+/// umask of whoever runs the tests (`create_dir_all` takes `775` under `002`, which the plugin refuses).
+fn private_dirs(path: &Path) {
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(path)
+        .unwrap();
+}
+
 fn names(dir: &Path) -> Vec<String> {
     let mut found: Vec<String> = std::fs::read_dir(dir)
         .map(|read| {
@@ -337,8 +347,8 @@ fn colliding_names_get_a_number_before_the_extension() {
 fn an_item_without_a_trashinfo_still_holds_its_name() {
     let fx = Fx::new();
     let trash = fx.home_trash();
-    std::fs::create_dir_all(trash.join("files")).unwrap();
-    std::fs::create_dir_all(trash.join("info")).unwrap();
+    private_dirs(&trash.join("files"));
+    private_dirs(&trash.join("info"));
     write(&trash.join("files/a.txt"), "someone else's");
     let file = write(&fx.work("a.txt"), "mine");
     fx.trash().trash(&file).unwrap();
@@ -1628,7 +1638,7 @@ fn a_symlinked_files_folder_is_never_followed() {
     let victim = fx.root.join("victim");
     write(&victim.join("precious"), "keep");
     let trash = fx.home_trash();
-    std::fs::create_dir_all(trash.join("info")).unwrap();
+    private_dirs(&trash.join("info"));
     symlink(&victim, trash.join("files")).unwrap();
     write(
         &trash.join("info/precious.trashinfo"),
