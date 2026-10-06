@@ -44,7 +44,7 @@ import {
 } from '../settings/ServerPreviews';
 import { settingsSections, type SectionId } from '../settings/settingsSections';
 import { AppTitleBar } from './AppTitleBar';
-import { useWindowTitle } from './useWindowTitle';
+import { useWindowTitle } from '@liminal-hq/waypoint-chrome/WindowTitle/useWindowTitle';
 import { NoticeToast } from './NoticeToast';
 import styles from './SettingsScreen.module.css';
 

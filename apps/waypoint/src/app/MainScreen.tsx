@@ -11,7 +11,7 @@ import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { FolderViewsProvider } from '../browse/FolderViewsContext';
 import { GitProvider } from '../git/GitContext';
 import { VfsClientProvider } from '../browse/VfsClientContext';
-import { t } from '../i18n/messages';
+import { t, tf } from '../i18n/messages';
 import { useSettings } from '../settings/SettingsContext';
 import { MainOps } from '../ops/MainOps';
 import { collectServiceStatuses } from '../services/serviceStatuses';
@@ -139,7 +139,11 @@ export function MainScreen() {
 			<WindowFrame className={styles.screen}>
 				<WindowCommands />
 				<AppTitleBar
-					title={t(appName ? 'window.main.titleWithApp' : 'window.main.title')}
+					fallbackTitle={
+						appName
+							? tf('window.main.titleWithApp', { title: t('window.main.title') })
+							: t('window.main.title')
+					}
 					start={<AppMenu menuBar={menuBar} />}
 				/>
 				{menuBar && <AppMenuBar />}

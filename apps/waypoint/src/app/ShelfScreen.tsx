@@ -40,7 +40,7 @@ import { TabDragProvider } from '../tabs/TabDragContext';
 import { announce, useAnnouncement } from '../tabs/announcer';
 import { TabsProvider } from '../tabs/TabsContext';
 import { AppTitleBar } from './AppTitleBar';
-import { useWindowTitle } from './useWindowTitle';
+import { useWindowTitle } from '@liminal-hq/waypoint-chrome/WindowTitle/useWindowTitle';
 import { NoticeToast } from './NoticeToast';
 import styles from './ShelfScreen.module.css';
 import { WindowCommands } from './WindowCommands';

@@ -6,7 +6,7 @@
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AppWindowChrome } from './app/AppWindowChrome';
+import { AppWindowChrome, MainWindowChrome } from './app/AppWindowChrome';
 import { MainScreen } from './app/MainScreen';
 import { OpsScreen } from './app/OpsScreen';
 import { PropertiesScreen } from './app/PropertiesScreen';
@@ -33,7 +33,9 @@ function screenFor(kind: WindowKind | null) {
 		case 'Main':
 			return (
 				<MainSettings>
-					<MainScreen />
+					<MainWindowChrome>
+						<MainScreen />
+					</MainWindowChrome>
 				</MainSettings>
 			);
 		case 'Settings':
@@ -59,6 +61,11 @@ function screenFor(kind: WindowKind | null) {
 	}
 }
 
+// The Main window mounts its own chrome, inside its settings, so the app name setting can shape the title.
+function RootChrome({ kind }: { kind: WindowKind | null }) {
+	return kind === 'Main' ? screenFor(kind) : <AppWindowChrome>{screenFor(kind)}</AppWindowChrome>;
+}
+
 const label = getCurrentWebviewWindow().label;
 
 initLogger(label);
@@ -68,7 +75,7 @@ createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		<ThemeRoot>
 			<LocaleRoot rebuild={windowKindFromLabel(label) !== 'Settings'}>
-				<AppWindowChrome>{screenFor(windowKindFromLabel(label))}</AppWindowChrome>
+				<RootChrome kind={windowKindFromLabel(label)} />
 			</LocaleRoot>
 		</ThemeRoot>
 	</StrictMode>,
