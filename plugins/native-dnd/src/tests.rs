@@ -91,6 +91,9 @@ fn errors_reach_the_page_as_a_kind_and_a_message() {
     assert!(json["message"].as_str().unwrap().contains("button"));
     let json = serde_json::to_value(crate::Error::AlreadyActive).unwrap();
     assert_eq!(json["kind"], "alreadyActive");
+    let json = serde_json::to_value(crate::Error::KeysHeld).unwrap();
+    assert_eq!(json["kind"], "keysHeld");
+    assert_eq!(json["message"], crate::outbound::KEY_AFTER_PRESS);
     let json = serde_json::to_value(crate::Error::Unsupported("why".into())).unwrap();
     assert_eq!(json["kind"], "unsupported");
 }

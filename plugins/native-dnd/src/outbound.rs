@@ -741,7 +741,7 @@ mod tests {
     fn a_refused_start_leaves_the_next_drag_free() {
         // What the Linux driver does with a stale serial: refuse before GTK starts anything.
         let outbound = Arc::new(Outbound::default());
-        let refused = Fake::new(Err(Error::Failed(KEY_AFTER_PRESS.into())));
+        let refused = Fake::new(Err(Error::KeysHeld));
         let (emit, seen) = sink();
         assert_eq!(
             start(
@@ -751,7 +751,7 @@ mod tests {
                 emit.clone()
             )
             .unwrap_err(),
-            Error::Failed(KEY_AFTER_PRESS.into())
+            Error::KeysHeld
         );
         assert!(!outbound.is_active());
         assert!(seen.lock().unwrap().is_empty());

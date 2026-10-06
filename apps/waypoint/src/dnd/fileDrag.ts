@@ -1103,11 +1103,13 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			const kind = nativeDndErrorKind(error);
 			console.warn('the system drag did not start', error);
 			return fail(
-				kind === 'buttonNotPressed' || kind === 'alreadyActive'
-					? tf('dnd.out.refused', { what })
-					: tf('dnd.out.failed', {
-							reason: (error as { message?: string } | null)?.message ?? what,
-						}),
+				kind === 'keysHeld'
+					? tf('dnd.out.keysHeld', { what })
+					: kind === 'buttonNotPressed' || kind === 'alreadyActive'
+						? tf('dnd.out.refused', { what })
+						: tf('dnd.out.failed', {
+								reason: (error as { message?: string } | null)?.message ?? what,
+							}),
 			);
 		}
 		forgetOwn();

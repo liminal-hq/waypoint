@@ -26,7 +26,7 @@ use crate::{
     models::{ClipboardFiles, DisplayServer, DragAction, Modifiers, CLIPBOARD_CHANGED_EVENT},
     outbound::{
         classify, Actions, Begun, DragRequest, Failure, Finisher, PressSerial, Verdict, Watchdog,
-        FINISH_GRACE, KEY_AFTER_PRESS,
+        FINISH_GRACE,
     },
     platform::InboundExtras,
     uri,
@@ -422,7 +422,7 @@ pub fn begin_drag<R: Runtime>(
     if display_server() == DisplayServer::Wayland
         && !PRESS.with(|press| press.get().press_is_latest())
     {
-        return Err(Error::Failed(KEY_AFTER_PRESS.into()));
+        return Err(Error::KeysHeld);
     }
 
     let view = web_view(window)

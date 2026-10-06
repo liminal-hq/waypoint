@@ -251,6 +251,8 @@ pub enum ErrorKind {
     ButtonNotPressed,
     /// An outbound drag is already running; only one runs at a time.
     AlreadyActive,
+    /// A key was pressed or released during the press, so the system would ignore the drag (Wayland); nothing started. Release the keys and drag again.
+    KeysHeld,
     /// The request is malformed.
     Invalid,
     /// The system refused or the call failed.
