@@ -164,7 +164,7 @@ function Body({
 				: subject.status === 'root'
 					? baseName(subject.location.display)
 					: '';
-	useWindowTitle(name ? tf('properties.window.label', { name }) : t('window.properties.title'));
+	useWindowTitle(name ? tf('properties.window.label', { name }) : t('window.properties.osTitle'));
 
 	let content: ReactNode;
 	let icon: ReactNode = null;

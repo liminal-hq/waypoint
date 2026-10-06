@@ -162,7 +162,7 @@ export function ShelfScreen({ services }: { services?: ShelfScreenServices }) {
 			active = false;
 		};
 	}, [services]);
-	useWindowTitle(t('window.shelf.title'));
+	useWindowTitle(t('window.shelf.osTitle'));
 	const announcement = useAnnouncement();
 	const onHandle = useCallback((handle: OpsHandle) => startOpsAnnouncer(handle, { announce }), []);
 	const windowLabel = useMemo(currentWindowLabel, []);

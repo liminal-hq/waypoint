@@ -103,6 +103,7 @@ describe('the window', () => {
 		).toBeInTheDocument();
 		expect(document.querySelectorAll('[role="treeitem"][aria-level="1"]')).toHaveLength(2);
 		expect(screen.getAllByText('Waypoint — Shelf').length).toBeGreaterThan(0);
+		expect(document.title).toBe('Shelf');
 	});
 
 	it('follows a change made in a main window, and a main window follows a change made in it', async () => {

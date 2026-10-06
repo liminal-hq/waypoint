@@ -38,7 +38,7 @@ interface OpsScreenProps {
 export function OpsScreen({ client, timeFormat }: OpsScreenProps) {
 	const [own] = useState(() => client ?? createTauriOpsClient());
 	const [clock] = useState(() => timeFormat ?? createTauriTimeFormatClient());
-	useWindowTitle(t('window.ops.title'));
+	useWindowTitle(t('window.ops.osTitle'));
 	const announcement = useAnnouncement();
 	const onHandle = useCallback((handle: OpsHandle) => startOpsAnnouncer(handle, { announce }), []);
 	return (

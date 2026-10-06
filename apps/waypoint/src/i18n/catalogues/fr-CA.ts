@@ -27,6 +27,14 @@ const messages: Catalogue = {
 	'window.ops.title': 'Waypoint — Opérations',
 	// source: 9f4dc1e5
 	'window.shelf.title': 'Waypoint — Étagère',
+	// source: 74a883a0
+	'window.settings.osTitle': 'Paramètres',
+	// source: ae43692b
+	'window.properties.osTitle': 'Propriétés',
+	// source: 358cc201
+	'window.ops.osTitle': 'Opérations',
+	// source: 338c8ac8
+	'window.shelf.osTitle': 'Étagère',
 	// source: 2051a13a
 	'window.shelf.dropHint': 'Déposer pour ajouter à l’Étagère',
 	// source: c2403a41

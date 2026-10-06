@@ -39,6 +39,26 @@
     "description": "Area: window.",
     "source": "9f4dc1e5"
   },
+  "window.settings.osTitle": {
+    "message": "Paramètres",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it.",
+    "source": "74a883a0"
+  },
+  "window.properties.osTitle": {
+    "message": "Propriétés",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it.",
+    "source": "ae43692b"
+  },
+  "window.ops.osTitle": {
+    "message": "Opérations",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it.",
+    "source": "358cc201"
+  },
+  "window.shelf.osTitle": {
+    "message": "Étagère",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it.",
+    "source": "338c8ac8"
+  },
   "window.shelf.dropHint": {
     "message": "Déposer pour ajouter à l’Étagère",
     "description": "Area: window.",

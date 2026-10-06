@@ -203,7 +203,7 @@ export function SettingsScreen({
 	const [own] = useState(() => client ?? createTauriSettingsClient());
 	// The title bar and the pages render their messages themselves, so a new language needs a render.
 	useLocaleVersion();
-	useWindowTitle(t('window.settings.title'));
+	useWindowTitle(t('window.settings.osTitle'));
 	return (
 		<WindowFrame className={styles.screen}>
 			<AppTitleBar title={t('window.settings.title')} />
