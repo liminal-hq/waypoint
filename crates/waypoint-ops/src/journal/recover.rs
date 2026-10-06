@@ -99,6 +99,7 @@ pub fn recover(storage: &dyn JournalStorage, providers: &Providers) -> Recovery 
     }
     let mut body = document.body;
     repair(&mut body, &mut report.repairs);
+    super::model::dedupe_resumable(&mut body.resumable);
     // The partial files a resumable transfer kept are what resuming continues: never swept.
     let kept: HashSet<String> = body
         .resumable

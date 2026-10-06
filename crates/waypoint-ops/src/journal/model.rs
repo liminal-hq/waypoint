@@ -259,6 +259,21 @@ impl ResumableRecord {
     }
 }
 
+/// Leaves each partial file with the newest record that holds it and drops a record left with
+/// none: a transfer that was resumed and lost its connection again writes the same partial file
+/// as the record it came from, and the person must be offered it once.
+pub fn dedupe_resumable(records: &mut Vec<ResumableRecord>) {
+    let mut order: Vec<usize> = (0..records.len()).collect();
+    order.sort_by_key(|&i| std::cmp::Reverse(records[i].at_ms));
+    let mut seen = std::collections::HashSet::new();
+    for i in order {
+        records[i]
+            .points
+            .retain(|point| seen.insert(point.partial.uri.clone()));
+    }
+    records.retain(|record| !record.points.is_empty());
+}
+
 /// Everything the journal keeps. Entries are oldest first.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

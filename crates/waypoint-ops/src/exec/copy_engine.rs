@@ -58,6 +58,9 @@ pub struct FileCopy<'a> {
     /// `dst` is kept when the copy stops on a lost connection, so it can be continued: the caller
     /// records it instead of the engine removing it.
     pub resumable: bool,
+    /// A cancel keeps `dst` too, like a lost connection: the app is quitting, and the caller
+    /// records the partial for the next start instead of the engine removing it.
+    pub keep_on_cancel: bool,
 }
 
 /// What a finished copy made.
@@ -207,7 +210,10 @@ fn copy_loop(
             digest: hasher.map(Hasher::finish),
         }),
         Err(error) => {
-            let keep = request.atomic || (request.resumable && is_lost(&error));
+            let keep = request.atomic
+                || (request.resumable
+                    && (is_lost(&error)
+                        || (request.keep_on_cancel && matches!(error, VfsError::Cancelled))));
             if !keep {
                 let _ = request.dst_provider.remove_file(request.dst);
             }

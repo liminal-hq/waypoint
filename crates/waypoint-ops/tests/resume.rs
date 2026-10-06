@@ -70,6 +70,7 @@ struct Script {
     offline: Vec<(OpsError, u32)>,
     on_offline: Option<Box<dyn FnMut(u32)>>,
     kept: Vec<ResumePoint>,
+    quitting: bool,
     notes: Vec<Option<PartialNote>>,
 }
 
@@ -86,6 +87,10 @@ impl ExecSink for Script {
             hook(attempt);
         }
         attempt < self.offline_ok
+    }
+
+    fn keep_on_cancel(&self) -> bool {
+        self.quitting
     }
 
     fn kept_partial(&mut self, point: &ResumePoint) {
@@ -410,4 +415,76 @@ fn a_kept_partial_survives_a_restart_and_is_offered_never_resumed() {
     );
     assert!(h.journal.take_resumable(JobId(7), 1).is_some());
     assert!(h.journal.resumable().is_empty());
+}
+
+#[test]
+fn quitting_mid_transfer_keeps_and_records_the_partial_and_a_plain_cancel_removes_it() {
+    for quitting in [true, false] {
+        let e = engine();
+        put(&e, "big.bin", &bytes(8 * CHUNK));
+        e.server
+            .memory()
+            .fail_nth(MemOp::Write, 3, VfsError::Cancelled);
+        let mut sink = Script {
+            quitting,
+            ..Script::default()
+        };
+        let failure = run(&e, &upload(&e, "big.bin"), &mut sink, Vec::new(), false)
+            .expect_err("the cancel stops the job");
+        assert_eq!(failure.error, OpsError::Cancelled);
+        if quitting {
+            assert_eq!(
+                partials(&e).len(),
+                1,
+                "the partial stays for the next start"
+            );
+            assert_eq!(sink.kept.len(), 1, "and it is recorded to be offered");
+            assert_eq!(sink.kept[0].offset, 2 * CHUNK as u64);
+            assert_eq!(failure.report.transfer.kept, sink.kept);
+        } else {
+            assert!(partials(&e).is_empty());
+            assert!(sink.kept.is_empty());
+        }
+    }
+}
+
+#[test]
+fn a_resumed_transfer_that_loses_its_connection_again_is_offered_once() {
+    use waypoint_ops::testing::journal_harness::JournalHarness;
+    let dir = tempfile::tempdir().unwrap();
+    let root = FilePath::from_path(dir.path()).unwrap();
+    let mut h = JournalHarness::new(
+        MemoryProvider::new(root.clone(), CaseRule::Sensitive),
+        VfsPath::File(root),
+    );
+    let request = h
+        .harness
+        .request(JobKind::Copy, &["src.bin"], Some(""), None);
+    let (source, target, partial) = (
+        h.loc("src.bin"),
+        h.loc("kept.bin"),
+        h.loc(".waypoint-partial-7-1-kept.bin"),
+    );
+    let point = |offset| ResumePoint {
+        source: source.clone(),
+        target: target.clone(),
+        partial: partial.clone(),
+        source_size: Some(10),
+        source_modified_ms: None,
+        offset,
+    };
+    // The first run kept the partial at 4 bytes; the resumed run (another job, another time) kept
+    // the very same file at 8.
+    h.journal
+        .keep_partial(JobId(7), "Copy", 1, &request, point(4))
+        .unwrap();
+    h.journal
+        .keep_partial(JobId(3), "Copy", 2, &request, point(8))
+        .unwrap();
+    assert_eq!(h.journal.resumable().len(), 1);
+    assert_eq!(h.journal.resumable()[0].at_ms, 2);
+    assert_eq!(h.journal.resumable()[0].points, [point(8)]);
+
+    let report = h.restart();
+    assert_eq!(report.resumable.len(), 1, "offered once after a restart");
 }

@@ -258,6 +258,9 @@ impl Journal {
                 points: vec![point],
             }),
         }
+        // A job that continued a partial file and lost its connection again holds the same file as
+        // the record it came from: the newest record owns it, so it is offered once.
+        super::model::dedupe_resumable(&mut self.body.resumable);
         self.dirty = true;
         self.flush()
     }
