@@ -142,6 +142,16 @@ export function ConnectDialog({
 	const [forgetLogin, setForgetLogin] = useState(true);
 	const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const parseTurn = useRef(0);
+	// The read of the address that is under way, the address as typed and the form as the newest
+	// render or read left it: what a submit settles on, so Enter right after typing uses what the
+	// address says.
+	const parsing = useRef<Promise<boolean> | null>(null);
+	// The control that had focus when an attempt began: disabling it for the attempt drops focus to the page, so it is given back when the attempt ends.
+	const focusBack = useRef<HTMLElement | null>(null);
+	const formRef = useRef(form);
+	formRef.current = form;
+	const addressRef = useRef(address);
+	addressRef.current = address;
 	const ids = {
 		address: useId(),
 		name: useId(),
@@ -210,24 +220,28 @@ export function ConnectDialog({
 	const family = familyOf(form.scheme);
 	const methods = methodsFor(form.scheme);
 
-	function readAddress(text: string) {
+	/** Reads `text` through Rust; resolves to whether it filled the form (or was empty), `false` when it was refused. */
+	function readAddress(text: string): Promise<boolean> {
 		const turn = ++parseTurn.current;
 		if (text.trim() === '') {
 			setAddressNote('');
 			setAddressOff(false);
 			setProblems((now) => ({ ...now, address: undefined }));
-			return;
+			return Promise.resolve(true);
 		}
-		client.parseAddress(text).then(
+		const read = client.parseAddress(text).then(
 			(parsed) => {
-				if (turn !== parseTurn.current) return;
-				setForm((now) => formOf(parsed.draft, now));
+				if (turn !== parseTurn.current) return true;
+				const next = formOf(parsed.draft, formRef.current);
+				formRef.current = next;
+				setForm(next);
 				setProblems({});
 				setAddressOff(false);
 				setAddressNote(parsed.passwordDropped ? t('connect.address.passwordDropped') : '');
+				return true;
 			},
 			(error: unknown) => {
-				if (turn !== parseTurn.current) return;
+				if (turn !== parseTurn.current) return false;
 				setAddressNote('');
 				setAddressOff(isVfsError(error) && error.kind === 'protocolOff');
 				setProblems((now) => ({
@@ -239,15 +253,37 @@ export function ConnectDialog({
 								? tf('connect.address.protocolOff', { protocol: schemeLabel(error.scheme) })
 								: t('connect.address.invalid'),
 				}));
+				return false;
 			},
 		);
+		parsing.current = read;
+		return read;
 	}
+
+	/**
+	 * Makes the form say what the address says before it is used: a read still waiting for its
+	 * delay starts now, and one under way is waited for. `null` when the address was refused.
+	 */
+	const settleAddress = async (): Promise<ConnectForm | null> => {
+		if (parseTimer.current) {
+			clearTimeout(parseTimer.current);
+			parseTimer.current = null;
+			if (!(await readAddress(addressRef.current))) return null;
+		} else if (parsing.current && !(await parsing.current)) {
+			return null;
+		}
+		return formRef.current;
+	};
 
 	const onAddress = (text: string) => {
 		setAddress(text);
+		addressRef.current = text;
 		setResult(null);
 		if (parseTimer.current) clearTimeout(parseTimer.current);
-		parseTimer.current = setTimeout(() => readAddress(text), PARSE_DELAY_MS);
+		parseTimer.current = setTimeout(() => {
+			parseTimer.current = null;
+			void readAddress(text);
+		}, PARSE_DELAY_MS);
 	};
 
 	const load = (entry: ConnectionEntry | null) => {
@@ -263,10 +299,10 @@ export function ConnectDialog({
 	};
 
 	/** The password typed with "Password" chosen, sent with the first attempt. */
-	const firstAnswer = (): Answered | null => {
+	const firstAnswer = (current: ConnectForm): Answered | null => {
 		if (password === '') return null;
-		if (family === 's3') {
-			const keyId = form.user.trim();
+		if (familyOf(current.scheme) === 's3') {
+			const keyId = current.user.trim();
 			// An access key is an id and its secret; the id is the connection's own field.
 			return keyId === ''
 				? null
@@ -280,18 +316,18 @@ export function ConnectDialog({
 						remember: keyring === null && remember,
 					};
 		}
-		if (form.auth === 'token') {
+		if (current.auth === 'token') {
 			return {
 				answer: { kind: 'passphrase', passphrase: password },
 				remember: keyring === null && remember,
 			};
 		}
-		return form.auth === 'password'
+		return current.auth === 'password'
 			? {
 					answer: {
 						kind: 'password',
 						// The user as the login names it (`domain;user` on SMB).
-						user: draftOf(form).user,
+						user: draftOf(current).user,
 						password,
 					},
 					remember: keyring === null && remember,
@@ -299,9 +335,27 @@ export function ConnectDialog({
 			: null;
 	};
 
+	function rememberFocus() {
+		const active = document.activeElement;
+		focusBack.current =
+			active instanceof HTMLElement && active.closest('dialog') !== null ? active : null;
+	}
+
+	// An attempt over: the dialog is still open, so focus goes back into it if it was lost to the page.
+	useEffect(() => {
+		if (busy !== null) return;
+		const back = focusBack.current;
+		focusBack.current = null;
+		if (!back?.isConnected || back.closest('dialog') === null) return;
+		const active = document.activeElement;
+		if (active === null || active === document.body || active === back.closest('dialog')) {
+			back.focus();
+		}
+	}, [busy]);
+
 	/** What is wrong before anything is sent: put under its field, as a refusal would be. */
-	const checkForm = (): boolean => {
-		const problem = formProblem(form);
+	const checkForm = (current: ConnectForm): boolean => {
+		const problem = formProblem(current);
 		if (!problem) return true;
 		setProblems({ [problem.field]: problem.message });
 		setResult({ tone: 'failed', text: problem.message });
@@ -333,14 +387,20 @@ export function ConnectDialog({
 	};
 
 	const attempt = async (then: 'test' | 'connect') => {
-		if (busy || !checkForm()) return;
+		if (busy) return;
+		rememberFocus();
 		setBusy(then);
 		setResult(null);
-		const draft = draftOf(form);
+		const current = await settleAddress();
+		if (!current || !checkForm(current)) {
+			setBusy(null);
+			return;
+		}
+		const draft = draftOf(current);
 		const outcome = await connectAnswering(
 			(answer, keep) => client.test(draft, answer, keep),
 			ask,
-			firstAnswer(),
+			firstAnswer(current),
 		);
 		setBusy(null);
 		setPassword('');
@@ -370,11 +430,14 @@ export function ConnectDialog({
 	};
 
 	const save = async () => {
-		if (busy || !checkForm()) return;
+		if (busy) return;
+		rememberFocus();
 		setBusy('save');
 		setResult(null);
 		try {
-			const draft = draftOf(form);
+			const current = await settleAddress();
+			if (!current || !checkForm(current)) return;
+			const draft = draftOf(current);
 			const entry = editing ? await client.update(editing, draft) : await client.add(draft);
 			setEditing(entry.connection.id);
 			setForm(formOf(entry.connection));

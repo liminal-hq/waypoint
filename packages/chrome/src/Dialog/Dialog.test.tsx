@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -275,6 +275,29 @@ describe('Dialog focus', () => {
 		expect(screen.getByLabelText('Field')).toHaveFocus();
 		fireEvent.keyDown(document, { key: 'Escape' });
 		expect(document.querySelector('dialog')).toBeNull();
+		expect(opener).toHaveFocus();
+	});
+
+	it('returns focus to the control that had it when a dialog opens after focus was lost', () => {
+		function Host() {
+			const [open, setOpen] = useState(false);
+			return (
+				<>
+					<button onClick={() => setOpen(true)}>Open</button>
+					<Dialog open={open} title="T" onClose={() => setOpen(false)}>
+						<input aria-label="Field" />
+					</Dialog>
+				</>
+			);
+		}
+		render(<Host />);
+		const opener = screen.getByRole('button', { name: 'Open' });
+		opener.focus();
+		// The control is disabled or hidden while focused: the page body has focus, with no event.
+		act(() => opener.blur());
+		expect(document.activeElement).toBe(document.body);
+		fireEvent.click(opener);
+		fireEvent.keyDown(document, { key: 'Escape' });
 		expect(opener).toHaveFocus();
 	});
 
