@@ -54,6 +54,7 @@ import { TabDragProvider, type TearOffFactory } from '../tabs/TabDragContext';
 import { announce } from '../tabs/announcer';
 import { ConnectHost } from '../connections/ConnectHost';
 import { useConnections } from '../connections/ConnectionsContext';
+import type { ConnectionsView } from '../connections/connectionsModel';
 import { RetryProvider } from '../connections/RemoteState';
 import { isConnectionError } from '../connections/remoteModel';
 import { createTearCardStore } from '../tabs/tearOffCardModel';
@@ -508,6 +509,21 @@ function WorkspaceBody({
 			if (back) retryRemote();
 		});
 	}, [connections, retryRemote]);
+
+	// A protocol turned off in Settings → Experimental ends the listings of its tabs at once.
+	useEffect(() => {
+		if (!connections) return;
+		const apply = (view: ConnectionsView) => {
+			if (view.protocols) manager.applyProtocols(view.protocols.off);
+		};
+		apply(connections.store.getState());
+		let before = connections.store.getState().protocols;
+		return connections.store.subscribe((view) => {
+			if (view.protocols === before) return;
+			before = view.protocols;
+			apply(view);
+		});
+	}, [connections, manager]);
 
 	return (
 		<RetryProvider retry={retryRemote}>

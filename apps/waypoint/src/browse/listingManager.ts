@@ -9,6 +9,7 @@ import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec'
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import type { OpenOptions, VfsClient } from '../services/vfsClient';
+import { schemeOfKey } from '../connections/connectionsModel';
 import { isOverviewLocation } from '../overview/overviewLocation';
 import { openListingModel, toVfsError, type ListingModel } from './listingModel';
 import { applyHints } from './tabHints';
@@ -223,6 +224,40 @@ export class ListingManager {
 			this.open(tab);
 			count += 1;
 		}
+		return count;
+	}
+
+	/**
+	 * Settings → Experimental turned remote protocols off: every listing on one of `off` closes at
+	 * once (so nothing watches, polls or refreshes it) and its tab shows the protocol's typed
+	 * turned-off state, `ProtocolOffState`, with the link to switch it back on. A listing that was
+	 * showing the turned-off state of a protocol that is no longer in `off` opens again. Returns how
+	 * many tabs changed.
+	 */
+	applyProtocols(off: readonly string[]): number {
+		const turnedOff = new Set(off.map((scheme) => scheme.toLowerCase()));
+		let count = 0;
+		for (const [id, slot] of [...this.slots]) {
+			const scheme = schemeOfKey(slot.uri);
+			const showingOff = slot.state.status === 'error' && slot.state.error.kind === 'protocolOff';
+			if (turnedOff.has(scheme) && !showingOff) {
+				const state = slot.state;
+				if (state.status === 'ready' && !this.retained.has(state.session)) {
+					state.session.model.dispose();
+				}
+				slot.state = { status: 'error', error: { kind: 'protocolOff', scheme } };
+				this.stopEvicting(slot);
+				count += 1;
+			} else if (!turnedOff.has(scheme) && showingOff) {
+				const tab = this.tabs.get(id);
+				if (!tab || tab.location.uri !== slot.uri) continue;
+				// A tab in the background opens when it is shown again.
+				if (slot.background) this.release(id);
+				else this.open(tab);
+				count += 1;
+			}
+		}
+		if (count > 0) this.changed();
 		return count;
 	}
 
