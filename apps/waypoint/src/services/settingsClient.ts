@@ -9,7 +9,6 @@ import type {
 	DndSettings,
 	DropActionRule,
 	GeneralSettings,
-	ListColumnWidths,
 	Settings,
 	SettingsCommandError,
 	SettingsSnapshot,
@@ -24,7 +23,6 @@ export type {
 	DndSettings,
 	DropActionRule,
 	GeneralSettings,
-	ListColumnWidths,
 	Settings,
 	SettingsCommandError,
 	SettingsSnapshot,
@@ -72,15 +70,6 @@ export const DEFAULT_SETTINGS: Settings = {
 		menuBar: false,
 		gitColumn: true,
 		storageClassColumn: false,
-		columnWidths: {
-			size: null,
-			modified: null,
-			kind: null,
-			git: null,
-			storageClass: null,
-			original: null,
-			deleted: null,
-		},
 	},
 	appearance: {
 		mode: 'system',
@@ -153,10 +142,6 @@ export const PREVIEW_MAX_MB_MAX = 2048;
 export const SUPPORTED_LANGUAGES = ['en-CA', 'fr-CA'] as const;
 /** The developer-only pseudo-locales, which a debug build of Rust accepts too. */
 export const PSEUDO_LANGUAGES = ['en-XA', 'ar-XB'] as const;
-
-/** The widest and narrowest a list column may be given, in pixels, which Rust enforces; the list keeps each column to a narrower range of its own. */
-export const COLUMN_WIDTH_MIN = 32;
-export const COLUMN_WIDTH_MAX = 1200;
 
 /** The spring-load delay's range in milliseconds, which Rust enforces and the page offers. */
 export const SPRING_LOAD_MIN_MS = 200;

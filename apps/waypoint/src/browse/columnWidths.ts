@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { ListColumnWidths } from '../services/settingsClient';
+import type { ListColumnWidths } from '../services/folderViewsClient';
 
 /** A column whose width the person can change. Name is not one: it takes what the others leave. */
 export type ResizableColumn = keyof ListColumnWidths;
@@ -64,8 +64,9 @@ export function widestWidth(column: ResizableColumn, from: number, room: number)
 }
 
 /** The stored widths as the list uses them: the columns with one, each kept to its limits. */
-export function resolveWidths(stored: ListColumnWidths): ColumnWidths {
+export function resolveWidths(stored: ListColumnWidths | null | undefined): ColumnWidths {
 	const widths: ColumnWidths = {};
+	if (!stored) return widths;
 	for (const column of RESIZABLE_COLUMNS) {
 		const width = stored[column];
 		if (width !== null && Number.isFinite(width)) widths[column] = clampWidth(column, width);

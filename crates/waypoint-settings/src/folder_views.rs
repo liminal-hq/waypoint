@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 //
-// A folder that has had its view, sort, grouping, hidden-files choice or icon size changed keeps that choice (SPEC 5.3b). This is
+// A folder that has had its view, sort, grouping, hidden-files choice, icon size or list column widths changed keeps that choice (SPEC 5.3b). This is
 // the pure store behind it: a map from a folder's location to the choices made there, in the order
 // they were last written (oldest first), so that going over `MAX_FOLDERS` drops the folder
 // written longest ago. Only what was chosen is kept: a folder whose sort was changed and whose
@@ -41,6 +41,12 @@ pub const MAX_KEY_BYTES: usize = 4096;
 pub const ICON_SIZE_MIN: u32 = 48;
 pub const ICON_SIZE_MAX: u32 = 256;
 
+/// The shortest and longest width a list column may be given, in pixels. The list keeps each
+/// column to its own narrower range (so its heading still fits); these bounds only stop a
+/// hand-edited document from asking for a column that cannot be seen or one wider than any screen.
+pub const COLUMN_WIDTH_MIN: u16 = 32;
+pub const COLUMN_WIDTH_MAX: u16 = 1200;
+
 /// The id the remembered views are exported under.
 pub const FOLDER_VIEWS_FILE_ID: &str = "folder-views";
 
@@ -52,6 +58,70 @@ pub const FOLDER_VIEWS_KEY: &str = "folderViews";
 
 /// The key the document of the run before is kept under.
 pub const FOLDER_VIEWS_PREVIOUS_KEY: &str = "folderViewsPrevious";
+
+/// The widths, in pixels, a folder's list columns were dragged to. `None` is the column's own
+/// width. Name is not here: it is the flexible column and takes what the others leave. A width
+/// applies only where its column is listed, so one set serves every layout (a folder, a Git
+/// working tree, S3, the Trash).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ListColumnWidths {
+    pub size: Option<u16>,
+    pub modified: Option<u16>,
+    pub kind: Option<u16>,
+    pub git: Option<u16>,
+    pub storage_class: Option<u16>,
+    /// Where an item was trashed from (the Trash's own column).
+    pub original: Option<u16>,
+    /// When an item was trashed (the Trash's own column).
+    pub deleted: Option<u16>,
+}
+
+impl ListColumnWidths {
+    fn all(&self) -> [Option<u16>; 7] {
+        [
+            self.size,
+            self.modified,
+            self.kind,
+            self.git,
+            self.storage_class,
+            self.original,
+            self.deleted,
+        ]
+    }
+
+    fn all_mut(&mut self) -> [&mut Option<u16>; 7] {
+        [
+            &mut self.size,
+            &mut self.modified,
+            &mut self.kind,
+            &mut self.git,
+            &mut self.storage_class,
+            &mut self.original,
+            &mut self.deleted,
+        ]
+    }
+
+    /// Whether every column is at its own width, so there is nothing to remember.
+    pub fn is_default(&self) -> bool {
+        self.all().iter().all(Option::is_none)
+    }
+
+    fn in_range(&self) -> bool {
+        self.all()
+            .into_iter()
+            .flatten()
+            .all(|width| (COLUMN_WIDTH_MIN..=COLUMN_WIDTH_MAX).contains(&width))
+    }
+
+    fn clamped(mut self) -> Self {
+        for width in self.all_mut() {
+            *width = width.map(|width| width.clamp(COLUMN_WIDTH_MIN, COLUMN_WIDTH_MAX));
+        }
+        self
+    }
+}
 
 /// What one folder remembers. A field that is `None` was never chosen here, and the window's own
 /// choice shows for it.
@@ -71,6 +141,10 @@ pub struct FolderView {
     #[serde(default)]
     #[ts(type = "number | null")]
     pub icon_size: Option<u32>,
+    /// The widths the list's columns were dragged to in this folder (D176). Never an all-default
+    /// set: a folder whose columns are all at their own widths remembers none.
+    #[serde(default)]
+    pub column_widths: Option<ListColumnWidths>,
 }
 
 impl FolderView {
@@ -79,6 +153,16 @@ impl FolderView {
             && self.sort.is_none()
             && self.show_hidden.is_none()
             && self.icon_size.is_none()
+            && self.column_widths.is_none()
+    }
+
+    /// The form that is stored: widths held to their bounds, and a set with no width in it gone.
+    fn normalised(mut self) -> Self {
+        self.column_widths = self
+            .column_widths
+            .map(ListColumnWidths::clamped)
+            .filter(|widths| !widths.is_default());
+        self
     }
 
     fn valid(&self) -> bool {
@@ -90,6 +174,8 @@ impl FolderView {
 }
 
 /// What a window asks to be remembered: a field that is `None` leaves what is remembered alone.
+/// `column_widths` replaces the folder's whole set of widths, so a set with no width in it
+/// (every column at its own) makes the folder forget its widths.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
@@ -103,6 +189,8 @@ pub struct FolderViewPatch {
     #[serde(default)]
     #[ts(type = "number | null")]
     pub icon_size: Option<u32>,
+    #[serde(default)]
+    pub column_widths: Option<ListColumnWidths>,
 }
 
 /// One remembered folder, keyed by its location's `uri`.
@@ -150,6 +238,8 @@ pub enum FolderViewsError {
     BadKey,
     #[error("the icon size must be between {ICON_SIZE_MIN} and {ICON_SIZE_MAX}")]
     BadIconSize,
+    #[error("a column width must be between {COLUMN_WIDTH_MIN} and {COLUMN_WIDTH_MAX} pixels")]
+    BadColumnWidth,
     #[error("at most {MAX_FOLDERS} folders can be remembered")]
     TooMany,
     #[error("the location `{0}` is listed more than once")]
@@ -195,7 +285,8 @@ impl FolderViews {
     /// one wins) and anything over the bound (the oldest go).
     pub fn from_document(document: FolderViewsDocument) -> Self {
         let mut entries: Vec<FolderViewEntry> = Vec::with_capacity(document.folders.len());
-        for entry in document.folders {
+        for mut entry in document.folders {
+            entry.view = entry.view.normalised();
             if !valid_key(&entry.key) || !entry.view.valid() {
                 continue;
             }
@@ -267,6 +358,9 @@ impl FolderViews {
         {
             return Err(FolderViewsError::BadIconSize);
         }
+        if patch.column_widths.is_some_and(|widths| !widths.in_range()) {
+            return Err(FolderViewsError::BadColumnWidth);
+        }
         let existing = self.entries.iter().position(|e| e.key == key);
         let before = existing.map(|i| self.entries[i].view);
         let view = FolderView {
@@ -274,8 +368,14 @@ impl FolderViews {
             sort: patch.sort.or(before.and_then(|v| v.sort)),
             show_hidden: patch.show_hidden.or(before.and_then(|v| v.show_hidden)),
             icon_size: patch.icon_size.or(before.and_then(|v| v.icon_size)),
-        };
-        if view.is_empty() || before == Some(view) {
+            column_widths: patch.column_widths.or(before.and_then(|v| v.column_widths)),
+        }
+        .normalised();
+        if view.is_empty() {
+            // Clearing the last thing a folder remembered forgets the folder.
+            return Ok(existing.and_then(|_| self.forget(key)));
+        }
+        if before == Some(view) {
             return Ok(None);
         }
         if let Some(index) = existing {
@@ -317,6 +417,13 @@ impl FolderViews {
         folders: Vec<FolderViewEntry>,
     ) -> Result<Option<FolderViewsChanged>, FolderViewsError> {
         check_folders(&folders)?;
+        let folders: Vec<FolderViewEntry> = folders
+            .into_iter()
+            .map(|mut entry| {
+                entry.view = entry.view.normalised();
+                entry
+            })
+            .collect();
         let mut changes = Vec::new();
         let incoming: HashMap<&str, FolderView> =
             folders.iter().map(|e| (e.key.as_str(), e.view)).collect();
@@ -367,11 +474,14 @@ fn check_folders(folders: &[FolderViewEntry]) -> Result<(), FolderViewsError> {
     }
     let mut seen = std::collections::HashSet::new();
     for entry in folders {
-        if !valid_key(&entry.key) || entry.view.is_empty() {
+        if !valid_key(&entry.key) || entry.view.normalised().is_empty() {
             return Err(FolderViewsError::BadKey);
         }
         if !entry.view.valid() {
             return Err(FolderViewsError::BadIconSize);
+        }
+        if entry.view.column_widths.is_some_and(|w| !w.in_range()) {
+            return Err(FolderViewsError::BadColumnWidth);
         }
         if !seen.insert(entry.key.as_str()) {
             return Err(FolderViewsError::Duplicate(entry.key.clone()));
@@ -405,7 +515,16 @@ pub fn plan_folder_views(current: &FolderViews, incoming: &Value) -> Result<File
     let parsed: FolderViewsDocument =
         serde_json::from_value(incoming.clone()).map_err(|e| invalid(e.to_string()))?;
     check_folders(&parsed.folders).map_err(|e| invalid(e.to_string()))?;
-    let document = FolderViewsDocument::new(parsed.folders);
+    let document = FolderViewsDocument::new(
+        parsed
+            .folders
+            .into_iter()
+            .map(|mut entry| {
+                entry.view = entry.view.normalised();
+                entry
+            })
+            .collect(),
+    );
     let document_value = serde_json::to_value(&document).map_err(|e| invalid(e.to_string()))?;
 
     let mut probe = current.clone();
@@ -890,10 +1009,217 @@ mod tests {
         };
         assert_eq!(
             serde_json::to_value(view).unwrap(),
-            json!({"mode": "grid", "sort": null, "showHidden": null, "iconSize": null})
+            json!({
+                "mode": "grid",
+                "sort": null,
+                "showHidden": null,
+                "iconSize": null,
+                "columnWidths": null,
+            })
         );
         let read: FolderView = serde_json::from_value(json!({"mode": "list"})).unwrap();
         assert_eq!(read.sort, None);
+        assert_eq!(read.column_widths, None);
+    }
+
+    fn widths(f: impl FnOnce(&mut ListColumnWidths)) -> FolderViewPatch {
+        let mut set = ListColumnWidths::default();
+        f(&mut set);
+        FolderViewPatch {
+            column_widths: Some(set),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn column_widths_are_remembered_per_folder_in_camel_case() {
+        let mut views = FolderViews::new();
+        views
+            .remember(
+                "file:///a",
+                widths(|w| {
+                    w.size = Some(120);
+                    w.storage_class = Some(150);
+                }),
+            )
+            .unwrap();
+        views
+            .remember("file:///b", widths(|w| w.modified = Some(200)))
+            .unwrap();
+        let a = views.get("file:///a").unwrap().column_widths.unwrap();
+        assert_eq!(
+            (a.size, a.storage_class, a.modified),
+            (Some(120), Some(150), None)
+        );
+        let b = views.get("file:///b").unwrap().column_widths.unwrap();
+        assert_eq!((b.size, b.modified), (None, Some(200)));
+        assert_eq!(views.get("file:///c"), None);
+        let json = serde_json::to_value(views.get("file:///a").unwrap()).unwrap();
+        assert_eq!(json["columnWidths"]["storageClass"], 150);
+        assert!(json["columnWidths"]["modified"].is_null());
+        assert!(json["mode"].is_null());
+    }
+
+    #[test]
+    fn a_patch_without_widths_leaves_them_and_a_patch_with_widths_replaces_the_set() {
+        let mut views = FolderViews::new();
+        views
+            .remember("file:///a", widths(|w| w.size = Some(120)))
+            .unwrap();
+        views.remember("file:///a", grid()).unwrap();
+        let view = views.get("file:///a").unwrap();
+        assert_eq!(view.mode, Some(ViewMode::Grid));
+        assert_eq!(view.column_widths.unwrap().size, Some(120));
+
+        views
+            .remember("file:///a", widths(|w| w.kind = Some(90)))
+            .unwrap();
+        let set = views.get("file:///a").unwrap().column_widths.unwrap();
+        assert_eq!((set.size, set.kind), (None, Some(90)));
+        assert_eq!(views.revision(), 3);
+
+        // The same set again changes nothing.
+        assert_eq!(
+            views
+                .remember("file:///a", widths(|w| w.kind = Some(90)))
+                .unwrap(),
+            None
+        );
+        assert_eq!(views.revision(), 3);
+    }
+
+    #[test]
+    fn clearing_the_widths_keeps_what_else_the_folder_remembers_and_forgets_a_folder_with_nothing_left(
+    ) {
+        let mut views = FolderViews::new();
+        views
+            .remember("file:///a", widths(|w| w.size = Some(120)))
+            .unwrap();
+        views.remember("file:///a", grid()).unwrap();
+        let cleared = views
+            .remember("file:///a", widths(|_| {}))
+            .unwrap()
+            .unwrap();
+        let view = cleared.changes[0].view.unwrap();
+        assert_eq!(view.mode, Some(ViewMode::Grid));
+        assert_eq!(view.column_widths, None);
+
+        // Widths were all that `b` remembered: clearing them drops the record, as a reset does.
+        views
+            .remember("file:///b", widths(|w| w.size = Some(120)))
+            .unwrap();
+        let before = views.len();
+        let cleared = views
+            .remember("file:///b", widths(|_| {}))
+            .unwrap()
+            .unwrap();
+        assert_eq!(cleared.changes[0].view, None);
+        assert_eq!(views.len(), before - 1);
+        assert_eq!(views.get("file:///b"), None);
+        // A folder that remembers nothing has nothing to clear, and a set of defaults starts no record.
+        assert_eq!(views.remember("file:///b", widths(|_| {})).unwrap(), None);
+        assert_eq!(views.get("file:///b"), None);
+        assert_eq!(views.len(), before - 1);
+    }
+
+    #[test]
+    fn a_column_width_is_bounded_at_both_ends() {
+        let mut views = FolderViews::new();
+        for width in [COLUMN_WIDTH_MIN, COLUMN_WIDTH_MAX] {
+            assert!(views
+                .remember("file:///a", widths(|w| w.original = Some(width)))
+                .is_ok());
+        }
+        let revision = views.revision();
+        for width in [0, COLUMN_WIDTH_MIN - 1, COLUMN_WIDTH_MAX + 1, u16::MAX] {
+            assert_eq!(
+                views
+                    .remember("file:///a", widths(|w| w.deleted = Some(width)))
+                    .unwrap_err(),
+                FolderViewsError::BadColumnWidth
+            );
+        }
+        assert_eq!(views.revision(), revision);
+
+        let loaded = FolderViews::from_document(FolderViewsDocument::new(vec![FolderViewEntry {
+            key: "file:///a".into(),
+            view: FolderView {
+                column_widths: Some(ListColumnWidths {
+                    size: Some(1),
+                    kind: Some(u16::MAX),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        }]));
+        let set = loaded.get("file:///a").unwrap().column_widths.unwrap();
+        assert_eq!(
+            (set.size, set.kind),
+            (Some(COLUMN_WIDTH_MIN), Some(COLUMN_WIDTH_MAX))
+        );
+        let plan = plan_folder_views(
+            &FolderViews::new(),
+            &json!({"version": 1, "folders": [{"key": "file:///a", "view": {"columnWidths": {"size": 5}}}]}),
+        );
+        assert_eq!(plan.unwrap_err().code(), "invalid");
+    }
+
+    #[test]
+    fn a_document_from_before_widths_loads_and_a_widths_only_folder_counts_toward_the_bound() {
+        let old: FolderViewsDocument = serde_json::from_value(json!({
+            "version": 1,
+            "folders": [{"key": "file:///a", "view": {"mode": "grid", "sort": null}}],
+        }))
+        .unwrap();
+        let mut views = FolderViews::from_document(old);
+        assert_eq!(views.get("file:///a").unwrap().column_widths, None);
+
+        // A set with no width in it is not a choice: a record of only that is left out when loaded.
+        let empty = FolderViews::from_document(FolderViewsDocument::new(vec![FolderViewEntry {
+            key: "file:///b".into(),
+            view: FolderView {
+                column_widths: Some(ListColumnWidths::default()),
+                ..Default::default()
+            },
+        }]));
+        assert!(empty.is_empty());
+
+        for i in 0..MAX_FOLDERS {
+            views
+                .remember(&key(i), widths(|w| w.size = Some(100)))
+                .unwrap();
+        }
+        assert_eq!(views.len(), MAX_FOLDERS);
+        assert!(views.get("file:///a").is_none());
+        assert!(views.get(&key(0)).is_some());
+    }
+
+    #[test]
+    fn a_plan_carries_widths_and_refuses_a_record_of_nothing_but_defaults() {
+        let current = FolderViews::new();
+        let plan = plan(
+            &current,
+            json!({"version": 1, "folders": [
+                {"key": "file:///a", "view": {"columnWidths": {"size": 120}}},
+                {"key": "file:///b", "view": {"mode": "grid", "columnWidths": {}}},
+            ]}),
+        )
+        .unwrap();
+        assert_eq!(plan.changes[0].count, 2);
+        assert_eq!(
+            plan.document["folders"][0]["view"]["columnWidths"]["size"],
+            120
+        );
+        assert!(plan.document["folders"][1]["view"]["columnWidths"].is_null());
+        assert_eq!(
+            plan_folder_views(
+                &current,
+                &json!({"version": 1, "folders": [{"key": "file:///a", "view": {"columnWidths": {}}}]}),
+            )
+            .unwrap_err()
+            .code(),
+            "invalid"
+        );
     }
 
     fn plan(current: &FolderViews, incoming: Value) -> Result<FilePlan, BundleError> {

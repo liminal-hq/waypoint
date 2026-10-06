@@ -6,7 +6,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { COLUMN_WIDTH_MAX, COLUMN_WIDTH_MIN, DEFAULT_SETTINGS } from '../services/settingsClient';
+import {
+	COLUMN_WIDTH_MAX,
+	COLUMN_WIDTH_MIN,
+	type ListColumnWidths,
+} from '../services/folderViewsClient';
 import {
 	COLUMN_LIMITS,
 	KEY_BIG_STEP,
@@ -48,9 +52,17 @@ describe('the limits', () => {
 	});
 
 	it('name every column Rust stores, and nothing else', () => {
-		expect([...RESIZABLE_COLUMNS].sort()).toEqual(
-			Object.keys(DEFAULT_SETTINGS.ui.columnWidths).sort(),
-		);
+		// `satisfies` makes the compiler hold this list to the generated type's keys.
+		const stored = {
+			size: true,
+			modified: true,
+			kind: true,
+			git: true,
+			storageClass: true,
+			original: true,
+			deleted: true,
+		} satisfies Record<keyof ListColumnWidths, true>;
+		expect([...RESIZABLE_COLUMNS].sort()).toEqual(Object.keys(stored).sort());
 		expect(isResizable('size')).toBe(true);
 		expect(isResizable('name')).toBe(false);
 		expect(isResizable('toString')).toBe(false);
@@ -79,6 +91,8 @@ describe('clamping', () => {
 	it('brings stored widths to the limits and leaves out the columns that were not resized', () => {
 		const stored = { ...noWidths(), size: 5000, git: 50, kind: null };
 		expect(resolveWidths(stored)).toEqual({ size: COLUMN_LIMITS.size.max, git: 50 });
+		expect(resolveWidths(null)).toEqual({});
+		expect(resolveWidths(undefined)).toEqual({});
 	});
 });
 

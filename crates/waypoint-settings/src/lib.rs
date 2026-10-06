@@ -26,9 +26,9 @@ pub use bundle::{
 pub use folder_views::{
     plan_folder_views, FolderView, FolderViewChange, FolderViewEntry, FolderViewPatch, FolderViews,
     FolderViewsChanged, FolderViewsDocument, FolderViewsError, FolderViewsPersistence,
-    FolderViewsSnapshot, FolderViewsStorage, MemoryFolderViews, FOLDER_VIEWS_FILE_ID,
-    FOLDER_VIEWS_KEY, FOLDER_VIEWS_PREVIOUS_KEY, FOLDER_VIEWS_VERSION, ICON_SIZE_MAX,
-    ICON_SIZE_MIN, MAX_FOLDERS, MAX_KEY_BYTES,
+    FolderViewsSnapshot, FolderViewsStorage, ListColumnWidths, MemoryFolderViews, COLUMN_WIDTH_MAX,
+    COLUMN_WIDTH_MIN, FOLDER_VIEWS_FILE_ID, FOLDER_VIEWS_KEY, FOLDER_VIEWS_PREVIOUS_KEY,
+    FOLDER_VIEWS_VERSION, ICON_SIZE_MAX, ICON_SIZE_MIN, MAX_FOLDERS, MAX_KEY_BYTES,
 };
 pub use import::{
     apply_import, change_groups, differing_paths, plan_import, plan_settings, unknown_paths,
@@ -37,9 +37,8 @@ pub use import::{
 };
 pub use model::{
     BlurLevel, ClickMode, ColourMode, DefaultView, DndSettings, DropActionRule,
-    ExperimentalSettings, GeneralSettings, ListColumnWidths, OsPreference, Settings, SettingsError,
-    SettingsSnapshot, StartupMode, UiSettings, COLUMN_WIDTH_MAX, COLUMN_WIDTH_MIN,
-    SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
+    ExperimentalSettings, GeneralSettings, OsPreference, Settings, SettingsError, SettingsSnapshot,
+    StartupMode, UiSettings, SPRING_LOAD_MAX_MS, SPRING_LOAD_MIN_MS,
 };
 pub use storage::{
     KeyValue, MemoryStorage, Persistence, SettingsDocument, SettingsStorage, StorageError,

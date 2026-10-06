@@ -265,7 +265,7 @@ function ListingBody({
 	const storageClassWanted = useSettings(selectStorageClassColumn);
 	const onS3 = !trash && hasStorageClasses(model.location.uri);
 	const showStorageClass = onS3 && storageClassWanted;
-	const columnWidths = useColumnWidths();
+	const columnWidths = useColumnWidths(model.location);
 	const columns = trash
 		? TRASH_COLUMNS
 		: showGit

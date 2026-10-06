@@ -780,6 +780,41 @@ fn a_remembered_folder_is_saved_announced_to_every_window_and_read_back() {
 }
 
 #[test]
+fn a_folders_column_widths_are_saved_announced_and_dropped_with_the_last_choice() {
+    use waypoint_settings::ListColumnWidths;
+
+    let storage = Arc::new(MemoryFolderViews::default());
+    let app = app_with_views(storage.clone());
+    let heard = hear_views(&app, "main-2");
+    let widths = |size| FolderViewPatch {
+        column_widths: Some(ListColumnWidths {
+            size,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    assert_eq!(
+        views(&app)
+            .remember("file:///a", widths(Some(120)))
+            .unwrap(),
+        1
+    );
+    let saved = storage.saved().unwrap();
+    assert_eq!(saved.folders[0].view.column_widths.unwrap().size, Some(120));
+
+    // Every column back to its own forgets the folder, as nothing else is remembered for it.
+    assert_eq!(views(&app).remember("file:///a", widths(None)).unwrap(), 2);
+    assert!(storage.saved().unwrap().folders.is_empty());
+    let heard = heard.lock().unwrap();
+    assert_eq!(heard.len(), 2);
+    assert_eq!(heard[1].changes[0].view, None);
+
+    // A width outside the bound is refused and changes nothing.
+    assert!(views(&app).remember("file:///a", widths(Some(5))).is_err());
+}
+
+#[test]
 fn remembering_the_same_thing_again_is_no_revision_event_or_save() {
     let storage = Arc::new(MemoryFolderViews::default());
     let app = app_with_views(storage.clone());

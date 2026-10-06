@@ -1,11 +1,16 @@
-// Holds the list's column widths: the ones Rust remembers, and the one being chosen by a drag or a run of key presses
+// Holds a folder's list column widths: the ones Rust remembers for it, and the one being chosen by a drag or a run of key presses
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ListColumnWidths, Settings } from '../services/settingsClient';
-import { useSettings, useSettingsHandle } from '../settings/SettingsContext';
+import { useStore } from 'zustand';
+import type { ListColumnWidths } from '../services/folderViewsClient';
+import { isOverviewLocation } from '../overview/overviewLocation';
+import { useSettings, useSettingsReady } from '../settings/SettingsContext';
+import { IDLE_FOLDER_VIEWS } from './folderViewStore';
+import { useFolderViews } from './FolderViewsContext';
 import {
 	noWidths,
 	resolveWidths,
@@ -20,7 +25,17 @@ const KEY_SETTLE_MS = 400;
 /** A width being chosen: a number, `null` for the column's own width, and nothing once it is kept or dropped. */
 type Draft = Partial<Record<ResizableColumn, number | null>>;
 
-const selectWidths = (settings: Settings): ListColumnWidths => settings.ui.columnWidths;
+const selectRemembering = (settings: { general: { rememberFolderViews: boolean } }) =>
+	settings.general.rememberFolderViews;
+
+/**
+ * The key a folder's widths are remembered under: its location's `uri`, as for its view and sort.
+ * Unlike them, the Trash remembers its widths too (its columns are its own), so only Overview,
+ * which is not a listing, has none.
+ */
+export function columnWidthsKey(location: Location): string | null {
+	return isOverviewLocation(location) ? null : location.uri;
+}
 
 export interface ColumnWidthControls {
 	/** The widths in force, with any being chosen shown. */
@@ -29,24 +44,32 @@ export interface ColumnWidthControls {
 	resized: boolean;
 	/** Shows a width without keeping it; `undefined` drops it. */
 	preview(column: ResizableColumn, width: number | null | undefined): void;
-	/** Keeps a width for every folder, or `null` for the column's own. */
+	/** Keeps a width for this folder, or `null` for the column's own. */
 	commit(column: ResizableColumn, width: number | null): void;
 	/** Keeps a width once the keys have rested. */
 	commitSoon(column: ResizableColumn, width: number | null): void;
 	/** Keeps a width still waiting on the keys. */
 	flush(): void;
-	/** Puts every column back to its own width. */
+	/** Puts every column of this folder back to its own width. */
 	resetAll(): void;
 }
 
 /**
- * The widths are one set for every folder and every window, so Rust keeps them with the `ui`
- * settings and every window hears the change. A drag only shows its width until it is released;
- * without a settings store (a window that cannot reach Rust) the width simply stays shown.
+ * The widths are the folder's own, like its view and sort: Rust keeps them with the folder's
+ * remembered view, so every window showing the folder hears a change and a new tab on it starts
+ * with them, and another folder keeps the widths it has. A drag only shows its width until it is
+ * released. Where folders do not remember (the setting is off, or no service is reachable) a
+ * width stays shown in this listing only.
  */
-export function useColumnWidths(): ColumnWidthControls {
-	const stored = useSettings(selectWidths);
-	const handle = useSettingsHandle();
+export function useColumnWidths(location: Location): ColumnWidthControls {
+	const key = columnWidthsKey(location);
+	const handle = useFolderViews();
+	const wanted = useSettings(selectRemembering);
+	const settingsReady = useSettingsReady();
+	const remembering = wanted && settingsReady && handle !== null;
+	const stored = useStore(handle?.store ?? IDLE_FOLDER_VIEWS, (state) =>
+		remembering && key !== null ? (state.folders.get(key)?.columnWidths ?? null) : null,
+	);
 	const [draft, setDraft] = useState<Draft>({});
 	const pending = useRef<{ column: ResizableColumn; width: number | null } | null>(null);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,18 +92,27 @@ export function useColumnWidths(): ColumnWidthControls {
 		});
 	}, []);
 
+	// A kept width is shown from the draft until the folder's memory says the same, so it does not
+	// jump back for the moment between Rust's answer and its event.
+	useEffect(() => {
+		setDraft((now) => {
+			const kept = Object.entries(now).filter(
+				([column, width]) => (stored?.[column as ResizableColumn] ?? null) !== width,
+			);
+			return kept.length === Object.keys(now).length ? now : Object.fromEntries(kept);
+		});
+	}, [stored, draft]);
+
 	const save = useCallback(
-		(change: (current: ListColumnWidths) => ListColumnWidths, settled: () => void) => {
-			if (!handle) return;
-			const current = handle.store.getState().settings.ui.columnWidths;
-			handle
-				.saveUi({ columnWidths: change(current) })
-				.catch((error: unknown) => {
-					console.warn('could not save the column widths', error);
-				})
-				.finally(settled);
+		(change: (current: ListColumnWidths) => ListColumnWidths, failed: () => void) => {
+			if (!remembering || !handle || key === null) return;
+			const current = handle.store.getState().folders.get(key)?.columnWidths ?? noWidths();
+			handle.remember(key, { columnWidths: change(current) }).catch((error: unknown) => {
+				console.warn('could not remember the column widths for the folder', error);
+				failed();
+			});
 		},
-		[handle],
+		[remembering, handle, key],
 	);
 
 	const commit = useCallback(
@@ -115,8 +147,11 @@ export function useColumnWidths(): ColumnWidthControls {
 	);
 
 	const resetAll = useCallback(() => {
-		setDraft({});
-		save(noWidths, () => {});
+		if (timer.current !== null) clearTimeout(timer.current);
+		timer.current = null;
+		pending.current = null;
+		setDraft(noWidths());
+		save(noWidths, () => setDraft({}));
 	}, [save]);
 
 	// Leaving the folder keeps what the keys last asked for.

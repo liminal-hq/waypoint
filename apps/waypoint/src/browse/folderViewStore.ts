@@ -10,6 +10,7 @@ import type {
 	FolderViewsChanged,
 	FolderViewsClient,
 	FolderViewsSnapshot,
+	ListColumnWidths,
 } from '../services/folderViewsClient';
 import type { ViewMode } from './viewStore';
 
@@ -34,6 +35,8 @@ export interface FolderViewChoice {
 	sort?: SortSpec;
 	showHidden?: boolean;
 	iconSize?: number;
+	/** The folder's whole set of column widths; one with no width in it makes the folder forget them. */
+	columnWidths?: ListColumnWidths;
 }
 
 export interface FolderViewsHandle {
@@ -153,6 +156,7 @@ export function createFolderViewsStore(client: FolderViewsClient): FolderViewsHa
 					sort: choice.sort ?? null,
 					showHidden: choice.showHidden ?? null,
 					iconSize: choice.iconSize ?? null,
+					columnWidths: choice.columnWidths ?? null,
 				}),
 			),
 		reset: (key) => writing(() => client.reset(key)),

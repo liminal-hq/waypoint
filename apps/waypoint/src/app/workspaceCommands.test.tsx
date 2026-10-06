@@ -13,7 +13,6 @@ import { createFakeOpsClient, type FakeOpsClient } from '../services/fakeOpsClie
 import { FakeOsClipboardClient } from '../services/fakeOsClipboardClient';
 import { FakePlacesClient, fakePlaces } from '../services/fakePlacesClient';
 import { createFakeSettingsClient, type FakeSettings } from '../services/fakeSettingsClient';
-import { DEFAULT_SETTINGS } from '../services/settingsClient';
 import { FakeTabsApi } from '../services/fakeTabsApi';
 import { SettingsProvider } from '../settings/SettingsContext';
 import { PlacesClientProvider } from '../sidebar/PlacesClientContext';
@@ -165,7 +164,6 @@ describe('hiding the bar and its labels', () => {
 			menuBar: false,
 			gitColumn: true,
 			storageClassColumn: false,
-			columnWidths: DEFAULT_SETTINGS.ui.columnWidths,
 		});
 		await waitFor(() => expect(barButton('Cut')).toHaveTextContent(''));
 	});
@@ -201,7 +199,6 @@ describe('hiding the bar and its labels', () => {
 					menuBar: false,
 					gitColumn: true,
 					storageClassColumn: false,
-					columnWidths: DEFAULT_SETTINGS.ui.columnWidths,
 				},
 			});
 		});
@@ -222,7 +219,6 @@ describe('hiding the bar and its labels', () => {
 				menuBar: false,
 				gitColumn: true,
 				storageClassColumn: false,
-				columnWidths: DEFAULT_SETTINGS.ui.columnWidths,
 			},
 		});
 		render(

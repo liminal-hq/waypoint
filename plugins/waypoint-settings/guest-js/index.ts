@@ -77,8 +77,6 @@ export interface UiSettingsChange {
 	actionBarLabels?: boolean;
 	gitColumn?: boolean;
 	storageClassColumn?: boolean;
-	/** Replaces every column width at once (`null` is a column's own width); send the whole set with your change. */
-	columnWidths?: ListColumnWidths;
 }
 
 /**

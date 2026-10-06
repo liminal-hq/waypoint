@@ -9,6 +9,7 @@ import type {
 	FolderViewsChanged,
 	FolderViewsClient,
 	FolderViewsSnapshot,
+	ListColumnWidths,
 } from './folderViewsClient';
 
 /** The bound Rust keeps (`MAX_FOLDERS` in `waypoint-settings`). */
@@ -45,13 +46,19 @@ export const NOTHING_CHOSEN: FolderViewPatch = {
 	sort: null,
 	showHidden: null,
 	iconSize: null,
+	columnWidths: null,
 };
+
+/** A set of widths with a column's width left out as Rust does: a set with none in it is nothing. */
+const keptWidths = (widths: ListColumnWidths | null): ListColumnWidths | null =>
+	widths && Object.values(widths).some((width) => width !== null) ? widths : null;
 
 const complete = (view: FolderViewSeed): FolderView => ({
 	mode: view.mode ?? null,
 	sort: view.sort ?? null,
 	showHidden: view.showHidden ?? null,
 	iconSize: view.iconSize ?? null,
+	columnWidths: keptWidths(view.columnWidths ?? null),
 });
 
 export function createFakeFolderViewsClient(
@@ -84,8 +91,16 @@ export function createFakeFolderViewsClient(
 			sort: patched.sort ?? before?.sort ?? null,
 			showHidden: patched.showHidden ?? before?.showHidden ?? null,
 			iconSize: patched.iconSize ?? before?.iconSize ?? null,
+			columnWidths: keptWidths(patch.columnWidths ?? before?.columnWidths ?? null),
 		};
-		if (Object.values(view).every((value) => value === null)) return;
+		if (Object.values(view).every((value) => value === null)) {
+			// Clearing the last thing a folder remembered forgets the folder.
+			if (entries.delete(key)) {
+				revision += 1;
+				announce({ revision, changes: [{ key, view: null }] });
+			}
+			return;
+		}
 		if (before && JSON.stringify(before) === JSON.stringify(view)) return;
 		entries.delete(key);
 		entries.set(key, view);

@@ -7,8 +7,7 @@ use serde::Deserialize;
 use tauri::{Manager, Runtime, State, WebviewWindow};
 use waypoint_protocol::PluginStatus;
 use waypoint_settings::{
-    ExportReceipt, FolderViewPatch, FolderViewsSnapshot, ImportPreview, ListColumnWidths, Settings,
-    SettingsSnapshot,
+    ExportReceipt, FolderViewPatch, FolderViewsSnapshot, ImportPreview, Settings, SettingsSnapshot,
 };
 
 use crate::error::Error;
@@ -100,8 +99,6 @@ pub struct UiChange {
     pub action_bar_labels: Option<bool>,
     pub git_column: Option<bool>,
     pub storage_class_column: Option<bool>,
-    /// Replaces every column width at once; a window sends the set it holds with its own change.
-    pub column_widths: Option<ListColumnWidths>,
 }
 
 /// Changes only the `ui` settings named in `change`, on top of what is in force now, and
@@ -125,9 +122,6 @@ pub async fn set_ui_settings<R: Runtime>(
         }
         if let Some(shown) = change.storage_class_column {
             ui.storage_class_column = shown;
-        }
-        if let Some(widths) = change.column_widths {
-            ui.column_widths = widths;
         }
     })
 }

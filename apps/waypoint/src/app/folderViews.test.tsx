@@ -5,6 +5,7 @@
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { noWidths } from '../browse/columnWidths';
 import { createFakeFolderViewsClient, NOTHING_CHOSEN } from '../services/fakeFolderViewsClient';
 import { createFakeSettingsClient } from '../services/fakeSettingsClient';
 import { DEFAULT_SETTINGS } from '../services/settingsClient';
@@ -219,6 +220,44 @@ describe('hidden files and the icon size', () => {
 			expect(screen.getByRole('listbox').style.getPropertyValue('--wp-grid-size')).toBe('96px'),
 		);
 		expect(folderViews.view(HOME.uri)?.iconSize).not.toBe(200);
+	});
+});
+
+describe('list column widths', () => {
+	const widths = { ...noWidths(), size: 150 };
+	const sizeVariable = () =>
+		screen
+			.getByRole('listbox')
+			.closest<HTMLElement>('[data-layout]')!
+			.style.getPropertyValue('--wp-col-size');
+
+	it('follow the folder shown, and the next folder keeps the columns’ own widths', async () => {
+		const folderViews = createFakeFolderViewsClient({ [DOCS.uri]: { columnWidths: widths } });
+		const tabs = new FakeTabsApi();
+		await renderWorkspace(twoFolders(), tabs, undefined, { folderViews });
+		await option('docs');
+		expect(sizeVariable()).toBe('');
+
+		await go(tabs, DOCS);
+		await option('y');
+		await waitFor(() => expect(sizeVariable()).toBe('150px'));
+
+		await go(tabs, HOME);
+		await option('docs');
+		await waitFor(() => expect(sizeVariable()).toBe(''));
+		expect(folderViews.remembered).toEqual([]);
+	});
+
+	it('are forgotten with the rest of the folder’s view by Reset This Folder’s View', async () => {
+		const folderViews = createFakeFolderViewsClient({
+			[HOME.uri]: { columnWidths: widths },
+		});
+		await renderWorkspace(twoFolders(), undefined, undefined, { folderViews });
+		await waitFor(() => expect(sizeVariable()).toBe('150px'));
+		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Reset This Folder’s View' }));
+		await waitFor(() => expect(sizeVariable()).toBe(''));
+		expect(folderViews.view(HOME.uri)).toBeUndefined();
 	});
 });
 
