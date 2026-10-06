@@ -93,6 +93,8 @@ pub struct Listing {
     state: RwLock<State>,
     watch: Mutex<Option<Box<dyn Watch>>>,
     watch_state: Mutex<WatchState>,
+    /// When the rows were last read from the folder (a scan or a rescan finished).
+    read_at: Mutex<Instant>,
     held: Mutex<Held>,
     /// Keeps an overlay's marks coming; dropped by `close`.
     overlay: Mutex<Option<Box<dyn OverlayGuard>>>,
@@ -139,6 +141,7 @@ impl Listing {
             }),
             watch: Mutex::new(None),
             watch_state: Mutex::new(WatchState::Off),
+            read_at: Mutex::new(Instant::now()),
             held: Mutex::new(Held::default()),
             overlay: Mutex::new(None),
         })
@@ -220,6 +223,7 @@ impl Listing {
             read_only: self.provider.read_only(),
             rewritable: self.provider.rewritable(&self.path),
             layout: self.provider.layout(),
+            watched: self.provider.capabilities().watch,
             groups: state.index.groups(),
         }
     }
@@ -292,6 +296,7 @@ impl Listing {
             let total = state.index.held();
             state.revision += 1;
             state.phase = ListingPhase::Ready;
+            *self.read_at.lock().unwrap_or_else(|e| e.into_inner()) = Instant::now();
             ListingEvent::Progress {
                 handle: self.handle,
                 revision: state.revision,
@@ -695,6 +700,7 @@ impl Listing {
                 let mut state = self.write();
                 state.phase = ListingPhase::Ready;
                 state.revision += 1;
+                *self.read_at.lock().unwrap_or_else(|e| e.into_inner()) = Instant::now();
                 ListingEvent::Progress {
                     handle: self.handle,
                     revision: state.revision,
@@ -711,6 +717,34 @@ impl Listing {
                 return Ok(self.snapshot());
             }
         }
+    }
+
+    /// How long ago the rows were last read from the folder.
+    pub fn age(&self) -> Duration {
+        self.read_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .elapsed()
+    }
+
+    /// Whether something keeps the rows current by itself: the system's watcher or a polling
+    /// provider. A folder that is not watched changes only when it is read again (D150).
+    pub fn is_watched(&self) -> bool {
+        self.provider.capabilities().watch
+    }
+
+    /// Reads the folder again when the owner's rule says so (A83, D150): `only_unwatched` leaves a
+    /// watched folder alone (it is already current), and `min_age` leaves rows read more recently
+    /// than that. A listing that is still scanning or has failed is left too: the scan is a read in
+    /// itself, and a failed listing is opened again by whoever shows it. Returns whether it read.
+    pub fn refresh(&self, only_unwatched: bool, min_age: Duration) -> Result<bool, VfsError> {
+        if only_unwatched && self.is_watched() {
+            return Ok(false);
+        }
+        if self.read().phase != ListingPhase::Ready || self.age() < min_age {
+            return Ok(false);
+        }
+        self.rescan().map(|_| true)
     }
 
     /// The bounded background pass for symlinks the scan left unresolved: resolves them in batches,

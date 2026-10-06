@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "set_sort",
     "set_filter",
     "close_listing",
+    "refresh_listing",
     "get_home",
     "parse_location",
     "parse_location_text",

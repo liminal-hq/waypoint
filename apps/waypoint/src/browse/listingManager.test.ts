@@ -6,7 +6,7 @@
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeVfsClient, fileLocation, syntheticEntries } from '../services/fakeVfsClient';
-import { ListingManager } from './listingManager';
+import { ListingManager, STALE_AFTER_MS } from './listingManager';
 
 const A = fileLocation('/a');
 const B = fileLocation('/b');
@@ -379,6 +379,81 @@ describe('ListingManager', () => {
 			manager.sync([tab(1)], new Set([1]));
 			expect(manager.retain(1)).toBeNull();
 			expect(manager.retain(9)).toBeNull();
+		});
+	});
+
+	describe('folders nothing watches (D150)', () => {
+		const SERVER = { display: 'nas', uri: 'sftp://me@nas.lan/home' };
+		const names = (manager: ListingManager, tabId: number) => {
+			const state = manager.stateFor(tabId);
+			return state?.status === 'ready' ? state.session.model.count : -1;
+		};
+
+		async function shown() {
+			vi.useFakeTimers({ toFake: ['Date'] });
+			const { client, manager } = setup();
+			client.setFolder(SERVER, syntheticEntries(5));
+			client.markUnwatched(SERVER);
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([1]));
+			await settle();
+			return { client, manager };
+		}
+
+		it('are not changed by what happens on the server until they are read again', async () => {
+			const { client, manager } = await shown();
+			client.setFolder(SERVER, syntheticEntries(7));
+			expect(names(manager, 1)).toBe(5);
+			manager.refreshNow();
+			await settle();
+			expect(names(manager, 1)).toBe(7);
+		});
+
+		it('are read again when their tab is shown after more than ten seconds, and not before', async () => {
+			const { client, manager } = await shown();
+			client.setFolder(SERVER, syntheticEntries(7));
+			// Another tab is shown, and this one comes back at once: nothing is read.
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([2]));
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([1]));
+			await settle();
+			expect(client.refreshed).toEqual([]);
+			expect(names(manager, 1)).toBe(5);
+			// Away for more than ten seconds.
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([2]));
+			vi.setSystemTime(Date.now() + STALE_AFTER_MS + 1);
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([1]));
+			await settle();
+			expect(client.refreshed.length).toBe(1);
+			expect(names(manager, 1)).toBe(7);
+		});
+
+		it('are read again when the window is focused once they are old, and a watched folder is left alone', async () => {
+			const { client, manager } = await shown();
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([1, 2]));
+			await settle();
+			// Focused a moment after the folders were read: nothing is old enough.
+			manager.refreshShown();
+			await settle();
+			expect(client.refreshed).toEqual([]);
+			client.setFolder(SERVER, syntheticEntries(9));
+			client.setFolder(B, syntheticEntries(6));
+			vi.setSystemTime(Date.now() + STALE_AFTER_MS + 1);
+			manager.refreshShown();
+			await settle();
+			// Only the server's listing was read: the watched one is already current.
+			expect(client.refreshed.length).toBe(1);
+			expect(names(manager, 1)).toBe(9);
+		});
+
+		it('are read again after a job wrote, on screen or not', async () => {
+			const { client, manager } = await shown();
+			manager.sync([tab(1, SERVER), tab(2, B)], new Set([1, 2]));
+			await settle();
+			client.setFolder(SERVER, syntheticEntries(8));
+			manager.refreshAfterWrite();
+			await settle();
+			expect(names(manager, 1)).toBe(8);
+			// B is watched, so only the server's listing was read.
+			expect(client.refreshed.length).toBe(1);
 		});
 	});
 });

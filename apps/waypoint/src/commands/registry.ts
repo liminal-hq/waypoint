@@ -116,6 +116,7 @@ export type CommandId =
 	| 'viewList'
 	| 'viewGrid'
 	| 'resetFolderView'
+	| 'refresh'
 	| 'showHidden'
 	| 'sidebar'
 	| 'actionBar'
@@ -637,6 +638,15 @@ export const COMMANDS: readonly CommandDef[] = [
 		when: () => SHOWN,
 		checked: (f) => f.viewMode === 'grid',
 		run: (a) => a.setViewMode('grid'),
+	},
+	{
+		id: 'refresh',
+		label: 'cmd.refresh',
+		shortcut: 'Ctrl+R',
+		icon: RestoreIcon,
+		group: 'view',
+		when: () => SHOWN,
+		run: (a) => a.refresh(),
 	},
 	{
 		id: 'resetFolderView',

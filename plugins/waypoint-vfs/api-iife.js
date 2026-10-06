@@ -45,6 +45,13 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     function closeListing(handle) {
         return cmd('close_listing', { handle });
     }
+    /**
+     * Reads a folder again and patches the listing, as the listing's own events report. Resolves with
+     * whether the folder was read.
+     */
+    function refreshListing(handle, options) {
+        return cmd('refresh_listing', { handle, options });
+    }
     /** The folder a window opens at first. */
     function getHome() {
         return cmd('get_home');
@@ -324,6 +331,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     exports.parseLocationText = parseLocationText;
     exports.previewUrl = previewUrl;
     exports.readTextHead = readTextHead;
+    exports.refreshListing = refreshListing;
     exports.removeConnection = removeConnection;
     exports.removeFavourite = removeFavourite;
     exports.renameFavourite = renameFavourite;

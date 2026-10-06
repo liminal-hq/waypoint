@@ -8,6 +8,7 @@ permissions = [
   "allow-set-sort",
   "allow-set-filter",
   "allow-close-listing",
+  "allow-refresh-listing",
   "allow-get-home",
   "allow-parse-location",
   "allow-parse-location-text",

@@ -461,8 +461,17 @@ pub struct ListingSnapshot {
     #[serde(default)]
     pub rewritable: bool,
     pub layout: ListingLayout,
+    /// Something keeps the rows current by itself. A folder that is not watched (a server's) is
+    /// read again when it is shown, on a refresh and after Waypoint writes into it (D150), and the
+    /// status bar says so.
+    #[serde(default = "watched_by_default")]
+    pub watched: bool,
     /// The groups of the view in order, covering every row; empty when the sort does not group.
     pub groups: Vec<GroupRun>,
+}
+
+fn watched_by_default() -> bool {
+    true
 }
 
 /// One edit to the current view, in view positions.

@@ -104,6 +104,22 @@ export function closeListing(handle: ListingHandle): Promise<void> {
 	return cmd<void>('close_listing', { handle });
 }
 
+/** What `refreshListing` leaves alone. */
+export interface RefreshOptions {
+	/** A watched folder, which is already current. */
+	onlyUnwatched?: boolean;
+	/** Rows read less than this many milliseconds ago. */
+	minAgeMs?: number;
+}
+
+/**
+ * Reads a folder again and patches the listing, as the listing's own events report. Resolves with
+ * whether the folder was read.
+ */
+export function refreshListing(handle: ListingHandle, options?: RefreshOptions): Promise<boolean> {
+	return cmd<boolean>('refresh_listing', { handle, options });
+}
+
 /** The folder a window opens at first. */
 export function getHome(): Promise<Location> {
 	return cmd<Location>('get_home');

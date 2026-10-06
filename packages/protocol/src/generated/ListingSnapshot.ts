@@ -31,6 +31,12 @@ readOnly: boolean,
  */
 rewritable: boolean, layout: ListingLayout, 
 /**
+ * Something keeps the rows current by itself. A folder that is not watched (a server's) is
+ * read again when it is shown, on a refresh and after Waypoint writes into it (D150), and the
+ * status bar says so.
+ */
+watched: boolean, 
+/**
  * The groups of the view in order, covering every row; empty when the sort does not group.
  */
 groups: Array<GroupRun>, };

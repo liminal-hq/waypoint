@@ -21,6 +21,14 @@ import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/Volume
 
 export type Unsubscribe = () => void;
 
+/** What `refreshListing` leaves alone. */
+export interface RefreshOptions {
+	/** A watched folder, which is already current. */
+	onlyUnwatched?: boolean;
+	/** Rows read less than this many milliseconds ago. */
+	minAgeMs?: number;
+}
+
 export interface OpenOptions {
 	sort?: SortSpec;
 	filter?: Filter;
@@ -43,6 +51,12 @@ export interface VfsClient {
 	setSort(handle: ListingHandle, sort: SortSpec): Promise<ListingSnapshot>;
 	/** Changes what the listing hides and returns its new state. Cached pages are stale. */
 	setFilter(handle: ListingHandle, filter: Filter): Promise<ListingSnapshot>;
+	/**
+	 * Reads the folder again and patches the listing as its own events report, keeping the
+	 * selection and the scroll position (D150). Resolves with whether the folder was read: a rule
+	 * that does not apply (a watched folder, rows read a moment ago) reads nothing.
+	 */
+	refreshListing(handle: ListingHandle, options?: RefreshOptions): Promise<boolean>;
 	/** Closes a listing and releases its memory. Closing an unknown handle is not an error. */
 	closeListing(handle: ListingHandle): Promise<void>;
 	/**

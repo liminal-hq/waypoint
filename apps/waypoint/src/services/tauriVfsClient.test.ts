@@ -40,6 +40,7 @@ const snapshot: ListingSnapshot = {
 	filter: { showHidden: false },
 	readOnly: false,
 	rewritable: false,
+	watched: true,
 	layout: 'folder',
 	groups: [],
 };

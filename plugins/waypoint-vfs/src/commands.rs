@@ -507,6 +507,49 @@ pub async fn set_filter<R: Runtime>(
     blocking(move || listing.set_filter(filter)).await
 }
 
+/// What a window asks of `refresh_listing`.
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefreshOptions {
+    /// Leave a watched folder alone (it is already current): the rule for showing a tab and for
+    /// focusing a window. A refresh the person asked for reads it anyway.
+    #[serde(default)]
+    pub only_unwatched: bool,
+    /// Leave rows read more recently than this many milliseconds ago.
+    #[serde(default)]
+    pub min_age_ms: u64,
+}
+
+/// Reads a folder again and patches the open listing to match (A83, D150): a server's folder
+/// cannot report its changes, so a window asks for this when the folder is shown, on a refresh and
+/// after Waypoint writes into it. Replies whether the folder was read; the patch arrives as the
+/// listing's own events, so the selection and scroll position stay. A listing that is still
+/// scanning is not read twice.
+#[tauri::command]
+pub async fn refresh_listing<R: Runtime>(
+    window: Window<R>,
+    state: State<'_, Vfs>,
+    handle: ListingHandle,
+    options: Option<RefreshOptions>,
+) -> Result<bool, Error> {
+    let listing = listing_of(&window, &state, handle)?;
+    let options = options.unwrap_or_default();
+    let manager = state.connections().map(|hub| hub.manager().clone());
+    let key = listing.provider().connection_key(listing.path());
+    let outcome = blocking(move || {
+        let outcome = listing.refresh(
+            options.only_unwatched,
+            std::time::Duration::from_millis(options.min_age_ms),
+        );
+        if let (Some(manager), Some(key)) = (manager, key) {
+            manager.observe(&key, outcome.as_ref().map(|_| ()));
+        }
+        outcome
+    })
+    .await?;
+    Ok(outcome?)
+}
+
 /// Closes a listing, cancelling a scan in flight and stopping its watcher. An unknown handle is
 /// not an error.
 #[tauri::command]

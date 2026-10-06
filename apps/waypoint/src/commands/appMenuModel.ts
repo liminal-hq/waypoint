@@ -190,6 +190,7 @@ export function appMenuItems(
 		rows('viewList', 'viewGrid'),
 		rows('resetFolderView'),
 		rows(
+			'refresh',
 			'showHidden',
 			'sidebar',
 			'toggleShelf',

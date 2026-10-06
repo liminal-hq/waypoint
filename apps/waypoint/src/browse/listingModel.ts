@@ -16,7 +16,12 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { PatchOp } from '@liminal-hq/waypoint-protocol/generated/PatchOp';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
-import { isVfsError, type OpenOptions, type VfsClient } from '../services/vfsClient';
+import {
+	isVfsError,
+	type OpenOptions,
+	type RefreshOptions,
+	type VfsClient,
+} from '../services/vfsClient';
 
 /** Rows per fetch. The spike measured a page of this size at a few milliseconds over the IPC. */
 export const PAGE_SIZE = 256;
@@ -70,6 +75,8 @@ export class ListingModel {
 	/** The provider writes nothing here but a change is made by rewriting the file that holds it: an archive that can be written (D170). */
 	readonly rewritable: boolean;
 	readonly layout: ListingLayout;
+	/** Something keeps the rows current by itself; a folder that is not watched is read again by `refresh` (D150). */
+	readonly watched: boolean;
 
 	private entries = new Map<number, Entry>();
 	private stale = new Set<number>();
@@ -98,6 +105,21 @@ export class ListingModel {
 		this.readOnly = snapshot.readOnly;
 		this.rewritable = snapshot.rewritable === true;
 		this.layout = snapshot.layout;
+		this.watched = snapshot.watched !== false;
+	}
+
+	/**
+	 * Reads the folder again, keeping the selection and the scroll position: the patch arrives as
+	 * the listing's own events. Resolves with whether the folder was read. A refresh that fails
+	 * leaves the rows as they are and says nothing here: the listing reports a failure itself.
+	 */
+	async refresh(options?: RefreshOptions): Promise<boolean> {
+		if (this.disposed) return false;
+		try {
+			return await this.client.refreshListing(this.handle, options);
+		} catch {
+			return false;
+		}
 	}
 
 	/** Whether nothing can be dropped, pasted, created or renamed here: read only, and not an archive that can be rewritten. */
