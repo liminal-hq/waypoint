@@ -31,6 +31,22 @@
     "message": "Waypoint — Shelf",
     "description": "Area: window."
   },
+  "window.settings.osTitle": {
+    "message": "Settings",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it."
+  },
+  "window.properties.osTitle": {
+    "message": "Properties",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it."
+  },
+  "window.ops.osTitle": {
+    "message": "Operations",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it."
+  },
+  "window.shelf.osTitle": {
+    "message": "Shelf",
+    "description": "Area: window. The window’s name alone, with no product name: the app switcher and the task bar show it."
+  },
   "window.shelf.dropHint": {
     "message": "Drop to add to the Shelf",
     "description": "Area: window."

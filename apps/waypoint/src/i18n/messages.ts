@@ -28,6 +28,14 @@ export const enMessages = {
 	'window.properties.title': 'Waypoint — Properties',
 	'window.ops.title': 'Waypoint — Operations',
 	'window.shelf.title': 'Waypoint — Shelf',
+	// translator: The window’s name alone, with no product name: the app switcher and the task bar show it.
+	'window.settings.osTitle': 'Settings',
+	// translator: The window’s name alone, with no product name: the app switcher and the task bar show it.
+	'window.properties.osTitle': 'Properties',
+	// translator: The window’s name alone, with no product name: the app switcher and the task bar show it.
+	'window.ops.osTitle': 'Operations',
+	// translator: The window’s name alone, with no product name: the app switcher and the task bar show it.
+	'window.shelf.osTitle': 'Shelf',
 	'window.shelf.dropHint': 'Drop to add to the Shelf',
 	'window.shelf.startFailed': 'Waypoint could not start the Shelf window.',
 	'window.tearGhost.title': 'Waypoint — Tab preview',

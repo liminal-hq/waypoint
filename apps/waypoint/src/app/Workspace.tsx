@@ -69,6 +69,7 @@ import { TabStrip } from '../tabs/TabStrip';
 import { activePair, visibleTabs } from '../tabs/pairLayout';
 import { tabDomId, TAB_PANEL_ID } from '../tabs/tabIds';
 import { useTabsApi, useTabsSnapshot } from '../tabs/TabsContext';
+import { ActiveTabWindowTitle } from './ActiveTabWindowTitle';
 import { onNotice } from '../tabs/notices';
 import { usePairShortcuts } from '../tabs/usePairShortcuts';
 import { useTabShortcuts } from '../tabs/useTabShortcuts';
@@ -182,6 +183,7 @@ export function Workspace({
 					{/* A tab drag's state is shared by the strip and the file area, so it starts here. */}
 					<TabDragProvider tearOff={tearoff ? makeTearOff : undefined}>
 						<MergeLandingContext.Provider value={landing}>
+							<ActiveTabWindowTitle />
 							<TearOffCard store={card} />
 							<CloseGuardHost>
 								<WorkspaceBody

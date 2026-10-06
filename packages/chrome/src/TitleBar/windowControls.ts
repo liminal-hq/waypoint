@@ -19,6 +19,8 @@ export interface WindowControls {
 	close(): MaybePromise<void>;
 	/** Begins an OS-driven window move. Enables the "Move" entry of the window menu when present. */
 	startDragging?(): MaybePromise<void>;
+	/** Sets the title the window manager shows for the window (the app switcher, the task bar), apart from any title the page draws. */
+	setTitle?(title: string): MaybePromise<void>;
 	setAlwaysOnTop(value: boolean): MaybePromise<void>;
 	/** Initial Always on Top state. Assumed false when omitted. */
 	isAlwaysOnTop?(): MaybePromise<boolean>;

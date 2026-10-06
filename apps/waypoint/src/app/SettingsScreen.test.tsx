@@ -220,6 +220,7 @@ describe('SettingsScreen', () => {
 			'Experimental',
 		]);
 		expect(screen.getAllByText('Waypoint — Settings').length).toBeGreaterThan(0);
+		expect(document.title).toBe('Settings');
 		expect(screen.queryByText(/coming soon/i)).toBeNull();
 		expect(screen.getByRole('heading', { level: 2, name: 'General' })).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: /save/i })).toBeNull();

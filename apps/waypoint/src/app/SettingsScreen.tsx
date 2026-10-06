@@ -44,6 +44,7 @@ import {
 } from '../settings/ServerPreviews';
 import { settingsSections, type SectionId } from '../settings/settingsSections';
 import { AppTitleBar } from './AppTitleBar';
+import { useWindowTitle } from './useWindowTitle';
 import { NoticeToast } from './NoticeToast';
 import styles from './SettingsScreen.module.css';
 
@@ -202,6 +203,7 @@ export function SettingsScreen({
 	const [own] = useState(() => client ?? createTauriSettingsClient());
 	// The title bar and the pages render their messages themselves, so a new language needs a render.
 	useLocaleVersion();
+	useWindowTitle(t('window.settings.osTitle'));
 	return (
 		<WindowFrame className={styles.screen}>
 			<AppTitleBar title={t('window.settings.title')} />

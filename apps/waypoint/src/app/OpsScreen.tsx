@@ -19,6 +19,7 @@ import { createTauriTimeFormatClient } from '../services/tauriTimeFormatClient';
 import type { TimeFormatClient } from '../services/timeFormatClient';
 import { announce, useAnnouncement } from '../tabs/announcer';
 import { AppTitleBar } from './AppTitleBar';
+import { useWindowTitle } from './useWindowTitle';
 import { NoticeToast } from './NoticeToast';
 import styles from './OpsScreen.module.css';
 
@@ -37,6 +38,7 @@ interface OpsScreenProps {
 export function OpsScreen({ client, timeFormat }: OpsScreenProps) {
 	const [own] = useState(() => client ?? createTauriOpsClient());
 	const [clock] = useState(() => timeFormat ?? createTauriTimeFormatClient());
+	useWindowTitle(t('window.ops.osTitle'));
 	const announcement = useAnnouncement();
 	const onHandle = useCallback((handle: OpsHandle) => startOpsAnnouncer(handle, { announce }), []);
 	return (

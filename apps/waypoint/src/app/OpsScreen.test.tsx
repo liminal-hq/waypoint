@@ -48,6 +48,7 @@ describe('OpsScreen', () => {
 		const list = await screen.findByRole('list', { name: 'Jobs' });
 		expect(within(list).getAllByRole('listitem')).toHaveLength(1);
 		expect(screen.getAllByText('Waypoint — Operations').length).toBeGreaterThan(0);
+		expect(document.title).toBe('Operations');
 		expect(screen.queryByRole('button', { name: 'Pop out' })).toBeNull();
 		expect(screen.queryByRole('button', { name: /Show in folder/ })).toBeNull();
 		expect(screen.getByRole('button', { name: 'Dismiss: Copying a' })).toBeInTheDocument();

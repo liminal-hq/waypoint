@@ -136,6 +136,11 @@ export function useWindowControls(): WindowControls {
 	return useRequiredChrome().controls;
 }
 
+/** The host window adapter, or `undefined` outside a `WindowChromeProvider`, for a part that can run without one. */
+export function useOptionalWindowControls(): WindowControls | undefined {
+	return useContext(WindowChromeContext)?.controls;
+}
+
 /** Whether the window is maximised. Throws outside a `WindowChromeProvider`. */
 export function useWindowMaximised(): boolean {
 	return useRequiredChrome().maximised;

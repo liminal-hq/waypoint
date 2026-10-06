@@ -50,7 +50,7 @@ pub fn open<R: Runtime>(
         None => "index.html".to_owned(),
     };
     let window = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App(url.into()))
-        .title("Waypoint — Settings")
+        .title("Settings")
         .inner_size(SIZE.0, SIZE.1)
         .min_inner_size(MIN_SIZE.0, MIN_SIZE.1)
         .resizable(true)
