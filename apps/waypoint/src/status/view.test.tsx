@@ -119,6 +119,7 @@ describe('the empty-space menu', () => {
 		await option('beta');
 		fireEvent.contextMenu(emptySpace());
 		const menu = await screen.findByRole('menu', { name: 'Folder actions' });
+		fireEvent.click(within(menu).getByRole('menuitem', { name: 'Sort by' }));
 		const checked = (name: string) =>
 			within(menu).getByRole('menuitemcheckbox', { name: new RegExp(`^${name}`) });
 		expect(checked('Name')).toHaveAttribute('aria-checked', 'true');
@@ -133,9 +134,11 @@ describe('the empty-space menu', () => {
 		await option('alpha');
 		expect(names().map((n) => n?.replace(/\.txt.*/, ''))).toEqual(['alpha', 'beta', 'gamma']);
 		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Sort by' }));
 		fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: /^Size/ }));
 		await waitFor(() => expect(names()[0]).toMatch(/^gamma/));
 		fireEvent.contextMenu(emptySpace());
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Sort by' }));
 		fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: /^Descending/ }));
 		await waitFor(() => expect(names()[0]).toMatch(/^alpha/));
 	});

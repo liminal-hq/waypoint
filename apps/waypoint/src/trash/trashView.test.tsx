@@ -428,6 +428,8 @@ describe('the menus in the Trash', () => {
 			clientY: 10,
 		});
 		const menu = await screen.findByRole('menu');
+		expect(within(menu).queryByRole('menuitem', { name: 'Group by' })).toBeNull();
+		fireEvent.click(within(menu).getByRole('menuitem', { name: 'Sort by' }));
 		const labels = [...menu.querySelectorAll('[role^="menuitem"]')].map((i) => i.textContent);
 		expect(labels).toContain('Date deleted');
 		expect(labels).toContain('Empty Trash');

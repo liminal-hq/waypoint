@@ -1,4 +1,4 @@
-// The empty-space menu's Group by section: a checked list of what the listing is divided by, with No grouping first
+// The empty-space menu's Group by submenu: a checked list of what the listing is divided by, with No grouping first
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,6 +9,7 @@ import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec'
 import type { ReactNode } from 'react';
 import {
 	ClockIcon,
+	GroupIcon,
 	NewFileIcon,
 	SizeIcon,
 	TagIcon,
@@ -39,14 +40,16 @@ const GROUPS: Array<{ by: GroupBy; label: MessageId; icon: ReactNode }> = [
 const PREFIX = 'group:';
 
 /**
- * Group by, as a section of its own: a heading and checked items (the one in use is checked), ending
- * in a separator. The short labels repeat the Sort by ones, so each carries a full name for a
- * screen reader ("Group by Name").
+ * Group by, as a submenu of checked items (the one in use is checked). The short labels repeat the
+ * Sort by ones, so each carries a full name for a screen reader ("Group by Name").
  */
-export function groupByItems(sort: SortSpec): MenuItem[] {
-	return [
-		{ type: 'section', label: t('menu.groupBy') },
-		...GROUPS.map(({ by, label, icon }): MenuItem => ({
+export function groupBySubmenu(sort: SortSpec): MenuItem {
+	return {
+		type: 'submenu',
+		id: 'groupBy',
+		label: t('menu.groupBy'),
+		icon: <GroupIcon />,
+		items: GROUPS.map(({ by, label, icon }): MenuItem => ({
 			type: 'checkbox',
 			id: `${PREFIX}${by}`,
 			label: t(label),
@@ -54,8 +57,7 @@ export function groupByItems(sort: SortSpec): MenuItem[] {
 			icon,
 			checked: sort.groupBy === by,
 		})),
-		{ type: 'separator' },
-	];
+	};
 }
 
 /** The grouping a menu item chose, or `null` for an item that is not one of these. */

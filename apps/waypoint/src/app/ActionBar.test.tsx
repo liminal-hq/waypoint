@@ -219,6 +219,15 @@ describe('the menu buttons', () => {
 		});
 	});
 
+	it('lists Sort as one flat menu, not as Sort by and Group by submenus', async () => {
+		const { button } = setup({});
+		await userEvent.click(button('sort'));
+		const menu = screen.getByRole('menu');
+		expect(within(menu).queryAllByRole('menuitem')).toHaveLength(0);
+		expect(menu.querySelector('[aria-haspopup]')).toBeNull();
+		expect(within(menu).getAllByRole('menuitemcheckbox')).toHaveLength(12);
+	});
+
 	it('opens a menu button with the Down arrow and focuses its first row', async () => {
 		const { button } = setup({});
 		button('new').focus();

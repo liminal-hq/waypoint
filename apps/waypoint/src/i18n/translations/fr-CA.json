@@ -6066,7 +6066,7 @@
   },
   "menu.sortBy": {
     "message": "Trier par",
-    "description": "Area: menu. A menu heading; the sort keys (Name, Size, Modified, Kind) are listed under it, so it must read naturally before each.",
+    "description": "Area: menu. A submenu in the folder menu; the sort keys (Name, Size, Modified, Kind) are listed in it, so it must read naturally before each.",
     "source": "c9129025"
   },
   "menu.sort.name": {
@@ -6101,7 +6101,7 @@
   },
   "menu.groupBy": {
     "message": "Regrouper par",
-    "description": "Area: menu. A menu heading; the grouping keys (Kind, Modified, Size, Name, Type) are listed under it, so it must read naturally before each.",
+    "description": "Area: menu. A submenu in the folder menu; the grouping keys (Kind, Modified, Size, Name, Type) are listed in it, so it must read naturally before each.",
     "source": "956a51f6"
   },
   "menu.group.none": {

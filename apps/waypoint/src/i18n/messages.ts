@@ -1420,7 +1420,7 @@ export const enMessages = {
 	'menu.moveDown': 'Move Down',
 
 	'menu.background.label': 'Folder actions',
-	// translator: A menu heading; the sort keys (Name, Size, Modified, Kind) are listed under it, so it must read naturally before each.
+	// translator: A submenu in the folder menu; the sort keys (Name, Size, Modified, Kind) are listed in it, so it must read naturally before each.
 	'menu.sortBy': 'Sort by',
 	'menu.sort.name': 'Name',
 	'menu.sort.size': 'Size',
@@ -1428,7 +1428,7 @@ export const enMessages = {
 	'menu.sort.kind': 'Kind',
 	'menu.sort.descending': 'Descending',
 	'menu.sort.foldersFirst': 'Folders first',
-	// translator: A menu heading; the grouping keys (Kind, Modified, Size, Name, Type) are listed under it, so it must read naturally before each.
+	// translator: A submenu in the folder menu; the grouping keys (Kind, Modified, Size, Name, Type) are listed in it, so it must read naturally before each.
 	'menu.groupBy': 'Group by',
 	'menu.group.none': 'No grouping',
 	// translator: Group the list by what sort of thing each entry is (Folder, Image, Document). Use the same word as the Kind column.

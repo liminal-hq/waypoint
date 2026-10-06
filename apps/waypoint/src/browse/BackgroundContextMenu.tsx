@@ -22,6 +22,7 @@ import {
 	RedoIcon,
 	RestoreIcon,
 	SizeIcon,
+	SortIcon,
 	TagIcon,
 	TextIcon,
 	TrashIcon,
@@ -29,7 +30,7 @@ import {
 } from '../icons/MenuIcons';
 import { t, tf, type MessageId } from '../i18n/messages';
 import type { CommandState, FileCommandId } from '../ops/fileCommands';
-import { groupByItems, groupFromMenuId } from './groupMenu';
+import { groupBySubmenu, groupFromMenuId } from './groupMenu';
 import type { ListingSession } from './useListingSession';
 
 const SORT_KEYS: Array<{ key: SortKey; label: MessageId; icon: ReactNode }> = [
@@ -170,9 +171,10 @@ export interface BackgroundExtras {
 }
 
 /**
- * The empty-space menu's items: the file commands, sort (when a listing is open) and the
- * hidden-files toggle. In the Trash (read only, so no commands) the sort keys are Name, Size and
- * Date deleted, there is no hidden-files toggle (nothing is hidden), and Empty Trash comes last.
+ * The empty-space menu's items: the file commands, the Sort by and Group by submenus (when a
+ * listing is open) and the hidden-files toggle. In the Trash (read only, so no commands) the sort
+ * keys are Name, Size and Date deleted, there is no Group by and no hidden-files toggle (nothing
+ * is hidden), and Empty Trash comes last.
  */
 export function backgroundMenuItems(
 	sort: SortSpec | undefined,
@@ -186,32 +188,39 @@ export function backgroundMenuItems(
 		...(commands && !trash ? commandItems(commands) : []),
 		...(sort
 			? ([
-					{ type: 'section', label: t('menu.sortBy') },
-					...keys.map(({ key, label, icon }): MenuItem => ({
-						type: 'checkbox',
-						id: `sort:${key}`,
-						label: t(label),
-						icon,
-						checked: sort.key === key,
-					})),
-					{ type: 'separator' },
 					{
-						type: 'checkbox',
-						id: 'descending',
-						label: t('menu.sort.descending'),
-						icon: <ArrowDownIcon />,
-						checked: sort.descending,
+						type: 'submenu',
+						id: 'sortBy',
+						label: t('menu.sortBy'),
+						icon: <SortIcon />,
+						items: [
+							...keys.map(({ key, label, icon }): MenuItem => ({
+								type: 'checkbox',
+								id: `sort:${key}`,
+								label: t(label),
+								icon,
+								checked: sort.key === key,
+							})),
+							{ type: 'separator' },
+							{
+								type: 'checkbox',
+								id: 'descending',
+								label: t('menu.sort.descending'),
+								icon: <ArrowDownIcon />,
+								checked: sort.descending,
+							},
+							{
+								type: 'checkbox',
+								id: 'foldersFirst',
+								label: t('menu.sort.foldersFirst'),
+								icon: <FolderTabIcon />,
+								checked: sort.directoriesFirst,
+							},
+						],
 					},
-					{
-						type: 'checkbox',
-						id: 'foldersFirst',
-						label: t('menu.sort.foldersFirst'),
-						icon: <FolderTabIcon />,
-						checked: sort.directoriesFirst,
-					},
-					{ type: 'separator' },
 					// Grouping has no meaning in the Trash, whose items keep their own columns.
-					...(trash ? [] : groupByItems(sort)),
+					...(trash ? [] : [groupBySubmenu(sort)]),
+					{ type: 'separator' },
 				] as MenuItem[])
 			: []),
 	];
