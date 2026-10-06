@@ -218,6 +218,7 @@ impl Listing {
             sort: state.index.sort(),
             filter: state.index.filter(),
             read_only: self.provider.read_only(),
+            rewritable: self.provider.rewritable(&self.path),
             layout: self.provider.layout(),
             groups: state.index.groups(),
         }

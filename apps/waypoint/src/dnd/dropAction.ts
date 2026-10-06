@@ -80,15 +80,26 @@ export function chooseDropAction(input: DropActionInput): DropChoice {
 	}
 }
 
-/** What the picker offers, in order: Copy, Move where the sources can be moved, Link where they can be linked. */
+/** What the picker can do: the verbs of a plain drop, and the two that make or open an archive (D170). */
+export type PickerVerb = Exclude<DropVerb, 'ask'> | 'compress' | 'extract';
+
+/**
+ * What the picker offers, in order: Copy (Add to Archive in an archive), Move where the sources can
+ * be moved, Link where they can be linked, Compress Here where an archive can be made, and Extract
+ * Here where every source is an archive and can be extracted.
+ */
 export function pickerVerbs(options: {
 	canMove: boolean;
 	canLink: boolean;
-}): Array<Exclude<DropVerb, 'ask'>> {
+	canCompress?: boolean;
+	canExtract?: boolean;
+}): PickerVerb[] {
 	return [
 		'copy',
 		...(options.canMove ? (['move'] as const) : []),
 		...(options.canLink ? (['link'] as const) : []),
+		...(options.canCompress ? (['compress'] as const) : []),
+		...(options.canExtract ? (['extract'] as const) : []),
 	];
 }
 

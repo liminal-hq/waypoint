@@ -1433,6 +1433,12 @@ const messages: Catalogue = {
 	'dnd.picker.move': 'Déplacer ici',
 	// source: 1541ac7d
 	'dnd.picker.link': 'Créer un lien ici',
+	// source: c5a7679b
+	'dnd.picker.add': 'Ajouter à l’archive',
+	// source: c95b4c2a
+	'dnd.picker.compress': 'Compresser ici…',
+	// source: f0064f1d
+	'dnd.picker.extract': 'Extraire ici',
 	// source: 19766ed6
 	'dnd.picker.cancel': 'Annuler',
 	// source: e21f935f
@@ -2702,8 +2708,34 @@ const messages: Catalogue = {
 	'files.delete.size': 'Taille totale : {size}',
 	// source: 0fcb5ed7
 	'files.delete.list.label': 'Éléments à supprimer',
+	// source: 726d6087
+	'files.paste.intoArchive':
+		'Les éléments sont ajoutés à une archive, et non déplacés dedans : les originaux restent où ils sont.',
 	// source: 48c015ad
 	'files.delete.action': 'Supprimer définitivement',
+	// source: 491ac3fa
+	'archive.rewrite.delete.title': 'Supprimer de l’archive?',
+	// source: 6b5a1a01
+	'archive.rewrite.delete.message':
+		'Supprimer {what} de {archive}? Cela réécrit toute l’archive ({size}). L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+	// source: e2d0a549
+	'archive.rewrite.delete.action': 'Supprimer',
+	// source: 52d64331
+	'archive.rewrite.rename.title': 'Renommer dans l’archive?',
+	// source: 4b8a9c78
+	'archive.rewrite.rename.message':
+		'Renommer {name} en {newName}? Cela réécrit toute l’archive {archive} ({size}). L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+	// source: 3064d79a
+	'archive.rewrite.rename.action': 'Renommer',
+	// source: 50519c99
+	'archive.rewrite.rename.declined': 'Le changement de nom n’a pas été confirmé.',
+	// source: 117d55fc
+	'archive.rewrite.limit.title': 'Modifier une très grande archive?',
+	// source: 885da2e7
+	'archive.rewrite.limit.message':
+		'{name} dépasse les limites prévues pour les archives ({reason}). La modifier la réécrit en entier, ce qui peut être long et remplir le disque.',
+	// source: 0e8aba0c
+	'archive.rewrite.limit.action': 'Modifier quand même',
 	// source: c6dd4fe8
 	'files.copied.one': '{count} élément copié',
 	// source: 6a1597b6
@@ -3786,6 +3818,23 @@ const messages: Catalogue = {
 	'ops.error.connection': 'Un serveur est injoignable ou demande une connexion.',
 	// source: afa7bb0a
 	'ops.error.archiveLimit': '{name} dépasse les limites prévues pour les archives',
+	// source: db126aa9
+	'ops.error.archiveNotWritable.readOnlyFormat':
+		'{name} est une archive {format}, qui peut être lue mais pas modifiée',
+	// source: 2105f548
+	'ops.error.archiveNotWritable.encrypted': '{name} est chiffrée : elle ne peut pas être modifiée',
+	// source: 7b93f9d3
+	'ops.error.archiveNotWritable.nested':
+		'{name} est dans une autre archive : elle ne peut pas être modifiée',
+	// source: dd54b6cb
+	'ops.error.archiveNotWritable.unsafeNames':
+		'{name} contient des noms qui ont été modifiés pour être affichés en toute sécurité : la modifier les renommerait',
+	// source: 84b9503f
+	'ops.error.archiveNotWritable.noAtomicReplace':
+		'À l’endroit où se trouve {name}, un fichier ne peut pas être remplacé en une seule étape : l’archive ne peut pas être modifiée',
+	// source: 0538569d
+	'ops.error.archiveNotWritable.containerReadOnly':
+		'Il n’est pas possible d’écrire à l’endroit où se trouve {name} : l’archive ne peut pas être modifiée',
 	// source: 45da8fd3
 	'ops.error.undoStale.missing': '{name} n’est plus à son emplacement',
 	// source: e71102d4
@@ -5292,6 +5341,13 @@ const messages: Catalogue = {
 	'compress.cancel': 'Annuler',
 	// source: 66f4804e
 	'compress.default': 'Archive',
+	// source: bc70f3aa
+	'compress.exists.title': 'Ajouter à l’archive existante?',
+	// source: 1d58840c
+	'compress.exists.message':
+		'{archive} existe déjà ici. Y ajouter {what}? Cela réécrit toute l’archive ({size}), qui garde son propre format. L’archive précédente va dans la Corbeille, et l’annulation la rétablit.',
+	// source: 8e3facb4
+	'compress.exists.action': 'Ajouter à l’archive',
 	// source: b839bf5a
 	'compress.error.empty': 'Donnez un nom à l’archive.',
 	// source: 6889e47e

@@ -157,6 +157,25 @@ pub struct PlanPreview {
     /// The servers the job would read from and write to, so a drop can say it uploads or
     /// downloads (A84).
     pub ends: TransferEnds,
+    /// The archive file the job would rewrite, when it changes an archive (D170), so the
+    /// confirmation can say which file and how large it is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub archive: Option<ArchivePreview>,
+}
+
+/// An archive file that a job would rewrite.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct ArchivePreview {
+    pub container: Location,
+    /// The file's size now.
+    #[ts(type = "number")]
+    pub size: u64,
+    /// The entries it holds.
+    #[ts(type = "number")]
+    pub entries: u64,
 }
 
 /// Why a command failed. Serialised as `{ kind, message }`, with `error` holding the engine's typed

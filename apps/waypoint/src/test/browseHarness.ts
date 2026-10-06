@@ -89,6 +89,7 @@ export function hugeClient(count: number): VfsClient {
 		sort: { key: 'name', descending: false, directoriesFirst: true, groupBy: 'none' },
 		filter: { showHidden: false },
 		readOnly: false,
+		rewritable: false,
 		layout: 'folder',
 		groups: [],
 	};

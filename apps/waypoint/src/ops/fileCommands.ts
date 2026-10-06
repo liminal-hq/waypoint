@@ -38,6 +38,7 @@ import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError'
 import { normaliseUri, pastedUris, pasteRefusal, pasteRequest } from './clipboardRules';
 import type { ClipboardService } from './clipboardService';
 import { pickDestination, type DestinationOptions } from './destinationStore';
+import { prepareRewrite, rewriteConfirm } from './archiveRewrite';
 import { errorText } from './jobText';
 import { createArchiveCommands } from './archiveCommands';
 import type { CompressChoice, CompressOptions } from './compressStore';
@@ -124,26 +125,31 @@ export function commandStates(context: CommandContext): Record<FileCommandId, Co
 	const selected = context.selected > 0;
 	const paired = context.paired === true;
 	const otherWrites = context.otherPaneWritable === true;
+	// Inside an archive that can be written, entries are added, made, renamed and deleted (each
+	// rewrites the file, D170); what would move or copy them within it, or out of it by cutting, is
+	// not offered.
+	const inside = context.inArchive === true;
+	const outside = writes && !inside;
 	return {
 		newFolder: state(writes, true),
 		newFile: state(writes, true),
 		rename: state(writes, context.focused),
-		duplicate: state(writes, context.selected > 0),
+		duplicate: state(outside, context.selected > 0),
 		moveToTrash: state(writes, context.selected > 0),
 		deletePermanently: state(writes, context.selected > 0),
-		cut: state(writes, selected),
+		cut: state(outside, selected),
 		copy: state(reads, selected),
 		paste: state(writes, (context.clipboardItems ?? 0) > 0),
 		pasteInto: state(writes, (context.clipboardItems ?? 0) > 0),
 		copyTo: state(reads, selected),
-		moveTo: state(writes, selected),
+		moveTo: state(outside, selected),
 		copyToOtherPane: state(reads && paired, selected && otherWrites),
-		moveToOtherPane: state(writes && paired, selected && otherWrites),
+		moveToOtherPane: state(outside && paired, selected && otherWrites),
 		// Extract Here writes beside the archive; Extract To… only reads it; Extract All is for the archive the pane is in.
-		extractHere: state(writes && context.archive === true, selected),
+		extractHere: state(outside && context.archive === true, selected),
 		extractTo: state(reads && context.archive === true, selected),
 		extractAll: state(reads && context.inArchive === true, true),
-		compress: state(writes, selected),
+		compress: state(outside, selected),
 		undo: state(context.queue, context.undo !== null),
 		redo: state(context.queue, context.redo !== null),
 	};
@@ -444,10 +450,10 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			trash: session?.model.layout === 'trash',
 			clipboardItems: deps.clipboard?.store.getState().clipboard.items.length ?? 0,
 			paired: other !== null,
-			otherPaneWritable: other !== null && !other.model.readOnly,
+			otherPaneWritable: other !== null && !other.model.blocksWrites,
 			queue: true,
 			listing: session !== null,
-			readOnly: session?.model.readOnly ?? false,
+			readOnly: session?.model.blocksWrites ?? false,
 			selected: session && state ? selectedCount(state.selection, session.model.count) : 0,
 			focused: session !== null && focusedEntry(session) !== undefined,
 			archive: session !== null && archiveFocused(session),
@@ -463,7 +469,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 	const writable = (session?: ListingSession | null): ListingSession | null => {
 		const found = target(session);
 		if (!found) return null;
-		if (found.model.readOnly) {
+		if (found.model.blocksWrites) {
 			say(t('files.readOnly'));
 			return null;
 		}
@@ -554,6 +560,23 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		reportFailure(job);
 	};
 
+	/**
+	 * Deletes the selection from an archive, which rewrites it: planned first (a refusal is said, a
+	 * very large archive is confirmed), then confirmed with the archive's name and size. The old
+	 * archive goes to the Trash, so Undo brings it back (D170).
+	 */
+	const deleteFromArchive = async (found: ListingSession) => {
+		const { model, store } = found;
+		const selection = await freezeSelection(model, store.getState().selection);
+		const count = selectedCount(selection, model.count);
+		const names = await firstSelectedNames(model, selection, NAMES_SHOWN).catch(() => []);
+		const request = selectionRequest('delete', model.handle, selection, windowLabel);
+		const prepared = await prepareRewrite({ ops, confirm: deps.confirm, say }, request, (preview) =>
+			rewriteConfirm(preview, { kind: 'delete', names, count }),
+		);
+		if (prepared) reportFailure(await run(prepared));
+	};
+
 	/** The session with something selected to read, or `null` after saying why not. Reading is allowed in a read-only listing. */
 	const withReadableSelection = (session?: ListingSession | null): ListingSession | null => {
 		const found = target(session);
@@ -593,7 +616,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			return;
 		}
 		// Files another application copied since are adopted first, so Ctrl+V pastes what was last copied anywhere.
-		const board = await clipboard.forPaste().catch(() => clipboard.store.getState().clipboard);
+		let board = await clipboard.forPaste().catch(() => clipboard.store.getState().clipboard);
 		if (board.items.length === 0) {
 			say(t('files.paste.nothing'));
 			return;
@@ -606,6 +629,11 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 				say(tf('files.failed', { reason: commandErrorText(error) }));
 				return;
 			}
+		}
+		// Nothing is moved into an archive: the items are added, and the originals stay (D170).
+		if (board.mode === 'cut' && isArchiveLocation(destination)) {
+			board = { ...board, mode: 'copy' };
+			say(t('files.paste.intoArchive'));
 		}
 		const refusal = pasteRefusal(board.mode, board.items, destination);
 		if (refusal) {
@@ -679,7 +707,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
 		if (!found) return;
 		const other = deps.otherPane?.(found) ?? null;
-		if (!other || other.model.readOnly) return transferViaDialog(kind, found);
+		if (!other || other.model.blocksWrites) return transferViaDialog(kind, found);
 		await transfer(kind, found, other.model.location);
 	};
 
@@ -720,11 +748,19 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 
 		async renameEntry(session, entry, name) {
 			const request = renameRequest(session.model.handle, entry.id, name, windowLabel);
+			let preview;
 			try {
 				// Planning first finds a clash or a bad name without leaving a failed job in the queue.
-				await ops.client.plan(request);
+				preview = await ops.client.plan(request);
 			} catch (error) {
 				return { ok: false, message: renameFailureText(error, name) };
+			}
+			// A rename inside an archive rewrites it: say so, and how large it is, before it runs.
+			if (preview.archive) {
+				const ok = await deps.confirm(
+					rewriteConfirm(preview, { kind: 'rename', name: entry.name, newName: name }),
+				);
+				if (!ok) return { ok: false, message: t('archive.rewrite.rename.declined') };
 			}
 			let id: JobId;
 			try {
@@ -777,6 +813,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		async moveToTrash(session) {
 			const found = withSelection(session);
 			if (!found) return;
+			if (isArchiveLocation(found.model.location)) return deleteFromArchive(found);
 			const { model, store } = found;
 			// What is confirmed is what is sent: a file that arrives while the dialog is open is not part of it.
 			const selection = await freezeSelection(model, store.getState().selection);
@@ -813,6 +850,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		async deletePermanently(session) {
 			const found = withSelection(session);
 			if (!found) return;
+			if (isArchiveLocation(found.model.location)) return deleteFromArchive(found);
 			// Always asked, whatever the settings say (D104); nothing here can be undone.
 			const selection = await freezeSelection(found.model, found.store.getState().selection);
 			if (await confirmDelete(found, selection, { title: t('files.delete.title') })) {

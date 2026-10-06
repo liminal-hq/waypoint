@@ -9,6 +9,7 @@ import { formatSize } from '../browse/format';
 import { connectionErrorText } from '../connections/connectModel';
 import { t, tf, tn, type MessageId, type PluralId } from '../i18n/messages';
 import type { JobPriority, Location, Schedule } from '../services/opsClient';
+import { archiveRefusalText } from './archiveRefusal';
 import { isFinished, jobFraction, type JobWithProgress } from './opsSelectors';
 
 /** The kinds this area words itself; the others show the title Rust made. */
@@ -114,6 +115,8 @@ export function errorText(error: OpsError): string {
 		case 'cannotReplace':
 		case 'archiveLimit':
 			return tf(key, { name: baseName(error.location.display) });
+		case 'archiveNotWritable':
+			return archiveRefusalText(error.location, error.reason);
 		case 'undoStale':
 			return tf(`ops.error.undoStale.${error.reason}` as MessageId, {
 				name: baseName(error.location.display),

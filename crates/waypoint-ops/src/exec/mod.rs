@@ -10,6 +10,7 @@
 // whole; a failure or a cancel removes what it made. A permanent delete cannot be atomic across a
 // tree, so it removes children before their folder and a failure leaves a smaller valid tree.
 
+mod archive_edit;
 mod batch;
 mod compress;
 mod copy;
@@ -188,6 +189,9 @@ impl Executor {
         sink: &mut dyn ExecSink,
         options: RunOptions,
     ) -> Result<ExecReport, Box<ExecFailure>> {
+        if plan.archive_edit.is_some() {
+            return archive_edit::run(&self.env, job, plan, cancel, sink, options);
+        }
         if matches!(plan.kind, JobKind::Copy | JobKind::Move | JobKind::Link) {
             return copy_job::run(&self.env, job, plan, cancel, sink, options);
         }

@@ -287,3 +287,54 @@ fn a_very_long_tar_name_is_written() {
     builder.finish(false).unwrap();
     assert_eq!(read(&*provider(), &at(&top(&path), &long)), b"hi");
 }
+
+#[test]
+fn an_archive_says_whether_it_can_be_rewritten_and_in_what_format() {
+    use waypoint_vfs::{ArchiveCatalog, ArchiveRefusal, CancelToken, Writability};
+    let dir = scratch();
+    let p = provider();
+    for kind in ArchiveKind::ALL {
+        let path = dir.path().join(format!("w{}", kind.extension()));
+        write_sample(kind, &path);
+        let found = p.writability(&top(&path), &CancelToken::new()).unwrap();
+        assert_eq!(found, Writability::Writable(kind), "{kind:?}");
+        assert!(p.rewritable(&top(&path)), "{kind:?}");
+    }
+    // A name that had to be made safe is a reason: a rewrite would store the safe name.
+    let evil = RawZip::new()
+        .file("../escape.txt", b"x")
+        .write(&dir.path().join("evil.zip"));
+    assert_eq!(
+        p.writability(&top(&evil), &CancelToken::new()).unwrap(),
+        Writability::Refused(ArchiveRefusal::UnsafeNames)
+    );
+    assert!(!p.rewritable(&top(&evil)));
+}
+
+#[test]
+fn a_view_of_an_archive_hears_that_the_file_was_rewritten() {
+    use std::sync::mpsc;
+    use waypoint_vfs::WatchEvent;
+    let dir = scratch();
+    let path = dir.path().join("watched.zip");
+    RawZip::new().file("a.txt", b"one").write(&path);
+    let p = provider();
+    let (sender, receiver) = mpsc::channel();
+    let sender = std::sync::Mutex::new(sender);
+    let _watch = p
+        .watch(
+            &top(&path),
+            std::sync::Arc::new(move |event| {
+                let _ = sender.lock().unwrap().send(event);
+            }),
+        )
+        .unwrap();
+    RawZip::new()
+        .file("a.txt", b"one")
+        .file("b.txt", b"two, and longer")
+        .write(&path);
+    let event = receiver
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("a rewrite is noticed");
+    assert!(matches!(event, WatchEvent::Rescan(_)), "{event:?}");
+}

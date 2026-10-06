@@ -111,6 +111,17 @@ describe('the picker', () => {
 		expect(pickerVerbs({ canMove: true, canLink: false })).toEqual(['copy', 'move']);
 		expect(pickerVerbs({ canMove: false, canLink: false })).toEqual(['copy']);
 	});
+
+	it('adds Compress Here where an archive can be made, and Extract Here for archives (D170)', () => {
+		expect(pickerVerbs({ canMove: true, canLink: false, canCompress: true })).toEqual([
+			'copy',
+			'move',
+			'compress',
+		]);
+		expect(
+			pickerVerbs({ canMove: false, canLink: false, canCompress: true, canExtract: true }),
+		).toEqual(['copy', 'compress', 'extract']);
+	});
 });
 
 describe('modifiersOf', () => {

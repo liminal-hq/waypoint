@@ -145,7 +145,7 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 				const state = now().manager.stateFor(tab);
 				return {
 					location: found.location,
-					readOnly: state?.status === 'ready' ? state.session.model.readOnly : false,
+					readOnly: state?.status === 'ready' ? state.session.model.blocksWrites : false,
 				};
 			},
 			tabLocation: (tab) => tabOf(tab)?.location ?? null,
@@ -164,6 +164,16 @@ export function FileDragProvider({ manager, nativeDnd, children }: FileDragProvi
 				const job = await now().commands?.transferLocations(kind, items, destination);
 				// A move took the files out of where the Shelf points: the ones that left have no entry to keep.
 				if (kind === 'move' && job?.state.state === 'done') await now().shelf?.afterMove(items);
+			},
+			archive: async (kind, source, destination) => {
+				const commands = now().commands;
+				const queue = now().ops;
+				if (!commands || !queue) return;
+				const locations = isLocationsSource(source)
+					? source.locations
+					: await queue.handle.client.resolveSelection(source.handle, source.spec);
+				if (kind === 'compress') await commands.compressDropped(locations, destination);
+				else await commands.extractDropped(locations, destination);
 			},
 			addToShelf: async (source) => {
 				if (isLocationsSource(source)) await now().shelf?.add(source.locations);

@@ -11,6 +11,7 @@ import { createFileCommands, type ConfirmSpec, type FileCommands } from '../ops/
 import { createOpsStore, type OpsHandle } from '../ops/opsStore';
 import { createFakeOpsClient, type FakeOpsClient } from '../services/fakeOpsClient';
 import { FakeVfsClient, makeEntry } from '../services/fakeVfsClient';
+import type { Location } from '../services/opsClient';
 import { FOLDER } from './browseHarness';
 
 export interface CommandsHarness {
@@ -35,19 +36,28 @@ export const NAMES = ['alpha.txt', 'beta.jpg', 'gamma'];
 
 /** A folder of `entries` (three by default: two files and a folder) opened as a listing, with commands over a fake queue. */
 export async function commandsHarness(
-	options: { entries?: Entry[]; readOnly?: boolean } = {},
+	options: {
+		entries?: Entry[];
+		readOnly?: boolean;
+		/** The folder to open; an archive's folder to test the changes inside one. */
+		folder?: Location;
+		/** The folder is read only as a folder but its changes rewrite its file (an archive that can be written). */
+		rewritable?: boolean;
+	} = {},
 ): Promise<CommandsHarness> {
 	const vfs = new FakeVfsClient();
+	const folder = options.folder ?? FOLDER;
 	vfs.setFolder(
-		FOLDER,
+		folder,
 		options.entries ?? [
 			makeEntry(1, 'alpha.txt'),
 			makeEntry(2, 'beta.jpg'),
 			makeEntry(3, 'gamma', { kind: 'directory' }),
 		],
 	);
-	if (options.readOnly) vfs.setReadOnly(FOLDER);
-	const session = createListingSession(await openListingModel(vfs, FOLDER));
+	if (options.readOnly || options.rewritable) vfs.setReadOnly(folder);
+	if (options.rewritable) vfs.setRewritable(folder);
+	const session = createListingSession(await openListingModel(vfs, folder));
 	const fake = createFakeOpsClient();
 	const ops = createOpsStore(fake);
 	await ops.ready;

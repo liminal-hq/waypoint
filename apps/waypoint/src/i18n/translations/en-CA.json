@@ -2543,6 +2543,18 @@
     "message": "Link Here",
     "description": "Area: dnd."
   },
+  "dnd.picker.add": {
+    "message": "Add to Archive",
+    "description": "Area: dnd."
+  },
+  "dnd.picker.compress": {
+    "message": "Compress Here…",
+    "description": "Area: dnd."
+  },
+  "dnd.picker.extract": {
+    "message": "Extract Here",
+    "description": "Area: dnd."
+  },
   "dnd.picker.cancel": {
     "message": "Cancel",
     "description": "Area: dnd."
@@ -4915,9 +4927,53 @@
     "message": "Items to delete",
     "description": "Area: files."
   },
+  "files.paste.intoArchive": {
+    "message": "Items are added to an archive, not moved into it, so the originals stay where they are.",
+    "description": "Area: files."
+  },
   "files.delete.action": {
     "message": "Delete Permanently",
     "description": "Area: files."
+  },
+  "archive.rewrite.delete.title": {
+    "message": "Delete from the archive?",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.delete.message": {
+    "message": "Delete {what} from {archive}? This rewrites the whole archive ({size}). The previous archive goes to the Trash, and Undo brings it back.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {what} is what is being dragged, such as “3 items”."
+  },
+  "archive.rewrite.delete.action": {
+    "message": "Delete",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.rename.title": {
+    "message": "Rename in the archive?",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.rename.message": {
+    "message": "Rename {name} to {newName}? This rewrites the whole archive {archive} ({size}). The previous archive goes to the Trash, and Undo brings it back.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {name} is the name of a file, folder, tab or other item; {newName}; {size} is a file or disk size with its unit."
+  },
+  "archive.rewrite.rename.action": {
+    "message": "Rename",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.rename.declined": {
+    "message": "The rename was not confirmed.",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.limit.title": {
+    "message": "Change a very large archive?",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.limit.message": {
+    "message": "{name} is larger than the archive limits allow ({reason}). Changing it rewrites all of it, which could take a long time and fill the disk.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words."
+  },
+  "archive.rewrite.limit.action": {
+    "message": "Change anyway",
+    "description": "Area: archive."
   },
   "files.copied.one": {
     "message": "Copied {count} item",
@@ -6817,6 +6873,30 @@
   },
   "ops.error.archiveLimit": {
     "message": "{name} is larger than the archive limits allow",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.archiveNotWritable.readOnlyFormat": {
+    "message": "{name} is a {format} archive, which can be read but not changed",
+    "description": "Area: ops. Placeholders, kept exactly as written: {format}; {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.archiveNotWritable.encrypted": {
+    "message": "{name} is encrypted, so it cannot be changed",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.archiveNotWritable.nested": {
+    "message": "{name} is inside another archive, so it cannot be changed",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.archiveNotWritable.unsafeNames": {
+    "message": "{name} holds names that were changed to be shown safely, so changing it would rename them",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.archiveNotWritable.noAtomicReplace": {
+    "message": "Where {name} is kept, a file cannot be replaced in one step, so it cannot be changed",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.error.archiveNotWritable.containerReadOnly": {
+    "message": "Where {name} is kept cannot be written to, so it cannot be changed",
     "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
   },
   "ops.error.undoStale.missing": {
@@ -9597,6 +9677,18 @@
   },
   "compress.default": {
     "message": "Archive",
+    "description": "Area: compress."
+  },
+  "compress.exists.title": {
+    "message": "Add to the existing archive?",
+    "description": "Area: compress."
+  },
+  "compress.exists.message": {
+    "message": "{archive} already exists here. Add {what} to it? This rewrites the whole archive ({size}), which keeps its own format. The previous archive goes to the Trash, and Undo brings it back.",
+    "description": "Area: compress. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {what} is what is being dragged, such as “3 items”."
+  },
+  "compress.exists.action": {
+    "message": "Add to archive",
     "description": "Area: compress."
   },
   "compress.error.empty": {

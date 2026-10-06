@@ -740,6 +740,14 @@ impl<R: Runtime> Shared<R> {
             bytes: planned.total_bytes,
             same_volume: planned.same_volume,
             ends: planned.ends.clone(),
+            archive: planned
+                .archive_edit
+                .as_ref()
+                .map(|edit| crate::models::ArchivePreview {
+                    container: edit.container.to_location(),
+                    size: edit.size,
+                    entries: edit.entries.iter().filter(|e| !e.synthetic).count() as u64,
+                }),
             conflicts: planned.conflicts.clone(),
             notes: planned
                 .warnings

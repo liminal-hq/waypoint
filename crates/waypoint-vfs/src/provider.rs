@@ -217,6 +217,14 @@ pub trait Provider: Send + Sync {
         false
     }
 
+    /// Whether the folder at `path` is read only in itself but its changes are made by rewriting the
+    /// file that holds it (an archive, D170), so the view still offers drops, rename and delete.
+    /// Default `false`.
+    fn rewritable(&self, path: &VfsPath) -> bool {
+        let _ = path;
+        false
+    }
+
     /// What the entries of this provider's listings look like. Default: ordinary folders.
     fn layout(&self) -> crate::ListingLayout {
         crate::ListingLayout::Folder

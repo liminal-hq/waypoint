@@ -364,7 +364,7 @@ describe('the action picker', () => {
 			within(menu)
 				.getAllByRole('menuitem')
 				.map((item) => item.textContent),
-		).toEqual(['Copy Here', 'Move Here', 'Link Here', 'Cancel']);
+		).toEqual(['Copy Here', 'Move Here', 'Link Here', 'Compress Here…', 'Cancel']);
 		fireEvent.click(within(menu).getByRole('menuitem', { name: 'Link Here' }));
 		await waitFor(() => expect(submits(ops)).toHaveLength(1));
 		expect(lastSubmit(ops)).toMatchObject({

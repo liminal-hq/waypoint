@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use common::*;
 use journal_support::*;
-use waypoint_protocol::VfsError;
+use waypoint_protocol::{Location, VfsError};
 use waypoint_provider_archive::{ArchiveOptions, ArchiveProvider};
 
 type Jh = JournalHarness<LocalProvider>;
@@ -753,4 +753,552 @@ fn extract_all_style_extraction_takes_a_free_folder_name_when_the_name_is_taken(
     assert_eq!(tree.get("pack/src/a"), Some(&file("1")));
     assert_eq!(tree.get("pack (2)/src/a"), Some(&file("1")));
     assert_eq!(tree.get("pack (3)/src/b"), Some(&file("2")));
+}
+
+// ---- Changing an archive that is open (D170) ----
+
+/// The location of `inner` (`""` for the top) inside the archive file at `archive`.
+fn inside(h: &Jh, archive: &str, inner: &str) -> Location {
+    let mut path = VfsPath::Archive(waypoint_path::ArchivePath::new(h.path(archive)).unwrap());
+    for part in inner.split('/').filter(|p| !p.is_empty()) {
+        path = path.join(part).unwrap();
+    }
+    path.to_location()
+}
+
+fn add_request(h: &Jh, sources: &[&str], archive: &str, inner: &str) -> JobRequest {
+    let mut request = h.request(JobKind::Copy, sources, None, None);
+    request.destination = Some(inside(h, archive, inner));
+    request
+}
+
+fn edit_request(
+    h: &Jh,
+    kind: JobKind,
+    archive: &str,
+    inner: &[&str],
+    name: Option<&str>,
+) -> JobRequest {
+    let mut request = h.request(kind, &[], None, name);
+    request.sources = Sources::Locations {
+        locations: inner.iter().map(|i| inside(h, archive, i)).collect(),
+    };
+    request
+}
+
+/// What an archive holds, as the files `extract` makes of it.
+fn contents(h: &mut Jh, archive: &str) -> Tree {
+    static PEEKS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = PEEKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let out = format!("peek-{n}");
+    jbuild(h, &tree(&[(&format!("{out}/"), "")]));
+    ok(&h.run_journalled(extract(h, &[archive], Some(&out), ExtractLayout::Contents)));
+    jwork(h)
+        .into_iter()
+        .filter_map(|(path, node)| {
+            path.strip_prefix(&format!("{out}/"))
+                .map(|rest| (rest.to_owned(), node))
+        })
+        .collect()
+}
+
+fn small() -> Tree {
+    tree(&[
+        ("src/", ""),
+        ("src/a.txt", "alpha"),
+        ("src/d/", ""),
+        ("src/d/b.txt", "beta"),
+        ("src/empty/", ""),
+        ("extra/", ""),
+        ("extra/new.txt", "fresh"),
+        ("extra/dir/", ""),
+        ("extra/dir/deep.txt", "deeper"),
+    ])
+}
+
+#[test]
+fn files_dropped_into_an_archive_are_added_and_undo_brings_back_the_old_archive() {
+    for format in ArchiveFormat::ALL {
+        let (mut h, _g) = archives();
+        let name = format!("pack{}", format.extension());
+        jbuild(&h, &small());
+        ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+        let before = jwork(&h);
+        let original = contents(&mut h, &name);
+        let after_peek = jwork(&h);
+
+        let added = h.run_journalled(add_request(
+            &h,
+            &["extra/new.txt", "extra/dir"],
+            &name,
+            "src/d",
+        ));
+        ok(&added);
+        let entry = added.entry.expect("a change to an archive is journalled");
+        let tree_now = jwork(&h);
+        assert!(
+            partials(&tree_now).is_empty(),
+            "{format:?}: no partial file is left"
+        );
+        assert_ne!(
+            tree_now.get(&name),
+            before.get(&name),
+            "{format:?}: the archive changed"
+        );
+        let now = contents(&mut h, &name);
+        // Everything that was there still is, and what was added is below `src/d`.
+        for (path, node) in &original {
+            assert_eq!(now.get(path), Some(node), "{format:?}: {path} is untouched");
+        }
+        assert_eq!(now.get("src/d/new.txt"), Some(&file("fresh")), "{format:?}");
+        assert_eq!(
+            now.get("src/d/dir/deep.txt"),
+            Some(&file("deeper")),
+            "{format:?}"
+        );
+
+        // Undo puts the very same archive file back; redo does it again.
+        let _ = after_peek;
+        ok(&h.undo(entry));
+        let undone = jwork(&h);
+        assert_eq!(
+            undone.get(&name),
+            before.get(&name),
+            "{format:?}: the old archive is back"
+        );
+        ok(&h.redo(entry));
+        assert_eq!(
+            contents(&mut h, &name).get("src/d/new.txt"),
+            Some(&file("fresh")),
+            "{format:?}: redo"
+        );
+    }
+}
+
+#[test]
+fn an_entry_is_renamed_in_an_archive_with_everything_below_it() {
+    for format in ArchiveFormat::ALL {
+        let (mut h, _g) = archives();
+        let name = format!("pack{}", format.extension());
+        jbuild(&h, &small());
+        ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+        let before = jwork(&h);
+        let renamed = h.run_journalled(edit_request(
+            &h,
+            JobKind::Rename,
+            &name,
+            &["src/d"],
+            Some("deep"),
+        ));
+        ok(&renamed);
+        let now = contents(&mut h, &name);
+        assert_eq!(now.get("src/deep/b.txt"), Some(&file("beta")), "{format:?}");
+        assert!(!now.contains_key("src/d/b.txt"), "{format:?}");
+        assert_eq!(now.get("src/a.txt"), Some(&file("alpha")), "{format:?}");
+        ok(&h.undo(renamed.entry.expect("journalled")));
+        assert_eq!(jwork(&h).get(&name), before.get(&name), "{format:?}");
+    }
+}
+
+#[test]
+fn a_name_taken_in_the_archive_cannot_be_renamed_to() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    let before = jwork(&h);
+    let run = h.run_journalled(edit_request(
+        &h,
+        JobKind::Rename,
+        "pack.zip",
+        &["src/a.txt"],
+        Some("d"),
+    ));
+    assert!(
+        matches!(failed_with(&run), OpsError::NameInUse { .. }),
+        "{:?}",
+        run.state
+    );
+    assert_eq!(jwork(&h), before);
+}
+
+#[test]
+fn entries_are_deleted_from_an_archive_and_undo_restores_it() {
+    for kind in [JobKind::Delete, JobKind::Trash] {
+        for format in ArchiveFormat::ALL {
+            let (mut h, _g) = archives();
+            let name = format!("pack{}", format.extension());
+            jbuild(&h, &small());
+            ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+            let before = jwork(&h);
+            let run =
+                h.run_journalled(edit_request(&h, kind, &name, &["src/d", "src/a.txt"], None));
+            ok(&run);
+            let now = contents(&mut h, &name);
+            assert!(
+                !now.keys()
+                    .any(|k| k.starts_with("src/d") || k == "src/a.txt"),
+                "{format:?}: {now:?}"
+            );
+            assert!(
+                now.contains_key("src/empty"),
+                "{format:?}: what was not deleted stays"
+            );
+            ok(&h.undo(run.entry.expect("journalled")));
+            assert_eq!(jwork(&h).get(&name), before.get(&name), "{format:?}");
+        }
+    }
+}
+
+#[test]
+fn a_name_taken_inside_the_archive_is_a_conflict_answered_like_a_copy() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    jbuild(&h, &tree(&[("more/", ""), ("more/a.txt", "newer")]));
+    let before = jwork(&h);
+    let request = add_request(&h, &["more/a.txt"], "pack.zip", "src");
+    let asked = h.plan(&request).unwrap();
+    assert_eq!(asked.conflicts.len(), 1);
+    // Nobody said what to do: nothing is overwritten.
+    let refused = h.run_journalled(request.clone());
+    assert!(
+        matches!(refused.state, JobState::Failed { .. }),
+        "{:?}",
+        refused.state
+    );
+    assert_eq!(jwork(&h), before);
+
+    let mut keep = request.clone();
+    keep.options.conflict = Some(ConflictPolicy::KeepBoth);
+    ok(&h.run_journalled(keep));
+    let now = contents(&mut h, "pack.zip");
+    assert_eq!(now.get("src/a.txt"), Some(&file("alpha")));
+    assert_eq!(now.get("src/a (2).txt"), Some(&file("newer")));
+
+    let mut replace = request.clone();
+    replace.options.conflict = Some(ConflictPolicy::Replace);
+    ok(&h.run_journalled(replace));
+    assert_eq!(
+        contents(&mut h, "pack.zip").get("src/a.txt"),
+        Some(&file("newer"))
+    );
+
+    let mut skip = request;
+    skip.options.conflict = Some(ConflictPolicy::Skip);
+    let skipped = h.run_journalled(skip);
+    ok(&skipped);
+    assert_eq!(skipped.entry, None, "nothing was done");
+}
+
+#[test]
+fn a_folder_dropped_on_a_folder_of_the_archive_merges() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    jbuild(&h, &tree(&[("d/", ""), ("d/c.txt", "gamma")]));
+    let mut request = add_request(&h, &["d"], "pack.zip", "src");
+    request.options.conflict = Some(ConflictPolicy::MergeFolders);
+    ok(&h.run_journalled(request));
+    let now = contents(&mut h, "pack.zip");
+    assert_eq!(now.get("src/d/b.txt"), Some(&file("beta")));
+    assert_eq!(now.get("src/d/c.txt"), Some(&file("gamma")));
+}
+
+#[test]
+fn what_cannot_be_rewritten_is_refused_with_its_reason() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    // An entry name that was changed to be safe would be stored under the changed name.
+    put(&h, "evil.zip", &raw_zip(&[("../escape.txt", b"x", 1)]));
+    let run = h.run_journalled(add_request(&h, &["extra/new.txt"], "evil.zip", ""));
+    assert!(
+        matches!(
+            failed_with(&run),
+            OpsError::ArchiveNotWritable {
+                reason: ArchiveWriteRefusal::UnsafeNames,
+                ..
+            }
+        ),
+        "{:?}",
+        run.state
+    );
+    // An archive inside an archive is read only.
+    let inner = raw_zip(&[("note.txt", b"nested", 6)]);
+    put(
+        &h,
+        "outer.zip",
+        &raw_zip(&[("inner.zip", &inner, inner.len() as u32)]),
+    );
+    let outer = waypoint_path::ArchivePath::new(h.path("outer.zip")).unwrap();
+    let file_in = VfsPath::Archive(outer.join("inner.zip").unwrap());
+    let nested = VfsPath::Archive(waypoint_path::ArchivePath::new(file_in).unwrap()).to_location();
+    let mut request = h.request(JobKind::Copy, &["extra/new.txt"], None, None);
+    request.destination = Some(nested);
+    let run = h.run_journalled(request);
+    assert!(
+        matches!(
+            failed_with(&run),
+            OpsError::ArchiveNotWritable {
+                reason: ArchiveWriteRefusal::Nested,
+                ..
+            }
+        ),
+        "{:?}",
+        run.state
+    );
+    // Moving into an archive is not offered: it is a copy.
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    let mut request = add_request(&h, &["extra/new.txt"], "pack.zip", "");
+    request.kind = JobKind::Move;
+    let run = h.run_journalled(request);
+    assert!(
+        matches!(failed_with(&run), OpsError::Unsupported { .. }),
+        "{:?}",
+        run.state
+    );
+}
+
+#[test]
+fn a_cancel_at_any_step_leaves_the_original_archive_alone() {
+    for format in [
+        ArchiveFormat::Zip,
+        ArchiveFormat::TarGz,
+        ArchiveFormat::SevenZ,
+    ] {
+        let name = format!("pack{}", format.extension());
+        let steps = {
+            let (mut h, _g) = archives();
+            jbuild(&h, &small());
+            ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+            h.provider.reset();
+            ok(&h.run_journalled(add_request(&h, &["extra/new.txt"], &name, "")));
+            h.provider.calls()
+        };
+        for step in 1..=steps {
+            let (mut h, _g) = archives();
+            jbuild(&h, &small());
+            ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+            let before = jwork(&h);
+            h.provider.reset();
+            let run = h.run_journalled_hooked(
+                add_request(&h, &["extra/new.txt"], &name, ""),
+                &mut |h, token| h.provider.cancel_at(step, token),
+            );
+            let tree = jwork(&h);
+            assert!(
+                partials(&tree).is_empty(),
+                "{format:?} step {step}: {:?}",
+                partials(&tree)
+            );
+            match run.state {
+                JobState::Done => assert_ne!(tree.get(&name), before.get(&name)),
+                _ => assert_eq!(
+                    tree.get(&name),
+                    before.get(&name),
+                    "{format:?} step {step}: the original is intact"
+                ),
+            }
+        }
+    }
+}
+
+#[test]
+fn a_change_to_an_archive_needs_room_for_the_new_one() {
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    ok(&h.run_journalled(compress(&h, &["src"], "", "pack", ArchiveFormat::Zip)));
+    // Added to itself.
+    let run = h.run_journalled(add_request(&h, &["pack.zip"], "pack.zip", ""));
+    assert!(matches!(run.state, JobState::Failed { .. }));
+}
+
+/// Whether the program is installed; a test that needs it says so and passes without it.
+fn have(program: &str) -> bool {
+    let found = std::process::Command::new(program)
+        .arg(if program == "7z" { "i" } else { "--help" })
+        .output()
+        .is_ok();
+    if !found {
+        eprintln!("skipping: {program} is not installed");
+    }
+    found
+}
+
+fn os_path(h: &Jh, relative: &str) -> String {
+    h.path(relative).display()
+}
+
+fn run_tool(program: &str, args: &[&str], dir: &str) -> String {
+    let out = std::process::Command::new(program)
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .unwrap_or_else(|e| panic!("{program}: {e}"));
+    assert!(
+        out.status.success(),
+        "{program} {args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+#[test]
+fn archives_made_by_the_real_tools_are_changed_and_still_read_by_them() {
+    // zip, tar and 7z each make an archive; Waypoint adds a file, renames one and deletes one; the
+    // same tool lists the result and tests it.
+    let (mut h, _g) = archives();
+    jbuild(&h, &small());
+    let dir = os_path(&h, "");
+    let dir = dir.trim_end_matches(['/', '\\']).to_owned();
+    let mut ran = 0;
+    if have("zip") && have("unzip") {
+        ran += 1;
+        run_tool("zip", &["-qr", "tool.zip", "src"], &dir);
+        h.provider.reset();
+        ok(&h.run_journalled(add_request(&h, &["extra/new.txt"], "tool.zip", "src")));
+        ok(&h.run_journalled(edit_request(
+            &h,
+            JobKind::Rename,
+            "tool.zip",
+            &["src/a.txt"],
+            Some("first.txt"),
+        )));
+        ok(&h.run_journalled(edit_request(
+            &h,
+            JobKind::Delete,
+            "tool.zip",
+            &["src/d"],
+            None,
+        )));
+        run_tool("unzip", &["-tq", "tool.zip"], &dir);
+        let listing = run_tool("unzip", &["-Z1", "tool.zip"], &dir);
+        assert!(
+            listing.contains("src/new.txt") && listing.contains("src/first.txt"),
+            "{listing}"
+        );
+        assert!(
+            !listing.contains("src/d/b.txt") && !listing.contains("src/a.txt"),
+            "{listing}"
+        );
+        let text = run_tool("unzip", &["-p", "tool.zip", "src/new.txt"], &dir);
+        assert_eq!(text, "fresh");
+    }
+    if have("tar") {
+        ran += 1;
+        run_tool("tar", &["czf", "tool.tar.gz", "src"], &dir);
+        h.provider.reset();
+        ok(&h.run_journalled(add_request(&h, &["extra/new.txt"], "tool.tar.gz", "src")));
+        ok(&h.run_journalled(edit_request(
+            &h,
+            JobKind::Rename,
+            "tool.tar.gz",
+            &["src/a.txt"],
+            Some("first.txt"),
+        )));
+        ok(&h.run_journalled(edit_request(
+            &h,
+            JobKind::Delete,
+            "tool.tar.gz",
+            &["src/d"],
+            None,
+        )));
+        let listing = run_tool("tar", &["tzf", "tool.tar.gz"], &dir);
+        assert!(
+            listing.contains("src/new.txt") && listing.contains("src/first.txt"),
+            "{listing}"
+        );
+        assert!(
+            !listing.contains("src/d/b.txt") && !listing.contains("src/a.txt"),
+            "{listing}"
+        );
+        let text = run_tool("tar", &["xzOf", "tool.tar.gz", "src/new.txt"], &dir);
+        assert_eq!(text, "fresh");
+    }
+    if have("7z") {
+        ran += 1;
+        run_tool("7z", &["a", "-bd", "tool.7z", "src"], &dir);
+        h.provider.reset();
+        ok(&h.run_journalled(add_request(&h, &["extra/new.txt"], "tool.7z", "src")));
+        ok(&h.run_journalled(edit_request(
+            &h,
+            JobKind::Rename,
+            "tool.7z",
+            &["src/a.txt"],
+            Some("first.txt"),
+        )));
+        ok(&h.run_journalled(edit_request(
+            &h,
+            JobKind::Delete,
+            "tool.7z",
+            &["src/d"],
+            None,
+        )));
+        run_tool("7z", &["t", "-bd", "tool.7z"], &dir);
+        // 7-Zip lists with the separator of the system it runs on.
+        let listing = run_tool("7z", &["l", "-ba", "tool.7z"], &dir).replace('\\', "/");
+        assert!(
+            listing.contains("src/new.txt") && listing.contains("src/first.txt"),
+            "{listing}"
+        );
+        assert!(
+            !listing.contains("src/d/b.txt") && !listing.contains("src/a.txt"),
+            "{listing}"
+        );
+    }
+    eprintln!("{ran} of 3 real tools were available");
+}
+
+#[test]
+fn a_new_folder_and_a_new_file_are_made_inside_an_archive() {
+    for format in ArchiveFormat::ALL {
+        let (mut h, _g) = archives();
+        let name = format!("pack{}", format.extension());
+        jbuild(&h, &small());
+        ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+        let before = jwork(&h);
+        let mut folder = h.request(JobKind::CreateFolder, &[], None, Some("fresh"));
+        folder.destination = Some(inside(&h, &name, "src/d"));
+        let made = h.run_journalled(folder);
+        ok(&made);
+        let mut file_request = h.request(JobKind::CreateFile, &[], None, Some("empty.txt"));
+        file_request.destination = Some(inside(&h, &name, "src/d/fresh"));
+        ok(&h.run_journalled(file_request));
+        let now = contents(&mut h, &name);
+        assert_eq!(now.get("src/d/fresh"), Some(&Node::Dir), "{format:?}");
+        assert_eq!(
+            now.get("src/d/fresh/empty.txt"),
+            Some(&file("")),
+            "{format:?}"
+        );
+        assert_eq!(now.get("src/d/b.txt"), Some(&file("beta")), "{format:?}");
+        // With no name, or a name that is taken and Keep both, the next free one is used.
+        let mut again = h.request(JobKind::CreateFolder, &[], None, Some("fresh"));
+        again.destination = Some(inside(&h, &name, "src/d"));
+        again.options.conflict = Some(ConflictPolicy::KeepBoth);
+        let last = h.run_journalled(again);
+        ok(&last);
+        assert_eq!(
+            contents(&mut h, &name).get("src/d/fresh (2)"),
+            Some(&Node::Dir)
+        );
+        // Undo brings back the archive as it was before the last change.
+        let kept = jwork(&h);
+        ok(&h.undo(last.entry.expect("journalled")));
+        assert_ne!(jwork(&h).get(&name), kept.get(&name), "{format:?}");
+        assert!(!contents(&mut h, &name).contains_key("src/d/fresh (2)"));
+        let _ = (before, made);
+    }
+}
+
+#[test]
+fn deleting_everything_leaves_an_empty_archive_that_still_opens() {
+    for format in ArchiveFormat::ALL {
+        let (mut h, _g) = archives();
+        let name = format!("pack{}", format.extension());
+        jbuild(&h, &small());
+        ok(&h.run_journalled(compress(&h, &["src"], "", "pack", format)));
+        let run = h.run_journalled(edit_request(&h, JobKind::Delete, &name, &["src"], None));
+        ok(&run);
+        assert!(contents(&mut h, &name).is_empty(), "{format:?}");
+    }
 }

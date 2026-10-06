@@ -256,6 +256,12 @@ pub enum ArchiveSpec {
     Compress {
         format: ArchiveFormat,
     },
+    /// Adds to an open archive, renames in it or deletes from it (D170): the request's kind
+    /// (copy, rename, delete) says which, and the archive is rewritten. `allow_large` answers an
+    /// `OpsError::ArchiveLimit`, as it does for an extraction.
+    Edit {
+        allow_large: bool,
+    },
 }
 
 /// How far a job has got.
@@ -436,6 +442,12 @@ pub enum OpsError {
         location: Location,
         limit: ArchiveLimit,
     },
+    /// An archive cannot be rewritten to change what it holds, and why (D170).
+    #[error("{} cannot be changed: {reason:?}", .location.display)]
+    ArchiveNotWritable {
+        location: Location,
+        reason: ArchiveWriteRefusal,
+    },
     /// A server could not be reached, asked for a login or a trust decision, or dropped the
     /// connection (A80). One kind, so Skip all covers every connection failure; Retry reconnects.
     #[error("connection problem: {error:?}")]
@@ -451,6 +463,43 @@ pub enum OpsError {
     },
     #[error("{message}")]
     Io { message: String },
+}
+
+/// Why an archive is not rewritten (D170).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ArchiveWriteRefusal {
+    /// The format is read but cannot be written (`format` is its short name, `tar.zst`).
+    ReadOnlyFormat { format: String },
+    /// It is encrypted.
+    Encrypted,
+    /// It is inside another archive.
+    Nested,
+    /// Some entry names were changed to be safe when it was read, so a rewrite would change them.
+    UnsafeNames,
+    /// The place the archive file is kept cannot replace a file in one step.
+    NoAtomicReplace,
+    /// The place the archive file is kept cannot be written to.
+    ContainerReadOnly,
+}
+
+impl From<waypoint_vfs::ArchiveRefusal> for ArchiveWriteRefusal {
+    fn from(refusal: waypoint_vfs::ArchiveRefusal) -> Self {
+        use waypoint_vfs::ArchiveRefusal as R;
+        match refusal {
+            R::ReadOnlyFormat { format } => Self::ReadOnlyFormat { format },
+            R::Encrypted => Self::Encrypted,
+            R::Nested => Self::Nested,
+            R::UnsafeNames => Self::UnsafeNames,
+            R::NoAtomicReplace => Self::NoAtomicReplace,
+            R::ContainerReadOnly => Self::ContainerReadOnly,
+        }
+    }
 }
 
 /// Which limit an archive went past, and by how much.

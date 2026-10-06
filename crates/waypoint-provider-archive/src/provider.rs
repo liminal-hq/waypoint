@@ -10,9 +10,9 @@ use std::sync::{Arc, Mutex, Weak};
 use waypoint_path::{CaseRule, VfsPath};
 use waypoint_protocol::{Location, VfsError};
 use waypoint_vfs::{
-    group_for_scan, ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind, ArchiveWriters,
-    CancelToken, Capabilities, EntryKind, PermissionModel, Permissions, Provider, ReadStream,
-    ScannedEntry, Secret, WriteStream,
+    group_for_scan, ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind, ArchiveRefusal,
+    ArchiveWriters, CancelToken, Capabilities, EntryKind, PermissionModel, Permissions, Provider,
+    ReadStream, RenameSupport, ScannedEntry, Secret, Writability, WriteStream,
 };
 
 use crate::compress::{decoder, CancelReader};
@@ -668,11 +668,38 @@ impl Provider for ArchiveProvider {
         let mut caps = Capabilities::new(CaseRule::Sensitive);
         caps.permissions = PermissionModel::Unix;
         caps.symlinks = true;
+        // The archive file is looked at now and then, so a view reads it again once an edit (or another
+        // program) has rewritten it.
+        caps.watch = true;
         caps
     }
 
     fn read_only(&self) -> bool {
         true
+    }
+
+    fn watch(
+        &self,
+        path: &VfsPath,
+        sink: waypoint_vfs::WatchSink,
+    ) -> Result<Box<dyn waypoint_vfs::Watch>, VfsError> {
+        let VfsPath::Archive(top) = path else {
+            return Err(VfsError::Unsupported {
+                what: path.scheme().to_owned(),
+            });
+        };
+        let container = top.container().clone();
+        let holder = self.provider_of(&container)?;
+        Ok(Box::new(crate::watch::FileWatch::start(
+            holder, container, sink,
+        )?))
+    }
+
+    fn rewritable(&self, path: &VfsPath) -> bool {
+        matches!(
+            self.writability(path, &CancelToken::new()),
+            Ok(Writability::Writable(_))
+        )
     }
 
     fn stat(&self, path: &VfsPath) -> Result<ScannedEntry, VfsError> {
@@ -806,6 +833,51 @@ impl Provider for ArchiveProvider {
 }
 
 impl ArchiveCatalog for ArchiveProvider {
+    fn writability(
+        &self,
+        archive: &VfsPath,
+        cancel: &CancelToken,
+    ) -> Result<Writability, VfsError> {
+        let VfsPath::Archive(top) = archive else {
+            return Err(VfsError::Unsupported {
+                what: archive.scheme().to_owned(),
+            });
+        };
+        let container = top.container();
+        if matches!(container, VfsPath::Archive(_)) {
+            return Ok(Writability::Refused(ArchiveRefusal::Nested));
+        }
+        let holder = self.provider_of(container)?;
+        let caps = holder.capabilities();
+        if !caps.write || holder.read_only() {
+            return Ok(Writability::Refused(ArchiveRefusal::ContainerReadOnly));
+        }
+        if caps.rename == RenameSupport::None {
+            return Ok(Writability::Refused(ArchiveRefusal::NoAtomicReplace));
+        }
+        let (index, _) = self.index(container, cancel, &mut |_| {})?;
+        let kind = match index.format {
+            ArchiveFormat::Zip => ArchiveKind::Zip,
+            ArchiveFormat::SevenZ => ArchiveKind::SevenZ,
+            ArchiveFormat::Tar(TarCompression::None) => ArchiveKind::Tar,
+            ArchiveFormat::Tar(TarCompression::Gzip) => ArchiveKind::TarGz,
+            ArchiveFormat::Tar(TarCompression::Bzip2) => ArchiveKind::TarBz2,
+            ArchiveFormat::Tar(TarCompression::Xz) => ArchiveKind::TarXz,
+            format @ ArchiveFormat::Tar(TarCompression::Zstd) => {
+                return Ok(Writability::Refused(ArchiveRefusal::ReadOnlyFormat {
+                    format: format.label().to_owned(),
+                }))
+            }
+        };
+        if index.header_encrypted || index.encrypted_entries > 0 {
+            return Ok(Writability::Refused(ArchiveRefusal::Encrypted));
+        }
+        if index.unsafe_names > 0 {
+            return Ok(Writability::Refused(ArchiveRefusal::UnsafeNames));
+        }
+        Ok(Writability::Writable(kind))
+    }
+
     fn archive_entries(
         &self,
         archive: &VfsPath,
