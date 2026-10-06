@@ -39,6 +39,44 @@ pub enum LeftOut {
     Special,
 }
 
+impl From<LeftOut> for crate::model::LeftOutWhy {
+    fn from(reason: LeftOut) -> Self {
+        use waypoint_vfs::UnsafeName;
+        match reason {
+            LeftOut::Name(UnsafeName::Absolute) => Self::Absolute,
+            LeftOut::Name(UnsafeName::Traversal) => Self::Traversal,
+            LeftOut::Name(UnsafeName::ControlCharacters) => Self::ControlCharacters,
+            LeftOut::Name(UnsafeName::ThroughLink) => Self::ThroughLink,
+            LeftOut::LinkOutside => Self::LinkOutside,
+            LeftOut::Special => Self::Special,
+        }
+    }
+}
+
+/// What the archive provider shows a stored `..` as, so that it browses (the name is kept for
+/// display by `left_out_name`).
+const SHOWN_DOT_DOT: &[u8] = b"%2E%2E";
+
+/// A left-out entry's place inside its archive, written for reading: its components joined with
+/// `/`, a `..` shown as `..` (the provider keeps it as `%2E%2E` only so the entry browses).
+pub(crate) fn left_out_name(location: &waypoint_protocol::Location) -> String {
+    match VfsPath::from_location(location) {
+        Ok(VfsPath::Archive(path)) => path
+            .inner()
+            .iter()
+            .map(|part| {
+                if part.as_slice() == SHOWN_DOT_DOT {
+                    "..".to_owned()
+                } else {
+                    String::from_utf8_lossy(part).into_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("/"),
+        _ => location.display.clone(),
+    }
+}
+
 /// An archive's file name without its archive extension, for the folder it is extracted into.
 pub(crate) fn folder_name(archive: &VfsPath) -> String {
     let name = file_name_of(archive)

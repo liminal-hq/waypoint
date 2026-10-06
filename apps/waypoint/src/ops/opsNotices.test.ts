@@ -316,10 +316,12 @@ describe('a transfer a lost connection stopped', () => {
 		shown[1]?.extras?.more?.[0]?.run();
 		await vi.waitFor(() => expect(asked).toHaveLength(1));
 		expect(asked[0]).toMatchObject({
-			title: 'Discard “Copying b”?',
+			// The label is a phrase of its own and is not quoted again.
+			title: 'Discard the interrupted transfer?',
 			items: ['sftp://nas/up/b', 'sftp://nas/up/c'],
 			danger: true,
 		});
+		expect(asked[0]?.message).toMatch(/^Transfer: Copying b\. /);
 		expect(asked[0]?.message).toMatch(/these 2 files is removed from the server/);
 		expect(fake.calls.some(([name]) => name === 'discardInterrupted')).toBe(false);
 		answer = true;

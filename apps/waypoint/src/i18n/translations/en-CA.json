@@ -4880,20 +4880,64 @@
     "description": "Area: files."
   },
   "files.extract.limit.message": {
-    "message": "{name} is larger than the archive limits allow ({reason}). Extracting it could fill the disk.",
+    "message": "{name} is larger than the archive limits allow. {reason} Extracting it could fill the disk.",
     "description": "Area: files. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words."
   },
   "files.extract.limit.action": {
     "message": "Extract anyway",
     "description": "Area: files."
   },
-  "files.extract.leftOut.one": {
-    "message": "{count} entry of the archive was left out: its name or link was unsafe.",
-    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.other."
+  "ops.leftOut.one": {
+    "message": "{count} entry left out",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.leftOut.other."
   },
-  "files.extract.leftOut.other": {
-    "message": "{count} entries of the archive were left out: their names or links were unsafe.",
-    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.one."
+  "ops.leftOut.other": {
+    "message": "{count} entries left out",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.leftOut.one."
+  },
+  "ops.leftOut.sentence.one": {
+    "message": "{count} entry of the archive was left out: {names}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {names}. Plural: one of a group; the other forms are ops.leftOut.sentence.other."
+  },
+  "ops.leftOut.sentence.other": {
+    "message": "{count} entries of the archive were left out: {names}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {names}. Plural: one of a group; the other forms are ops.leftOut.sentence.one."
+  },
+  "ops.leftOut.more": {
+    "message": "{count} more",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it)."
+  },
+  "ops.leftOut.details": {
+    "message": "Entries left out",
+    "description": "Area: ops."
+  },
+  "ops.leftOut.line": {
+    "message": "{name} ({why})",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {why}."
+  },
+  "ops.leftOut.why.absolute": {
+    "message": "its stored name started at the root",
+    "description": "Area: ops."
+  },
+  "ops.leftOut.why.traversal": {
+    "message": "its stored name climbed out of the folder with “..”",
+    "description": "Area: ops."
+  },
+  "ops.leftOut.why.controlCharacters": {
+    "message": "its name held a control character",
+    "description": "Area: ops."
+  },
+  "ops.leftOut.why.throughLink": {
+    "message": "it was stored below a link",
+    "description": "Area: ops."
+  },
+  "ops.leftOut.why.linkOutside": {
+    "message": "it is a link that points outside the archive",
+    "description": "Area: ops."
+  },
+  "ops.leftOut.why.special": {
+    "message": "it is a device or another special file",
+    "description": "Area: ops."
   },
   "files.extract.unlockFailed": {
     "message": "The archive’s password could not be given: {reason}",
@@ -4995,13 +5039,37 @@
     "message": "Delete Permanently",
     "description": "Area: files."
   },
+  "archive.rewrite.undo.trash": {
+    "message": "The previous archive goes to the Trash, and Undo brings it back.",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.undo.remote": {
+    "message": "This archive is not on this computer, so it has no Trash: the previous archive is replaced for good, and Undo is not available.",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.undo.unavailable": {
+    "message": "The Trash is not available ({reason}), so the previous archive is replaced for good, and Undo is not available.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
+  "archive.rewrite.forGood.title": {
+    "message": "Replace the archive for good?",
+    "description": "Area: archive."
+  },
+  "archive.rewrite.forGood.message": {
+    "message": "This rewrites the whole archive {archive} ({size}). {undo}",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {undo}."
+  },
+  "archive.rewrite.forGood.action": {
+    "message": "Replace for good",
+    "description": "Area: archive."
+  },
   "archive.rewrite.delete.title": {
     "message": "Delete from the archive?",
     "description": "Area: archive."
   },
   "archive.rewrite.delete.message": {
-    "message": "Delete {what} from {archive}? This rewrites the whole archive ({size}). The previous archive goes to the Trash, and Undo brings it back.",
-    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {what} is what is being dragged, such as “3 items”."
+    "message": "Delete {what} from {archive}? This rewrites the whole archive ({size}). {undo}",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {undo}; {what} is what is being dragged, such as “3 items”."
   },
   "archive.rewrite.delete.action": {
     "message": "Delete",
@@ -5012,8 +5080,8 @@
     "description": "Area: archive."
   },
   "archive.rewrite.rename.message": {
-    "message": "Rename {name} to {newName}? This rewrites the whole archive {archive} ({size}). The previous archive goes to the Trash, and Undo brings it back.",
-    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {name} is the name of a file, folder, tab or other item; {newName}; {size} is a file or disk size with its unit."
+    "message": "Rename {name} to {newName}? This rewrites the whole archive {archive} ({size}). {undo}",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {name} is the name of a file, folder, tab or other item; {newName}; {size} is a file or disk size with its unit; {undo}."
   },
   "archive.rewrite.rename.action": {
     "message": "Rename",
@@ -5028,7 +5096,7 @@
     "description": "Area: archive."
   },
   "archive.rewrite.limit.message": {
-    "message": "{name} is larger than the archive limits allow ({reason}). Changing it rewrites all of it, which could take a long time and fill the disk.",
+    "message": "{name} is larger than the archive limits allow. {reason} Changing it rewrites all of it, which could take a long time and fill the disk.",
     "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words."
   },
   "archive.rewrite.limit.action": {
@@ -5764,7 +5832,11 @@
     "description": "Area: ops."
   },
   "ops.interrupted.discard.title": {
-    "message": "Discard “{label}”?",
+    "message": "Discard the interrupted transfer?",
+    "description": "Area: ops."
+  },
+  "ops.interrupted.discard.intro": {
+    "message": "Transfer: {label}.",
     "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo."
   },
   "ops.interrupted.discard.message.one": {
@@ -6806,6 +6878,14 @@
   "ops.problem.message.io": {
     "message": "The system reported a problem: {message}",
     "description": "Area: ops. Placeholders, kept exactly as written: {message} is a message from the system, which may be in English."
+  },
+  "ops.problem.message.archiveLocked": {
+    "message": "{name} is encrypted and needs its password. Enter it, and the item is tried again.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
+  },
+  "ops.problem.message.archiveRefused": {
+    "message": "The password for {name} was not accepted. Enter it again, and the item is tried again.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item."
   },
   "ops.problem.message.connection": {
     "message": "{reason} This stopped at {location}. Retry connects again.",
@@ -9744,8 +9824,8 @@
     "description": "Area: compress."
   },
   "compress.exists.message": {
-    "message": "{archive} already exists here. Add {what} to it? This rewrites the whole archive ({size}), which keeps its own format. The previous archive goes to the Trash, and Undo brings it back.",
-    "description": "Area: compress. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {what} is what is being dragged, such as “3 items”."
+    "message": "{archive} already exists here. Add {what} to it? This rewrites the whole archive ({size}), which keeps its own format. {undo}",
+    "description": "Area: compress. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {undo}; {what} is what is being dragged, such as “3 items”."
   },
   "compress.exists.action": {
     "message": "Add to archive",

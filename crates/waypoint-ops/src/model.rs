@@ -753,6 +753,57 @@ pub struct JobSnapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub partial: Option<PartialNote>,
+    /// The entries of an archive an extraction left out and why, once it ends; `None` when it left
+    /// nothing out (D186).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub left_out: Option<LeftOutNote>,
+}
+
+/// The entries an extraction left out: how many, and the first of them by name, so the notice and
+/// the job's details can say which (D186).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct LeftOutNote {
+    /// Every entry left out.
+    #[ts(type = "number")]
+    pub count: u64,
+    /// The first of them, in the archive's order, up to `LEFT_OUT_SHOWN`.
+    pub shown: Vec<LeftOutName>,
+}
+
+/// How many left-out entries a `LeftOutNote` names.
+pub const LEFT_OUT_SHOWN: usize = 20;
+
+/// One entry that was left out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub struct LeftOutName {
+    /// Where the entry is in the archive, written for reading: `..` is `..` (not `%2E%2E`, which
+    /// only keeps the name browsable).
+    pub name: String,
+    pub why: LeftOutWhy,
+}
+
+/// Why an entry of an archive is not extracted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum LeftOutWhy {
+    /// Its stored name starts at the root or a drive.
+    Absolute,
+    /// Its stored name climbs out of the folder with `..`.
+    Traversal,
+    /// Its stored name holds a control character.
+    ControlCharacters,
+    /// It is stored below a link or a file, so extracting it would write through that.
+    ThroughLink,
+    /// A symlink that points outside the archive.
+    LinkOutside,
+    /// A device, a pipe or another entry that is neither a file, a folder nor a link.
+    Special,
 }
 
 /// The whole queue at one revision, in queue order.

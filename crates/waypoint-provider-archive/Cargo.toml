@@ -11,6 +11,7 @@ publish = false
 
 [dependencies]
 bzip2 = "0.6"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 log = { workspace = true }
 lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz", "encoder"] }

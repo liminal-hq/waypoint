@@ -6175,29 +6175,89 @@
     "source": "034bb0fb"
   },
   "files.extract.limit.message": {
-    "message": "{name} dépasse les limites prévues pour les archives ({reason}). L’extraire pourrait remplir le disque.",
+    "message": "{name} dépasse les limites prévues pour les archives. {reason} L’extraire pourrait remplir le disque.",
     "description": "Area: files. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words.",
-    "source": "54549af9"
+    "source": "2b8ee085"
   },
   "files.extract.limit.action": {
     "message": "Extraire quand même",
     "description": "Area: files.",
     "source": "05f8be5b"
   },
-  "files.extract.leftOut.one": {
-    "message": "{count} entrée de l’archive a été laissée de côté : son nom ou son lien n’était pas sûr.",
-    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.many, files.extract.leftOut.other.",
-    "source": "3608510b"
+  "ops.leftOut.one": {
+    "message": "{count} entrée laissée de côté",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.leftOut.many, ops.leftOut.other.",
+    "source": "7bf99e7c"
   },
-  "files.extract.leftOut.many": {
-    "message": "{count} d’entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.",
-    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.one, files.extract.leftOut.other.",
-    "source": "a82b46a4"
+  "ops.leftOut.many": {
+    "message": "{count} d’entrées laissées de côté",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.leftOut.one, ops.leftOut.other.",
+    "source": "987ea590"
   },
-  "files.extract.leftOut.other": {
-    "message": "{count} entrées de l’archive ont été laissées de côté : leurs noms ou leurs liens n’étaient pas sûrs.",
-    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.extract.leftOut.one, files.extract.leftOut.many.",
-    "source": "a82b46a4"
+  "ops.leftOut.other": {
+    "message": "{count} entrées laissées de côté",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are ops.leftOut.one, ops.leftOut.many.",
+    "source": "987ea590"
+  },
+  "ops.leftOut.sentence.one": {
+    "message": "{count} entrée de l’archive a été laissée de côté : {names}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {names}. Plural: one of a group; the other forms are ops.leftOut.sentence.many, ops.leftOut.sentence.other.",
+    "source": "db29d7e0"
+  },
+  "ops.leftOut.sentence.many": {
+    "message": "{count} d’entrées de l’archive ont été laissées de côté : {names}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {names}. Plural: one of a group; the other forms are ops.leftOut.sentence.one, ops.leftOut.sentence.other.",
+    "source": "ce7767ab"
+  },
+  "ops.leftOut.sentence.other": {
+    "message": "{count} entrées de l’archive ont été laissées de côté : {names}.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {names}. Plural: one of a group; the other forms are ops.leftOut.sentence.one, ops.leftOut.sentence.many.",
+    "source": "ce7767ab"
+  },
+  "ops.leftOut.more": {
+    "message": "{count} autres",
+    "description": "Area: ops. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it).",
+    "source": "5f4f590a"
+  },
+  "ops.leftOut.details": {
+    "message": "Entrées laissées de côté",
+    "description": "Area: ops.",
+    "source": "d6aa93b8"
+  },
+  "ops.leftOut.line": {
+    "message": "{name} ({why})",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {why}.",
+    "source": "a24e7168"
+  },
+  "ops.leftOut.why.absolute": {
+    "message": "son nom enregistré partait de la racine",
+    "description": "Area: ops.",
+    "source": "10c0588a"
+  },
+  "ops.leftOut.why.traversal": {
+    "message": "son nom enregistré sortait du dossier avec « .. »",
+    "description": "Area: ops.",
+    "source": "b0747498"
+  },
+  "ops.leftOut.why.controlCharacters": {
+    "message": "son nom contenait un caractère de contrôle",
+    "description": "Area: ops.",
+    "source": "108f878e"
+  },
+  "ops.leftOut.why.throughLink": {
+    "message": "elle était enregistrée sous un lien",
+    "description": "Area: ops.",
+    "source": "e547fd37"
+  },
+  "ops.leftOut.why.linkOutside": {
+    "message": "c’est un lien qui pointe hors de l’archive",
+    "description": "Area: ops.",
+    "source": "657e8c1a"
+  },
+  "ops.leftOut.why.special": {
+    "message": "c’est un périphérique ou un autre fichier spécial",
+    "description": "Area: ops.",
+    "source": "1da6270f"
   },
   "files.extract.unlockFailed": {
     "message": "Le mot de passe de l’archive n’a pas pu être transmis : {reason}",
@@ -6334,15 +6394,45 @@
     "description": "Area: files.",
     "source": "48c015ad"
   },
+  "archive.rewrite.undo.trash": {
+    "message": "L’archive précédente va dans la Corbeille, et l’annulation la rétablit.",
+    "description": "Area: archive.",
+    "source": "73b46423"
+  },
+  "archive.rewrite.undo.remote": {
+    "message": "Cette archive n’est pas sur cet ordinateur, donc elle n’a pas de Corbeille : l’archive précédente est remplacée définitivement, et l’annulation n’est pas possible.",
+    "description": "Area: archive.",
+    "source": "a533cb9a"
+  },
+  "archive.rewrite.undo.unavailable": {
+    "message": "La Corbeille n’est pas disponible ({reason}); l’archive précédente est donc remplacée définitivement, et l’annulation n’est pas possible.",
+    "description": "Area: archive. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "334658c8"
+  },
+  "archive.rewrite.forGood.title": {
+    "message": "Remplacer l’archive définitivement?",
+    "description": "Area: archive.",
+    "source": "33433e72"
+  },
+  "archive.rewrite.forGood.message": {
+    "message": "Cela réécrit toute l’archive {archive} ({size}). {undo}",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {undo}.",
+    "source": "747d917b"
+  },
+  "archive.rewrite.forGood.action": {
+    "message": "Remplacer définitivement",
+    "description": "Area: archive.",
+    "source": "5fc2040b"
+  },
   "archive.rewrite.delete.title": {
     "message": "Supprimer de l’archive?",
     "description": "Area: archive.",
     "source": "491ac3fa"
   },
   "archive.rewrite.delete.message": {
-    "message": "Supprimer {what} de {archive}? Cela réécrit toute l’archive ({size}). L’archive précédente va dans la Corbeille, et l’annulation la rétablit.",
-    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {what} is what is being dragged, such as “3 items”.",
-    "source": "6b5a1a01"
+    "message": "Supprimer {what} de {archive}? Cela réécrit toute l’archive ({size}). {undo}",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {undo}; {what} is what is being dragged, such as “3 items”.",
+    "source": "a90682ab"
   },
   "archive.rewrite.delete.action": {
     "message": "Supprimer",
@@ -6355,9 +6445,9 @@
     "source": "52d64331"
   },
   "archive.rewrite.rename.message": {
-    "message": "Renommer {name} en {newName}? Cela réécrit toute l’archive {archive} ({size}). L’archive précédente va dans la Corbeille, et l’annulation la rétablit.",
-    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {name} is the name of a file, folder, tab or other item; {newName}; {size} is a file or disk size with its unit.",
-    "source": "4b8a9c78"
+    "message": "Renommer {name} en {newName}? Cela réécrit toute l’archive {archive} ({size}). {undo}",
+    "description": "Area: archive. Placeholders, kept exactly as written: {archive}; {name} is the name of a file, folder, tab or other item; {newName}; {size} is a file or disk size with its unit; {undo}.",
+    "source": "2e61e945"
   },
   "archive.rewrite.rename.action": {
     "message": "Renommer",
@@ -6375,9 +6465,9 @@
     "source": "117d55fc"
   },
   "archive.rewrite.limit.message": {
-    "message": "{name} dépasse les limites prévues pour les archives ({reason}). La modifier la réécrit en entier, ce qui peut être long et remplir le disque.",
+    "message": "{name} dépasse les limites prévues pour les archives. {reason} La modifier la réécrit en entier, ce qui peut être long et remplir le disque.",
     "description": "Area: archive. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item; {reason} is why something failed, in the system’s own words.",
-    "source": "885da2e7"
+    "source": "e6b3c30e"
   },
   "archive.rewrite.limit.action": {
     "message": "Modifier quand même",
@@ -7355,9 +7445,14 @@
     "source": "b163bbda"
   },
   "ops.interrupted.discard.title": {
-    "message": "Abandonner « {label} »?",
+    "message": "Abandonner le transfert interrompu?",
+    "description": "Area: ops.",
+    "source": "4b982eaa"
+  },
+  "ops.interrupted.discard.intro": {
+    "message": "Transfert : {label}.",
     "description": "Area: ops. Placeholders, kept exactly as written: {label} is the name of an action or item, such as what Undo would undo.",
-    "source": "c78ba562"
+    "source": "a5d79ce4"
   },
   "ops.interrupted.discard.message.one": {
     "message": "Ce qui a été envoyé de ce fichier est supprimé du serveur, et le transfert ne pourra plus reprendre.",
@@ -8803,6 +8898,16 @@
     "message": "Le système a signalé un problème : {message}",
     "description": "Area: ops. Placeholders, kept exactly as written: {message} is a message from the system, which may be in English.",
     "source": "89438320"
+  },
+  "ops.problem.message.archiveLocked": {
+    "message": "{name} est chiffrée et exige son mot de passe. Entrez-le, et l’élément sera réessayé.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "bb6f1aee"
+  },
+  "ops.problem.message.archiveRefused": {
+    "message": "Le mot de passe de {name} n’a pas été accepté. Entrez-le de nouveau, et l’élément sera réessayé.",
+    "description": "Area: ops. Placeholders, kept exactly as written: {name} is the name of a file, folder, tab or other item.",
+    "source": "af2bec63"
   },
   "ops.problem.message.connection": {
     "message": "{reason} L’arrêt s’est produit à {location}. Réessayer rétablit la connexion.",
@@ -12615,9 +12720,9 @@
     "source": "bc70f3aa"
   },
   "compress.exists.message": {
-    "message": "{archive} existe déjà ici. Y ajouter {what}? Cela réécrit toute l’archive ({size}), qui garde son propre format. L’archive précédente va dans la Corbeille, et l’annulation la rétablit.",
-    "description": "Area: compress. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {what} is what is being dragged, such as “3 items”.",
-    "source": "1d58840c"
+    "message": "{archive} existe déjà ici. Y ajouter {what}? Cela réécrit toute l’archive ({size}), qui garde son propre format. {undo}",
+    "description": "Area: compress. Placeholders, kept exactly as written: {archive}; {size} is a file or disk size with its unit; {undo}; {what} is what is being dragged, such as “3 items”.",
+    "source": "b7b2fa31"
   },
   "compress.exists.action": {
     "message": "Ajouter à l’archive",

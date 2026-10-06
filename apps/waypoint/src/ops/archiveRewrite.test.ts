@@ -11,7 +11,7 @@ import { makeEntry } from '../services/fakeVfsClient';
 import type { JobRequest, Location } from '../services/opsClient';
 import { commandsHarness, select, type CommandsHarness } from '../test/fileCommandsHarness';
 import { archiveRefusalText } from './archiveRefusal';
-import { addConfirm, rewriteConfirm } from './archiveRewrite';
+import { addConfirm, confirmIfForGood, forGoodConfirm, rewriteConfirm } from './archiveRewrite';
 import { addRequest } from './archiveRequests';
 import { commandStates, type CommandContext } from './fileCommands';
 import { errorText } from './jobText';
@@ -47,7 +47,7 @@ const preview = (archive: PlanPreview['archive']): PlanPreview => ({
 	...(archive ? { archive } : {}),
 });
 
-const REWRITES = preview({ container: ZIP, size: 24_000_000, entries: 3 });
+const REWRITES = preview({ container: ZIP, size: 24_000_000, entries: 3, undo: { kind: 'trash' } });
 
 async function inArchive(): Promise<CommandsHarness> {
 	return commandsHarness({
@@ -112,6 +112,62 @@ describe('the question before a change that rewrites the archive', () => {
 		expect(addConfirm(REWRITES, '2 items').message).toContain('already exists');
 	});
 
+	it('tells the truth when the old archive cannot go to the Trash', () => {
+		const remote = preview({ container: ZIP, size: 1500, entries: 3, undo: { kind: 'remote' } });
+		const spec = rewriteConfirm(remote, { kind: 'delete', names: ['a.txt'], count: 1 });
+		expect(spec.message).toContain('replaced for good');
+		expect(spec.message).toContain('Undo is not available');
+		expect(spec.message).not.toContain('Undo brings it back');
+		const unavailable = preview({
+			container: ZIP,
+			size: 1500,
+			entries: 3,
+			undo: { kind: 'unavailable', reason: 'cannot create /home/.Trash-1000' },
+		});
+		const rename = rewriteConfirm(unavailable, { kind: 'rename', name: 'a', newName: 'b' });
+		expect(rename.message).toContain(
+			'The Trash is not available (cannot create /home/.Trash-1000)',
+		);
+		expect(addConfirm(unavailable, '2 items').message).toContain('Undo is not available');
+		expect(forGoodConfirm(remote)).toMatchObject({
+			danger: true,
+			confirmLabel: 'Replace for good',
+		});
+	});
+
+	it('asks before a paste adds to an archive that would be replaced for good, and not otherwise', async () => {
+		const forGood = preview({ container: ZIP, size: 1500, entries: 3, undo: { kind: 'remote' } });
+		const kept = preview({ container: ZIP, size: 1500, entries: 3, undo: { kind: 'trash' } });
+		for (const [found, asked] of [
+			[forGood, 1],
+			[kept, 0],
+		] as const) {
+			const h = await inArchive();
+			vi.spyOn(h.fake, 'plan').mockResolvedValue(found);
+			const request: JobRequest = {
+				kind: { kind: 'copy' },
+				sources: { kind: 'locations', locations: [ZIP] },
+				destination: TOP,
+				name: null,
+				options: { conflict: null, verify: null },
+				originWindow: 'main-1',
+			};
+			const questions: string[] = [];
+			const go = await confirmIfForGood(
+				{
+					ops: h.ops,
+					confirm: async (spec) => {
+						questions.push(spec.title);
+						return true;
+					},
+				},
+				request,
+			);
+			expect(go).toBe(true);
+			expect(questions).toEqual(asked > 0 ? ['Replace the archive for good?'] : []);
+		}
+	});
+
 	it('is asked for Delete and Move to Trash alike, and the delete goes ahead once confirmed', async () => {
 		for (const command of ['deletePermanently', 'moveToTrash'] as const) {
 			const h = await inArchive();
@@ -152,7 +208,7 @@ describe('the question before a change that rewrites the archive', () => {
 		const done = h.commands.deletePermanently();
 		await vi.waitFor(() => expect(submitted(h)).toHaveLength(1));
 		expect(h.confirms).toHaveLength(2);
-		expect(h.confirms[0]?.message).toContain('expands to 5000 times its own size');
+		expect(h.confirms[0]?.message).toContain('expands to 5,000 times its own size');
 		expect(submitted(h)[0]?.archive).toEqual({ kind: 'edit', allowLarge: true });
 		expect(plan).toHaveBeenCalledTimes(2);
 		await h.finish();
@@ -175,7 +231,9 @@ describe('the question before a change that rewrites the archive', () => {
 
 	it('is asked before a rename inside the archive, and a declined one is said under the field', async () => {
 		const h = await inArchive();
-		vi.spyOn(h.fake, 'plan').mockResolvedValue(preview({ container: ZIP, size: 1500, entries: 3 }));
+		vi.spyOn(h.fake, 'plan').mockResolvedValue(
+			preview({ container: ZIP, size: 1500, entries: 3, undo: { kind: 'trash' } }),
+		);
 		const [entry] = await h.session.model.readRange(0, 1);
 		const renaming = h.commands.renameEntry(h.session, entry!, 'z.txt');
 		await vi.waitFor(() => expect(submitted(h)).toHaveLength(1));

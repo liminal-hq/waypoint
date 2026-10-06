@@ -19,8 +19,12 @@ type Client = Pick<OpsClient, 'resumeInterrupted' | 'discardInterrupted'>;
  */
 export function discardSpec(record: ResumableRecord): ConfirmSpec {
 	return {
-		title: tf('ops.interrupted.discard.title', { label: record.label }),
-		message: tn('ops.interrupted.discard.message', record.points.length),
+		title: t('ops.interrupted.discard.title'),
+		// The label is a phrase of its own ("Copy “name”"), so it is not put inside quotes again.
+		message: `${tf('ops.interrupted.discard.intro', { label: record.label })} ${tn(
+			'ops.interrupted.discard.message',
+			record.points.length,
+		)}`,
 		items: record.points.map((point) => point.target.display),
 		confirmLabel: t('ops.interrupted.discard'),
 		danger: true,

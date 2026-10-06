@@ -294,6 +294,18 @@ export function OpsPanel({ layout, onDone, autoFocus = false }: OpsPanelProps) {
 											</div>
 										)}
 										{view.detail && <span className={styles.detail}>{view.detail}</span>}
+										{view.leftOut.length > 0 && (
+											<details className={styles.leftOut}>
+												<summary>{t('ops.leftOut.details')}</summary>
+												<ul>
+													{view.leftOut.map((line) => (
+														<li key={line} data-selectable="">
+															{line}
+														</li>
+													))}
+												</ul>
+											</details>
+										)}
 										{(view.canLimit || view.canPrioritise) && (
 											<div className={styles.controls}>
 												{view.canLimit && (

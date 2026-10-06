@@ -6,11 +6,9 @@
 import type { ArchiveFormat } from '@liminal-hq/waypoint-protocol/generated/ArchiveFormat';
 import type { ExtractLayout } from '@liminal-hq/waypoint-protocol/generated/ExtractLayout';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
-import type { PlanPreview } from '@liminal-hq/waypoint-protocol/generated/PlanPreview';
 import type { Location, JobRequest } from '../services/opsClient';
 import { archiveTopUri } from '../archives/archiveNames';
 import { opsErrorOf } from '../archives/askPassphrase';
-import { tn } from '../i18n/messages';
 
 const NO_OPTIONS = { conflict: null, verify: null } as const;
 
@@ -77,16 +75,6 @@ export function addRequest(
 		options: NO_OPTIONS,
 		originWindow: windowLabel,
 	};
-}
-
-/** How many entries a plan left out for their names or links. */
-export function leftOutCount(preview: Pick<PlanPreview, 'notes'>): number {
-	return preview.notes.filter((note) => note.kind === 'leftOut').length;
-}
-
-/** The sentence for entries left out of an extraction. */
-export function leftOutText(count: number): string {
-	return tn('files.extract.leftOut', count);
 }
 
 /** The limit a failed plan was stopped by, or `null` when it failed for another reason. */

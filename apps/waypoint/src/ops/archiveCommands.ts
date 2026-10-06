@@ -24,14 +24,7 @@ import { t, tf, tn } from '../i18n/messages';
 import type { JobRequest } from '../services/opsClient';
 import type { VfsClient } from '../services/vfsClient';
 import { addConfirm, prepareRewrite } from './archiveRewrite';
-import {
-	addRequest,
-	compressRequest,
-	extractRequest,
-	leftOutCount,
-	leftOutText,
-	limitOf,
-} from './archiveRequests';
+import { addRequest, compressRequest, extractRequest, limitOf } from './archiveRequests';
 import { pickCompression, type CompressChoice, type CompressOptions } from './compressStore';
 import { pickDestination, type DestinationOptions } from './destinationStore';
 import type { ConfirmSpec } from './fileCommands';
@@ -133,9 +126,8 @@ export function createArchiveCommands(deps: ArchiveCommandDeps): ArchiveCommands
 		let current = request;
 		for (let attempt = 0; attempt <= MAX_PASSWORDS; attempt++) {
 			try {
-				const preview = await ops.client.plan(current);
-				const left = leftOutCount(preview);
-				if (left > 0) say(leftOutText(left));
+				await ops.client.plan(current);
+				// What is left out is said when the job ends, with the names (the job's notice and its details).
 				return current;
 			} catch (failure) {
 				const lock = lockOf(failure);

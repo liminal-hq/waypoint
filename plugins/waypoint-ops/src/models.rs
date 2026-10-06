@@ -103,39 +103,7 @@ pub enum PlanNote {
     EmptyArchive { location: Location },
 }
 
-/// Why an entry of an archive is not extracted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
-pub enum LeftOutWhy {
-    /// Its stored name starts at the root or a drive.
-    Absolute,
-    /// Its stored name climbs out of the folder with `..`.
-    Traversal,
-    /// Its stored name holds a control character.
-    ControlCharacters,
-    /// It is stored below a link or a file, so extracting it would write through that.
-    ThroughLink,
-    /// A symlink that points outside the archive.
-    LinkOutside,
-    /// A device, a pipe or another entry that is neither a file, a folder nor a link.
-    Special,
-}
-
-impl From<waypoint_ops::LeftOut> for LeftOutWhy {
-    fn from(reason: waypoint_ops::LeftOut) -> Self {
-        use waypoint_ops::LeftOut;
-        use waypoint_vfs::UnsafeName;
-        match reason {
-            LeftOut::Name(UnsafeName::Absolute) => Self::Absolute,
-            LeftOut::Name(UnsafeName::Traversal) => Self::Traversal,
-            LeftOut::Name(UnsafeName::ControlCharacters) => Self::ControlCharacters,
-            LeftOut::Name(UnsafeName::ThroughLink) => Self::ThroughLink,
-            LeftOut::LinkOutside => Self::LinkOutside,
-            LeftOut::Special => Self::Special,
-        }
-    }
-}
+pub use waypoint_ops::LeftOutWhy;
 
 /// What a request would do, found without writing anything: for the drag's default action (a move
 /// on one volume, a copy across) and for the conflict dialog before the job is submitted.
@@ -176,6 +144,37 @@ pub struct ArchivePreview {
     /// The entries it holds.
     #[ts(type = "number")]
     pub entries: u64,
+    /// Whether Undo can bring the old archive back, so the confirmation says what is true (D186).
+    pub undo: ArchiveUndo,
+}
+
+/// What becomes of the old archive when a change replaces it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "../../../packages/protocol/src/generated/")]
+pub enum ArchiveUndo {
+    /// It goes to the Trash, and Undo brings it back.
+    Trash,
+    /// It is not on this computer, so it has no Trash: the change replaces it for good.
+    Remote,
+    /// The Trash is not available here (its own reason): the change replaces it for good.
+    Unavailable { reason: String },
+}
+
+impl From<&waypoint_ops::ArchiveUndo> for ArchiveUndo {
+    fn from(undo: &waypoint_ops::ArchiveUndo) -> Self {
+        match undo {
+            waypoint_ops::ArchiveUndo::Trash => Self::Trash,
+            waypoint_ops::ArchiveUndo::Remote => Self::Remote,
+            waypoint_ops::ArchiveUndo::Unavailable(reason) => Self::Unavailable {
+                reason: reason.clone(),
+            },
+        }
+    }
 }
 
 /// Why a command failed. Serialised as `{ kind, message }`, with `error` holding the engine's typed

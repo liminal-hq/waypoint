@@ -122,6 +122,21 @@ pub enum ArchiveChange {
     },
 }
 
+/// Whether the old archive can go to the Trash when a change replaces it, so that Undo brings it
+/// back (D186). Found while planning, so the confirmation can say so before anything is written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArchiveUndo {
+    /// The old archive goes to the Trash; a Trash that then refuses it stops the change instead
+    /// of replacing the archive for good.
+    Trash,
+    /// The archive is not a file on this computer (it is on a server, or inside another
+    /// archive), so it has no Trash and the change replaces it for good.
+    Remote,
+    /// The Trash is not available here (the reason is its own), so the change replaces the
+    /// archive for good.
+    Unavailable(String),
+}
+
 /// What a change to an archive adds to the plan (D170): the archive file that is rewritten, the
 /// entries it held when planned, and what changes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,6 +152,8 @@ pub struct ArchiveEditPlan {
     /// The archive file's size and time when planned, so a run can tell that it changed since.
     pub size: u64,
     pub modified_ms: Option<i64>,
+    /// Whether Undo can bring the old archive back (D186).
+    pub undo: ArchiveUndo,
 }
 
 /// Everything known before the first write.
@@ -166,6 +183,29 @@ pub struct Plan {
 }
 
 impl Plan {
+    /// The entries an extraction leaves out, for the job to report when it ends (D186); `None`
+    /// when it leaves nothing out.
+    pub fn left_out_note(&self) -> Option<crate::model::LeftOutNote> {
+        let left: Vec<crate::model::LeftOutName> = self
+            .warnings
+            .iter()
+            .filter_map(|warning| match warning {
+                PlanWarning::LeftOut { location, why } => Some(crate::model::LeftOutName {
+                    name: archive::left_out_name(location),
+                    why: (*why).into(),
+                }),
+                _ => None,
+            })
+            .collect();
+        (!left.is_empty()).then(|| crate::model::LeftOutNote {
+            count: left.len() as u64,
+            shown: left
+                .into_iter()
+                .take(crate::model::LEFT_OUT_SHOWN)
+                .collect(),
+        })
+    }
+
     /// What the queue records about the job once planning is done.
     pub fn totals(&self) -> PlanTotals {
         let mut touches: Vec<Location> = Vec::new();

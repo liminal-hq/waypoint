@@ -11,6 +11,7 @@ use waypoint_vfs::{ArchiveBuilder, ArchiveKind, EntryAttrs, WriteStream};
 
 use crate::errors::from_io;
 use crate::names::os_name;
+use crate::zip_time::utc_ms_to_local_wall;
 
 const DEFAULT_FILE_MODE: u32 = 0o644;
 const DEFAULT_FOLDER_MODE: u32 = 0o755;
@@ -91,36 +92,29 @@ fn mode_of(attrs: EntryAttrs, folder: bool) -> u32 {
 
 // ---- zip ----
 
-/// Days since 1970-01-01 to a civil date.
-fn civil_from_days(days: i64) -> (i64, u8, u8) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let day_of_era = z - era * 146_097;
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let mp = (5 * day_of_year + 2) / 153;
-    let day = (day_of_year - (153 * mp + 2) / 5 + 1) as u8;
-    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u8;
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    (year, month, day)
-}
-
+/// The entry's time as a zip stores it: the DOS date and time are this machine's wall clock (the
+/// zone is not stored, `zip_time`, D185). Zip's dates start in 1980 and have two-second steps.
 fn zip_time(modified_ms: Option<i64>) -> Option<zip::DateTime> {
-    let seconds = modified_ms?.div_euclid(1000);
-    let (year, month, day) = civil_from_days(seconds.div_euclid(86_400));
-    let rest = seconds.rem_euclid(86_400);
-    // Zip's dates start in 1980 and have two-second steps.
-    let year = u16::try_from(year).ok()?;
+    let (year, month, day, hour, minute, second) = utc_ms_to_local_wall(modified_ms?)?;
     zip::DateTime::from_date_and_time(
-        year,
-        month,
-        day,
-        (rest / 3600) as u8,
-        ((rest % 3600) / 60) as u8,
-        (rest % 60) as u8,
+        u16::try_from(year).ok()?,
+        u8::try_from(month).ok()?,
+        u8::try_from(day).ok()?,
+        u8::try_from(hour).ok()?,
+        u8::try_from(minute).ok()?,
+        u8::try_from(second).ok()?,
     )
     .ok()
+}
+
+/// The extended timestamp field (`UT`, 0x5455) holding the modification time as a Unix instant,
+/// when it fits (the field is 32 bits): what keeps the exact instant across zones and gives the
+/// one-second step the DOS time lacks.
+fn extended_timestamp(modified_ms: Option<i64>) -> Option<[u8; 5]> {
+    let seconds = i32::try_from(modified_ms?.div_euclid(1000)).ok()?;
+    let mut field = [1u8; 5];
+    field[1..].copy_from_slice(&seconds.to_le_bytes());
+    Some(field)
 }
 
 /// Zip is built on disk and copied to the stream: the library's streaming mode writes a folder
@@ -133,13 +127,22 @@ struct ZipBuilder {
 }
 
 impl ZipBuilder {
-    fn options(&self, attrs: EntryAttrs, folder: bool, size: u64) -> zip::write::SimpleFileOptions {
-        let mut options = zip::write::SimpleFileOptions::default()
+    fn options(
+        &self,
+        attrs: EntryAttrs,
+        folder: bool,
+        size: u64,
+    ) -> zip::write::FullFileOptions<'static> {
+        let mut options = zip::write::FullFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
             .unix_permissions(mode_of(attrs, folder))
             .large_file(size > ZIP_SMALL_LIMIT);
         if let Some(time) = zip_time(attrs.modified_ms) {
             options = options.last_modified_time(time);
+        }
+        if let Some(field) = extended_timestamp(attrs.modified_ms) {
+            // A field that does not fit is a bug of ours, not of the entry: the DOS time still stands.
+            let _ = options.add_extra_data(0x5455, field.as_slice(), false);
         }
         options
     }
@@ -555,20 +558,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn civil_dates_round_trip_known_days() {
-        assert_eq!(civil_from_days(0), (1970, 1, 1));
-        assert_eq!(civil_from_days(19_723), (2024, 1, 1));
-        assert_eq!(civil_from_days(11_016), (2000, 2, 29));
-    }
-
-    #[test]
     fn a_zip_time_before_1980_is_dropped() {
         assert!(zip_time(Some(0)).is_none());
         assert!(zip_time(None).is_none());
-        let time = zip_time(Some(1_704_110_400_000)).unwrap();
+        // The DOS time is this machine's wall clock for the instant, whatever the zone.
+        let ms = 1_704_110_400_000;
+        let time = zip_time(Some(ms)).unwrap();
+        let (year, month, day, hour, minute, second) = utc_ms_to_local_wall(ms).unwrap();
         assert_eq!(
             (time.year(), time.month(), time.day(), time.hour()),
-            (2024, 1, 1, 12)
+            (year as u16, month as u8, day as u8, hour as u8)
+        );
+        assert_eq!(
+            (time.minute(), time.second()),
+            (minute as u8, second as u8 & !1)
+        );
+        assert_eq!(
+            extended_timestamp(Some(ms)),
+            Some([1, 0x40, 0xa9, 0x92, 0x65])
         );
     }
 }

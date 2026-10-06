@@ -5,7 +5,8 @@
 
 import type { Decision } from '@liminal-hq/waypoint-protocol/generated/Decision';
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
-import { formatSize } from '../browse/format';
+import { formatCount, formatSize } from '../browse/format';
+import { isArchiveLock, lockedName } from '../archives/lockModel';
 import { connectionErrorText, schemeLabel } from '../connections/connectModel';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { archiveRefusalText } from './archiveRefusal';
@@ -48,8 +49,8 @@ export function problemText(error: OpsError): ProblemText {
 			if (limit.kind === 'entries') {
 				details.push(
 					tf('ops.problem.details.archiveEntries', {
-						found: String(limit.found),
-						max: String(limit.max),
+						found: formatCount(limit.found),
+						max: formatCount(limit.max),
 					}),
 				);
 			} else if (limit.kind === 'bytes') {
@@ -62,8 +63,8 @@ export function problemText(error: OpsError): ProblemText {
 			} else {
 				details.push(
 					tf('ops.problem.details.archiveRatio', {
-						ratio: String(limit.ratio),
-						max: String(limit.max),
+						ratio: formatCount(limit.ratio),
+						max: formatCount(limit.max),
 					}),
 				);
 			}
@@ -106,6 +107,16 @@ export function problemText(error: OpsError): ProblemText {
 			message = tf(key(error.kind), { message: error.message });
 			break;
 		case 'connection':
+			// An archive's password is not a server's login: it says which archive and what to do.
+			if (isArchiveLock(error.error)) {
+				message = tf(
+					error.error.kind === 'authFailed'
+						? 'ops.problem.message.archiveRefused'
+						: 'ops.problem.message.archiveLocked',
+					{ name: lockedName(error.error.location) },
+				);
+				break;
+			}
 			// The reason in the words a server's tab uses, then where it was met: every connection error names the location.
 			message = tf(key(error.kind), {
 				reason: connectionErrorText(error.error),

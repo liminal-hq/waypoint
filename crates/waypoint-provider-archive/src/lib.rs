@@ -44,6 +44,7 @@ mod watch;
 mod write;
 mod zip_read;
 mod zip_scan;
+mod zip_time;
 
 pub use format::{ArchiveFormat, TarCompression};
 pub use info::{ArchiveInfo, EntryInfo};

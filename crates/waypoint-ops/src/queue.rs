@@ -33,8 +33,8 @@ use waypoint_vfs::CancelToken;
 use crate::exec::Resolutions;
 use crate::model::{
     Counts, DroppedDetail, JobId, JobKind, JobPriority, JobRequest, JobSnapshot, JobState,
-    OpsError, OpsEvent, OpsSnapshot, PartialNote, PlanTotals, Progress, Resolution, Sources,
-    SourcesSummary, Verification, WaitReason,
+    LeftOutNote, OpsError, OpsEvent, OpsSnapshot, PartialNote, PlanTotals, Progress, Resolution,
+    Sources, SourcesSummary, Verification, WaitReason,
 };
 use crate::schedule::Schedule;
 use crate::traits::{Clock, SettingsReader};
@@ -303,6 +303,7 @@ impl OpsStore {
             ends: None,
             dropped: None,
             partial: None,
+            left_out: None,
         };
         let mut touches = Vec::new();
         touches.extend(request.destination.clone());
@@ -663,6 +664,20 @@ impl OpsStore {
             return Ok(Vec::new());
         }
         self.jobs[index].snapshot.dropped = dropped;
+        Ok(vec![self.changed(index)])
+    }
+
+    /// Records the entries an extraction left out (D186), just before the job ends.
+    pub fn set_left_out(
+        &mut self,
+        id: JobId,
+        left_out: Option<LeftOutNote>,
+    ) -> Result<Vec<OpsEvent>, QueueError> {
+        let index = self.index(id)?;
+        if self.jobs[index].snapshot.left_out == left_out {
+            return Ok(Vec::new());
+        }
+        self.jobs[index].snapshot.left_out = left_out;
         Ok(vec![self.changed(index)])
     }
 

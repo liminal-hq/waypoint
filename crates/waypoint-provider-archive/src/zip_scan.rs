@@ -9,6 +9,7 @@ use std::io::{self, BufReader, Read, Seek, SeekFrom};
 use waypoint_vfs::{CancelToken, EntryKind};
 
 use crate::index::{ArchiveIndex, Locator, NewEntry};
+use crate::zip_time::local_wall_to_utc_ms;
 
 const EOCD_SIG: u32 = 0x0605_4b50;
 const EOCD64_SIG: u32 = 0x0606_4b50;
@@ -173,18 +174,8 @@ fn name_text(raw: &[u8]) -> Vec<u8> {
     }
 }
 
-/// Days since 1970-01-01 of a civil date (proleptic Gregorian).
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = year.div_euclid(400);
-    let year_of_era = year - era * 400;
-    let month_index = (month + 9) % 12;
-    let day_of_year = (153 * month_index + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
-}
-
-/// An MS-DOS date and time, taken as UTC (zip stores local time and no zone).
+/// An MS-DOS date and time as a UTC instant: zip stores the local wall clock and no zone, so it is
+/// read in this machine's zone (`zip_time`, D185).
 fn dos_time_ms(date: u16, time: u16) -> Option<i64> {
     if date == 0 {
         return None;
@@ -198,8 +189,14 @@ fn dos_time_ms(date: u16, time: u16) -> Option<i64> {
     let hour = i64::from(time >> 11).min(23);
     let minute = i64::from((time >> 5) & 0x3f).min(59);
     let second = i64::from((time & 0x1f) * 2).min(59);
-    let days = days_from_civil(year, month, day);
-    Some(((days * 24 + hour) * 3600 + minute * 60 + second) * 1000)
+    local_wall_to_utc_ms(
+        i32::try_from(year).ok()?,
+        u32::try_from(month).ok()?,
+        u32::try_from(day).ok()?,
+        u32::try_from(hour).ok()?,
+        u32::try_from(minute).ok()?,
+        u32::try_from(second).ok()?,
+    )
 }
 
 const S_IFMT: u32 = 0o170_000;
@@ -385,11 +382,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dos_dates_become_milliseconds() {
-        // 2024-01-01 12:00:00.
-        assert_eq!(dos_time_ms(0x5821, 0x6000), Some(1_704_110_400_000));
-        // The epoch of the format (1980-01-01).
-        assert_eq!(dos_time_ms(0x0021, 0), Some(315_532_800_000));
+    fn dos_dates_are_read_as_local_wall_clock() {
+        // The zone of a test is the machine's; `tests/zip_time.rs` runs the conversion in several.
+        // 2024-01-01 12:00:00 on this machine's clock.
+        assert_eq!(
+            dos_time_ms(0x5821, 0x6000),
+            local_wall_to_utc_ms(2024, 1, 1, 12, 0, 0)
+        );
         // No date, or a nonsense one, is no time.
         assert_eq!(dos_time_ms(0, 0x6000), None);
         assert_eq!(dos_time_ms(0x5800, 0), None);

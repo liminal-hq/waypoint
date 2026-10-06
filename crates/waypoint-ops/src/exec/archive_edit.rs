@@ -24,7 +24,7 @@ use super::{ExecEnv, ExecFailure, ExecReport, ExecSink, RunOptions};
 use crate::journal::InverseStep;
 use crate::model::{Conflict, Counts, Decision, JobId, OpsError, Progress};
 use crate::names::{archive_path, file_name_of, name_bytes, unique_full_name};
-use crate::plan::{conflict_kind, ArchiveChange, ArchiveEditPlan, Plan};
+use crate::plan::{conflict_kind, ArchiveChange, ArchiveEditPlan, ArchiveUndo, Plan};
 use crate::speed::SpeedEstimator;
 
 type Comps = Vec<Vec<u8>>;
@@ -670,7 +670,7 @@ impl Edit<'_> {
             self.discard(dest.as_ref(), &partial);
             return Err(stop);
         }
-        self.swap(dest.as_ref(), &partial, &container)?;
+        self.swap(dest.as_ref(), &partial, &container, &edit.undo)?;
         if let ArchiveChange::Add { sources, .. } = &edit.change {
             for source in sources {
                 self.report
@@ -683,18 +683,44 @@ impl Edit<'_> {
         Ok(())
     }
 
-    /// Puts the finished file in the archive's place: the old archive goes to the Trash first, so
-    /// that Undo can bring it back; where it cannot be trashed (a server) it is replaced for good
-    /// in one atomic step.
-    fn swap(&mut self, dest: &dyn Provider, partial: &VfsPath, target: &VfsPath) -> R<()> {
+    /// Puts the finished file in the archive's place. The old archive goes to the Trash first, so
+    /// that Undo can bring it back. Where the plan found there is no Trash for it (a server, or
+    /// no Trash on this system) it is replaced for good in one atomic step, as the confirmation
+    /// said it would be. Where the plan expected the Trash and it refuses the file after all (a
+    /// folder on a file system with no Trash folder it may make, say), nothing is replaced: the
+    /// change stops with the Trash's own error, the same one Move to Trash gives (D186).
+    fn swap(
+        &mut self,
+        dest: &dyn Provider,
+        partial: &VfsPath,
+        target: &VfsPath,
+        undo: &ArchiveUndo,
+    ) -> R<()> {
         let location = target.to_location();
-        let trashed = self
-            .env
-            .trash
-            .trash(std::slice::from_ref(&location))
-            .into_iter()
-            .next()
-            .and_then(Result::ok);
+        let trashed = match undo {
+            ArchiveUndo::Trash => {
+                match self
+                    .env
+                    .trash
+                    .trash(std::slice::from_ref(&location))
+                    .into_iter()
+                    .next()
+                {
+                    Some(Ok(receipt)) => Some(receipt),
+                    refused => {
+                        self.discard(dest, partial);
+                        let error = match refused {
+                            Some(Err(error)) => error,
+                            _ => OpsError::TrashUnavailable {
+                                reason: "the Trash reported nothing for the archive".to_owned(),
+                            },
+                        };
+                        return Err(Stop::failed(error, Some(location)));
+                    }
+                }
+            }
+            ArchiveUndo::Remote | ArchiveUndo::Unavailable(_) => None,
+        };
         match trashed {
             Some(receipt) => {
                 if let Err(error) = dest.rename(partial, target, false) {
