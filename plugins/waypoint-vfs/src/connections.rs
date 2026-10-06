@@ -39,16 +39,29 @@ pub fn announce_protocols<R: Runtime>(app: &AppHandle<R>) {
     let Some(state) = app.try_state::<Vfs>() else {
         return;
     };
-    let names = |schemes: Vec<&'static str>| -> Vec<String> {
-        schemes.into_iter().map(str::to_owned).collect()
-    };
-    let change = ProtocolsChanged {
-        schemes: names(state.remote().schemes()),
-        off: names(state.remote().off_schemes()),
-    };
+    let (schemes, off) = connectable_protocols(&state);
+    let change = ProtocolsChanged { schemes, off };
     if let Err(error) = app.emit(PROTOCOLS_EVENT, change) {
         log::warn!("could not send the protocols that are on: {error}");
     }
+}
+
+/// The protocols a connection can be made to, those that are on and those turned off. Registered
+/// schemes also include locations nobody connects to (`archive`, `git+file`); they are left out.
+pub(crate) fn connectable_protocols(state: &Vfs) -> (Vec<String>, Vec<String>) {
+    (
+        connectable(state.remote().schemes()),
+        connectable(state.remote().off_schemes()),
+    )
+}
+
+/// The schemes of `schemes` that a connection can be made to.
+pub(crate) fn connectable(schemes: Vec<&'static str>) -> Vec<String> {
+    schemes
+        .into_iter()
+        .filter(|scheme| RemoteScheme::from_name(scheme).is_some())
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Points the hub's events at every window of `app`.
@@ -112,21 +125,7 @@ pub async fn list_connections(state: State<'_, Vfs>) -> Result<ConnectionsOvervi
 #[tauri::command]
 pub async fn connection_support(state: State<'_, Vfs>) -> Result<ConnectionSupport, Error> {
     let hub = hub(&state)?;
-    // The protocols a connection can be made to: the archive provider is registered beside them
-    // and serves `archive:` locations, which nobody connects to.
-    let schemes: Vec<String> = state
-        .remote()
-        .schemes()
-        .into_iter()
-        .filter(|scheme| RemoteScheme::from_name(scheme).is_some())
-        .map(str::to_owned)
-        .collect();
-    let off: Vec<String> = state
-        .remote()
-        .off_schemes()
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
+    let (schemes, off) = connectable_protocols(&state);
     blocking(move || {
         ConnectionSupport::new(schemes, off, hub.manager().credentials().keyring().as_ref())
     })
