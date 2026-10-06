@@ -131,6 +131,8 @@ interface ListingViewProps {
 	onMenu?: ((request: MenuRequest) => void) | undefined;
 	/** Whether the list announces selection changes itself; a host with a status bar does that. */
 	announceSelection?: boolean | undefined;
+	/** The list's accessible name when "Files" does not tell it apart from another list on screen (a pane of a pair). */
+	label?: string | undefined;
 }
 
 /** The list for a listing that is opening, failed or ready. */
@@ -140,6 +142,7 @@ export function ListingView({
 	onOpenInNewTab,
 	onMenu,
 	announceSelection = true,
+	label,
 }: ListingViewProps) {
 	return (
 		<ListingGate state={state}>
@@ -151,6 +154,7 @@ export function ListingView({
 					onOpenInNewTab={onOpenInNewTab}
 					onMenu={onMenu}
 					announceSelection={announceSelection}
+					label={label}
 				/>
 			)}
 		</ListingGate>
@@ -163,6 +167,7 @@ interface ListingBodyProps {
 	onOpenInNewTab: OpenInNewHandler | undefined;
 	onMenu: ((request: MenuRequest) => void) | undefined;
 	announceSelection: boolean;
+	label: string | undefined;
 }
 
 function ListingBody({
@@ -171,6 +176,7 @@ function ListingBody({
 	onOpenInNewTab,
 	onMenu,
 	announceSelection,
+	label,
 }: ListingBodyProps) {
 	const { model, store } = session;
 	const version = useSyncExternalStore(model.subscribe, model.getVersion);
@@ -580,7 +586,7 @@ function ListingBody({
 						ref={listbox}
 						role="listbox"
 						tabIndex={0}
-						aria-label={t('browse.list.label')}
+						aria-label={label ?? t('browse.list.label')}
 						aria-multiselectable="true"
 						aria-rowcount={layout.grouped ? undefined : shown}
 						aria-activedescendant={activeId}

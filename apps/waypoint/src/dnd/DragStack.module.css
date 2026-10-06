@@ -67,7 +67,7 @@
 	border-radius: 999px;
 	background: var(--wp-file-drag-count-bg);
 	color: var(--wp-file-drag-count-fg);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	font-weight: 700;
 	line-height: 16px;
 	text-align: center;
@@ -114,7 +114,7 @@
 	background: var(--wp-bg-raised);
 	box-shadow: var(--wp-file-drag-shadow);
 	color: var(--wp-text-primary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	line-height: 1.3;
 }
 
@@ -159,6 +159,6 @@
 	padding-inline-start: 8px;
 	border-inline-start: 1px solid var(--wp-border-subtle);
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	white-space: nowrap;
 }

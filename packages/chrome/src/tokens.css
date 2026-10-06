@@ -8,6 +8,9 @@
 :where(:root) {
 	color-scheme: dark light;
 
+	/* The text scale a host applies to every font size (1 is the normal size); a host sets its own on the root. */
+	--wp-text-scale: 1;
+
 	/* Surfaces and text */
 	--wp-bg-raised: #2b2d31;
 	--wp-bg-chrome: #1e1f22;

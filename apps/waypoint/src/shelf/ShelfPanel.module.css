@@ -59,7 +59,7 @@
 	flex: 1;
 	min-width: 0;
 	margin: 0;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -105,14 +105,14 @@
 	gap: 2px;
 	padding: 4px 16px 12px;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	line-height: 1.45;
 }
 
 .emptyTitle {
 	margin: 0;
 	color: var(--wp-text-primary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -159,7 +159,7 @@
 	padding-inline: 4px 8px;
 	border-radius: 4px;
 	color: var(--wp-text-muted);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 	cursor: default;
 	user-select: none;
@@ -261,7 +261,7 @@
 .origin {
 	overflow: hidden;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -272,7 +272,7 @@
 	border: 1px dashed var(--wp-border-subtle);
 	border-radius: 999px;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 }
 
 .remove {

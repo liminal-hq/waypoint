@@ -74,7 +74,7 @@ async function mount(
 }
 
 const options = (pane = 0) =>
-	within(screen.getAllByRole('listbox', { name: 'Files' })[pane]!).getAllByRole('option');
+	within(screen.getAllByRole('listbox', { name: /^Files/ })[pane]!).getAllByRole('option');
 const row = (name: string, pane = 0) =>
 	options(pane).find((option) => option.textContent?.includes(name))!;
 const submits = (ops: FakeOpsClient) => ops.calls.filter((call) => call[0] === 'submit');
@@ -237,7 +237,7 @@ describe('dragging onto the sidebar', () => {
 describe('dragging across the panes of a pair', () => {
 	it('drops into the other pane, which is a folder of its own', async () => {
 		const { ops } = await mount({ paired: true });
-		await waitFor(() => expect(screen.getAllByRole('listbox', { name: 'Files' })).toHaveLength(2));
+		await waitFor(() => expect(screen.getAllByRole('listbox', { name: /^Files/ })).toHaveLength(2));
 		await grab('notes.txt', 0);
 		const panes = document.querySelectorAll('[data-drop="pane"]');
 		pointAt(panes[1]!);
@@ -254,7 +254,7 @@ describe('dragging across the panes of a pair', () => {
 
 	it('has no target over its own pane', async () => {
 		const { ops } = await mount({ paired: true });
-		await waitFor(() => expect(screen.getAllByRole('listbox', { name: 'Files' })).toHaveLength(2));
+		await waitFor(() => expect(screen.getAllByRole('listbox', { name: /^Files/ })).toHaveLength(2));
 		await grab('notes.txt', 0);
 		pointAt(document.querySelectorAll('[data-drop="pane"]')[0]!);
 		moveTo(140);

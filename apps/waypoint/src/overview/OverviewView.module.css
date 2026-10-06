@@ -17,7 +17,7 @@
 
 .title {
 	margin: 0;
-	font-size: 18px;
+	font-size: calc(18px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -41,7 +41,7 @@
 
 .stat dt {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .stat dd {
@@ -49,14 +49,14 @@
 }
 
 .statValue {
-	font-size: 20px;
+	font-size: calc(20px * var(--wp-text-scale));
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
 }
 
 .statNote {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .section {
@@ -74,14 +74,14 @@
 .quiet {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .unavailable {
 	padding: 10px 12px;
 	border: 1px solid var(--wp-warning);
 	border-radius: 8px;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .unavailable p {

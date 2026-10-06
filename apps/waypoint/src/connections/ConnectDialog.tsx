@@ -140,6 +140,7 @@ export function ConnectDialog({
 	const [suggestions, setSuggestions] = useState<readonly SuggestedServer[]>([]);
 	const [forgetting, setForgetting] = useState<ConnectionEntry | null>(null);
 	const [forgetLogin, setForgetLogin] = useState(true);
+	const [moreOpen, setMoreOpen] = useState(false);
 	const parseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const parseTurn = useRef(0);
 	// The read of the address that is under way, the address as typed and the form as the newest
@@ -153,6 +154,7 @@ export function ConnectDialog({
 	const addressRef = useRef(address);
 	addressRef.current = address;
 	const ids = {
+		more: useId(),
 		address: useId(),
 		name: useId(),
 		scheme: useId(),
@@ -960,64 +962,75 @@ export function ConnectDialog({
 								)}
 							</div>
 						)}
-						<details className={styles.more}>
-							<summary>{t('connect.more')}</summary>
-							{family === 'ssh' &&
-								field(
-									'jumpHost',
-									ids.jumpHost,
-									'connect.field.jumpHost',
-									text('jumpHost', ids.jumpHost, form.jumpHost, true),
-									'connect.field.jumpHostHint',
+						<div className={styles.more}>
+							{/* A button with its state, not a `details` element: WebKitGTK does not expose one to a screen reader as a disclosure. */}
+							<button
+								type="button"
+								className={styles.moreToggle}
+								aria-expanded={moreOpen}
+								aria-controls={ids.more}
+								onClick={() => setMoreOpen((open) => !open)}
+							>
+								{t('connect.more')}
+							</button>
+							<div id={ids.more} hidden={!moreOpen}>
+								{family === 'ssh' &&
+									field(
+										'jumpHost',
+										ids.jumpHost,
+										'connect.field.jumpHost',
+										text('jumpHost', ids.jumpHost, form.jumpHost, true),
+										'connect.field.jumpHostHint',
+									)}
+								{family !== 'smb' &&
+									field(
+										'startFolder',
+										ids.startFolder,
+										'connect.field.startFolder',
+										text('startFolder', ids.startFolder, form.startFolder, true),
+										'connect.field.startFolderHint',
+									)}
+								{field(
+									'refreshSeconds',
+									ids.refresh,
+									'connect.field.refresh',
+									text('refreshSeconds', ids.refresh, form.refreshSeconds, true),
+									'connect.field.refreshHint',
 								)}
-							{family !== 'smb' &&
-								field(
-									'startFolder',
-									ids.startFolder,
-									'connect.field.startFolder',
-									text('startFolder', ids.startFolder, form.startFolder, true),
-									'connect.field.startFolderHint',
-								)}
-							{field(
-								'refreshSeconds',
-								ids.refresh,
-								'connect.field.refresh',
-								text('refreshSeconds', ids.refresh, form.refreshSeconds, true),
-								'connect.field.refreshHint',
-							)}
-							<div className={styles.field}>
-								<label className={styles.label} htmlFor={ids.thumbnails}>
-									{t('connect.field.thumbnails')}
-								</label>
-								<select
-									id={ids.thumbnails}
-									className={styles.input}
-									value={form.thumbnails}
-									disabled={working}
-									aria-describedby={`${ids.thumbnails}-hint`}
-									onChange={(event) =>
-										change('thumbnails', event.target.value as ConnectForm['thumbnails'])
-									}
-								>
-									{THUMBNAIL_CHOICES.map((choice) => (
-										<option key={choice} value={choice}>
-											{t(`connect.thumbnails.${choice}`)}
-										</option>
-									))}
-								</select>
-								<p id={`${ids.thumbnails}-hint`} className={styles.hint}>
-									{t('connect.field.thumbnailsHint')}
-								</p>
+								<div className={styles.field}>
+									<label className={styles.label} htmlFor={ids.thumbnails}>
+										{t('connect.field.thumbnails')}
+									</label>
+									<select
+										id={ids.thumbnails}
+										className={styles.input}
+										value={form.thumbnails}
+										disabled={working}
+										aria-describedby={`${ids.thumbnails}-hint`}
+										onChange={(event) =>
+											change('thumbnails', event.target.value as ConnectForm['thumbnails'])
+										}
+									>
+										{THUMBNAIL_CHOICES.map((choice) => (
+											<option key={choice} value={choice}>
+												{t(`connect.thumbnails.${choice}`)}
+											</option>
+										))}
+									</select>
+									<p id={`${ids.thumbnails}-hint`} className={styles.hint}>
+										{t('connect.field.thumbnailsHint')}
+									</p>
+								</div>
+								{form.thumbnails !== 'off' &&
+									field(
+										'thumbnailMaxMb',
+										ids.thumbnailMax,
+										'connect.field.thumbnailMaxMb',
+										text('thumbnailMaxMb', ids.thumbnailMax, form.thumbnailMaxMb, true),
+										'connect.field.thumbnailMaxMbHint',
+									)}
 							</div>
-							{form.thumbnails !== 'off' &&
-								field(
-									'thumbnailMaxMb',
-									ids.thumbnailMax,
-									'connect.field.thumbnailMaxMb',
-									text('thumbnailMaxMb', ids.thumbnailMax, form.thumbnailMaxMb, true),
-									'connect.field.thumbnailMaxMbHint',
-								)}
-						</details>
+						</div>
 						<p id={ids.result} className={styles.result} role="status" data-tone={result?.tone}>
 							{busy === 'test' || busy === 'connect'
 								? t('connect.result.trying')

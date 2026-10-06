@@ -14,7 +14,7 @@
 .heading {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -94,5 +94,5 @@
 .empty {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }

@@ -12,7 +12,7 @@
 .title {
 	margin: 0;
 	color: var(--wp-text-primary);
-	font-size: 15px;
+	font-size: calc(15px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -20,14 +20,14 @@
 	max-inline-size: 48ch;
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .problem {
 	max-inline-size: 48ch;
 	margin: 0;
 	color: var(--wp-danger);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .action {

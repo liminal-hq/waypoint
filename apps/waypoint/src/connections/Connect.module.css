@@ -21,7 +21,7 @@
 .heading {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -83,7 +83,7 @@
 
 .pickDetail {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .small {
@@ -94,7 +94,7 @@
 	background: transparent;
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .small:hover:not(:disabled) {
@@ -104,7 +104,7 @@
 .empty {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .form {
@@ -129,7 +129,7 @@
 
 .label {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -157,7 +157,7 @@
 .problem {
 	margin: 0;
 	color: var(--wp-danger);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .problem:empty {
@@ -167,7 +167,7 @@
 .hint {
 	margin: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .methods {
@@ -183,7 +183,7 @@
 	margin-block-end: 4px;
 	padding: 0;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -191,12 +191,12 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .result {
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .result[data-tone='ok'] {
@@ -209,11 +209,32 @@
 
 .more {
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
-.more summary {
+.moreToggle {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
 	cursor: default;
+}
+
+/* The disclosure triangle, turned down while the options are shown. */
+.moreToggle::before {
+	content: '\25B8';
+	display: inline-block;
+	margin-inline-end: 4px;
+}
+
+.moreToggle[aria-expanded='true']::before {
+	content: '\25BE';
+}
+
+.moreToggle:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 2px;
 }
 
 .facts {
@@ -221,7 +242,7 @@
 	grid-template-columns: auto 1fr;
 	gap: 4px 12px;
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .facts dt {
@@ -235,7 +256,7 @@
 
 .fingerprint {
 	font-family: var(--wp-font-mono);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .warning {
@@ -246,7 +267,7 @@
 	border-radius: 6px;
 	background: var(--wp-bg-raised);
 	color: var(--wp-text-primary);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .warningTitle {

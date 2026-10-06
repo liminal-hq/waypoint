@@ -52,7 +52,7 @@
 .detail {
 	overflow: hidden;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -83,7 +83,7 @@
 	padding-block: 6px 2px;
 	padding-inline: 8px;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	font-weight: 600;
 	list-style: none;
 }
@@ -96,7 +96,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 /* A server of a protocol that is turned off (D167): the icon and name are dimmed, the reason under them is not, so it stays readable. */

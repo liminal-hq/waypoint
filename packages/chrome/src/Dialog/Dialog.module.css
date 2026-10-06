@@ -15,7 +15,7 @@
 	border-radius: 12px;
 	box-shadow: var(--wp-shadow-dialog);
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	overscroll-behavior: contain;
 }
 
@@ -90,7 +90,7 @@
 
 .title {
 	margin: 0;
-	font-size: 15px;
+	font-size: calc(15px * var(--wp-text-scale));
 	font-weight: 600;
 	line-height: 1.3;
 	overflow-wrap: anywhere;

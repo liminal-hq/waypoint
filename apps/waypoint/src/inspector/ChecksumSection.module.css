@@ -9,7 +9,7 @@
 
 .heading {
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	font-weight: 600;
 }
 
@@ -17,12 +17,12 @@
 .detail {
 	margin: 0;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 }
 
 .status {
 	margin: 0;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .controls {
@@ -35,7 +35,7 @@
 .label {
 	margin: 0;
 	color: var(--wp-text-muted);
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 }
 
 .select,
@@ -46,7 +46,7 @@
 	background: var(--wp-bg-raised);
 	color: inherit;
 	font: inherit;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .button {
@@ -78,7 +78,7 @@
 
 .warningText {
 	margin: 0;
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .actions {
@@ -106,7 +106,7 @@
 	border-radius: 4px;
 	background: var(--wp-control-bg);
 	font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	overflow-wrap: anywhere;
 }
 

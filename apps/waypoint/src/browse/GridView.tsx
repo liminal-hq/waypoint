@@ -56,6 +56,8 @@ interface GridViewProps {
 	onMenu?: ((request: MenuRequest) => void) | undefined;
 	/** Whether the grid announces selection changes itself; a host with a status bar does that. */
 	announceSelection?: boolean | undefined;
+	/** The grid's accessible name when "Files" does not tell it apart from another list on screen (a pane of a pair). */
+	label?: string | undefined;
 }
 
 /** The grid for a listing that is opening, failed or ready. */
@@ -66,6 +68,7 @@ export function GridView({
 	onOpenInNewTab,
 	onMenu,
 	announceSelection = true,
+	label,
 }: GridViewProps) {
 	return (
 		<ListingGate state={state}>
@@ -78,6 +81,7 @@ export function GridView({
 					onOpenInNewTab={onOpenInNewTab}
 					onMenu={onMenu}
 					announceSelection={announceSelection}
+					label={label}
 				/>
 			)}
 		</ListingGate>
@@ -96,6 +100,7 @@ function GridBody({
 	onOpenInNewTab,
 	onMenu,
 	announceSelection,
+	label,
 }: GridBodyProps) {
 	const { model, store } = session;
 	const version = useSyncExternalStore(model.subscribe, model.getVersion);
@@ -375,7 +380,7 @@ function GridBody({
 						ref={listbox}
 						role="listbox"
 						tabIndex={0}
-						aria-label={t('browse.list.label')}
+						aria-label={label ?? t('browse.list.label')}
 						aria-multiselectable="true"
 						aria-activedescendant={activeId}
 						className={styles.grid}

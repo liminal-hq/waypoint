@@ -233,6 +233,9 @@ function Pane({
 						mode={mode}
 						gridSize={gridSize}
 						location={tab.location}
+						listLabel={
+							paired ? tf('pair.pane.files', { position: index + 1, count, title }) : undefined
+						}
 						onOpen={openers.open}
 						onOpenInNewTab={openers.openInNewTab}
 						onMenu={(request) => onMenu({ ...request, openers, session })}

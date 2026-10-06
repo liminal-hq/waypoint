@@ -847,6 +847,7 @@ export const enMessages = {
 	'pair.divider.label': 'Resize panes',
 	'pair.divider.value': '{first}% and {second}%',
 	'pair.pane.label': 'Pane {position} of {count}: {title}',
+	'pair.pane.files': 'Files, pane {position} of {count}: {title}',
 	'pair.pane.close': 'Close pane {title}',
 	'pair.pane.active': 'Active',
 	'pair.pane.grip': 'Drag up to the tab strip to separate',

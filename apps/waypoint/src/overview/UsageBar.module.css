@@ -67,7 +67,7 @@
 	padding: 0;
 	list-style: none;
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .item {

@@ -6,7 +6,7 @@
 	min-block-size: 0;
 	color: var(--wp-text-primary);
 	background: var(--wp-bg-shell);
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 }
 
 .collapsed {
@@ -116,6 +116,6 @@
 
 .heading {
 	margin: 0 0 16px;
-	font-size: 18px;
+	font-size: calc(18px * var(--wp-text-scale));
 	font-weight: 600;
 }

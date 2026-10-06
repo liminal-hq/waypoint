@@ -3,7 +3,7 @@
 	flex-direction: column;
 	min-height: 0;
 	color: var(--wp-text-primary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	outline: none;
 }
 
@@ -23,7 +23,7 @@
 
 .heading {
 	margin: 0;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	font-weight: 600;
 }
 

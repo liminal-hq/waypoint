@@ -72,6 +72,16 @@ describe('the pane layout', () => {
 		expect(within(first!).getByText('Active')).toBeInTheDocument();
 	});
 
+	it('names each pane’s file list apart, and a single tab’s list plainly', async () => {
+		const h = await renderWorkspace();
+		expect(await screen.findByRole('listbox', { name: 'Files' })).toBeInTheDocument();
+		await joined(h);
+		const [first, second] = panes();
+		expect(within(first!).getByRole('listbox')).toHaveAccessibleName('Files, pane 1 of 2: test');
+		expect(within(second!).getByRole('listbox')).toHaveAccessibleName('Files, pane 2 of 2: docs');
+		expect(screen.queryByRole('listbox', { name: 'Files' })).toBeNull();
+	});
+
 	it('follows the layout and the sizes of the pair', async () => {
 		const h = await renderWorkspace();
 		await joined(h);

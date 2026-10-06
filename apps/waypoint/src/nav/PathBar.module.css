@@ -48,7 +48,7 @@
 	background: transparent;
 	color: var(--wp-text-secondary);
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	cursor: default;
 }
 
@@ -93,7 +93,7 @@
 	background: transparent;
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	outline: none;
 }
 
@@ -112,7 +112,7 @@
 	border-radius: 6px;
 	background: var(--wp-bg-raised);
 	color: var(--wp-danger);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 }
 
 .problem[data-tone='note'] {

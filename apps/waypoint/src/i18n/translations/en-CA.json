@@ -2727,6 +2727,10 @@
     "message": "Pane {position} of {count}: {title}",
     "description": "Area: pair. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {position} is a place in a list or row, a number; {title} is the title of a tab."
   },
+  "pair.pane.files": {
+    "message": "Files, pane {position} of {count}: {title}",
+    "description": "Area: pair. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it); {position} is a place in a list or row, a number; {title} is the title of a tab."
+  },
   "pair.pane.close": {
     "message": "Close pane {title}",
     "description": "Area: pair. Placeholders, kept exactly as written: {title} is the title of a tab."

@@ -51,7 +51,7 @@
 	background: transparent;
 	color: var(--wp-text-primary);
 	font: inherit;
-	font-size: 13px;
+	font-size: calc(13px * var(--wp-text-scale));
 	white-space: nowrap;
 	cursor: default;
 }

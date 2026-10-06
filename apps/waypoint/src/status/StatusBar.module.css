@@ -8,7 +8,7 @@
 	border-top: 1px solid var(--wp-border-subtle);
 	background: var(--wp-bg-window);
 	color: var(--wp-text-secondary);
-	font-size: 12px;
+	font-size: calc(12px * var(--wp-text-scale));
 	font-variant-numeric: tabular-nums;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .dirty {
-	font-size: 8px;
+	font-size: calc(8px * var(--wp-text-scale));
 	color: var(--wp-warning);
 }
 

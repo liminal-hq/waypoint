@@ -5,7 +5,7 @@
 	color: var(--wp-text-secondary);
 	border: 1px solid var(--wp-border-subtle);
 	border-radius: 999px;
-	font-size: 11px;
+	font-size: calc(11px * var(--wp-text-scale));
 	font-weight: 600;
 	line-height: 1.5;
 	vertical-align: 1px;
