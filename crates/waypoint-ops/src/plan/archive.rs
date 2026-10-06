@@ -53,24 +53,15 @@ impl From<LeftOut> for crate::model::LeftOutWhy {
     }
 }
 
-/// What the archive provider shows a stored `..` as, so that it browses (the name is kept for
-/// display by `left_out_name`).
-const SHOWN_DOT_DOT: &[u8] = b"%2E%2E";
-
 /// A left-out entry's place inside its archive, written for reading: its components joined with
-/// `/`, a `..` shown as `..` (the provider keeps it as `%2E%2E` only so the entry browses).
+/// `/` (each through `waypoint_vfs::stored_name_shown`, which turns the listing's flat name for a
+/// stored `..` back into `../evil.txt`).
 pub(crate) fn left_out_name(location: &waypoint_protocol::Location) -> String {
     match VfsPath::from_location(location) {
         Ok(VfsPath::Archive(path)) => path
             .inner()
             .iter()
-            .map(|part| {
-                if part.as_slice() == SHOWN_DOT_DOT {
-                    "..".to_owned()
-                } else {
-                    String::from_utf8_lossy(part).into_owned()
-                }
-            })
+            .map(|part| waypoint_vfs::stored_name_shown(part))
             .collect::<Vec<_>>()
             .join("/"),
         _ => location.display.clone(),

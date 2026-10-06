@@ -50,8 +50,8 @@ mod watch;
 mod write;
 
 pub use archive::{
-    ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind, ArchiveRefusal, ArchiveWriters,
-    EntryAttrs, UnsafeName, Writability,
+    stored_name_shown, ArchiveBuilder, ArchiveCatalog, ArchiveEntryInfo, ArchiveKind,
+    ArchiveRefusal, ArchiveWriters, EntryAttrs, UnsafeName, Writability, FLAT_DOT_DOT, FLAT_SLASH,
 };
 pub use attributes::{EntryAttributes, MAX_ATTRIBUTES, MAX_KEY_BYTES, MAX_VALUE_BYTES};
 pub use cancel::CancelToken;

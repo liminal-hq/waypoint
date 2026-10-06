@@ -30,6 +30,24 @@ pub enum UnsafeName {
     ThroughLink,
 }
 
+/// What stands for `/` in the one flat name an archive lists for an entry whose stored name has a
+/// `..` in it (U+2215, DIVISION SLASH).
+pub const FLAT_SLASH: char = '\u{2215}';
+
+/// What a stored name that is only `..` is listed as.
+pub const FLAT_DOT_DOT: &str = "%2E%2E";
+
+/// One component of an archive path, as a person reads the name the archive stored: the listing's
+/// flat form `..\u{2215}evil.txt` is `../evil.txt` and `%2E%2E` is `..`. The listing and the
+/// notice of what an extraction leaves out share this, so they agree on every name but the one
+/// character (`\u{2215}` or `/`) the listing cannot use as a separator.
+pub fn stored_name_shown(component: &[u8]) -> String {
+    if component == FLAT_DOT_DOT.as_bytes() {
+        return "..".to_owned();
+    }
+    String::from_utf8_lossy(component).replace(FLAT_SLASH, "/")
+}
+
 /// One entry of an archive, as extraction plans with it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArchiveEntryInfo {

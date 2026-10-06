@@ -17,11 +17,11 @@ pub(crate) struct SafeName {
 }
 
 /// What a name that is only `..` is shown as: a name that is a name, and reads as what it was.
-const DOT_DOT: &[u8] = b"%2E%2E";
+const DOT_DOT: &[u8] = waypoint_vfs::FLAT_DOT_DOT.as_bytes();
 
 /// What stands for `/` in the flat name of an entry that climbs out with `..` (U+2215, DIVISION
 /// SLASH), so the name reads as it was stored but is one name, not a path.
-const SLASH_SHOWN: &str = "\u{2215}";
+const SLASH_SHOWN: char = waypoint_vfs::FLAT_SLASH;
 
 /// Splits a stored name into components that can be joined onto a folder without leaving it.
 ///
@@ -80,7 +80,7 @@ pub(crate) fn sanitise(raw: &[u8], backslash: bool) -> SafeName {
         let mut joined = Vec::new();
         for (at, part) in components.iter().enumerate() {
             if at > 0 {
-                joined.extend_from_slice(SLASH_SHOWN.as_bytes());
+                joined.extend_from_slice(SLASH_SHOWN.to_string().as_bytes());
             }
             joined.extend_from_slice(part);
         }
