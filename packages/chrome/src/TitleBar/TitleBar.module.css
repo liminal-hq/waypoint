@@ -8,7 +8,7 @@
 	flex: none;
 	height: var(--wp-title-bar-height);
 	padding: 0 8px;
-	background: var(--wp-bg-chrome);
+	background: linear-gradient(to bottom, var(--wp-title-bar-top), var(--wp-title-bar-bottom));
 	color: var(--wp-text-primary);
 	border-bottom: 1px solid var(--wp-border-subtle);
 	border-radius: var(--wp-window-radius) var(--wp-window-radius) 0 0;
@@ -23,7 +23,11 @@
 /* An unfocused window quiets its title bar, as GNOME's own headers do. */
 .titleBar[data-focused='false'] {
 	color: var(--wp-text-muted);
-	background: var(--wp-bg-chrome-unfocused);
+	background: linear-gradient(
+		to bottom,
+		var(--wp-title-bar-top-unfocused),
+		var(--wp-title-bar-bottom-unfocused)
+	);
 }
 
 .titleBar[data-focused='false'] .controls {
@@ -37,18 +41,34 @@
 }
 
 .titleBar[data-transparent] {
-	background: color-mix(
-		in srgb,
-		var(--wp-bg-chrome) calc(var(--wp-title-bar-opacity) * 100%),
-		transparent
+	background: linear-gradient(
+		to bottom,
+		color-mix(
+			in srgb,
+			var(--wp-title-bar-top) calc(var(--wp-title-bar-opacity) * 100%),
+			transparent
+		),
+		color-mix(
+			in srgb,
+			var(--wp-title-bar-bottom) calc(var(--wp-title-bar-opacity) * 100%),
+			transparent
+		)
 	);
 }
 
 .titleBar[data-transparent][data-focused='false'] {
-	background: color-mix(
-		in srgb,
-		var(--wp-bg-chrome-unfocused) calc(var(--wp-title-bar-opacity) * 100%),
-		transparent
+	background: linear-gradient(
+		to bottom,
+		color-mix(
+			in srgb,
+			var(--wp-title-bar-top-unfocused) calc(var(--wp-title-bar-opacity) * 100%),
+			transparent
+		),
+		color-mix(
+			in srgb,
+			var(--wp-title-bar-bottom-unfocused) calc(var(--wp-title-bar-opacity) * 100%),
+			transparent
+		)
 	);
 }
 

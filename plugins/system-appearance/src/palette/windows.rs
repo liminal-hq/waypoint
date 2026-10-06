@@ -8,14 +8,19 @@ use std::cell::Cell;
 use tauri::{AppHandle, Runtime};
 use tokio::sync::mpsc::UnboundedSender;
 use windows::{
-    core::IInspectable,
+    core::{w, IInspectable},
     Foundation::TypedEventHandler,
     Win32::{
+        Foundation::ERROR_SUCCESS,
         Graphics::Gdi::{
-            GetSysColor, COLOR_BTNFACE, COLOR_HIGHLIGHT, COLOR_HIGHLIGHTTEXT, COLOR_HOTLIGHT,
-            COLOR_WINDOW, COLOR_WINDOWFRAME, COLOR_WINDOWTEXT, SYS_COLOR_INDEX,
+            GetSysColor, COLOR_ACTIVECAPTION, COLOR_BTNFACE, COLOR_GRADIENTACTIVECAPTION,
+            COLOR_HIGHLIGHT, COLOR_HIGHLIGHTTEXT, COLOR_HOTLIGHT, COLOR_WINDOW, COLOR_WINDOWFRAME,
+            COLOR_WINDOWTEXT, SYS_COLOR_INDEX,
         },
-        System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED},
+        System::{
+            Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD},
+            WinRT::{RoInitialize, RO_INIT_MULTITHREADED},
+        },
     },
     UI::ViewManagement::{AccessibilitySettings, UIColorType, UISettings},
 };
@@ -62,6 +67,27 @@ fn ui_colour(settings: &UISettings, kind: UIColorType) -> Result<String, String>
         .map_err(|error| error.to_string())
 }
 
+/// Whether the user asked for the accent colour on title bars (Settings, Personalisation,
+/// Colours). Without it Windows 11 draws the title bar in the theme's own surface colour, which
+/// no API reports apart from the window background, so the title bar stays flat.
+fn accent_on_title_bars() -> bool {
+    let mut data = 0u32;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: `data` and `size` outlive the call, and `size` is the byte length of `data`.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!("Software\\Microsoft\\Windows\\DWM"),
+            w!("ColorPrevalence"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some(std::ptr::addr_of_mut!(data).cast()),
+            Some(&mut size),
+        )
+    };
+    status == ERROR_SUCCESS && data == 1
+}
+
 fn read_blocking() -> PaletteColours {
     ensure_winrt();
     let mut colours = PaletteColours::unavailable(
@@ -83,6 +109,15 @@ fn read_blocking() -> PaletteColours {
                     Err(error) => PaletteEntry::missing(UnavailableReason::ReadFailed, error),
                 };
             }
+            if accent_on_title_bars() {
+                if let Ok(hex) = ui_colour(&settings, UIColorType::Accent) {
+                    colours.set(
+                        PaletteColour::TitleBarBackground,
+                        hex,
+                        PaletteSource::UiSettings,
+                    );
+                }
+            }
         }
         Err(error) => {
             return PaletteColours::unavailable(UnavailableReason::ReadFailed, &error.to_string())
@@ -99,6 +134,11 @@ fn read_blocking() -> PaletteColours {
             (PaletteColour::SelectionForeground, COLOR_HIGHLIGHTTEXT),
             (PaletteColour::Border, COLOR_WINDOWFRAME),
             (PaletteColour::Focus, COLOR_HOTLIGHT),
+            (PaletteColour::TitleBarBackground, COLOR_ACTIVECAPTION),
+            (
+                PaletteColour::TitleBarBackgroundEnd,
+                COLOR_GRADIENTACTIVECAPTION,
+            ),
         ] {
             colours.set(target, sys_colour(index), PaletteSource::SysColor);
         }

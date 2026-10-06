@@ -3,4 +3,4 @@
 /**
  * One colour of the palette.
  */
-export type PaletteColour = "windowBackground" | "windowForeground" | "viewBackground" | "viewForeground" | "surfaceBackground" | "selectionBackground" | "selectionForeground" | "border" | "focus" | "warning" | "error" | "success";
+export type PaletteColour = "windowBackground" | "windowForeground" | "viewBackground" | "viewForeground" | "surfaceBackground" | "selectionBackground" | "selectionForeground" | "border" | "focus" | "warning" | "error" | "success" | "titleBarBackground" | "titleBarBackgroundEnd";

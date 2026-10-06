@@ -204,6 +204,8 @@ describe('the OS palette in the look', () => {
 		warning: entry(null),
 		error: entry(null),
 		success: entry(null),
+		titleBarBackground: entry(null),
+		titleBarBackgroundEnd: entry(null),
 	});
 	const dark = palette('#2a2e32', '#fcfcfc');
 	const on = withAppearance({ matchSystemColours: true });

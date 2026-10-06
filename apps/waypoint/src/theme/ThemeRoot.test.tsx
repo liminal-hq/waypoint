@@ -257,6 +257,8 @@ describe('ThemeRoot and the OS palette', () => {
 		warning: none,
 		error: none,
 		success: none,
+		titleBarBackground: none,
+		titleBarBackgroundEnd: none,
 	});
 	function fakePalette(initial: Palette | null) {
 		const listeners = new Set<(next: Palette) => void>();

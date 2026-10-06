@@ -42,11 +42,15 @@ pub enum PaletteColour {
     Warning,
     Error,
     Success,
+    /// The top (or only) colour of the title bar.
+    TitleBarBackground,
+    /// The colour the title bar shades to at its bottom edge; the same as the top for a flat one.
+    TitleBarBackgroundEnd,
 }
 
 impl PaletteColour {
     /// Every colour, in the order the palette lists them.
-    pub const ALL: [PaletteColour; 12] = [
+    pub const ALL: [PaletteColour; 14] = [
         PaletteColour::WindowBackground,
         PaletteColour::WindowForeground,
         PaletteColour::ViewBackground,
@@ -59,6 +63,8 @@ impl PaletteColour {
         PaletteColour::Warning,
         PaletteColour::Error,
         PaletteColour::Success,
+        PaletteColour::TitleBarBackground,
+        PaletteColour::TitleBarBackgroundEnd,
     ];
 }
 
@@ -125,6 +131,12 @@ pub struct PaletteColours {
     pub warning: PaletteEntry,
     pub error: PaletteEntry,
     pub success: PaletteEntry,
+    /// The top of the title bar (a GTK theme's `headerbar_bg_color`, KDE's header background). A
+    /// platform or theme with no title bar colour reports a miss, and the title bar stays flat.
+    pub title_bar_background: PaletteEntry,
+    /// The bottom of the title bar, where the theme shades it in two tones. Only present with a
+    /// top colour.
+    pub title_bar_background_end: PaletteEntry,
 }
 
 impl PaletteColours {
@@ -143,7 +155,9 @@ impl PaletteColours {
             focus: missing.clone(),
             warning: missing.clone(),
             error: missing.clone(),
-            success: missing,
+            success: missing.clone(),
+            title_bar_background: missing.clone(),
+            title_bar_background_end: missing,
         }
     }
 
@@ -161,6 +175,8 @@ impl PaletteColours {
             PaletteColour::Warning => &self.warning,
             PaletteColour::Error => &self.error,
             PaletteColour::Success => &self.success,
+            PaletteColour::TitleBarBackground => &self.title_bar_background,
+            PaletteColour::TitleBarBackgroundEnd => &self.title_bar_background_end,
         }
     }
 
@@ -178,6 +194,8 @@ impl PaletteColours {
             PaletteColour::Warning => &mut self.warning,
             PaletteColour::Error => &mut self.error,
             PaletteColour::Success => &mut self.success,
+            PaletteColour::TitleBarBackground => &mut self.title_bar_background,
+            PaletteColour::TitleBarBackgroundEnd => &mut self.title_bar_background_end,
         }
     }
 

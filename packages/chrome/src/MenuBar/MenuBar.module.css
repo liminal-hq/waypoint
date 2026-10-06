@@ -8,15 +8,16 @@
 	padding: 3px 8px;
 	overflow: hidden;
 	border-bottom: 1px solid var(--wp-border-subtle);
-	background: var(--wp-bg-chrome);
+	/* Continues the title bar's gradient from where it ends, so the two rows join without a seam. */
+	background: var(--wp-title-bar-bottom);
 	color: var(--wp-text-primary);
 }
 
-/* The title bar's own mix, so a translucent window shows the same through both rows. */
+/* The title bar's own mix of its bottom colour, so a translucent window shows the same through both rows. */
 .bar[data-transparent] {
 	background: color-mix(
 		in srgb,
-		var(--wp-bg-chrome) calc(var(--wp-title-bar-opacity) * 100%),
+		var(--wp-title-bar-bottom) calc(var(--wp-title-bar-opacity) * 100%),
 		transparent
 	);
 }

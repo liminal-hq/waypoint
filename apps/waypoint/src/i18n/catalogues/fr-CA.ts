@@ -288,6 +288,8 @@ const messages: Catalogue = {
 		'les couleurs d’avertissement, d’erreur et de réussite',
 	// source: c2c23e6d
 	'settings.appearance.systemColours.part.focus': 'l’anneau de focus',
+	// source: 7c5680e0
+	'settings.appearance.systemColours.part.titleBar': 'la barre de titre',
 	// source: a8f1cf41
 	'settings.appearance.systemColours.highContrast':
 		'Le contraste élevé est activé et utilise déjà les couleurs propres au système : ce réglage n’a donc aucun effet pour le moment.',

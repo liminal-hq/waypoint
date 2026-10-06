@@ -12,6 +12,11 @@
 	--wp-bg-raised: #2b2d31;
 	--wp-bg-chrome: #1e1f22;
 	--wp-bg-chrome-unfocused: var(--wp-bg-chrome);
+	/* The title bar's two tones, top to bottom. A host that follows the desktop's theme sets them; each is the flat chrome colour until then, so the bar draws no gradient. */
+	--wp-title-bar-top: var(--wp-bg-chrome);
+	--wp-title-bar-bottom: var(--wp-bg-chrome);
+	--wp-title-bar-top-unfocused: var(--wp-bg-chrome-unfocused);
+	--wp-title-bar-bottom-unfocused: var(--wp-bg-chrome-unfocused);
 	/* Transparency hooks: a host that makes its windows see-through redefines these (see-through is opt-in, so each defaults to the solid colour it replaces). */
 	--wp-bg-menu: var(--wp-bg-raised);
 	--wp-menu-backdrop: none;
