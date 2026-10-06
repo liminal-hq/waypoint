@@ -9144,9 +9144,11 @@ dependencies = [
 name = "waypoint-provider-sftp"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "futures",
  "log",
  "openssh-config",
+ "rand 0.10.3",
  "russh",
  "russh-sftp",
  "tempfile",

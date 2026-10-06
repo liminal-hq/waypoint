@@ -1,9 +1,13 @@
-// A throwaway OpenSSH server run as the current user, and a TCP proxy that delays, stalls or
-// severs connections, for the SFTP provider's tests against a real server.
+// What the SFTP provider's tests run against: an in-process server (`fake`) on every platform, a
+// throwaway OpenSSH server run as the current user, and a TCP proxy that delays, stalls or severs
+// connections to either. `Backend` is what a test needs from a server, so one body serves both.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+//! `FakeSftp::start` needs nothing installed; see `fake.rs`. `on_both!` declares each test body
+//! twice, as `name::in_process` and `name::openssh`.
+//!
 //! `Sshd::start` generates a host key and client keys in a temporary folder, writes a
 //! configuration that needs no root (`UsePAM no`, `StrictModes no`) and runs `sshd -D` on a free
 //! loopback port, as spike #278 did. It returns `None`, after printing why, when there is no
@@ -24,10 +28,36 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use waypoint_path::VfsPath;
-use waypoint_provider_sftp::{
-    AgentSource, KnownHosts, MemoryKnownHosts, ServerKey, SftpConfig, SftpOptions, SftpProvider,
-};
+use waypoint_provider_sftp::ServerKey;
+
+pub mod backend;
+pub mod fake;
+
+pub use backend::Backend;
+pub use fake::FakeSftp;
+
+/// Declares, for each function that takes a `&dyn Backend`, a test against the in-process server
+/// (every platform) and one against OpenSSH (skipped without `sshd`).
+#[allow(unused_macros)]
+macro_rules! on_both {
+    ($($name:ident),+ $(,)?) => {$(
+        mod $name {
+            #[test]
+            fn in_process() {
+                let server = crate::support::FakeSftp::start();
+                super::$name(&server);
+            }
+
+            #[test]
+            fn openssh() {
+                let Some(server) = crate::support::Sshd::start() else {
+                    return;
+                };
+                super::$name(&server);
+            }
+        }
+    )+};
+}
 
 /// The passphrase of the encrypted client key.
 pub const PASSPHRASE: &str = "correct horse battery staple";
@@ -189,38 +219,6 @@ impl Sshd {
             panic!("sshd did not answer on port {port}: {log}");
         }
         Some(server)
-    }
-
-    /// Known hosts that trust this server at `port` (its own, or a proxy's).
-    pub fn known_hosts(&self, port: u16) -> Arc<MemoryKnownHosts> {
-        let known = Arc::new(MemoryKnownHosts::new());
-        known.remember("127.0.0.1", port, &self.host_key).unwrap();
-        known
-    }
-
-    /// A provider that trusts this server and logs in with the plain client key.
-    pub fn provider(&self) -> SftpProvider {
-        self.provider_with(self.port, SftpOptions::default())
-    }
-
-    pub fn provider_with(&self, port: u16, options: SftpOptions) -> SftpProvider {
-        SftpProvider::new(
-            SftpConfig::new(self.known_hosts(port))
-                .with_agent(AgentSource::None)
-                .with_identity_files(vec![self.client_key.clone()])
-                .with_options(options),
-        )
-    }
-
-    /// The location of `path` (absolute, on this machine) through `port`.
-    pub fn location(&self, port: u16, path: &Path) -> VfsPath {
-        let root = VfsPath::from_uri(&format!("sftp://{}@127.0.0.1:{port}/", user())).unwrap();
-        root.join(path.to_str().unwrap()).unwrap()
-    }
-
-    /// The data folder's location on this server.
-    pub fn data_location(&self) -> VfsPath {
-        self.location(self.port, &self.data)
     }
 }
 
