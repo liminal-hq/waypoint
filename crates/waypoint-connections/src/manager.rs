@@ -30,6 +30,9 @@ pub const IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 /// How often the idle sweep looks.
 pub const SWEEP_EVERY: Duration = Duration::from_secs(30);
 
+/// How often a login shown as failed is asked whether its provider has reconnected.
+pub const RECHECK_EVERY: Duration = Duration::from_secs(2);
+
 /// The state of one login, as every window hears it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -346,18 +349,43 @@ impl ConnectionManager {
         closed
     }
 
-    /// Runs `sweep` every `every` on a thread of its own, for as long as the manager lives.
+    /// Takes up a login the provider says works again while the manager still shows it failed: a
+    /// transfer reconnects through the registry on its own, and nothing else would tell the
+    /// Network section and the tab's dot.
+    pub fn refresh_failed(&self) {
+        let failed: Vec<ConnectionKey> = self
+            .lock()
+            .iter()
+            .filter(|(_, t)| matches!(t.state, ConnectionState::Failed { .. }))
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in failed {
+            let Ok(provider) = self.provider(&key) else {
+                continue;
+            };
+            if provider.connection_state(&key) == ConnectionState::Connected {
+                self.set(&key, ConnectionState::Connected);
+            }
+        }
+    }
+
+    /// Runs `sweep` every `every` on a thread of its own, for as long as the manager lives, and
+    /// `refresh_failed` every `RECHECK_EVERY` between, so a reconnected login shows within seconds.
     pub fn spawn_sweeper(self: &Arc<Self>, every: Duration) {
         let weak: Weak<Self> = Arc::downgrade(self);
         let spawned = std::thread::Builder::new()
             .name("waypoint-connections-idle".to_owned())
-            .spawn(move || loop {
-                std::thread::sleep(every);
-                match weak.upgrade() {
-                    Some(manager) => {
+            .spawn(move || {
+                let tick = every.min(RECHECK_EVERY);
+                let mut last_sweep = Instant::now();
+                loop {
+                    std::thread::sleep(tick);
+                    let Some(manager) = weak.upgrade() else { break };
+                    manager.refresh_failed();
+                    if last_sweep.elapsed() >= every {
+                        last_sweep = Instant::now();
                         manager.sweep(Instant::now());
                     }
-                    None => break,
                 }
             });
         if let Err(error) = spawned {
@@ -594,6 +622,35 @@ mod tests {
             ConnectionState::Idle,
             "the provider's session is closed too"
         );
+    }
+
+    #[test]
+    fn a_login_a_transfer_reconnected_is_connected_again_without_a_call_of_the_pages() {
+        let fx = fixture();
+        fx.server.put_dir(&fx.server.root("me@nas.lan"));
+        fx.manager
+            .connect(&fx.key, None, false, &CancelToken::new())
+            .unwrap();
+        // The connection drops while a transfer runs, and the manager hears of it.
+        fx.server
+            .set_fault(Some(RemoteFault::Unreachable(UnreachableReason::Refused)));
+        let root = fx.server.root("me@nas.lan");
+        let lost = fx.server.stat(&root).unwrap_err();
+        fx.manager.observe(&fx.key, Err(&lost));
+        assert!(matches!(
+            fx.manager.state(&fx.key),
+            ConnectionState::Failed { .. }
+        ));
+        // The transfer reconnects through the registry, which the manager is not part of.
+        fx.server.set_fault(None);
+        fx.server.stat(&root).unwrap();
+        assert_eq!(
+            fx.server.connection_state(&fx.key),
+            ConnectionState::Connected
+        );
+        fx.manager.refresh_failed();
+        assert_eq!(fx.manager.state(&fx.key), ConnectionState::Connected);
+        assert_eq!(states(&fx).last().map(String::as_str), Some("connected"));
     }
 
     #[test]
