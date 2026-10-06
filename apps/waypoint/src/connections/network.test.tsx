@@ -86,6 +86,21 @@ describe('the Network section', () => {
 		);
 	});
 
+	it('forgets a recent server with its remembered password, and says when the keyring would not', async () => {
+		const connections = new FakeConnectionsClient({
+			recent: [{ key: 'sftp://pi', location: serverLocation('sftp://pi'), atMs: 1 }],
+			keyring: 'locked',
+		});
+		await renderWorkspace(undefined, undefined, undefined, { sidebar: true, connections });
+		const pi = await within(await network()).findByRole('button', { name: /sftp:\/\/pi/ });
+		fireEvent.keyDown(pi, { key: 'ContextMenu' });
+		fireEvent.click(await screen.findByRole('menuitem', { name: 'Forget' }));
+		await waitFor(() =>
+			expect(sidebarStatus()).toHaveTextContent(/Forgot .*Its password could not be forgotten/),
+		);
+		expect(connections.calls).toContainEqual(expect.objectContaining({ method: 'forgetRecent' }));
+	});
+
 	it('opens the Connect dialog from Connect to Server…', async () => {
 		await renderWorkspace(undefined, undefined, undefined, {
 			sidebar: true,

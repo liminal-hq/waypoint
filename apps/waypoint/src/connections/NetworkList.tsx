@@ -199,9 +199,16 @@ export function NetworkList({
 				setTimeout(() => openConnectDialog({ mode: 'new', address: locationOf(row).display }), 0);
 				return;
 			case 'forget':
-				void client
-					.forgetRecent(keyOf(row))
-					.then(() => announce(tf('network.announce.forgotten', { name: labelOf(row) })));
+				void client.forgetRecent(keyOf(row)).then((why) =>
+					announce(
+						why === null
+							? tf('network.announce.forgotten', { name: labelOf(row) })
+							: tf('network.announce.forgottenKeyring', {
+									name: labelOf(row),
+									reason: keyringText(why),
+								}),
+					),
+				);
 				return;
 		}
 	};

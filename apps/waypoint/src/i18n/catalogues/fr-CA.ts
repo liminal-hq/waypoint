@@ -2509,6 +2509,9 @@ const messages: Catalogue = {
 	'network.announce.moved': '{name} déplacé à la position {position}',
 	// source: e835e6cb
 	'network.announce.forgotten': '{name} oublié',
+	// source: 5928abe3
+	'network.announce.forgottenKeyring':
+		'{name} oublié. Son mot de passe n’a pas pu être oublié : {reason}.',
 	// source: 0303e182
 	'remote.state.idle': 'Non connecté',
 	// source: 72021eb7

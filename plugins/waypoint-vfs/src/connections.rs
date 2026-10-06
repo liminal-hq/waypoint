@@ -201,11 +201,15 @@ pub async fn move_connection(state: State<'_, Vfs>, id: String, to: u32) -> Resu
     Ok(hub(&state)?.move_to(&id, to as usize)?)
 }
 
-/// Forgets one recent server, or all of them with `null`.
+/// Forgets one recent server, or all of them with `null`, with the secrets remembered for their
+/// logins. Resolves with why the keyring could not forget them, or `null`.
 #[tauri::command]
-pub async fn forget_recent_server(state: State<'_, Vfs>, key: Option<String>) -> Result<(), Error> {
-    hub(&state)?.forget_recent(key.as_deref());
-    Ok(())
+pub async fn forget_recent_server(
+    state: State<'_, Vfs>,
+    key: Option<String>,
+) -> Result<Option<KeyringUnavailable>, Error> {
+    let hub = hub(&state)?;
+    blocking(move || hub.forget_recent(key.as_deref())).await
 }
 
 /// Forgets the remembered secrets of a server's login, in the keyring and in this session.

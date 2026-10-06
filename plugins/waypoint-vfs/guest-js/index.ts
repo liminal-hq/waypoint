@@ -386,8 +386,8 @@ export function moveConnection(id: string, to: number): Promise<void> {
 }
 
 /** Forgets one recent server by its login, or all of them with `null`. */
-export function forgetRecentServer(key: string | null): Promise<void> {
-	return cmd<void>('forget_recent_server', { key });
+export function forgetRecentServer(key: string | null): Promise<KeyringUnavailable | null> {
+	return cmd<KeyringUnavailable | null>('forget_recent_server', { key });
 }
 
 /** Forgets the remembered secrets of a server's login. Resolves with why it could not, or `null`. */

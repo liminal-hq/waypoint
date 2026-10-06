@@ -227,9 +227,39 @@ impl ConnectionsHub {
         self.edit(|store| Ok(((), store.move_to(id, to)?)))
     }
 
-    /// Forgets one recent server, or all of them with `None`.
-    pub fn forget_recent(&self, key: Option<&str>) {
+    /// Forgets one recent server, or all of them with `None`, and the secrets remembered for their
+    /// logins: a recent server is never saved, so nothing else could reach them to remove them
+    /// afterwards. Resolves with why the keyring could not forget them, if it could not.
+    pub fn forget_recent(&self, key: Option<&str>) -> Option<KeyringUnavailable> {
+        let forgotten: Vec<String> = match key {
+            Some(key) => vec![key.to_owned()],
+            None => self
+                .snapshot()
+                .recent
+                .iter()
+                .map(|r| r.key.clone())
+                .collect(),
+        };
         let _ = self.edit(|store| Ok(((), store.forget_recent(key))));
+        let mut unavailable = None;
+        for key in forgotten {
+            // A key that is saved as a connection keeps its login: it is not a recent server.
+            let saved = self
+                .snapshot()
+                .connections
+                .iter()
+                .any(|entry| entry.key == key);
+            let Some(root) = crate::store::root_of(&key) else {
+                continue;
+            };
+            if saved {
+                continue;
+            }
+            if let Err(error) = self.forget_login(&root.connection_key()) {
+                unavailable = Some(error);
+            }
+        }
+        unavailable
     }
 
     /// Puts an imported document in force.
@@ -382,6 +412,29 @@ mod tests {
         assert_eq!(fx.keyring.len(), 1, "the other connection still uses it");
         fx.hub.remove(&b.connection.id, true).unwrap();
         assert!(fx.keyring.is_empty());
+    }
+
+    #[test]
+    fn forgetting_a_recent_server_forgets_its_remembered_password() {
+        let fx = fixture();
+        let key = crate::store::root_of("sftp://me@b.lan")
+            .unwrap()
+            .connection_key();
+        fx.hub
+            .connect(&key, None, false, &CancelToken::new())
+            .unwrap();
+        fx.keyring
+            .store(&key, SecretKind::Password, Secret::from("pw"))
+            .unwrap();
+        let other = crate::store::root_of("sftp://me@c.lan")
+            .unwrap()
+            .connection_key();
+        fx.keyring
+            .store(&other, SecretKind::Password, Secret::from("other"))
+            .unwrap();
+        assert!(fx.hub.forget_recent(Some("sftp://me@b.lan")).is_none());
+        assert!(fx.hub.snapshot().recent.is_empty());
+        assert_eq!(fx.keyring.len(), 1, "only that login's password went");
     }
 
     #[test]
