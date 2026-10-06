@@ -254,17 +254,28 @@ impl Listing {
     ///
     /// Changes the watcher reports while the scan runs are held and applied right after it, so a
     /// change between the scan reading an entry and the listing going live is not lost.
+    ///
+    /// A remote provider's listing streams (A83, A115): each batch `list_batches` hands over joins
+    /// the index at its sorted place and is published with a new revision and the count readers
+    /// can fetch, so the first rows are drawn while the rest are on their way. Publishing waits at
+    /// least `progress_interval` after the first batch, so a reader's page request outlives the
+    /// revision it was made for. A local folder is read whole, as before, with progress counts.
     pub fn scan(&self) -> Result<ListingSnapshot, VfsError> {
-        let scanned = self.list_folder(ListingPhase::Scanning);
+        let streamed = self.provider.capabilities().remote;
+        let scanned = if streamed {
+            self.stream_folder().map(|rest| (rest, true))
+        } else {
+            self.list_folder(ListingPhase::Scanning)
+                .map(|entries| (entries, false))
+        };
         let turn = self.serialise();
-        let entries = match scanned {
-            Ok(entries) => entries,
+        let (entries, extend) = match scanned {
+            Ok(scanned) => scanned,
             Err(error) => {
                 self.write().phase = ListingPhase::Failed;
                 return Err(error);
             }
         };
-        let total = entries.len() as u32;
         let event = {
             let mut state = self.write();
             if state.phase == ListingPhase::Failed {
@@ -272,7 +283,12 @@ impl Listing {
                 // with nothing keeping the view current.
                 return Err(VfsError::StaleHandle);
             }
-            state.index.load(entries);
+            if extend {
+                state.index.extend(entries);
+            } else {
+                state.index.load(entries);
+            }
+            let total = state.index.held();
             state.revision += 1;
             state.phase = ListingPhase::Ready;
             ListingEvent::Progress {
@@ -292,6 +308,53 @@ impl Listing {
             self.rescan()?;
         }
         Ok(self.snapshot())
+    }
+
+    /// Reads the folder in batches, publishing what has arrived into the index as it goes (see
+    /// `scan`), and returns the entries not yet published, for the caller to add under its turn.
+    fn stream_folder(&self) -> Result<Vec<crate::ScannedEntry>, VfsError> {
+        let mut pending: Vec<crate::ScannedEntry> = Vec::new();
+        let mut received = 0u32;
+        let mut last = None::<Instant>;
+        let mut publish = |batch: Vec<crate::ScannedEntry>| {
+            received = received.saturating_add(batch.len() as u32);
+            if pending.is_empty() {
+                pending = batch;
+            } else {
+                pending.extend(batch);
+            }
+            let due = last.is_none_or(|at| at.elapsed() >= self.options.progress_interval);
+            if !due || pending.is_empty() {
+                return;
+            }
+            last = Some(Instant::now());
+            let _turn = self.serialise();
+            let event = {
+                let mut state = self.write();
+                if state.phase != ListingPhase::Scanning {
+                    // Failed meanwhile: the scan's end reports it.
+                    return;
+                }
+                state.index.extend(std::mem::take(&mut pending));
+                state.revision += 1;
+                ListingEvent::Progress {
+                    handle: self.handle,
+                    revision: state.revision,
+                    phase: ListingPhase::Scanning,
+                    scanned: received,
+                    count: state.index.count(),
+                    groups: Self::groups_of(&state),
+                }
+            };
+            self.emit(event);
+        };
+        self.provider.list_batches(
+            &self.path,
+            &self.cancel,
+            self.options.inline_link_budget,
+            &mut publish,
+        )?;
+        Ok(pending)
     }
 
     /// Reads the folder, reporting progress in `phase`.

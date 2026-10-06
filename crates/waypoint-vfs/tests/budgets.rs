@@ -313,3 +313,89 @@ fn scanning_a_real_500_000_entry_directory_stays_inside_the_budget() {
         millis(started.elapsed())
     );
 }
+
+/// A server that hands its entries over in batches, as a remote provider's `list_batches` does.
+struct Batched(Vec<ScannedEntry>, usize);
+
+impl Provider for Batched {
+    fn scheme(&self) -> &'static str {
+        "sftp"
+    }
+    fn capabilities(&self) -> Capabilities {
+        let mut capabilities = Capabilities::new(waypoint_path::CaseRule::Sensitive);
+        capabilities.remote = true;
+        capabilities
+    }
+    fn stat(&self, _: &VfsPath) -> Result<ScannedEntry, VfsError> {
+        unimplemented!()
+    }
+    fn list(
+        &self,
+        _: &VfsPath,
+        _: &CancelToken,
+        _: usize,
+        _: &mut dyn FnMut(u32),
+    ) -> Result<Vec<ScannedEntry>, VfsError> {
+        Ok(self.0.clone())
+    }
+    fn list_batches(
+        &self,
+        _: &VfsPath,
+        _: &CancelToken,
+        _: usize,
+        sink: &mut dyn FnMut(Vec<ScannedEntry>),
+    ) -> Result<(), VfsError> {
+        for batch in self.0.chunks(self.1) {
+            sink(batch.to_vec());
+        }
+        Ok(())
+    }
+    fn resolve_link(&self, _: &VfsPath, e: &ScannedEntry) -> Result<ScannedEntry, VfsError> {
+        Ok(e.clone())
+    }
+}
+
+#[test]
+#[ignore = "a 100 000-entry benchmark; run with --release and --ignored"]
+fn streaming_100_000_entries_in_batches_costs_little_over_loading_them_whole() {
+    // The remote listing budget (spike #278) is 100 000 entries in 0.5 s on a LAN; the index's
+    // share of it must stay small. Publishing every batch (no interval) is the worst case for the
+    // merge; the listing waits 50 ms between publishes, so a real scan merges far fewer times.
+    const REMOTE: usize = 100_000;
+    const STREAMED: Duration = Duration::from_millis(150);
+    let entries = synthetic(REMOTE);
+    let root = VfsPath::File(FilePath::from_path(std::path::Path::new("/")).unwrap());
+    let open = |provider: Arc<dyn Provider>| {
+        let started = Instant::now();
+        let listing = Listing::open(
+            ListingHandle(1),
+            root.clone(),
+            provider,
+            SortSpec::default(),
+            Filter::default(),
+            ListingOptions {
+                watch: false,
+                progress_interval: Duration::ZERO,
+                ..ListingOptions::default()
+            },
+            Arc::new(|_| {}),
+        )
+        .unwrap();
+        (started.elapsed(), listing)
+    };
+    let (whole, loaded) = open(Arc::new(Synthetic(entries.clone())));
+    for batch in [100, 2_000] {
+        let (took, streamed) = open(Arc::new(Batched(entries.clone(), batch)));
+        println!(
+            "{REMOTE} entries in batches of {batch}, published each: {:.0} ms (whole: {:.0} ms, budget {:.0})",
+            millis(took),
+            millis(whole),
+            millis(STREAMED)
+        );
+        assert_eq!(
+            streamed.get_range(0, u32::MAX),
+            loaded.get_range(0, u32::MAX)
+        );
+        assert!(!ENFORCE || took <= STREAMED, "streaming took {took:?}");
+    }
+}
