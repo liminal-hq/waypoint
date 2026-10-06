@@ -769,7 +769,12 @@ mod tests {
             provider.connection_key(&path).unwrap().as_str(),
             "sftp://me@h:2222"
         );
-        let local = VfsPath::from_uri("file:///tmp").unwrap();
+        let local = VfsPath::from_uri(if cfg!(windows) {
+            "file:///C:/tmp"
+        } else {
+            "file:///tmp"
+        })
+        .unwrap();
         assert_eq!(provider.connection_key(&local), None);
         assert!(matches!(
             provider.stat(&local),

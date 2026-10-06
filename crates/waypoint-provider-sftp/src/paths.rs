@@ -61,7 +61,12 @@ mod tests {
             server_path(remote(&odd).unwrap()),
             Err(VfsError::InvalidName { .. })
         ));
-        let local = VfsPath::from_uri("file:///tmp").unwrap();
+        let local = VfsPath::from_uri(if cfg!(windows) {
+            "file:///C:/tmp"
+        } else {
+            "file:///tmp"
+        })
+        .unwrap();
         assert!(matches!(remote(&local), Err(VfsError::Unsupported { .. })));
         assert_eq!(child("/", "a"), "/a");
         assert_eq!(child("/x", "a"), "/x/a");
