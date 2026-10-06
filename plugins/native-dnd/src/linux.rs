@@ -211,8 +211,9 @@ pub fn on_webview_ready<R: Runtime>(webview: &Webview<R>) {
                 .collect();
             note_source(&label, context.drag_get_source_widget().is_some(), &targets);
             if targets.iter().any(|name| name == URI_LIST) {
-                // Wry's handler and WebKit's answer the drag with a copy of their own, which the compositor still overrides from the keys it holds (Shift for a move): the suggested action is what the compositor chose, kept to what the source offers.
+                // Wry's handler and WebKit's answer the drag with a copy of their own, which a Wayland compositor still overrides from the keys it holds (Shift for a move) and reports as the selected action; on X11 GTK suggests the action from the modifiers. `negotiated_action` reads the right one.
                 let action = negotiated_action(
+                    display_server(),
                     context.suggested_action().bits(),
                     context.selected_action().bits(),
                     context.actions().bits(),

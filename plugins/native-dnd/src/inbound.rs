@@ -6,7 +6,10 @@
 use std::{path::PathBuf, time::Instant};
 
 use crate::{
-    models::{DragAction, DropEvent, EnterEvent, LeaveEvent, Modifiers, OverEvent, Position},
+    models::{
+        DisplayServer, DragAction, DropEvent, EnterEvent, LeaveEvent, Modifiers, OverEvent,
+        Position,
+    },
     outbound::Outbound,
     uri,
 };
@@ -68,10 +71,24 @@ fn single_action(mask: u32) -> Option<DragAction> {
     }
 }
 
-/// The action a drag has been negotiated to, from GDK's masks: the suggested action (on Wayland the compositor's own choice from the keys it holds; on X11 GTK's from the modifiers) and, failing that, the selected one the destination last answered with, each kept to what the source offers (`offered`; an empty mask means the source's offer is not known, so nothing is removed). `None` when neither is an action a drop can take, so a move is only ever reported for a source that offers one.
-pub fn negotiated_action(suggested: u32, selected: u32, offered: u32) -> Option<DragAction> {
+/// The action a drag has been negotiated to, from a GDK drop context's masks, kept to what the source offers (`offered`; an empty mask means the source's offer is not known, so nothing is removed). Where the choice lives depends on the display server:
+///
+/// - **Wayland:** the compositor chooses the action from the keys it holds (Mutter: Shift moves, Ctrl copies) and sends it to the target as `wl_data_offer.action`, which GTK 3 stores as the context's *selected* action. The *suggested* action is GTK's own default and stays Copy whatever is held, so it is only the fallback before the compositor has answered.
+/// - **X11:** GTK reads the modifiers on the source side and sends them as the *suggested* action; the *selected* action is the copy the destination answered with, so it is the fallback.
+///
+/// `None` when neither mask holds an action a drop can take, so a move is only ever reported for a source that offers one.
+pub fn negotiated_action(
+    server: DisplayServer,
+    suggested: u32,
+    selected: u32,
+    offered: u32,
+) -> Option<DragAction> {
     let allowed = |mask: u32| if offered == 0 { mask } else { mask & offered };
-    single_action(allowed(suggested)).or_else(|| single_action(allowed(selected)))
+    let (first, fallback) = match server {
+        DisplayServer::Wayland => (selected, suggested),
+        _ => (suggested, selected),
+    };
+    single_action(allowed(first)).or_else(|| single_action(allowed(fallback)))
 }
 
 /// A drag-drop event as the runtime delivers it, with the platform's types stripped.
@@ -261,25 +278,65 @@ mod tests {
     }
 
     #[test]
-    fn the_compositors_move_is_reported_only_when_the_source_offers_it() {
+    fn on_wayland_the_compositors_choice_is_the_selected_action() {
+        use DisplayServer::Wayland;
         let copy_move = GDK_ACTION_COPY | GDK_ACTION_MOVE;
+        // What GTK 3 reported in a nested Mutter 50 for a drag from Nautilus 50 (offering copy, move and ask) with Shift held: suggested stays Copy, selected is Mutter's Move.
         assert_eq!(
-            negotiated_action(GDK_ACTION_MOVE, GDK_ACTION_COPY, copy_move),
+            negotiated_action(
+                Wayland,
+                GDK_ACTION_COPY,
+                GDK_ACTION_MOVE,
+                copy_move | 1 << 5
+            ),
+            Some(DragAction::Move)
+        );
+        // No key held: Mutter selects the target's preferred Copy.
+        assert_eq!(
+            negotiated_action(Wayland, GDK_ACTION_COPY, GDK_ACTION_COPY, copy_move),
+            Some(DragAction::Copy)
+        );
+        // Before the compositor has answered the first motion, the selected mask is empty and the suggested Copy stands.
+        assert_eq!(
+            negotiated_action(Wayland, GDK_ACTION_COPY, 0, copy_move),
+            Some(DragAction::Copy)
+        );
+        // A copy-only source: a selected move it does not offer is not reported.
+        assert_eq!(
+            negotiated_action(Wayland, GDK_ACTION_COPY, GDK_ACTION_MOVE, GDK_ACTION_COPY),
+            Some(DragAction::Copy)
+        );
+        assert_eq!(
+            negotiated_action(Wayland, 0, GDK_ACTION_MOVE, GDK_ACTION_COPY),
+            None
+        );
+    }
+
+    #[test]
+    fn on_x11_the_modifiers_are_the_suggested_action() {
+        use DisplayServer::X11;
+        let copy_move = GDK_ACTION_COPY | GDK_ACTION_MOVE;
+        // GTK on X11 suggests Move for Shift; the destination's answer (selected) is WebKit's Copy.
+        assert_eq!(
+            negotiated_action(X11, GDK_ACTION_MOVE, GDK_ACTION_COPY, copy_move),
             Some(DragAction::Move)
         );
         assert_eq!(
-            negotiated_action(GDK_ACTION_COPY, GDK_ACTION_COPY, copy_move),
+            negotiated_action(X11, GDK_ACTION_COPY, GDK_ACTION_COPY, copy_move),
             Some(DragAction::Copy)
         );
-        // A copy-only source (an archive manager): the suggested move is not on offer, so the selected copy stands.
+        // A copy-only source: the suggested move is not on offer, so the selected copy stands.
         assert_eq!(
-            negotiated_action(GDK_ACTION_MOVE, GDK_ACTION_COPY, GDK_ACTION_COPY),
+            negotiated_action(X11, GDK_ACTION_MOVE, GDK_ACTION_COPY, GDK_ACTION_COPY),
             Some(DragAction::Copy)
         );
-        assert_eq!(negotiated_action(GDK_ACTION_MOVE, 0, GDK_ACTION_COPY), None);
+        assert_eq!(
+            negotiated_action(X11, GDK_ACTION_MOVE, 0, GDK_ACTION_COPY),
+            None
+        );
         // An unknown offer removes nothing.
         assert_eq!(
-            negotiated_action(GDK_ACTION_MOVE, 0, 0),
+            negotiated_action(X11, GDK_ACTION_MOVE, 0, 0),
             Some(DragAction::Move)
         );
     }
@@ -287,18 +344,31 @@ mod tests {
     #[test]
     fn a_mask_with_several_actions_takes_the_safest() {
         let all = GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK;
-        assert_eq!(negotiated_action(all, 0, all), Some(DragAction::Copy));
-        assert_eq!(
-            negotiated_action(GDK_ACTION_MOVE | GDK_ACTION_LINK, 0, all),
-            Some(DragAction::Move)
-        );
-        assert_eq!(
-            negotiated_action(GDK_ACTION_LINK, 0, all),
-            Some(DragAction::Link)
-        );
-        // Ask (1 << 5), private (1 << 4) and default (1 << 0) are not actions a drop takes.
-        assert_eq!(negotiated_action(1 << 5 | 1 << 4 | 1, 0, 0), None);
-        assert_eq!(negotiated_action(0, 0, 0), None);
+        for server in [DisplayServer::Wayland, DisplayServer::X11] {
+            assert_eq!(
+                negotiated_action(server, all, all, all),
+                Some(DragAction::Copy)
+            );
+            assert_eq!(
+                negotiated_action(
+                    server,
+                    GDK_ACTION_MOVE | GDK_ACTION_LINK,
+                    GDK_ACTION_MOVE | GDK_ACTION_LINK,
+                    all
+                ),
+                Some(DragAction::Move)
+            );
+            assert_eq!(
+                negotiated_action(server, GDK_ACTION_LINK, GDK_ACTION_LINK, all),
+                Some(DragAction::Link)
+            );
+            // Ask (1 << 5), private (1 << 4) and default (1 << 0) are not actions a drop takes.
+            assert_eq!(
+                negotiated_action(server, 1 << 5 | 1 << 4 | 1, 1 << 5, 0),
+                None
+            );
+            assert_eq!(negotiated_action(server, 0, 0, 0), None);
+        }
     }
 
     #[test]
