@@ -116,6 +116,8 @@ fn send<R: Runtime>(app: &AppHandle<R>, uris: &[String], paths: &[String], outs:
                     uris: uris.to_vec(),
                     position: position(app, sample),
                     modifiers: sample.modifiers,
+                    // Windows' drop target does not negotiate an action while the loop is ours.
+                    action: None,
                 },
             ),
             Out::Over(sample) => app.emit_to(
@@ -125,6 +127,7 @@ fn send<R: Runtime>(app: &AppHandle<R>, uris: &[String], paths: &[String], outs:
                     window: sample.window.clone(),
                     position: position(app, sample),
                     modifiers: sample.modifiers,
+                    action: None,
                 },
             ),
             Out::Leave(window) => app.emit_to(
