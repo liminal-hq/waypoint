@@ -120,6 +120,7 @@ describe('the menus', () => {
 		expect(idsOf(view.items)).toEqual([
 			'viewList',
 			'viewGrid',
+			'refresh',
 			'showHidden',
 			'sidebar',
 			'toggleShelf',

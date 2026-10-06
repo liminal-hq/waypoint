@@ -967,6 +967,8 @@ export const enMessages = {
 	'groups.menu.close': 'Close Group',
 
 	'status.bar.label': 'Status bar',
+	// translator: Status bar note on a folder that cannot tell Waypoint when it changes (a server's); it is read again when shown and after Waypoint writes to it.
+	'status.notWatched': 'Not watched',
 	'status.items.one': '{count} item',
 	'status.items.other': '{count} items',
 	'status.free': '{size} free',
@@ -1152,7 +1154,7 @@ export const enMessages = {
 		'The folder it opens at, such as /srv/media. Leave empty for the top of the server.',
 	'connect.field.refresh': 'Refresh every (seconds)',
 	'connect.field.refreshHint':
-		'Leave empty to refresh only when a folder is shown, on F5 and after Waypoint writes to it.',
+		'Leave empty to refresh only when a folder is shown, on Refresh and after Waypoint writes to it.',
 	'connect.field.thumbnails': 'Show previews of this server’s files',
 	'connect.field.thumbnailsHint':
 		'Making a preview reads the file from the server, so previews are off unless you turn them on.',
@@ -1415,6 +1417,8 @@ export const enMessages = {
 	'menu.group.name': 'Name',
 	// translator: Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different.
 	'menu.group.type': 'Type',
+	// translator: Reads the open folder again (a command and a menu item). Not Reload, which is for the app.
+	'cmd.refresh': 'Refresh',
 	'cmd.resetFolderView': 'Reset This Folder’s View',
 	'cmd.group.none': 'No grouping',
 	// translator: A command palette entry. Keep the wording of “Group by” in the menu, followed by the same word as the Kind column.

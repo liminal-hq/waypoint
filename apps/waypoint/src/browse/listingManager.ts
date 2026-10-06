@@ -8,7 +8,7 @@ import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location'
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { TabId } from '@liminal-hq/waypoint-protocol/generated/TabId';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
-import type { OpenOptions, VfsClient } from '../services/vfsClient';
+import type { OpenOptions, RefreshOptions, VfsClient } from '../services/vfsClient';
 import { schemeOfKey } from '../connections/connectionsModel';
 import { isOverviewLocation } from '../overview/overviewLocation';
 import { openListingModel, toVfsError, type ListingModel } from './listingModel';
@@ -18,6 +18,9 @@ import { sameSort, type ViewMode } from './viewStore';
 
 /** How long a tab can be in the background before it drops the pages it has cached. */
 export const BACKGROUND_EVICT_DELAY_MS = 15_000;
+
+/** A folder nothing watches is read again when it is shown or its window is focused after this long (D150). */
+export const STALE_AFTER_MS = 10_000;
 
 /** A released hold keeps its listing this long, so a tab springing back to it finds the very session. */
 export const RETAIN_GRACE_MS = 1000;
@@ -121,9 +124,15 @@ export class ListingManager {
 			}
 			if (visible.has(tab.id)) {
 				this.stopEvicting(slot);
+				const wasHidden = slot?.background === true;
 				if (slot) slot.background = false;
 				if (!slot || slot.uri !== tab.location.uri) this.open(tab);
-				else if (slot.evicted) slot.evicted = false;
+				else {
+					if (slot.evicted) slot.evicted = false;
+					// Shown again after a while in the background: what a folder nothing watches
+					// held may be out of date (a watched one has been kept current all along).
+					if (wasHidden) this.refreshSlot(slot, { onlyUnwatched: true, minAgeMs: STALE_AFTER_MS });
+				}
 			} else if (slot) {
 				slot.background = true;
 				if (slot.uri !== tab.location.uri) this.release(tab.id);
@@ -186,6 +195,42 @@ export class ListingManager {
 			const sort = wanted(model.location);
 			if (sort && !sameSort(sort, model.sort)) void model.setSort(sort);
 		}
+	}
+
+	/**
+	 * Reads again the folder of every listing on screen that nothing watches and that was read more
+	 * than `STALE_AFTER_MS` ago: the window was focused (D150). A watched folder is already current.
+	 */
+	refreshShown(): void {
+		for (const slot of this.slots.values()) {
+			if (!slot.background) {
+				this.refreshSlot(slot, { onlyUnwatched: true, minAgeMs: STALE_AFTER_MS });
+			}
+		}
+	}
+
+	/**
+	 * Reads the folder of the listing on screen again whatever its age: the person asked for a
+	 * refresh. Every pane on screen refreshes, a watched folder too (a cheap, harmless read).
+	 */
+	refreshNow(tab?: TabId): void {
+		for (const [id, slot] of this.slots) {
+			if (slot.background || (tab !== undefined && id !== tab)) continue;
+			this.refreshSlot(slot, {});
+		}
+	}
+
+	/**
+	 * Reads again every unwatched folder that is open, on screen or not: Waypoint wrote to the
+	 * file system (a job finished), and a server would not say what changed.
+	 */
+	refreshAfterWrite(): void {
+		for (const slot of this.slots.values()) this.refreshSlot(slot, { onlyUnwatched: true });
+	}
+
+	private refreshSlot(slot: Slot, options: RefreshOptions): void {
+		if (slot.state.status !== 'ready') return;
+		void slot.state.session.model.refresh(options);
 	}
 
 	/** Applies the hidden-files choice to every open listing; listings opened later take it from `openOptions`. */

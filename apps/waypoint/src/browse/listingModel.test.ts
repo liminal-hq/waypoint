@@ -409,6 +409,7 @@ describe('progress and failure', () => {
 			filter: { showHidden: false },
 			readOnly: false,
 			rewritable: false,
+			watched: true,
 			layout: 'folder',
 			groups: [],
 		});

@@ -1109,6 +1109,49 @@ mod connections {
     }
 
     #[test]
+    fn refresh_listing_reads_a_server_folder_again_and_leaves_a_fresh_one_alone() {
+        let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
+        let root = server.root("me@nas.lan");
+        server.put_file(&root.join("a.txt").unwrap(), b"x");
+        let app = app_with(&server);
+        let snapshot = open(&app, "main", root.to_location()).unwrap();
+        assert!(!snapshot.watched, "a server's folder is not watched");
+        let handle = snapshot.handle;
+        let refresh = |options: Option<commands::RefreshOptions>| {
+            tauri::async_runtime::block_on(commands::refresh_listing(
+                window(&app, "main"),
+                app.state::<Vfs>(),
+                handle,
+                options,
+            ))
+            .unwrap()
+        };
+        // The scan runs in the background: wait for the listing to hold its row.
+        let wait_for_rows = |count: u32| {
+            let started = std::time::Instant::now();
+            while range(&app, "main", handle, 0, 10).unwrap().len() as u32 != count {
+                assert!(
+                    started.elapsed() < Duration::from_secs(10),
+                    "rows never came"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        };
+        wait_for_rows(1);
+        server.put_file(&root.join("b.txt").unwrap(), b"y");
+        // Read a moment ago: a window focused now leaves it.
+        let fresh = commands::RefreshOptions {
+            only_unwatched: true,
+            min_age_ms: 60_000,
+        };
+        assert!(!refresh(Some(fresh)));
+        assert_eq!(range(&app, "main", handle, 0, 10).unwrap().len(), 1);
+        // Asked for: it reads the folder and the new file shows.
+        assert!(refresh(None));
+        wait_for_rows(2);
+    }
+
+    #[test]
     fn a_login_is_answered_through_connect_and_remembered() {
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
         server.require_password(Some("me"), "hunter2");

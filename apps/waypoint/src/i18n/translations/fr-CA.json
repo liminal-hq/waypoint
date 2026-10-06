@@ -4059,6 +4059,11 @@
     "description": "Area: status.",
     "source": "0bc4c2af"
   },
+  "status.notWatched": {
+    "message": "Non surveillé",
+    "description": "Area: status. Status bar note on a folder that cannot tell Waypoint when it changes (a server's); it is read again when shown and after Waypoint writes to it.",
+    "source": "48a91de2"
+  },
   "status.items.one": {
     "message": "{count} élément",
     "description": "Area: status. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are status.items.many, status.items.other.",
@@ -4905,9 +4910,9 @@
     "source": "6daccb23"
   },
   "connect.field.refreshHint": {
-    "message": "Laissez vide pour actualiser seulement quand un dossier est affiché, avec F5 et après que Waypoint y écrit.",
+    "message": "Laissez vide pour actualiser seulement quand un dossier est affiché, avec Actualiser et après que Waypoint y écrit.",
     "description": "Area: connect.",
-    "source": "395edb9c"
+    "source": "ec848e04"
   },
   "connect.field.thumbnails": {
     "message": "Afficher les aperçus des fichiers de ce serveur",
@@ -6053,6 +6058,11 @@
     "message": "Type",
     "description": "Area: menu. Group the list by file extension (.pdf, .txt). Not the same as Kind; keep the two words different.",
     "source": "baaddf70"
+  },
+  "cmd.refresh": {
+    "message": "Actualiser",
+    "description": "Area: cmd. Reads the open folder again (a command and a menu item). Not Reload, which is for the app.",
+    "source": "0e916101"
   },
   "cmd.resetFolderView": {
     "message": "Réinitialiser la vue de ce dossier",

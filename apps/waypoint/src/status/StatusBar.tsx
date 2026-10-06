@@ -56,6 +56,9 @@ export function StatusBar({ session, location, notice, children }: StatusBarProp
 	return (
 		<div className={styles.bar} role="group" aria-label={t('status.bar.label')}>
 			<span className={styles.items}>{session ? items : ''}</span>
+			{session && !session.model.watched && (
+				<span className={styles.items}>{t('status.notWatched')}</span>
+			)}
 			{selecting && (
 				<span className={styles.selection} data-pending={summary.pending ? '' : undefined}>
 					{selection}

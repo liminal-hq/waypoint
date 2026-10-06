@@ -99,6 +99,7 @@ pub fn init_with<R: Runtime>(options: Options<R>) -> TauriPlugin<R> {
             commands::set_sort,
             commands::set_filter,
             commands::close_listing,
+            commands::refresh_listing,
             commands::get_home,
             commands::parse_location,
             commands::parse_location_text,

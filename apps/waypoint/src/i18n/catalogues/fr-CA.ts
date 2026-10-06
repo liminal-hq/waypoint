@@ -1767,6 +1767,8 @@ const messages: Catalogue = {
 	'groups.menu.close': 'Fermer le groupe',
 	// source: 0bc4c2af
 	'status.bar.label': 'Barre d’état',
+	// source: 48a91de2
+	'status.notWatched': 'Non surveillé',
 	// source: 208a19d5
 	'status.items.one': '{count} élément',
 	// source: f65216b3
@@ -2122,9 +2124,9 @@ const messages: Catalogue = {
 		'Le dossier ouvert au départ, par exemple /srv/media. Laissez vide pour le haut du serveur.',
 	// source: 6daccb23
 	'connect.field.refresh': 'Actualiser toutes les (secondes)',
-	// source: 395edb9c
+	// source: ec848e04
 	'connect.field.refreshHint':
-		'Laissez vide pour actualiser seulement quand un dossier est affiché, avec F5 et après que Waypoint y écrit.',
+		'Laissez vide pour actualiser seulement quand un dossier est affiché, avec Actualiser et après que Waypoint y écrit.',
 	// source: 2ea0c143
 	'connect.field.thumbnails': 'Afficher les aperçus des fichiers de ce serveur',
 	// source: 118f5907
@@ -2619,6 +2621,8 @@ const messages: Catalogue = {
 	'menu.group.name': 'Nom',
 	// source: baaddf70
 	'menu.group.type': 'Type',
+	// source: 0e916101
+	'cmd.refresh': 'Actualiser',
 	// source: ee003ee2
 	'cmd.resetFolderView': 'Réinitialiser la vue de ce dossier',
 	// source: a638b9f6

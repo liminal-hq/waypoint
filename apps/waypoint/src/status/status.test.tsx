@@ -7,6 +7,9 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatSize } from '../browse/format';
 import { stubLayout } from '../test/browseHarness';
+import { createFakeOpsClient } from '../services/fakeOpsClient';
+import { makeEntry } from '../services/fakeVfsClient';
+import { request } from '../test/opsHarness';
 import { createTree, DOCS, HOME, renderWorkspace } from '../test/workspaceHarness';
 import { SUMMARY_DELAY_MS } from './useSelectionSummary';
 
@@ -23,6 +26,37 @@ afterEach(() => {
 const option = (name: string) => screen.findByRole('option', { name: new RegExp(`^${name}`) });
 const bar = () => screen.getByRole('group', { name: 'Status bar' });
 const announcer = () => within(bar()).getByRole('status');
+
+describe('a folder nothing watches', () => {
+	it('says so, shows what changed on Ctrl+R, and after a job finishes', async () => {
+		const client = createTree();
+		client.markUnwatched(HOME);
+		const ops = createFakeOpsClient();
+		await renderWorkspace(client, undefined, undefined, { ops });
+		await option('docs');
+		expect(bar()).toHaveTextContent('Not watched');
+		expect(bar()).toHaveTextContent('4 items');
+
+		// Changed on the server: the listing does not know.
+		client.addEntries(HOME, [makeEntry(5, 'new-folder', { kind: 'directory' })]);
+		expect(bar()).toHaveTextContent('4 items');
+		fireEvent.keyDown(window, { key: 'r', ctrlKey: true });
+		await waitFor(() => expect(bar()).toHaveTextContent('5 items'));
+
+		// Waypoint wrote into it: the job's end reads the folder again.
+		client.addEntries(HOME, [makeEntry(6, 'big (2).bin')]);
+		const id = await ops.submit(request(['a']));
+		ops.start(id);
+		ops.done(id, 'Copy');
+		await waitFor(() => expect(bar()).toHaveTextContent('6 items'));
+	});
+
+	it('is not marked when the folder is watched', async () => {
+		await renderWorkspace();
+		await option('docs');
+		expect(bar()).not.toHaveTextContent('Not watched');
+	});
+});
 
 describe('the status bar', () => {
 	it('shows the item count of the folder', async () => {

@@ -309,3 +309,65 @@ fn a_local_listing_is_still_read_whole() {
     }
     assert_eq!(seen.last().unwrap().names, ["a", "b"]);
 }
+
+fn names_of(listing: &Listing) -> Vec<String> {
+    let count = listing.snapshot().count;
+    listing
+        .get_range(0, count)
+        .into_iter()
+        .map(|entry| entry.name)
+        .collect()
+}
+
+#[test]
+fn a_folder_that_is_not_watched_is_read_again_by_the_refresh_rule() {
+    let server = FakeRemoteProvider::sftp();
+    let root = server.root("me@fake.test");
+    server.put_file(&root.join("old.txt").unwrap(), b"old");
+    let listing = Listing::new(
+        ListingHandle(9),
+        root.clone(),
+        Arc::new(server.clone()),
+        SortSpec::default(),
+        Filter::default(),
+        streaming_options(),
+        Arc::new(|_| {}),
+    );
+    listing.scan().unwrap();
+    assert!(
+        !listing.snapshot().watched,
+        "a server's folder is not watched"
+    );
+    assert_eq!(names_of(&listing), ["old.txt"]);
+
+    // Changed behind Waypoint's back: nothing tells the listing.
+    server.put_file(&root.join("new.txt").unwrap(), b"new");
+    assert_eq!(names_of(&listing), ["old.txt"]);
+
+    // A refresh asked for less than ten seconds after the read does nothing...
+    assert!(!listing.refresh(true, Duration::from_secs(10)).unwrap());
+    assert_eq!(names_of(&listing), ["old.txt"]);
+    // ...and one that is due reads the folder again and patches the view.
+    assert!(listing.refresh(true, Duration::ZERO).unwrap());
+    assert_eq!(names_of(&listing), ["new.txt", "old.txt"]);
+    assert_eq!(listing.snapshot().phase, ListingPhase::Ready);
+}
+
+#[test]
+fn a_watched_folder_is_left_alone_by_a_refresh_that_only_wants_unwatched_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    let listing = Listing::new(
+        ListingHandle(10),
+        VfsPath::File(waypoint_path::FilePath::from_path(dir.path()).unwrap()),
+        Arc::new(waypoint_vfs::LocalProvider::new()),
+        SortSpec::default(),
+        Filter::default(),
+        streaming_options(),
+        Arc::new(|_| {}),
+    );
+    listing.scan().unwrap();
+    assert!(listing.snapshot().watched);
+    assert!(!listing.refresh(true, Duration::ZERO).unwrap());
+    // F5 forces one.
+    assert!(listing.refresh(false, Duration::ZERO).unwrap());
+}

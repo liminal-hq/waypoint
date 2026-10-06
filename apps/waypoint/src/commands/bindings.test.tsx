@@ -8,6 +8,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useListInteractions } from '../browse/useListInteractions';
 import { createViewStore } from '../browse/viewStore';
+import { startRefreshShortcut } from '../browse/refreshRules';
 import { useViewShortcuts } from '../browse/useViewShortcuts';
 import { isBatchRenameKey } from '../ops/batchRename/useBatchRenameShortcut';
 import { handleFileKey, isRestoreKey, type FileKeyHandlers } from '../ops/useFileShortcuts';
@@ -209,6 +210,13 @@ const probes: Partial<Record<CommandId, (shortcut: string) => void | Promise<voi
 		renderHook(() => useViewShortcuts(store));
 		dispatchOnWindow(s);
 		expect(store.getState().mode).toBe('list');
+	},
+	refresh: (s) => {
+		const refresh = vi.fn();
+		const stop = startRefreshShortcut(window, refresh);
+		dispatchOnWindow(s);
+		stop();
+		expect(refresh).toHaveBeenCalledTimes(1);
 	},
 	showHidden: (s) => {
 		const store = createViewStore({ showHidden: false });

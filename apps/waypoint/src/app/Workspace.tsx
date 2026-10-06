@@ -16,6 +16,12 @@ import { FolderViewController, folderViewKey } from '../browse/folderViewControl
 import { IDLE_FOLDER_VIEWS, NO_FOLDERS } from '../browse/folderViewStore';
 import { useFolderViews } from '../browse/FolderViewsContext';
 import { ListingManager } from '../browse/listingManager';
+import {
+	startRefreshAfterJobs,
+	startRefreshOnFocus,
+	startRefreshShortcut,
+} from '../browse/refreshRules';
+import { useOps } from '../ops/OpsContext';
 import { useSettings, useSettingsReady } from '../settings/SettingsContext';
 import { BackgroundContextMenu, type BackgroundCommand } from '../browse/BackgroundContextMenu';
 import type { ListingSession, SessionState } from '../browse/useListingSession';
@@ -358,6 +364,21 @@ function WorkspaceBody({
 	);
 
 	useEffect(() => manager.setShowHidden(showHidden), [manager, showHidden]);
+
+	// A folder nothing watches (a server's) is read again when the window is focused (once it is
+	// ten seconds old), after any job finishes (Waypoint may have written into it), and when the
+	// person asks (Refresh); a tab shown again does the same through the manager's sync (D150, A83).
+	useEffect(() => startRefreshOnFocus(window, () => manager.refreshShown()), [manager]);
+	useEffect(() => startRefreshShortcut(window, () => manager.refreshNow()), [manager]);
+	const opsHandle = useOps()?.handle ?? null;
+	useEffect(
+		() =>
+			opsHandle ? startRefreshAfterJobs(opsHandle, () => manager.refreshAfterWrite()) : undefined,
+		[manager, opsHandle],
+	);
+	useEffect(() => {
+		bridge.patchActions({ refresh: () => manager.refreshNow() });
+	}, [bridge, manager]);
 
 	useEffect(() => {
 		if (!notice) return;

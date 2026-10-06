@@ -24,7 +24,7 @@ import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec'
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
 import type { VolumeSpace } from '@liminal-hq/waypoint-protocol/generated/VolumeSpace';
 import { markSortRank } from '../git/markRank';
-import type { OpenOptions, Unsubscribe, VfsClient } from './vfsClient';
+import type { OpenOptions, RefreshOptions, Unsubscribe, VfsClient } from './vfsClient';
 
 /** A local `file://` location for a path, the way `waypoint-path` will build one. */
 export function fileLocation(path: string): Location {
@@ -261,6 +261,8 @@ interface OpenListing {
 	filter: Filter;
 	revision: number;
 	view: Entry[];
+	/** When the rows were last read from the folder, in milliseconds. */
+	readAt: number;
 }
 
 export interface FakeVfsOptions {
@@ -301,6 +303,10 @@ export class FakeVfsClient implements VfsClient {
 	/** The locations nothing can be written to besides the Trash (an archive, a read-only share). */
 	private readOnly = new Set<string>();
 	private rewritable = new Set<string>();
+	/** The folders nothing watches (a server's): changes to them reach a listing only when it is refreshed. */
+	private unwatched = new Set<string>();
+	/** The listings `refreshListing` read again, in order. */
+	readonly refreshed: ListingHandle[] = [];
 	/** The files `openEntry` was asked to open, in order, as `(handle, id)` pairs. */
 	readonly opened: Array<{ handle: ListingHandle; id: EntryId }> = [];
 
@@ -316,6 +322,12 @@ export class FakeVfsClient implements VfsClient {
 	setRewritable(location: Location, rewritable = true): void {
 		if (rewritable) this.rewritable.add(location.uri);
 		else this.rewritable.delete(location.uri);
+	}
+
+	/** Makes a folder one that is not watched: its listings say so and change only when refreshed. */
+	markUnwatched(location: Location, unwatched = true): void {
+		if (unwatched) this.unwatched.add(location.uri);
+		else this.unwatched.delete(location.uri);
 	}
 
 	/** Defines (or replaces) the contents of a folder. Open listings of it are refreshed. */
@@ -411,6 +423,7 @@ export class FakeVfsClient implements VfsClient {
 			filter: listing.filter,
 			readOnly: this.trashes.has(listing.location.uri) || this.readOnly.has(listing.location.uri),
 			rewritable: this.rewritable.has(listing.location.uri),
+			watched: !this.unwatched.has(listing.location.uri),
 			layout: this.trashes.has(listing.location.uri) ? 'trash' : 'folder',
 			groups: fakeGroups(listing.view, listing.sort),
 		};
@@ -422,9 +435,12 @@ export class FakeVfsClient implements VfsClient {
 		return listing;
 	}
 
-	private refresh(uri: string): void {
+	private refresh(uri: string, force = false): void {
 		for (const listing of this.listings.values()) {
 			if (listing.location.uri !== uri) continue;
+			// A folder nothing watches shows a change only when its listing is read again.
+			if (!force && this.unwatched.has(uri)) continue;
+			listing.readAt = Date.now();
 			const next = this.build(listing);
 			const ops = diff(listing.view, next);
 			listing.view = next;
@@ -459,6 +475,7 @@ export class FakeVfsClient implements VfsClient {
 			filter: options.filter ?? { showHidden: false },
 			revision: 1,
 			view: [],
+			readAt: Date.now(),
 		};
 		listing.view = this.build(listing);
 		this.listings.set(listing.handle, listing);
@@ -661,6 +678,17 @@ export class FakeVfsClient implements VfsClient {
 			throw { kind: 'notFound', location: listing.location } satisfies VfsError;
 		}
 		this.opened.push({ handle, id });
+	}
+
+	async refreshListing(handle: ListingHandle, options: RefreshOptions = {}): Promise<boolean> {
+		await this.delay();
+		const listing = this.get(handle);
+		const watched = !this.unwatched.has(listing.location.uri);
+		if (options.onlyUnwatched && watched) return false;
+		if (Date.now() - listing.readAt < (options.minAgeMs ?? 0)) return false;
+		this.refreshed.push(handle);
+		this.refresh(listing.location.uri, true);
+		return true;
 	}
 
 	async closeListing(handle: ListingHandle): Promise<void> {

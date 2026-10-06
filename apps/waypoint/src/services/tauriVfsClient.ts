@@ -34,6 +34,7 @@ export function createTauriVfsClient(): VfsClient {
 		getRange: (handle, start, count) => call(vfs.getRange(handle, start, count)),
 		setSort: (handle, sort) => call(vfs.setSort(handle, sort)),
 		setFilter: (handle, filter) => call(vfs.setFilter(handle, filter)),
+		refreshListing: (handle, options) => call(vfs.refreshListing(handle, options)),
 		closeListing: (handle) => call(vfs.closeListing(handle)),
 		parseLocation: (input, base) => call(vfs.parseLocation(input, base)),
 		parseLocationText: (input, base) => call(vfs.parseLocationText(input, base)),

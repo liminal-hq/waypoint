@@ -142,6 +142,8 @@ export interface CommandActions {
 	openPropertiesWindow(): void;
 	/** Makes the active folder forget its own view, sort and grouping, so it shows the window's. */
 	resetFolderView(): void;
+	/** Reads the active pane's folder again, which a server's folder needs to show what changed (D150). */
+	refresh(): void;
 }
 
 export interface CommandEnv {
@@ -242,5 +244,6 @@ export function idleActions(): CommandActions {
 		showProperties: nothing,
 		openPropertiesWindow: nothing,
 		resetFolderView: nothing,
+		refresh: nothing,
 	};
 }
