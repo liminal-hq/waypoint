@@ -413,14 +413,11 @@ function GridBody({
 							}
 							const start = at.first;
 							const end = Math.min(shownItems, start + at.count);
-							// A selected name, and a name with nothing under it, show whole over the space below, so the row that holds one is raised above the rows after it.
+							// A selected name shows whole over the cell below it, so the row that holds one is raised above the rows after it. A name with room under it overflows into empty space and needs no lift (lifting the last row would paint it over the selected name above).
 							let lifted = false;
 							for (let position = start; position < end; position += 1) {
 								const entry = model.entryAt(position);
-								if (
-									hasRoomBelow(layout, row.index, position - start) ||
-									(entry && isSelected(selection, entry.id))
-								) {
+								if (entry && isSelected(selection, entry.id)) {
 									lifted = true;
 									break;
 								}

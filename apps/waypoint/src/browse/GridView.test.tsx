@@ -325,12 +325,12 @@ describe('entries without names yet', () => {
 });
 
 describe('showing a name whole', () => {
-	it('gives every item of a short listing room to show its whole name, and lifts the row', async () => {
+	it('gives every item of a short listing room to show its whole name without lifting the row', async () => {
 		const { client } = clientWith(3);
 		renderGrid(client);
 		await waitFor(() => expect(options()).toHaveLength(3));
 		for (const option of options()) expect(option).toHaveAttribute('data-room');
-		expect(options()[0]!.parentElement).toHaveAttribute('data-lifted');
+		expect(options()[0]!.parentElement).not.toHaveAttribute('data-lifted');
 	});
 
 	it('keeps a name clamped while other rows lie below it, and shows it whole once it is selected', async () => {

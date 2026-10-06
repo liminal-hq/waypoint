@@ -82,7 +82,7 @@
 	opacity: 0.6;
 }
 
-/* A row with a name shown whole is raised over the rows after it, which paint later. */
+/* A row with a selected name shown whole is raised over the rows after it, which paint later. */
 .row[data-lifted] {
 	z-index: 1;
 }
