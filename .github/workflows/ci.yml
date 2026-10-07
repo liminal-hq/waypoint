@@ -72,6 +72,13 @@ jobs:
         id: case
         run: bash scripts/check-case-collisions.sh
 
+      # A release is built from one version, so every manifest that carries it agrees (D201, A151).
+      - name: Check release versions are synchronised
+        id: versions
+        run: |
+          bash scripts/check-release-versions.test.sh
+          bash scripts/check-release-versions.sh
+
       # The operations engine reaches the file system only through a `Provider` (A46).
       - name: Check the operations engine's sandbox
         id: ops_sandbox
@@ -108,6 +115,7 @@ jobs:
             echo "- Command: \`bash scripts/check-plugin-boundaries.sh\`"
             echo "- Rule: JavaScript reaches native plugins only through their \`guest-js\` APIs"
             echo "- Case collisions: \`${{ steps.case.outcome }}\` (\`bash scripts/check-case-collisions.sh\`)"
+            echo "- Release versions: \`${{ steps.versions.outcome }}\` (\`bash scripts/check-release-versions.sh\`)"
             echo "- Operations sandbox: \`${{ steps.ops_sandbox.outcome }}\` (\`bash scripts/check-ops-sandbox.sh\`)"
             echo "- Services panel: \`${{ steps.services.outcome }}\` (\`bash scripts/check-services.sh\`)"
             echo "- Logical CSS: \`${{ steps.logical_css.outcome }}\` (\`bash scripts/check-logical-css.sh\`)"
