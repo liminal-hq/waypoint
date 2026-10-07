@@ -539,6 +539,18 @@ describe('SliderRow', () => {
 		expect(slider).toHaveValue('80');
 	});
 
+	it('shows a value that arrives from outside, even after a drag that never settled', () => {
+		const props = { label: 'Opacity', min: 40, max: 100, onChange: vi.fn() };
+		const { rerender } = render(<SliderRow {...props} value={60} />);
+		const slider = screen.getByRole('slider', { name: 'Opacity' });
+		// A drag that ends where it began fires no native `change`, so the draft is never cleared.
+		fireEvent.input(slider, { target: { value: '50' } });
+		expect(slider).toHaveValue('50');
+		// A reset (or an import, or another window) puts the value in force somewhere else.
+		rerender(<SliderRow {...props} value={82} />);
+		expect(slider).toHaveValue('82');
+	});
+
 	it('is dimmed and cannot be moved when its row is disabled', () => {
 		render(<SliderRow label="Opacity" value={80} min={40} max={100} disabled onChange={vi.fn()} />);
 		expect(screen.getByRole('slider', { name: 'Opacity' })).toBeDisabled();
