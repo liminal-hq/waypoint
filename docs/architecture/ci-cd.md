@@ -61,9 +61,9 @@ The Git provider (A101) needs no server: `remote-conformance` also runs `cargo n
 3. **Build matrix** (all staged as artefacts): Linux x64 and arm64 in the CI container (`deb`, `rpm`), AppImage packaging, Windows x64 and arm64 (installer) plus a portable zip. macOS is not a target and is omitted.
 4. **`publish-release`:** downloads the staged artefacts, tags each asset with its OS (`Waypoint_Linux_…`, `Waypoint_Win_…`), writes `SHA256SUMS`, and uploads with `gh release upload --clobber`.
 5. **Versioning:** one synchronised version across the root `package.json`, `apps/waypoint/package.json`, `tauri.conf.json`, and the Cargo workspace/crate versions; reusable plugins that have graduated are versioned in the shared repo by `covector`, not here.
-6. **Signing and Windows packaging** (sparse MSIX for the modern Explorer menu, code signing) is unresolved (`docs/open-questions.md` #8) and gets its own decision before the first public Windows release.
+6. **Signing and Windows packaging:** Windows builds are **unsigned** and there is no signing step in the Windows jobs (D198, A147). Code signing, the sparse MSIX package (and with it the modern Explorer menu, #385) and Windows 10 support are deferred to an undetermined date (`docs/open-questions.md` #8 and #10); when they are taken up, the decision names the certificate's owner and adds one signing step before `SHA256SUMS` is written. What is decided now: the artefact set and the installer format (A148), the app identity (D199, A149) and the channels (D201, A151), and the updater is the spike in #376.
 
-Flatpak (D45) is a packaging follow-up: portals-first code is written from day one so the Flatpak manifest is packaging work, not a rewrite.
+Flatpak (D45) is a packaging follow-up: portals-first code is written from day one so the Flatpak manifest is packaging work, not a rewrite. Its permissions are D200 and A150.
 
 ## 5. Automation and agents
 

@@ -10,9 +10,9 @@
 6. Is Windows 11 a real target, or only a portability showcase?
 7. Should groups be able to span windows in a later version? **Answered (2026-10-03): yes (reverses D36); planned in milestone 10.**
 
-8. Windows: who owns the sparse MSIX package and code signing for the modern Explorer menu? **Deferred (2026-10-03): out of scope until an undetermined date; Windows builds are unsigned and the modern Explorer menu waits.**
+8. Windows: who owns the sparse MSIX package and code signing for the modern Explorer menu? **Deferred (2026-10-03): out of scope until an undetermined date; Windows builds are unsigned and the modern Explorer menu waits (D198, A147).**
 9. Should Waypoint ship its own FileChooser portal backend, or leave that to a later phase? **Answered (2026-10-03): yes, in milestone 10, starting with a decision and spike.**
-10. Which Windows version is the minimum (Windows 10 support)? **Deferred (2026-10-03): out of scope until an undetermined date; Windows 11 stays the target.**
+10. Which Windows version is the minimum (Windows 10 support)? **Deferred (2026-10-03): out of scope until an undetermined date; Windows 11 stays the target and Windows 10 is not supported (D198).**
 
 ## Assumptions made
 
