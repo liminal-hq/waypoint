@@ -236,6 +236,10 @@ jobs:
     permissions:
       contents: read
       packages: read
+    # A step in a container with no `shell:` runs as `sh -e`, which is dash here and has no `pipefail`.
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
