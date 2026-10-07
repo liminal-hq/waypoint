@@ -9,14 +9,17 @@ use windows::Win32::{
     Foundation::{HWND, LPARAM, POINT, WPARAM},
     Graphics::Gdi::ClientToScreen,
     UI::WindowsAndMessaging::{
-        GetSystemMenu, PostMessageW, SetForegroundWindow, TrackPopupMenu, TPM_RETURNCMD,
-        TPM_RIGHTBUTTON, WM_NULL, WM_SYSCOMMAND,
+        EnableMenuItem, GetSystemMenu, GetWindowLongPtrW, IsIconic, IsZoomed, PostMessageW,
+        SetForegroundWindow, TrackPopupMenu, GWL_STYLE, HMENU, MF_BYCOMMAND, MF_ENABLED, MF_GRAYED,
+        SC_MAXIMIZE, SC_MINIMIZE, SC_MOVE, SC_RESTORE, SC_SIZE, TPM_RETURNCMD, TPM_RIGHTBUTTON,
+        WM_NULL, WM_SYSCOMMAND, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_THICKFRAME,
     },
 };
 
 use crate::{
     main_thread,
     models::{WindowCapabilities, WindowPosition},
+    system_menu::{system_menu_state, WindowFacts},
 };
 
 pub async fn capabilities<R: Runtime>(_window: &WebviewWindow<R>) -> WindowCapabilities {
@@ -72,6 +75,40 @@ pub async fn show_system_window_menu<R: Runtime>(
     shown
 }
 
+/// Sets the entries that depend on the window's state to match it. `TrackPopupMenu` does not give
+/// the system the chance it has when the title bar is clicked, so without this a maximised window's
+/// menu offers Maximise and greys Restore.
+///
+/// Must run on the thread that owns `hwnd`.
+fn refresh_system_menu(hwnd: HWND, menu: HMENU) {
+    // SAFETY: `hwnd` is the live handle of a window owned by this process, used on its own thread.
+    let (maximised, minimised, style) = unsafe {
+        (
+            IsZoomed(hwnd).as_bool(),
+            IsIconic(hwnd).as_bool(),
+            GetWindowLongPtrW(hwnd, GWL_STYLE) as u32,
+        )
+    };
+    let state = system_menu_state(WindowFacts {
+        maximised,
+        minimised,
+        can_size: style & WS_THICKFRAME.0 != 0,
+        can_minimise: style & WS_MINIMIZEBOX.0 != 0,
+        can_maximise: style & WS_MAXIMIZEBOX.0 != 0,
+    });
+    for (command, enabled) in [
+        (SC_RESTORE, state.restore),
+        (SC_MOVE, state.move_window),
+        (SC_SIZE, state.size),
+        (SC_MINIMIZE, state.minimise),
+        (SC_MAXIMIZE, state.maximise),
+    ] {
+        let flags = MF_BYCOMMAND | if enabled { MF_ENABLED } else { MF_GRAYED };
+        // SAFETY: `menu` is this window's system menu, got from `GetSystemMenu` above.
+        let _ = unsafe { EnableMenuItem(menu, command, flags) };
+    }
+}
+
 /// Must run on the thread that owns `hwnd`.
 fn show_menu(hwnd: HWND, position: WindowPosition, scale: f64, label: &str) -> bool {
     info!("windows system menu (untested native path): calling GetSystemMenu for label={label}");
@@ -81,6 +118,8 @@ fn show_menu(hwnd: HWND, position: WindowPosition, scale: f64, label: &str) -> b
         warn!("windows system menu (untested native path): the window has no system menu for label={label}");
         return false;
     }
+
+    refresh_system_menu(hwnd, menu);
 
     // The page reports CSS pixels from the window's top-left; Win32 wants physical screen pixels.
     let mut point = POINT {
