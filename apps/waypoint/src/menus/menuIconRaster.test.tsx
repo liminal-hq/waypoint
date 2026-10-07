@@ -14,6 +14,7 @@ afterEach(() => {
 
 function environment(scale = 1) {
 	const drawn: Array<{ markup: string; px: number }> = [];
+	const drawnImages: Array<{ url: string; px: number }> = [];
 	const stub: RasteriserEnvironment & { scaleNow: number } = {
 		scaleNow: scale,
 		scale() {
@@ -23,8 +24,12 @@ function environment(scale = 1) {
 			drawn.push({ markup, px });
 			return new Array<number>(px * px * 4).fill(7);
 		}),
+		drawImage: vi.fn(async (url: string, px: number) => {
+			drawnImages.push({ url, px });
+			return new Array<number>(px * px * 4).fill(9);
+		}),
 	};
-	return { stub, drawn };
+	return { stub, drawn, drawnImages };
 }
 
 const glyph = (
@@ -174,13 +179,22 @@ describe('createIconRasteriser', () => {
 	});
 
 	it('has no picture when the canvas gives the wrong number of bytes, or fails', async () => {
-		const wrong = createIconRasteriser({ scale: () => 1, draw: async () => [1, 2, 3] });
+		const wrong = createIconRasteriser({
+			scale: () => 1,
+			draw: async () => [1, 2, 3],
+			drawImage: async () => null,
+		});
 		expect(await wrong(glyph)).toBeNull();
-		const none = createIconRasteriser({ scale: () => 1, draw: async () => null });
+		const none = createIconRasteriser({
+			scale: () => 1,
+			draw: async () => null,
+			drawImage: async () => null,
+		});
 		expect(await none(glyph)).toBeNull();
 		const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 		const failing = createIconRasteriser({
 			scale: () => 1,
+			drawImage: async () => null,
 			draw: async () => {
 				throw new Error('no canvas');
 			},
