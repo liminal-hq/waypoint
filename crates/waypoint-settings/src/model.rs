@@ -523,7 +523,9 @@ impl Default for IntegrationSettings {
 
 /// The Experimental page: one switch per remote protocol, each off until it is turned on (D167).
 /// A protocol that is off has no provider registered, so nothing connects, listens or reads a
-/// credential for it, and its addresses fail with a reason that points here.
+/// credential for it, and its addresses fail with a reason that points here. `native_context_menus`
+/// is the one switch that is not a protocol: it makes the file list, sidebar, Trash and tab menus
+/// open as the system's own menus, which can hang past the window's edge (D196).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../../packages/protocol/src/generated/")]
@@ -532,6 +534,7 @@ pub struct ExperimentalSettings {
     pub smb: bool,
     pub webdav: bool,
     pub s3: bool,
+    pub native_context_menus: bool,
 }
 
 /// Everything the Settings window edits that is not an operations setting.
@@ -1064,11 +1067,30 @@ mod tests {
     fn every_remote_protocol_is_off_until_it_is_turned_on() {
         let defaults = Settings::default().experimental;
         assert!(!defaults.sftp && !defaults.smb && !defaults.webdav && !defaults.s3);
+        assert!(!defaults.native_context_menus);
         let json = serde_json::to_value(Settings::default()).unwrap();
         assert_eq!(
             json["experimental"],
-            serde_json::json!({"sftp": false, "smb": false, "webdav": false, "s3": false})
+            serde_json::json!({
+                "sftp": false,
+                "smb": false,
+                "webdav": false,
+                "s3": false,
+                "nativeContextMenus": false
+            })
         );
+    }
+
+    #[test]
+    fn a_settings_file_from_before_native_menus_keeps_them_off() {
+        let old: Settings =
+            serde_json::from_str(r#"{"experimental":{"sftp":true,"smb":false}}"#).unwrap();
+        assert!(old.experimental.sftp);
+        assert!(!old.experimental.native_context_menus);
+        let on: Settings =
+            serde_json::from_str(r#"{"experimental":{"nativeContextMenus":true}}"#).unwrap();
+        assert!(on.experimental.native_context_menus && !on.experimental.sftp);
+        assert_eq!(on.validate(), Ok(()));
     }
 
     #[test]

@@ -122,7 +122,13 @@ export const DEFAULT_SETTINGS: Settings = {
 		globalShortcut: null,
 		rememberVolumePassphrases: false,
 	},
-	experimental: { sftp: false, smb: false, webdav: false, s3: false },
+	experimental: {
+		sftp: false,
+		smb: false,
+		webdav: false,
+		s3: false,
+		nativeContextMenus: false,
+	},
 };
 
 /** The ranges and choices Rust enforces for the milestone 5 sections, for the pages that offer them. */

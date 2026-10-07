@@ -8,6 +8,7 @@ import type { MenuPosition } from '@liminal-hq/waypoint-chrome/ContextMenu/types
 import type { ClosedTab } from '@liminal-hq/waypoint-protocol/generated/ClosedTab';
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
 import { t } from '../i18n/messages';
+import { HostedContextMenu } from '../menus/HostedContextMenu';
 import { useGroupActions } from './groupActions';
 import { useTabsSnapshot } from './TabsContext';
 import { useTabActions } from './tabActions';
@@ -45,7 +46,7 @@ export function TabContextMenu({ tab, closed, ...rest }: MenuProps & { tab: TabS
 	const windowActions = useWindowActions();
 	const others = useOtherWindows(windowActions);
 	return (
-		<ContextMenu
+		<HostedContextMenu
 			{...rest}
 			ariaLabel={t('tabs.menu.label')}
 			items={insertBefore(

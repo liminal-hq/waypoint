@@ -1,0 +1,20 @@
+/*
+ * Where a menu icon is drawn to be read back as pixels: in the document, so the icon takes the
+ * same styles it has in a menu, but out of sight and out of the way. Its colour is the menu text, or
+ * the danger colour for the icon of a dangerous item, as the page's menu shows each.
+ */
+.stage {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline-start: -200px;
+	inline-size: 16px;
+	block-size: 16px;
+	overflow: hidden;
+	color: var(--wp-text-primary);
+	pointer-events: none;
+	visibility: hidden;
+}
+
+.stage[data-danger] {
+	color: var(--wp-danger);
+}

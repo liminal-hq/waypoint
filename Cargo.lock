@@ -4661,8 +4661,7 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cca139e57da4383727f189e43e66e84fa372347027fc996f9f1a007ec0a37996"
+source = "git+https://github.com/ScottMorris/tauri-muda?rev=0765d865a451cb9e115272ec2915cb8e237389b3#0765d865a451cb9e115272ec2915cb8e237389b3"
 dependencies = [
  "crossbeam-channel",
  "dpi",
@@ -4676,7 +4675,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.21",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -9009,6 +9008,7 @@ version = "0.0.0"
 dependencies = [
  "chrono",
  "log",
+ "muda",
  "openssh-config",
  "serde",
  "serde_json",

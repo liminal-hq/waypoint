@@ -898,6 +898,9 @@ const messages: Catalogue = {
 	// source: f3a31096
 	'settings.transparency.menus.description':
 		'Les menus contextuels et le menu de l’application laissent voir ce qui se trouve derrière eux, en flou.',
+	// source: 141948eb
+	'settings.transparency.menus.nativeNote':
+		'Les menus contextuels natifs (expérimentaux) adoptent l’apparence du système et ignorent ce réglage.',
 	// source: 4c0a89f5
 	'settings.transparency.menuOpacity.label': 'Opacité des menus',
 	// source: 2afa8f67
@@ -5309,6 +5312,13 @@ const messages: Catalogue = {
 		'Parcourez le stockage S3 et les stockages compatibles S3.',
 	// source: 011805aa
 	'settings.experimental.unavailable': 'Pas encore dans cette version.',
+	// source: 93534e3e
+	'settings.group.menus': 'Menus',
+	// source: 15dcaf0d
+	'settings.experimental.nativeMenus.label': 'Menus contextuels natifs',
+	// source: ba7d14e2
+	'settings.experimental.nativeMenus.description':
+		'Ouvre les menus du clic droit de la liste de fichiers, de la barre latérale, de la corbeille et des onglets sous forme de menus propres à votre système, afin qu’ils puissent dépasser le bord de la fenêtre. Ils adoptent l’apparence du système : ils ignorent donc le thème de Waypoint et les réglages de transparence des menus, et n’ont ni flou ni info-bulles. Un élément destructeur n’est rouge que dans son icône, non dans son libellé. Leur comportement peut différer sous Wayland. Un menu que le système ne peut pas afficher tel quel reste un menu de Waypoint.',
 	// source: b949c922
 	'inspector.tab.git': 'Git',
 	// source: 13d6ff07

@@ -5,6 +5,7 @@
 
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ViewPrefs } from '@liminal-hq/waypoint-protocol/generated/ViewPrefs';
+import type { NativeMenuClient } from '../menus/nativeMenuClient';
 import type { OpenWithClient } from '../openWith/openWithClient';
 import type { AppInfoClient } from '../services/appInfoClient';
 import type { FolderViewsClient } from '../services/folderViewsClient';
@@ -68,6 +69,8 @@ export interface MainServices {
 	folderViews?: FolderViewsClient;
 	/** What Git says about the folders shown: the branch, the Git column and the sidebar's badges; without it the window shows no Git. */
 	git?: GitClient;
+	/** The system's own context menus (experimental); without it every menu is the page's own. */
+	nativeMenus?: NativeMenuClient;
 	/** Set only for the in-memory demo, whose folders the dev controls can change. */
 	demo?: { client: FakeVfsClient };
 }
@@ -93,6 +96,7 @@ export interface MainServicesDeps {
 	createAppInfoClient?(): AppInfoClient;
 	createFolderViewsClient?(): FolderViewsClient;
 	createGitClient?(): GitClient;
+	createNativeMenuClient?(): NativeMenuClient;
 	/** The one-time sentence about a session that could not be restored; `null` when it was. */
 	getRestoreNotice?(): Promise<string | null>;
 }
@@ -130,6 +134,7 @@ export async function startMainServices(deps: MainServicesDeps): Promise<MainSer
 		appInfo: deps.createAppInfoClient?.(),
 		folderViews: deps.createFolderViewsClient?.(),
 		git: deps.createGitClient?.(),
+		nativeMenus: deps.createNativeMenuClient?.(),
 		home,
 	};
 }

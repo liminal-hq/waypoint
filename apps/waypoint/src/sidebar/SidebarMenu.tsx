@@ -3,7 +3,6 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { ContextMenu } from '@liminal-hq/waypoint-chrome/ContextMenu';
 import type { MenuItem } from '@liminal-hq/waypoint-chrome/ContextMenu/types';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { StarIcon, UpIcon } from '../icons/AppIcons';
@@ -18,6 +17,7 @@ import {
 	WindowIcon,
 } from '../icons/MenuIcons';
 import { t, type MessageId } from '../i18n/messages';
+import { HostedContextMenu } from '../menus/HostedContextMenu';
 import type { ItemMenuRequest } from './itemGestures';
 
 export interface MenuActions {
@@ -163,7 +163,7 @@ export function SidebarMenu({
 	const { kind, location } = request;
 	const items = sidebarMenuItems(kind, { favouritePosition, pinned, canRename, trash });
 	return (
-		<ContextMenu
+		<HostedContextMenu
 			items={items}
 			position={request.position}
 			ariaLabel={t(LABELS[kind])}

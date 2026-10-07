@@ -54,5 +54,12 @@ tauri-plugin = { version = "2" }
 tokio = { version = "1", features = ["rt", "macros", "sync"] }
 log = "0.4"
 
+# `muda` is the menu library under `tauri::menu`. The fork adds what experimental native context menus
+# need (D196, A146): a size for menu icons that follows the screen's scale (GTK 3 forces 16 pixels,
+# Windows draws the bitmap as it is) and, for GTK 3, a style hook. Its changes are additive; drop this
+# patch, and the `muda` dependency of `apps/waypoint/src-tauri`, once they are in a published release.
+[patch.crates-io]
+muda = { git = "https://github.com/ScottMorris/tauri-muda", rev = "0765d865a451cb9e115272ec2915cb8e237389b3" }
+
 [profile.release]
 strip = true

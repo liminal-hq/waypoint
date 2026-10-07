@@ -506,7 +506,42 @@ mod tests {
             .unwrap();
         assert_eq!(
             document["body"]["experimental"],
-            serde_json::json!({"sftp": true, "smb": false, "webdav": true, "s3": false})
+            serde_json::json!({
+                "sftp": true,
+                "smb": false,
+                "webdav": true,
+                "s3": false,
+                "nativeContextMenus": false
+            })
+        );
+    }
+
+    #[test]
+    fn a_file_exported_before_native_menus_imports_with_them_off() {
+        let mut older = document(&Settings::default());
+        older["body"]["experimental"] = serde_json::json!({"sftp": true});
+        let bundle = export(
+            &[ExportFile {
+                id: "settings".to_owned(),
+                document: older,
+            }],
+            &meta(),
+        )
+        .unwrap()
+        .bytes;
+        let mut current = Settings::default();
+        current.experimental.native_context_menus = true;
+        let planned = plan_import(&bundle, &[settings_file(current)]).unwrap();
+        assert!(planned.plan.warnings.is_empty());
+        let (_, document) = planned
+            .documents
+            .iter()
+            .find(|(id, _)| id == "settings")
+            .unwrap();
+        assert_eq!(document["body"]["experimental"]["sftp"], true);
+        assert_eq!(
+            document["body"]["experimental"]["nativeContextMenus"],
+            false
         );
     }
 

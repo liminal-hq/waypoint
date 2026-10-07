@@ -11,6 +11,7 @@ mod effects;
 mod git;
 mod integration_policy;
 mod integrations;
+mod native_menu;
 mod ops;
 mod ops_window;
 mod persistence;
@@ -238,7 +239,8 @@ pub fn run() {
             thumbnails::thumbnails_cancel,
             thumbnails::thumbnails_prioritise,
             integrations::get_integration_statuses,
-            integrations::get_integration_availability
+            integrations::get_integration_availability,
+            native_menu::show_native_menu
         ])
         .setup({
             let saver = Arc::clone(&saver);
@@ -253,6 +255,7 @@ pub fn run() {
                 thumbnails::wire(app.handle());
                 git::wire(app.handle());
                 integrations::wire(app.handle());
+                native_menu::wire(app.handle());
                 persistence::restore(app.handle(), &saver);
                 Ok(())
             }

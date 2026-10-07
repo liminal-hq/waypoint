@@ -98,7 +98,8 @@ export type RowKey =
 	| 'protocolSftp'
 	| 'protocolSmb'
 	| 'protocolWebdav'
-	| 'protocolS3';
+	| 'protocolS3'
+	| 'nativeContextMenus';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {

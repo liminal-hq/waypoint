@@ -95,7 +95,7 @@ describe('the Experimental page', () => {
 		const switches = (await screen.findAllByRole('switch')).map((s) =>
 			s.getAttribute('aria-checked'),
 		);
-		expect(switches).toEqual(['false', 'false', 'false', 'false']);
+		expect(switches).toEqual(['false', 'false', 'false', 'false', 'false']);
 		for (const name of ['SFTP', 'SMB', 'WebDAV', 'S3']) {
 			expect(screen.getByRole('switch', { name: `${name} Experimental` })).toBeInTheDocument();
 		}
@@ -114,6 +114,7 @@ describe('the Experimental page', () => {
 			smb: false,
 			webdav: false,
 			s3: false,
+			nativeContextMenus: false,
 		});
 		expect(await screen.findByRole('switch', { name: 'SFTP Experimental' })).not.toBeChecked();
 	});
@@ -129,6 +130,7 @@ describe('the Experimental page', () => {
 				smb: false,
 				webdav: false,
 				s3: false,
+				nativeContextMenus: false,
 			}),
 		);
 		await userEvent.click(screen.getByRole('switch', { name: 'WebDAV Experimental' }));
@@ -138,6 +140,7 @@ describe('the Experimental page', () => {
 				smb: false,
 				webdav: true,
 				s3: false,
+				nativeContextMenus: false,
 			}),
 		);
 		await userEvent.click(screen.getByRole('switch', { name: 'SFTP Experimental' }));
@@ -154,6 +157,18 @@ describe('the Experimental page', () => {
 		});
 		expect(await screen.findByRole('switch', { name: 'SMB Experimental' })).toBeChecked();
 		expect(screen.getByRole('switch', { name: 'SFTP Experimental' })).not.toBeChecked();
+	});
+
+	it('lists native context menus on their own, off by default and marked Experimental', async () => {
+		const { settings } = await open();
+		const group = await screen.findByRole('group', { name: 'Menus' });
+		const native = within(group).getByRole('switch', { name: 'Native context menus Experimental' });
+		expect(native).not.toBeChecked();
+		await waitFor(() => expect(native).toBeEnabled());
+		await userEvent.click(native);
+		await waitFor(() => expect(lastExperimental(settings)?.nativeContextMenus).toBe(true));
+		expect(lastExperimental(settings)?.sftp).toBe(false);
+		expect(within(group).getByText(/may behave differently on Wayland/)).toBeInTheDocument();
 	});
 
 	it('turns S3 on like the other protocols, now that its provider is in the build', async () => {
