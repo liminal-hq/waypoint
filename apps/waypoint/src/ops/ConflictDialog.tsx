@@ -328,6 +328,11 @@ export function ConflictDialog({
 															: null
 													}
 													group={existingIsFolder(conflict.kind) ? 'folder' : 'other'}
+													name={conflict.name}
+													source={{
+														location: conflict.existing,
+														modifiedMs: conflict.existingModifiedMs,
+													}}
 													className={styles.thumb}
 												/>
 												<span>
@@ -348,6 +353,11 @@ export function ConflictDialog({
 													loader={thumbnails}
 													thumbKey={incomingIsFolder ? null : conflict.source.uri}
 													group={incomingIsFolder ? 'folder' : 'other'}
+													name={conflict.name}
+													source={{
+														location: conflict.source,
+														modifiedMs: conflict.sourceModifiedMs,
+													}}
 													className={styles.thumb}
 												/>
 												<span>

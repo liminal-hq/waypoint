@@ -188,6 +188,11 @@ function Body({
 				<FileIcon
 					group={subject.entry.group}
 					name={subject.entry.name}
+					source={{
+						handle: subject.handle,
+						id: subject.entry.id,
+						modifiedMs: subject.entry.modifiedMs,
+					}}
 					size={32}
 					className={styles.icon}
 				/>

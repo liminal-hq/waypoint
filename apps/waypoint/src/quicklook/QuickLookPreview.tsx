@@ -84,17 +84,21 @@ export function QuickLookPreview(props: QuickLookPreviewProps) {
 	}
 }
 
-/** The entry's thumbnail over its icon, in a frame the caller sizes. */
+/** The entry's thumbnail over its icon, in a frame the caller sizes (the large frame is 160 px). */
 function Pictured({
 	entry,
+	handle,
 	loader,
 	className,
-}: Pick<QuickLookPreviewProps, 'entry' | 'loader'> & { className: string | undefined }) {
+}: Pick<QuickLookPreviewProps, 'entry' | 'handle' | 'loader'> & { className: string | undefined }) {
 	return (
 		<Thumbnail
 			loader={loader}
 			thumbKey={wantsThumbnail(entry) ? entryThumbKey(entry) : null}
 			group={entry.group}
+			name={entry.name}
+			source={{ handle, id: entry.id, modifiedMs: entry.modifiedMs }}
+			iconSize={160}
 			{...(className ? { className } : {})}
 		/>
 	);
@@ -158,6 +162,7 @@ function TextPreview({
 /** The large thumbnail (or icon) with the name, kind and size: PDFs, fonts, archives, folders and everything else. */
 function FactsPanel({
 	entry,
+	handle,
 	loader,
 	hourCycle,
 	kind,
@@ -165,7 +170,7 @@ function FactsPanel({
 }: QuickLookPreviewProps & { kind: PreviewKind; note: string | null }) {
 	return (
 		<div className={styles.facts}>
-			<Pictured entry={entry} loader={loader} className={styles.large} />
+			<Pictured entry={entry} handle={handle} loader={loader} className={styles.large} />
 			<p className={styles.name}>{entry.name}</p>
 			<dl className={styles.list}>
 				<dt>{t('quickLook.fact.kind')}</dt>

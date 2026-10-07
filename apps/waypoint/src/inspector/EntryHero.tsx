@@ -46,6 +46,7 @@ export function EntryHero({
 					thumbKey={thumbKey}
 					group={entry.group}
 					name={entry.name}
+					source={{ handle, id: entry.id, modifiedMs: entry.modifiedMs }}
 					iconSize={64}
 					className={styles.thumbnail}
 					iconClassName={styles.icon}

@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::path::Path;
 use std::sync::Arc;
 
 #[cfg(windows)]
@@ -14,7 +15,9 @@ use crate::error::{MimeAppsError, Result};
 use crate::models::{Handlers, PluginStatus, TypeInfo};
 use crate::scheme::IconCache;
 use crate::target::{self, Target};
-use crate::typeicons::TypeIconCache;
+use crate::typeicons::{
+    file_stamp, has_own_icon, is_drive_path, IconKind, IconRequest, TypeIconCache,
+};
 
 /// File types and the applications that open them. Every call runs the blocking system query off the async runtime, and nothing here starts an application except `open_with`, `open_default` and `choose`.
 pub struct MimeApps<R: Runtime> {
@@ -42,6 +45,28 @@ impl<R: Runtime> MimeApps<R> {
     /// What the `typeicon://` scheme handler needs: the backend and the picture cache.
     pub(crate) fn type_icon_parts(&self) -> (Arc<dyn Backend>, Arc<TypeIconCache>) {
         (Arc::clone(&self.backend), Arc::clone(&self.type_icons))
+    }
+
+    /// The icon stored in the file at `path`, as PNG bytes of `size * scale` pixels along an edge, for the kinds of file that carry one (see [`has_own_icon`]): programs, icons, cursors, screen savers and shortcuts. `None` for any other file, for one that is not on a local drive, for one that is gone, and where the system has no such icons. Blocking: call it off the async runtime.
+    ///
+    /// The picture is kept by the file's path, modified time and size, so a file that is rebuilt is drawn anew. The caller names the file from something it resolved itself (a listing's entry), never from what a page sent.
+    pub fn file_icon(&self, path: &Path, size: u32, scale: u32) -> Option<Arc<Vec<u8>>> {
+        let text = path.to_str()?;
+        if !has_own_icon(text) || !is_drive_path(text) {
+            return None;
+        }
+        let metadata = std::fs::metadata(path).ok().filter(|m| m.is_file())?;
+        let request = IconRequest::new(
+            IconKind::File {
+                path: text.to_owned(),
+                stamp: file_stamp(&metadata),
+            },
+            size,
+            scale,
+            None,
+        );
+        self.type_icons
+            .get_or_make(&request, || self.backend.type_icon(&request))
     }
 
     /// Forgets every file and folder icon made so far and what the platform kept for them. Call it when the system's icon theme changes (or its files do), then ask for the icons again.

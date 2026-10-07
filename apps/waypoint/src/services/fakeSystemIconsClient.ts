@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { TypeIconOptions, TypeIconTarget } from '@liminal-hq/plugin-mime-apps';
 import type {
 	SystemIconAvailability,
@@ -26,6 +27,10 @@ export interface FakeSystemIcons extends SystemIconsClient {
 	changeLook(next: Partial<SystemLook>): void;
 	/** Makes `status` reject, as a plugin that is not there would. */
 	failStatus(): void;
+	/** The places asked about, one list per `registerLocations` call. */
+	readonly registered: Location[][];
+	/** Makes `registerLocations` reject, as a window that may not ask would. */
+	failRegister(): void;
 	readonly listenerCount: number;
 }
 
@@ -33,6 +38,8 @@ export function createFakeSystemIconsClient(
 	options: {
 		status?: Partial<SystemIconsStatus>;
 		look?: Partial<SystemLook>;
+		/** The token for a place, or `null` for one that has no icon of its own; by default every place gets the next number from 1, the same one each time it is asked. */
+		token?: (location: Location) => number | null;
 	} = {},
 ): FakeSystemIcons {
 	const status: SystemIconsStatus = {
@@ -42,6 +49,16 @@ export function createFakeSystemIconsClient(
 	};
 	let current: SystemLook = { theme: 'Adwaita', scheme: 'light', ...options.look };
 	let failing = false;
+	let failingRegister = false;
+	const registered: Location[][] = [];
+	const numbered = new Map<string, number>();
+	const tokenOf =
+		options.token ??
+		((location: Location) => {
+			let token = numbered.get(location.uri);
+			if (token === undefined) numbered.set(location.uri, (token = numbered.size + 1));
+			return token;
+		});
 	let refreshed = 0;
 	const probed: string[] = [];
 	const waiting = new Map<string, Set<(loaded: boolean) => void>>();
@@ -68,6 +85,18 @@ export function createFakeSystemIconsClient(
 			if (urlOptions.theme) params.push(`theme=${urlOptions.theme}`);
 			if (urlOptions.revision) params.push(`v=${urlOptions.revision}`);
 			return `fake://${kind}/${value}?${params.join('&')}`;
+		},
+		fileUrl: (token, fileOptions) =>
+			`fake://file/${token}?size=${fileOptions.size}&scale=${fileOptions.scale}&m=${fileOptions.modifiedMs ?? 0}`,
+		registerLocations(locations) {
+			registered.push(locations);
+			return failingRegister
+				? Promise.reject(new Error('not allowed'))
+				: Promise.resolve(locations.map(tokenOf));
+		},
+		registered,
+		failRegister() {
+			failingRegister = true;
 		},
 		probe(url, done) {
 			probed.push(url);

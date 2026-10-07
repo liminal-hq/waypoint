@@ -120,6 +120,8 @@ Errors are `MimeAppsError` objects with a `kind`: `appNotFound`, `noHandler` (wi
 
 `typeIconUrl({ extension: 'pdf' }, { size: 24, scale: 2, theme, revision })` makes the address. `theme` is the icon theme the system reports, and is part of the address so a change of theme is a new picture; `revision` only changes the address, so raise it after `refreshTypeIcons()` (which empties the plugin's cache and what the platform kept) when the theme changed. An icon the system does not have is a 404: keep your own icon underneath it. Nothing but a type or a folder kind is served (never a path), and only `GET` and `HEAD` are answered.
 
+A few kinds of file carry their own icon (programs, shortcuts, icons, cursors and screen savers: the extensions in `OWN_ICON_EXTENSIONS`). For those, Rust code that holds a path of its own can call `app.mime_apps().file_icon(&path, size, scale)` (blocking; off the async runtime), which draws the icon stored in the file on Windows from a local drive path (a share and a cloud placeholder are refused) and gives `None` elsewhere. It is not reachable from a page: the scheme parses no file, so the host app serves it under an address that names the file by something it resolves itself.
+
 ## Features and status
 
 `getStatus()` returns `{ available, reason, message, flavour, features, associationFiles }`, where each feature is `{ name, available, reason, message }`. Decide behaviour from the features, never from the platform.

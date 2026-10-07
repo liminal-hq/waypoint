@@ -193,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn the_settings_window_and_the_main_windows_use_the_settings_and_nobody_else_may() {
+    fn only_the_settings_and_main_windows_use_the_settings_and_properties_may_read_them() {
         use tauri::{WebviewUrl, WebviewWindowBuilder};
         let app = tauri::test::mock_builder()
             .plugin(tauri_plugin_waypoint_settings::init(Arc::new(
@@ -259,7 +259,22 @@ mod tests {
             );
         }
 
-        for label in ["ops", "properties-1", "tear-ghost"] {
+        // A Properties window reads the settings to draw in the person's look and changes nothing.
+        let properties = open("properties-1");
+        let read = call(
+            &properties,
+            "plugin:waypoint-settings|get_settings",
+            serde_json::json!({}),
+        );
+        assert!(read.is_ok(), "properties-1 may read the settings: {read:?}");
+        for command in ["get_status", "set_settings", "set_ui_settings"] {
+            assert!(
+                refused(&properties, &format!("plugin:waypoint-settings|{command}")),
+                "properties-1 may not call {command}"
+            );
+        }
+
+        for label in ["ops", "tear-ghost"] {
             let window = open(label);
             for command in [
                 "get_settings",

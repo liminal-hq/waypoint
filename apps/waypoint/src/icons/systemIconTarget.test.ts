@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	extensionOf,
 	GROUP_TYPES,
+	hasOwnIcon,
 	ICON_SIZES,
 	iconScale,
 	iconSizeFor,
@@ -87,5 +88,52 @@ describe('the size and scale asked for', () => {
 		expect(iconScale(4)).toBe(3);
 		expect(iconScale(0.5)).toBe(1);
 		expect(iconScale(Number.NaN)).toBe(1);
+	});
+});
+
+describe('hasOwnIcon', () => {
+	it('is true for the files that carry their own icon, in any case', () => {
+		for (const name of [
+			'setup.exe',
+			'SETUP.EXE',
+			'a.b.exe',
+			'x.ico',
+			'x.cur',
+			'x.ani',
+			'x.scr',
+			'Notes.LNK',
+		]) {
+			expect(hasOwnIcon(name), name).toBe(true);
+		}
+	});
+
+	it('is false for every other name', () => {
+		for (const name of [
+			undefined,
+			'',
+			'exe',
+			'.exe',
+			'report.pdf',
+			'app.exe.txt',
+			'setup.msi',
+			'a.exe/',
+		]) {
+			expect(hasOwnIcon(name), String(name)).toBe(false);
+		}
+	});
+
+	it('lists the extensions the plugin draws from the file, which decides what is drawn', () => {
+		const text = readFileSync(
+			join(import.meta.dirname, '../../../../plugins/mime-apps/src/typeicons.rs'),
+			'utf8',
+		);
+		const list = /OWN_ICON_EXTENSIONS: \[&str; \d+\] = \[([^\]]*)\]/.exec(text)?.[1] ?? '';
+		const extensions = [...list.matchAll(/"([a-z0-9]+)"/g)].map((match) => match[1]!);
+		expect(extensions.length).toBeGreaterThan(0);
+		for (const extension of extensions) expect(hasOwnIcon(`a.${extension}`), extension).toBe(true);
+		expect(hasOwnIcon('a.zzz')).toBe(false);
+		// Nothing the page asks by file is left out by the plugin.
+		for (const extension of ['exe', 'ico', 'cur', 'ani', 'scr', 'lnk'])
+			expect(extensions, extension).toContain(extension);
 	});
 });

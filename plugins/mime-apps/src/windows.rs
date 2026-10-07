@@ -32,7 +32,7 @@ use windows::Win32::UI::Shell::{
     ASSOCF_INIT_IGNOREUNKNOWN, ASSOCSTR, ASSOCSTR_CONTENTTYPE, ASSOCSTR_EXECUTABLE,
     ASSOCSTR_FRIENDLYAPPNAME, ASSOCSTR_FRIENDLYDOCNAME, ASSOC_FILTER, ASSOC_FILTER_NONE,
     ASSOC_FILTER_RECOMMENDED, OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OPENASINFO, SHFILEINFOW,
-    SHGFI_PIDL, SHGFI_SYSICONINDEX, SHGFI_USEFILEATTRIBUTES,
+    SHGFI_OVERLAYINDEX, SHGFI_PIDL, SHGFI_SYSICONINDEX, SHGFI_USEFILEATTRIBUTES,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     DestroyIcon, GetIconInfo, HICON, ICONINFO, SW_SHOWNORMAL,
@@ -330,7 +330,37 @@ fn system_icon_index(kind: &IconKind) -> Option<i32> {
         IconKind::Folder(folder) => known_folder(*folder)
             .and_then(known_folder_icon_index)
             .or_else(|| by_attributes("folder", FILE_ATTRIBUTE_DIRECTORY)),
+        // Named by the caller, drawn by `file_icon_index`, which also gives the overlay.
+        IconKind::File { path, .. } => file_icon_index(path).map(|(index, _)| index),
     }
+}
+
+/// The index in the shell's system image list of the icon stored in a file, with the overlay the shell draws over it (a shortcut's arrow, as the bits `GetIcon` takes; zero for none). The shell reads the file, so a cloud placeholder is left out, and only a shortcut asks for its overlay.
+fn file_icon_index(path: &str) -> Option<(i32, u32)> {
+    use std::os::windows::fs::MetadataExt;
+    let metadata = std::fs::metadata(path).ok()?;
+    if !metadata.is_file() || shellicon::is_placeholder(metadata.file_attributes()) {
+        return None;
+    }
+    let shortcut = path.to_ascii_lowercase().ends_with(".lnk");
+    let flags = if shortcut {
+        SHGFI_SYSICONINDEX | SHGFI_OVERLAYINDEX
+    } else {
+        SHGFI_SYSICONINDEX
+    };
+    let name = HSTRING::from(path);
+    let mut info = SHFILEINFOW::default();
+    // SAFETY: `name` outlives the call and `info` is a valid out structure of the size passed; without `SHGFI_USEFILEATTRIBUTES` the shell reads the file, which was checked above not to be a placeholder.
+    let result = unsafe {
+        SHGetFileInfoW(
+            PCWSTR(name.as_ptr()),
+            FILE_FLAGS_AND_ATTRIBUTES(0),
+            Some(&mut info),
+            std::mem::size_of::<SHFILEINFOW>() as u32,
+            flags,
+        )
+    };
+    (result != 0).then(|| shellicon::split_overlay(info.iIcon))
 }
 
 /// The icon index of a known folder, by its item identifier list.
@@ -443,12 +473,15 @@ fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
 
 /// The shell's icon for a type or a folder as PNG bytes, from the system image list whose icons are the smallest that are big enough. Needs a single-threaded apartment.
 fn shell_icon(request: &IconRequest) -> Option<Vec<u8>> {
-    let index = system_icon_index(&request.kind)?;
+    let (index, overlay) = match &request.kind {
+        IconKind::File { path, .. } => file_icon_index(path)?,
+        kind => (system_icon_index(kind)?, 0),
+    };
     let list = ImageList::for_pixels(request.pixels());
     // SAFETY: the shell hands back a reference-counted interface, released when it drops; the icon it gives is ours to destroy, which happens once below.
     unsafe {
         let images: IImageList = SHGetImageList(list.shil()).ok()?;
-        let icon = images.GetIcon(index, ILD_TRANSPARENT.0).ok()?;
+        let icon = images.GetIcon(index, ILD_TRANSPARENT.0 | overlay).ok()?;
         let pixels = icon_pixels(icon);
         let _ = DestroyIcon(icon);
         let (width, height, rgba) = pixels?;

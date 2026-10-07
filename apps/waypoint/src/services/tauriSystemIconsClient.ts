@@ -11,6 +11,7 @@ import {
 	typeIconUrl,
 	type Feature,
 } from '@liminal-hq/plugin-mime-apps';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { getAppearance, onAppearanceChanged } from '@liminal-hq/plugin-system-appearance';
 import type { SystemIconAvailability, SystemIconsClient, SystemLook } from './systemIconsClient';
 
@@ -50,6 +51,10 @@ export function createTauriSystemIconsClient(): SystemIconsClient {
 		},
 		refresh: () => refreshTypeIcons(),
 		url: (target, options) => typeIconUrl(target, options),
+		fileUrl: (token, options) =>
+			`${convertFileSrc(token, 'fileicon')}?size=${options.size}&scale=${options.scale}&m=${options.modifiedMs ?? 0}`,
+		registerLocations: (locations) =>
+			invoke<Array<number | null>>('register_icon_locations', { locations }),
 		probe(url, done) {
 			const image = new Image();
 			let cancelled = false;

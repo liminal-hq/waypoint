@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! An icon is asked for by a *type* (a content type, an extension, or a kind of folder), never by a file, so a listing of ten thousand files needs as many requests as it has distinct types. Everything here is pure: the platform backends turn a request into a picture, and the `typeicon://` scheme in `scheme.rs` serves and caches it.
+//! An icon is asked for by a *type* (a content type, an extension, or a kind of folder), never by a file, so a listing of ten thousand files needs as many requests as it has distinct types. The one exception is a file whose icon is stored in the file itself (an executable, a shortcut): [`IconKind::File`] names it, but only Rust code can make one, since the `typeicon://` scheme parses nothing but a type or a folder kind. Everything here is pure: the platform backends turn a request into a picture, and the `typeicon://` scheme in `scheme.rs` serves and caches it.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -111,6 +111,11 @@ pub enum IconKind {
     /// A file name extension without its dot, in lower case (`pdf`): the type is what the system guesses from `x.pdf`.
     Extension(String),
     Folder(FolderKind),
+    /// A file whose icon is in the file itself (see [`has_own_icon`]), at a version of it: `stamp` is made from the file's modified time and size, so a rebuilt file is a new picture. It has no address, because the scheme never parses a file.
+    File {
+        path: String,
+        stamp: u64,
+    },
 }
 
 impl IconKind {
@@ -135,9 +140,47 @@ impl IconKind {
             IconKind::Mime(mime) => ("mime", mime.as_str()),
             IconKind::Extension(extension) => ("ext", extension.as_str()),
             IconKind::Folder(folder) => ("folder", folder.as_str()),
+            IconKind::File { .. } => return "/file".to_owned(),
         };
         format!("/{kind}/{}", escape(value))
     }
+}
+
+/// The extensions of the files that carry their own icon (the shell draws them from the file, not from the type): programs, icons, cursors, screen savers and shortcuts.
+pub const OWN_ICON_EXTENSIONS: [&str; 6] = ["exe", "ico", "cur", "ani", "scr", "lnk"];
+
+/// Whether the file at `path` is of a kind that carries its own icon, by its extension and ignoring case. Nothing else is ever asked for by file, so the list is the whole of what a file icon request can reach.
+pub fn has_own_icon(path: &str) -> bool {
+    let name = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    name.rsplit_once('.').is_some_and(|(stem, extension)| {
+        !stem.is_empty()
+            && OWN_ICON_EXTENSIONS
+                .iter()
+                .any(|own| extension.eq_ignore_ascii_case(own))
+    })
+}
+
+/// What tells one version of a file from another: its modified time and its size, folded into one number.
+pub fn file_stamp(metadata: &std::fs::Metadata) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |since| since.as_nanos());
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    (modified, metadata.len()).hash(&mut hasher);
+    hasher.finish()
+}
+
+/// Whether the path is on a local drive (`C:\…` or `C:/…`). A network share (`\\server\share`), a device path (`\\?\`) and anything with a scheme are not: asking the shell for such a file's icon would reach out over the network.
+pub fn is_drive_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+        && !path.contains("://")
 }
 
 /// A content type: `type/subtype` of the characters the registry allows, and nothing longer than it needs to be.
@@ -252,6 +295,8 @@ pub fn candidate_names(kind: &IconKind, source: &dyn NameSource) -> Vec<String> 
     let raw: Vec<String> = match kind {
         IconKind::Folder(folder) => folder.icon_names().into_iter().map(String::from).collect(),
         IconKind::Mime(mime) => source.mime_names(mime),
+        // A file's own icon is the shell's; no theme has a name for it.
+        IconKind::File { .. } => Vec::new(),
         IconKind::Extension(extension) => {
             let mime = source.mime_for_extension(extension);
             source.mime_names(&mime)
@@ -425,6 +470,83 @@ mod tests {
 
     fn request(kind: IconKind, size: u32, scale: u32) -> IconRequest {
         IconRequest::new(kind, size, scale, None)
+    }
+
+    #[test]
+    fn only_a_file_that_carries_its_own_icon_is_drawn_from_the_file() {
+        for own in [
+            "C:\\Tools\\app.exe",
+            "C:/Tools/APP.EXE",
+            "D:\\a.b\\icon.Ico",
+            "cursor.cur",
+            "wait.ani",
+            "saver.scr",
+            "C:\\Users\\me\\Desktop\\Notes.lnk",
+        ] {
+            assert!(has_own_icon(own), "{own}");
+        }
+        for other in [
+            "C:\\Tools\\report.pdf",
+            "C:\\Tools\\exe",
+            "C:\\Tools\\.exe",
+            "C:\\Tools.exe\\readme",
+            "C:\\Tools\\app.exe.txt",
+            "C:\\Tools\\app.exe ",
+            "setup.msi",
+            "",
+        ] {
+            assert!(!has_own_icon(other), "{other}");
+        }
+    }
+
+    #[test]
+    fn a_file_icon_has_no_address_and_no_path_names_one() {
+        let kind = IconKind::File {
+            path: "C:\\Tools\\app.exe".into(),
+            stamp: 7,
+        };
+        assert_eq!(kind.path(), "/file");
+        for path in [
+            "/file",
+            "/file/",
+            "/file/C%3A%5CTools%5Capp.exe",
+            "/file/app.exe",
+            "/FILE/C%3A%5CTools%5Capp.exe",
+        ] {
+            assert_eq!(IconKind::parse_path(path), None, "{path}");
+        }
+    }
+
+    #[test]
+    fn only_a_local_drive_path_is_asked_of_the_shell() {
+        for local in ["C:\\a.exe", "d:/a.exe", "Z:\\x\\y.lnk"] {
+            assert!(is_drive_path(local), "{local}");
+        }
+        for remote in [
+            "\\\\server\\share\\a.exe",
+            "\\\\?\\C:\\a.exe",
+            "//server/share/a.exe",
+            "a.exe",
+            "C:a.exe",
+            "/usr/bin/a.exe",
+            "https://x/a.exe",
+            "",
+        ] {
+            assert!(!is_drive_path(remote), "{remote}");
+        }
+    }
+
+    #[test]
+    fn a_file_is_another_picture_once_it_changes() {
+        let dir = std::env::temp_dir().join(format!("wp-stamp-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("a.exe");
+        std::fs::write(&file, b"one").unwrap();
+        let first = file_stamp(&std::fs::metadata(&file).unwrap());
+        assert_eq!(first, file_stamp(&std::fs::metadata(&file).unwrap()));
+        std::fs::write(&file, b"longer content").unwrap();
+        assert_ne!(first, file_stamp(&std::fs::metadata(&file).unwrap()));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

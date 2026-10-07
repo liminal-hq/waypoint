@@ -7,14 +7,16 @@ import { tauriWindowControls } from '@liminal-hq/waypoint-chrome/TitleBar/tauriW
 import { WindowChromeProvider } from '@liminal-hq/waypoint-chrome/WindowChromeProvider/WindowChromeProvider';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { configureSystemIcons } from '../icons/systemIcons';
+import { createFakeSystemIconsClient } from '../services/fakeSystemIconsClient';
 import { LazyDetails } from '../inspector/inspectorHarness';
 import { createFakeOpenWithClient } from '../openWith/fakeOpenWithClient';
 import { FakeChecksumClient } from '../services/fakeChecksumClient';
 import { fakeDetails } from '../services/fakeDetailsClient';
 import { FakePropertiesWindowClient } from '../services/fakePropertiesWindowClient';
 import { FakeTimeFormatClient } from '../services/fakeTimeFormatClient';
-import { fileLocation, type FakeVfsClient } from '../services/fakeVfsClient';
+import { fileLocation, makeEntry, type FakeVfsClient } from '../services/fakeVfsClient';
 import { createTree, DOCS, HOME } from '../test/workspaceHarness';
 import { PropertiesScreen } from './PropertiesScreen';
 
@@ -61,6 +63,7 @@ function mount(
 			}),
 		},
 		1: { details: fakeDetails({ name: 'docs', kind: 'directory', size: null, mode: 0o755 }) },
+		5: { details: fakeDetails({ name: 'Setup.exe', size: 2048, mode: 0o755 }) },
 	});
 	const windows = new FakePropertiesWindowClient(
 		options.subject === undefined ? NOTES : options.subject,
@@ -139,6 +142,36 @@ describe('the Properties window', () => {
 		expect(
 			await screen.findByRole('heading', { name: 'missing.txt no longer exists' }),
 		).toBeInTheDocument();
+	});
+
+	describe('the icon in its header', () => {
+		const root = document.documentElement;
+
+		beforeEach(() => {
+			root.dataset.iconTheme = 'system';
+		});
+
+		afterEach(() => {
+			configureSystemIcons(null);
+			delete root.dataset.iconTheme;
+		});
+
+		it('is drawn from the program itself, named by the window’s own listing of its folder, never by a path', async () => {
+			const fake = createFakeSystemIconsClient();
+			configureSystemIcons(fake);
+			const vfs = createTree();
+			vfs.setFolder(HOME, [
+				makeEntry(1, 'docs', { kind: 'directory' }),
+				makeEntry(3, 'notes.txt'),
+				makeEntry(5, 'Setup.exe'),
+			]);
+			mount({ subject: fileLocation('/home/test/Setup.exe'), vfs });
+			await screen.findByRole('main', { name: 'Properties of Setup.exe' });
+			await waitFor(() => expect(fake.probed.length).toBeGreaterThan(0));
+			const modified = makeEntry(5, 'Setup.exe').modifiedMs;
+			expect(fake.probed).toEqual([`fake://file/1-5?size=32&scale=1&m=${modified}`]);
+			expect(fake.probed.join()).not.toContain('home');
+		});
 	});
 
 	describe('following its subject', () => {

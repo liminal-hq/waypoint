@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { TypeIconOptions, TypeIconTarget } from '@liminal-hq/plugin-mime-apps';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { Unsubscribe } from './vfsClient';
 
 /** Whether one kind of system icon can be drawn here, and the sentence that says why not when it cannot. */
@@ -37,6 +38,19 @@ export interface SystemIconsClient {
 	refresh(): Promise<void>;
 	/** The address of the icon for a target. */
 	url(target: TypeIconTarget, options: TypeIconOptions): string;
+	/**
+	 * The address of the icon stored in the file that is entry `{token}` of a listing the window shows (the token is `{handle}-{entry}`, the form `wpfile` uses).
+	 * The page never names a path: Rust resolves the token through the window's own listing. `modifiedMs` is part of the address so a file that changed is asked for again.
+	 */
+	fileUrl(
+		token: string,
+		options: { size: number; scale: number; modifiedMs: number | null },
+	): string;
+	/**
+	 * Asks Rust for a token per place, in the order given, to name the place in `fileUrl` as `l{token}`. A place whose own icon cannot be drawn (not a local file, or not a kind that carries an icon) gets `null`.
+	 * The answer is a number and never a path; rejects where the window may not ask.
+	 */
+	registerLocations(locations: Location[]): Promise<Array<number | null>>;
 	/** Loads an address once and says whether a picture came back: a 404 is `false`. Returns a cancel. */
 	probe(url: string, done: (loaded: boolean) => void): Unsubscribe;
 }

@@ -21,6 +21,10 @@ vi.mock('@liminal-hq/plugin-mime-apps', async () => {
 	return { ...real, ...mime };
 });
 vi.mock('@liminal-hq/plugin-system-appearance', () => appearance);
+// The webview serves a custom scheme from `http://{scheme}.localhost` on Windows; this stands in for either form.
+vi.mock('@tauri-apps/api/core', () => ({
+	convertFileSrc: (path: string, protocol: string) => `${protocol}://localhost/${path}`,
+}));
 
 /** Lets the promises the client chains on the plugin's answer settle. */
 async function flush(): Promise<void> {
@@ -95,6 +99,15 @@ describe('refresh and addresses', () => {
 		mime.refreshTypeIcons.mockResolvedValue(undefined);
 		await createTauriSystemIconsClient().refresh();
 		expect(mime.refreshTypeIcons).toHaveBeenCalledTimes(1);
+	});
+
+	it('makes the file icon address from the listing token, size, scale and modified time, never a path', () => {
+		expect(
+			createTauriSystemIconsClient().fileUrl('3-9', { size: 32, scale: 2, modifiedMs: 1234 }),
+		).toBe('fileicon://localhost/3-9?size=32&scale=2&m=1234');
+		expect(
+			createTauriSystemIconsClient().fileUrl('3-9', { size: 16, scale: 1, modifiedMs: null }),
+		).toBe('fileicon://localhost/3-9?size=16&scale=1&m=0');
 	});
 
 	it('makes the typeicon address with the size, scale, theme and revision', () => {
