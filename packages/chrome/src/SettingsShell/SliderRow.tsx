@@ -39,6 +39,11 @@ function Slider({
 	settle.current = onChange;
 	const shown = draft ?? value;
 
+	// A value that arrives from outside (a reset, an import, another window) replaces whatever the thumb still shows, including a drag that ended without a native `change`.
+	useEffect(() => {
+		setDraft(null);
+	}, [value]);
+
 	// The native `change` event is the one that waits for the pointer to be released.
 	useEffect(() => {
 		const element = input.current;

@@ -1401,6 +1401,21 @@ describe('the Transparency page', () => {
 		);
 	});
 
+	it('puts the title bar slider back to its default after a drag that never settled', async () => {
+		const { settings } = await open({
+			settings: {
+				...DEFAULT_SETTINGS,
+				transparency: { ...DEFAULT_SETTINGS.transparency, enabled: true, opacity: 60 },
+			},
+		});
+		await goTo('Transparency');
+		// A drag that ends where it began fires no native `change`, so nothing is saved and the thumb keeps its draft.
+		fireEvent.input(slider('Title bar and menu bar opacity'), { target: { value: '45' } });
+		await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+		await waitFor(() => expect(settings.current().settings.transparency.opacity).toBe(82));
+		await waitFor(() => expect(slider('Title bar and menu bar opacity')).toHaveValue('82'));
+	});
+
 	it('has nothing to reset at the defaults, whether the page is on or off', async () => {
 		await open();
 		await goTo('Transparency');

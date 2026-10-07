@@ -10,7 +10,7 @@ import { SettingsGroup } from '@liminal-hq/waypoint-chrome/SettingsShell/Setting
 import { SettingsSection } from '@liminal-hq/waypoint-chrome/SettingsShell/SettingsSection';
 import { SliderRow } from '@liminal-hq/waypoint-chrome/SettingsShell/SliderRow';
 import { ToggleRow } from '@liminal-hq/waypoint-chrome/SettingsShell/ToggleRow';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { useNativeContextMenusSetting } from '../menus/nativeMenuSetting';
 import { MENU_OPACITY_MIN, OPACITY_MAX, OPACITY_MIN } from '../services/settingsClient';
@@ -97,6 +97,17 @@ export function TransparencyPage() {
 	// The values a slider holds while it is dragged, before they are saved.
 	const [drag, setDrag] = useState<Partial<Record<OpacityKey, number>>>({});
 	const [dragMenuOpacity, setDragMenuOpacity] = useState<number | null>(null);
+	// A value that is saved, reset or imported ends any drag the preview was still following.
+	useEffect(() => {
+		setDrag({});
+		setDragMenuOpacity(null);
+	}, [
+		transparency.opacity,
+		transparency.rowsOpacity,
+		transparency.sidebarOpacity,
+		transparency.contentOpacity,
+		transparency.menuOpacity,
+	]);
 
 	const known = windowEffects !== null;
 	const blurFeature =
