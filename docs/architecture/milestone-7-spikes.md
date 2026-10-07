@@ -386,7 +386,7 @@ Over a real network the window and latency rule, as in the SFTP results ([`miles
 4. **SSH terminals: an `open_shell` on the SFTP provider's `russh` handle behind the same event stream (A132).** Feasible with no new dependency; measured on loopback only.
 5. **Budgets** (this machine, WebKitGTK): echo to parsed in the page under 5 ms median (1 ms without coalescing), 60 fps with 100 MB flowing, scrolling 100,000 lines under 15 % of a core with WebGL, 40 MB/s or more end to end, WebKit memory under 3 KB a row (use a 10,000-line default), the window and buffer at 1 MiB, and screen reader mode only on demand (it costs 2.5 times the throughput).
 
-### On the contract proposals (A126, D181)
+### On the contract proposals (A126, D216)
 
 - **`PtyEvent` `Output`, `Title`, `Cwd`, `Exit`: confirmed**, with three amendments. `Output(bytes)` is a raw binary `Channel` message (not JSON, not a string) and the page's `ack(id, n)` command is part of the contract, because without it the stream outruns the page 2.5 times and holds 1.4 GB. `Cwd` carries the host from `OSC 7` with the path, so the consumer can tell a remote folder from a local one. Add **`Prompt(state)`** (from `OSC 133` marks, `Idle` and `Busy`) and a `get_status` field saying whether a foreground job can be seen (`tcgetpgrp`, Linux), so idleness is not guessed in the page.
 - **The terminal tab as a `terminal:?cwd=` virtual location: confirmed.** Nothing measured argues against it: the terminal's state (the PTY, the buffer) is runtime state outside the session store and a restored tab starts a fresh shell, as the contract says.
