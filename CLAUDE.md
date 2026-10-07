@@ -34,6 +34,7 @@ bun run format       # Prettier write
 bun run format:check # Prettier check
 bun run check:headers # licence-header check
 bun run check:case   # no two modules whose names differ only by case (one file on Windows and macOS)
+bun run check:versions # one synchronised release version across the manifests (and its fixture tests)
 ```
 
 Also: `bun run tauri:dev` (MCP-drivable desktop shell — use this one for agent automation, not plain `tauri dev`; it also sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` so the undocked Web Inspector renders on Wayland), `bun run test:js`, `bun run test:rust`, `bun run build`. If host Rust tooling is unavailable, use the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container per `AGENTS.md` → Local Tooling (`ghcr.io/liminal-hq/tauri-dev-windows:latest` for `bun run build:windows`).
