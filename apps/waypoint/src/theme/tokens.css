@@ -325,6 +325,15 @@ select,
 	user-select: text;
 }
 
+/* The list a native `<select>` drops down is drawn by the webview from the options' own colours,
+   not from the page's: left alone it takes the operating system's scheme, which on Windows can be
+   light while the window is dark (a light list with light text). These follow the window's tokens. */
+select option,
+select optgroup {
+	background-color: var(--wp-bg-raised);
+	color: var(--wp-text-primary);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	:root {
 		--wp-drag-motion: 0ms;

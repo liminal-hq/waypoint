@@ -30,6 +30,14 @@ describe('base styles', () => {
 		expect(body).toMatch(/(?<!-webkit-)user-select:\s*none/);
 	});
 
+	it('draws the options of a native dropdown in the window’s own colours, not the system’s', () => {
+		for (const selector of ['select option', 'select optgroup']) {
+			const rule = declarationsFor(selector);
+			expect(rule, selector).toMatch(/background-color:\s*var\(--wp-bg-raised\)/);
+			expect(rule, selector).toMatch(/(?<!-)color:\s*var\(--wp-text-primary\)/);
+		}
+	});
+
 	it.each(['input', 'textarea', "[role='alert']", '[data-selectable]'])(
 		'keeps %s selectable',
 		(selector) => {
