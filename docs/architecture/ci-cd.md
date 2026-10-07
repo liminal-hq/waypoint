@@ -63,18 +63,18 @@ The Git provider (A101) needs no server: `remote-conformance` also runs `cargo n
    - **`build-linux`** (x64 on `ubuntu-24.04`, arm64 on `ubuntu-24.04-arm`, both in the `ghcr.io/liminal-hq/tauri-ci-desktop:latest` container): `bun run --cwd apps/waypoint tauri build --bundles deb,rpm`, staged as `linux-deb-<arch>` and `linux-rpm-<arch>` (the deb alone, because the AppImage workflow packages the one `.deb` in its artefact).
    - **`package-appimage`:** the shared `liminal-hq/.github` workflow `package-arch-appimage.yml` (pinned by commit) turns each deb into an AppImage on a pinned Arch image with `quick-sharun`, and uploads `appimage-<runner>`. Tauri's own AppImage bundler is not used (`--bundles` never names `appimage`), which keeps the build off the container's experimental `tauri-cli` branch.
    - **`build-windows`** (x64 on `windows-latest`, arm64 on `windows-11-arm`, `shell: bash`): `tauri build --bundles nsis`, staged as `windows-installer-<arch>`; then the portable zip, staged as `windows-portable-<arch>`, which holds the `waypoint.exe` that build left in `target/release` (the one inside the installer), `LICENSE-APACHE` and `LICENSE-MIT`, and `WebView2Loader.dll` only if the exe loads it at run time. It registers nothing (A148). macOS is not a target.
-4. **`publish-release`:** downloads every artefact, checks each file against its `build.sha256`, requires exactly the ten expected files (below), copies them under their release names, writes `SHA256SUMS` over those names, uploads with `gh release upload --clobber`, and, unless the run was a `release_draft` one, publishes the release (`--draft=false`; a pre-release is never marked latest).
+4. **`publish-release`:** downloads every artefact, checks each file against its `build.sha256`, requires the eight deb, rpm, installer and zip files and each AppImage that was built (below; the AppImage is optional, A153: one that was not built is a warning, and the job summary names it), copies them under their release names, writes `SHA256SUMS` over those names, uploads with `gh release upload --clobber`, and, unless the run was a `release_draft` one, publishes the release (`--draft=false`; a pre-release is never marked latest).
 
 **Asset names (A152).** `Waypoint_<OS>_<version>_<arch>[_<kind>].<extension>`, where `<OS>` is `Linux` or `Win`, `<version>` is the synchronised version without the `v`, and `<arch>` is `x64` or `arm64` on both systems (not `amd64`, `x86_64` or `aarch64`). The assets of `v1.2.3`:
 
-| Asset                                 | What it is                             |
-| ------------------------------------- | -------------------------------------- |
-| `Waypoint_Linux_1.2.3_x64.deb`        | Debian package (also `_arm64`)         |
-| `Waypoint_Linux_1.2.3_x64.rpm`        | RPM package (also `_arm64`)            |
-| `Waypoint_Linux_1.2.3_x64.AppImage`   | AppImage (also `_arm64`)               |
-| `Waypoint_Win_1.2.3_x64_Setup.exe`    | NSIS installer (also `_arm64`)         |
-| `Waypoint_Win_1.2.3_x64_Portable.zip` | Portable zip (also `_arm64`)           |
-| `SHA256SUMS`                          | `sha256sum` format, over the ten files |
+| Asset                                 | What it is                                  |
+| ------------------------------------- | ------------------------------------------- |
+| `Waypoint_Linux_1.2.3_x64.deb`        | Debian package (also `_arm64`)              |
+| `Waypoint_Linux_1.2.3_x64.rpm`        | RPM package (also `_arm64`)                 |
+| `Waypoint_Linux_1.2.3_x64.AppImage`   | AppImage (also `_arm64`)                    |
+| `Waypoint_Win_1.2.3_x64_Setup.exe`    | NSIS installer (also `_arm64`)              |
+| `Waypoint_Win_1.2.3_x64_Portable.zip` | Portable zip (also `_arm64`)                |
+| `SHA256SUMS`                          | `sha256sum` format, over the uploaded files |
 
 The files are as the bundlers produced them: only their names change. `SHA256SUMS` is checked with `sha256sum --check SHA256SUMS` in a folder with the downloads.
 
@@ -83,7 +83,7 @@ The files are as the bundlers produced them: only their names change. `SHA256SUM
 5. **Versioning:** `scripts/check-release-versions.sh` requires one synchronised version (`X.Y.Z` or `X.Y.Z-beta.N`) in the root `package.json`, `apps/waypoint/package.json`, `tauri.conf.json`, the app crate's `Cargo.toml` and `[workspace.package] version` when the root `Cargo.toml` sets one, and in any member that says `version.workspace = true` (which also requires the workspace to set one). With no argument it lists every mismatch and exits 1; with `--current-version` it prints the version and nothing else. It does **not** look at the libraries and plugins under `crates/` and `plugins/` that keep a `version` of their own (today `0.1.0`, not the release version): they are never released alone, and reusable plugins that have graduated are versioned in the shared repo by `covector`, not here. Making a library follow the release is one line (`version.workspace = true`, with `[workspace.package] version` added), and the script checks it from then on. The version is `0.0.0` until the first release.
 6. **Signing and Windows packaging:** Windows builds are **unsigned** and there is no signing step in the Windows jobs (D198, A147). Code signing, the sparse MSIX package (and with it the modern Explorer menu, #385) and Windows 10 support are deferred to an undetermined date (`docs/open-questions.md` #8 and #10); when they are taken up, the decision names the certificate's owner and adds one signing step before `SHA256SUMS` is written. What is decided now: the artefact set and the installer format (A148), the app identity (D199, A149) and the channels (D201, A151), and the updater is the spike in #376.
 
-**Not built yet:** the Flatpak job (D200, A150, #390; Flatpak is a packaging follow-up, and portals-first code is written from day one so the manifest is not a rewrite), signing, the updater's feed and signatures (#376), the installer's shortcut and ProgID registration (A148, A149) and any use of the version in About (#393). **Unverified until the first tag:** AppImage packaging of this app (the default runtime packages of the shared workflow are used), the NSIS bundle on both Windows runners (Tauri downloads NSIS itself), the arm64 runner labels, whether the pre-release version suits the installer's version field (A151), and the portable zip.
+**Not built yet:** the x64 AppImage while it cannot be (A153, #630), the Flatpak job (D200, A150, #390; Flatpak is a packaging follow-up, and portals-first code is written from day one so the manifest is not a rewrite), signing, the updater's feed and signatures (#376), the installer's shortcut and ProgID registration (A148, A149) and any use of the version in About (#393). **Unverified until the first tag:** AppImage packaging of this app (the default runtime packages of the shared workflow are used), the NSIS bundle on both Windows runners (Tauri downloads NSIS itself), the arm64 runner labels, whether the pre-release version suits the installer's version field (A151), and the portable zip.
 
 ## 5. Automation and agents
 

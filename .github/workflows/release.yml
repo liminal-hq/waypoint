@@ -465,6 +465,9 @@ jobs:
       - build-linux
       - package-appimage
       - build-windows
+    # The AppImage is optional (A153): a release goes out when everything else was built, whatever the
+    # AppImage jobs did. A missing deb, rpm, installer or zip still stops it.
+    if: ${{ !cancelled() && needs.prepare-release.result == 'success' && needs.build-linux.result == 'success' && needs.build-windows.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -486,11 +489,18 @@ jobs:
 
           mkdir -p assets
 
-          # asset <artefact> <file glob> <name after the version prefix>
+          # asset <artefact> <file glob> <name after the version prefix> [optional]
+          # An optional artefact that was not built is reported and left out; every other one must exist.
+          : > not-built.txt
           asset() {
-            local artefact="$1" glob="$2" name="$3"
+            local artefact="$1" glob="$2" name="$3" optional="${4:-}"
             local dir="staged/${artefact}"
             if [[ ! -d "${dir}" ]]; then
+              if [[ "${optional}" == "optional" ]]; then
+                echo "::warning::${artefact} was not built, so Waypoint_${name} is not in this release"
+                echo "Waypoint_${name}" >> not-built.txt
+                return 0
+              fi
               echo "Missing artefact ${artefact}" >&2
               exit 1
             fi
@@ -510,7 +520,7 @@ jobs:
             if [[ "${arch}" == "x64" ]]; then appimage_runner="ubuntu-24.04"; else appimage_runner="ubuntu-24.04-arm"; fi
             asset "linux-deb-${arch}" '*.deb' "Linux_${RELEASE_VERSION}_${arch}.deb"
             asset "linux-rpm-${arch}" '*.rpm' "Linux_${RELEASE_VERSION}_${arch}.rpm"
-            asset "appimage-${appimage_runner}" '*.AppImage' "Linux_${RELEASE_VERSION}_${arch}.AppImage"
+            asset "appimage-${appimage_runner}" '*.AppImage' "Linux_${RELEASE_VERSION}_${arch}.AppImage" optional
             asset "windows-installer-${arch}" '*-setup.exe' "Win_${RELEASE_VERSION}_${arch}_Setup.exe"
             asset "windows-portable-${arch}" '*.zip' "Win_${RELEASE_VERSION}_${arch}_Portable.zip"
           done
@@ -553,4 +563,11 @@ jobs:
             echo '```'
             cat assets/SHA256SUMS 2>/dev/null || true
             echo '```'
+            if [[ -s not-built.txt ]]; then
+              echo
+              echo "Not built, so not in this release:"
+              while IFS= read -r file; do
+                echo "- \`${file}\`"
+              done < not-built.txt
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
