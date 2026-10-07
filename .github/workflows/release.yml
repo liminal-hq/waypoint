@@ -339,7 +339,7 @@ jobs:
             arch: x64
           - runner: ubuntu-24.04-arm
             arch: arm64
-    uses: liminal-hq/.github/.github/workflows/package-arch-appimage.yml@e92450c9d4c17f02160b90d76da1818d7798f9dc # main
+    uses: liminal-hq/.github/.github/workflows/package-arch-appimage.yml@3e05c9d6d8edbbfe84b7ff343e1bab5fc4dbb1de # main
     with:
       runs-on: ${{ matrix.runner }}
       deb-artifact-name: linux-deb-${{ matrix.arch }}
