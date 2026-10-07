@@ -27,7 +27,7 @@ fi
 host="${host:-this-machine}"
 
 if ! command -v cargo-xwin >/dev/null 2>&1; then
-	echo "cargo-xwin is required: cargo install --locked cargo-xwin" >&2
+	echo "cargo-xwin is required: cargo install --locked cargo-xwin, or run this in ghcr.io/liminal-hq/tauri-dev-windows:latest" >&2
 	exit 1
 fi
 
@@ -54,4 +54,4 @@ echo "Built $(git rev-parse --short HEAD): $out/waypoint.exe ($(du -h "$out/wayp
 cat "$out/SHA256SUMS.txt"
 echo
 echo "From the Windows machine:"
-echo "  scp -r $USER@${host:-<this-host>}:$PWD/$out ."
+echo "  scp -r ${USER:-$(id -un)}@${host:-<this-host>}:$PWD/$out ."
