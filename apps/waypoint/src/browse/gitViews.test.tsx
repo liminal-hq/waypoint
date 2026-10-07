@@ -172,11 +172,12 @@ describe('the list in a working tree', () => {
 		expect(await screen.findByRole('menu', { name: 'Columns' })).toBeInTheDocument();
 	});
 
-	it('has no header menu outside a working tree', async () => {
+	it('offers no Git choice in the header menu outside a working tree', async () => {
 		mount('list', { repository: false });
 		await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(9));
 		fireEvent.contextMenu(screen.getByRole('group', { name: 'Sort the list' }));
-		expect(screen.queryByRole('menu')).toBeNull();
+		await screen.findByRole('menu', { name: 'Columns' });
+		expect(screen.queryByRole('menuitemcheckbox')).toBeNull();
 	});
 });
 

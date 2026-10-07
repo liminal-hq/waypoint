@@ -51,7 +51,7 @@ describe('a single tab', () => {
 		await renderWorkspace();
 		await screen.findAllByRole('option');
 		expect(panes()).toHaveLength(0);
-		expect(screen.queryByRole('separator')).toBeNull();
+		expect(screen.queryByRole('separator', { name: 'Resize panes' })).toBeNull();
 		expect(screen.queryByRole('button', { name: /^Split: / })).toBeNull();
 	});
 });
@@ -106,7 +106,7 @@ describe('the pane layout', () => {
 			await h.tabs.separatePair(1);
 		});
 		await waitFor(() => expect(panes()).toHaveLength(0));
-		expect(screen.queryByRole('separator')).toBeNull();
+		expect(screen.queryByRole('separator', { name: 'Resize panes' })).toBeNull();
 	});
 
 	it('shows a pair that has three panes with two dividers', async () => {
@@ -115,7 +115,7 @@ describe('the pane layout', () => {
 		await h.tabs.openTab(MUSIC);
 		await h.tabs.joinPair([1, 2, 3], 'sideBySide');
 		await waitFor(() => expect(panes()).toHaveLength(3));
-		expect(screen.getAllByRole('separator')).toHaveLength(2);
+		expect(screen.getAllByRole('separator', { name: 'Resize panes' })).toHaveLength(2);
 	});
 });
 

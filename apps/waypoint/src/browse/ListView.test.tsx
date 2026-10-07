@@ -325,7 +325,7 @@ describe('narrow views', () => {
 		).toEqual(['size', 'modified', 'kind']);
 		expect(
 			[...screen.getAllByRole('button', { name: /^(Name|Size|Modified|Kind)/ })].map((button) =>
-				button.getAttribute('data-column'),
+				button.closest('[data-column]')?.getAttribute('data-column'),
 			),
 		).toEqual(['name', 'size', 'modified', 'kind']);
 	});
@@ -336,7 +336,7 @@ describe('narrow views', () => {
 		expect(css).toContain('container-type: inline-size');
 		expect(css).toMatch(/--wp-name-min:\s*120px/);
 		expect(css).toMatch(
-			/grid-template-columns:\s*minmax\(var\(--wp-name-min\), 1fr\) 88px 168px 96px/,
+			/grid-template-columns:\s*minmax\(var\(--wp-name-min\), 1fr\)\s+var\(--wp-track-size\)\s+var\(--wp-track-modified\)\s+var\(--wp-track-kind\)/,
 		);
 		for (const [width, column] of [
 			['571', 'kind'],

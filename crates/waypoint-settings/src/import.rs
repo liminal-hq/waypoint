@@ -592,6 +592,32 @@ mod tests {
     }
 
     #[test]
+    fn a_file_with_the_global_column_widths_of_an_earlier_build_still_imports() {
+        let mut value = document(&Settings::default());
+        value["body"]["ui"]["columnWidths"] = json!({ "size": 120, "kind": null });
+        let bytes = export(
+            &[ExportFile {
+                id: "settings".into(),
+                document: value,
+            }],
+            &meta(),
+        )
+        .unwrap()
+        .bytes;
+        let planned = plan_import(&bytes, &[settings_file(Settings::default())]).unwrap();
+        assert_eq!(
+            planned.plan.warnings,
+            [ImportWarning::UnknownKeys {
+                file: "settings".into(),
+                keys: vec!["ui.columnWidths".into()],
+            }]
+        );
+        assert!(planned.documents[0].1["body"]["ui"]
+            .get("columnWidths")
+            .is_none());
+    }
+
+    #[test]
     fn values_a_normal_change_refuses_are_refused_with_the_field() {
         let mut value = document(&Settings::default());
         value["body"]["dnd"]["springLoadMs"] = json!(5);

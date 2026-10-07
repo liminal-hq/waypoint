@@ -18,6 +18,7 @@ import type { FolderViewsSnapshot } from '@liminal-hq/waypoint-protocol/generate
 import type { ExportReceipt } from '@liminal-hq/waypoint-protocol/generated/ExportReceipt';
 import type { GeneralSettings } from '@liminal-hq/waypoint-protocol/generated/GeneralSettings';
 import type { ImportPreview } from '@liminal-hq/waypoint-protocol/generated/ImportPreview';
+import type { ListColumnWidths } from '@liminal-hq/waypoint-protocol/generated/ListColumnWidths';
 import type { PluginStatus } from '@liminal-hq/waypoint-protocol/generated/PluginStatus';
 import type { Settings } from '@liminal-hq/waypoint-protocol/generated/Settings';
 import type { SettingsSnapshot } from '@liminal-hq/waypoint-protocol/generated/SettingsSnapshot';
@@ -168,6 +169,7 @@ export type {
 	ExportReceipt,
 	GeneralSettings,
 	ImportPreview,
+	ListColumnWidths,
 	PluginStatus,
 	Settings,
 	SettingsSnapshot,

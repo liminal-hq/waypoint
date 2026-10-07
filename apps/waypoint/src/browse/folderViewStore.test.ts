@@ -4,10 +4,20 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it, vi } from 'vitest';
-import { createFakeFolderViewsClient, MAX_FOLDERS } from '../services/fakeFolderViewsClient';
+import {
+	createFakeFolderViewsClient,
+	MAX_FOLDERS,
+	NOTHING_CHOSEN,
+} from '../services/fakeFolderViewsClient';
 import { createFolderViewsStore } from './folderViewStore';
 
-const GRID = { mode: 'grid', sort: null, showHidden: null, iconSize: null } as const;
+const GRID = {
+	mode: 'grid',
+	sort: null,
+	showHidden: null,
+	iconSize: null,
+	columnWidths: null,
+} as const;
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('the folder views store', () => {
@@ -91,12 +101,40 @@ describe('the folder views store', () => {
 		expect(client.remembered).toEqual([
 			{
 				key: 'file:///a',
-				patch: { mode: 'grid', sort: null, showHidden: null, iconSize: null },
+				patch: { ...NOTHING_CHOSEN, mode: 'grid' },
 			},
 		]);
 		held.release();
 		await Promise.all([first, second]);
 		expect(handle.store.getState().writing).toBe(0);
+	});
+
+	it('remembers a folder’s column widths as a set, keeps its other choices, and forgets a folder with nothing left', async () => {
+		const client = createFakeFolderViewsClient();
+		const handle = createFolderViewsStore(client);
+		await handle.ready;
+		const none = {
+			size: null,
+			modified: null,
+			kind: null,
+			git: null,
+			storageClass: null,
+			original: null,
+			deleted: null,
+		};
+		await handle.remember('file:///a', { columnWidths: { ...none, size: 120 } });
+		await handle.remember('file:///a', { mode: 'grid' });
+		expect(handle.store.getState().folders.get('file:///a')).toEqual({
+			...NOTHING_CHOSEN,
+			mode: 'grid',
+			columnWidths: { ...none, size: 120 },
+		});
+		await handle.remember('file:///a', { columnWidths: none });
+		expect(handle.store.getState().folders.get('file:///a')?.columnWidths).toBeNull();
+		await handle.reset('file:///a');
+		await handle.remember('file:///b', { columnWidths: { ...none, kind: 90 } });
+		await handle.remember('file:///b', { columnWidths: none });
+		expect(handle.store.getState().folders.has('file:///b')).toBe(false);
 	});
 
 	it('rejects with Rust’s refusal, and counts nothing as in flight afterwards', async () => {

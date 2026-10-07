@@ -5139,6 +5139,12 @@ const messages: Catalogue = {
 	'browse.column.git': 'Git',
 	// source: 53aade77
 	'browse.columns.menu.label': 'Colonnes',
+	// source: 96b21403
+	'browse.column.resize': 'Redimensionner la colonne {column}',
+	// source: a3fa0138
+	'browse.column.resize.value': '{width} pixels de largeur',
+	// source: 9503d211
+	'browse.columns.resetWidths': 'Rétablir la largeur des colonnes',
 	// source: 591239c6
 	'git.column.show': 'État Git',
 	// source: 591239c6
