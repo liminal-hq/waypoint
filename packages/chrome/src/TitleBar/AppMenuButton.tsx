@@ -30,12 +30,11 @@ export interface AppMenuButtonProps {
 	 */
 	interactive?: boolean;
 	/**
-	 * Draws the menu opened by a press on the button, in place of the chrome's own: how a host
-	 * shows it as the system's menu. A menu opened from the keyboard (F10, Alt, an Alt mnemonic)
-	 * is always the chrome's own, because a system menu cannot take the arrow keys or open on a
-	 * submenu the way this one does.
+	 * Draws the menu this button opens, in place of the chrome's own: how a host shows it as the
+	 * system's menu. It is given the props the chrome's menu takes, including `openedWithKeyboard`
+	 * and, for an Alt mnemonic, the `initialSubmenuId` to open on.
 	 */
-	renderPointerMenu?: (props: ContextMenuProps) => ReactNode;
+	renderMenu?: (props: ContextMenuProps) => ReactNode;
 }
 
 export function AppMenuButton({
@@ -46,7 +45,7 @@ export function AppMenuButton({
 	acceleratorKeys = true,
 	mnemonics,
 	interactive = true,
-	renderPointerMenu,
+	renderMenu: renderHostedMenu,
 }: AppMenuButtonProps) {
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	// A press on the button while its menu is up first dismisses the menu (the press is outside it),
@@ -127,8 +126,8 @@ export function AppMenuButton({
 			onSelect,
 			onClose: () => setOpen(null),
 		};
-		return renderPointerMenu && !shown.viaKeyboard ? (
-			<Fragment key={shown.serial}>{renderPointerMenu(props)}</Fragment>
+		return renderHostedMenu ? (
+			<Fragment key={shown.serial}>{renderHostedMenu(props)}</Fragment>
 		) : (
 			<ContextMenu key={shown.serial} {...props} />
 		);

@@ -3,12 +3,17 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
 import { idleActions } from '../commands/commandEnv';
 import { t } from '../i18n/messages';
+import { createFakeNativeMenuClient } from '../menus/fakeNativeMenuClient';
+import { NativeMenuProvider } from '../menus/NativeMenuContext';
+import { createFakeSettingsClient } from '../services/fakeSettingsClient';
+import { DEFAULT_SETTINGS } from '../services/settingsClient';
+import { SettingsProvider, useSettingsReady } from '../settings/SettingsContext';
 import { entry, factsFor } from '../test/commandFacts';
 import { AppMenuBar } from './AppMenuBar';
 
@@ -62,5 +67,38 @@ describe('the menu bar', () => {
 		const history = await screen.findByRole('menu', { name: /Undo History/ });
 		await userEvent.click(within(history).getByRole('menuitem', { name: /Move 1 item to Trash/ }));
 		expect(actions.undoEntry).toHaveBeenCalledWith(3);
+	});
+});
+
+describe('the menu bar with native context menus on', () => {
+	function Gate({ children }: { children: React.ReactNode }) {
+		return useSettingsReady() ? <>{children}</> : null;
+	}
+
+	it('asks the system for a menu on a click, with that menu’s rows', async () => {
+		const native = createFakeNativeMenuClient();
+		const settings = createFakeSettingsClient({
+			...DEFAULT_SETTINGS,
+			experimental: { ...DEFAULT_SETTINGS.experimental, nativeContextMenus: true },
+		});
+		const bridge = createCommandBridge({
+			facts: factsFor({ selected: 1 }, {}),
+			actions: idleActions(),
+		});
+		render(
+			<SettingsProvider client={settings}>
+				<NativeMenuProvider client={native} platform="windows" rasterise={async () => null}>
+					<CommandBridgeProvider value={bridge}>
+						<Gate>
+							<AppMenuBar />
+						</Gate>
+					</CommandBridgeProvider>
+				</NativeMenuProvider>
+			</SettingsProvider>,
+		);
+		await userEvent.click(await screen.findByRole('menuitem', { name: 'File' }));
+		await waitFor(() => expect(native.calls).toHaveLength(1));
+		expect(native.calls[0]?.items.length).toBeGreaterThan(3);
+		expect(screen.queryByRole('menu')).toBeNull();
 	});
 });

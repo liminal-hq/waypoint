@@ -4,11 +4,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { MenuBar } from '@liminal-hq/waypoint-chrome/MenuBar/MenuBar';
+import { HostedContextMenu } from '../menus/HostedContextMenu';
 import { APP_MENU_MNEMONICS } from '../commands/appMenuModel';
 import { t } from '../i18n/messages';
 import { useAppMenu } from './useAppMenu';
 
-/** The same menus, rows and commands as the title bar's application menu (Settings → General → Title bar). */
+/**
+ * The same menus, rows and commands as the title bar's application menu (Settings → General → Title bar).
+ * A press on a menu opens it as the system's own menu when native context menus are on.
+ */
 export function AppMenuBar() {
 	const { items, onSelect } = useAppMenu();
 	return (
@@ -19,6 +23,7 @@ export function AppMenuBar() {
 			moreLabel={t('menuBar.more')}
 			mnemonics={APP_MENU_MNEMONICS}
 			transparent
+			renderMenu={(props) => <HostedContextMenu {...props} />}
 		/>
 	);
 }

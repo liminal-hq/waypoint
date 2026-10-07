@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import {
+	Fragment,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
@@ -11,8 +12,9 @@ import {
 	useRef,
 	useState,
 	type KeyboardEvent,
+	type ReactNode,
 } from 'react';
-import { ContextMenu } from '../ContextMenu/ContextMenu';
+import { ContextMenu, type ContextMenuProps } from '../ContextMenu/ContextMenu';
 import type { MenuItem, MenuPosition, SelectableMenuItem } from '../ContextMenu/types';
 import '../tokens.css';
 import { fitCount } from './fitCount';
@@ -33,6 +35,12 @@ export interface MenuBarProps {
 	mnemonics?: Readonly<Record<string, string>>;
 	/** Draw the bar with the title bar's opacity (`--wp-title-bar-opacity`), as the title bar does, so the two read as one. */
 	transparent?: boolean;
+	/**
+	 * Draws the menu a button opens, in place of the chrome's own: how a host shows it as the
+	 * system's menu. That menu cannot switch to its neighbour on hover or on Left and Right, so a
+	 * hosted menu is one menu at a time.
+	 */
+	renderMenu?: (props: ContextMenuProps) => ReactNode;
 }
 
 const MORE_ID = '\u0000more';
@@ -66,6 +74,7 @@ export function MenuBar({
 	moreLabel,
 	mnemonics,
 	transparent = false,
+	renderMenu: renderHostedMenu,
 }: MenuBarProps) {
 	const menus = useMemo(
 		() => items.flatMap((item) => (item.type === 'submenu' && !item.disabled ? [item] : [])),
@@ -283,6 +292,24 @@ export function MenuBar({
 		return letter ? { 'aria-keyshortcuts': `Alt+${letter.toUpperCase()}` } : {};
 	};
 
+	const renderMenu = (shown: OpenMenu) => {
+		const props: ContextMenuProps = {
+			items: menuItems(shown.id),
+			position: anchorPosition(shown.anchorId),
+			ariaLabel: nameOf(shown.id),
+			returnFocusTo: buttonFor(shown.anchorId),
+			openedWithKeyboard: shown.viaKeyboard,
+			onSideways: sideways,
+			onSelect,
+			onClose: () => setOpen(null),
+		};
+		return renderHostedMenu ? (
+			<Fragment key={shown.serial}>{renderHostedMenu(props)}</Fragment>
+		) : (
+			<ContextMenu key={shown.serial} {...props} />
+		);
+	};
+
 	return (
 		<>
 			<div
@@ -336,19 +363,7 @@ export function MenuBar({
 					</div>
 				)}
 			</div>
-			{open ? (
-				<ContextMenu
-					key={open.serial}
-					items={menuItems(open.id)}
-					position={anchorPosition(open.anchorId)}
-					ariaLabel={nameOf(open.id)}
-					returnFocusTo={buttonFor(open.anchorId)}
-					openedWithKeyboard={open.viaKeyboard}
-					onSideways={sideways}
-					onSelect={onSelect}
-					onClose={() => setOpen(null)}
-				/>
-			) : null}
+			{open ? renderMenu(open) : null}
 		</>
 	);
 }
