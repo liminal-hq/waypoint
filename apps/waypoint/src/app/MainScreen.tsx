@@ -140,25 +140,27 @@ export function MainScreen() {
 
 	return (
 		<CommandBridgeProvider value={bridge}>
-			<WindowFrame className={styles.screen}>
-				<WindowCommands />
-				<AppTitleBar
-					fallbackTitle={
-						appName
-							? tf('window.main.titleWithApp', { title: t('window.main.title') })
-							: t('window.main.title')
-					}
-					start={<AppMenu menuBar={menuBar} />}
-				/>
-				{menuBar && <AppMenuBar />}
-				{startup.state === 'failed' ? (
-					<main className={styles.content}>
-						<p role="alert" className={styles.failure}>
-							{t('window.main.startFailed')} <span data-selectable="">{startup.reason}</span>
-						</p>
-					</main>
-				) : startup.state === 'ready' ? (
-					<NativeMenuProvider client={startup.services.nativeMenus}>
+			<NativeMenuProvider
+				client={startup.state === 'ready' ? startup.services.nativeMenus : undefined}
+			>
+				<WindowFrame className={styles.screen}>
+					<WindowCommands />
+					<AppTitleBar
+						fallbackTitle={
+							appName
+								? tf('window.main.titleWithApp', { title: t('window.main.title') })
+								: t('window.main.title')
+						}
+						start={<AppMenu menuBar={menuBar} />}
+					/>
+					{menuBar && <AppMenuBar />}
+					{startup.state === 'failed' ? (
+						<main className={styles.content}>
+							<p role="alert" className={styles.failure}>
+								{t('window.main.startFailed')} <span data-selectable="">{startup.reason}</span>
+							</p>
+						</main>
+					) : startup.state === 'ready' ? (
 						<VfsClientProvider client={startup.services.client}>
 							<PlacesClientProvider client={startup.services.placesClient}>
 								<TimeFormatProvider client={startup.services.timeFormat}>
@@ -222,9 +224,9 @@ export function MainScreen() {
 								</TimeFormatProvider>
 							</PlacesClientProvider>
 						</VfsClientProvider>
-					</NativeMenuProvider>
-				) : null}
-			</WindowFrame>
+					) : null}
+				</WindowFrame>
+			</NativeMenuProvider>
 		</CommandBridgeProvider>
 	);
 }
