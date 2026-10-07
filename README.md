@@ -49,7 +49,7 @@ bun run tauri:dev
 bun run validate
 ```
 
-If Rust tooling is not installed locally, run the Rust and Tauri commands in the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container.
+If Rust tooling is not installed locally, run the Rust and Tauri commands in the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container. To cross-build the Windows exe from Linux (`bun run build:windows`), use `ghcr.io/liminal-hq/tauri-dev-windows:latest`, which adds `cargo-xwin`, `clang-cl`, NSIS and the Windows Rust targets; the Microsoft SDK is fetched on the first build.
 
 ## How it is built
 

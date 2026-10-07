@@ -132,7 +132,7 @@ Keep American spellings where an external API, CSS property, crate or protocol r
 ## Local Tooling
 
 - **JS runtime and package manager:** **Bun workspaces** (not pnpm/npm), with the Node version pinned in `.node-version` for tooling that needs it. Formatting is Prettier (`.prettierrc`: tabs, single quotes, 100 columns).
-- **Rust:** the toolchain is pinned in `rust-toolchain.toml`. If `cargo` is not available on the host, run Rust/Tauri commands in the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container against the checked-out workspace.
+- **Rust:** the toolchain is pinned in `rust-toolchain.toml`. If `cargo` is not available on the host, run Rust/Tauri commands in the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` container against the checked-out workspace. To cross-build the Windows exe from Linux (`bun run build:windows`), use `ghcr.io/liminal-hq/tauri-dev-windows:latest` instead: it adds `cargo-xwin`, `clang-cl`, NSIS and the Windows Rust targets, and the Microsoft SDK is fetched on the first build.
 - **Validation gate:** `bun run validate` is the single local gate that mirrors CI and must pass before opening or updating a PR. It runs the format check, the licence-header check, `tsc`, Vitest, the app build, `cargo fmt`, `cargo clippy -D warnings` and `cargo nextest`.
 - **Editor settings:** `.editorconfig` is authoritative (tabs, LF, UTF-8).
 
