@@ -87,15 +87,51 @@ describe('createIconRasteriser', () => {
 		expect(drawn).toHaveLength(4);
 	});
 
-	it('has no picture for what is neither an SVG nor a filled swatch, such as an application’s image', async () => {
+	it('has no picture for what is neither an SVG, a filled swatch nor an image with an address', async () => {
 		const { stub } = environment();
 		const rasterise = createIconRasteriser(stub);
-		expect(await rasterise(<img alt="" src="appicon://x" />)).toBeNull();
+		expect(await rasterise(<img alt="" />)).toBeNull();
+		expect(await rasterise(<img alt="" src="" />)).toBeNull();
 		expect(await rasterise(<span aria-hidden="true" />)).toBeNull();
 		expect(await rasterise(null)).toBeNull();
 		expect(await rasterise(undefined)).toBeNull();
 		expect(await rasterise(false)).toBeNull();
 		expect(stub.draw).not.toHaveBeenCalled();
+	});
+
+	describe('an application’s image', () => {
+		const app = <img alt="" src="appicon://localhost/org.gnome.gedit?size=16" />;
+
+		it('is read from its address at the screen’s scale, as the system’s icon is, and never drawn as markup', async () => {
+			const { stub, drawn, drawnImages } = environment(2);
+			const picture = await createIconRasteriser(stub)(app);
+			expect(picture).toMatchObject({ width: 32, height: 32 });
+			expect(picture?.rgba).toHaveLength(32 * 32 * 4);
+			expect(drawnImages).toEqual([{ url: 'appicon://localhost/org.gnome.gedit?size=16', px: 32 }]);
+			expect(drawn).toEqual([]);
+		});
+
+		it('is kept for the same address and size, and read again for another address or scale', async () => {
+			const { stub, drawnImages } = environment();
+			const rasterise = createIconRasteriser(stub);
+			await rasterise(app);
+			await rasterise(app);
+			expect(drawnImages).toHaveLength(1);
+			await rasterise(<img alt="" src="appicon://localhost/other?size=16" />);
+			expect(drawnImages).toHaveLength(2);
+			stub.scaleNow = 2;
+			await rasterise(app);
+			expect(drawnImages).toHaveLength(3);
+		});
+
+		it('has no picture when it cannot be read, and is tried again next time', async () => {
+			const { stub, drawnImages } = environment();
+			vi.mocked(stub.drawImage).mockResolvedValueOnce(null);
+			const rasterise = createIconRasteriser(stub);
+			expect(await rasterise(app)).toBeNull();
+			expect(await rasterise(app)).not.toBeNull();
+			expect(drawnImages).toHaveLength(1);
+		});
 	});
 
 	it('draws a dangerous item’s icon in the danger colour and any other in the text colour, and keeps them apart', async () => {

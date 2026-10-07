@@ -13,7 +13,7 @@ Waypoint draws its context menus in the page, so a menu is clipped by the window
 | The Trash item menu and the Trash's empty-space menu                      | The + button's menu, the list's column header menu, group, pair and workspace menus, the Network list's menus |
 | The tab's right-click menu                                                | The Shelf's menu and the drop action picker, which belong to a drag in progress                               |
 
-Open With is a submenu of the entry menu. Its applications are read when the menu opens, so the page holds the menu for up to 400 ms (`NATIVE_SETTLE_MS`) for them to arrive, then shows it natively with their names and no application icons (an application's icon is an image, not a glyph). If they have not arrived in that time, that menu is the page's own and fills in as the applications are read. The Open With chooser dialog is unchanged.
+Open With is a submenu of the entry menu. Its applications are read when the menu opens, so the page holds the menu for up to 400 ms (`NATIVE_SETTLE_MS`) for them to arrive, then shows it natively with their names and icons (an application's icon is an image, not a glyph, so it is drawn from its `appicon://` address onto the canvas, fetched with CORS, as the System set's picture is; one that cannot be read leaves its item without an icon and is tried again next time). If they have not arrived in that time, that menu is the page's own and fills in as the applications are read. The Open With chooser dialog is unchanged.
 
 ## 2. The seam
 

@@ -1,4 +1,4 @@
-// Draws a menu icon (an SVG glyph or a colour swatch) as RGBA pixels, in the colour the page's menu shows it in, for the native menu
+// Draws a menu icon (an SVG glyph, a colour swatch or an application's image) as RGBA pixels, in the colour the page's menu shows it in, for the native menu
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -49,6 +49,13 @@ export interface RasteriserEnvironment {
 	draw(markup: string, px: number): Promise<number[] | null>;
 	/** Draws the picture at `url` (the system's icon, served with CORS headers) `px` square and returns its RGBA bytes; `null` when it cannot. */
 	drawImage(url: string, px: number): Promise<number[] | null>;
+}
+
+/** The address of the picture an element is, when it is an `<img>` that has one. */
+function imageAddressOf(element: Element | null): string | null {
+	if (!(element instanceof HTMLImageElement)) return null;
+	const address = element.getAttribute('src');
+	return address !== null && address !== '' ? address : null;
 }
 
 function pixelsOf(image: HTMLImageElement, px: number): number[] | null {
@@ -229,11 +236,15 @@ export function createIconRasteriser(
 
 		const svg = element.querySelector('svg');
 		const swatch = svg ? null : swatchOf(element.firstElementChild);
-		if (!svg && !swatch) return null;
+		// A plain image (an application's icon) is read from its address, as the system's icon is.
+		const imageUrl = svg || swatch ? null : imageAddressOf(element.firstElementChild);
+		if (!svg && !swatch && imageUrl === null) return null;
 		const checked = swatch !== null && look.checked === true;
-		const systemUrl = svg?.hasAttribute('data-system')
-			? (svg.querySelector('image')?.getAttribute('href') ?? null)
-			: null;
+		const systemUrl =
+			imageUrl ??
+			(svg?.hasAttribute('data-system')
+				? (svg.querySelector('image')?.getAttribute('href') ?? null)
+				: null);
 		// An image in a stand-alone SVG does not load, so a system icon is drawn from its address and never as markup.
 		const markup = swatch
 			? swatchMarkup(swatch, px, checked, colour)
@@ -264,10 +275,10 @@ export function createIconRasteriser(
 				} catch (error) {
 					console.debug('could not read the system icon for the native menu', error);
 				}
-				if (!picture && markup) {
-					// The picture cannot be read: the glyph it replaced stands in (where it was seen), and the picture is tried again next time.
+				if (!picture) {
+					// The picture cannot be read: it is tried again next time, and the glyph it replaced stands in meanwhile where it was seen.
 					kept = false;
-					picture = toPicture(await environment.draw(markup, px), px, false);
+					if (markup) picture = toPicture(await environment.draw(markup, px), px, false);
 				}
 			} else if (markup) {
 				picture = toPicture(await environment.draw(markup, px), px, swatch !== null);
