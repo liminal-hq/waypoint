@@ -31,7 +31,13 @@ export type NativeMenuItem =
 			enabled?: boolean;
 			shortcut?: string;
 	  }
-	| { kind: 'submenu'; label: string; enabled?: boolean; items: NativeMenuItem[] }
+	| {
+			kind: 'submenu';
+			label: string;
+			enabled?: boolean;
+			icon?: NativeMenuIcon;
+			items: NativeMenuItem[];
+	  }
 	| { kind: 'separator' };
 
 /** Where the menu's top-left corner goes: logical pixels from the window's top-left corner. */

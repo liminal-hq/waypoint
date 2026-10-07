@@ -38,20 +38,22 @@ export type NativeMenuConversion =
 			items: NativeMenuItem[];
 			/** The items a choice can name, by id, so the page runs the same `onSelect` the in-page menu would. */
 			selectable: ReadonlyMap<string, SelectableMenuItem>;
-			/** How many icons the native menu goes without: no picture could be made, or the item cannot carry one. */
+			/** How many icons the native menu goes without: no picture could be made, or a checkbox cannot carry one. */
 			droppedIcons: number;
 	  }
 	| { ok: false; reason: string };
 
 /**
- * The icons of the actions and checkboxes in `items`, in order, with the look each is drawn in, for
- * the host to rasterise before it converts. A submenu's own icon is not asked for: it cannot carry one.
+ * The icons of the actions, checkboxes and submenus in `items`, in order, with the look each is drawn
+ * in, for the host to rasterise before it converts.
  */
 export function collectIcons(items: readonly MenuItem[]): IconRequest[] {
 	const found: IconRequest[] = [];
 	for (const item of items) {
-		if (item.type === 'submenu') found.push(...collectIcons(item.items));
-		else if (item.type === 'action' && item.icon !== undefined && item.icon !== null) {
+		if (item.type === 'submenu') {
+			if (item.icon !== undefined && item.icon !== null) found.push({ icon: item.icon });
+			found.push(...collectIcons(item.items));
+		} else if (item.type === 'action' && item.icon !== undefined && item.icon !== null) {
 			found.push({ icon: item.icon, danger: item.danger === true });
 		} else if (item.type === 'checkbox' && item.icon !== undefined && item.icon !== null) {
 			found.push({ icon: item.icon, checked: item.checked });
@@ -76,8 +78,7 @@ class Unconvertible extends Error {}
  * nested deeper than the command accepts.
  *
  * What the system's menu cannot draw is left out and the menu is still used: a section heading
- * becomes a disabled item (the system has no heading), an icon on a submenu is dropped (it cannot
- * carry one), an icon that was not rasterised is dropped, and `title` and `ariaLabel` have no native
+ * becomes a disabled item (the system has no heading), an icon that was not rasterised is dropped, and `title` and `ariaLabel` have no native
  * counterpart. `danger` is shown through the icon alone: the page draws a dangerous item's icon in
  * the danger colour, and the label keeps the system's colour. A checkbox cannot carry an icon, so
  * its icon is dropped unless the picture marks the check itself (a colour swatch with a ring round
@@ -176,11 +177,12 @@ export function toNativeMenu(
 				}
 				case 'submenu':
 					counted();
-					if (item.icon !== undefined && item.icon !== null) droppedIcons += 1;
+					const icon = iconOf(item.icon, {});
 					return {
 						kind: 'submenu',
 						label: clip(item.label),
 						enabled: !item.disabled,
+						...(icon ? { icon } : {}),
 						items: convert(item.items, depth + 1),
 					};
 				default:
