@@ -34,7 +34,7 @@ ts-rs = "12"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The versions Tauri already resolves, so nothing new is built.
-gio = "0.18"
+gio = "0.22"
 gtk = "0.18"
 # The same version and features as the other portal users, plus the OpenURI portal.
 ashpd = { version = "0.13", default-features = false, features = ["tokio", "open_uri"] }
