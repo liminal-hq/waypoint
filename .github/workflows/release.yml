@@ -1,0 +1,552 @@
+name: Release
+
+# Tag-driven release (docs/architecture/ci-cd.md §4): a `vX.Y.Z` tag is a release and a
+# `vX.Y.Z-beta.N` tag is a pre-release (D201). Windows builds are unsigned (D198, A147), so no job
+# below holds a certificate or any secret beyond the default `GITHUB_TOKEN`.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional release tag, which must already exist (defaults to `v` plus the synchronised version)
+        required: false
+        type: string
+      release_draft:
+        description: Leave the release as a draft instead of publishing it
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: read
+
+# One release per tag, and a release that has started is never cancelled halfway.
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && (inputs.release_tag || github.sha) || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  # A release build is a release profile build with `debug_assertions` off, which is what compiles
+  # the MCP bridge out (`#[cfg(all(debug_assertions, not(windows)))]` in `src-tauri/src/lib.rs`).
+  # Pinned here so no profile setting can turn them on for a release.
+  CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: 'false'
+
+jobs:
+  prepare-release:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      release_version: ${{ steps.meta.outputs.release_version }}
+      tag_name: ${{ steps.meta.outputs.tag_name }}
+      release_target: ${{ steps.meta.outputs.release_target }}
+      release_name: ${{ steps.meta.outputs.release_name }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      draft: ${{ steps.meta.outputs.draft }}
+      release_id: ${{ steps.release.outputs.release_id }}
+      release_url: ${{ steps.release.outputs.release_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        id: meta
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          INPUT_RELEASE_DRAFT: ${{ inputs.release_draft }}
+        run: |
+          set -euo pipefail
+
+          tag_pattern='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-beta\.(0|[1-9][0-9]*))?$'
+
+          # The tag is checked before anything else uses it.
+          tag_name=""
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            tag_name="${GITHUB_REF_NAME}"
+          elif [[ -n "${INPUT_RELEASE_TAG}" ]]; then
+            tag_name="${INPUT_RELEASE_TAG}"
+          fi
+          if [[ -n "${tag_name}" && ! "${tag_name}" =~ ${tag_pattern} ]]; then
+            echo "Invalid release tag. Expected vX.Y.Z or vX.Y.Z-beta.N." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main
+          git fetch --tags origin
+
+          # The commit a release is built from: the tag's commit when there is a tag, otherwise (a
+          # manual run with no tag) the commit the run started on.
+          release_target="${GITHUB_SHA}"
+          if [[ -n "${tag_name}" ]]; then
+            if ! release_target="$(git rev-list -n 1 "refs/tags/${tag_name}" 2>/dev/null)"; then
+              echo "The tag ${tag_name} does not exist in this repository." >&2
+              exit 1
+            fi
+          fi
+
+          if ! git merge-base --is-ancestor "${release_target}" origin/main; then
+            echo "The release commit ${release_target} is not on origin/main." >&2
+            exit 1
+          fi
+
+          git checkout --quiet "${release_target}"
+
+          # The synchronised version, which the tag must equal without its `v`.
+          release_version="$(bash scripts/check-release-versions.sh --current-version)"
+          if [[ -z "${tag_name}" ]]; then
+            tag_name="v${release_version}"
+            if [[ ! "${tag_name}" =~ ${tag_pattern} ]]; then
+              echo "The synchronised version ${release_version} is not a release version." >&2
+              exit 1
+            fi
+          fi
+          if [[ "${tag_name#v}" != "${release_version}" ]]; then
+            echo "The tag ${tag_name} does not match the synchronised version ${release_version}." >&2
+            exit 1
+          fi
+
+          # A `-` in the tag marks a pre-release (D201).
+          prerelease=false
+          if [[ "${tag_name}" == *-* ]]; then
+            prerelease=true
+          fi
+
+          draft=false
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${INPUT_RELEASE_DRAFT}" == "true" ]]; then
+            draft=true
+          fi
+
+          {
+            echo "release_version=${release_version}"
+            echo "tag_name=${tag_name}"
+            echo "release_target=${release_target}"
+            echo "release_name=Waypoint ${tag_name}"
+            echo "prerelease=${prerelease}"
+            echo "draft=${draft}"
+          } >> "${GITHUB_OUTPUT}"
+
+      # The MCP bridge is a development tool and must not ship (A148). It is registered in one place,
+      # under `debug_assertions`; fail the release if that stops being true rather than ship it.
+      - name: Check the MCP bridge is compiled out of release builds
+        run: |
+          set -euo pipefail
+
+          lib="apps/waypoint/src-tauri/src/lib.rs"
+          registrations="$(grep -rn 'mcp_bridge::init' apps/waypoint/src-tauri/src | wc -l)"
+          if [[ "${registrations}" -lt 1 ]]; then
+            echo "No MCP bridge registration found in apps/waypoint/src-tauri/src: the gate this check relies on has moved." >&2
+            exit 1
+          fi
+          if [[ "${registrations}" -ne 1 ]] || ! grep -B3 'mcp_bridge::init' "${lib}" | grep -q 'cfg(.*debug_assertions'; then
+            echo "The MCP bridge is not registered once, under a debug_assertions cfg, in ${lib}." >&2
+            exit 1
+          fi
+          if grep -n 'debug-assertions' Cargo.toml apps/waypoint/src-tauri/Cargo.toml | grep -v 'false'; then
+            echo "A Cargo profile turns debug assertions on, which would compile the MCP bridge into a release." >&2
+            exit 1
+          fi
+
+      - name: Create or reuse the GitHub Release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.meta.outputs.tag_name }}
+          RELEASE_TARGET: ${{ steps.meta.outputs.release_target }}
+          RELEASE_NAME: ${{ steps.meta.outputs.release_name }}
+          RELEASE_PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+          RELEASE_DRAFT: ${{ steps.meta.outputs.draft }}
+        run: |
+          set -euo pipefail
+
+          # Drafts are listed too, which `gh release view` does not do.
+          match="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              | jq -r --arg tag "${TAG_NAME}" '.[] | select(.tag_name == $tag) | [.id, .html_url, .draft] | @tsv' \
+              | head -n 1
+          )"
+
+          if [[ -z "${match}" ]]; then
+            # A new release is a draft until its assets are uploaded; the last job publishes it
+            # unless this run asked to leave it a draft.
+            release_json="$(
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
+                -f tag_name="${TAG_NAME}" \
+                -f target_commitish="${RELEASE_TARGET}" \
+                -f name="${RELEASE_NAME}" \
+                -f body='See assets below to download and install.' \
+                -F generate_release_notes=true \
+                -F draft=true \
+                -F prerelease="${RELEASE_PRERELEASE}"
+            )"
+            release_id="$(jq -r '.id' <<< "${release_json}")"
+            release_url="$(jq -r '.html_url' <<< "${release_json}")"
+            action=created
+          else
+            IFS=$'\t' read -r release_id release_url _ <<< "${match}"
+            # A release that is already public stays public; its pre-release flag follows the tag.
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              -f name="${RELEASE_NAME}" \
+              -F prerelease="${RELEASE_PRERELEASE}" >/dev/null
+            if [[ "${RELEASE_DRAFT}" == "true" ]]; then
+              gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" -F draft=true >/dev/null
+            fi
+            action=reused
+          fi
+
+          {
+            echo "release_id=${release_id}"
+            echo "release_url=${release_url}"
+          } >> "${GITHUB_OUTPUT}"
+          echo "RELEASE_ACTION=${action}" >> "${GITHUB_ENV}"
+
+      - name: Job summary
+        if: always()
+        env:
+          VERSION: ${{ steps.meta.outputs.release_version }}
+          TAG_NAME: ${{ steps.meta.outputs.tag_name }}
+          TARGET: ${{ steps.meta.outputs.release_target }}
+          PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+          DRAFT: ${{ steps.meta.outputs.draft }}
+          RELEASE_URL: ${{ steps.release.outputs.release_url }}
+        run: |
+          {
+            echo "## Prepare release"
+            echo "- Version: \`${VERSION:-unavailable}\`"
+            echo "- Tag: \`${TAG_NAME:-unavailable}\`"
+            echo "- Commit: \`${TARGET:-unavailable}\`"
+            echo "- Pre-release: \`${PRERELEASE:-unavailable}\`"
+            echo "- Leave as a draft: \`${DRAFT:-unavailable}\`"
+            echo "- Release: \`${RELEASE_ACTION:-unavailable}\` ${RELEASE_URL:-}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # The deb and the rpm. The AppImage is packaged from the deb by the shared workflow below.
+  build-linux:
+    name: Linux (${{ matrix.arch }})
+    needs: prepare-release
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_target }}
+      - name: Trust the GitHub workspace
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # Restores the cache, never saves one: a release is built from what the tag says.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: 'false'
+      - run: bun install --frozen-lockfile
+
+      - name: Check the version
+        env:
+          RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+        run: test "$(bash scripts/check-release-versions.sh --current-version)" = "${RELEASE_VERSION}"
+
+      # Exactly these two bundles (`bundle.targets` is `all`). The default features and a release
+      # profile: the MCP bridge is under `debug_assertions` and so is not built.
+      - name: Build the deb and the rpm
+        run: bun run --cwd apps/waypoint tauri build --bundles deb,rpm
+
+      # The deb is staged on its own: the shared AppImage workflow packages the one `.deb` in its artefact.
+      - name: Stage the bundles
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+
+          for kind in deb rpm; do
+            mkdir -p "staged/${kind}"
+            mapfile -t files < <(find "target/release/bundle/${kind}" -maxdepth 1 -type f -name "*.${kind}")
+            if [[ "${#files[@]}" -ne 1 ]]; then
+              echo "Expected one .${kind} under target/release/bundle/${kind}, found ${#files[@]}" >&2
+              exit 1
+            fi
+            cp "${files[0]}" "staged/${kind}/"
+            (cd "staged/${kind}" && sha256sum -- *."${kind}" | tee build.sha256)
+          done
+
+      - name: Upload the deb
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-deb-${{ matrix.arch }}
+          path: staged/deb/*
+          if-no-files-found: error
+
+      - name: Upload the rpm
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-rpm-${{ matrix.arch }}
+          path: staged/rpm/*
+          if-no-files-found: error
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Linux (${{ matrix.arch }})"
+            echo "- Command: \`tauri build --bundles deb,rpm\`"
+            echo
+            echo '```'
+            cat staged/deb/build.sha256 staged/rpm/build.sha256 2>/dev/null || true
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  # The shared Liminal HQ workflow turns the deb into an AppImage on a pinned Arch image with
+  # `quick-sharun`; it uploads `appimage-<runner>`. Pinned by commit like the actions below.
+  package-appimage:
+    name: AppImage (${{ matrix.arch }})
+    needs:
+      - prepare-release
+      - build-linux
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    uses: liminal-hq/.github/.github/workflows/package-arch-appimage.yml@e92450c9d4c17f02160b90d76da1818d7798f9dc # main
+    with:
+      runs-on: ${{ matrix.runner }}
+      deb-artifact-name: linux-deb-${{ matrix.arch }}
+      app-version: ${{ needs.prepare-release.outputs.release_version }}
+
+  # The NSIS installer and the portable zip, from one build. Unsigned: no certificate, secret or
+  # signing tool here (D198, A147).
+  build-windows:
+    name: Windows (${{ matrix.arch }})
+    needs: prepare-release
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_target }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.arch == 'arm64'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: 'false'
+      - run: bun install --frozen-lockfile
+
+      - name: Check the version
+        env:
+          RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+        run: test "$(bash scripts/check-release-versions.sh --current-version)" = "${RELEASE_VERSION}"
+
+      # Only the installer is bundled (`bundle.targets` is `all`); the build leaves the same
+      # `waypoint.exe` in `target/release`, which the portable zip carries.
+      - name: Build the installer
+        run: bun run --cwd apps/waypoint tauri build --bundles nsis
+
+      - name: Stage the installer and the portable zip
+        run: |
+          set -euo pipefail
+
+          mkdir -p staged/installer staged/portable
+
+          mapfile -t installers < <(find target/release/bundle/nsis -maxdepth 1 -type f -name '*-setup.exe')
+          if [[ "${#installers[@]}" -ne 1 ]]; then
+            echo "Expected one installer under target/release/bundle/nsis, found ${#installers[@]}" >&2
+            exit 1
+          fi
+          cp "${installers[0]}" staged/installer/
+
+          exe="target/release/waypoint.exe"
+          if [[ ! -f "${exe}" ]]; then
+            echo "Expected build output not found: ${exe}" >&2
+            exit 1
+          fi
+
+          # The zip holds the exe and the licences and registers nothing (A148). If the exe loads
+          # WebView2Loader.dll at run time, the zip needs it beside the exe; if the exe does not,
+          # the loader is linked in and there is nothing to add.
+          zip_dir="$(mktemp -d)"
+          cp "${exe}" "${zip_dir}/waypoint.exe"
+          cp LICENSE-APACHE LICENSE-MIT "${zip_dir}/"
+          if grep -qia 'WebView2Loader.dll' "${exe}"; then
+            mapfile -t loaders < <(find target/release -name WebView2Loader.dll -not -path '*/deps/*')
+            if [[ "${#loaders[@]}" -lt 1 ]]; then
+              mapfile -t loaders < <(find target/release/build -path '*webview2-com-sys-*' -name WebView2Loader.dll)
+            fi
+            if [[ "${#loaders[@]}" -lt 1 ]]; then
+              echo "waypoint.exe loads WebView2Loader.dll but no copy was found to put in the zip." >&2
+              exit 1
+            fi
+            cp "${loaders[0]}" "${zip_dir}/WebView2Loader.dll"
+          fi
+          out_dir="$(pwd)/staged/portable"
+          (cd "${zip_dir}" && 7z a "${out_dir}/Waypoint-portable.zip" ./*)
+
+          for dir in installer portable; do
+            (cd "staged/${dir}" && sha256sum -- * | tee build.sha256)
+          done
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer-${{ matrix.arch }}
+          path: staged/installer/*
+          if-no-files-found: error
+
+      - name: Upload the portable zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-portable-${{ matrix.arch }}
+          path: staged/portable/*
+          if-no-files-found: error
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Windows (${{ matrix.arch }})"
+            echo "- Command: \`tauri build --bundles nsis\` (unsigned)"
+            echo
+            echo '```'
+            cat staged/installer/build.sha256 staged/portable/build.sha256 2>/dev/null || true
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  publish-release:
+    name: Publish GitHub Release assets
+    needs:
+      - prepare-release
+      - build-linux
+      - package-appimage
+      - build-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      # One folder per artefact, named after it.
+      - uses: actions/download-artifact@v8
+        with:
+          path: staged
+
+      # Each file is named `Waypoint_<OS>_<version>_<arch>[_<kind>].<extension>`, and `SHA256SUMS`
+      # covers those names. The files are copied, never changed: a file the build stage summed is
+      # checked against its sum first.
+      - name: Name the assets and write SHA256SUMS
+        env:
+          RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p assets
+
+          # asset <artefact> <file glob> <name after the version prefix>
+          asset() {
+            local artefact="$1" glob="$2" name="$3"
+            local dir="staged/${artefact}"
+            if [[ ! -d "${dir}" ]]; then
+              echo "Missing artefact ${artefact}" >&2
+              exit 1
+            fi
+            if [[ -f "${dir}/build.sha256" ]]; then
+              (cd "${dir}" && sha256sum --check --strict build.sha256)
+            fi
+            mapfile -t files < <(find "${dir}" -maxdepth 1 -type f -name "${glob}")
+            if [[ "${#files[@]}" -ne 1 ]]; then
+              echo "Expected one ${glob} in ${artefact}, found ${#files[@]}" >&2
+              exit 1
+            fi
+            cp "${files[0]}" "assets/Waypoint_${name}"
+          }
+
+          for arch in x64 arm64; do
+            # The AppImage workflow names its artefact after the runner.
+            if [[ "${arch}" == "x64" ]]; then appimage_runner="ubuntu-24.04"; else appimage_runner="ubuntu-24.04-arm"; fi
+            asset "linux-deb-${arch}" '*.deb' "Linux_${RELEASE_VERSION}_${arch}.deb"
+            asset "linux-rpm-${arch}" '*.rpm' "Linux_${RELEASE_VERSION}_${arch}.rpm"
+            asset "appimage-${appimage_runner}" '*.AppImage' "Linux_${RELEASE_VERSION}_${arch}.AppImage"
+            asset "windows-installer-${arch}" '*-setup.exe' "Win_${RELEASE_VERSION}_${arch}_Setup.exe"
+            asset "windows-portable-${arch}" '*.zip' "Win_${RELEASE_VERSION}_${arch}_Portable.zip"
+          done
+
+          (cd assets && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Upload the assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.prepare-release.outputs.tag_name }}
+        run: gh release upload "${TAG_NAME}" assets/* --clobber
+
+      # A run that was not asked to leave a draft publishes the release, and a pre-release never
+      # becomes the latest one.
+      - name: Publish the release
+        if: needs.prepare-release.outputs.draft != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.prepare-release.outputs.tag_name }}
+          PRERELEASE: ${{ needs.prepare-release.outputs.prerelease }}
+        run: |
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            gh release edit "${TAG_NAME}" --draft=false --prerelease=true --latest=false
+          else
+            gh release edit "${TAG_NAME}" --draft=false --prerelease=false --latest
+          fi
+
+      - name: Job summary
+        if: always()
+        env:
+          TAG_NAME: ${{ needs.prepare-release.outputs.tag_name }}
+          DRAFT: ${{ needs.prepare-release.outputs.draft }}
+        run: |
+          {
+            echo "## Publish release"
+            echo "- Tag: \`${TAG_NAME}\` (left as a draft: \`${DRAFT}\`)"
+            echo
+            echo '```'
+            cat assets/SHA256SUMS 2>/dev/null || true
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
