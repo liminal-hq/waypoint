@@ -24,6 +24,7 @@ import {
 	useSystemImage,
 } from '../icons/systemIcons';
 import { cssUrl } from '../icons/iconPictures';
+import { useSettleHold } from '../icons/iconSettle';
 import styles from './FileIcon.module.css';
 
 interface SystemIconProps {
@@ -110,6 +111,14 @@ export function SystemIcon({
 	}, [typeUrl, typeImage]);
 	const fileLoaded = fileUrl !== null && fileImage === 'loaded';
 	const url = fileLoaded ? fileUrl : typeUrl;
+	// Still on the stand-in: the plugin has not answered, or a picture it was asked for has not come back.
+	const pending = (image: string) => image === 'idle' || image === 'loading';
+	useSettleHold(
+		icons.phase === 'loading' ||
+			placePending ||
+			(fileUrl !== null && pending(fileImage)) ||
+			(typeUrl !== null && pending(typeImage)),
+	);
 	if (url === null || (!fileLoaded && typeImage !== 'loaded')) return <>{fallback}</>;
 	if (picture) {
 		return (

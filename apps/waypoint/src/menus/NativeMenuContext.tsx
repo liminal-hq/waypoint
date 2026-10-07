@@ -3,8 +3,13 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { createIconRasteriser, type IconRasteriser } from './menuIconRaster';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createIconStage, type HostedIconStage } from './iconStage';
+import {
+	createIconRasteriser,
+	type IconRasteriser,
+	type RasteriserEnvironment,
+} from './menuIconRaster';
 import type { NativeMenuClient } from './nativeMenuClient';
 
 /** The platforms whose system menu has been tried: Windows and Linux. */
@@ -13,6 +18,8 @@ const SUPPORTED_PLATFORMS = ['linux', 'windows'];
 export interface NativeMenuService {
 	client: NativeMenuClient;
 	rasterise: IconRasteriser;
+	/** The stage the window's own rasteriser draws in, which `MenuIconStageHost` moves into the tree; none for a rasteriser that was supplied. */
+	stage?: HostedIconStage;
 	/** Set when the command fails, so the window keeps to its own menus until it reloads. */
 	state: { failed: boolean };
 }
@@ -25,6 +32,8 @@ interface NativeMenuProviderProps {
 	platform?: string | undefined;
 	/** How icons are drawn; the window's own rasteriser when omitted. */
 	rasterise?: IconRasteriser | undefined;
+	/** What the window's own rasteriser draws pixels with; the canvas when omitted (replaced where there is none). */
+	environment?: RasteriserEnvironment | undefined;
 	children: ReactNode;
 }
 
@@ -37,17 +46,23 @@ export function NativeMenuProvider({
 	client,
 	platform,
 	rasterise,
+	environment,
 	children,
 }: NativeMenuProviderProps) {
 	const where = platform ?? document.documentElement.dataset.platform ?? '';
 	const supported = SUPPORTED_PLATFORMS.includes(where);
-	const service = useMemo<NativeMenuService | null>(
-		() =>
-			client && supported
-				? { client, rasterise: rasterise ?? createIconRasteriser(), state: { failed: false } }
-				: null,
-		[client, supported, rasterise],
-	);
+	const service = useMemo<NativeMenuService | null>(() => {
+		if (!client || !supported) return null;
+		if (rasterise) return { client, rasterise, state: { failed: false } };
+		const stage = createIconStage();
+		return {
+			client,
+			rasterise: createIconRasteriser(environment, stage),
+			stage,
+			state: { failed: false },
+		};
+	}, [client, supported, rasterise, environment]);
+	useEffect(() => () => service?.stage?.dispose(), [service]);
 	return <NativeMenuContext.Provider value={service}>{children}</NativeMenuContext.Provider>;
 }
 

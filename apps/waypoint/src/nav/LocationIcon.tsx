@@ -6,6 +6,7 @@
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ConnectionState } from '@liminal-hq/waypoint-protocol/generated/ConnectionState';
 import { FileIcon } from '../browse/FileIcon';
+import { useSettleHold } from '../icons/iconSettle';
 import { useOptionalVfsClient } from '../browse/VfsClientContext';
 import { ServerIcon } from '../connections/ConnectionIcons';
 import { useConnectionsView } from '../connections/ConnectionsContext';
@@ -44,7 +45,10 @@ function ResolvedLocationIcon({
 	location,
 	className,
 }: LocationIconProps & { client: VfsClient }) {
-	const connection = useLocationInfo(client, location)?.connection;
+	const info = useLocationInfo(client, location);
+	// Until Rust has said which server the location is on, the folder is a stand-in for the server glyph.
+	useSettleHold(info === null);
+	const connection = info?.connection;
 	const remote = useConnectionsView((view) => (connection ? stateOf(view, connection) : null));
 	return <LocationGlyph remote={remote} className={className} />;
 }

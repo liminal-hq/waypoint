@@ -39,6 +39,7 @@ import { createTauriOpenWithClient } from '../openWith/tauriOpenWithClient';
 import { DetailsClientProvider } from '../inspector/DetailsClientContext';
 import { PropertiesWindowProvider } from '../inspector/PropertiesWindowContext';
 import { createTauriPropertiesWindowClient } from '../services/tauriPropertiesWindowClient';
+import { MenuIconStageHost } from '../menus/MenuIconStageHost';
 import { NativeMenuProvider } from '../menus/NativeMenuContext';
 import { createTauriNativeMenuClient } from '../menus/tauriNativeMenuClient';
 import { OpenWithProvider } from '../openWith/OpenWithContext';
@@ -204,6 +205,7 @@ export function MainScreen() {
 																						</GitProvider>
 																					</FolderViewsProvider>
 																				</MainOps>
+																				<MenuIconStageHost />
 																				<CommandPaletteHost />
 																				<HelpHost appInfo={startup.services.appInfo} />
 																			</main>
