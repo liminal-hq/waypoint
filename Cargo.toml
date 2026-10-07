@@ -59,7 +59,7 @@ log = "0.4"
 # Windows draws the bitmap as it is) and, for GTK 3, a style hook. Its changes are additive; drop this
 # patch, and the `muda` dependency of `apps/waypoint/src-tauri`, once they are in a published release.
 [patch.crates-io]
-muda = { git = "https://github.com/ScottMorris/tauri-muda", rev = "0765d865a451cb9e115272ec2915cb8e237389b3" }
+muda = { git = "https://github.com/ScottMorris/tauri-muda", rev = "fb022414cef5b657c5295dbf6057c426390d11cf" }
 
 [profile.release]
 strip = true

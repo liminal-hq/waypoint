@@ -4661,7 +4661,7 @@ dependencies = [
 [[package]]
 name = "muda"
 version = "0.20.0"
-source = "git+https://github.com/ScottMorris/tauri-muda?rev=0765d865a451cb9e115272ec2915cb8e237389b3#0765d865a451cb9e115272ec2915cb8e237389b3"
+source = "git+https://github.com/ScottMorris/tauri-muda?rev=fb022414cef5b657c5295dbf6057c426390d11cf#fb022414cef5b657c5295dbf6057c426390d11cf"
 dependencies = [
  "crossbeam-channel",
  "dpi",

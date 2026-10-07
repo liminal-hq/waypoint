@@ -103,6 +103,8 @@ pub enum NativeMenuItem {
         label: String,
         #[serde(default = "yes")]
         enabled: bool,
+        #[serde(default)]
+        icon: Option<NativeMenuIcon>,
         items: Vec<NativeMenuItem>,
     },
     Separator,
@@ -136,6 +138,7 @@ enum Planned {
         menu_id: String,
         text: String,
         enabled: bool,
+        icon: Option<Arc<NativeMenuIcon>>,
         children: Vec<Planned>,
     },
     Separator,
@@ -267,15 +270,20 @@ fn plan(items: &[NativeMenuItem], token: u64) -> Result<Plan, String> {
                 NativeMenuItem::Submenu {
                     label,
                     enabled,
+                    icon,
                     items,
                 } => {
                     check_text("label", label, MAX_TEXT_CHARS)?;
+                    if let Some(icon) = icon {
+                        check_icon(icon, &mut state.icon_bytes)?;
+                    }
                     state.choices.push(None);
                     let children = walk(items, depth + 1, state)?;
                     planned.push(Planned::Submenu {
                         menu_id,
                         text: escape_label(label),
                         enabled: *enabled,
+                        icon: icon.clone().map(Arc::new),
                         children,
                     });
                 }
@@ -419,9 +427,19 @@ fn build_item<R: Runtime, M: Manager<R>>(
             menu_id,
             text,
             enabled,
+            icon,
             children,
         } => {
-            let submenu = Submenu::with_id(manager, menu_id.as_str(), text, *enabled)?;
+            let submenu = match icon {
+                Some(icon) => Submenu::with_id_and_icon(
+                    manager,
+                    menu_id.as_str(),
+                    text,
+                    *enabled,
+                    Some(Image::new_owned(icon.rgba.clone(), icon.width, icon.height)),
+                )?,
+                None => Submenu::with_id(manager, menu_id.as_str(), text, *enabled)?,
+            };
             for child in children {
                 submenu.append(build_item(manager, child)?.as_ref())?;
             }
@@ -577,6 +595,7 @@ mod tests {
             NativeMenuItem::Submenu {
                 label: "More".into(),
                 enabled: true,
+                icon: None,
                 items: vec![action("copy", "Copy"), action("cut", "Cut")],
             },
             action("last", "Last"),
@@ -655,6 +674,7 @@ mod tests {
         let nested = [NativeMenuItem::Submenu {
             label: "More".into(),
             enabled: true,
+            icon: None,
             items: many,
         }];
         assert!(plan(&nested, 0).is_err(), "the submenu itself is one more");
@@ -667,6 +687,7 @@ mod tests {
             items = vec![NativeMenuItem::Submenu {
                 label: format!("Level {level}"),
                 enabled: true,
+                icon: None,
                 items,
             }];
         }
@@ -674,6 +695,7 @@ mod tests {
         items = vec![NativeMenuItem::Submenu {
             label: "One too many".into(),
             enabled: true,
+            icon: None,
             items,
         }];
         assert!(plan(&items, 0).is_err());
@@ -721,6 +743,42 @@ mod tests {
         let mut wrong = icon(16);
         wrong.width = 17;
         assert!(plan(&[with(wrong)], 0).is_err());
+    }
+
+    #[test]
+    fn a_submenu_icon_is_checked_and_counted_like_an_actions() {
+        let with = |icon| {
+            [NativeMenuItem::Submenu {
+                label: "More".into(),
+                enabled: true,
+                icon: Some(icon),
+                items: vec![action("a", "A")],
+            }]
+        };
+        let planned = plan(&with(icon(16)), 0).unwrap();
+        assert!(matches!(
+            &planned.entries[0],
+            Planned::Submenu { icon: Some(icon), .. } if icon.width == 16
+        ));
+        assert!(plan(&with(icon(MAX_ICON_EDGE + 1)), 0).is_err());
+        let mut short = icon(16);
+        short.rgba.pop();
+        assert!(plan(&with(short), 0).is_err());
+        let fits = MAX_ICON_BYTES / (MAX_ICON_EDGE * MAX_ICON_EDGE * 4) as usize;
+        let mut items: Vec<_> = (0..fits)
+            .map(|n| NativeMenuItem::Action {
+                id: n.to_string(),
+                label: "A".into(),
+                enabled: true,
+                shortcut: None,
+                icon: Some(icon(MAX_ICON_EDGE)),
+            })
+            .collect();
+        items.extend(with(icon(MAX_ICON_EDGE)));
+        assert!(
+            plan(&items, 0).is_err(),
+            "the submenu's icon is in the budget"
+        );
     }
 
     #[test]

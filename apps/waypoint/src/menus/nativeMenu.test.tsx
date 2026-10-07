@@ -136,7 +136,8 @@ describe('toNativeMenu', () => {
 		expect(result.droppedIcons).toBe(1);
 	});
 
-	it('drops the icon of a checkbox and of a submenu, which neither can carry', () => {
+	it('keeps a submenu’s icon and drops a checkbox’s, which cannot carry one', () => {
+		const made = picture();
 		const result = converted(
 			[
 				{ type: 'checkbox', id: 'a', label: 'A', checked: true, icon: <svg /> },
@@ -148,11 +149,28 @@ describe('toNativeMenu', () => {
 					items: [{ type: 'action', id: 'b', label: 'B' }],
 				},
 			],
-			() => picture(),
+			() => made,
 		);
 		expect(result.items[0]).not.toHaveProperty('icon');
-		expect(result.items[1]).not.toHaveProperty('icon');
-		expect(result.droppedIcons).toBe(2);
+		expect(result.items[1]).toMatchObject({ kind: 'submenu', icon: made });
+		expect(result.droppedIcons).toBe(1);
+	});
+
+	it('goes without a submenu’s icon that was not rasterised, and says so', () => {
+		const result = converted(
+			[
+				{
+					type: 'submenu',
+					id: 's',
+					label: 'S',
+					icon: <svg />,
+					items: [{ type: 'action', id: 'b', label: 'B' }],
+				},
+			],
+			() => null,
+		);
+		expect(result.items[0]).not.toHaveProperty('icon');
+		expect(result.droppedIcons).toBe(1);
 	});
 
 	it('asks for a dangerous action’s icon in its danger look, and an ordinary one’s without', () => {
@@ -298,10 +316,11 @@ describe('toNativeMenu', () => {
 });
 
 describe('collectIcons', () => {
-	it('lists the icons of actions and checkboxes, in order, through submenus, with the look each is drawn in, and skips a submenu’s own', () => {
+	it('lists the icons of actions, checkboxes and submenus, in order, through submenus, with the look each is drawn in', () => {
 		const a = <svg data-testid="a" />;
 		const b = <svg data-testid="b" />;
 		const c = <svg data-testid="c" />;
+		const submenu = <svg data-testid="submenu" />;
 		expect(
 			collectIcons([
 				{ type: 'action', id: 'a', label: 'A', icon: a, danger: true },
@@ -312,13 +331,14 @@ describe('collectIcons', () => {
 					type: 'submenu',
 					id: 's',
 					label: 'S',
-					icon: <svg data-testid="submenu" />,
+					icon: submenu,
 					items: [{ type: 'action', id: 'b', label: 'B', icon: b }],
 				},
 				{ type: 'checkbox', id: 'c', label: 'C', checked: true, icon: c },
 			]),
 		).toEqual([
 			{ icon: a, danger: true },
+			{ icon: submenu },
 			{ icon: b, danger: false },
 			{ icon: c, checked: true },
 		]);
