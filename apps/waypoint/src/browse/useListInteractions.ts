@@ -326,6 +326,11 @@ export function useListInteractions(options: InteractionOptions): Interactions {
 
 	const onBackgroundContextMenu = (event: MouseEvent) => {
 		event.preventDefault();
+		// The Menu key also sends a `contextmenu` event on Windows, after its keydown has already
+		// opened the menu for the focused entry (preventing the keydown does not stop it there). It
+		// is aimed at the focused element and is not a right-button press, so it must not replace
+		// that menu with the empty-space one.
+		if (event.button !== 2 && event.target === document.activeElement) return;
 		onMenu?.({
 			kind: 'background',
 			position: { x: event.clientX, y: event.clientY },

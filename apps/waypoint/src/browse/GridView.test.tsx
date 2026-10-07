@@ -246,6 +246,24 @@ describe('selection and opening', () => {
 		);
 	});
 
+	it('does not let the contextmenu event the Menu key sends on Windows replace the entry menu', async () => {
+		const { client } = clientWith(30);
+		const onMenu = vi.fn();
+		renderGrid(client, 96, { onMenu });
+		await screen.findByRole('listbox');
+		await waitFor(() => expect(options()[0]).toHaveTextContent(/\w/));
+		fireEvent.click(options()[1]!);
+		act(() => list().focus());
+		fireEvent.keyDown(list(), { key: 'ContextMenu' });
+		expect(onMenu).toHaveBeenCalledTimes(1);
+		// The key's own event: at the focused listbox, with no right button.
+		fireEvent.contextMenu(list(), { button: 0 });
+		expect(onMenu).toHaveBeenCalledTimes(1);
+		// A right-click in a gap of the same listbox still asks for the empty-space menu.
+		fireEvent.contextMenu(list(), { button: 2, clientX: 3, clientY: 4 });
+		expect(onMenu).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'background' }));
+	});
+
 	it('leaves Alt+arrow keys to the window so history and up still work', async () => {
 		const { client } = clientWith(30);
 		renderGrid(client);
