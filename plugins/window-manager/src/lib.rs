@@ -20,6 +20,8 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos as platform;
 
+#[cfg(any(target_os = "windows", test))]
+mod system_menu;
 #[cfg(target_os = "windows")]
 mod windows;
 #[cfg(target_os = "windows")]
