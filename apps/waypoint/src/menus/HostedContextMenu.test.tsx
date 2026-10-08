@@ -261,3 +261,50 @@ describe('HostedContextMenu', () => {
 		expect(native.calls[1]?.at).toEqual({ x: 300, y: 40 });
 	});
 });
+
+describe('HostedContextMenu told to open on a submenu', () => {
+	it('shows that submenu’s rows natively, since a native menu cannot open with one already out', async () => {
+		const items: MenuItem[] = [
+			{
+				type: 'submenu',
+				id: 'menu:file',
+				label: 'File',
+				items: [
+					{ type: 'action', id: 'new', label: 'New Tab' },
+					{ type: 'action', id: 'close', label: 'Close Tab' },
+				],
+			},
+			{
+				type: 'submenu',
+				id: 'menu:edit',
+				label: 'Edit',
+				items: [{ type: 'action', id: 'undo', label: 'Undo' }],
+			},
+		];
+		const native = createFakeNativeMenuClient();
+		const settings = createFakeSettingsClient({
+			...DEFAULT_SETTINGS,
+			experimental: { ...DEFAULT_SETTINGS.experimental, nativeContextMenus: true },
+		});
+		render(
+			<SettingsProvider client={settings}>
+				<NativeMenuProvider client={native} platform="windows" rasterise={noPictures}>
+					<Gate>
+						<HostedContextMenu
+							items={items}
+							initialSubmenuId="menu:file"
+							position={{ x: 1, y: 2 }}
+							onSelect={vi.fn()}
+							onClose={vi.fn()}
+						/>
+					</Gate>
+				</NativeMenuProvider>
+			</SettingsProvider>,
+		);
+		await waitFor(() => expect(native.calls).toHaveLength(1));
+		expect(native.calls[0]?.items.map((item) => ('id' in item ? item.id : item.kind))).toEqual([
+			'new',
+			'close',
+		]);
+	});
+});

@@ -22,9 +22,10 @@ interface AppMenuProps {
  * The menu button for a Main window's title bar start slot. Its rows are the registry's commands
  * resolved for the window now, so a row is hidden, disabled with its reason as the tooltip, or
  * checked exactly as the Action bar and the keys see it, and choosing one runs the registry's
- * command. A press on the button opens it as the system's own menu when Settings → Experimental →
- * Native context menus is on. F10 or a lone Alt toggles the page's own menu, and Alt+F, E, V and W open it with the menu named by the
- * letter open.
+ * command. It opens as the system's own menu when Settings → Experimental → Native context menus
+ * is on, from a press and from the keys alike (a native menu cannot open on a submenu, so Alt+F, E,
+ * V and W show that menu's rows). F10 or a lone Alt toggles it, and Alt+F, E, V and W open it with
+ * the menu named by the letter open in the page's own menu.
  */
 export function AppMenu({ menuBar = false }: AppMenuProps) {
 	const { items, onSelect } = useAppMenu();
@@ -36,7 +37,7 @@ export function AppMenu({ menuBar = false }: AppMenuProps) {
 			onSelect={onSelect}
 			mnemonics={APP_MENU_MNEMONICS}
 			interactive={!menuBar}
-			renderPointerMenu={(props) => <HostedContextMenu {...props} />}
+			renderMenu={(props) => <HostedContextMenu {...props} />}
 		/>
 	);
 }

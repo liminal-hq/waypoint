@@ -181,7 +181,7 @@ describe('AppMenuButton', () => {
 
 		it('hands a press on the button to the host, with the menu and its position', async () => {
 			hosted.mockClear();
-			const { button } = setup({ renderPointerMenu: hosted });
+			const { button } = setup({ renderMenu: hosted });
 			await userEvent.click(button);
 			expect(screen.getByRole('button', { name: 'hosted menu' })).toBeInTheDocument();
 			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
@@ -191,22 +191,29 @@ describe('AppMenuButton', () => {
 		});
 
 		it('closes when the host closes it', async () => {
-			const { button } = setup({ renderPointerMenu: hosted });
+			const { button } = setup({ renderMenu: hosted });
 			await userEvent.click(button);
 			await userEvent.click(screen.getByRole('button', { name: 'hosted menu' }));
 			expect(screen.queryByRole('button', { name: 'hosted menu' })).not.toBeInTheDocument();
 			expect(button).toHaveAttribute('aria-expanded', 'false');
 		});
 
-		it('keeps the keyboard openings on the chrome menu, which has the arrow keys and the mnemonics', async () => {
+		it('hands the keyboard openings to the host too, with the submenu an Alt mnemonic names', async () => {
 			hosted.mockClear();
-			setup({ renderPointerMenu: hosted });
+			setup({ renderMenu: hosted });
 			key({ key: 'F10' });
-			expect(await screen.findByRole('menu')).toBeInTheDocument();
+			expect(await screen.findByRole('button', { name: 'hosted menu' })).toBeInTheDocument();
+			expect(hosted).toHaveBeenLastCalledWith(
+				expect.objectContaining({ openedWithKeyboard: true }),
+			);
 			key({ key: 'F10' });
 			key({ key: 'f', altKey: true });
-			expect(await screen.findByRole('menuitem', { name: /New Tab/ })).toBeInTheDocument();
-			expect(hosted).not.toHaveBeenCalled();
+			await waitFor(() =>
+				expect(hosted).toHaveBeenLastCalledWith(
+					expect.objectContaining({ initialSubmenuId: 'menu:file', openedWithKeyboard: true }),
+				),
+			);
+			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 		});
 	});
 });

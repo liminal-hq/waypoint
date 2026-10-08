@@ -34,7 +34,8 @@ const timedOut = Symbol('timed out');
  * the items and asks the system to show them at the pointer; the chosen item runs the same
  * `onSelect` the page's menu would, and a dismissed menu runs `onClose`. When the items cannot be
  * shown natively, or the system cannot show them, it renders the page's `ContextMenu` instead, so a
- * menu is never lost. A menu opened again at another place (`position`) is shown again from there.
+ * menu is never lost. A menu told to open on a submenu (`initialSubmenuId`, an Alt mnemonic) is
+ * shown natively as that submenu's rows. A menu opened again at another place (`position`) is shown again from there.
  */
 export function HostedContextMenu({ settling = false, ...props }: HostedContextMenuProps) {
 	const enabled = useNativeContextMenusSetting();
@@ -68,7 +69,12 @@ export function HostedContextMenu({ settling = false, ...props }: HostedContextM
 			let timer: number | undefined;
 			try {
 				const prepare = (async () => {
-					const { items } = latest.current;
+					const { items: all, initialSubmenuId } = latest.current;
+					// A native menu cannot open with a submenu already out, so it shows that submenu's rows.
+					const opened = initialSubmenuId
+						? all.find((item) => item.type === 'submenu' && item.id === initialSubmenuId)
+						: undefined;
+					const items = opened?.type === 'submenu' ? opened.items : all;
 					const pictures = new Map<ReactNode, Map<string, IconPicture | null>>();
 					const lookKey = (look: IconLook) => `${look.danger === true}/${look.checked === true}`;
 					for (const { icon, ...look } of collectIcons(items)) {

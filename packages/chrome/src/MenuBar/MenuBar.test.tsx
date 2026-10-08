@@ -6,6 +6,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ContextMenuProps } from '../ContextMenu/ContextMenu';
 import type { MenuItem } from '../ContextMenu/types';
 import { MenuBar } from './MenuBar';
 
@@ -245,5 +246,52 @@ describe('MenuBar', () => {
 		expect(menu).toHaveTextContent('Edit');
 		expect(menu).toHaveTextContent('View');
 		expect(menu).not.toHaveTextContent('File');
+	});
+
+	describe('with a host that draws the menus', () => {
+		const hosted = vi.fn((props: ContextMenuProps) => (
+			<button type="button" onClick={props.onClose}>
+				{`hosted ${props.ariaLabel ?? ''}`}
+			</button>
+		));
+		const renderHosted = () =>
+			render(
+				<MenuBar
+					items={items}
+					onSelect={vi.fn()}
+					label="Menu bar"
+					moreLabel="More"
+					mnemonics={mnemonics}
+					renderMenu={hosted}
+				/>,
+			);
+
+		it('hands a click on a menu to the host, with that menu’s rows and its position', async () => {
+			hosted.mockClear();
+			renderHosted();
+			await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
+			expect(screen.getByRole('button', { name: 'hosted Edit' })).toBeInTheDocument();
+			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+			expect(hosted).toHaveBeenCalledWith(
+				expect.objectContaining({
+					items: [expect.objectContaining({ id: 'undo' })],
+					openedWithKeyboard: false,
+				}),
+			);
+		});
+
+		it('hands the keyboard openings to the host too, each menu on its own', async () => {
+			hosted.mockClear();
+			renderHosted();
+			windowKey({ key: 'f', altKey: true });
+			expect(await screen.findByRole('button', { name: 'hosted File' })).toBeInTheDocument();
+			expect(hosted).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					openedWithKeyboard: true,
+					items: [expect.objectContaining({ id: 'new' }), expect.objectContaining({ id: 'close' })],
+				}),
+			);
+			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+		});
 	});
 });
