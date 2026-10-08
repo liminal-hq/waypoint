@@ -299,6 +299,11 @@
     "description": "Area: services.",
     "source": "97918f06"
   },
+  "services.name.elevate": {
+    "message": "Accès administrateur",
+    "description": "Area: services. The name of the service that lets Waypoint open a folder as an administrator (through the system’s own prompt), in the list of what works on this system.",
+    "source": "64dbd25f"
+  },
   "services.name.xdg-portal": {
     "message": "Portail de bureau",
     "description": "Area: services.",
@@ -12483,6 +12488,26 @@
     "message": "Ouvre les menus du clic droit de la liste de fichiers, de la barre latérale, de la corbeille et des onglets sous forme de menus propres à votre système, afin qu’ils puissent dépasser le bord de la fenêtre. Ils adoptent l’apparence du système : ils ignorent donc le thème de Waypoint et les réglages de transparence des menus, et n’ont ni flou ni info-bulles. Un élément destructeur n’est rouge que dans son icône, non dans son libellé. Leur comportement peut différer sous Wayland. Un menu que le système ne peut pas afficher tel quel reste un menu de Waypoint.",
     "description": "Area: settings.",
     "source": "ba7d14e2"
+  },
+  "settings.group.administrator": {
+    "message": "Administrateur",
+    "description": "Area: settings.",
+    "source": "e7d3e769"
+  },
+  "settings.experimental.administrator.label": {
+    "message": "Accès administrateur",
+    "description": "Area: settings. “Administrator” is the system’s privileged account (root on Linux). The switch lets a person open a folder as that account, after the system’s own password prompt.",
+    "source": "64dbd25f"
+  },
+  "settings.experimental.administrator.description": {
+    "message": "Vous permet d’ouvrir un dossier en tant qu’administrateur, par l’invite propre à votre système, afin de parcourir et de modifier des fichiers autrement inaccessibles. Cela ne fonctionne que dans les copies installées de Waypoint (les paquets .deb et .rpm et le programme d’installation de Windows) et n’est pas offert autrement; le volet Services de la page Intégrations en explique la raison.",
+    "description": "Area: settings.",
+    "source": "c36c5298"
+  },
+  "settings.experimental.administrator.unavailableNoReason": {
+    "message": "Le volet Services de la page Intégrations en explique la raison.",
+    "description": "Area: settings. Shown after “Unavailable:” under a switch that cannot be used, when the system gave no reason of its own.",
+    "source": "31e48135"
   },
   "inspector.tab.git": {
     "message": "Git",

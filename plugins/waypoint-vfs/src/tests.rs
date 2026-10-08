@@ -1109,6 +1109,54 @@ mod connections {
     }
 
     #[test]
+    fn the_admin_location_connects_reads_its_state_and_disconnects_through_the_login_commands() {
+        let launcher = waypoint_elevated::testing::loopback::LoopbackLauncher::new(
+            Arc::new(waypoint_vfs::LocalProvider::new()),
+            waypoint_elevated::ServeConfig::default(),
+        );
+        let app = mock_builder()
+            .plugin(init_with(Options {
+                providers: vec![Arc::new(waypoint_elevated::ElevatedProvider::new(
+                    Box::new(launcher.clone()),
+                ))],
+                credentials: None,
+                storage: None,
+                suggestions: None,
+            }))
+            .build(mock_context(noop_assets()))
+            .expect("the mock app builds");
+        let admin = waypoint_path::VfsPath::File(FilePath::from_path(Path::new("/")).unwrap())
+            .elevated()
+            .unwrap()
+            .to_location();
+        let state = || {
+            tauri::async_runtime::block_on(cmd::connection_state(app.state::<Vfs>(), admin.clone()))
+                .unwrap()
+                .unwrap()
+        };
+        assert_eq!(state().key, "admin:");
+        assert_eq!(state().state, ConnectionState::Idle);
+        let remembered = tauri::async_runtime::block_on(cmd::connect(
+            app.state::<Vfs>(),
+            admin.clone(),
+            None,
+            None,
+        ))
+        .unwrap();
+        assert_eq!(remembered, Remembered::No);
+        assert_eq!(launcher.launches(), 1);
+        assert_eq!(state().state, ConnectionState::Connected);
+        tauri::async_runtime::block_on(cmd::disconnect(app.state::<Vfs>(), admin.clone())).unwrap();
+        assert_eq!(state().state, ConnectionState::Idle);
+        // A local folder is still not a login.
+        let home = location(Path::new("/"));
+        assert!(
+            tauri::async_runtime::block_on(cmd::connect(app.state::<Vfs>(), home, None, None))
+                .is_err()
+        );
+    }
+
+    #[test]
     fn refresh_listing_reads_a_server_folder_again_and_leaves_a_fresh_one_alone() {
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
         let root = server.root("me@nas.lan");

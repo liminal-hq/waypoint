@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "main",
-	"description": "Capabilities specific to the main file-browser windows: platform information, the system's 12/24-hour clock setting, the trash, the thumbnails plugin's status only and the keyring plugin's status only (the start-up log of what works here; never a secret, which no window may read back) (the page asks for thumbnails through the app's own commands, which take no paths), the volumes, the file types and their applications, and the application settings: reading them, and changing only their `ui` part for the Action bar's own choices (View → Action Bar, Hide Labels), never the whole document, and each folder's remembered view, sort and grouping: reading them, remembering a choice and resetting a folder's; and the saved connections and the connection manager (the file system plugin's `connections` set), which no other window gets; and the Git plugin: watching the repository a folder is in, for the branch in the status bar, the Inspector's Git tab and the badges of the sidebar's folders.",
+	"description": "Capabilities specific to the main file-browser windows: platform information, the system's 12/24-hour clock setting, the trash, the thumbnails plugin's status only and the keyring plugin's status only and the elevate plugin's status only (whether a folder can be opened as an administrator here; starting the helper is not a command, so no window can ask for a prompt) (the start-up log of what works here; never a secret, which no window may read back) (the page asks for thumbnails through the app's own commands, which take no paths), the volumes, the file types and their applications, and the application settings: reading them, and changing only their `ui` part for the Action bar's own choices (View → Action Bar, Hide Labels), never the whole document, and each folder's remembered view, sort and grouping: reading them, remembering a choice and resetting a folder's; and the saved connections and the connection manager (the file system plugin's `connections` set), which no other window gets; and the Git plugin: watching the repository a folder is in, for the branch in the status bar, the Inspector's Git tab and the badges of the sidebar's folders.",
 	"windows": ["main-*"],
 	"permissions": [
 		"os:default",
@@ -9,6 +9,7 @@
 		"trash:default",
 		"thumbnails:allow-get-status",
 		"secrets:allow-get-status",
+		"elevate:allow-get-status",
 		"volumes:default",
 		"mime-apps:default",
 		"waypoint-settings:allow-get-settings",

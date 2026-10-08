@@ -15,6 +15,7 @@ import {
 } from 'react';
 import { useStore } from 'zustand';
 import type { PluginStatus as WindowEffectsStatus } from '@liminal-hq/plugin-window-effects';
+import type { PluginStatus as ElevateStatus } from '@liminal-hq/plugin-elevate';
 import type { PluginStatus } from '@liminal-hq/plugin-thumbnails';
 import type { IntegrationAvailability } from '@liminal-hq/waypoint-protocol/generated/IntegrationAvailability';
 import { t, tf } from '../i18n/messages';
@@ -99,7 +100,8 @@ export type RowKey =
 	| 'protocolSmb'
 	| 'protocolWebdav'
 	| 'protocolS3'
-	| 'nativeContextMenus';
+	| 'nativeContextMenus'
+	| 'administratorAccess';
 
 /** The operations plugin's settings commands, which the Settings window edits the operations settings through. */
 export interface OpsSettingsApi {
@@ -135,6 +137,8 @@ export interface SettingsEditor {
 	availability: IntegrationAvailability | null;
 	/** Which remote protocols this build has; `null` until read, and when it could not be. */
 	protocols: ProtocolSupport | null;
+	/** Whether this system can open a folder as an administrator; `null` until read, and when it could not be. */
+	elevate: ElevateStatus | null;
 	/** Why `availability` could not be read, when it could not. */
 	availabilityUnreadable: string | null;
 	/** Making Waypoint the default file manager; `null` when the page was given no client for it. */
@@ -186,6 +190,8 @@ interface SettingsEditorProviderProps {
 	integrations?: IntegrationsClient;
 	/** Reads which remote protocols this build has, for the Experimental page; a failure leaves every switch usable. */
 	protocolSupport?: () => Promise<ProtocolSupport>;
+	/** Reads whether this system can open a folder as an administrator, for the Experimental page; a failure leaves the switch usable. */
+	elevateStatus?: () => Promise<ElevateStatus>;
 	/** The default file manager action and who is default now, for the Integrations page. */
 	fileManager?: DefaultFileManagerClient;
 	/** Export and import of the settings, for the General page's Back up and restore group. */
@@ -206,6 +212,7 @@ export function SettingsEditorProvider({
 	windowEffectsStatus,
 	integrations,
 	protocolSupport,
+	elevateStatus,
 	fileManager,
 	transfer,
 	children,
@@ -218,6 +225,7 @@ export function SettingsEditorProvider({
 	const [thumbnails, setThumbnails] = useState<PluginStatus | null>(null);
 	const [windowEffects, setWindowEffects] = useState<WindowEffectsStatus | null>(null);
 	const [protocols, setProtocols] = useState<ProtocolSupport | null>(null);
+	const [elevate, setElevate] = useState<ElevateStatus | null>(null);
 	const [availability, setAvailability] = useState<IntegrationAvailability | null>(null);
 	const [availabilityUnreadable, setAvailabilityUnreadable] = useState<string | null>(null);
 	const [errors, setErrors] = useState<Partial<Record<RowKey, string>>>({});
@@ -302,6 +310,20 @@ export function SettingsEditorProvider({
 	}, [protocolSupport]);
 
 	useEffect(() => {
+		if (!elevateStatus) return;
+		let active = true;
+		elevateStatus().then(
+			(value) => {
+				if (active) setElevate(value);
+			},
+			(error: unknown) => console.warn('could not read the administrator access status', error),
+		);
+		return () => {
+			active = false;
+		};
+	}, [elevateStatus]);
+
+	useEffect(() => {
 		if (!integrations) return;
 		let active = true;
 		integrations.availability().then(
@@ -384,6 +406,7 @@ export function SettingsEditorProvider({
 			thumbnails,
 			windowEffects,
 			protocols,
+			elevate,
 			availability,
 			availabilityUnreadable,
 			fileManager: fileManager ?? null,
@@ -404,6 +427,7 @@ export function SettingsEditorProvider({
 			thumbnails,
 			windowEffects,
 			protocols,
+			elevate,
 			availability,
 			availabilityUnreadable,
 			fileManager,

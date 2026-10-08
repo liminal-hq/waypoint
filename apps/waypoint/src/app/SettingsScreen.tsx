@@ -3,6 +3,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import {
+	getStatus as elevatePluginStatus,
+	type PluginStatus as ElevateStatus,
+} from '@liminal-hq/plugin-elevate';
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import {
 	getStatus as windowEffectsPluginStatus,
@@ -63,6 +67,8 @@ interface SettingsScreenProps {
 	integrations?: IntegrationsClient;
 	/** Which remote protocols this build has; the file system plugin's unless a test supplies its own. */
 	protocolSupport?: () => Promise<ProtocolSupport>;
+	/** Whether administrator access works here; the elevate plugin's status unless a test supplies its own. */
+	elevateStatus?: () => Promise<ElevateStatus>;
 	/** The page to open on (`experimental`); the window's `?section=` unless a test supplies its own. */
 	initialSection?: string;
 	/** The default file manager action; the mime-apps plugin's unless a test supplies its own. */
@@ -137,6 +143,7 @@ function Editor({
 	windowEffectsStatus,
 	integrations,
 	protocolSupport,
+	elevateStatus,
 	initialSection,
 	fileManager,
 	transfer,
@@ -149,6 +156,7 @@ function Editor({
 	| 'windowEffectsStatus'
 	| 'integrations'
 	| 'protocolSupport'
+	| 'elevateStatus'
 	| 'initialSection'
 	| 'fileManager'
 	| 'transfer'
@@ -172,6 +180,7 @@ function Editor({
 			windowEffectsStatus={windowEffectsStatus ?? windowEffectsPluginStatus}
 			integrations={ownIntegrations}
 			protocolSupport={protocolSupport ?? connectionSupport}
+			elevateStatus={elevateStatus ?? elevatePluginStatus}
 			fileManager={ownFileManager}
 			transfer={ownTransfer}
 		>
@@ -195,6 +204,7 @@ export function SettingsScreen({
 	windowEffectsStatus,
 	integrations,
 	protocolSupport,
+	elevateStatus,
 	initialSection,
 	fileManager,
 	transfer,
@@ -216,6 +226,7 @@ export function SettingsScreen({
 						windowEffectsStatus={windowEffectsStatus}
 						integrations={integrations}
 						protocolSupport={protocolSupport}
+						elevateStatus={elevateStatus}
 						initialSection={initialSection}
 						fileManager={fileManager}
 						transfer={transfer}

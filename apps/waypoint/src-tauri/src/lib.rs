@@ -8,6 +8,7 @@ mod checksum;
 mod connections;
 mod dialog_window_state;
 mod effects;
+mod elevate;
 mod file_icons;
 mod git;
 mod integration_policy;
@@ -180,6 +181,8 @@ pub fn run() {
             &tear_off_options().window_state_denylist(),
         ))
         .plugin(tauri_plugin_trash::init())
+        // Reports whether the privileged helper can be started and starts it for `elevate::ElevateLauncher`; the page may only read its status, so it can never cause a prompt.
+        .plugin(tauri_plugin_elevate::init_with_config(elevate::config()))
         .plugin(tauri_plugin_thumbnails::init())
         // The passphrases of encrypted volumes are kept through `volume_passphrases`, which adapts the keyring and the Settings switch (D153); the volumes plugin never calls the secrets plugin.
         .plugin(tauri_plugin_volumes::init_with_system(

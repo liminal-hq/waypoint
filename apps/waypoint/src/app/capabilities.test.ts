@@ -203,12 +203,13 @@ describe('window capabilities', () => {
 			'trash',
 			'volumes',
 			'secrets',
+			'elevate',
 			'window-tearoff',
 			'waypoint-ops',
 		]) {
 			expect(settings.permissions, plugin).toContain(`${plugin}:allow-get-status`);
 		}
-		for (const plugin of ['os-prefs', 'trash', 'volumes', 'secrets', 'window-tearoff']) {
+		for (const plugin of ['os-prefs', 'trash', 'volumes', 'secrets', 'elevate', 'window-tearoff']) {
 			expect(
 				settings.permissions.filter((permission) => permission.startsWith(`${plugin}:`)),
 				plugin,
@@ -236,6 +237,20 @@ describe('window capabilities', () => {
 				byId(id).permissions.filter((p) => p.startsWith('secrets:')),
 				id,
 			).toEqual(['secrets:allow-get-status']);
+		}
+	});
+
+	it('gives the elevate plugin to the main and Settings windows for its status only', () => {
+		expect(
+			capabilities
+				.filter((capability) => capability.permissions.some((p) => p.startsWith('elevate:')))
+				.map((capability) => capability.identifier),
+		).toEqual(['main', 'settings']);
+		for (const id of ['main', 'settings']) {
+			expect(
+				byId(id).permissions.filter((p) => p.startsWith('elevate:')),
+				id,
+			).toEqual(['elevate:allow-get-status']);
 		}
 	});
 });

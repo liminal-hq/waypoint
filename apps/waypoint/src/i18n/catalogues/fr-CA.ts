@@ -133,6 +133,8 @@ const messages: Catalogue = {
 	'services.name.window-effects': 'Effets de fenêtre',
 	// source: 97918f06
 	'services.name.mime-apps': 'Types de fichiers et Ouvrir avec',
+	// source: 64dbd25f
+	'services.name.elevate': 'Accès administrateur',
 	// source: d068fa03
 	'services.name.xdg-portal': 'Portail de bureau',
 	// source: 3b23f28f
@@ -5325,6 +5327,16 @@ const messages: Catalogue = {
 	// source: ba7d14e2
 	'settings.experimental.nativeMenus.description':
 		'Ouvre les menus du clic droit de la liste de fichiers, de la barre latérale, de la corbeille et des onglets sous forme de menus propres à votre système, afin qu’ils puissent dépasser le bord de la fenêtre. Ils adoptent l’apparence du système : ils ignorent donc le thème de Waypoint et les réglages de transparence des menus, et n’ont ni flou ni info-bulles. Un élément destructeur n’est rouge que dans son icône, non dans son libellé. Leur comportement peut différer sous Wayland. Un menu que le système ne peut pas afficher tel quel reste un menu de Waypoint.',
+	// source: e7d3e769
+	'settings.group.administrator': 'Administrateur',
+	// source: 64dbd25f
+	'settings.experimental.administrator.label': 'Accès administrateur',
+	// source: c36c5298
+	'settings.experimental.administrator.description':
+		'Vous permet d’ouvrir un dossier en tant qu’administrateur, par l’invite propre à votre système, afin de parcourir et de modifier des fichiers autrement inaccessibles. Cela ne fonctionne que dans les copies installées de Waypoint (les paquets .deb et .rpm et le programme d’installation de Windows) et n’est pas offert autrement; le volet Services de la page Intégrations en explique la raison.',
+	// source: 31e48135
+	'settings.experimental.administrator.unavailableNoReason':
+		'Le volet Services de la page Intégrations en explique la raison.',
 	// source: b949c922
 	'inspector.tab.git': 'Git',
 	// source: 13d6ff07

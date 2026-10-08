@@ -20,7 +20,7 @@ struct ChildLauncher {
 }
 
 impl Launcher for ChildLauncher {
-    fn launch(&self) -> Result<Transport, VfsError> {
+    fn launch(&self, _cancel: &CancelToken) -> Result<Transport, VfsError> {
         let mut child = Command::new(env!("CARGO_BIN_EXE_waypoint-elevate-helper"))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

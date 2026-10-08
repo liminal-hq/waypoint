@@ -9,7 +9,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use waypoint_protocol::VfsError;
-use waypoint_vfs::Provider;
+use waypoint_vfs::{CancelToken, Provider};
 
 use super::pipe::{duplex, Cutter};
 use crate::client::{Launcher, Transport};
@@ -81,7 +81,7 @@ impl LoopbackLauncher {
 }
 
 impl Launcher for LoopbackLauncher {
-    fn launch(&self) -> Result<Transport, VfsError> {
+    fn launch(&self, _cancel: &CancelToken) -> Result<Transport, VfsError> {
         self.record.launches.fetch_add(1, Ordering::SeqCst);
         if let Some(error) = locked(&self.refuse).clone() {
             return Err(error);

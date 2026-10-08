@@ -5,7 +5,7 @@
 
 mod support;
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -183,7 +183,7 @@ fn the_provider_does_not_outlive_its_helper() {
 struct Silent(Mutex<Vec<PipeWriter>>);
 
 impl Launcher for Silent {
-    fn launch(&self) -> Result<Transport, VfsError> {
+    fn launch(&self, _cancel: &CancelToken) -> Result<Transport, VfsError> {
         let (reader, writer, _closer) = pipe();
         self.0.lock().unwrap().push(writer);
         Ok(Transport {
@@ -206,4 +206,43 @@ fn a_helper_that_never_says_hello_is_given_up_on() {
         client.connection_state(&key),
         ConnectionState::Failed { .. }
     ));
+}
+
+/// A launcher that waits on a person: it returns only when the caller's token is set.
+struct Waiting {
+    waiting: AtomicBool,
+}
+
+impl Launcher for Waiting {
+    fn launch(&self, cancel: &CancelToken) -> Result<Transport, VfsError> {
+        self.waiting.store(true, Ordering::SeqCst);
+        while !cancel.is_cancelled() {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Err(VfsError::Cancelled)
+    }
+}
+
+#[test]
+fn the_cancel_of_a_connect_reaches_the_launcher() {
+    let launcher = Arc::new(Waiting {
+        waiting: AtomicBool::new(false),
+    });
+    struct Shared(Arc<Waiting>);
+    impl Launcher for Shared {
+        fn launch(&self, cancel: &CancelToken) -> Result<Transport, VfsError> {
+            self.0.launch(cancel)
+        }
+    }
+    let client = ElevatedProvider::new(Box::new(Shared(launcher.clone())));
+    let cancel = CancelToken::new();
+    let result = std::thread::scope(|scope| {
+        let call = scope.spawn(|| client.connect(&ConnectionKey::elevated(), None, &cancel));
+        wait_until("the launcher to be waiting", || {
+            launcher.waiting.load(Ordering::SeqCst)
+        });
+        cancel.cancel();
+        call.join().unwrap()
+    });
+    assert!(matches!(result, Err(VfsError::Cancelled)));
 }

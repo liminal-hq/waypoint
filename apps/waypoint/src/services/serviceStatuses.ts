@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { getStatus as elevateStatus } from '@liminal-hq/plugin-elevate';
 import { getStatus as mimeAppsStatus } from '@liminal-hq/plugin-mime-apps';
 import { getStatus as nativeDndStatus } from '@liminal-hq/plugin-native-dnd';
 import { getStatus as osPrefsStatus } from '@liminal-hq/plugin-os-prefs';
@@ -49,6 +50,19 @@ function summarise(
  */
 export async function trashServiceStatus(): Promise<PluginStatus> {
 	const status = await trashStatus();
+	return summarise(
+		status,
+		status.features.map((feature) => [feature.name, feature] as const),
+	);
+}
+
+/**
+ * The elevate plugin's status in the shared shape: its one feature carries the reason a folder
+ * cannot be opened as an administrator here (no `pkexec`, no policy, an unprotected helper, an
+ * AppImage), shown as the sentence it holds.
+ */
+export async function elevateServiceStatus(): Promise<PluginStatus> {
+	const status = await elevateStatus();
 	return summarise(
 		status,
 		status.features.map((feature) => [feature.name, feature] as const),
@@ -244,6 +258,8 @@ export function integrationServiceStatus(key: string): StatusSource {
 export const SERVICE_SOURCES: Record<string, StatusSource> = {
 	'file-system': vfsStatus,
 	trash: trashServiceStatus,
+	// Whether a folder can be opened as an administrator, through the system's own prompt, and why not where it cannot; used from Rust to start the helper, so the page only reads this.
+	elevate: elevateServiceStatus,
 	'native-dnd': nativeDndServiceStatus,
 	// Whether the Shelf window (and every other window) can be kept on top, and why not where it cannot.
 	'window-manager': windowManagerStatus,

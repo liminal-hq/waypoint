@@ -255,7 +255,7 @@ impl Vfs {
 
     /// Tells the connection manager what a call on `path` found.
     pub(crate) fn observe(&self, path: &VfsPath, outcome: Result<(), &VfsError>) {
-        if let (Some(hub), VfsPath::Remote(_)) = (&self.connections, path) {
+        if let (Some(hub), VfsPath::Remote(_) | VfsPath::Elevated(_)) = (&self.connections, path) {
             if let Some(key) = hub.manager().key_of(path) {
                 hub.manager().observe(&key, outcome);
             }

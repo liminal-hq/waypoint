@@ -87,6 +87,8 @@ export const enMessages = {
 	'services.name.secrets': 'Keyring and saved passwords',
 	'services.name.window-effects': 'Window effects',
 	'services.name.mime-apps': 'File types and Open With',
+	// translator: The name of the service that lets Waypoint open a folder as an administrator (through the system’s own prompt), in the list of what works on this system.
+	'services.name.elevate': 'Administrator access',
 	'services.name.xdg-portal': 'Desktop portal',
 	'services.name.desktop-integration': 'Desktop services',
 	'settings.group.notifications': 'Notifications and progress',
@@ -2776,6 +2778,14 @@ export const enMessages = {
 	'settings.experimental.nativeMenus.label': 'Native context menus',
 	'settings.experimental.nativeMenus.description':
 		'Open the right-click menus of the file list, sidebar, Trash and tabs as your system’s own menus, so they can reach past the edge of the window. They take the system’s look, so they ignore Waypoint’s theming and the menu transparency settings, and they have no blur or tooltips. A destructive item is red only in its icon, not its label. They may behave differently on Wayland. A menu the system cannot show as it is stays a Waypoint menu.',
+	'settings.group.administrator': 'Administrator',
+	// translator: “Administrator” is the system’s privileged account (root on Linux). The switch lets a person open a folder as that account, after the system’s own password prompt.
+	'settings.experimental.administrator.label': 'Administrator access',
+	'settings.experimental.administrator.description':
+		'Lets you open a folder as an administrator, through your system’s own prompt, to browse and change files you cannot normally reach. It works only in installed copies of Waypoint (the .deb and .rpm packages and the Windows installer) and is unavailable otherwise; the Services panel on the Integrations page says why.',
+	// translator: Shown after “Unavailable:” under a switch that cannot be used, when the system gave no reason of its own.
+	'settings.experimental.administrator.unavailableNoReason':
+		'The Services panel on the Integrations page says why.',
 
 	// translator: A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.
 	'inspector.tab.git': 'Git',

@@ -41,8 +41,11 @@ pub struct Transport {
 
 /// Starts a helper and returns the stream to it. How is the launcher's business (the system's
 /// prompt, a pipe, a thread in a test); the client only ever calls it from an explicit `connect`.
+///
+/// `cancel` is the connecting call's own token. A launcher that can wait on a person (the
+/// system's prompt) watches it and gives the wait up with `VfsError::Cancelled` once it is set.
 pub trait Launcher: Send + Sync {
-    fn launch(&self) -> Result<Transport, VfsError>;
+    fn launch(&self, cancel: &CancelToken) -> Result<Transport, VfsError>;
 }
 
 /// The place the connection as a whole is at, for an error that has no path of its own.
@@ -276,7 +279,7 @@ impl ElevatedProvider {
             *locked(&inner.state) = State::Failed(error.clone());
             Err(error)
         };
-        let transport = match inner.launcher.launch() {
+        let transport = match inner.launcher.launch(cancel) {
             Ok(transport) => transport,
             Err(error) => return fail(error),
         };

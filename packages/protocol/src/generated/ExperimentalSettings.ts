@@ -6,5 +6,7 @@
  * credential for it, and its addresses fail with a reason that points here. `native_context_menus`
  * is the one switch that is not a protocol: it makes the file list, sidebar, Trash and tab menus
  * open as the system's own menus, which can hang past the window's edge (D196).
+ * `administrator_access` is the other: it lets a folder be opened as an administrator, through the
+ * system's own prompt, and has no effect where the system cannot offer that.
  */
-export type ExperimentalSettings = { sftp: boolean, smb: boolean, webdav: boolean, s3: boolean, nativeContextMenus: boolean, };
+export type ExperimentalSettings = { sftp: boolean, smb: boolean, webdav: boolean, s3: boolean, nativeContextMenus: boolean, administratorAccess: boolean, };

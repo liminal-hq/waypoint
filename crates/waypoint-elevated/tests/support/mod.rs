@@ -255,7 +255,7 @@ pub struct GatedLauncher {
 }
 
 impl Launcher for GatedLauncher {
-    fn launch(&self) -> Result<Transport, VfsError> {
+    fn launch(&self, _cancel: &CancelToken) -> Result<Transport, VfsError> {
         let streams = duplex();
         let writer = GatedWriter {
             inner: streams.server_writer,

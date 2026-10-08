@@ -13,6 +13,7 @@
       "name": "@liminal-hq/waypoint",
       "version": "0.0.2",
       "dependencies": {
+        "@liminal-hq/plugin-elevate": "workspace:*",
         "@liminal-hq/plugin-mime-apps": "workspace:*",
         "@liminal-hq/plugin-native-dnd": "workspace:*",
         "@liminal-hq/plugin-os-prefs": "workspace:*",

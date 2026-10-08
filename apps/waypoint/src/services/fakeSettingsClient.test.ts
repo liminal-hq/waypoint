@@ -87,6 +87,7 @@ describe('the milestone 5 sections', () => {
 			webdav: false,
 			s3: false,
 			nativeContextMenus: false,
+			administratorAccess: false,
 		});
 	});
 

@@ -23,6 +23,7 @@
 		"@liminal-hq/plugin-os-prefs": "workspace:*",
 		"@liminal-hq/plugin-thumbnails": "workspace:*",
 		"@liminal-hq/plugin-trash": "workspace:*",
+		"@liminal-hq/plugin-elevate": "workspace:*",
 		"@liminal-hq/plugin-volumes": "workspace:*",
 		"@liminal-hq/plugin-secrets": "workspace:*",
 		"@liminal-hq/plugin-mime-apps": "workspace:*",

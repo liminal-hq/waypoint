@@ -1,4 +1,4 @@
-// The Experimental page: a switch per remote protocol and one for native context menus, each off until it is turned on
+// The Experimental page: a switch per remote protocol, one for native context menus and one for administrator access, each off until it is turned on
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -60,13 +60,20 @@ const ROWS: readonly ProtocolRow[] = [
  * The badge is part of each row's label, so a screen reader hears "SFTP Experimental" for the switch.
  */
 export function ExperimentalPage() {
-	const { settings, errors, changeSettings, protocols } = useSettingsEditor();
+	const { settings, errors, changeSettings, protocols, elevate } = useSettingsEditor();
 	const included = (row: ProtocolRow): boolean =>
 		// Until the build's protocols are read (or when they cannot be) a switch stays usable.
 		protocols === null ||
 		row.schemes.some(
 			(scheme) => protocols.schemes.includes(scheme) || protocols.off.includes(scheme),
 		);
+	// Until the status is read (or when it cannot be) the switch stays usable; Rust registers the
+	// location only where the system can start the helper, so a switch that is on does nothing here.
+	const administratorUnavailable =
+		elevate === null || elevate.available
+			? undefined
+			: // The reason is the system's own sentence, as in the Services panel.
+				(elevate.reason ?? t('settings.experimental.administrator.unavailableNoReason'));
 	return (
 		<SettingsSection description={t('settings.experimental.intro')}>
 			<SettingsGroup title={t('settings.group.protocols')}>
@@ -107,6 +114,26 @@ export function ExperimentalPage() {
 						changeSettings('nativeContextMenus', (s) => ({
 							...s,
 							experimental: { ...s.experimental, nativeContextMenus: value },
+						}))
+					}
+				/>
+			</SettingsGroup>
+			<SettingsGroup title={t('settings.group.administrator')}>
+				<ToggleRow
+					label={
+						<>
+							{t('settings.experimental.administrator.label')}
+							<span className={styles.badge}>{t('settings.experimental.badge')}</span>
+						</>
+					}
+					description={t('settings.experimental.administrator.description')}
+					unavailableReason={administratorUnavailable}
+					error={errors.administratorAccess}
+					checked={settings.experimental.administratorAccess}
+					onChange={(value) =>
+						changeSettings('administratorAccess', (s) => ({
+							...s,
+							experimental: { ...s.experimental, administratorAccess: value },
 						}))
 					}
 				/>

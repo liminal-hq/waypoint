@@ -45,6 +45,19 @@ fn a_helper_with_nothing_open_goes_idle() {
         )
     });
     assert_eq!(rig.launcher.launches(), 1);
+    // The next call says so, and only an explicit connect starts a fresh helper.
+    let path = admin(std::path::Path::new("/"));
+    assert!(matches!(
+        rig.client.stat(&path),
+        Err(VfsError::Disconnected { .. })
+    ));
+    assert_eq!(rig.launcher.launches(), 1);
+    rig.connect();
+    assert_eq!(rig.launcher.launches(), 2);
+    assert_eq!(
+        rig.client.connection_state(&ConnectionKey::elevated()),
+        ConnectionState::Connected
+    );
 }
 
 #[test]

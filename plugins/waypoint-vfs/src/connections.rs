@@ -89,13 +89,14 @@ fn hub(state: &Vfs) -> Result<Arc<ConnectionsHub>, Error> {
     })
 }
 
-/// The login of a server location; `InvalidLocation` for anything else.
+/// The login of a server location, or the elevated helper's for an `admin:` one; `InvalidLocation`
+/// for anything else.
 fn key_of(state: &Vfs, location: &Location) -> Result<ConnectionKey, Error> {
     let invalid = || VfsError::InvalidLocation {
         input: location.uri.clone(),
     };
     let path = VfsPath::from_location(location).map_err(|_| invalid())?;
-    if !matches!(path, VfsPath::Remote(_)) {
+    if !matches!(path, VfsPath::Remote(_) | VfsPath::Elevated(_)) {
         return Err(invalid().into());
     }
     state.remote().for_path(&path)?;
