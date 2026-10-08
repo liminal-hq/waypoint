@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 mod archive_path;
+mod elevated_path;
 mod encoding;
 mod error;
 mod file_path;
@@ -18,6 +19,7 @@ mod vfs_path;
 pub mod windows;
 
 pub use archive_path::{ArchivePath, ARCHIVE_SCHEME};
+pub use elevated_path::{ElevatedPath, ELEVATED_SCHEME};
 pub use error::PathError;
 pub use file_path::{CaseRule, FilePath};
 pub use git_path::{GitPath, GIT_SCHEME};
