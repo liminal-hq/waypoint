@@ -1,0 +1,39 @@
+[package]
+name = "tauri-plugin-elevate"
+version = "0.1.0"
+description = "Tauri plugin that starts a helper program with administrator rights through the system's own prompt (polkit on Linux), and reports whether it can"
+authors = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+repository = { workspace = true }
+build = "build.rs"
+links = "tauri-plugin-elevate"
+keywords = ["tauri", "plugin", "elevation", "polkit", "administrator"]
+categories = ["api-bindings", "os"]
+
+[package.metadata.platforms.support]
+windows = { level = "none", notes = "Not implemented yet: reports elevation unavailable" }
+linux = { level = "full", notes = "Starts the helper through `pkexec`, so the prompt is polkit's own; it is offered only when `pkexec`, the polkit policy and a root-protected helper are all present, and never in a Flatpak or an AppImage" }
+macos = { level = "none", notes = "Reports elevation unavailable" }
+android = { level = "none", notes = "Desktop only" }
+ios = { level = "none", notes = "Desktop only" }
+
+[lib]
+name = "tauri_plugin_elevate"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+ts-rs = "12"
+
+[dev-dependencies]
+tempfile = "3"
+tauri = { workspace = true, features = ["test"] }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }

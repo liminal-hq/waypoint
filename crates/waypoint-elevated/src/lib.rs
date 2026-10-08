@@ -18,6 +18,9 @@ mod sync;
 pub mod testing;
 pub mod wire;
 
+/// The one line the helper writes to its error stream, before it serves anything, once it is running. The program that starts the helper waits for it, because the system's prompt can keep the helper from starting for as long as the person likes. This is a wire contract with the launching plugin, which is configured with the same text and never imports this crate.
+pub const READY_LINE: &str = "waypoint-elevate-helper ready";
+
 pub use client::{ElevatedProvider, Launcher, Transport};
 pub use frame::{read_frame, write_frame, Frame, FrameError, MAX_CHUNK, MAX_FRAME};
 pub use os_name::{WireError, WireOs};

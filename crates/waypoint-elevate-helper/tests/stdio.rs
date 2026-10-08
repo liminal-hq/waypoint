@@ -3,12 +3,12 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use waypoint_elevated::{ElevatedProvider, Launcher, Transport};
+use waypoint_elevated::{ElevatedProvider, Launcher, Transport, READY_LINE};
 use waypoint_path::{ConnectionKey, FilePath, VfsPath};
 use waypoint_protocol::VfsError;
 use waypoint_vfs::{CancelToken, Provider, WriteOptions};
@@ -126,7 +126,30 @@ fn the_helper_serves_over_its_standard_streams() {
         .unwrap()
         .read_to_string(&mut stderr)
         .unwrap();
-    assert!(stderr.is_empty(), "{stderr:?}");
+    assert_eq!(stderr, format!("{READY_LINE}\n"));
+}
+
+#[test]
+fn the_ready_line_is_the_first_thing_and_comes_before_any_request() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_waypoint-elevate-helper"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // Nothing has been sent, so the line can only be the helper's own first act.
+    let mut stderr = BufReader::new(child.stderr.take().unwrap());
+    let mut line = String::new();
+    stderr.read_line(&mut line).unwrap();
+    assert_eq!(line, format!("{READY_LINE}\n"));
+    assert_eq!(READY_LINE, "waypoint-elevate-helper ready");
+    drop(child.stdin.take());
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{:?}", output.status);
+    assert!(output.stdout.is_empty());
+    let mut rest = String::new();
+    stderr.read_to_string(&mut rest).unwrap();
+    assert!(rest.is_empty(), "{rest:?}");
 }
 
 #[test]

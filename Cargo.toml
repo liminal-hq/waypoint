@@ -18,6 +18,7 @@ members = [
   "crates/openssh-config",
   "crates/wayland-toplevel-drag",
   "apps/waypoint/src-tauri",
+  "plugins/elevate",
   "plugins/native-dnd",
   "plugins/os-prefs",
   "plugins/system-appearance",

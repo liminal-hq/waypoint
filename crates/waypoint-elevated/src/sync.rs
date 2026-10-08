@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::sync::{Condvar, Mutex, MutexGuard};
+#[cfg(any(test, feature = "testing"))]
 use std::time::Duration;
 
 /// Locks, recovering the data if another thread panicked while holding the lock: the state behind
