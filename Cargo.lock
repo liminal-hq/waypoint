@@ -9073,6 +9073,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "waypoint-elevate-helper"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "waypoint-elevated",
+ "waypoint-path",
+ "waypoint-protocol",
+ "waypoint-vfs",
+]
+
+[[package]]
+name = "waypoint-elevated"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "waypoint-elevated",
+ "waypoint-path",
+ "waypoint-protocol",
+ "waypoint-vfs",
+]
+
+[[package]]
 name = "waypoint-ops"
 version = "0.1.0"
 dependencies = [

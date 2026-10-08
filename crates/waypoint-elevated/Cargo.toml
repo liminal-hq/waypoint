@@ -1,0 +1,28 @@
+[package]
+name = "waypoint-elevated"
+version = "0.1.0"
+description = "Waypoint's elevated provider: the wire protocol, the helper's serve loop and the client that reaches a privileged helper over a byte stream"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+# The in-memory duplex stream and the loopback launcher, for tests of this crate and of what is
+# built on it.
+testing = []
+
+[dependencies]
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+[dev-dependencies]
+tempfile = "3"
+waypoint-elevated = { path = ".", features = ["testing"] }
+waypoint-vfs = { path = "../waypoint-vfs", features = ["testing"] }

@@ -176,13 +176,14 @@ impl VfsPath {
         }
     }
 
-    /// The login this location belongs to: a server's, or the server holding an archive. `None`
-    /// for anything that needs no connection.
+    /// The login this location belongs to: a server's, the server holding an archive, or the
+    /// elevated helper. `None` for anything that needs no connection.
     pub fn connection_key(&self) -> Option<ConnectionKey> {
         match self {
             VfsPath::Remote(path) => Some(path.connection_key()),
             VfsPath::Archive(path) => path.connection_key(),
-            VfsPath::File(_) | VfsPath::Trash(_) | VfsPath::Git(_) | VfsPath::Elevated(_) => None,
+            VfsPath::Elevated(_) => Some(ConnectionKey::elevated()),
+            VfsPath::File(_) | VfsPath::Trash(_) | VfsPath::Git(_) => None,
         }
     }
 
@@ -332,7 +333,9 @@ mod tests {
         );
         assert_eq!(elevated.parent().unwrap().to_uri(), "admin:///etc");
         assert_eq!(elevated.label(), "a b");
-        assert_eq!(elevated.connection_key(), None);
+        assert_eq!(elevated.connection_key(), Some(ConnectionKey::elevated()));
+        assert_eq!(ConnectionKey::elevated().as_str(), "admin:");
+        assert_eq!(local.connection_key(), None);
         assert_eq!(elevated.elevated().as_ref(), Some(&elevated));
         // Only an ordinary local path can be elevated.
         assert_eq!(VfsPath::parse_input("trash:/").unwrap().elevated(), None);

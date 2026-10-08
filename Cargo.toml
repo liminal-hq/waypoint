@@ -11,6 +11,8 @@ members = [
   "crates/waypoint-provider-smb",
   "crates/waypoint-provider-archive",
   "crates/waypoint-connections",
+  "crates/waypoint-elevated",
+  "crates/waypoint-elevate-helper",
   "crates/waypoint-provider-git",
   "crates/waypoint-provider-webdav",
   "crates/openssh-config",
