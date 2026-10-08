@@ -6,6 +6,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { ContextMenuProps } from '../ContextMenu/ContextMenu';
 import type { MenuItem } from '../ContextMenu/types';
 import { AppMenuButton } from './AppMenuButton';
 
@@ -169,5 +170,43 @@ describe('AppMenuButton', () => {
 		expect(inner).toHaveFocus();
 		fireEvent.keyDown(inner, { key: 'ArrowLeft' });
 		await waitFor(() => expect(screen.getByRole('menuitem', { name: 'File' })).toHaveFocus());
+	});
+
+	describe('with a host that draws the menu', () => {
+		const hosted = vi.fn((props: ContextMenuProps) => (
+			<button type="button" onClick={props.onClose}>
+				hosted menu
+			</button>
+		));
+
+		it('hands a press on the button to the host, with the menu and its position', async () => {
+			hosted.mockClear();
+			const { button } = setup({ renderPointerMenu: hosted });
+			await userEvent.click(button);
+			expect(screen.getByRole('button', { name: 'hosted menu' })).toBeInTheDocument();
+			expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+			expect(hosted).toHaveBeenCalledWith(
+				expect.objectContaining({ items, ariaLabel: 'Waypoint', openedWithKeyboard: false }),
+			);
+		});
+
+		it('closes when the host closes it', async () => {
+			const { button } = setup({ renderPointerMenu: hosted });
+			await userEvent.click(button);
+			await userEvent.click(screen.getByRole('button', { name: 'hosted menu' }));
+			expect(screen.queryByRole('button', { name: 'hosted menu' })).not.toBeInTheDocument();
+			expect(button).toHaveAttribute('aria-expanded', 'false');
+		});
+
+		it('keeps the keyboard openings on the chrome menu, which has the arrow keys and the mnemonics', async () => {
+			hosted.mockClear();
+			setup({ renderPointerMenu: hosted });
+			key({ key: 'F10' });
+			expect(await screen.findByRole('menu')).toBeInTheDocument();
+			key({ key: 'F10' });
+			key({ key: 'f', altKey: true });
+			expect(await screen.findByRole('menuitem', { name: /New Tab/ })).toBeInTheDocument();
+			expect(hosted).not.toHaveBeenCalled();
+		});
 	});
 });

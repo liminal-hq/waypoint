@@ -3,8 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ContextMenu } from '../ContextMenu/ContextMenu';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ContextMenu, type ContextMenuProps } from '../ContextMenu/ContextMenu';
 import type { MenuItem, MenuPosition, SelectableMenuItem } from '../ContextMenu/types';
 import '../tokens.css';
 import styles from './AppMenuButton.module.css';
@@ -29,6 +29,13 @@ export interface AppMenuButtonProps {
 	 * something else (a menu bar) carries the menus. Defaults to true.
 	 */
 	interactive?: boolean;
+	/**
+	 * Draws the menu opened by a press on the button, in place of the chrome's own: how a host
+	 * shows it as the system's menu. A menu opened from the keyboard (F10, Alt, an Alt mnemonic)
+	 * is always the chrome's own, because a system menu cannot take the arrow keys or open on a
+	 * submenu the way this one does.
+	 */
+	renderPointerMenu?: (props: ContextMenuProps) => ReactNode;
 }
 
 export function AppMenuButton({
@@ -39,6 +46,7 @@ export function AppMenuButton({
 	acceleratorKeys = true,
 	mnemonics,
 	interactive = true,
+	renderPointerMenu,
 }: AppMenuButtonProps) {
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	// A press on the button while its menu is up first dismisses the menu (the press is outside it),
@@ -108,6 +116,24 @@ export function AppMenuButton({
 		};
 	}, [acceleratorKeys, interactive, mnemonics, openMenu]);
 
+	const renderMenu = (shown: NonNullable<typeof open>) => {
+		const props: ContextMenuProps = {
+			items,
+			position: shown.position,
+			ariaLabel: label,
+			returnFocusTo: buttonRef.current,
+			openedWithKeyboard: shown.viaKeyboard,
+			...(shown.submenu ? { initialSubmenuId: shown.submenu } : {}),
+			onSelect,
+			onClose: () => setOpen(null),
+		};
+		return renderPointerMenu && !shown.viaKeyboard ? (
+			<Fragment key={shown.serial}>{renderPointerMenu(props)}</Fragment>
+		) : (
+			<ContextMenu key={shown.serial} {...props} />
+		);
+	};
+
 	if (!interactive) {
 		return (
 			<span className={`${styles.button} ${styles.plain}`}>
@@ -147,19 +173,7 @@ export function AppMenuButton({
 				) : null}
 				<span>{label}</span>
 			</button>
-			{open ? (
-				<ContextMenu
-					key={open.serial}
-					items={items}
-					position={open.position}
-					ariaLabel={label}
-					returnFocusTo={buttonRef.current}
-					openedWithKeyboard={open.viaKeyboard}
-					{...(open.submenu ? { initialSubmenuId: open.submenu } : {})}
-					onSelect={onSelect}
-					onClose={() => setOpen(null)}
-				/>
-			) : null}
+			{open ? renderMenu(open) : null}
 		</>
 	);
 }

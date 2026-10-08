@@ -9,6 +9,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
 import { idleActions } from '../commands/commandEnv';
 import { t } from '../i18n/messages';
+import { createFakeNativeMenuClient } from '../menus/fakeNativeMenuClient';
+import { NativeMenuProvider } from '../menus/NativeMenuContext';
+import { createFakeSettingsClient } from '../services/fakeSettingsClient';
+import { DEFAULT_SETTINGS } from '../services/settingsClient';
+import { SettingsProvider, useSettingsReady } from '../settings/SettingsContext';
 import { entry, factsFor } from '../test/commandFacts';
 import { AppMenu } from './AppMenu';
 
@@ -237,5 +242,37 @@ describe('the application menu button', () => {
 		await userEvent.click(screen.getByRole('menuitem', { name: /File/ }));
 		const trash = await screen.findByRole('menuitem', { name: /Move to Trash/ });
 		expect(trash).not.toHaveAttribute('aria-disabled');
+	});
+});
+
+describe('the application menu button with native context menus on', () => {
+	function Gate({ children }: { children: React.ReactNode }) {
+		return useSettingsReady() ? <>{children}</> : null;
+	}
+
+	it('asks the system for the menu on a press, and draws none of its own', async () => {
+		const native = createFakeNativeMenuClient();
+		const settings = createFakeSettingsClient({
+			...DEFAULT_SETTINGS,
+			experimental: { ...DEFAULT_SETTINGS.experimental, nativeContextMenus: true },
+		});
+		const bridge = createCommandBridge({
+			facts: factsFor({ selected: 1 }),
+			actions: idleActions(),
+		});
+		render(
+			<SettingsProvider client={settings}>
+				<NativeMenuProvider client={native} platform="windows" rasterise={async () => null}>
+					<CommandBridgeProvider value={bridge}>
+						<Gate>
+							<AppMenu />
+						</Gate>
+					</CommandBridgeProvider>
+				</NativeMenuProvider>
+			</SettingsProvider>,
+		);
+		await userEvent.click(await screen.findByRole('button', { name: t('app.name') }));
+		await waitFor(() => expect(native.calls).toHaveLength(1));
+		expect(screen.queryByRole('menu')).toBeNull();
 	});
 });
