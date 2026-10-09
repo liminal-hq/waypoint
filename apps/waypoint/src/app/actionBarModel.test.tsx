@@ -41,6 +41,26 @@ describe('the buttons', () => {
 		]);
 	});
 
+	it('keeps a Delete button in an elevated folder, where it is the permanent one', () => {
+		const elevated = items(factsFor({ selected: 1, elevated: true }));
+		expect(ids(elevated)).toEqual([
+			'new',
+			'cut',
+			'copy',
+			'paste',
+			'rename',
+			'deletePermanently',
+			'sort',
+			'view',
+			'undo',
+			'redo',
+		]);
+		const remove = byId(elevated, 'deletePermanently');
+		expect(remove.label).toBe(t('actionBar.delete'));
+		expect(remove.command).toBe('deletePermanently');
+		expect(remove.tooltip).toContain(t('menu.deletePermanently'));
+	});
+
 	it('draws a rule between the groups and nowhere else', () => {
 		const list = items(factsFor({ selected: 1 }));
 		const rules = list.flatMap((item, index) => (dividerBefore(list, index) ? [item.id] : []));

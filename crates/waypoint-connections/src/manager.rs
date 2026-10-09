@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use waypoint_path::{ConnectionKey, VfsPath};
+use waypoint_path::{ConnectionKey, VfsPath, ELEVATED_SCHEME};
 use waypoint_protocol::{ConnectionState, VfsError};
 use waypoint_vfs::{CancelToken, ConnectAnswer, Provider, ProviderRegistry};
 
@@ -131,6 +131,10 @@ impl ConnectionManager {
 
     /// The provider of a login, or `Unsupported` when no provider serves its scheme.
     pub fn provider(&self, key: &ConnectionKey) -> Result<Arc<dyn Provider>, VfsError> {
+        // The elevated helper's one connection is not a server's root, and has a scheme of its own.
+        if *key == ConnectionKey::elevated() {
+            return self.registry.for_scheme(ELEVATED_SCHEME);
+        }
         let root = root_of(key.as_str()).ok_or_else(|| VfsError::InvalidLocation {
             input: key.as_str().to_owned(),
         })?;
@@ -260,7 +264,10 @@ impl ConnectionManager {
         let keys: Vec<ConnectionKey> = self
             .lock()
             .keys()
-            .filter(|key| key.as_str().starts_with(&prefix))
+            .filter(|key| {
+                key.as_str().starts_with(&prefix)
+                    || (scheme == ELEVATED_SCHEME && **key == ConnectionKey::elevated())
+            })
             .cloned()
             .collect();
         for key in keys {
@@ -763,5 +770,79 @@ mod tests {
             fx.manager.connect(&dav, None, false, &CancelToken::new()),
             Err(VfsError::Unsupported { .. })
         ));
+    }
+
+    /// A launcher that waits for the cancel of the call that connects, as the system's prompt does.
+    struct Prompt {
+        waiting: Arc<std::sync::atomic::AtomicBool>,
+    }
+
+    impl waypoint_elevated::Launcher for Prompt {
+        fn launch(&self, cancel: &CancelToken) -> Result<waypoint_elevated::Transport, VfsError> {
+            self.waiting.store(true, Ordering::SeqCst);
+            while !cancel.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(VfsError::Cancelled)
+        }
+    }
+
+    fn elevated_manager(launcher: Box<dyn waypoint_elevated::Launcher>) -> Arc<ConnectionManager> {
+        let registry = ProviderRegistry::new();
+        registry.register(Arc::new(waypoint_elevated::ElevatedProvider::new(launcher)));
+        let credentials = Arc::new(Credentials::new(Arc::new(MemorySecrets::new())));
+        Arc::new(ConnectionManager::new(Arc::new(registry), credentials))
+    }
+
+    #[test]
+    fn the_elevated_login_connects_and_disconnects_through_its_provider() {
+        let launcher = waypoint_elevated::testing::loopback::LoopbackLauncher::new(
+            Arc::new(waypoint_vfs::LocalProvider::new()),
+            waypoint_elevated::ServeConfig::default(),
+        );
+        let manager = elevated_manager(Box::new(launcher.clone()));
+        let key = ConnectionKey::elevated();
+        assert_eq!(manager.state(&key), ConnectionState::Idle);
+        manager
+            .connect(&key, None, false, &CancelToken::new())
+            .unwrap();
+        assert_eq!(manager.state(&key), ConnectionState::Connected);
+        assert_eq!(launcher.launches(), 1);
+        manager.disconnect(&key).unwrap();
+        assert_eq!(manager.state(&key), ConnectionState::Idle);
+        // Turning the switch off closes it, and refuses new connections as a protocol that is off.
+        manager
+            .connect(&key, None, false, &CancelToken::new())
+            .unwrap();
+        manager.close_scheme(ELEVATED_SCHEME);
+        assert_eq!(manager.state(&key), ConnectionState::Idle);
+        manager.registry().turn_off(ELEVATED_SCHEME);
+        assert!(matches!(
+            manager.connect(&key, None, false, &CancelToken::new()),
+            Err(VfsError::ProtocolOff { scheme }) if scheme == "admin"
+        ));
+    }
+
+    #[test]
+    fn the_cancel_of_a_connect_reaches_the_elevated_launcher() {
+        let waiting = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let manager = elevated_manager(Box::new(Prompt {
+            waiting: waiting.clone(),
+        }));
+        let key = ConnectionKey::elevated();
+        let cancel = CancelToken::new();
+        let result = std::thread::scope(|scope| {
+            let call = scope.spawn(|| manager.connect(&key, None, false, &cancel));
+            let started = Instant::now();
+            while !waiting.load(Ordering::SeqCst) {
+                assert!(started.elapsed() < Duration::from_secs(5), "never launched");
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            assert_eq!(manager.state(&key), ConnectionState::Connecting);
+            cancel.cancel();
+            call.join().unwrap()
+        });
+        assert!(matches!(result, Err(VfsError::Cancelled)));
+        assert_eq!(manager.state(&key), ConnectionState::Idle);
     }
 }

@@ -1109,6 +1109,177 @@ mod connections {
     }
 
     #[test]
+    fn the_admin_location_connects_reads_its_state_and_disconnects_through_the_login_commands() {
+        let launcher = waypoint_elevated::testing::loopback::LoopbackLauncher::new(
+            Arc::new(waypoint_vfs::LocalProvider::new()),
+            waypoint_elevated::ServeConfig::default(),
+        );
+        let app = mock_builder()
+            .plugin(init_with(Options {
+                providers: vec![Arc::new(waypoint_elevated::ElevatedProvider::new(
+                    Box::new(launcher.clone()),
+                ))],
+                credentials: None,
+                storage: None,
+                suggestions: None,
+            }))
+            .build(mock_context(noop_assets()))
+            .expect("the mock app builds");
+        let admin = waypoint_path::VfsPath::File(FilePath::from_path(Path::new("/")).unwrap())
+            .elevated()
+            .unwrap()
+            .to_location();
+        let state = || {
+            tauri::async_runtime::block_on(cmd::connection_state(app.state::<Vfs>(), admin.clone()))
+                .unwrap()
+                .unwrap()
+        };
+        assert_eq!(state().key, "admin:");
+        assert_eq!(state().state, ConnectionState::Idle);
+        let remembered = tauri::async_runtime::block_on(cmd::connect(
+            app.state::<Vfs>(),
+            admin.clone(),
+            None,
+            None,
+        ))
+        .unwrap();
+        assert_eq!(remembered, Remembered::No);
+        assert_eq!(launcher.launches(), 1);
+        assert_eq!(state().state, ConnectionState::Connected);
+        tauri::async_runtime::block_on(cmd::disconnect(app.state::<Vfs>(), admin.clone())).unwrap();
+        assert_eq!(state().state, ConnectionState::Idle);
+        // A local folder is still not a login.
+        let home = location(Path::new("/"));
+        assert!(
+            tauri::async_runtime::block_on(cmd::connect(app.state::<Vfs>(), home, None, None))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn a_file_of_an_elevated_listing_is_not_handed_to_another_program() {
+        let launcher = waypoint_elevated::testing::loopback::LoopbackLauncher::new(
+            Arc::new(waypoint_vfs::LocalProvider::new()),
+            waypoint_elevated::ServeConfig::default(),
+        );
+        let app = mock_builder()
+            .plugin(init_with(Options {
+                providers: vec![Arc::new(waypoint_elevated::ElevatedProvider::new(
+                    Box::new(launcher),
+                ))],
+                credentials: None,
+                storage: None,
+                suggestions: None,
+            }))
+            .build(mock_context(noop_assets()))
+            .expect("the mock app builds");
+        WebviewWindowBuilder::new(&app, "main", WebviewUrl::App("index.html".into()))
+            .build()
+            .expect("the mock window opens");
+        let dir = folder_with(&["a.txt"]);
+        let admin = waypoint_path::VfsPath::File(FilePath::from_path(dir.path()).unwrap())
+            .elevated()
+            .unwrap()
+            .to_location();
+        tauri::async_runtime::block_on(cmd::connect(app.state::<Vfs>(), admin.clone(), None, None))
+            .unwrap();
+        let snapshot = open(&app, "main", admin).unwrap();
+        // The scan runs in the background: wait for the listing to hold its row.
+        let started = std::time::Instant::now();
+        let entries = loop {
+            let found = range(&app, "main", snapshot.handle, 0, 10).unwrap();
+            if !found.is_empty() {
+                break found;
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "rows never came"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let refused = tauri::async_runtime::block_on(commands::open_entry(
+            window(&app, "main"),
+            app.state::<Vfs>(),
+            snapshot.handle,
+            entries[0].id,
+        ))
+        .unwrap_err();
+        assert!(
+            matches!(refused, Error::Vfs(VfsError::Unsupported { what }) if what.contains("elevated")),
+        );
+    }
+
+    /// A launcher that waits on the person, as the system's prompt does, until it is cancelled.
+    struct WaitingLauncher {
+        waiting: std::sync::mpsc::Sender<()>,
+    }
+
+    impl waypoint_elevated::Launcher for WaitingLauncher {
+        fn launch(
+            &self,
+            cancel: &waypoint_vfs::CancelToken,
+        ) -> Result<waypoint_elevated::Transport, waypoint_protocol::VfsError> {
+            let _ = self.waiting.send(());
+            while !cancel.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(waypoint_protocol::VfsError::Cancelled)
+        }
+    }
+
+    #[test]
+    fn cancel_connect_stops_the_connect_that_is_waiting_on_the_prompt() {
+        let (waiting, prompt_is_up) = channel();
+        let app = mock_builder()
+            .plugin(init_with(Options {
+                providers: vec![Arc::new(waypoint_elevated::ElevatedProvider::new(
+                    Box::new(WaitingLauncher { waiting }),
+                ))],
+                credentials: None,
+                storage: None,
+                suggestions: None,
+            }))
+            .build(mock_context(noop_assets()))
+            .expect("the mock app builds");
+        let admin = waypoint_path::VfsPath::File(FilePath::from_path(Path::new("/")).unwrap())
+            .elevated()
+            .unwrap()
+            .to_location();
+        // Cancelling with nothing in flight is not an error.
+        tauri::async_runtime::block_on(cmd::cancel_connect(app.state::<Vfs>(), admin.clone()))
+            .unwrap();
+        let handle = app.handle().clone();
+        let location = admin.clone();
+        let connecting = std::thread::spawn(move || {
+            tauri::async_runtime::block_on(cmd::connect(
+                handle.state::<Vfs>(),
+                location,
+                None,
+                None,
+            ))
+        });
+        prompt_is_up
+            .recv_timeout(Duration::from_secs(10))
+            .expect("the prompt came up");
+        tauri::async_runtime::block_on(cmd::cancel_connect(app.state::<Vfs>(), admin.clone()))
+            .unwrap();
+        let result = connecting.join().expect("the connect thread ends");
+        assert!(
+            matches!(result, Err(Error::Vfs(VfsError::Cancelled))),
+            "{result:?}"
+        );
+        assert!(
+            app.state::<Vfs>().connecting.lock().unwrap().is_empty(),
+            "a finished connect leaves nothing in flight"
+        );
+        let state =
+            tauri::async_runtime::block_on(cmd::connection_state(app.state::<Vfs>(), admin))
+                .unwrap()
+                .unwrap();
+        assert_eq!(state.state, ConnectionState::Idle);
+    }
+
+    #[test]
     fn refresh_listing_reads_a_server_folder_again_and_leaves_a_fresh_one_alone() {
         let server = FakeRemoteProvider::new(RemoteScheme::Sftp, CaseRule::Sensitive);
         let root = server.root("me@nas.lan");

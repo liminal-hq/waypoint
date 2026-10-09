@@ -211,6 +211,12 @@ impl ConnectionKey {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// The one connection to the elevated helper: there is a single helper per app, whatever the
+    /// path, so every `admin:` location shares this key.
+    pub fn elevated() -> Self {
+        Self(format!("{}:", crate::ELEVATED_SCHEME))
+    }
 }
 
 impl fmt::Display for ConnectionKey {

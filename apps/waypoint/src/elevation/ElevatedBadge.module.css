@@ -1,0 +1,33 @@
+.badge {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
+	min-block-size: 24px;
+	padding-inline: 8px;
+	border: 1px solid var(--wp-elevated);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--wp-elevated);
+	font: inherit;
+	font-size: calc(12px * var(--wp-text-scale));
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.badge:hover {
+	background: color-mix(in srgb, var(--wp-elevated) 14%, transparent);
+}
+
+.badge:focus-visible {
+	outline: 2px solid var(--wp-focus-ring);
+	outline-offset: 1px;
+}
+
+.icon {
+	flex: none;
+}
+
+.word {
+	min-inline-size: 0;
+}

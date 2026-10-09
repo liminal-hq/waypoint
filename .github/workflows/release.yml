@@ -273,10 +273,35 @@ jobs:
           RELEASE_VERSION: ${{ needs.prepare-release.outputs.release_version }}
         run: test "$(bash scripts/check-release-versions.sh --current-version)" = "${RELEASE_VERSION}"
 
+      # The elevated helper goes in these two packages and in no other (the AppImage and the portable
+      # zip report elevation unavailable). It is built with the profile above and staged at a fixed
+      # path that `tauri.package.linux.json` names, a file only this build merges (§4).
+      - name: Stage the elevated helper
+        run: bash scripts/stage-elevate-helper.sh
+
       # Exactly these two bundles (`bundle.targets` is `all`). The default features and a release
       # profile: the MCP bridge is under `debug_assertions` and so is not built.
       - name: Build the deb and the rpm
-        run: bun run --cwd apps/waypoint tauri build --bundles deb,rpm
+        run: bun run --cwd apps/waypoint tauri build --bundles deb,rpm --config src-tauri/tauri.package.linux.json
+
+      # The helper must be in both packages, at its fixed path, root-owned and executable.
+      - name: Check the helper in the packages
+        run: |
+          set -euo pipefail
+
+          helper='/usr/libexec/waypoint/waypoint-elevate-helper'
+          policy='/usr/share/polkit-1/actions/ca.liminalhq.waypoint.admin.policy'
+          deb="$(find target/release/bundle/deb -maxdepth 1 -type f -name '*.deb')"
+          rpm="$(find target/release/bundle/rpm -maxdepth 1 -type f -name '*.rpm')"
+          # Tauri's deb lists paths without a leading `./` and owners as `0/0`; accept either spelling.
+          dpkg-deb -c "${deb}" | tee deb-contents.txt
+          grep -E "^-rwxr-xr-x (root/root|0/0) .* (\./)?${helper#/}\$" deb-contents.txt
+          grep -E "^-rw-r--r-- (root/root|0/0) .* (\./)?${policy#/}\$" deb-contents.txt
+          if command -v rpm >/dev/null 2>&1; then
+            rpm -qlvp "${rpm}" | tee rpm-contents.txt
+            grep -E "^-rwxr-xr-x +[0-9]+ root +root .* ${helper}\$" rpm-contents.txt
+            grep -E "^-rw-r--r-- +[0-9]+ root +root .* ${policy}\$" rpm-contents.txt
+          fi
 
       # The deb is staged on its own: the shared AppImage workflow packages the one `.deb` in its artefact.
       - name: Stage the bundles
@@ -319,6 +344,7 @@ jobs:
             echo
             echo '```'
             cat staged/deb/build.sha256 staged/rpm/build.sha256 2>/dev/null || true
+            grep -h -e 'waypoint-elevate-helper' -e 'polkit-1' deb-contents.txt rpm-contents.txt 2>/dev/null || true
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -386,8 +412,17 @@ jobs:
 
       # Only the installer is bundled (`bundle.targets` is `all`); the build leaves the same
       # `waypoint.exe` in `target/release`, which the portable zip carries.
+      #
+      # The installer carries the elevated helper beside `waypoint.exe` and lets the person choose a
+      # per-user or an all-users install (the all-users one, under Program Files, is the only place
+      # the plugin offers elevation from); both come from `tauri.package.windows.json`, a file only
+      # this build merges (§4). The helper is staged at
+      # the fixed path that file names. The zip below packs only the exe, so it has no helper.
+      - name: Stage the elevated helper
+        run: bash scripts/stage-elevate-helper.sh
+
       - name: Build the installer
-        run: bun run --cwd apps/waypoint tauri build --bundles nsis
+        run: bun run --cwd apps/waypoint tauri build --bundles nsis --config src-tauri/tauri.package.windows.json
 
       - name: Stage the installer and the portable zip
         run: |

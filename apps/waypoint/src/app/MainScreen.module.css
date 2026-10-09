@@ -17,3 +17,21 @@
 	margin: 24px;
 	color: var(--wp-text-secondary);
 }
+
+/*
+ * Administrator Mode: a frame drawn over the window's edge, above its regions, so it shows when the
+ * window is maximised too. The badge and the word "Administrator" say the same in text; the colour is never the only sign.
+ */
+.elevated {
+	position: relative;
+}
+
+.elevated::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 40;
+	border: 3px solid var(--wp-elevated);
+	border-radius: inherit;
+	pointer-events: none;
+}

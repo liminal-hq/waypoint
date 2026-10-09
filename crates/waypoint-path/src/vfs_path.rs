@@ -1,5 +1,5 @@
 // The scheme-shaped path: a location in any provider, local, in the Trash, on a server, inside an
-// archive or in a Git revision.
+// archive, in a Git revision or seen through the elevated helper.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,6 +9,7 @@ use std::ffi::OsString;
 use waypoint_protocol::Location;
 
 use crate::archive_path::{ArchivePath, ARCHIVE_SCHEME};
+use crate::elevated_path::{ElevatedPath, ELEVATED_SCHEME};
 use crate::git_path::{GitPath, GIT_SCHEME};
 use crate::remote_path::{ConnectionKey, RemotePath, RemoteScheme};
 use crate::trash_path::{TrashPath, TRASH_SCHEME};
@@ -26,6 +27,8 @@ pub enum VfsPath {
     Archive(ArchivePath),
     /// A path in a revision of a local Git repository.
     Git(GitPath),
+    /// A local path read and changed as the administrator, through the elevated helper.
+    Elevated(ElevatedPath),
 }
 
 /// The scheme of `text` when it is written `scheme://…`. A Windows drive letter (`C:\a`) is a
@@ -49,6 +52,7 @@ impl VfsPath {
             VfsPath::Remote(path) => path.scheme().as_str(),
             VfsPath::Archive(_) => ARCHIVE_SCHEME,
             VfsPath::Git(_) => GIT_SCHEME,
+            VfsPath::Elevated(_) => ELEVATED_SCHEME,
         }
     }
 
@@ -62,6 +66,9 @@ impl VfsPath {
         }
         if GitPath::is_git_uri(uri) {
             return GitPath::from_uri(uri).map(VfsPath::Git);
+        }
+        if ElevatedPath::is_elevated_uri(uri) {
+            return ElevatedPath::from_uri(uri).map(VfsPath::Elevated);
         }
         if hierarchical_scheme(uri).is_some_and(|scheme| RemoteScheme::from_name(scheme).is_some())
         {
@@ -93,6 +100,9 @@ impl VfsPath {
         if GitPath::is_git_uri(text) {
             return GitPath::parse(text, true).map(|path| (VfsPath::Git(path), false));
         }
+        if ElevatedPath::is_elevated_uri(text) {
+            return Self::from_uri(text).map(|path| (path, false));
+        }
         match hierarchical_scheme(text) {
             Some(scheme) if RemoteScheme::from_name(scheme).is_some() => {
                 RemotePath::parse(text, true)
@@ -115,6 +125,7 @@ impl VfsPath {
             VfsPath::Remote(path) => path.join(child).map(VfsPath::Remote),
             VfsPath::Archive(path) => path.join(child).map(VfsPath::Archive),
             VfsPath::Git(path) => path.join(child).map(VfsPath::Git),
+            VfsPath::Elevated(path) => path.join(child).map(VfsPath::Elevated),
         }
     }
 
@@ -133,6 +144,7 @@ impl VfsPath {
                 Some(parent) => Some(VfsPath::Git(parent)),
                 None => Some(VfsPath::File(path.repo().clone())),
             },
+            VfsPath::Elevated(path) => path.parent().map(VfsPath::Elevated),
         }
     }
 
@@ -145,6 +157,7 @@ impl VfsPath {
             VfsPath::Remote(path) => path.file_name(),
             VfsPath::Archive(path) => path.file_name(),
             VfsPath::Git(path) => path.file_name(),
+            VfsPath::Elevated(path) => path.file_name(),
         }
     }
 
@@ -159,15 +172,17 @@ impl VfsPath {
             VfsPath::Remote(path) => path.root_label(),
             VfsPath::Archive(path) => path.root_label(),
             VfsPath::Git(path) => path.root_label(),
+            VfsPath::Elevated(path) => path.display(),
         }
     }
 
-    /// The login this location belongs to: a server's, or the server holding an archive. `None`
-    /// for anything that needs no connection.
+    /// The login this location belongs to: a server's, the server holding an archive, or the
+    /// elevated helper. `None` for anything that needs no connection.
     pub fn connection_key(&self) -> Option<ConnectionKey> {
         match self {
             VfsPath::Remote(path) => Some(path.connection_key()),
             VfsPath::Archive(path) => path.connection_key(),
+            VfsPath::Elevated(_) => Some(ConnectionKey::elevated()),
             VfsPath::File(_) | VfsPath::Trash(_) | VfsPath::Git(_) => None,
         }
     }
@@ -179,6 +194,7 @@ impl VfsPath {
             VfsPath::Remote(path) => path.display(),
             VfsPath::Archive(path) => path.display(),
             VfsPath::Git(path) => path.display(),
+            VfsPath::Elevated(path) => path.display(),
         }
     }
 
@@ -189,6 +205,26 @@ impl VfsPath {
             VfsPath::Remote(path) => path.to_uri(),
             VfsPath::Archive(path) => path.to_uri(),
             VfsPath::Git(path) => path.to_uri(),
+            VfsPath::Elevated(path) => path.to_uri(),
+        }
+    }
+
+    /// The same local path reached through the elevated helper. `None` for a path that is not an
+    /// ordinary local one (the Trash, a server, an archive and a revision are not elevated).
+    pub fn elevated(&self) -> Option<Self> {
+        match self {
+            VfsPath::File(path) => Some(VfsPath::Elevated(ElevatedPath::new(path.clone()))),
+            VfsPath::Elevated(_) => Some(self.clone()),
+            _ => None,
+        }
+    }
+
+    /// The same local path as an ordinary one: what leaving elevation navigates to. A path that
+    /// is not elevated is returned as it is.
+    pub fn unelevated(&self) -> Self {
+        match self {
+            VfsPath::Elevated(path) => VfsPath::File(path.file().clone()),
+            other => other.clone(),
         }
     }
 
@@ -273,12 +309,37 @@ mod tests {
             ("s3://bucket/k", "s3"),
             ("archive:file:///a.zip!/b", "archive"),
             ("git+file:///r!/src?rev=main", "git+file"),
+            ("admin:///etc/a%20b", "admin"),
         ] {
             let path = VfsPath::from_uri(uri).unwrap();
             assert_eq!(path.scheme(), scheme, "{uri}");
             assert_eq!(path.to_uri(), uri);
             assert_eq!(VfsPath::from_location(&path.to_location()).unwrap(), path);
         }
+    }
+
+    #[test]
+    fn an_elevated_path_is_the_local_one_seen_through_the_helper() {
+        let local = VfsPath::parse_input("/etc/a b").unwrap();
+        let elevated = local.elevated().unwrap();
+        assert_eq!(elevated.scheme(), "admin");
+        assert_eq!(elevated.to_uri(), "admin:///etc/a%20b");
+        assert_eq!(elevated.display(), "/etc/a b");
+        assert_eq!(elevated.unelevated(), local);
+        assert_eq!(local.unelevated(), local);
+        assert_eq!(
+            VfsPath::parse_input("admin:///etc").unwrap().to_uri(),
+            "admin:///etc"
+        );
+        assert_eq!(elevated.parent().unwrap().to_uri(), "admin:///etc");
+        assert_eq!(elevated.label(), "a b");
+        assert_eq!(elevated.connection_key(), Some(ConnectionKey::elevated()));
+        assert_eq!(ConnectionKey::elevated().as_str(), "admin:");
+        assert_eq!(local.connection_key(), None);
+        assert_eq!(elevated.elevated().as_ref(), Some(&elevated));
+        // Only an ordinary local path can be elevated.
+        assert_eq!(VfsPath::parse_input("trash:/").unwrap().elevated(), None);
+        assert_eq!(VfsPath::from_uri("sftp://h/a").unwrap().elevated(), None);
     }
 
     #[test]

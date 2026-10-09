@@ -130,6 +130,14 @@ export const PinIcon = (props: IconProps) => (
 	</Glyph>
 );
 
+/** A shield with a tick: Administrator mode, on a tab and in the title bar (always beside the word, never alone). */
+export const ShieldIcon = (props: IconProps) => (
+	<Glyph {...props}>
+		<path data-fill d="M8 1.8l5 1.8v4.2c0 3-2.1 5-5 6.4-2.9-1.4-5-3.4-5-6.4V3.6z" />
+		<path d="M5.8 8l1.6 1.6 3-3.2" />
+	</Glyph>
+);
+
 /** The app logo beside the app menu's name: the icon's dark tile, folder outline and waypoint ring, in the logo's own colours (the same drawing as `src-tauri/icons/source/waypoint.svg`). */
 export function AppMarkIcon({ width = 16, height = 16, ...rest }: IconProps) {
 	const gradient = useId();

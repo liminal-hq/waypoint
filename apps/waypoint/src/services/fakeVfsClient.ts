@@ -3,6 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import {
+	elevatedLocation,
+	isElevatedLocation,
+	unelevatedLocation,
+} from '../elevation/elevatedLocation';
 import type { Breadcrumb } from '@liminal-hq/waypoint-protocol/generated/Breadcrumb';
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { EntryId } from '@liminal-hq/waypoint-protocol/generated/EntryId';
@@ -623,6 +628,11 @@ export class FakeVfsClient implements VfsClient {
 		if (!entry) throw { kind: 'notFound', location: listing.location } satisfies VfsError;
 		if (this.trashes.has(listing.location.uri)) {
 			return { display: `Trash/item-${id}`, uri: `trash:/item-${id}` };
+		}
+		// An elevated folder's entries are elevated too: the same path in the same scheme.
+		if (isElevatedLocation(listing.location)) {
+			const folder = unelevatedLocation(listing.location);
+			return elevatedLocation(fileLocation(joinPath(pathOf(folder), entry.name)));
 		}
 		return fileLocation(joinPath(pathOf(listing.location), entry.name));
 	}

@@ -13,6 +13,8 @@
 // built here but registered only while its switch is on, and `Gate` registers and turns off
 // providers as the settings change, with no restart. Adding another protocol is one more entry in
 // `compose`'s gate and, when its connections have tuning of their own, one more observer in `wire`.
+// The `admin` scheme of Open as Administrator is gated the same way by its own switch, and
+// registered only where the system can also start the helper (`elevate`).
 
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
@@ -159,6 +161,8 @@ pub enum Protocol {
     WebDav,
     #[allow(dead_code)]
     S3,
+    /// The elevated helper's `admin` scheme: not a server, but gated by its switch in the same way.
+    Administrator,
 }
 
 impl Protocol {
@@ -169,6 +173,7 @@ impl Protocol {
             Protocol::Smb => settings.smb,
             Protocol::WebDav => settings.webdav,
             Protocol::S3 => settings.s3,
+            Protocol::Administrator => settings.administrator_access,
         }
     }
 }
@@ -275,6 +280,14 @@ pub fn compose(archives: &crate::archives::Archives) -> Composed {
         gate.add(Protocol::S3, vec![Arc::new(s3.provider.clone())]);
         s3
     };
+    // Open as Administrator: the provider is built here and registered while its switch is on and
+    // the system can start the helper. It connects only when asked, and starts nothing until then.
+    gate.add(
+        Protocol::Administrator,
+        vec![Arc::new(waypoint_elevated::ElevatedProvider::new(
+            Box::new(crate::elevate::ElevateLauncher::new(app.clone())),
+        ))],
+    );
     // A revision of a local repository browses read-only like any other location (A85).
     #[cfg(feature = "git")]
     providers.push(Arc::new(waypoint_provider_git::GitProvider::new()));
@@ -334,7 +347,13 @@ impl Composed {
         let apply = {
             let (app, registry) = (app.clone(), registry.clone());
             move |settings: &ExperimentalSettings| {
-                let changed = gate.apply(&registry, settings, &|scheme| {
+                // A switch that is on does nothing where the system cannot start the helper.
+                let settings = ExperimentalSettings {
+                    administrator_access: settings.administrator_access
+                        && crate::elevate::available(&app),
+                    ..*settings
+                };
+                let changed = gate.apply(&registry, &settings, &|scheme| {
                     if let Some(manager) = &manager {
                         manager.close_scheme(scheme);
                     }
@@ -867,6 +886,55 @@ mod tests {
         assert_eq!(*closed.lock().unwrap(), ["dav", "davs"]);
         assert_eq!(registry.schemes(), ["sftp"]);
         assert!(registry.is_off("dav") && registry.is_off("davs"));
+    }
+
+    fn administrator_gate() -> Gate {
+        let launcher = waypoint_elevated::testing::loopback::LoopbackLauncher::new(
+            Arc::new(waypoint_vfs::LocalProvider::new()),
+            waypoint_elevated::ServeConfig::default(),
+        );
+        let mut gate = Gate::default();
+        gate.add(
+            Protocol::Administrator,
+            vec![Arc::new(waypoint_elevated::ElevatedProvider::new(
+                Box::new(launcher),
+            ))],
+        );
+        gate
+    }
+
+    #[test]
+    fn administrator_access_is_off_until_its_switch_is_on_and_fails_as_a_protocol_that_is_off() {
+        let (gate, registry) = (administrator_gate(), ProviderRegistry::new());
+        assert!(gate.apply(&registry, &ExperimentalSettings::default(), &|_| {}));
+        assert!(registry.schemes().is_empty());
+        assert_eq!(registry.off_schemes(), ["admin"]);
+        let admin = waypoint_path::VfsPath::File(
+            waypoint_path::FilePath::from_path(std::env::temp_dir()).unwrap(),
+        )
+        .elevated()
+        .unwrap();
+        assert!(matches!(
+            registry.for_path(&admin),
+            Err(waypoint_protocol::VfsError::ProtocolOff { scheme }) if scheme == "admin"
+        ));
+        let on = ExperimentalSettings {
+            administrator_access: true,
+            ..ExperimentalSettings::default()
+        };
+        assert!(gate.apply(&registry, &on, &|_| {}));
+        assert_eq!(registry.schemes(), ["admin"]);
+        assert!(registry.for_path(&admin).is_ok());
+        // Turning it off ends its connection first, while the provider is still registered.
+        let closed = Mutex::new(Vec::new());
+        assert!(
+            gate.apply(&registry, &ExperimentalSettings::default(), &|scheme| {
+                assert!(registry.serves(scheme));
+                closed.lock().unwrap().push(scheme.to_owned());
+            })
+        );
+        assert_eq!(*closed.lock().unwrap(), ["admin"]);
+        assert!(registry.for_path(&admin).is_err());
     }
 
     #[cfg(feature = "sftp")]

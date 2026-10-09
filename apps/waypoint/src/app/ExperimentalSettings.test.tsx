@@ -1,4 +1,4 @@
-// Verifies the Experimental page: one switch per remote protocol, each off by default and independent, with its badge, the build's missing protocols dimmed, and how a link opens the page
+// Verifies the Experimental page: one switch per remote protocol, native menus and administrator access, each off by default and independent, with its badge, what the build or system lacks dimmed, and how a link opens the page
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,6 +13,7 @@ import { createFakeIntegrationsClient } from '../services/fakeIntegrationsClient
 import { createFakeOpsClient } from '../services/fakeOpsClient';
 import { createFakeSettingsClient, type FakeSettings } from '../services/fakeSettingsClient';
 import { DEFAULT_SETTINGS, type Settings } from '../services/settingsClient';
+import type { PluginStatus as ElevateStatus } from '@liminal-hq/plugin-elevate';
 import type { ProtocolSupport } from '../settings/SettingsEditor';
 import { SettingsScreen } from './SettingsScreen';
 
@@ -50,10 +51,32 @@ const BUILD: ProtocolSupport = { schemes: [], off: ['sftp', 'smb', 'dav', 'davs'
 /** A build without the S3 provider (its Cargo feature left out). */
 const BUILD_WITHOUT_S3: ProtocolSupport = { schemes: [], off: ['sftp', 'smb', 'dav', 'davs'] };
 
+/** The elevate plugin's status where the helper is installed and polkit can start it. */
+const ELEVATE_AVAILABLE: ElevateStatus = {
+	available: true,
+	reason: null,
+	flavour: 'polkit',
+	features: [{ name: 'elevate', available: true, reason: null }],
+};
+/** Where it cannot: an AppImage, or a build that is not installed. */
+const ELEVATE_UNAVAILABLE: ElevateStatus = {
+	available: false,
+	reason: 'The helper is not installed in a protected folder',
+	flavour: 'polkit',
+	features: [
+		{
+			name: 'elevate',
+			available: false,
+			reason: 'The helper is not installed in a protected folder',
+		},
+	],
+};
+
 async function open(
 	options: {
 		initial?: Settings;
 		protocols?: () => Promise<ProtocolSupport>;
+		elevate?: () => Promise<ElevateStatus>;
 		viaLink?: boolean;
 	} = {},
 ): Promise<{ settings: FakeSettings }> {
@@ -67,6 +90,7 @@ async function open(
 				integrations={createFakeIntegrationsClient()}
 				fileManager={createFakeDefaultFileManagerClient()}
 				protocolSupport={options.protocols ?? (() => Promise.resolve(BUILD))}
+				elevateStatus={options.elevate ?? (() => Promise.resolve(ELEVATE_AVAILABLE))}
 				{...(options.viaLink ? { initialSection: 'experimental' } : {})}
 			/>
 		</WindowChromeProvider>,
@@ -95,7 +119,7 @@ describe('the Experimental page', () => {
 		const switches = (await screen.findAllByRole('switch')).map((s) =>
 			s.getAttribute('aria-checked'),
 		);
-		expect(switches).toEqual(['false', 'false', 'false', 'false', 'false']);
+		expect(switches).toEqual(['false', 'false', 'false', 'false', 'false', 'false']);
 		for (const name of ['SFTP', 'SMB', 'WebDAV', 'S3']) {
 			expect(screen.getByRole('switch', { name: `${name} Experimental` })).toBeInTheDocument();
 		}
@@ -115,6 +139,7 @@ describe('the Experimental page', () => {
 			webdav: false,
 			s3: false,
 			nativeContextMenus: false,
+			administratorAccess: false,
 		});
 		expect(await screen.findByRole('switch', { name: 'SFTP Experimental' })).not.toBeChecked();
 	});
@@ -131,6 +156,7 @@ describe('the Experimental page', () => {
 				webdav: false,
 				s3: false,
 				nativeContextMenus: false,
+				administratorAccess: false,
 			}),
 		);
 		await userEvent.click(screen.getByRole('switch', { name: 'WebDAV Experimental' }));
@@ -141,6 +167,7 @@ describe('the Experimental page', () => {
 				webdav: true,
 				s3: false,
 				nativeContextMenus: false,
+				administratorAccess: false,
 			}),
 		);
 		await userEvent.click(screen.getByRole('switch', { name: 'SFTP Experimental' }));
@@ -169,6 +196,50 @@ describe('the Experimental page', () => {
 		await waitFor(() => expect(lastExperimental(settings)?.nativeContextMenus).toBe(true));
 		expect(lastExperimental(settings)?.sftp).toBe(false);
 		expect(within(group).getByText(/may behave differently on Wayland/)).toBeInTheDocument();
+	});
+
+	it('lists administrator access on its own, off by default and marked Experimental', async () => {
+		const { settings } = await open();
+		const group = await screen.findByRole('group', { name: 'Administrator' });
+		const access = within(group).getByRole('switch', {
+			name: 'Administrator access Experimental',
+		});
+		expect(access).not.toBeChecked();
+		await waitFor(() => expect(access).toBeEnabled());
+		await userEvent.click(access);
+		await waitFor(() => expect(lastExperimental(settings)?.administratorAccess).toBe(true));
+		expect(lastExperimental(settings)?.nativeContextMenus).toBe(false);
+		expect(lastExperimental(settings)?.sftp).toBe(false);
+		expect(
+			within(group).getByText(/the Services panel on the Integrations page says why/),
+		).toBeTruthy();
+	});
+
+	it('dims administrator access where the system cannot start the helper, with the system’s reason', async () => {
+		await open({ elevate: () => Promise.resolve(ELEVATE_UNAVAILABLE) });
+		const access = await screen.findByRole('switch', { name: 'Administrator access Experimental' });
+		await waitFor(() => expect(access).toBeDisabled());
+		expect(
+			screen.getByText('Unavailable: The helper is not installed in a protected folder'),
+		).toBeInTheDocument();
+		expect(screen.getByRole('switch', { name: 'SFTP Experimental' })).toBeEnabled();
+	});
+
+	it('points at the Services panel when the system gives no reason', async () => {
+		await open({
+			elevate: () => Promise.resolve({ ...ELEVATE_UNAVAILABLE, reason: null, features: [] }),
+		});
+		const access = await screen.findByRole('switch', { name: 'Administrator access Experimental' });
+		await waitFor(() => expect(access).toBeDisabled());
+		expect(
+			screen.getByText(/^Unavailable: The Services panel on the Integrations page/),
+		).toBeInTheDocument();
+	});
+
+	it('leaves administrator access usable when what the system can do cannot be read', async () => {
+		await open({ elevate: () => Promise.reject(new Error('no plugin')) });
+		const access = await screen.findByRole('switch', { name: 'Administrator access Experimental' });
+		expect(access).toBeEnabled();
 	});
 
 	it('turns S3 on like the other protocols, now that its provider is in the build', async () => {

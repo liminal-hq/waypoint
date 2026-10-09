@@ -45,6 +45,8 @@ tauri-plugin-window-manager = { path = "../../../plugins/window-manager" }
 tauri-plugin-native-dnd = { path = "../../../plugins/native-dnd" }
 tauri-plugin-window-tearoff = { path = "../../../plugins/window-tearoff" }
 tauri-plugin-trash = { path = "../../../plugins/trash" }
+# Starts the privileged helper behind Open as Administrator, used from Rust only (`elevate`).
+tauri-plugin-elevate = { path = "../../../plugins/elevate" }
 tauri-plugin-thumbnails = { path = "../../../plugins/thumbnails" }
 tauri-plugin-volumes = { path = "../../../plugins/volumes" }
 tauri-plugin-secrets = { path = "../../../plugins/secrets" }
@@ -68,6 +70,7 @@ serde_json = { workspace = true }
 log = "0.4"
 chrono = "0.4"
 waypoint-connections = { path = "../../../crates/waypoint-connections" }
+waypoint-elevated = { path = "../../../crates/waypoint-elevated" }
 waypoint-ops = { path = "../../../crates/waypoint-ops" }
 waypoint-path = { path = "../../../crates/waypoint-path" }
 waypoint-provider-git = { path = "../../../crates/waypoint-provider-git" }
@@ -87,6 +90,7 @@ tauri = { workspace = true, features = ["test"] }
 tempfile = "3"
 # The fake remote provider, for the tests of the protocol gate and of remote thumbnails.
 waypoint-vfs = { path = "../../../crates/waypoint-vfs", features = ["testing"] }
+waypoint-elevated = { path = "../../../crates/waypoint-elevated", features = ["testing"] }
 
 # Debug-only automation bridge, registered under `#[cfg(all(debug_assertions, not(windows)))]` in
 # `src/lib.rs`. It must be a normal dependency (dev-dependencies are not available to the lib

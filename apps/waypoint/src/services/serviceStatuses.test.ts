@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	collectServiceStatuses,
+	elevateServiceStatus,
 	integrationServiceStatus,
 	mimeAppsServiceStatus,
 	secretsServiceStatus,
@@ -20,6 +21,7 @@ import {
 
 const plugins = vi.hoisted(() => ({
 	trash: vi.fn(),
+	elevate: vi.fn(),
 	dnd: vi.fn(),
 	ops: vi.fn(),
 	vfs: vi.fn(),
@@ -36,6 +38,7 @@ const plugins = vi.hoisted(() => ({
 vi.mock('@liminal-hq/plugin-volumes', () => ({ getStatus: plugins.volumes }));
 vi.mock('@liminal-hq/plugin-secrets', () => ({ getStatus: plugins.secrets }));
 vi.mock('@liminal-hq/plugin-mime-apps', () => ({ getStatus: plugins.mimeApps }));
+vi.mock('@liminal-hq/plugin-elevate', () => ({ getStatus: plugins.elevate }));
 vi.mock('@liminal-hq/plugin-trash', () => ({ getStatus: plugins.trash }));
 vi.mock('@liminal-hq/plugin-native-dnd', () => ({ getStatus: plugins.dnd }));
 vi.mock('@liminal-hq/plugin-system-appearance', () => ({ getStatus: plugins.appearance }));
@@ -227,6 +230,37 @@ describe('the Trash status', () => {
 	});
 });
 
+describe('the elevate status', () => {
+	it('is available with its feature when the helper can be started', async () => {
+		plugins.elevate.mockResolvedValue({
+			available: true,
+			reason: null,
+			flavour: 'polkit',
+			features: [{ name: 'elevate', ...feature(true) }],
+		});
+		expect(await elevateServiceStatus()).toEqual({
+			available: true,
+			reason: null,
+			features: ['elevate'],
+		});
+	});
+
+	it('is unavailable with the plugin’s own reason where it cannot', async () => {
+		const reason = 'Administrator access needs an installed copy of Waypoint';
+		plugins.elevate.mockResolvedValue({
+			available: false,
+			reason,
+			flavour: 'polkit',
+			features: [{ name: 'elevate', ...feature(false, reason) }],
+		});
+		expect(await elevateServiceStatus()).toEqual({ available: false, reason, features: [] });
+	});
+
+	it('is a source of the panel, named like the plugin', () => {
+		expect(SERVICE_SOURCES.elevate).toBe(elevateServiceStatus);
+	});
+});
+
 describe('the window effects status', () => {
 	const entry = (
 		name: string,
@@ -392,6 +426,7 @@ describe('the Services panel sources', () => {
 		expect(Object.keys(SERVICE_SOURCES)).toEqual([
 			'file-system',
 			'trash',
+			'elevate',
 			'native-dnd',
 			'window-manager',
 			'waypoint-ops',

@@ -5,6 +5,8 @@
 
 import { ArchiveOpening } from '../archives/ArchiveOpening';
 import { RemoteOpening } from '../connections/RemoteState';
+import { isElevatedLocation } from '../elevation/elevatedLocation';
+import { isFolder } from '../nav/useOpenEntry';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { KeyboardEvent } from 'react';
 import { TrashFrame } from '../trash/TrashFrame';
@@ -55,8 +57,17 @@ export function FileView({
 	}
 	const session = state.status === 'ready' ? state.session : null;
 	const inTrash = session?.model.layout === 'trash';
-	// Nothing in the Trash is opened: an item is restored first.
-	const open: OpenHandler = inTrash ? () => trashActions?.hintOpen() : onOpen;
+	// Nothing in the Trash is opened: an item is restored first. A file of an elevated folder is not
+	// handed to another program (it would run as the person, not the administrator), so Enter and a
+	// double-click on one do nothing, quietly; a folder still opens.
+	const elevated = isElevatedLocation(session?.model.location);
+	const open: OpenHandler = inTrash
+		? () => trashActions?.hintOpen()
+		: elevated
+			? (entry, handle) => {
+					if (isFolder(entry)) onOpen(entry, handle);
+				}
+			: onOpen;
 	const openInNewTab: OpenInNewHandler = inTrash ? () => {} : onOpenInNewTab;
 	const shared = {
 		state,

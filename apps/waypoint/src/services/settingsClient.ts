@@ -128,6 +128,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		webdav: false,
 		s3: false,
 		nativeContextMenus: false,
+		administratorAccess: false,
 	},
 };
 

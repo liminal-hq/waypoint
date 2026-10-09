@@ -8,6 +8,7 @@ import type { IconGroup } from '@liminal-hq/waypoint-protocol/generated/IconGrou
 import type { OpsError } from '@liminal-hq/waypoint-protocol/generated/OpsError';
 import { isSelected, selectedCount, selectOnly } from '../browse/selection';
 import type { ListingSession } from '../browse/useListingSession';
+import { isElevatedLocation } from '../elevation/elevatedLocation';
 import { t, tf } from '../i18n/messages';
 import { normaliseUri } from '../ops/clipboardRules';
 import { errorText } from '../ops/jobText';
@@ -177,6 +178,10 @@ export interface OutboundDeps {
 
 const isLocal = (locations: readonly Location[]) =>
 	locations.every((location) => location.uri.startsWith('file:'));
+
+/** Files of an elevated folder are not handed to other programs: they would be read as the person, off paths only the helper is meant to read. */
+const anyElevated = (locations: readonly Location[]) =>
+	locations.some((location) => isElevatedLocation(location));
 
 /** Files that came from outside the window, as the plugin reports them. */
 export interface NativeFiles {
@@ -983,7 +988,9 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 		prefetch.catch(() => {});
 		const stage = out.stage?.bind(out);
 		if (stage) {
-			staging = prefetch.then((locations) => (isLocal(locations) ? locations : stage(locations)));
+			staging = prefetch.then((locations) =>
+				isLocal(locations) || anyElevated(locations) ? locations : stage(locations),
+			);
 			staging.catch(() => {});
 		}
 	};
@@ -1071,6 +1078,8 @@ export function createFileDrag(deps: FileDragDeps): FileDrag {
 			handing = false;
 			return;
 		}
+		// Nothing of an elevated folder leaves Waypoint: the drag stays in the page and says so.
+		if (anyElevated(locations)) return fail(tf('dnd.out.unsupported', { what: capitalise(what) }));
 		// A server's files go out as copies downloaded for the drag; the originals stay where they are.
 		const remote = locations.length > 0 && !isLocal(locations);
 		if (remote && out.stage) {

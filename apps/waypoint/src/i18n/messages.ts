@@ -22,6 +22,8 @@ export const enMessages = {
 	'window.main.title': 'Main',
 	// translator: The Main window’s title with the product name “Waypoint” (not translated), an em dash, then {title}: the name of the open folder, or “Main”.
 	'window.main.titleWithApp': 'Waypoint — {title}',
+	// translator: The window’s title while the active tab is in Administrator Mode: {title} is the open folder’s name, then an em dash, then “Administrator” (the word on the tab and the title-bar badge).
+	'window.main.elevatedTitle': '{title} — Administrator',
 	'window.main.description': 'The tabbed file browser — coming soon.',
 	'window.main.startFailed': 'Waypoint could not start the file browser.',
 	'window.settings.title': 'Waypoint — Settings',
@@ -87,6 +89,8 @@ export const enMessages = {
 	'services.name.secrets': 'Keyring and saved passwords',
 	'services.name.window-effects': 'Window effects',
 	'services.name.mime-apps': 'File types and Open With',
+	// translator: The name of the service that lets Waypoint open a folder as an administrator (through the system’s own prompt), in the list of what works on this system.
+	'services.name.elevate': 'Administrator access',
 	'services.name.xdg-portal': 'Desktop portal',
 	'services.name.desktop-integration': 'Desktop services',
 	'settings.group.notifications': 'Notifications and progress',
@@ -837,6 +841,8 @@ export const enMessages = {
 	'dnd.open.tabs.other': 'Opened {count} tabs',
 	'tabs.pinned': 'Pinned',
 	'tabs.pinnedBadge': 'Pinned tab',
+	// translator: Said of a tab that shows its folder as an administrator (Administrator Mode); one word, as “Pinned” is.
+	'tabs.elevated': 'Administrator',
 	'tabs.colourDescription': 'Colour: {colour}',
 	'tabs.announce.pinned': 'Pinned {title}',
 	'tabs.announce.unpinned': 'Unpinned {title}',
@@ -1396,6 +1402,23 @@ export const enMessages = {
 	'remote.signIn.title': 'Sign in to {server}',
 	'remote.signIn.detail': 'The server needs you to sign in before it shows this folder.',
 	'remote.signIn.refused': 'The server did not accept the sign-in. Try again.',
+	// translator: The word on the title-bar badge and the tab while a folder is shown as an administrator (Administrator Mode). It is also the name of the title-bar button that leaves that mode.
+	'elevation.administrator': 'Administrator',
+	// translator: The heading of a folder that is shown as an administrator but is not connected: the person has to approve it again.
+	'elevation.authenticate.title': 'Administrator access',
+	'elevation.authenticate.detail':
+		'Administrator access needs your approval before it shows this folder.',
+	// translator: A button that asks the system to prompt for the person’s password or approval so a folder can be shown as an administrator.
+	'elevation.authenticate.action': 'Authenticate',
+	'elevation.authenticate.busy': 'Waiting…',
+	'elevation.waiting': 'Waiting for the system’s prompt…',
+	'elevation.waiting.cancel': 'Cancel',
+	// translator: Shown when the system’s approval prompt was closed or the person did not approve. The system does not always say which, so it says both.
+	'elevation.refused': 'Authentication was cancelled or refused',
+	'elevation.failed': 'Administrator access is not available: {reason}',
+	'elevation.announce.opened': 'Opened {folder} as an administrator',
+	'elevation.announce.left': 'Left Administrator Mode',
+	'elevation.announce.connected': 'Administrator access approved',
 	'remote.hostKey.title': '{server} is not trusted yet',
 	'remote.hostKey.detail':
 		'Waypoint has not connected to this server before. Review its key before you trust it.',
@@ -1495,6 +1518,12 @@ export const enMessages = {
 	'files.delete.title': 'Delete permanently?',
 	'files.delete.intro.one': 'This permanently deletes the item below. It cannot be undone.',
 	'files.delete.intro.other': 'This permanently deletes {count} items. It cannot be undone.',
+	// translator: Said when the items are in a folder shown as an administrator (Administrator Mode), where nothing goes to the Trash.
+	'files.delete.elevated.title': 'Delete permanently as an administrator?',
+	'files.delete.elevated.intro.one':
+		'This permanently deletes the item below as an administrator. It does not go to the Trash and cannot be undone.',
+	'files.delete.elevated.intro.other':
+		'This permanently deletes {count} items as an administrator. They do not go to the Trash and cannot be undone.',
 	'files.delete.more': 'and {count} more',
 	'files.delete.size': 'Total size: {size}',
 	'files.delete.list.label': 'Items to delete',
@@ -2255,6 +2284,9 @@ export const enMessages = {
 	'cmd.newFile': 'New File',
 	'cmd.batchRename': 'Batch Rename…',
 	'cmd.openWith': 'Open With…',
+	// translator: A command that shows a folder as an administrator after the system asks for approval (UAC on Windows, polkit on Linux). The words “Administrator” and “Administrator Mode” are the same everywhere they appear.
+	'cmd.openAsAdministrator': 'Open as Administrator',
+	'cmd.leaveAdministrator': 'Leave Administrator Mode',
 	'cmd.selectAll': 'Select All',
 	'cmd.invertSelection': 'Invert Selection',
 	'cmd.sidebar': 'Sidebar',
@@ -2333,6 +2365,7 @@ export const enMessages = {
 	'cmd.reason.noTab': 'No tab is open',
 	'cmd.reason.folderViewDefault': 'This folder shows the window’s view',
 	'cmd.reason.selectOne': 'Select one item, or none for the folder',
+	'cmd.reason.elevateFolder': 'Select one folder, or nothing, to open as an administrator',
 	'cmd.reason.noListing': 'No folder is open',
 	'cmd.reason.noQueue': 'Operations are not available in this window',
 
@@ -2776,6 +2809,14 @@ export const enMessages = {
 	'settings.experimental.nativeMenus.label': 'Native context menus',
 	'settings.experimental.nativeMenus.description':
 		'Open the right-click menus of the file list, sidebar, Trash and tabs as your system’s own menus, so they can reach past the edge of the window. They take the system’s look, so they ignore Waypoint’s theming and the menu transparency settings, and they have no blur or tooltips. A destructive item is red only in its icon, not its label. They may behave differently on Wayland. A menu the system cannot show as it is stays a Waypoint menu.',
+	'settings.group.administrator': 'Administrator',
+	// translator: “Administrator” is the system’s privileged account (root on Linux). The switch lets a person open a folder as that account, after the system’s own password prompt.
+	'settings.experimental.administrator.label': 'Administrator access',
+	'settings.experimental.administrator.description':
+		'Lets you open a folder as an administrator, through your system’s own prompt, to browse and change files you cannot normally reach. It works only in installed copies of Waypoint (the .deb and .rpm packages and the Windows installer) and is unavailable otherwise; the Services panel on the Integrations page says why.',
+	// translator: Shown after “Unavailable:” under a switch that cannot be used, when the system gave no reason of its own.
+	'settings.experimental.administrator.unavailableNoReason':
+		'The Services panel on the Integrations page says why.',
 
 	// translator: A tab of the Inspector: what Git says about the selected item and the repository. “Git” stays “Git”.
 	'inspector.tab.git': 'Git',

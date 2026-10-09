@@ -159,6 +159,22 @@
 	color: var(--wp-text-secondary);
 }
 
+/* An elevated tab (Administrator Mode) has a shield beside its icon and a bar along its start edge; its details also say "Administrator". */
+.slot[data-elevated] .tab {
+	border-inline-start: 3px solid var(--wp-elevated);
+}
+
+.elevatedBadge {
+	flex: none;
+	color: var(--wp-elevated);
+}
+
+.pinnedShield {
+	position: absolute;
+	bottom: 3px;
+	inset-inline-end: 3px;
+}
+
 /* A coloured tab carries an accent bar along its top edge. */
 .slot[data-colour]::before {
 	content: '';

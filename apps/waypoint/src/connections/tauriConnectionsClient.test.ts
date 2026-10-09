@@ -19,6 +19,7 @@ const plugin = vi.hoisted(() => ({
 	forgetRecentServer: vi.fn(),
 	forgetLogin: vi.fn(),
 	connect: vi.fn(),
+	cancelConnect: vi.fn(),
 	testConnection: vi.fn(),
 	disconnect: vi.fn(),
 	connectionState: vi.fn(),
@@ -47,6 +48,13 @@ describe('createTauriConnectionsClient', () => {
 		);
 		await client.remove('c1', true);
 		expect(plugin.removeConnection).toHaveBeenCalledWith('c1', true);
+	});
+
+	it('cancels the connect in flight through the plugin', async () => {
+		plugin.cancelConnect.mockResolvedValue(undefined);
+		const admin = { display: '/etc', uri: 'admin:///etc' };
+		await createTauriConnectionsClient().cancelConnect(admin);
+		expect(plugin.cancelConnect).toHaveBeenCalledWith(admin);
 	});
 
 	it('stops a subscription that resolves after it was stopped', async () => {

@@ -7615,6 +7615,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-elevate"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "tempfile",
+ "thiserror 2.0.21",
+ "ts-rs",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "tauri-plugin-fs"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7996,6 +8011,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "waypoint-connections",
+ "waypoint-elevated",
  "waypoint-path",
  "waypoint-protocol",
  "waypoint-vfs",
@@ -9016,6 +9032,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-desktop-integration",
  "tauri-plugin-dialog",
+ "tauri-plugin-elevate",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-log",
  "tauri-plugin-mcp-bridge",
@@ -9043,6 +9060,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "waypoint-connections",
+ "waypoint-elevated",
  "waypoint-ops",
  "waypoint-path",
  "waypoint-protocol",
@@ -9066,9 +9084,36 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.21",
  "ts-rs",
+ "waypoint-elevated",
  "waypoint-path",
  "waypoint-protocol",
  "waypoint-settings",
+ "waypoint-vfs",
+]
+
+[[package]]
+name = "waypoint-elevate-helper"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "waypoint-elevated",
+ "waypoint-path",
+ "waypoint-protocol",
+ "waypoint-vfs",
+ "windows 0.62.2",
+]
+
+[[package]]
+name = "waypoint-elevated"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "waypoint-elevated",
+ "waypoint-path",
+ "waypoint-protocol",
  "waypoint-vfs",
 ]
 

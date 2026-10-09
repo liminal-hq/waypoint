@@ -175,6 +175,14 @@ export class ListingModel {
 		return position < this._count ? this.entries.get(position) : undefined;
 	}
 
+	/** The cached entry with this id, if any page that holds it is cached (not a search of the whole listing). */
+	cachedEntry(id: EntryId): Entry | undefined {
+		for (const entry of this.entries.values()) {
+			if (entry.id === id) return entry;
+		}
+		return undefined;
+	}
+
 	/** Whether the cache holds an entry at this position that it does not doubt. */
 	hasFresh(position: number): boolean {
 		return this.entries.has(position) && !this.stale.has(position);

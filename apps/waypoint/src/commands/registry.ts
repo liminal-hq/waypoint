@@ -15,6 +15,7 @@ import {
 	HomeIcon,
 	ListViewIcon,
 	PinIcon,
+	ShieldIcon,
 	SidebarIcon,
 } from '../icons/AppIcons';
 import {
@@ -86,6 +87,8 @@ export type CommandId =
 	| Exclude<FileCommandId, 'pasteInto'>
 	| 'batchRename'
 	| 'openWith'
+	| 'openAsAdministrator'
+	| 'leaveAdministrator'
 	// The Trash
 	| 'restoreFromTrash'
 	| 'deleteFromTrash'
@@ -370,6 +373,33 @@ export const COMMANDS: readonly CommandDef[] = [
 					? SHOWN
 					: blocked('cmd.reason.nothingSelected'),
 		run: (a) => a.openWith(),
+	},
+	{
+		id: 'openAsAdministrator',
+		label: 'cmd.openAsAdministrator',
+		icon: ShieldIcon,
+		group: 'file',
+		// No shortcut: a command that asks the system for administrator rights is chosen on purpose,
+		// from a menu, the palette or the permission-denied state, never by a key pressed by habit.
+		// Offered only where it is on and works, in an ordinary local folder (not the Trash, a server,
+		// an archive, a revision, or a folder that is already elevated), and it acts on one selected
+		// folder or else the current one.
+		when: (f) =>
+			!f.elevation || !f.listing || !f.local || f.trash || f.elevated
+				? HIDDEN
+				: f.elevateSelection === 'other'
+					? blocked('cmd.reason.elevateFolder')
+					: SHOWN,
+		run: (a) => a.openAsAdministrator(),
+	},
+	{
+		id: 'leaveAdministrator',
+		label: 'cmd.leaveAdministrator',
+		icon: ShieldIcon,
+		group: 'file',
+		// Only in a tab that is in Administrator Mode, even when the setting has since been turned off.
+		when: (f) => (f.elevated ? SHOWN : HIDDEN),
+		run: (a) => a.leaveAdministrator(),
 	},
 	{
 		id: 'batchRename',

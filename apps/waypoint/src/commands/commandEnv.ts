@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { PlaceKind } from '@liminal-hq/waypoint-protocol/generated/PlaceKind';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
 import type { ViewMode } from '../browse/viewStore';
@@ -35,6 +36,16 @@ export interface CommandFacts {
 	git: boolean;
 	/** The platform can make links without a privilege the person may not hold (not Windows). */
 	linkSupported: boolean;
+	/** Administrator access is on and the elevate plugin says a helper can start, so Open as Administrator is offered. */
+	elevation: boolean;
+	/** The active tab shows its folder as an administrator (its location is `admin:`). */
+	elevated: boolean;
+	/**
+	 * What Open as Administrator would act on in the active pane: `none` selected (the current
+	 * folder), exactly one `folder` selected (that folder), or `other` (a file, or more than one
+	 * item), which it cannot act on.
+	 */
+	elevateSelection: 'none' | 'folder' | 'other';
 	/** The mime-apps plugin can list applications or has a chooser of its own, so Open With… can work here. */
 	openWith: boolean;
 	/** The places the sidebar offers, which "Go to" commands open. */
@@ -92,6 +103,13 @@ export interface CommandActions {
 	batchRename(): void;
 	/** Open With… for the active pane's selection. */
 	openWith(): void;
+	/**
+	 * Shows a local folder as an administrator in a new tab, after the system's prompt: `location`
+	 * when given, else the one selected folder, else the active pane's folder.
+	 */
+	openAsAdministrator(location?: Location): void;
+	/** Takes the active tab out of Administrator Mode, to the ordinary form of the same folder. */
+	leaveAdministrator(): void;
 	/** The Trash view's Restore and Delete Permanently, on the selection (the latter asks first). */
 	restoreFromTrash(): void;
 	deleteFromTrash(): void;
@@ -169,6 +187,9 @@ export function emptyFacts(): CommandFacts {
 		git: false,
 		local: false,
 		linkSupported: true,
+		elevation: false,
+		elevated: false,
+		elevateSelection: 'none',
 		openWith: false,
 		places: [],
 		batchRename: false,
@@ -207,6 +228,8 @@ export function idleActions(): CommandActions {
 		files: null,
 		batchRename: nothing,
 		openWith: nothing,
+		openAsAdministrator: nothing,
+		leaveAdministrator: nothing,
 		restoreFromTrash: nothing,
 		deleteFromTrash: nothing,
 		selectAll: nothing,

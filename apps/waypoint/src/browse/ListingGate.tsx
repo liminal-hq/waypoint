@@ -4,12 +4,17 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import type { ReactNode } from 'react';
+import { useStore } from 'zustand';
+import { useCommandBridge } from '../commands/commandBridge';
+import { isElevatedLocation, isFileUri } from '../elevation/elevatedLocation';
+import { ShieldIcon } from '../icons/AppIcons';
 import { t, tf, type MessageId } from '../i18n/messages';
 import { ProtocolOffState } from '../connections/ProtocolOff';
 import { ArchiveLocked } from '../archives/ArchiveLocked';
 import { isArchiveLock } from '../archives/lockModel';
-import { RemoteState } from '../connections/RemoteState';
+import { AdministratorState, RemoteState } from '../connections/RemoteState';
 import { isConnectionError } from '../connections/remoteModel';
 import styles from './ListingGate.module.css';
 import type { ListingSession, SessionState } from './useListingSession';
@@ -50,7 +55,11 @@ export function ErrorState({ error }: { error: VfsError }) {
 	if (error.kind === 'protocolOff') return <ProtocolOffState scheme={error.scheme} />;
 	// A password asked for an archive is the archive's, even when it is on a server.
 	if (isArchiveLock(error)) return <ArchiveLocked error={error} />;
-	if (isConnectionError(error)) return <RemoteState error={error} />;
+	if (isConnectionError(error)) {
+		// A folder shown as an administrator that is not connected asks for approval, not a sign-in.
+		const elevated = 'location' in error && isElevatedLocation(error.location);
+		return elevated ? <AdministratorState error={error} /> : <RemoteState error={error} />;
+	}
 	const { title, detail } = errorMessages(error);
 	const location =
 		error.kind === 'notFound' ||
@@ -65,6 +74,29 @@ export function ErrorState({ error }: { error: VfsError }) {
 		<div className={styles.message} role="alert" data-error={error.kind}>
 			<h2 className={styles.messageTitle}>{t(title)}</h2>
 			<p className={styles.messageDetail}>{tf(detail, { location, what })}</p>
+			{error.kind === 'permissionDenied' && <OpenAsAdministrator location={error.location} />}
+		</div>
+	);
+}
+
+/**
+ * The primary action of a folder that could not be opened for lack of permission: show it as an
+ * administrator, when that is on and works here and the folder is an ordinary local one.
+ */
+function OpenAsAdministrator({ location }: { location: Location }) {
+	const bridge = useCommandBridge();
+	const offered = useStore(bridge.store, (env) => env.facts.elevation);
+	if (!offered || !isFileUri(location.uri)) return null;
+	return (
+		<div className={styles.messageActions}>
+			<button
+				type="button"
+				className={styles.primary}
+				onClick={() => bridge.store.getState().actions.openAsAdministrator(location)}
+			>
+				<ShieldIcon width={16} height={16} />
+				{t('cmd.openAsAdministrator')}
+			</button>
 		</div>
 	);
 }

@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { TabSnapshot } from '@liminal-hq/waypoint-protocol/generated/TabSnapshot';
+import { isElevatedLocation } from '../elevation/elevatedLocation';
+import { tf } from '../i18n/messages';
 import { useActiveTab } from '../tabs/TabsContext';
 import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { locationLabel, useTabTitle } from '../tabs/tabTitle';
@@ -17,8 +19,14 @@ export function windowTitleFor(title: string, location: Pick<Location, 'display'
 	return title === location.display ? locationLabel(location) : title;
 }
 
+/** The window's title for a tab: the folder's name, with "Administrator" after it while the tab is in Administrator Mode, so the app switcher and the task bar say so too. */
+export function tabWindowTitle(title: string, location: Location): string {
+	const name = windowTitleFor(title, location);
+	return isElevatedLocation(location) ? tf('window.main.elevatedTitle', { title: name }) : name;
+}
+
 function TabWindowTitle({ tab }: { tab: TabSnapshot }) {
-	useWindowTitle(windowTitleFor(useTabTitle(tab), tab.location));
+	useWindowTitle(tabWindowTitle(useTabTitle(tab), tab.location));
 	return null;
 }
 

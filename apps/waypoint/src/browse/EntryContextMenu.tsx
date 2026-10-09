@@ -7,6 +7,7 @@ import type { MenuItem, SubmenuMenuItem } from '@liminal-hq/waypoint-chrome/Cont
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
 import type { ListingHandle } from '@liminal-hq/waypoint-protocol/generated/ListingHandle';
 import { isArchiveEntry } from '../archives/archiveNames';
+import type { ElevationMenu } from '../elevation/elevatedLocation';
 import { t } from '../i18n/messages';
 import { HostedContextMenu } from '../menus/HostedContextMenu';
 import { PropertiesIcon } from '../inspector/InspectorIcons';
@@ -15,7 +16,7 @@ import { useShelfActions } from '../shelf/ShelfContext';
 import { AddToShelfIcon } from '../shelf/ShelfIcons';
 import type { ListingSession } from './useListingSession';
 import { isFolder } from '../nav/useOpenEntry';
-import { StarIcon } from '../icons/AppIcons';
+import { ShieldIcon, StarIcon } from '../icons/AppIcons';
 import {
 	CompressIcon,
 	CopyIcon,
@@ -58,6 +59,8 @@ interface EntryContextMenuProps {
 	session?: ListingSession | null | undefined;
 	/** Properties windows can be opened here, so "Properties in a Window" is listed. */
 	propertiesWindow?: boolean | undefined;
+	/** What Administrator Mode adds to or takes out of the menu for the listing the entry is in. */
+	elevation?: ElevationMenu | undefined;
 }
 
 /** The commands the entry menu can run. */
@@ -79,7 +82,8 @@ export type EntryCommand =
 	| 'copyToOtherPane'
 	| 'moveToOtherPane'
 	| 'properties'
-	| 'propertiesWindow';
+	| 'propertiesWindow'
+	| 'openAsAdministrator';
 
 const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
@@ -100,6 +104,7 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'moveToOtherPane',
 	'properties',
 	'propertiesWindow',
+	'openAsAdministrator',
 ];
 
 /**
@@ -362,15 +367,22 @@ export function entryMenuItems(
 	batchRename = false,
 	openWith: SubmenuMenuItem | null = null,
 	propertiesWindow = false,
+	elevation: ElevationMenu = { offer: false, elevated: false },
 ): MenuItem[] {
 	return [
-		{
-			type: 'action',
-			id: 'open',
-			label: t('menu.open'),
-			shortcut: 'Enter',
-			icon: <FolderOpenIcon />,
-		},
+		// A file of an elevated folder cannot be handed to another program, and Waypoint does not
+		// show its contents here, so there is nothing for Open to do; a folder still opens.
+		...(elevation.elevated && !isFolder(entry)
+			? []
+			: [
+					{
+						type: 'action',
+						id: 'open',
+						label: t('menu.open'),
+						shortcut: 'Enter',
+						icon: <FolderOpenIcon />,
+					} as const,
+				]),
 		// An archive opens like a folder, so it is offered the same ways to open beside this one.
 		...(isFolder(entry) || isArchiveEntry(entry)
 			? [
@@ -391,6 +403,16 @@ export function entryMenuItems(
 						id: 'openInNewWindow',
 						label: t('menu.openInNewWindow'),
 						icon: <WindowIcon />,
+					} as const,
+				]
+			: []),
+		...(isFolder(entry) && elevation.offer
+			? [
+					{
+						type: 'action',
+						id: 'openAsAdministrator',
+						label: t('cmd.openAsAdministrator'),
+						icon: <ShieldIcon />,
 					} as const,
 				]
 			: []),
@@ -452,10 +474,18 @@ export function EntryContextMenu({
 	batchRename = false,
 	session,
 	propertiesWindow = false,
+	elevation,
 }: EntryContextMenuProps) {
 	const shelf = useShelfActions();
 	const openWith = useOpenWithMenu({ session, entry, handle });
-	const items = entryMenuItems(entry, commands, batchRename, openWith.item, propertiesWindow);
+	const items = entryMenuItems(
+		entry,
+		commands,
+		batchRename,
+		openWith.item,
+		propertiesWindow,
+		elevation,
+	);
 	return (
 		<HostedContextMenu
 			items={items}

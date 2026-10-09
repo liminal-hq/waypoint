@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<!--
+  The polkit action that lets Waypoint start its administrator helper, and nothing else.
+  Installed root-owned at /usr/share/polkit-1/actions/ by the .deb and .rpm, beside the helper.
+  The exec path binds the action to that one program: pkexec refuses any other path for it.
+-->
+<policyconfig>
+  <vendor>Liminal HQ</vendor>
+  <vendor_url>https://github.com/liminal-hq/waypoint</vendor_url>
+
+  <action id="ca.liminalhq.waypoint.admin">
+    <description>Waypoint wants to read and change files as an administrator</description>
+    <message>Waypoint wants to read and change files as an administrator</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/waypoint/waypoint-elevate-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">false</annotate>
+  </action>
+</policyconfig>

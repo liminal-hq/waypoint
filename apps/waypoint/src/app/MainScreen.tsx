@@ -7,6 +7,7 @@ import { getHome } from '@liminal-hq/waypoint-plugin-vfs';
 import { invoke } from '@tauri-apps/api/core';
 import { WindowFrame } from '@liminal-hq/waypoint-chrome/WindowFrame';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useStore } from 'zustand';
 import { TimeFormatProvider } from '../browse/TimeFormatContext';
 import { FolderViewsProvider } from '../browse/FolderViewsContext';
 import { GitProvider } from '../git/GitContext';
@@ -51,6 +52,7 @@ import { createTauriThumbnailsClient } from '../thumbnails/tauriThumbnailsClient
 import { ThumbnailsProvider } from '../thumbnails/ThumbnailsContext';
 import { CommandBridgeProvider, createCommandBridge } from '../commands/commandBridge';
 import { CommandPaletteHost } from '../commands/CommandPaletteHost';
+import { ElevatedBadge } from '../elevation/ElevatedBadge';
 import { HelpHost } from '../help/HelpHost';
 import { AppMenu } from './AppMenu';
 import { AppMenuBar } from './AppMenuBar';
@@ -120,6 +122,8 @@ export function MainScreen() {
 	const menuBar = useSettings((value) => value.ui.menuBar);
 	// What the menu, the Action bar and the keys' commands read: the workspace and the window publish into it.
 	const [bridge] = useState(createCommandBridge);
+	// The window's frame carries an accent while the active tab is in Administrator Mode.
+	const elevated = useStore(bridge.store, (env) => env.facts.elevated);
 	const [startup, setStartup] = useState<Startup>({ state: 'starting' });
 	// The archive provider's password command and slow-listing notice; the demo has no provider to ask.
 	const [archiveClient] = useState(() => (wantsDemo() ? null : createTauriArchiveClient()));
@@ -143,7 +147,7 @@ export function MainScreen() {
 			<NativeMenuProvider
 				client={startup.state === 'ready' ? startup.services.nativeMenus : undefined}
 			>
-				<WindowFrame className={styles.screen}>
+				<WindowFrame className={elevated ? `${styles.screen} ${styles.elevated}` : styles.screen}>
 					<WindowCommands />
 					<AppTitleBar
 						fallbackTitle={
@@ -151,7 +155,12 @@ export function MainScreen() {
 								? tf('window.main.titleWithApp', { title: t('window.main.title') })
 								: t('window.main.title')
 						}
-						start={<AppMenu menuBar={menuBar} />}
+						start={
+							<>
+								<AppMenu menuBar={menuBar} />
+								<ElevatedBadge />
+							</>
+						}
 					/>
 					{menuBar && <AppMenuBar />}
 					{startup.state === 'failed' ? (

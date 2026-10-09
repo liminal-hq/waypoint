@@ -23,6 +23,8 @@ export interface WindowState {
 	archive?: boolean;
 	/** The listing is a place inside an archive. */
 	inArchive?: boolean;
+	/** The listing is shown as an administrator (an `admin:` location). */
+	elevated?: boolean;
 	undo?: JournalEntrySummary | null;
 	redo?: JournalEntrySummary | null;
 }
@@ -79,11 +81,13 @@ export function factsFor(state: WindowState = {}, extra: Partial<CommandFacts> =
 			otherPaneWritable: state.otherPaneWritable ?? false,
 			archive: state.archive ?? false,
 			inArchive: state.inArchive ?? false,
+			elevated: state.elevated ?? false,
 		}),
+		elevated: state.elevated ?? false,
 		selected,
 		listing,
 		trash: state.trash ?? false,
-		local: listing && !(state.trash ?? false),
+		local: listing && !(state.trash ?? false) && !(state.elevated ?? false),
 		places: PLACES,
 		batchRename: selected > 0 && !(state.readOnly ?? false),
 		sort: listing ? SORT : null,

@@ -511,7 +511,8 @@ mod tests {
                 "smb": false,
                 "webdav": true,
                 "s3": false,
-                "nativeContextMenus": false
+                "nativeContextMenus": false,
+                "administratorAccess": false
             })
         );
     }

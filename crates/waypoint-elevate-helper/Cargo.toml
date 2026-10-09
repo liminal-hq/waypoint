@@ -1,0 +1,23 @@
+[package]
+name = "waypoint-elevate-helper"
+version = "0.1.0"
+description = "The privileged helper of Open as Administrator: serves file operations over its standard input and output, or over two named pipes on Windows"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+waypoint-elevated = { path = "../waypoint-elevated" }
+waypoint-vfs = { path = "../waypoint-vfs" }
+
+# Reads which process made the pipe it connects to; the version matches the rest of the workspace.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Pipes"] }
+
+[dev-dependencies]
+tempfile = "3"
+waypoint-path = { path = "../waypoint-path" }
+waypoint-protocol = { path = "../waypoint-protocol" }

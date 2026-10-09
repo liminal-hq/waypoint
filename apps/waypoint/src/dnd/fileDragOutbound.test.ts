@@ -100,6 +100,21 @@ describe('leaving the window', () => {
 		expect(h.say[0]).toMatch(/^Notes\.txt could not be downloaded for the drag/);
 	});
 
+	it('keeps a drag of an elevated folder’s files in the page, without staging copies of them, and says so', async () => {
+		const h = await nativeHarness({ folder: { display: '/etc', uri: 'admin:///etc' } });
+		h.state.resolve = async () => [{ display: '/etc/shadow', uri: 'admin:///etc/shadow' }];
+		let staged = 0;
+		h.state.stage = async (locations) => {
+			staged += 1;
+			return locations;
+		};
+		await leave(h);
+		expect(staged).toBe(0);
+		expect(h.started).toEqual([]);
+		expect(h.phase()).toBe('dragging');
+		expect(h.say[0]).toBe('Notes.txt cannot be dragged out of the window');
+	});
+
 	it('hands over when the pointer goes past any edge', async () => {
 		for (const [x, y] of [
 			[-1, 100],

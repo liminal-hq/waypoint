@@ -34,6 +34,8 @@ waypoint-vfs = { path = "../../crates/waypoint-vfs" }
 tauri-plugin = { workspace = true, features = ["build"] }
 
 [dev-dependencies]
+# The elevated provider and its loopback launcher, for the commands that reach the one `admin:` login.
+waypoint-elevated = { path = "../../crates/waypoint-elevated", features = ["testing"] }
 serde_json = { workspace = true }
 tauri = { workspace = true, features = ["test"] }
 tempfile = "3"

@@ -96,12 +96,18 @@ impl ProviderRegistry {
     /// The provider of `path`, `ProtocolOff` naming a scheme that is turned off, or `Unsupported`
     /// naming a scheme nothing serves.
     pub fn for_path(&self, path: &VfsPath) -> Result<Arc<dyn Provider>, VfsError> {
+        self.for_scheme(path.scheme())
+    }
+
+    /// The provider of `scheme`, `ProtocolOff` when it is turned off, or `Unsupported` when
+    /// nothing serves it.
+    pub fn for_scheme(&self, scheme: &str) -> Result<Arc<dyn Provider>, VfsError> {
         let inner = self.read();
-        if let Some(provider) = inner.by_scheme.get(path.scheme()) {
+        if let Some(provider) = inner.by_scheme.get(scheme) {
             return Ok(provider.clone());
         }
-        let scheme = path.scheme().to_owned();
-        Err(if inner.off.contains(path.scheme()) {
+        let scheme = scheme.to_owned();
+        Err(if inner.off.contains(scheme.as_str()) {
             VfsError::ProtocolOff { scheme }
         } else {
             VfsError::Unsupported { what: scheme }

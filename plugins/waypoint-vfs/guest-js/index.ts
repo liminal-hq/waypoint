@@ -408,6 +408,14 @@ export function connect(
 	return cmd<Remembered>('connect', { location, answer, remember });
 }
 
+/**
+ * Stops the connect in flight for a login, as Cancel does while the system's prompt is up: the
+ * waiting `connect` rejects with `Cancelled`. Does nothing when none is in flight.
+ */
+export function cancelConnect(location: Location): Promise<void> {
+	return cmd<void>('cancel_connect', { location });
+}
+
 /** Tries a draft's server without saving it, as `connect` does, and says where the draft opens. */
 export function testConnection(
 	draft: ConnectionDraft,

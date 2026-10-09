@@ -40,6 +40,8 @@ export interface ConnectionsClient {
 	forgetLogin(location: Location): Promise<KeyringUnavailable | null>;
 	/** Connects now with the person's answer; the answer is sent once and never kept here. */
 	connect(location: Location, answer?: AnswerInput | null, remember?: boolean): Promise<Remembered>;
+	/** Stops the connect in flight for a login (Cancel beside the system's prompt); the waiting `connect` rejects as `cancelled`. */
+	cancelConnect(location: Location): Promise<void>;
 	/** Tries a draft without saving it, and says where it opens. */
 	test(
 		draft: ConnectionDraft,
