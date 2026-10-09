@@ -1,7 +1,7 @@
 [package]
 name = "tauri-plugin-elevate"
 version = "0.1.0"
-description = "Tauri plugin that starts a helper program with administrator rights through the system's own prompt (polkit on Linux), and reports whether it can"
+description = "Tauri plugin that starts a helper program with administrator rights through the system's own prompt (polkit on Linux, UAC on Windows), and reports whether it can"
 authors = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
@@ -9,11 +9,11 @@ rust-version = { workspace = true }
 repository = { workspace = true }
 build = "build.rs"
 links = "tauri-plugin-elevate"
-keywords = ["tauri", "plugin", "elevation", "polkit", "administrator"]
+keywords = ["tauri", "plugin", "elevation", "polkit", "uac", "administrator"]
 categories = ["api-bindings", "os"]
 
 [package.metadata.platforms.support]
-windows = { level = "none", notes = "Not implemented yet: reports elevation unavailable" }
+windows = { level = "partial", notes = "Starts the helper with `ShellExecuteExW` and the `runas` verb (a UAC prompt) and talks to it over two named pipes only the invoking user can reach; offered only for an installed copy under Program Files; type-checked and unit-tested on Linux but not yet run on Windows" }
 linux = { level = "full", notes = "Starts the helper through `pkexec`, so the prompt is polkit's own; it is offered only when `pkexec`, the polkit policy and a root-protected helper are all present, and never in a Flatpak or an AppImage" }
 macos = { level = "none", notes = "Reports elevation unavailable" }
 android = { level = "none", notes = "Desktop only" }
@@ -30,6 +30,21 @@ tauri = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 ts-rs = "12"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Security_Cryptography",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_IO",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 [dev-dependencies]
 tempfile = "3"

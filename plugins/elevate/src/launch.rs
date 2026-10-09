@@ -59,6 +59,20 @@ pub fn map_exit(code: Option<i32>) -> LaunchError {
     }
 }
 
+/// Windows' `ERROR_CANCELLED`: the person declined the UAC prompt.
+pub const ERROR_CANCELLED: u32 = 1223;
+
+/// Maps the error code of a failed `ShellExecuteExW` to the reason: a declined prompt is a dismissal, anything else is an I/O failure that names no path.
+pub fn map_shell_error(code: u32) -> LaunchError {
+    if code == ERROR_CANCELLED {
+        LaunchError::Dismissed
+    } else {
+        LaunchError::Io {
+            kind: io::Error::from_raw_os_error(code as i32).kind(),
+        }
+    }
+}
+
 /// True when `line` (without its line ending) is the ready line.
 pub fn is_ready_line(line: &[u8], ready_line: &str) -> bool {
     let line = line.strip_suffix(b"\n").unwrap_or(line);
@@ -150,14 +164,29 @@ impl Drop for ProcessGuard {
     }
 }
 
-/// A running helper: the pipes to speak the helper's protocol over, and the process they belong to. Dropping it closes the pipes first, which ends the helper, then releases the process.
+/// A running helper: the pipes to speak the helper's protocol over, and what keeps the process they belong to. Dropping it closes the pipes first, which ends the helper, then releases the process.
 pub struct ElevatedStream {
-    /// The helper's standard output.
+    /// What the helper writes: its standard output on Linux, a pipe on Windows.
     pub reader: Box<dyn Read + Send>,
-    /// The helper's standard input.
+    /// What the helper reads: its standard input on Linux, a pipe on Windows.
     pub writer: Box<dyn Write + Send>,
-    // Declared last so the pipes close before the process is signalled.
-    _process: ProcessGuard,
+    // Declared last so the pipes close before the process is signalled or released.
+    _keeper: Box<dyn Send>,
+}
+
+impl ElevatedStream {
+    /// A stream over two pipes and a `keeper` that is dropped after them: it holds the process, and releases it when dropped.
+    pub fn from_parts(
+        reader: Box<dyn Read + Send>,
+        writer: Box<dyn Write + Send>,
+        keeper: Box<dyn Send>,
+    ) -> Self {
+        ElevatedStream {
+            reader,
+            writer,
+            _keeper: keeper,
+        }
+    }
 }
 
 enum Event {
@@ -233,11 +262,7 @@ pub fn launch_with(
         }
         match inbox.recv_timeout(POLL) {
             Ok(Event::Ready) => {
-                return Ok(ElevatedStream {
-                    reader,
-                    writer,
-                    _process: guard,
-                });
+                return Ok(ElevatedStream::from_parts(reader, writer, Box::new(guard)));
             }
             Ok(Event::Closed) | Err(RecvTimeoutError::Disconnected) => {
                 closed_at.get_or_insert_with(Instant::now);
@@ -248,11 +273,7 @@ pub fn launch_with(
         let status = guard.try_wait().map_err(|error| LaunchError::io(&error))?;
         if let Some(code) = status {
             if let Ok(Event::Ready) = inbox.try_recv() {
-                return Ok(ElevatedStream {
-                    reader,
-                    writer,
-                    _process: guard,
-                });
+                return Ok(ElevatedStream::from_parts(reader, writer, Box::new(guard)));
             }
             return Err(map_exit(code));
         }
@@ -275,6 +296,13 @@ mod tests {
         assert_eq!(map_exit(Some(3)), LaunchError::Failed { code: Some(3) });
         assert_eq!(map_exit(Some(0)), LaunchError::Failed { code: Some(0) });
         assert_eq!(map_exit(None), LaunchError::Failed { code: None });
+    }
+
+    #[test]
+    fn a_declined_uac_prompt_is_a_dismissal_and_other_codes_are_io() {
+        assert_eq!(map_shell_error(1223), LaunchError::Dismissed);
+        assert!(matches!(map_shell_error(5), LaunchError::Io { .. }));
+        assert!(matches!(map_shell_error(2), LaunchError::Io { .. }));
     }
 
     #[test]

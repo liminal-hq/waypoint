@@ -20,17 +20,46 @@ use waypoint_vfs::CancelToken;
 
 use crate::connections::AppCell;
 
-/// Where the packages install the helper: root-owned, in a root-owned folder. The polkit policy
-/// names this same path, so no other program can be started through its action.
+/// Where the packages install the helper on Linux: root-owned, in a root-owned folder. The polkit
+/// policy names this same path, so no other program can be started through its action.
+#[cfg(not(windows))]
 pub const HELPER_PATH: &str = "/usr/libexec/waypoint/waypoint-elevate-helper";
 
-/// Where the packages install the polkit policy that authorises the helper.
+/// Where the packages install the polkit policy that authorises the helper. Windows has none: the
+/// prompt is UAC's, and the plugin ignores this path there.
+#[cfg(not(windows))]
 pub const POLICY_PATH: &str = "/usr/share/polkit-1/actions/ca.liminalhq.waypoint.admin.policy";
+#[cfg(windows)]
+pub const POLICY_PATH: &str = "";
 
-/// The plugin's configuration: which helper it may start, the policy that authorises it and the
-/// line the helper writes once it is running.
+/// The helper's file name on Windows. The installer puts it beside `waypoint.exe`, under Program
+/// Files, and the plugin offers elevation only when it is there.
+#[cfg(windows)]
+pub const HELPER_FILE: &str = "waypoint-elevate-helper.exe";
+
+/// The start of the names of the pipes of a launch (Windows).
+pub const PIPE_PREFIX: &str = "waypoint-elevate";
+
+/// The helper's path: fixed on Linux; beside the running program on Windows. Without a known
+/// location for the program the path is relative, which the plugin reports as not installed.
+fn helper_path() -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|folder| folder.join(HELPER_FILE)))
+            .unwrap_or_else(|| std::path::PathBuf::from(HELPER_FILE))
+    }
+    #[cfg(not(windows))]
+    {
+        std::path::PathBuf::from(HELPER_PATH)
+    }
+}
+
+/// The plugin's configuration: which helper it may start, the policy that authorises it (Linux),
+/// the line the helper writes once it is running and the start of the pipe names (Windows).
 pub fn config() -> Config {
-    Config::new(HELPER_PATH, POLICY_PATH, READY_LINE)
+    Config::new(helper_path(), POLICY_PATH, READY_LINE).with_pipe_prefix(PIPE_PREFIX)
 }
 
 /// Whether the system can start the helper now, read again at each call. The Experimental switch
@@ -179,10 +208,17 @@ mod tests {
     #[test]
     fn the_helper_is_named_once_in_the_configuration_the_plugin_gets() {
         let config = config();
-        assert_eq!(config.helper, std::path::Path::new(HELPER_PATH));
-        assert_eq!(config.policy, std::path::Path::new(POLICY_PATH));
+        assert_eq!(config.helper, helper_path());
         assert_eq!(config.ready_line, READY_LINE);
-        assert!(config.helper.is_absolute() && config.policy.is_absolute());
+        assert_eq!(config.pipe_prefix.as_deref(), Some(PIPE_PREFIX));
+        #[cfg(not(windows))]
+        {
+            assert_eq!(config.helper, std::path::Path::new(HELPER_PATH));
+            assert_eq!(config.policy, std::path::Path::new(POLICY_PATH));
+            assert!(config.helper.is_absolute() && config.policy.is_absolute());
+        }
+        #[cfg(windows)]
+        assert!(config.helper.ends_with(HELPER_FILE));
     }
 
     #[test]

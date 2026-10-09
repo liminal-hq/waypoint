@@ -13,6 +13,8 @@ use ts_rs::TS;
 pub enum Flavour {
     /// `pkexec`, so the prompt is polkit's own.
     Polkit,
+    /// A UAC prompt, through the `runas` verb.
+    Uac,
     /// No elevation on this system (yet).
     Unsupported,
 }

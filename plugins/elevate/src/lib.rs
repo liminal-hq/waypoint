@@ -3,11 +3,20 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// The parts of the Windows route that are plain logic compile everywhere, so they are tested on every platform.
+pub mod args;
 mod commands;
 pub mod launch;
+pub mod location;
 pub mod models;
+pub mod pipe_names;
 pub mod polkit;
 pub mod probe;
+pub mod sddl;
+pub mod win_check;
+
+#[cfg(target_os = "windows")]
+mod winapi;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -40,12 +49,14 @@ pub const REASON_NOT_IMPLEMENTED: &str = "Not implemented on this platform yet";
 /// What the app supplies: which helper to start and how to recognise that it is running. The plugin has no default for any of it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
-    /// The absolute path of the helper program, installed root-owned in a root-owned folder. On Linux the polkit policy names this same path.
+    /// The absolute path of the helper program. On Linux it is installed root-owned in a root-owned folder, and the polkit policy names this same path; on Windows it is under Program Files.
     pub helper: PathBuf,
-    /// The absolute path of the installed polkit policy file that authorises it.
+    /// The absolute path of the installed polkit policy file that authorises it. Unused on Windows.
     pub policy: PathBuf,
-    /// The one line the helper writes to its error stream, as its first act, when it is running. This is a wire contract with the helper: [`launch`] waits for exactly this line, because the system's prompt can keep the helper from starting for as long as the person likes.
+    /// The one line the helper writes when it is running: to its error stream on Linux, and as the start of its handshake line on the pipe on Windows (`<ready line> <token>`). This is a wire contract with the helper: `launch` waits for exactly this line, because the system's prompt can keep the helper from starting for as long as the person likes.
     pub ready_line: String,
+    /// Windows only: the start of the names of the pipes of a launch (`\\.\pipe\<prefix>-<random>-to`). Letters, digits, `-` and `_`. The plugin has no default, and without it Windows cannot launch.
+    pub pipe_prefix: Option<String>,
 }
 
 impl Config {
@@ -58,7 +69,14 @@ impl Config {
             helper: helper.into(),
             policy: policy.into(),
             ready_line: ready_line.into(),
+            pipe_prefix: None,
         }
+    }
+
+    /// Sets the pipe name prefix that Windows needs.
+    pub fn with_pipe_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.pipe_prefix = Some(prefix.into());
+        self
     }
 }
 

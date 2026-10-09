@@ -7626,6 +7626,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "ts-rs",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -9099,6 +9100,7 @@ dependencies = [
  "waypoint-path",
  "waypoint-protocol",
  "waypoint-vfs",
+ "windows 0.62.2",
 ]
 
 [[package]]

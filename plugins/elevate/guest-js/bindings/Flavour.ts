@@ -3,4 +3,4 @@
 /**
  * Which implementation is behind the plugin on this system.
  */
-export type Flavour = "polkit" | "unsupported";
+export type Flavour = "polkit" | "uac" | "unsupported";
