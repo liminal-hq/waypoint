@@ -11,7 +11,7 @@ use crate::Config;
 
 pub const REASON_ALREADY_ADMIN: &str = "The app is already running as an administrator";
 pub const REASON_PORTABLE: &str =
-    "Elevation is not available in the portable version; install the app with its installer";
+    "Administrator access needs the app installed for all users, under Program Files; the portable version and a per-user install cannot use it";
 pub const REASON_NO_FOLDERS: &str = "The Program Files folder could not be found";
 pub const REASON_NOT_CONFIGURED: &str = "Elevation is not set up in this build";
 pub const REASON_NO_HELPER: &str = "The administrator helper is not installed";

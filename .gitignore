@@ -31,3 +31,6 @@ plugins/*/permissions/schemas/
 
 # Claude Code scheduled task lock
 .claude/scheduled_tasks.lock
+
+# The elevated helper staged for the release packages (scripts/stage-elevate-helper.sh)
+/apps/waypoint/src-tauri/packaging/staged/

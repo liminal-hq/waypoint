@@ -1,0 +1,13 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"bundle": {
+		"resources": {
+			"packaging/staged/waypoint-elevate-helper.exe": "waypoint-elevate-helper.exe"
+		},
+		"windows": {
+			"nsis": {
+				"installMode": "both"
+			}
+		}
+	}
+}

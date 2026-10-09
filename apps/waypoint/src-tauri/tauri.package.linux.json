@@ -1,0 +1,19 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"bundle": {
+		"linux": {
+			"deb": {
+				"files": {
+					"/usr/libexec/waypoint/waypoint-elevate-helper": "packaging/staged/waypoint-elevate-helper",
+					"/usr/share/polkit-1/actions/ca.liminalhq.waypoint.admin.policy": "packaging/linux/ca.liminalhq.waypoint.admin.policy"
+				}
+			},
+			"rpm": {
+				"files": {
+					"/usr/libexec/waypoint/waypoint-elevate-helper": "packaging/staged/waypoint-elevate-helper",
+					"/usr/share/polkit-1/actions/ca.liminalhq.waypoint.admin.policy": "packaging/linux/ca.liminalhq.waypoint.admin.policy"
+				}
+			}
+		}
+	}
+}

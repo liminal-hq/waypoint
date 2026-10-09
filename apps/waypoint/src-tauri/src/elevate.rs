@@ -229,4 +229,85 @@ mod tests {
             Err(VfsError::Unsupported { .. })
         ));
     }
+
+    /// A packaging file, read from the crate's folder (`tauri.package.*.json` are merged only by the
+    /// release builds, so nothing else would notice them drifting from the constants).
+    fn packaging_file(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(name);
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+    }
+
+    fn package_json(name: &str) -> serde_json::Value {
+        serde_json::from_str(&packaging_file(name)).expect("the package file is JSON")
+    }
+
+    /// The deb and the rpm install the helper and the policy at exactly the paths the app and the
+    /// policy name; the policy binds its action to that helper path.
+    #[cfg(not(windows))]
+    #[test]
+    fn the_linux_packages_install_the_helper_and_policy_where_the_app_expects_them() {
+        let config = package_json("tauri.package.linux.json");
+        let policy_source = "packaging/linux/ca.liminalhq.waypoint.admin.policy";
+        for kind in ["deb", "rpm"] {
+            let files = config["bundle"]["linux"][kind]["files"]
+                .as_object()
+                .unwrap_or_else(|| panic!("bundle.linux.{kind}.files"));
+            assert_eq!(
+                files.len(),
+                2,
+                "{kind} installs the helper and the policy only"
+            );
+            assert_eq!(
+                files[HELPER_PATH], "packaging/staged/waypoint-elevate-helper",
+                "{kind} helper"
+            );
+            assert_eq!(files[POLICY_PATH], policy_source, "{kind} policy");
+        }
+
+        let policy = packaging_file(policy_source);
+        let exec_path = format!(
+            "<annotate key=\"org.freedesktop.policykit.exec.path\">{HELPER_PATH}</annotate>"
+        );
+        assert!(
+            policy.contains(&exec_path),
+            "the policy binds {HELPER_PATH}"
+        );
+        assert_eq!(
+            policy
+                .matches("org.freedesktop.policykit.exec.path")
+                .count(),
+            1
+        );
+    }
+
+    /// The installer puts the helper in the folder of `waypoint.exe`, under the name the plugin is
+    /// given, and lets the person choose between a per-user and an all-users install (the plugin
+    /// offers elevation only from Program Files, so only the second enables it), and the Linux
+    /// file names nothing the Windows one carries.
+    #[test]
+    fn the_windows_installer_puts_the_helper_beside_the_exe_and_offers_both_install_modes() {
+        let config = package_json("tauri.package.windows.json");
+        let resources = config["bundle"]["resources"]
+            .as_object()
+            .expect("bundle.resources is a map");
+        assert_eq!(resources.len(), 1);
+        assert_eq!(
+            resources["packaging/staged/waypoint-elevate-helper.exe"],
+            "waypoint-elevate-helper.exe"
+        );
+        #[cfg(windows)]
+        assert_eq!(HELPER_FILE, "waypoint-elevate-helper.exe");
+        assert_eq!(config["bundle"]["windows"]["nsis"]["installMode"], "both");
+        assert!(config["bundle"]["linux"].is_null());
+    }
+
+    /// The base config declares no helper: `tauri-build` checks resources at compile time, so a
+    /// declaration there would break every build that has not staged one.
+    #[test]
+    fn the_base_config_declares_no_helper() {
+        for name in ["tauri.conf.json", "tauri.conf.dev.json"] {
+            let text = packaging_file(name);
+            assert!(!text.contains("elevate-helper"), "{name}");
+        }
+    }
 }
