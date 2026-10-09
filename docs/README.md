@@ -29,14 +29,15 @@ Waypoint's documentation lives here and is maintained alongside the code: a chan
 
 ## Architecture
 
-| Document                                                                   | What it covers                                                                     |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [`architecture/README.md`](architecture/README.md)                         | Layers, the composition model, data flow, windows, milestones and risks            |
-| [`architecture/crates-and-plugins.md`](architecture/crates-and-plugins.md) | The concern-by-concern split into crates and Tauri plugins, and which are reusable |
-| [`architecture/frontend.md`](architecture/frontend.md)                     | The front-end framework evaluation, the chosen stack and the front-end structure   |
-| [`architecture/ci-cd.md`](architecture/ci-cd.md)                           | The CI/CD pipeline and release process                                             |
-| [`architecture/decisions.md`](architecture/decisions.md)                   | The architecture decision log (A1 onwards)                                         |
-| [`architecture/milestone-0-spikes.md`](architecture/milestone-0-spikes.md) | The measured results of the listing render and scan spikes                         |
+| Document                                                                     | What it covers                                                                                |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [`architecture/README.md`](architecture/README.md)                           | Layers, the composition model, data flow, windows, milestones and risks                       |
+| [`architecture/crates-and-plugins.md`](architecture/crates-and-plugins.md)   | The concern-by-concern split into crates and Tauri plugins, and which are reusable            |
+| [`architecture/frontend.md`](architecture/frontend.md)                       | The front-end framework evaluation, the chosen stack and the front-end structure              |
+| [`architecture/ci-cd.md`](architecture/ci-cd.md)                             | The CI/CD pipeline and release process                                                        |
+| [`architecture/decisions.md`](architecture/decisions.md)                     | The architecture decision log (A1 onwards)                                                    |
+| [`architecture/milestone-0-spikes.md`](architecture/milestone-0-spikes.md)   | The measured results of the listing render and scan spikes                                    |
+| [`architecture/elevated-operations.md`](architecture/elevated-operations.md) | The helper that does file operations as an administrator, how it starts, and its threat model |
 
 ## Keeping the docs current
 
