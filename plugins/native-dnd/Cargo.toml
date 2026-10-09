@@ -34,7 +34,7 @@ ts-rs = "12"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gdk = "0.18"
-gdk-pixbuf = "0.18"
+gdk-pixbuf = "0.22"
 gtk = { version = "0.18", features = ["v3_24"] }
 
 # Matches the version Tauri resolves, so the types line up. The `implement` macro names the `windows_core` crate, so it is a direct dependency too.
