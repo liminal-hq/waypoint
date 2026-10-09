@@ -30,6 +30,14 @@
 	font-size: calc(13px * var(--wp-text-scale));
 }
 
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
 .action {
 	display: inline-flex;
 	align-items: center;

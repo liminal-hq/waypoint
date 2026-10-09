@@ -20,6 +20,7 @@ import type { OpenHandler } from '../browse/useListInteractions';
 import type { ListingSession } from '../browse/useListingSession';
 import { inlineKey, isRtl } from '../i18n/direction';
 import { t, tf } from '../i18n/messages';
+import { isElevatedLocation } from '../elevation/elevatedLocation';
 import { openWithChooserStore } from '../openWith/openWithChooserStore';
 import { runOpenWithCommand, openWithCommandAvailable } from '../openWith/openWithCommand';
 import { openWithAbilities, useOpenWithService } from '../openWith/OpenWithContext';
@@ -132,8 +133,10 @@ export function QuickLook({ session, move, client, onOpen, onClose }: QuickLookP
 
 	const openWith = useOpenWithService();
 	const vfs = useVfsClient();
+	// A file of an elevated folder is not handed to another program, so neither Open button is offered.
+	const elevated = isElevatedLocation(model.location);
 	const canOpenWith =
-		openWith !== null && openWithCommandAvailable(openWithAbilities(openWith.status));
+		!elevated && openWith !== null && openWithCommandAvailable(openWithAbilities(openWith.status));
 
 	const number = (value: number) => new Intl.NumberFormat(formatLocale()).format(value);
 	const position = focus === null ? '' : number(focus + 1);
@@ -173,16 +176,18 @@ export function QuickLook({ session, move, client, onOpen, onClose }: QuickLookP
 							{t('quickLook.openWith')}
 						</DialogButton>
 					)}
-					<DialogButton
-						variant="primary"
-						disabled={!entry}
-						onClick={() => {
-							onClose();
-							if (entry) onOpen?.(entry, model.handle);
-						}}
-					>
-						{t('quickLook.open')}
-					</DialogButton>
+					{!elevated && (
+						<DialogButton
+							variant="primary"
+							disabled={!entry}
+							onClick={() => {
+								onClose();
+								if (entry) onOpen?.(entry, model.handle);
+							}}
+						>
+							{t('quickLook.open')}
+						</DialogButton>
+					)}
 					<DialogButton onClick={onClose}>{t('quickLook.close')}</DialogButton>
 				</DialogActions>
 			}

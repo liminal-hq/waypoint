@@ -238,9 +238,45 @@ pub async fn connect(
     let hub = hub(&state)?;
     let key = key_of(&state, &location)?;
     let answer = answer.map(ConnectAnswer::from);
-    blocking(move || hub.connect(&key, answer, remember.unwrap_or(false), &CancelToken::new()))
-        .await?
-        .map_err(Error::from)
+    let token = CancelToken::new();
+    lock_connecting(&state).insert(key.clone(), token.clone());
+    let connecting = state.connecting.clone();
+    let result = blocking(move || {
+        let result = hub.connect(&key, answer, remember.unwrap_or(false), &token);
+        // Only this connect's own entry goes: a later connect of the same login owns its own.
+        let mut in_flight = connecting
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if in_flight
+            .get(&key)
+            .is_some_and(|held| Arc::ptr_eq(&held.flag(), &token.flag()))
+        {
+            in_flight.remove(&key);
+        }
+        result
+    })
+    .await?;
+    result.map_err(Error::from)
+}
+
+/// Stops the connect in flight for a login, for the person's Cancel while the system's prompt is
+/// up: the waiting `connect` rejects with `Cancelled`. Does nothing when none is in flight.
+#[tauri::command]
+pub async fn cancel_connect(state: State<'_, Vfs>, location: Location) -> Result<(), Error> {
+    let key = key_of(&state, &location)?;
+    if let Some(token) = lock_connecting(&state).get(&key) {
+        token.cancel();
+    }
+    Ok(())
+}
+
+fn lock_connecting<'a>(
+    state: &'a Vfs,
+) -> std::sync::MutexGuard<'a, std::collections::HashMap<ConnectionKey, CancelToken>> {
+    state
+        .connecting
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Tries a draft's server without saving it: connects its login (which stays open until it is

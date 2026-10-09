@@ -30,6 +30,7 @@ import { useRepository } from '../git/GitContext';
 import { openWithChooserStore } from '../openWith/openWithChooserStore';
 import { openWithAbilities, useOpenWithService } from '../openWith/OpenWithContext';
 import { openWithCommandAvailable, runOpenWithCommand } from '../openWith/openWithCommand';
+import { useElevationCommands } from '../elevation/useElevationCommands';
 import { useCommandBridge } from './commandBridge';
 import { startCommandFeed, type CommandFeed } from './commandFeed';
 
@@ -68,6 +69,7 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 	const vfs = useVfsClient();
 	const places = usePlaces(usePlacesClient());
 	const feed = useRef<CommandFeed | null>(null);
+	useElevationCommands(sources.activeSession);
 
 	const latest = useRef({
 		...sources,

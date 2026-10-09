@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { Entry } from '@liminal-hq/waypoint-protocol/generated/Entry';
+import type { Location } from '@liminal-hq/waypoint-protocol/generated/Location';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ListView } from '../browse/ListView';
@@ -45,6 +46,8 @@ interface Setup {
 	details?: FakeDetailsClient | undefined;
 	onOpen?: (entry: Entry) => void;
 	thumbnails?: ReturnType<typeof createFakeThumbnailsClient>;
+	/** The folder the list shows (`FOLDER` unless a test needs another scheme). */
+	folder?: Location;
 }
 
 function fakeDetailsFor(): FakeDetailsClient {
@@ -61,9 +64,14 @@ function fakeDetailsFor(): FakeDetailsClient {
 	return details;
 }
 
-function renderBrowser({ details = fakeDetailsFor(), onOpen, thumbnails }: Setup = {}) {
+function renderBrowser({
+	details = fakeDetailsFor(),
+	onOpen,
+	thumbnails,
+	folder = FOLDER,
+}: Setup = {}) {
 	const client = new FakeVfsClient();
-	client.setFolder(FOLDER, ENTRIES);
+	client.setFolder(folder, ENTRIES);
 	const settings = createFakeSettingsClient({
 		...DEFAULT_SETTINGS,
 		previews: { ...DEFAULT_SETTINGS.previews, thumbnails: true },
@@ -73,7 +81,7 @@ function renderBrowser({ details = fakeDetailsFor(), onOpen, thumbnails }: Setup
 			<ThumbnailsProvider client={thumbnails}>
 				<VfsClientProvider client={client}>
 					<DetailsClientProvider client={details}>
-						<ListView location={FOLDER} onOpen={onOpen} />
+						<ListView location={folder} onOpen={onOpen} />
 						<QuickLookHost />
 					</DetailsClientProvider>
 				</VfsClientProvider>
@@ -368,6 +376,16 @@ describe('the Open button', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Open' }));
 		expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ name: 'c-notes.txt' }), 1);
 		await waitFor(() => expect(overlay()).toBeNull());
+	});
+
+	it('offers neither Open button for a file of an elevated folder, which is not handed to another program', async () => {
+		renderBrowser({ folder: { display: '/etc', uri: 'admin:///etc' } });
+		await focusEntry(2);
+		key(screen.getByRole('listbox'), ' ');
+		await screen.findByRole('dialog');
+		expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Open With…' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Close' })).toBeVisible();
 	});
 
 	it('offers no Open With where the window has no Open With client', async () => {

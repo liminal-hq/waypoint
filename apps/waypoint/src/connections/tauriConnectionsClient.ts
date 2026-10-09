@@ -41,6 +41,7 @@ export function createTauriConnectionsClient(): ConnectionsClient {
 		forgetRecent: (key) => vfs.forgetRecentServer(key),
 		forgetLogin: (location) => vfs.forgetLogin(location),
 		connect: (location, answer = null, remember = false) => vfs.connect(location, answer, remember),
+		cancelConnect: (location) => vfs.cancelConnect(location),
 		test: (draft, answer = null, remember = false) => vfs.testConnection(draft, answer, remember),
 		nextcloudAddress: (server, user) => invoke<string>('nextcloud_address', { server, user }),
 		disconnect: (location) => vfs.disconnect(location),

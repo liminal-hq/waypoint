@@ -28,6 +28,7 @@ import {
 	CloseSmallIcon,
 	PinIcon,
 	PlusIcon,
+	ShieldIcon,
 } from '../icons/AppIcons';
 import { announce, clearAnnouncement, useAnnouncement } from './announcer';
 import { chipDomId, GroupChip } from './GroupChip';
@@ -58,6 +59,7 @@ import { useVfsClient } from '../browse/VfsClientContext';
 import { useConnectionsView } from '../connections/ConnectionsContext';
 import { stateOf } from '../connections/connectionsModel';
 import { stateWords } from '../connections/remoteModel';
+import { isElevatedLocation } from '../elevation/elevatedLocation';
 import { useLocationInfo } from '../nav/locationInfo';
 import { useClosedTabs } from './useClosedTabs';
 import styles from './TabStrip.module.css';
@@ -455,6 +457,7 @@ export function TabStrip() {
 								data-active={tab.id === active ? '' : undefined}
 								data-pinned={tab.pinned ? '' : undefined}
 								data-colour={tab.colour ?? undefined}
+								data-elevated={isElevatedLocation(tab.location) ? '' : undefined}
 								data-group={item.group ? item.group.id : undefined}
 								data-group-first={item.groupFirst ? '' : undefined}
 								data-group-last={item.groupLast ? '' : undefined}
@@ -685,9 +688,11 @@ function TabButton({
 	const title = useTabTitle(tab);
 	const connection = useLocationInfo(useVfsClient(), tab.location)?.connection;
 	const remote = useConnectionsView((view) => (connection ? stateOf(view, connection) : null));
-	// The colour and the pin are words as well as marks, so neither is conveyed by appearance alone;
+	// The colour, the pin and Administrator Mode are words as well as marks, so none is conveyed by appearance alone;
 	// nor is a server's state, which the badge shows.
+	const elevated = isElevatedLocation(tab.location);
 	const details = [
+		elevated ? t('tabs.elevated') : null,
 		remote ? tf('tabs.remote', { state: stateWords(remote) }) : null,
 		pairLabel ?? null,
 		groupName === undefined ? null : tf('groups.tab.member', { name: groupName }),
@@ -713,6 +718,15 @@ function TabButton({
 			>
 				<LocationGlyph remote={remote} className={styles.icon} />
 				{tab.pinned ? <PinIcon className={styles.pinBadge} width={10} height={10} /> : null}
+				{elevated ? (
+					<ShieldIcon
+						className={
+							tab.pinned ? `${styles.elevatedBadge} ${styles.pinnedShield}` : styles.elevatedBadge
+						}
+						width={tab.pinned ? 10 : 14}
+						height={tab.pinned ? 10 : 14}
+					/>
+				) : null}
 				{tab.pinned ? null : <span className={styles.title}>{title}</span>}
 			</div>
 			{describedBy ? (

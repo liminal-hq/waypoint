@@ -96,6 +96,29 @@ describe('the menus', () => {
 		expect(idsOf(submenu(build(writable), MENU_IDS.file).items)).not.toContain('openWith');
 	});
 
+	it('File: Open as Administrator follows Open With…, and Leave Administrator Mode takes its place in an elevated tab', () => {
+		const on = { elevation: true };
+		const ordinary = submenu(build(factsFor({ selected: 0 }, on)), MENU_IDS.file);
+		expect(idsOf(ordinary.items).slice(2, 6)).toEqual([
+			'newFolder',
+			'newFile',
+			'openAsAdministrator',
+			'rename',
+		]);
+		expect(idsOf(ordinary.items)).not.toContain('leaveAdministrator');
+		expect(rowOf(ordinary.items, 'openAsAdministrator').label).toBe(t('cmd.openAsAdministrator'));
+		expect(rowOf(ordinary.items, 'openAsAdministrator')).not.toHaveProperty('shortcut');
+		const elevated = submenu(build(factsFor({ selected: 1, elevated: true }, on)), MENU_IDS.file);
+		expect(idsOf(elevated.items)).toContain('leaveAdministrator');
+		expect(idsOf(elevated.items)).not.toContain('openAsAdministrator');
+		// Delete is the permanent one there.
+		expect(idsOf(elevated.items)).not.toContain('moveToTrash');
+		expect(idsOf(elevated.items)).toContain('deletePermanently');
+		expect(idsOf(submenu(build(writable), MENU_IDS.file).items)).not.toContain(
+			'openAsAdministrator',
+		);
+	});
+
 	it('Edit: Undo and Redo with the history, then the clipboard, copy and move, and the selection', () => {
 		const edit = submenu(build(writable), MENU_IDS.edit);
 		expect(idsOf(edit.items)).toEqual([

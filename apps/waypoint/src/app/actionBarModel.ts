@@ -79,7 +79,11 @@ export function actionBarItems(api: Pick<CommandsApi, 'get'>): ActionBarItem[] {
 		items.push({
 			id,
 			label,
-			tooltip: tooltipFor(id === 'moveToTrash' ? view.label : label, view.shortcut, view.reason),
+			tooltip: tooltipFor(
+				id === 'moveToTrash' || id === 'deletePermanently' ? view.label : label,
+				view.shortcut,
+				view.reason,
+			),
 			icon: view.icon,
 			enabled: view.enabled,
 			reason: view.reason,
@@ -92,6 +96,10 @@ export function actionBarItems(api: Pick<CommandsApi, 'get'>): ActionBarItem[] {
 	button('paste', t('menu.paste'), EDIT_GROUP);
 	button('rename', t('menu.rename'), EDIT_GROUP);
 	button('moveToTrash', t('actionBar.delete'), EDIT_GROUP);
+	// An elevated folder has no Trash, so Delete there is the permanent one (and asks first).
+	if (api.get('leaveAdministrator').visible) {
+		button('deletePermanently', t('actionBar.delete'), EDIT_GROUP);
+	}
 	// Only inside an archive, where it extracts the whole of it (D48).
 	button('extractAll', t('actionBar.extractAll'), EDIT_GROUP);
 

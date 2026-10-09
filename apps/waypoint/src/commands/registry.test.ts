@@ -288,6 +288,53 @@ describe('availability', () => {
 		expect(actions.openWith).toHaveBeenCalledTimes(1);
 	});
 
+	it('offers Open as Administrator only where it is on, in an ordinary local folder, with no key bound', () => {
+		expect(commandDef('openAsAdministrator').shortcut).toBeUndefined();
+		expect(commandDef('leaveAdministrator').shortcut).toBeUndefined();
+		const on = { elevation: true };
+		expect(read(states(factsFor({}, on)).openAsAdministrator)).toBe('enabled');
+		// Off, or not working here: hidden whatever the folder.
+		expect(read(states(factsFor()).openAsAdministrator)).toBe('hidden');
+		// The Trash, a folder that is not local (a server, an archive, a revision), no listing, or already elevated.
+		expect(read(states(factsFor({ trash: true, readOnly: true }, on)).openAsAdministrator)).toBe(
+			'hidden',
+		);
+		expect(read(states(factsFor({}, { ...on, local: false })).openAsAdministrator)).toBe('hidden');
+		expect(read(states(factsFor({ listing: false }, on)).openAsAdministrator)).toBe('hidden');
+		expect(read(states(factsFor({ elevated: true }, on)).openAsAdministrator)).toBe('hidden');
+		// One selected folder, or nothing (the current folder): fine. A file, or several items: disabled with the reason.
+		expect(
+			read(
+				states(factsFor({ selected: 1 }, { ...on, elevateSelection: 'folder' }))
+					.openAsAdministrator,
+			),
+		).toBe('enabled');
+		expect(
+			read(
+				states(factsFor({ selected: 1 }, { ...on, elevateSelection: 'other' })).openAsAdministrator,
+			),
+		).toBe(`disabled: ${t('cmd.reason.elevateFolder')}`);
+		const actions = { ...idleActions(), openAsAdministrator: vi.fn() };
+		expect(runCommand('openAsAdministrator', actions, factsFor({}, on))).toBe(true);
+		expect(actions.openAsAdministrator).toHaveBeenCalledWith();
+	});
+
+	it('offers Leave Administrator Mode only in an elevated tab, even with the setting since turned off', () => {
+		expect(read(states(factsFor()).leaveAdministrator)).toBe('hidden');
+		expect(read(states(factsFor({ elevated: true })).leaveAdministrator)).toBe('enabled');
+		const actions = { ...idleActions(), leaveAdministrator: vi.fn() };
+		expect(runCommand('leaveAdministrator', actions, factsFor({ elevated: true }))).toBe(true);
+		expect(actions.leaveAdministrator).toHaveBeenCalledTimes(1);
+		expect(runCommand('leaveAdministrator', actions, factsFor())).toBe(false);
+	});
+
+	it('hides Move to Trash in an elevated folder, where Delete Permanently stays', () => {
+		const result = states(factsFor({ selected: 1, elevated: true }));
+		expect(read(result.moveToTrash)).toBe('hidden');
+		expect(read(result.deletePermanently)).toBe('enabled');
+		expect(read(states(factsFor({ selected: 1 })).moveToTrash)).toBe('enabled');
+	});
+
 	it('lists the Shelf: Ctrl+B toggles it, Add to Shelf needs a selection, Focus Shelf is always there', () => {
 		expect(commandDef('toggleShelf').shortcut).toBe('Ctrl+B');
 		expect(commandDef('addToShelf').shortcut).toBeUndefined();

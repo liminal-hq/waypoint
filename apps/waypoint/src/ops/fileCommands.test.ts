@@ -409,6 +409,75 @@ describe('Delete Permanently', () => {
 	});
 });
 
+describe('Delete in a folder shown as an administrator', () => {
+	const ADMIN = { display: '/etc', uri: 'admin:///etc' };
+
+	it('hides Move to Trash there, and keeps Delete Permanently', async () => {
+		const h = await commandsHarness({ folder: ADMIN });
+		await select(h, 0);
+		const states = h.commands.states();
+		expect(states.moveToTrash).toEqual({ visible: false, enabled: false });
+		expect(states.deletePermanently).toEqual({ visible: true, enabled: true });
+		expect(commandStates(context({ elevated: true })).moveToTrash.visible).toBe(false);
+		expect(commandStates(context({ elevated: false })).moveToTrash.visible).toBe(true);
+	});
+
+	it('makes the Delete key permanent, and asks even though the Trash confirmation is off', async () => {
+		const h = await commandsHarness({ folder: ADMIN });
+		expect((await h.fake.getSettings()).confirmTrash).toBe(false);
+		await select(h, 0);
+		const done = h.commands.moveToTrash();
+		await h.finish();
+		await done;
+		expect(h.confirms).toHaveLength(1);
+		expect(h.confirms[0]).toMatchObject({
+			title: 'Delete permanently as an administrator?',
+			message:
+				'This permanently deletes the item below as an administrator. It does not go to the Trash and cannot be undone.',
+			confirmLabel: 'Delete Permanently',
+			danger: true,
+		});
+		const submitted = h.fake.calls.filter((c) => c[0] === 'submit');
+		expect(submitted).toHaveLength(1);
+		expect((submitted[0]![1] as { kind: { kind: string } }).kind.kind).toBe('delete');
+	});
+
+	it('says how many items for a bigger selection, and sends nothing on Cancel', async () => {
+		const h = await commandsHarness({ folder: ADMIN });
+		await select(h, 0, 1);
+		h.answer.value = false;
+		await h.commands.deletePermanently();
+		expect(h.confirms[0]!.message).toBe(
+			'This permanently deletes 2 items as an administrator. They do not go to the Trash and cannot be undone.',
+		);
+		expect(h.fake.calls.some((c) => c[0] === 'submit')).toBe(false);
+	});
+
+	it('never offers the Trash as a fallback, and a finished delete is not undoable', async () => {
+		const h = await commandsHarness({ folder: ADMIN });
+		await select(h, 0);
+		const done = h.commands.moveToTrash();
+		await h.finish();
+		await done;
+		expect(
+			h.fake.calls.some(
+				(c) => c[0] === 'submit' && (c[1] as { kind: { kind: string } }).kind.kind === 'trash',
+			),
+		).toBe(false);
+		// The job ended with no undo label: there is nothing for Undo to offer.
+		expect(h.commands.history().undo).toBeNull();
+	});
+
+	it('leaves an ordinary folder alone: Delete moves to the Trash without asking', async () => {
+		const h = await commandsHarness();
+		await select(h, 0);
+		const done = h.commands.moveToTrash();
+		await h.finish();
+		await done;
+		expect(h.confirms).toEqual([]);
+	});
+});
+
 describe('Undo and Redo', () => {
 	it('say there is nothing to undo or redo, instead of failing silently', async () => {
 		const h = await commandsHarness();

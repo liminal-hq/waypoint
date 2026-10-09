@@ -8,7 +8,8 @@ import { HostedContextMenu } from '../menus/HostedContextMenu';
 import type { ReactNode } from 'react';
 import type { SortKey } from '@liminal-hq/waypoint-protocol/generated/SortKey';
 import type { SortSpec } from '@liminal-hq/waypoint-protocol/generated/SortSpec';
-import { FolderTabIcon } from '../icons/AppIcons';
+import type { ElevationMenu } from '../elevation/elevatedLocation';
+import { FolderTabIcon, ShieldIcon } from '../icons/AppIcons';
 import { useRepository } from '../git/GitContext';
 import { PropertiesIcon } from '../inspector/InspectorIcons';
 import {
@@ -59,7 +60,15 @@ export interface BackgroundCommands {
 }
 
 /** The commands the empty-space menu can run. */
-export type BackgroundCommand = 'newFolder' | 'newFile' | 'paste' | 'undo' | 'redo' | 'properties';
+export type BackgroundCommand =
+	| 'newFolder'
+	| 'newFile'
+	| 'paste'
+	| 'undo'
+	| 'redo'
+	| 'properties'
+	| 'openAsAdministrator'
+	| 'leaveAdministrator';
 
 const BACKGROUND_COMMANDS: BackgroundCommand[] = [
 	'newFolder',
@@ -68,7 +77,35 @@ const BACKGROUND_COMMANDS: BackgroundCommand[] = [
 	'undo',
 	'redo',
 	'properties',
+	'openAsAdministrator',
+	'leaveAdministrator',
 ];
+
+/** Open as Administrator on an ordinary local folder, or Leave Administrator Mode in an elevated one, after the history. */
+function elevationItems({ offer, elevated }: ElevationMenu): MenuItem[] {
+	if (elevated) {
+		return [
+			{
+				type: 'action',
+				id: 'leaveAdministrator',
+				label: t('cmd.leaveAdministrator'),
+				icon: <ShieldIcon />,
+			},
+			{ type: 'separator' },
+		];
+	}
+	return offer
+		? [
+				{
+					type: 'action',
+					id: 'openAsAdministrator',
+					label: t('cmd.openAsAdministrator'),
+					icon: <ShieldIcon />,
+				},
+				{ type: 'separator' },
+			]
+		: [];
+}
 
 /**
  * New, Paste and the history, ahead of the view items. Paste follows New and, like it, is left out
@@ -168,6 +205,8 @@ export interface BackgroundExtras {
 	folderView?: 'default' | 'remembered' | undefined;
 	/** The folder is in a Git working tree, so Git status is one of the sort keys. */
 	git?: boolean | undefined;
+	/** What Administrator Mode adds for this folder. */
+	elevation?: ElevationMenu | undefined;
 }
 
 /**
@@ -179,13 +218,14 @@ export interface BackgroundExtras {
 export function backgroundMenuItems(
 	sort: SortSpec | undefined,
 	showHidden: boolean,
-	{ trash = null, commands, folderView, git = false }: BackgroundExtras = {},
+	{ trash = null, commands, folderView, git = false, elevation }: BackgroundExtras = {},
 ): MenuItem[] {
 	const keys = SORT_KEYS.filter(({ key }) =>
 		trash ? TRASH_SORT_KEYS.includes(key) : key !== 'deleted' && (key !== 'git' || git),
 	);
 	const items: MenuItem[] = [
 		...(commands && !trash ? commandItems(commands) : []),
+		...(elevation && !trash ? elevationItems(elevation) : []),
 		...(sort
 			? ([
 					{
@@ -274,6 +314,8 @@ interface BackgroundContextMenuProps {
 	folderView?: 'default' | 'remembered' | undefined;
 	onResetFolderView?: (() => void) | undefined;
 	onCommand?: ((command: BackgroundCommand) => void) | undefined;
+	/** What Administrator Mode adds to this folder's menu. */
+	elevation?: ElevationMenu | undefined;
 }
 
 /**
@@ -293,6 +335,7 @@ export function BackgroundContextMenu({
 	folderView,
 	onResetFolderView,
 	onCommand,
+	elevation,
 }: BackgroundContextMenuProps) {
 	const inTrash = session?.model.layout === 'trash';
 	const repository = useRepository(inTrash ? undefined : session?.model.location);
@@ -301,6 +344,7 @@ export function BackgroundContextMenu({
 		commands: inTrash ? undefined : commands,
 		folderView: inTrash ? undefined : folderView,
 		git: repository !== null,
+		elevation: inTrash ? undefined : elevation,
 	});
 
 	return (

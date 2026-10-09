@@ -22,6 +22,8 @@ export const enMessages = {
 	'window.main.title': 'Main',
 	// translator: The Main window’s title with the product name “Waypoint” (not translated), an em dash, then {title}: the name of the open folder, or “Main”.
 	'window.main.titleWithApp': 'Waypoint — {title}',
+	// translator: The window’s title while the active tab is in Administrator Mode: {title} is the open folder’s name, then an em dash, then “Administrator” (the word on the tab and the title-bar badge).
+	'window.main.elevatedTitle': '{title} — Administrator',
 	'window.main.description': 'The tabbed file browser — coming soon.',
 	'window.main.startFailed': 'Waypoint could not start the file browser.',
 	'window.settings.title': 'Waypoint — Settings',
@@ -839,6 +841,8 @@ export const enMessages = {
 	'dnd.open.tabs.other': 'Opened {count} tabs',
 	'tabs.pinned': 'Pinned',
 	'tabs.pinnedBadge': 'Pinned tab',
+	// translator: Said of a tab that shows its folder as an administrator (Administrator Mode); one word, as “Pinned” is.
+	'tabs.elevated': 'Administrator',
 	'tabs.colourDescription': 'Colour: {colour}',
 	'tabs.announce.pinned': 'Pinned {title}',
 	'tabs.announce.unpinned': 'Unpinned {title}',
@@ -1398,6 +1402,23 @@ export const enMessages = {
 	'remote.signIn.title': 'Sign in to {server}',
 	'remote.signIn.detail': 'The server needs you to sign in before it shows this folder.',
 	'remote.signIn.refused': 'The server did not accept the sign-in. Try again.',
+	// translator: The word on the title-bar badge and the tab while a folder is shown as an administrator (Administrator Mode). It is also the name of the title-bar button that leaves that mode.
+	'elevation.administrator': 'Administrator',
+	// translator: The heading of a folder that is shown as an administrator but is not connected: the person has to approve it again.
+	'elevation.authenticate.title': 'Administrator access',
+	'elevation.authenticate.detail':
+		'Administrator access needs your approval before it shows this folder.',
+	// translator: A button that asks the system to prompt for the person’s password or approval so a folder can be shown as an administrator.
+	'elevation.authenticate.action': 'Authenticate',
+	'elevation.authenticate.busy': 'Waiting…',
+	'elevation.waiting': 'Waiting for the system’s prompt…',
+	'elevation.waiting.cancel': 'Cancel',
+	// translator: Shown when the system’s approval prompt was closed or the person did not approve. The system does not always say which, so it says both.
+	'elevation.refused': 'Authentication was cancelled or refused',
+	'elevation.failed': 'Administrator access is not available: {reason}',
+	'elevation.announce.opened': 'Opened {folder} as an administrator',
+	'elevation.announce.left': 'Left Administrator Mode',
+	'elevation.announce.connected': 'Administrator access approved',
 	'remote.hostKey.title': '{server} is not trusted yet',
 	'remote.hostKey.detail':
 		'Waypoint has not connected to this server before. Review its key before you trust it.',
@@ -1497,6 +1518,12 @@ export const enMessages = {
 	'files.delete.title': 'Delete permanently?',
 	'files.delete.intro.one': 'This permanently deletes the item below. It cannot be undone.',
 	'files.delete.intro.other': 'This permanently deletes {count} items. It cannot be undone.',
+	// translator: Said when the items are in a folder shown as an administrator (Administrator Mode), where nothing goes to the Trash.
+	'files.delete.elevated.title': 'Delete permanently as an administrator?',
+	'files.delete.elevated.intro.one':
+		'This permanently deletes the item below as an administrator. It does not go to the Trash and cannot be undone.',
+	'files.delete.elevated.intro.other':
+		'This permanently deletes {count} items as an administrator. They do not go to the Trash and cannot be undone.',
 	'files.delete.more': 'and {count} more',
 	'files.delete.size': 'Total size: {size}',
 	'files.delete.list.label': 'Items to delete',
@@ -2257,6 +2284,9 @@ export const enMessages = {
 	'cmd.newFile': 'New File',
 	'cmd.batchRename': 'Batch Rename…',
 	'cmd.openWith': 'Open With…',
+	// translator: A command that shows a folder as an administrator after the system asks for approval (UAC on Windows, polkit on Linux). The words “Administrator” and “Administrator Mode” are the same everywhere they appear.
+	'cmd.openAsAdministrator': 'Open as Administrator',
+	'cmd.leaveAdministrator': 'Leave Administrator Mode',
 	'cmd.selectAll': 'Select All',
 	'cmd.invertSelection': 'Invert Selection',
 	'cmd.sidebar': 'Sidebar',
@@ -2335,6 +2365,7 @@ export const enMessages = {
 	'cmd.reason.noTab': 'No tab is open',
 	'cmd.reason.folderViewDefault': 'This folder shows the window’s view',
 	'cmd.reason.selectOne': 'Select one item, or none for the folder',
+	'cmd.reason.elevateFolder': 'Select one folder, or nothing, to open as an administrator',
 	'cmd.reason.noListing': 'No folder is open',
 	'cmd.reason.noQueue': 'Operations are not available in this window',
 

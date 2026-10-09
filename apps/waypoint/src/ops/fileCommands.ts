@@ -32,6 +32,7 @@ import type {
 } from '../services/opsClient';
 import type { VfsClient } from '../services/vfsClient';
 import { isArchiveEntry, isArchiveLocation } from '../archives/archiveNames';
+import { isElevatedLocation } from '../elevation/elevatedLocation';
 import type { ArchiveClient } from '../archives/archiveClient';
 import type { Answered } from '../connections/connectFlow';
 import type { VfsError } from '@liminal-hq/waypoint-protocol/generated/VfsError';
@@ -101,6 +102,8 @@ export interface CommandContext {
 	archive?: boolean;
 	/** The listing is a place inside an archive, so Extract All has an archive to extract. */
 	inArchive?: boolean;
+	/** The listing is shown as an administrator, where the Trash is not available and Delete is permanent. */
+	elevated?: boolean;
 }
 
 /** Whether new items can be made in a listing: its provider says it writes. */
@@ -135,7 +138,8 @@ export function commandStates(context: CommandContext): Record<FileCommandId, Co
 		newFile: state(writes, true),
 		rename: state(writes, context.focused),
 		duplicate: state(outside, context.selected > 0),
-		moveToTrash: state(writes, context.selected > 0),
+		// An elevated folder has no Trash (it belongs to the person, not the administrator): Delete there is permanent.
+		moveToTrash: state(writes && context.elevated !== true, context.selected > 0),
 		deletePermanently: state(writes, context.selected > 0),
 		cut: state(outside, selected),
 		copy: state(reads, selected),
@@ -423,6 +427,19 @@ export async function freezeSelection(
 	return { kind: 'some', ids };
 }
 
+/** What the question says for a delete in a folder shown as an administrator: for good, as an administrator, not undoable. */
+function elevatedDeleteSpec(count: number): { title: string; message: string } {
+	return {
+		title: t('files.delete.elevated.title'),
+		message:
+			count === 1
+				? t('files.delete.elevated.intro.one')
+				: tf('files.delete.elevated.intro.other', {
+						count: new Intl.NumberFormat().format(count),
+					}),
+	};
+}
+
 function focusedEntry(session: ListingSession): Entry | undefined {
 	const { focus } = session.store.getState();
 	return focus === null ? undefined : session.model.entryAt(focus);
@@ -458,6 +475,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			focused: session !== null && focusedEntry(session) !== undefined,
 			archive: session !== null && archiveFocused(session),
 			inArchive: session !== null && isArchiveLocation(session.model.location),
+			elevated: session !== null && isElevatedLocation(session.model.location),
 			undo,
 			redo,
 		};
@@ -740,6 +758,20 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		...(deps.pickCompression ? { pickCompression: deps.pickCompression } : {}),
 	});
 
+	const deletePermanently = async (session?: ListingSession | null) => {
+		const found = withSelection(session);
+		if (!found) return;
+		if (isArchiveLocation(found.model.location)) return deleteFromArchive(found);
+		// Always asked, whatever the settings say (D104); nothing here can be undone.
+		const selection = await freezeSelection(found.model, found.store.getState().selection);
+		const spec = isElevatedLocation(found.model.location)
+			? elevatedDeleteSpec(selectedCount(selection, found.model.count))
+			: { title: t('files.delete.title') };
+		if (await confirmDelete(found, selection, spec)) {
+			await runDelete(found, selection);
+		}
+	};
+
 	return {
 		...archiveCommands,
 		states: (session) =>
@@ -828,6 +860,8 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			const found = withSelection(session);
 			if (!found) return;
 			if (isArchiveLocation(found.model.location)) return deleteFromArchive(found);
+			// There is no Trash for an elevated folder, so the Delete key deletes for good, and asks first.
+			if (isElevatedLocation(found.model.location)) return deletePermanently(found);
 			const { model, store } = found;
 			// What is confirmed is what is sent: a file that arrives while the dialog is open is not part of it.
 			const selection = await freezeSelection(model, store.getState().selection);
@@ -861,16 +895,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 			// A finished job that can be undone gets its Undo toast from `startUndoNotices`.
 		},
 
-		async deletePermanently(session) {
-			const found = withSelection(session);
-			if (!found) return;
-			if (isArchiveLocation(found.model.location)) return deleteFromArchive(found);
-			// Always asked, whatever the settings say (D104); nothing here can be undone.
-			const selection = await freezeSelection(found.model, found.store.getState().selection);
-			if (await confirmDelete(found, selection, { title: t('files.delete.title') })) {
-				await runDelete(found, selection);
-			}
-		},
+		deletePermanently,
 
 		cut: (session) => putOnClipboard('cut', session),
 		copy: (session) => putOnClipboard('copy', session),

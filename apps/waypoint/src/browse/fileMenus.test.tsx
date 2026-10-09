@@ -621,3 +621,102 @@ describe('a key for every menu item', () => {
 		for (const item of items) expect(item).not.toHaveProperty('shortcut');
 	});
 });
+
+describe('the menus and Administrator Mode', () => {
+	const offered = { offer: true, elevated: false };
+	const elevated = { offer: false, elevated: true };
+
+	it('offers Open as Administrator on a folder only where it is on, after the ways to open it', () => {
+		const ids = shape(entryMenuItems(folder, writable, false, null, false, offered));
+		expect(ids.slice(0, 5)).toEqual([
+			'open',
+			'openInNewTab',
+			'openInSplit',
+			'openInNewWindow',
+			'openAsAdministrator',
+		]);
+		expect(shape(entryMenuItems(folder, writable))).not.toContain('openAsAdministrator');
+		// Not for a file, which is not a folder to open.
+		expect(shape(entryMenuItems(file, writable, false, null, false, offered))).not.toContain(
+			'openAsAdministrator',
+		);
+	});
+
+	it('gives the entry menu in an elevated folder no Open for a file, but still Open for a folder, and no Move to Trash', () => {
+		const inElevated = commandStates({ ...base, elevated: true });
+		const forFile = shape(entryMenuItems(file, inElevated, false, null, false, elevated));
+		expect(forFile).not.toContain('open');
+		expect(forFile).not.toContain('moveToTrash');
+		expect(forFile).toContain('deletePermanently');
+		const forFolder = shape(entryMenuItems(folder, inElevated, false, null, false, elevated));
+		expect(forFolder.slice(0, 4)).toEqual([
+			'open',
+			'openInNewTab',
+			'openInSplit',
+			'openInNewWindow',
+		]);
+		expect(forFolder).not.toContain('openAsAdministrator');
+	});
+
+	it('runs Open as Administrator on the folder it was opened for', () => {
+		const onCommand = vi.fn();
+		render(
+			<EntryContextMenu
+				entry={folder}
+				handle={1}
+				position={{ x: 0, y: 0 }}
+				keyboard={false}
+				onClose={() => {}}
+				onOpen={() => {}}
+				onOpenInNewTab={() => {}}
+				onCopyPath={() => {}}
+				onAddToFavourites={() => {}}
+				commands={writable}
+				onCommand={onCommand}
+				elevation={offered}
+			/>,
+		);
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Open as Administrator' }));
+		expect(onCommand).toHaveBeenCalledWith('openAsAdministrator', folder);
+	});
+
+	it('adds Open as Administrator to the empty-space menu of a local folder, and Leave Administrator Mode in an elevated one', () => {
+		const states: BackgroundCommands = { states: writable, undoLabel: null, redoLabel: null };
+		const sort = {
+			key: 'name',
+			descending: false,
+			directoriesFirst: true,
+			groupBy: 'none',
+		} as const;
+		const ordinary = shape(
+			backgroundMenuItems(sort, false, { commands: states, elevation: offered }),
+		);
+		expect(ordinary).toContain('openAsAdministrator');
+		expect(ordinary).not.toContain('leaveAdministrator');
+		const inElevated = shape(
+			backgroundMenuItems(sort, false, { commands: states, elevation: elevated }),
+		);
+		expect(inElevated).toContain('leaveAdministrator');
+		expect(inElevated).not.toContain('openAsAdministrator');
+		expect(shape(backgroundMenuItems(sort, false, { commands: states }))).not.toContain(
+			'openAsAdministrator',
+		);
+		// No stray or doubled rule.
+		expect(ordinary.join(',')).not.toMatch(/\|,\|/);
+		expect(inElevated.join(',')).not.toMatch(/\|,\|/);
+	});
+
+	it('gives the new rows an icon', () => {
+		const states: BackgroundCommands = { states: writable, undoLabel: null, redoLabel: null };
+		const sort = {
+			key: 'name',
+			descending: false,
+			directoriesFirst: true,
+			groupBy: 'none',
+		} as const;
+		expectEveryItemHasIcon(entryMenuItems(folder, writable, false, null, false, offered));
+		expectEveryItemHasIcon(
+			backgroundMenuItems(sort, false, { commands: states, elevation: elevated }),
+		);
+	});
+});

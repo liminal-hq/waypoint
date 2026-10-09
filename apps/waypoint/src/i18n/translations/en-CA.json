@@ -7,6 +7,10 @@
     "message": "Waypoint — {title}",
     "description": "Area: window. Placeholders, kept exactly as written: {title} is the title of a tab. The Main window’s title with the product name “Waypoint” (not translated), an em dash, then {title}: the name of the open folder, or “Main”."
   },
+  "window.main.elevatedTitle": {
+    "message": "{title} — Administrator",
+    "description": "Area: window. Placeholders, kept exactly as written: {title} is the title of a tab. The window’s title while the active tab is in Administrator Mode: {title} is the open folder’s name, then an em dash, then “Administrator” (the word on the tab and the title-bar badge)."
+  },
   "window.main.description": {
     "message": "The tabbed file browser — coming soon.",
     "description": "Area: window."
@@ -2675,6 +2679,10 @@
     "message": "Pinned tab",
     "description": "Area: tabs."
   },
+  "tabs.elevated": {
+    "message": "Administrator",
+    "description": "Area: tabs. Said of a tab that shows its folder as an administrator (Administrator Mode); one word, as “Pinned” is."
+  },
   "tabs.colourDescription": {
     "message": "Colour: {colour}",
     "description": "Area: tabs. Placeholders, kept exactly as written: {colour} is the name of a colour."
@@ -4711,6 +4719,54 @@
     "message": "The server did not accept the sign-in. Try again.",
     "description": "Area: remote."
   },
+  "elevation.administrator": {
+    "message": "Administrator",
+    "description": "Area: elevation. The word on the title-bar badge and the tab while a folder is shown as an administrator (Administrator Mode). It is also the name of the title-bar button that leaves that mode."
+  },
+  "elevation.authenticate.title": {
+    "message": "Administrator access",
+    "description": "Area: elevation. The heading of a folder that is shown as an administrator but is not connected: the person has to approve it again."
+  },
+  "elevation.authenticate.detail": {
+    "message": "Administrator access needs your approval before it shows this folder.",
+    "description": "Area: elevation."
+  },
+  "elevation.authenticate.action": {
+    "message": "Authenticate",
+    "description": "Area: elevation. A button that asks the system to prompt for the person’s password or approval so a folder can be shown as an administrator."
+  },
+  "elevation.authenticate.busy": {
+    "message": "Waiting…",
+    "description": "Area: elevation."
+  },
+  "elevation.waiting": {
+    "message": "Waiting for the system’s prompt…",
+    "description": "Area: elevation."
+  },
+  "elevation.waiting.cancel": {
+    "message": "Cancel",
+    "description": "Area: elevation."
+  },
+  "elevation.refused": {
+    "message": "Authentication was cancelled or refused",
+    "description": "Area: elevation. Shown when the system’s approval prompt was closed or the person did not approve. The system does not always say which, so it says both."
+  },
+  "elevation.failed": {
+    "message": "Administrator access is not available: {reason}",
+    "description": "Area: elevation. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words."
+  },
+  "elevation.announce.opened": {
+    "message": "Opened {folder} as an administrator",
+    "description": "Area: elevation. Placeholders, kept exactly as written: {folder} is the name of a folder."
+  },
+  "elevation.announce.left": {
+    "message": "Left Administrator Mode",
+    "description": "Area: elevation."
+  },
+  "elevation.announce.connected": {
+    "message": "Administrator access approved",
+    "description": "Area: elevation."
+  },
   "remote.hostKey.title": {
     "message": "{server} is not trusted yet",
     "description": "Area: remote. Placeholders, kept exactly as written: {server}."
@@ -5050,6 +5106,18 @@
   "files.delete.intro.other": {
     "message": "This permanently deletes {count} items. It cannot be undone.",
     "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.delete.intro.one."
+  },
+  "files.delete.elevated.title": {
+    "message": "Delete permanently as an administrator?",
+    "description": "Area: files. Said when the items are in a folder shown as an administrator (Administrator Mode), where nothing goes to the Trash."
+  },
+  "files.delete.elevated.intro.one": {
+    "message": "This permanently deletes the item below as an administrator. It does not go to the Trash and cannot be undone.",
+    "description": "Area: files. Plural: one of a group; the other forms are files.delete.elevated.intro.other."
+  },
+  "files.delete.elevated.intro.other": {
+    "message": "This permanently deletes {count} items as an administrator. They do not go to the Trash and cannot be undone.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.delete.elevated.intro.one."
   },
   "files.delete.more": {
     "message": "and {count} more",
@@ -7779,6 +7847,14 @@
     "message": "Open With…",
     "description": "Area: cmd."
   },
+  "cmd.openAsAdministrator": {
+    "message": "Open as Administrator",
+    "description": "Area: cmd. A command that shows a folder as an administrator after the system asks for approval (UAC on Windows, polkit on Linux). The words “Administrator” and “Administrator Mode” are the same everywhere they appear."
+  },
+  "cmd.leaveAdministrator": {
+    "message": "Leave Administrator Mode",
+    "description": "Area: cmd."
+  },
   "cmd.selectAll": {
     "message": "Select All",
     "description": "Area: cmd."
@@ -8081,6 +8157,10 @@
   },
   "cmd.reason.selectOne": {
     "message": "Select one item, or none for the folder",
+    "description": "Area: cmd."
+  },
+  "cmd.reason.elevateFolder": {
+    "message": "Select one folder, or nothing, to open as an administrator",
     "description": "Area: cmd."
   },
   "cmd.reason.noListing": {

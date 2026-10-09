@@ -3,21 +3,22 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
 
 use serde::Deserialize;
 use tauri::ipc::Channel;
 use tauri::{Emitter, Manager, Runtime, State, Window};
 use tauri_plugin_opener::OpenerExt;
 use waypoint_connections::ConnectionsHub;
-use waypoint_path::VfsPath;
+use waypoint_path::{ConnectionKey, VfsPath};
 use waypoint_protocol::{EntryId, Location, PluginStatus, VfsError};
 use waypoint_vfs::{
-    DirScanCache, DirScanEvent, DirScanOptions, DirScanResult, Entry, EntryDetails, EntryKind,
-    Filter, FolderCheck, FolderOverlay, FolderSizeEvent, Listing, ListingEvent, ListingHandle,
-    ListingLayout, ListingOptions, ListingSnapshot, LocalProvider, LocationInfo, Places, PlacesEnv,
-    Provider, ProviderRegistry, SelectionSpec, SelectionSummary, SortSpec, TextHead, TrashInfo,
-    TrashProvider, TrashSource, TypedLocation, VolumeSpace,
+    CancelToken, DirScanCache, DirScanEvent, DirScanOptions, DirScanResult, Entry, EntryDetails,
+    EntryKind, Filter, FolderCheck, FolderOverlay, FolderSizeEvent, Listing, ListingEvent,
+    ListingHandle, ListingLayout, ListingOptions, ListingSnapshot, LocalProvider, LocationInfo,
+    Places, PlacesEnv, Provider, ProviderRegistry, SelectionSpec, SelectionSummary, SortSpec,
+    TextHead, TrashInfo, TrashProvider, TrashSource, TypedLocation, VolumeSpace,
 };
 
 use crate::error::Error;
@@ -42,6 +43,9 @@ pub struct Vfs {
     /// The saved connections and the connection manager, when the app gave them.
     connections: Option<Arc<ConnectionsHub>>,
     suggestions: Option<Suggestions>,
+    /// The cancel token of the connect in flight for each login, so `cancel_connect` can stop the
+    /// one a person is waiting on (the system's prompt, for the elevated helper).
+    pub(crate) connecting: Arc<Mutex<HashMap<ConnectionKey, CancelToken>>>,
     /// What decorates the listings of folders (the Git status, A102), once the app has given one.
     overlay: RwLock<Option<Arc<dyn FolderOverlay>>>,
 }
@@ -220,6 +224,7 @@ impl Vfs {
             remote,
             connections,
             suggestions,
+            connecting: Arc::default(),
             overlay: RwLock::new(None),
         }
     }
@@ -699,6 +704,13 @@ pub async fn open_entry<R: Runtime>(
     if provider.layout() == ListingLayout::Trash {
         return Err(VfsError::Unsupported {
             what: "opening an item in the Trash".to_owned(),
+        }
+        .into());
+    }
+    // Another program would run as the person, on a path only the elevated helper is meant to read.
+    if matches!(path, VfsPath::Elevated(_)) {
+        return Err(VfsError::Unsupported {
+            what: "opening an elevated file in another program".to_owned(),
         }
         .into());
     }

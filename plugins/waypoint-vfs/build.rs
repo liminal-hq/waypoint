@@ -45,6 +45,7 @@ const COMMANDS: &[&str] = &[
     "forget_recent_server",
     "forget_login",
     "connect",
+    "cancel_connect",
     "test_connection",
     "disconnect",
     "connection_state",

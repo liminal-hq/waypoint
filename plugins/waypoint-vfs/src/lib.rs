@@ -133,6 +133,7 @@ pub fn init_with<R: Runtime>(options: Options<R>) -> TauriPlugin<R> {
             connections::forget_recent_server,
             connections::forget_login,
             connections::connect,
+            connections::cancel_connect,
             connections::test_connection,
             connections::disconnect,
             connections::connection_state,

@@ -15,6 +15,8 @@ const messages: Catalogue = {
 	'window.main.title': 'Principale',
 	// source: 87faa149
 	'window.main.titleWithApp': 'Waypoint — {title}',
+	// source: 82cc28bf
+	'window.main.elevatedTitle': '{title} — Administrateur',
 	// source: a72f1d0b
 	'window.main.description': 'L’explorateur de fichiers à onglets — bientôt disponible.',
 	// source: 12b1b753
@@ -1507,6 +1509,8 @@ const messages: Catalogue = {
 	'tabs.pinned': 'Épinglés',
 	// source: 530ff53d
 	'tabs.pinnedBadge': 'Onglet épinglé',
+	// source: e7d3e769
+	'tabs.elevated': 'Administrateur',
 	// source: b9aa909d
 	'tabs.colourDescription': 'Couleur : {colour}',
 	// source: e3dab8aa
@@ -2588,6 +2592,31 @@ const messages: Catalogue = {
 	'remote.signIn.detail': 'Le serveur demande de vous connecter avant d’afficher ce dossier.',
 	// source: 774f9d0c
 	'remote.signIn.refused': 'Le serveur n’a pas accepté l’identification. Réessayez.',
+	// source: e7d3e769
+	'elevation.administrator': 'Administrateur',
+	// source: 64dbd25f
+	'elevation.authenticate.title': 'Accès administrateur',
+	// source: 494eb66b
+	'elevation.authenticate.detail':
+		'L’accès administrateur nécessite votre approbation avant d’afficher ce dossier.',
+	// source: 2212860e
+	'elevation.authenticate.action': 'S’authentifier',
+	// source: 612ffc5c
+	'elevation.authenticate.busy': 'En attente…',
+	// source: 65e7e3e1
+	'elevation.waiting': 'En attente de l’invite du système…',
+	// source: 19766ed6
+	'elevation.waiting.cancel': 'Annuler',
+	// source: ccdd613c
+	'elevation.refused': 'L’authentification a été annulée ou refusée',
+	// source: 08b61408
+	'elevation.failed': 'L’accès administrateur n’est pas disponible : {reason}',
+	// source: 637cf68d
+	'elevation.announce.opened': '{folder} ouvert en tant qu’administrateur',
+	// source: 4eb4db92
+	'elevation.announce.left': 'Mode administrateur quitté',
+	// source: 99befa18
+	'elevation.announce.connected': 'Accès administrateur approuvé',
 	// source: c3209923
 	'remote.hostKey.title': '{server} n’est pas encore approuvé',
 	// source: 22cb7210
@@ -2777,6 +2806,17 @@ const messages: Catalogue = {
 	// source: 76019696
 	'files.delete.intro.other':
 		'Ceci supprime définitivement {count} éléments. Cette action est irréversible.',
+	// source: f532eb31
+	'files.delete.elevated.title': 'Supprimer définitivement en tant qu’administrateur?',
+	// source: 0d1e621b
+	'files.delete.elevated.intro.one':
+		'Cette action supprime définitivement l’élément ci-dessous en tant qu’administrateur. Il n’ira pas dans la Corbeille et la suppression est irréversible.',
+	// source: a9905bf0
+	'files.delete.elevated.intro.many':
+		'Cette action supprime définitivement {count} d’éléments en tant qu’administrateur. Ils n’iront pas dans la Corbeille et la suppression est irréversible.',
+	// source: a9905bf0
+	'files.delete.elevated.intro.other':
+		'Cette action supprime définitivement {count} éléments en tant qu’administrateur. Ils n’iront pas dans la Corbeille et la suppression est irréversible.',
 	// source: 1a261270
 	'files.delete.more': 'et {count} de plus',
 	// source: f10a6251
@@ -4330,6 +4370,10 @@ const messages: Catalogue = {
 	'cmd.batchRename': 'Renommage en lot…',
 	// source: a73477d7
 	'cmd.openWith': 'Ouvrir avec…',
+	// source: 5f4bdc7f
+	'cmd.openAsAdministrator': 'Ouvrir en tant qu’administrateur',
+	// source: a07bb111
+	'cmd.leaveAdministrator': 'Quitter le mode administrateur',
 	// source: d1ec69e6
 	'cmd.selectAll': 'Tout sélectionner',
 	// source: 995fe6fd
@@ -4487,6 +4531,9 @@ const messages: Catalogue = {
 	'cmd.reason.folderViewDefault': 'Ce dossier affiche la vue de la fenêtre',
 	// source: 027d2ebf
 	'cmd.reason.selectOne': 'Sélectionnez un élément, ou aucun pour le dossier',
+	// source: 7215a69f
+	'cmd.reason.elevateFolder':
+		'Sélectionnez un seul dossier, ou aucun, pour l’ouvrir en tant qu’administrateur',
 	// source: 23f939b1
 	'cmd.reason.noListing': 'Aucun dossier n’est ouvert',
 	// source: 555bcdf0

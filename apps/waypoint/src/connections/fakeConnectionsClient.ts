@@ -317,6 +317,8 @@ export class FakeConnectionsClient implements ConnectionsClient {
 	}
 
 	private keyOfLocation(location: Location): string {
+		// The elevated helper is one login with no host: `admin:///etc` and `admin:///` are both `admin:`.
+		if (/^admin:/i.test(location.uri)) return 'admin:';
 		const match = /^([a-z]+:\/\/[^/]+)/.exec(location.uri);
 		if (!match) throw { kind: 'invalidLocation', input: location.uri } satisfies VfsError;
 		return match[1] ?? '';
@@ -348,7 +350,35 @@ export class FakeConnectionsClient implements ConnectionsClient {
 		this.record('connect', location, answer?.kind ?? null, remember);
 		const scheme = /^([a-z]+):\/\//.exec(location.uri)?.[1] ?? '';
 		if (this.off.includes(scheme)) throw { kind: 'protocolOff', scheme } satisfies VfsError;
+		if (this.holdConnects) {
+			const key = this.keyOfLocation(location);
+			this.emitState(key, { kind: 'connecting' });
+			const error = await new Promise<VfsError | null>((finish) => this.held.push(finish));
+			if (error) {
+				this.emitState(
+					key,
+					error.kind === 'cancelled' ? { kind: 'idle' } : { kind: 'failed', error },
+				);
+				throw error;
+			}
+		}
 		return this.run(this.keyOfLocation(location), answer, remember);
+	}
+
+	/** While true a `connect` waits (as the system's prompt does) until `releaseConnects` or `cancelConnect`. */
+	holdConnects = false;
+	private held: Array<(error: VfsError | null) => void> = [];
+
+	/** Ends every held `connect`: with `error` it rejects, with `null` it connects. */
+	releaseConnects(error: VfsError | null = null) {
+		const waiting = this.held;
+		this.held = [];
+		for (const finish of waiting) finish(error);
+	}
+
+	async cancelConnect(location: Location): Promise<void> {
+		this.record('cancelConnect', location);
+		this.releaseConnects({ kind: 'cancelled' });
 	}
 
 	async test(

@@ -112,6 +112,8 @@ import {
 import { useWorkspaceCommands } from '../commands/useWorkspaceCommands';
 import { ActionBar } from './ActionBar';
 import { frameMargin } from './frameMargin';
+import { elevationMenuFor } from '../elevation/elevatedLocation';
+import { ElevationPrompt } from '../elevation/ElevationPrompt';
 import { NoticeToast } from './NoticeToast';
 import { clearPaneFocus } from '../tabs/paneFocus';
 import { dismissNotice } from './notices';
@@ -316,6 +318,8 @@ function WorkspaceBody({
 	// kept. What the folders remember, and whether this window's own writes are all answered, are
 	// what bring the open listings and the view mode back in line.
 	const bridge = useCommandBridge();
+	// Whether Administrator access is on and works here, for the menus that offer Open as Administrator.
+	const elevationOffered = useStore(bridge.store, (env) => env.facts.elevation);
 	const folderViewStore = folderViewsHandle?.store ?? IDLE_FOLDER_VIEWS;
 	const remembered = useStore(folderViewStore, (state) =>
 		remembering ? state.folders : NO_FOLDERS,
@@ -465,6 +469,20 @@ function WorkspaceBody({
 		const from = menu?.session ?? null;
 		if (command === 'properties') return inspectorStore.getState().showProperties();
 		if (command === 'propertiesWindow') return openProperties(from, entry);
+		const { actions } = bridge.store.getState();
+		if (command === 'leaveAdministrator') return actions.leaveAdministrator();
+		if (command === 'openAsAdministrator') {
+			// On the folder that was right-clicked, or on the folder the empty space belongs to.
+			if (entry && from) {
+				client.entryLocation(from.model.handle, entry.id).then(
+					(folder) => actions.openAsAdministrator(folder),
+					(error: unknown) => console.warn('could not find the folder to open', error),
+				);
+			} else if (from) {
+				actions.openAsAdministrator(from.model.location);
+			}
+			return;
+		}
 		if (!commands) return;
 		switch (command) {
 			case 'newFolder':
@@ -599,6 +617,7 @@ function WorkspaceBody({
 											<ShelfToggle />
 										</StatusBar>
 										<NoticeToast />
+										<ElevationPrompt />
 										{commandDialog}
 										<BatchRenameHost api={batchRenameApi} announce={notify} />
 										<ConnectHost />
@@ -637,6 +656,7 @@ function WorkspaceBody({
 														: undefined
 												}
 												onResetFolderView={() => void folderViews.reset(menuFolderKey)}
+												elevation={elevationMenuFor(elevationOffered, menu.session?.model.location)}
 												onCommand={runCommand}
 											/>
 										)}
@@ -676,6 +696,7 @@ function WorkspaceBody({
 														: false
 												}
 												propertiesWindow={propertiesWindowAvailable}
+												elevation={elevationMenuFor(elevationOffered, menu.session?.model.location)}
 												onCommand={runCommand}
 											/>
 										)}

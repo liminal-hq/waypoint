@@ -267,6 +267,13 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     function connect(location, answer = null, remember = false) {
         return cmd('connect', { location, answer, remember });
     }
+    /**
+     * Stops the connect in flight for a login, as Cancel does while the system's prompt is up: the
+     * waiting `connect` rejects with `Cancelled`. Does nothing when none is in flight.
+     */
+    function cancelConnect(location) {
+        return cmd('cancel_connect', { location });
+    }
     /** Tries a draft's server without saving it, as `connect` does, and says where the draft opens. */
     function testConnection(draft, answer = null, remember = false) {
         return cmd('test_connection', { draft, answer, remember });
@@ -295,6 +302,7 @@ var __TAURI_PLUGIN_WAYPOINT_VFS__ = (function (exports, core, event, webviewWind
     exports.PREVIEW_SCHEME = PREVIEW_SCHEME;
     exports.addConnection = addConnection;
     exports.addFavourite = addFavourite;
+    exports.cancelConnect = cancelConnect;
     exports.cancelDirScan = cancelDirScan;
     exports.cancelFolderSize = cancelFolderSize;
     exports.checkFolder = checkFolder;

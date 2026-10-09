@@ -46,6 +46,8 @@
 	--wp-success: #15803d;
 	--wp-warning: #a16207;
 	--wp-focus-ring: #2563eb;
+	/* Administrator Mode: the frame, the title-bar badge and the tab's shield. Distinct from the accent and from danger, at least 3:1 against the window background and 4.5:1 as text. */
+	--wp-elevated: #a21caf;
 
 	/* Tab and group colour labels (the TabColour wire type). Each is at least 3:1 against the window background. */
 	--wp-tab-colour-red: #dc2626;
@@ -160,6 +162,7 @@
 		--wp-success: #4ade80;
 		--wp-warning: #facc15;
 		--wp-focus-ring: #60a5fa;
+		--wp-elevated: #e879f9;
 		--wp-tab-colour-red: #f87171;
 		--wp-tab-colour-orange: #fb923c;
 		--wp-tab-colour-yellow: #facc15;
@@ -201,6 +204,7 @@
 	--wp-success: #4ade80;
 	--wp-warning: #facc15;
 	--wp-focus-ring: #60a5fa;
+	--wp-elevated: #e879f9;
 	--wp-tab-colour-red: #f87171;
 	--wp-tab-colour-orange: #fb923c;
 	--wp-tab-colour-yellow: #facc15;
@@ -427,6 +431,7 @@ select optgroup {
 	--wp-success: #00561f;
 	--wp-warning: #6b3f00;
 	--wp-focus-ring: #000000;
+	--wp-elevated: #7a0072;
 	--wp-focus-ring-width: 3px;
 	--wp-icon-weight-min: 1.6px;
 }
@@ -453,4 +458,5 @@ select optgroup {
 	--wp-success: #80ff9f;
 	--wp-warning: #ffd966;
 	--wp-focus-ring: #ffffff;
+	--wp-elevated: #ff9cf5;
 }

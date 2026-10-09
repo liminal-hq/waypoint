@@ -9,6 +9,11 @@
     "description": "Area: window. Placeholders, kept exactly as written: {title} is the title of a tab. The Main window’s title with the product name “Waypoint” (not translated), an em dash, then {title}: the name of the open folder, or “Main”.",
     "source": "87faa149"
   },
+  "window.main.elevatedTitle": {
+    "message": "{title} — Administrateur",
+    "description": "Area: window. Placeholders, kept exactly as written: {title} is the title of a tab. The window’s title while the active tab is in Administrator Mode: {title} is the open folder’s name, then an em dash, then “Administrator” (the word on the tab and the title-bar badge).",
+    "source": "82cc28bf"
+  },
   "window.main.description": {
     "message": "L’explorateur de fichiers à onglets — bientôt disponible.",
     "description": "Area: window.",
@@ -3399,6 +3404,11 @@
     "description": "Area: tabs.",
     "source": "530ff53d"
   },
+  "tabs.elevated": {
+    "message": "Administrateur",
+    "description": "Area: tabs. Said of a tab that shows its folder as an administrator (Administrator Mode); one word, as “Pinned” is.",
+    "source": "e7d3e769"
+  },
   "tabs.colourDescription": {
     "message": "Couleur : {colour}",
     "description": "Area: tabs. Placeholders, kept exactly as written: {colour} is the name of a colour.",
@@ -5964,6 +5974,66 @@
     "description": "Area: remote.",
     "source": "774f9d0c"
   },
+  "elevation.administrator": {
+    "message": "Administrateur",
+    "description": "Area: elevation. The word on the title-bar badge and the tab while a folder is shown as an administrator (Administrator Mode). It is also the name of the title-bar button that leaves that mode.",
+    "source": "e7d3e769"
+  },
+  "elevation.authenticate.title": {
+    "message": "Accès administrateur",
+    "description": "Area: elevation. The heading of a folder that is shown as an administrator but is not connected: the person has to approve it again.",
+    "source": "64dbd25f"
+  },
+  "elevation.authenticate.detail": {
+    "message": "L’accès administrateur nécessite votre approbation avant d’afficher ce dossier.",
+    "description": "Area: elevation.",
+    "source": "494eb66b"
+  },
+  "elevation.authenticate.action": {
+    "message": "S’authentifier",
+    "description": "Area: elevation. A button that asks the system to prompt for the person’s password or approval so a folder can be shown as an administrator.",
+    "source": "2212860e"
+  },
+  "elevation.authenticate.busy": {
+    "message": "En attente…",
+    "description": "Area: elevation.",
+    "source": "612ffc5c"
+  },
+  "elevation.waiting": {
+    "message": "En attente de l’invite du système…",
+    "description": "Area: elevation.",
+    "source": "65e7e3e1"
+  },
+  "elevation.waiting.cancel": {
+    "message": "Annuler",
+    "description": "Area: elevation.",
+    "source": "19766ed6"
+  },
+  "elevation.refused": {
+    "message": "L’authentification a été annulée ou refusée",
+    "description": "Area: elevation. Shown when the system’s approval prompt was closed or the person did not approve. The system does not always say which, so it says both.",
+    "source": "ccdd613c"
+  },
+  "elevation.failed": {
+    "message": "L’accès administrateur n’est pas disponible : {reason}",
+    "description": "Area: elevation. Placeholders, kept exactly as written: {reason} is why something failed, in the system’s own words.",
+    "source": "08b61408"
+  },
+  "elevation.announce.opened": {
+    "message": "{folder} ouvert en tant qu’administrateur",
+    "description": "Area: elevation. Placeholders, kept exactly as written: {folder} is the name of a folder.",
+    "source": "637cf68d"
+  },
+  "elevation.announce.left": {
+    "message": "Mode administrateur quitté",
+    "description": "Area: elevation.",
+    "source": "4eb4db92"
+  },
+  "elevation.announce.connected": {
+    "message": "Accès administrateur approuvé",
+    "description": "Area: elevation.",
+    "source": "99befa18"
+  },
   "remote.hostKey.title": {
     "message": "{server} n’est pas encore approuvé",
     "description": "Area: remote. Placeholders, kept exactly as written: {server}.",
@@ -6408,6 +6478,26 @@
     "message": "Ceci supprime définitivement {count} éléments. Cette action est irréversible.",
     "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.delete.intro.one, files.delete.intro.many.",
     "source": "76019696"
+  },
+  "files.delete.elevated.title": {
+    "message": "Supprimer définitivement en tant qu’administrateur?",
+    "description": "Area: files. Said when the items are in a folder shown as an administrator (Administrator Mode), where nothing goes to the Trash.",
+    "source": "f532eb31"
+  },
+  "files.delete.elevated.intro.one": {
+    "message": "Cette action supprime définitivement l’élément ci-dessous en tant qu’administrateur. Il n’ira pas dans la Corbeille et la suppression est irréversible.",
+    "description": "Area: files. Plural: one of a group; the other forms are files.delete.elevated.intro.many, files.delete.elevated.intro.other.",
+    "source": "0d1e621b"
+  },
+  "files.delete.elevated.intro.many": {
+    "message": "Cette action supprime définitivement {count} d’éléments en tant qu’administrateur. Ils n’iront pas dans la Corbeille et la suppression est irréversible.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.delete.elevated.intro.one, files.delete.elevated.intro.other.",
+    "source": "a9905bf0"
+  },
+  "files.delete.elevated.intro.other": {
+    "message": "Cette action supprime définitivement {count} éléments en tant qu’administrateur. Ils n’iront pas dans la Corbeille et la suppression est irréversible.",
+    "description": "Area: files. Placeholders, kept exactly as written: {count} is a number of items (the plural form is chosen from it). Plural: one of a group; the other forms are files.delete.elevated.intro.one, files.delete.elevated.intro.many.",
+    "source": "a9905bf0"
   },
   "files.delete.more": {
     "message": "et {count} de plus",
@@ -10074,6 +10164,16 @@
     "description": "Area: cmd.",
     "source": "a73477d7"
   },
+  "cmd.openAsAdministrator": {
+    "message": "Ouvrir en tant qu’administrateur",
+    "description": "Area: cmd. A command that shows a folder as an administrator after the system asks for approval (UAC on Windows, polkit on Linux). The words “Administrator” and “Administrator Mode” are the same everywhere they appear.",
+    "source": "5f4bdc7f"
+  },
+  "cmd.leaveAdministrator": {
+    "message": "Quitter le mode administrateur",
+    "description": "Area: cmd.",
+    "source": "a07bb111"
+  },
   "cmd.selectAll": {
     "message": "Tout sélectionner",
     "description": "Area: cmd.",
@@ -10458,6 +10558,11 @@
     "message": "Sélectionnez un élément, ou aucun pour le dossier",
     "description": "Area: cmd.",
     "source": "027d2ebf"
+  },
+  "cmd.reason.elevateFolder": {
+    "message": "Sélectionnez un seul dossier, ou aucun, pour l’ouvrir en tant qu’administrateur",
+    "description": "Area: cmd.",
+    "source": "7215a69f"
   },
   "cmd.reason.noListing": {
     "message": "Aucun dossier n’est ouvert",

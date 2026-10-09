@@ -6,6 +6,7 @@
 import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generated/JournalEntrySummary';
 import { batchRenameSelection } from '../ops/batchRename/batchRenameSelection';
 import { selectedCount } from '../browse/selection';
+import { isFolder } from '../nav/useOpenEntry';
 import type { ListingSession } from '../browse/useListingSession';
 import type { ViewStore } from '../browse/viewStore';
 import type { ClipboardService } from '../ops/clipboardService';
@@ -26,6 +27,19 @@ export interface CommandFeedSources {
 	sidebar: SidebarStore;
 	/** Hears a pane's listing opening or closing (the listing manager's `subscribe`). */
 	subscribePanes: (listener: () => void) => () => void;
+}
+
+/** What Open as Administrator would act on: nothing selected, one folder, or something it cannot (a file, or several items). */
+function elevateSelectionOf(
+	session: ListingSession | null,
+	selected: number,
+): 'none' | 'folder' | 'other' {
+	if (!session || selected === 0) return 'none';
+	if (selected > 1) return 'other';
+	const { selection } = session.store.getState();
+	const id = selection.kind === 'some' ? [...selection.ids][0] : undefined;
+	const entry = id === undefined ? undefined : session.model.cachedEntry(id);
+	return entry && isFolder(entry) ? 'folder' : 'other';
 }
 
 export interface CommandFeed {
@@ -82,7 +96,9 @@ export function startCommandFeed(bridge: CommandBridge, sources: CommandFeedSour
 		const queue = ops?.store.getState().snapshot;
 		const view = sources.view.getState();
 		const selection = session?.store.getState().selection;
+		const chosen = session && selection ? selectedCount(selection, session.model.count) : 0;
 		bridge.patchFacts({
+			elevateSelection: elevateSelectionOf(session, chosen),
 			file: files ? files.states(session) : emptyFacts().file,
 			selected: session && selection ? selectedCount(selection, session.model.count) : 0,
 			listing: session !== null,
