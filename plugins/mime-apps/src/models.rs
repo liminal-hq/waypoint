@@ -98,9 +98,10 @@ pub const FEATURE_CHOOSER: &str = "chooser";
 pub const FEATURE_APP_ICONS: &str = "appIcons";
 pub const FEATURE_TYPE_ICONS: &str = "typeIcons";
 pub const FEATURE_FOLDER_ICONS: &str = "folderIcons";
+pub const FEATURE_RUN_ELEVATED: &str = "runElevated";
 
 /// Every feature, in the order `get_status` lists them.
-pub const FEATURES: [&str; 9] = [
+pub const FEATURES: [&str; 10] = [
     FEATURE_TYPE_INFO,
     FEATURE_HANDLERS,
     FEATURE_OPEN_WITH,
@@ -110,6 +111,7 @@ pub const FEATURES: [&str; 9] = [
     FEATURE_APP_ICONS,
     FEATURE_TYPE_ICONS,
     FEATURE_FOLDER_ICONS,
+    FEATURE_RUN_ELEVATED,
 ];
 
 /// Whether one feature of the plugin works on this system.
@@ -117,7 +119,7 @@ pub const FEATURES: [&str; 9] = [
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../guest-js/bindings/")]
 pub struct FeatureStatus {
-    /// One of `typeInfo`, `handlers`, `openWith`, `openDefault`, `setDefault`, `chooser`, `appIcons`, `typeIcons` or `folderIcons`.
+    /// One of `typeInfo`, `handlers`, `openWith`, `openDefault`, `setDefault`, `chooser`, `appIcons`, `typeIcons`, `folderIcons` or `runElevated`.
     pub name: String,
     pub available: bool,
     /// Why the feature is unavailable; absent when it works.

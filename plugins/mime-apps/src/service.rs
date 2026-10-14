@@ -11,6 +11,7 @@ use tauri::Manager;
 use tauri::{AppHandle, Runtime};
 
 use crate::backend::{Backend, ParentWindow};
+use crate::elevate_rules;
 use crate::error::{MimeAppsError, Result};
 use crate::models::{Handlers, PluginStatus, TypeInfo};
 use crate::scheme::IconCache;
@@ -19,7 +20,7 @@ use crate::typeicons::{
     file_stamp, has_own_icon, is_drive_path, IconKind, IconRequest, TypeIconCache,
 };
 
-/// File types and the applications that open them. Every call runs the blocking system query off the async runtime, and nothing here starts an application except `open_with`, `open_default` and `choose`.
+/// File types and the applications that open them. Every call runs the blocking system query off the async runtime, and nothing here starts an application except `open_with`, `open_default`, `choose` and `run_elevated`.
 pub struct MimeApps<R: Runtime> {
     app: AppHandle<R>,
     backend: Arc<dyn Backend>,
@@ -138,6 +139,13 @@ impl<R: Runtime> MimeApps<R> {
     pub async fn set_default(&self, mime: &str, app_id: &str) -> Result<()> {
         let (mime, app_id) = (mime.to_string(), app_id.to_string());
         self.run(move |backend| backend.set_default(&mime, &app_id))
+            .await?
+    }
+
+    /// Runs one local program, script, installer or shortcut as an administrator through the system's own prompt. The locations are checked first (see [`crate::elevate_rules::check`]); `Cancelled` when the person declines the prompt.
+    pub async fn run_elevated(&self, uris: &[String]) -> Result<()> {
+        let targets = parse_all(uris)?;
+        self.run(move |backend| backend.run_elevated(elevate_rules::check(&targets)?))
             .await?
     }
 

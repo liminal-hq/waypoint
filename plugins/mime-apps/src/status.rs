@@ -11,7 +11,7 @@ use crate::mimeapps::XdgEnv;
 use crate::models::{
     FeatureStatus, Flavour, PluginStatus, Reason, FEATURE_APP_ICONS, FEATURE_CHOOSER,
     FEATURE_FOLDER_ICONS, FEATURE_HANDLERS, FEATURE_OPEN_DEFAULT, FEATURE_OPEN_WITH,
-    FEATURE_SET_DEFAULT, FEATURE_TYPE_ICONS, FEATURE_TYPE_INFO,
+    FEATURE_RUN_ELEVATED, FEATURE_SET_DEFAULT, FEATURE_TYPE_ICONS, FEATURE_TYPE_INFO,
 };
 
 /// What the Linux status depends on.
@@ -102,6 +102,15 @@ fn icon_features(env: LinuxEnv) -> [FeatureStatus; 2] {
     [make(FEATURE_TYPE_ICONS), make(FEATURE_FOLDER_ICONS)]
 }
 
+/// Running a program as an administrator is the shell's `runas` verb, which only Windows has.
+fn not_elevated() -> FeatureStatus {
+    FeatureStatus::unavailable(
+        FEATURE_RUN_ELEVATED,
+        Reason::UnsupportedPlatform,
+        "running a program as an administrator is a Windows shell feature",
+    )
+}
+
 const SANDBOX: &str = "a Flatpak sandbox sees neither the host's applications nor its defaults; the OpenURI portal opens a file in the application the person picks";
 
 pub fn linux_status(env: LinuxEnv) -> PluginStatus {
@@ -121,6 +130,7 @@ pub fn linux_status(env: LinuxEnv) -> PluginStatus {
                 sandboxed(FEATURE_APP_ICONS),
                 type_icons,
                 folder_icons,
+                not_elevated(),
             ],
         );
     }
@@ -148,6 +158,7 @@ pub fn linux_status(env: LinuxEnv) -> PluginStatus {
             },
             type_icons,
             folder_icons,
+            not_elevated(),
         ],
     )
 }
@@ -174,7 +185,7 @@ mod tests {
         for feature in &status.features {
             assert_eq!(
                 feature.available,
-                feature.name != FEATURE_CHOOSER,
+                feature.name != FEATURE_CHOOSER && feature.name != FEATURE_RUN_ELEVATED,
                 "{}",
                 feature.name
             );

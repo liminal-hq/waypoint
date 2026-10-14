@@ -18,6 +18,7 @@ use tauri_plugin_mime_apps::{
     AppDirectory, AppEntry, DirectoryBackend, Flavour, MimeAppsError, MimeAppsExt, PluginStatus,
     Reason, FEATURES, FEATURE_CHOOSER, FEATURE_HANDLERS,
 };
+use tauri_plugin_mime_apps::{Backend, Handlers, ParentWindow, Target, TypeInfo};
 
 #[derive(Default)]
 struct Record {
@@ -315,4 +316,137 @@ async fn set_default_is_passed_through_and_the_system_pages_are_unsupported() {
         mime_apps.open_default_apps_settings().await,
         Err(MimeAppsError::Unsupported)
     );
+}
+
+/// A backend that only records `run_elevated`, for the rules and the error mapping around it.
+struct ElevateBackend {
+    runs: Arc<Mutex<Vec<String>>>,
+    outcome: Result<(), MimeAppsError>,
+}
+
+impl Backend for ElevateBackend {
+    fn status(&self) -> PluginStatus {
+        PluginStatus::build(
+            Flavour::Windows,
+            FEATURES
+                .iter()
+                .map(|name| tauri_plugin_mime_apps::FeatureStatus::available(name))
+                .collect(),
+        )
+    }
+    fn type_info(&self, _: &Target, _: bool) -> Result<TypeInfo, MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn handlers(&self, _: &[Target]) -> Result<Handlers, MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn open_with(&self, _: &[Target], _: &str) -> Result<(), MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn open_default(&self, _: &[Target]) -> Result<(), MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn choose(&self, _: &[Target], _: ParentWindow) -> Result<(), MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn set_default(&self, _: &str, _: &str) -> Result<(), MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn open_default_apps_settings(&self) -> Result<(), MimeAppsError> {
+        Err(MimeAppsError::Unsupported)
+    }
+    fn knows_app(&self, _: &str) -> bool {
+        false
+    }
+    fn app_icon(&self, _: &str, _: u32) -> Option<Vec<u8>> {
+        None
+    }
+    fn run_elevated(&self, target: &Target) -> Result<(), MimeAppsError> {
+        self.runs.lock().unwrap().push(target.uri.clone());
+        self.outcome.clone()
+    }
+}
+
+fn elevate_app(outcome: Result<(), MimeAppsError>) -> (App<MockRuntime>, Arc<Mutex<Vec<String>>>) {
+    let runs = Arc::new(Mutex::new(Vec::new()));
+    let backend = ElevateBackend {
+        runs: Arc::clone(&runs),
+        outcome,
+    };
+    let app = mock_builder()
+        .plugin(tauri_plugin_mime_apps::init_with(Arc::new(backend)))
+        .build(mock_context(noop_assets()))
+        .expect("the plugin should initialise");
+    (app, runs)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn run_elevated_reaches_the_backend_only_for_one_runnable_local_file() {
+    let tmp = tempfile::tempdir().unwrap();
+    let setup = tmp.path().join("Setup.EXE");
+    std::fs::write(&setup, "x").unwrap();
+    let notes = tmp.path().join("notes.txt");
+    std::fs::write(&notes, "x").unwrap();
+    let (app, runs) = elevate_app(Ok(()));
+    let mime_apps = app.mime_apps();
+    let uri = format!("file://{}", setup.display());
+    assert_eq!(
+        mime_apps.run_elevated(std::slice::from_ref(&uri)).await,
+        Ok(())
+    );
+    assert_eq!(runs.lock().unwrap().as_slice(), std::slice::from_ref(&uri));
+
+    let refused = [
+        (vec![], MimeAppsError::Empty),
+        (vec![uri.clone(), uri.clone()], MimeAppsError::Unsupported),
+        (
+            vec![notes.display().to_string()],
+            MimeAppsError::Unsupported,
+        ),
+        (
+            vec!["admin:///etc/a.exe".to_string()],
+            MimeAppsError::InvalidUri {
+                uri: "admin:///etc/a.exe".into(),
+            },
+        ),
+        (
+            vec!["relative.exe".to_string()],
+            MimeAppsError::InvalidUri {
+                uri: "relative.exe".into(),
+            },
+        ),
+    ];
+    for (uris, error) in refused {
+        assert_eq!(mime_apps.run_elevated(&uris).await, Err(error), "{uris:?}");
+    }
+    let gone = tmp.path().join("gone.exe").display().to_string();
+    assert!(matches!(
+        mime_apps.run_elevated(&[gone]).await,
+        Err(MimeAppsError::InvalidUri { .. })
+    ));
+    assert_eq!(runs.lock().unwrap().len(), 1, "nothing refused was run");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_declined_prompt_is_cancelled_and_a_failure_is_passed_through() {
+    let tmp = tempfile::tempdir().unwrap();
+    let setup = tmp.path().join("a.bat");
+    std::fs::write(&setup, "x").unwrap();
+    let uris = [setup.display().to_string()];
+    let (app, _) = elevate_app(Err(MimeAppsError::Cancelled));
+    assert_eq!(
+        app.mime_apps().run_elevated(&uris).await,
+        Err(MimeAppsError::Cancelled)
+    );
+    let (app, _) = elevate_app(Err(MimeAppsError::failed("no")));
+    assert_eq!(
+        app.mime_apps().run_elevated(&uris).await,
+        Err(MimeAppsError::failed("no"))
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_status_names_run_elevated_as_a_feature() {
+    let (app, _) = elevate_app(Ok(()));
+    assert!(app.mime_apps().get_status().await.has("runElevated"));
 }

@@ -1,6 +1,6 @@
 // Prints what this machine answers for a few types; ignored by default, and read-only
 //
-// Run with `cargo test -p tauri-plugin-mime-apps --test live -- --ignored --nocapture`. Neither test starts an application, opens a dialog or changes a default: they only ask.
+// Run with `cargo test -p tauri-plugin-mime-apps --test live -- --ignored --nocapture`. The other tests start nothing, open no dialog and change no default: they only ask, except `live_run_elevated_windows`, which is manual (see it).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -137,4 +137,18 @@ fn live_type_icons() {
             None => println!("folder in {theme}: not installed or none"),
         }
     }
+}
+
+/// Manual: shows the system's UAC prompt for the file named by `WAYPOINT_RUNAS_FILE` (an `.exe`, `.bat`, `.cmd`, `.msi` or `.lnk`) and starts it as an administrator if the prompt is accepted. Accept to see `Ok`, decline to see `Cancelled`.
+#[cfg(target_os = "windows")]
+#[test]
+#[ignore = "shows the UAC prompt and runs the named file as an administrator when accepted"]
+fn live_run_elevated_windows() {
+    let Ok(file) = std::env::var("WAYPOINT_RUNAS_FILE") else {
+        println!("set WAYPOINT_RUNAS_FILE to the file to run, for example C:\\Windows\\System32\\cmd.exe");
+        return;
+    };
+    let platform = Platform::new();
+    let target = target::parse(&file).expect("a valid location");
+    println!("run as administrator: {:?}", platform.run_elevated(&target));
 }

@@ -164,7 +164,7 @@ export function appMenuItems(
 		rows('newWindow', 'newTab'),
 		rows('connectToServer'),
 		rows('newFolder', 'newFile'),
-		rows('openWith', 'openAsAdministrator', 'leaveAdministrator'),
+		rows('openWith', 'openAsAdministrator', 'runAsAdministrator', 'leaveAdministrator'),
 		rows('rename', 'batchRename', 'duplicate'),
 		rows('extractHere', 'extractTo', 'extractAll', 'compress'),
 		rows('moveToTrash', 'deletePermanently'),

@@ -642,6 +642,22 @@ describe('the menus and Administrator Mode', () => {
 		);
 	});
 
+	it('offers Run as Administrator on a program only where it is offered, after Open With', () => {
+		const program = { ...file, name: 'Setup.EXE' };
+		const noElevation = { offer: false, elevated: false };
+		const ids = shape(entryMenuItems(program, writable, false, null, false, noElevation, true));
+		expect(ids).toContain('runAsAdministrator');
+		expect(ids.indexOf('runAsAdministrator')).toBeLessThan(ids.indexOf('copyPath'));
+		expect(shape(entryMenuItems(program, writable))).not.toContain('runAsAdministrator');
+		// Never for a folder, or in an elevated listing.
+		expect(
+			shape(entryMenuItems(folder, writable, false, null, false, noElevation, true)),
+		).not.toContain('runAsAdministrator');
+		expect(
+			shape(entryMenuItems(program, writable, false, null, false, elevated, true)),
+		).not.toContain('runAsAdministrator');
+	});
+
 	it('gives the entry menu in an elevated folder no Open for a file, but still Open for a folder, and no Move to Trash', () => {
 		const inElevated = commandStates({ ...base, elevated: true });
 		const forFile = shape(entryMenuItems(file, inElevated, false, null, false, elevated));

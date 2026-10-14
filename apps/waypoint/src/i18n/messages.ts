@@ -2286,6 +2286,8 @@ export const enMessages = {
 	'cmd.openWith': 'Open With…',
 	// translator: A command that shows a folder as an administrator after the system asks for approval (UAC on Windows, polkit on Linux). The words “Administrator” and “Administrator Mode” are the same everywhere they appear.
 	'cmd.openAsAdministrator': 'Open as Administrator',
+	// translator: A command that starts the selected program, script, installer or shortcut with administrator rights after the system asks for approval (UAC on Windows). “Administrator” is the same word as in “Open as Administrator”.
+	'cmd.runAsAdministrator': 'Run as Administrator',
 	'cmd.leaveAdministrator': 'Leave Administrator Mode',
 	'cmd.selectAll': 'Select All',
 	'cmd.invertSelection': 'Invert Selection',
@@ -2322,6 +2324,8 @@ export const enMessages = {
 	'openWith.noHandler': 'No application is set to open this type of file.',
 	'openWith.failed': 'Could not open the item.',
 	'openWith.failed.app': 'Could not open the item with {app}.',
+	// translator: A short notice shown when the system refused to start the selected program as an administrator. Not shown when the person declines the system's approval prompt.
+	'runAsAdministrator.failed': 'Could not run it as an administrator.',
 	'openWith.failed.list': 'Could not find the applications for this item.',
 	'quickLook.position': '{position} of {total}',
 	'quickLook.positionAnnouncement': '{name}, {position} of {total}',

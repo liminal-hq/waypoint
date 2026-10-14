@@ -114,6 +114,10 @@ mod tests {
             platform.open_default_apps_settings(),
             Err(MimeAppsError::Unsupported)
         );
+        assert_eq!(
+            platform.run_elevated(&target),
+            Err(MimeAppsError::Unsupported)
+        );
         assert!(!platform.knows_app("x"));
         assert_eq!(platform.app_icon("x", 32), None);
     }

@@ -15,6 +15,7 @@ export function createTauriOpenWithClient(): OpenWithClient {
 		openWith: (uris, appId) => plugin.openWith(uris, appId),
 		openDefault: (uris) => plugin.openDefault(uris),
 		choose: (uris) => plugin.choose(uris, currentWindowLabel()),
+		runElevated: (uris) => plugin.runElevated(uris),
 		iconUrl: (appId, size) => plugin.appIconUrl(appId, size),
 	};
 }
