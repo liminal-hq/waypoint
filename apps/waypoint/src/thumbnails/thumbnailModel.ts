@@ -22,11 +22,12 @@ export function wantsThumbnail(entry: Pick<Entry, 'kind' | 'linkTarget' | 'group
 }
 
 /**
- * The page's key for an entry's thumbnail. It holds the modified time, so a file that changed is
- * a new key and is asked for again, and an old picture is never shown for new content.
+ * The page's key for an entry's thumbnail. It holds the modified time and the size, so a file that
+ * changed (even one rewritten within the same second, or still being written) is a new key and is
+ * asked for again, and an old picture, or an old failure, is never kept for new content.
  */
-export function entryThumbKey(entry: Pick<Entry, 'id' | 'modifiedMs'>): string {
-	return `${entry.id}:${entry.modifiedMs ?? 0}`;
+export function entryThumbKey(entry: Pick<Entry, 'id' | 'modifiedMs' | 'size'>): string {
+	return `${entry.id}:${entry.modifiedMs ?? 0}:${entry.size ?? 0}`;
 }
 
 /** The standard's sizes, in pixels, smallest first. */

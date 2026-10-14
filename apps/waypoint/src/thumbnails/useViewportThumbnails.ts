@@ -18,6 +18,12 @@ interface ViewportThumbnails<Item extends { key: string }> {
 	/** Changes when the listing's entries do, so positions that were not loaded are looked at again. */
 	version: number;
 	/**
+	 * Changes each time the folder is read again on request (a refresh). What failed is asked for
+	 * again then, so a file that was half written when it was first looked at gets its picture; a
+	 * file the plugin chose to skip is not.
+	 */
+	refreshes?: number;
+	/**
 	 * While the range keeps changing (a scroll), wait until it has stayed put for this many
 	 * milliseconds and ask for what is in view then; a change after a quiet spell is asked for at once.
 	 * 0 (the default) asks at every change. A grid scrolled fast passes a few hundred items a frame,
@@ -40,6 +46,7 @@ export function useViewportThumbnails<Item extends { key: string }>({
 	count,
 	itemAt,
 	version,
+	refreshes = 0,
 	settleMs = 0,
 	scrolling = false,
 }: ViewportThumbnails<Item>): void {
@@ -49,6 +56,11 @@ export function useViewportThumbnails<Item extends { key: string }>({
 	latest.current = { first, last, count };
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const changed = useRef(Number.NEGATIVE_INFINITY);
+
+	// Before the effect that asks, so a refresh forgets the failures first and then asks for them.
+	useEffect(() => {
+		loader?.retryFailed();
+	}, [loader, refreshes]);
 
 	useEffect(() => {
 		if (!loader) return;
@@ -75,7 +87,7 @@ export function useViewportThumbnails<Item extends { key: string }>({
 			timer.current = null;
 			send();
 		}, settleMs);
-	}, [loader, first, last, count, version, settleMs, scrolling]);
+	}, [loader, first, last, count, version, refreshes, settleMs, scrolling]);
 
 	// A request still waiting goes with the view (or with a loader that changed).
 	useEffect(

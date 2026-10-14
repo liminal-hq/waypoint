@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::os::unix::fs::PermissionsExt;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{Duration, Instant};
 
 use super::*;
@@ -16,6 +16,8 @@ struct Fixture {
     platform: Platform,
     processor: Arc<dyn Processor>,
     limits: Arc<Limits>,
+    /// The time the plugin reads, in milliseconds; real time until a test sets it.
+    clock: Arc<AtomicI64>,
 }
 
 impl Fixture {
@@ -81,11 +83,16 @@ fn fixture(script: impl Fn(&Path) -> String, timeout: Duration) -> Fixture {
         "[Thumbnailer Entry]\nTryExec=xyz-thumbnailer\nExec=xyz-thumbnailer %i %o %s\nMimeType=application/x-xyz;\n",
     )
     .unwrap();
+    let clock = Arc::new(AtomicI64::new(system_now_ms()));
     let env = Env {
         cache_root: root.join("cache/thumbnails"),
         data_dirs: vec![data],
         path_dirs: vec![root.join("bin")],
         uri_of: Arc::new(file_uri),
+        now_ms: {
+            let clock = Arc::clone(&clock);
+            Arc::new(move || clock.load(Ordering::Relaxed))
+        },
     };
     let config = Config {
         app_name: "test".into(),
@@ -105,6 +112,7 @@ fn fixture(script: impl Fn(&Path) -> String, timeout: Duration) -> Fixture {
         platform,
         processor,
         limits,
+        clock,
     }
 }
 
@@ -192,6 +200,7 @@ fn a_system_without_thumbnailers_says_so() {
         data_dirs: vec![],
         path_dirs: vec![],
         uri_of: Arc::new(file_uri),
+        now_ms: Arc::new(system_now_ms),
     };
     let platform = Platform::new(
         env,
@@ -225,7 +234,7 @@ fn a_png_gets_a_standard_thumbnail_in_the_cache() {
         "normal/{}",
         entry.file_name().unwrap().to_string_lossy()
     )));
-    assert!(url.ends_with("?v=5"));
+    assert!(url.ends_with(&format!("?v=5500-{}", fs::metadata(&path).unwrap().len())));
     let meta = cache::read_meta(&entry).unwrap();
     assert_eq!(meta.uri, file_uri(Path::new(&path)));
     assert_eq!(meta.mtime_secs, 5);
@@ -239,8 +248,9 @@ fn a_second_request_is_a_cache_hit_that_decodes_nothing() {
     let fx = default_fixture();
     let path = fx.file("pic.png", &png_bytes(300, 300));
     let first = fx.process(&path, 1_000);
-    // Replace the file with garbage and keep the time: a hit must not look at the file's content.
-    fs::write(&path, b"garbage").unwrap();
+    // Replace the file with garbage of the same length and keep the time: a hit must not look at the file's content.
+    let len = fs::metadata(&path).unwrap().len() as usize;
+    fs::write(&path, vec![7; len]).unwrap();
     assert_eq!(fx.process(&path, 1_000), first);
 }
 
@@ -271,15 +281,64 @@ fn a_broken_image_fails_once_and_is_remembered_until_it_changes() {
         .join("cache/thumbnails/fail/test-9")
         .join(format!("{}.png", key.md5));
     assert!(fail.is_file());
-    // The file is fixed but the time is the same: the recorded failure answers, without decoding.
-    fs::write(&path, png_bytes(64, 64)).unwrap();
+    // The same file asked about again is answered from the record, without decoding.
     let Outcome::Failed { reason } = fx.process(&path, 1_000) else {
         panic!("expected the remembered failure");
     };
     assert!(reason.contains("before"));
-    // A new modified time retries, and success removes the record.
-    assert!(matches!(fx.process(&path, 2_000), Outcome::Ready { .. }));
+    // The writer finishes within the same second: the length differs, so it is another version and is tried again.
+    fs::write(&path, png_bytes(64, 64)).unwrap();
+    assert!(matches!(fx.process(&path, 1_000), Outcome::Ready { .. }));
     assert!(!fail.exists());
+}
+
+#[test]
+fn a_failure_of_a_file_changed_a_moment_ago_is_not_remembered() {
+    let fx = default_fixture();
+    let path = fx.file("copying.png", &png_bytes(64, 64)[..50]);
+    let (key, _) = fx
+        .platform
+        .store()
+        .key_for(ThumbSize::Normal, Path::new(&path));
+    let fail = fx
+        .root()
+        .join("cache/thumbnails/fail/test-9")
+        .join(format!("{}.png", key.md5));
+    // Modified half a second ago: the writer may still be going, so this request fails and the next one tries again.
+    fx.clock.store(10_000, Ordering::Relaxed);
+    assert!(matches!(fx.process(&path, 9_500), Outcome::Failed { .. }));
+    assert!(!fail.exists());
+    // The same file once it has been left alone for a while is a settled failure, and is remembered.
+    fx.clock.store(12_000, Ordering::Relaxed);
+    assert!(matches!(fx.process(&path, 9_500), Outcome::Failed { .. }));
+    assert!(fail.is_file());
+}
+
+#[test]
+fn a_file_that_changes_while_it_is_read_is_not_cached_or_remembered() {
+    // The thumbnailer makes a good picture, and the file grows while it runs.
+    let fx = fixture(
+        |root| {
+            format!(
+                "cp {}/sample.png \"$2\"; echo more >> \"$1\"",
+                root.display()
+            )
+        },
+        Duration::from_secs(10),
+    );
+    let path = fx.file("growing.xyz", b"proprietary");
+    let Outcome::Failed { reason } = fx.process(&path, 1_000) else {
+        panic!("expected a failure");
+    };
+    assert!(reason.contains("changed"), "{reason}");
+    assert!(!entry_path(&fx, &path).exists());
+    // The same for a thumbnailer that fails: nothing is remembered about a file in flux.
+    write_script(
+        &fx.root().join("bin/xyz-thumbnailer"),
+        "echo not an image > \"$2\"; echo more >> \"$1\"",
+    );
+    assert!(matches!(fx.process(&path, 2_000), Outcome::Failed { .. }));
+    assert!(!fx.root().join("cache/thumbnails/fail/test-9").exists());
 }
 
 #[test]
@@ -412,7 +471,7 @@ fn a_cancel_stops_a_running_thumbnailer_and_records_nothing() {
     assert_eq!(
         fx.platform
             .store()
-            .lookup(&key, &file_uri(Path::new(&path)), 0),
+            .lookup(&key, &file_uri(Path::new(&path)), 0, 0),
         Lookup::Miss
     );
 }

@@ -20,6 +20,7 @@ import type { PluginStatus } from '../thumbnails/thumbnailsClient';
 import type { VfsClient } from '../services/vfsClient';
 import { GridView } from './GridView';
 import { ListView } from './ListView';
+import type { ListingModel } from './listingModel';
 import { useListingSession } from './useListingSession';
 import { useVfsClient, VfsClientProvider } from './VfsClientContext';
 
@@ -34,8 +35,12 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
+/** The model of the listing the grid host opened, for a test that refreshes it. */
+let hostedModel: ListingModel | null = null;
+
 function GridHost() {
 	const state = useListingSession(useVfsClient(), FOLDER);
+	hostedModel = state.status === 'ready' ? state.session.model : null;
 	return <GridView state={state} size={96} />;
 }
 
@@ -122,6 +127,57 @@ describe('the grid', () => {
 				expect(option.querySelector('[data-icon-picture][data-group]')).not.toBeNull();
 			}
 		}
+	});
+
+	it('asks again for a file whose size or modified time changed after its thumbnail failed', async () => {
+		const { client, entries } = clientWith(100);
+		const thumbs = createFakeThumbnailsClient();
+		renderWith('grid', client, thumbs);
+		await waitFor(() => expect(thumbs.batches.length).toBeGreaterThan(0));
+		const failed = thumbs.batches[0]!.keys[0]!;
+		const id = Number(failed.split(':')[0]);
+		act(() => thumbs.fail(failed));
+		const batches = thumbs.batches.length;
+		// The writer finished: a new size (and time) is a new key, so the file is asked about again.
+		const before = entries.find((entry) => entry.id === id)!;
+		act(() =>
+			client.updateEntries(
+				FOLDER,
+				new Map([
+					[id, { size: (before.size ?? 0) + 4096, modifiedMs: (before.modifiedMs ?? 0) + 500 }],
+				]),
+			),
+		);
+		await waitFor(() => {
+			const asked = thumbs.batches.slice(batches).flatMap((batch) => batch.keys);
+			expect(asked).toContain(
+				`${id}:${(before.modifiedMs ?? 0) + 500}:${(before.size ?? 0) + 4096}`,
+			);
+		});
+	});
+
+	it('asks again after a refresh for what failed, and never for what was skipped', async () => {
+		const { client } = clientWith(100);
+		const thumbs = createFakeThumbnailsClient();
+		renderWith('grid', client, thumbs);
+		await waitFor(() => expect(thumbs.batches.length).toBeGreaterThan(0));
+		await waitFor(() => expect(hostedModel).not.toBeNull());
+		const [failed, skipped] = thumbs.batches[0]!.keys;
+		act(() => {
+			thumbs.fail(failed!);
+			thumbs.skip(skipped!, 'tooLarge');
+		});
+		const batches = thumbs.batches.length;
+		// Nothing changes the key, and nothing is asked: a failure is kept between looks.
+		await settle();
+		expect(thumbs.batches).toHaveLength(batches);
+		await act(async () => {
+			await hostedModel!.refresh();
+		});
+		await waitFor(() => expect(thumbs.batches.length).toBeGreaterThan(batches));
+		const asked = thumbs.batches.slice(batches).flatMap((batch) => batch.keys);
+		expect(asked).toContain(failed);
+		expect(asked).not.toContain(skipped);
 	});
 
 	it('asks for the pictures that scrolled into view and withdraws the ones it left', async () => {

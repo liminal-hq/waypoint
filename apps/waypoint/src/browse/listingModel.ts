@@ -86,6 +86,7 @@ export class ListingModel {
 	private version = 0;
 	private disposed = false;
 	private listeners = new Set<() => void>();
+	private _refreshes = 0;
 	private patchListeners = new Set<(report: PatchReport) => void>();
 
 	constructor(
@@ -116,7 +117,12 @@ export class ListingModel {
 	async refresh(options?: RefreshOptions): Promise<boolean> {
 		if (this.disposed) return false;
 		try {
-			return await this.client.refreshListing(this.handle, options);
+			const read = await this.client.refreshListing(this.handle, options);
+			if (read && !this.disposed) {
+				this._refreshes += 1;
+				this.touch();
+			}
+			return read;
 		} catch {
 			return false;
 		}
@@ -128,6 +134,10 @@ export class ListingModel {
 	}
 	get count(): number {
 		return this._count;
+	}
+	/** How many times the folder has been read again on request; a view retries what failed (a thumbnail of a half-written file) when it changes. */
+	get refreshes(): number {
+		return this._refreshes;
 	}
 	get revision(): number {
 		return this._revision;

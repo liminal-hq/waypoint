@@ -250,6 +250,7 @@ function GridBody({
 		last: viewLast,
 		count: shownItems,
 		version,
+		refreshes: model.refreshes,
 		settleMs: THUMBNAIL_SETTLE_MS,
 		scrolling: virtualizer.isScrolling,
 		itemAt: (position) => {

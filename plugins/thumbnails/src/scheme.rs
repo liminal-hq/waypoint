@@ -17,9 +17,9 @@ pub const URL_BASE: &str = "http://thumb.localhost";
 #[cfg(not(windows))]
 pub const URL_BASE: &str = "thumb://localhost";
 
-/// The address of a cache entry. The `v` parameter is the file's modified time, so a thumbnail made from a newer version of the file is a different address and the webview's own cache never shows the old one.
-pub fn url_for(key: &CacheKey, mtime_secs: i64) -> String {
-    format!("{URL_BASE}/{}?v={mtime_secs}", key.relative())
+/// The address of a cache entry. The `v` parameter is the file's modified time in milliseconds and its size in bytes (`{mtime_ms}-{size}`), so a thumbnail made from another version of the file is a different address, even for a file rewritten within the same second, and the webview's own cache never shows the old one.
+pub fn url_for(key: &CacheKey, mtime_ms: i64, size: u64) -> String {
+    format!("{URL_BASE}/{}?v={mtime_ms}-{size}", key.relative())
 }
 
 /// Answers one request. Only `GET` and `HEAD` for `/{size}/{md5}.png` are served, and only when that entry is in the cache; every other path, however it is written, is a 404, so the scheme cannot be used to read anything outside the cache.

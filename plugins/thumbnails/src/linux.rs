@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Runtime};
 
 use crate::builtin::{self, GenError, Rendered};
-use crate::cache::{file_uri, Meta, Store, UriFn};
+use crate::cache::{file_uri, system_now_ms, Meta, NowFn, Store, UriFn};
 use crate::engine::{Limits, Outcome, Processor};
 use crate::external::{self, RunError};
 use crate::memcache::MemCache;
@@ -20,7 +20,7 @@ use crate::models::{
     Config, FeatureStatus, Flavour, PluginStatus, ReasonKind, SkipWhy, ThumbRequest,
     FEATURE_BUILTIN, FEATURE_CACHE, FEATURE_EXTERNAL, FEATURE_SHELL,
 };
-use crate::pipeline::{self, Start};
+use crate::pipeline::{self, FileState, Start};
 use crate::thumbnailer::{self, ExecValues, Thumbnailer};
 
 /// The most output an external thumbnailer may leave, which is far more than a thumbnail needs.
@@ -37,6 +37,8 @@ pub struct Env {
     pub path_dirs: Vec<PathBuf>,
     /// Names a file in the cache.
     pub uri_of: UriFn,
+    /// The current time in milliseconds, which decides whether a file was changed too recently for a failure to be remembered.
+    pub now_ms: NowFn,
 }
 
 impl Env {
@@ -73,6 +75,7 @@ impl Env {
             data_dirs,
             path_dirs,
             uri_of: Arc::new(file_uri),
+            now_ms: Arc::new(system_now_ms),
         }
     }
 }
@@ -85,12 +88,15 @@ pub struct Platform {
 
 impl Platform {
     pub fn new(env: Env, config: &Config, mem: Arc<MemCache>, limits: Arc<Limits>) -> Self {
-        let store = Arc::new(Store::new(
-            env.cache_root.clone(),
-            &config.app_name,
-            &config.app_version,
-            Arc::clone(&env.uri_of),
-        ));
+        let store = Arc::new(
+            Store::new(
+                env.cache_root.clone(),
+                &config.app_name,
+                &config.app_version,
+                Arc::clone(&env.uri_of),
+            )
+            .with_clock(Arc::clone(&env.now_ms)),
+        );
         let thumbnailers = thumbnailer::discover(&env.data_dirs, &env.path_dirs);
         let status = status(&env, thumbnailers.len());
         let processor = Arc::new(FreedesktopProcessor {
@@ -180,12 +186,8 @@ impl Processor for FreedesktopProcessor {
             };
         }
         let path = Path::new(&request.path);
-        let (key, uri, secs) = match pipeline::begin(&self.store, &self.mem, request) {
-            Start::Done(outcome) => return outcome,
-            Start::Make { key, uri, secs } => (key, uri, secs),
-        };
-        let file_size = match fs::metadata(path) {
-            Ok(meta) if meta.is_file() => meta.len(),
+        let metadata = match fs::metadata(path) {
+            Ok(meta) if meta.is_file() => meta,
             Ok(_) => {
                 return Outcome::Skipped {
                     why: SkipWhy::NoGenerator,
@@ -197,19 +199,32 @@ impl Processor for FreedesktopProcessor {
                 }
             }
         };
+        let before = FileState::of(&metadata);
+        let (key, uri, secs) = match pipeline::begin(&self.store, &self.mem, request, before.len) {
+            Start::Done(outcome) => return outcome,
+            Start::Make { key, uri, secs } => (key, uri, secs),
+        };
         let meta = Meta {
             uri: uri.clone(),
             mtime_secs: secs,
-            file_size: Some(file_size),
+            file_size: Some(before.len),
         };
         match self.generate(request, path, &uri, cancel) {
-            Generated::Made(rendered) => {
-                pipeline::finish(&self.store, &self.mem, &key, &meta, &rendered)
-            }
+            Generated::Made(rendered) => pipeline::finish_if_unchanged(
+                &self.store,
+                &self.mem,
+                &key,
+                &meta,
+                request,
+                &before,
+                &rendered,
+            ),
             Generated::Skipped(why) => Outcome::Skipped { why },
             Generated::Cancelled => Outcome::Cancelled,
-            // Remembered, so a broken file is not decoded again at every scroll.
-            Generated::Failed(reason) => pipeline::fail(&self.store, &key, &meta, reason),
+            // Remembered, so a broken file is not decoded again at every scroll (unless it may still be being written).
+            Generated::Failed(reason) => {
+                pipeline::fail(&self.store, &key, &meta, request, &before, reason)
+            }
         }
     }
 }

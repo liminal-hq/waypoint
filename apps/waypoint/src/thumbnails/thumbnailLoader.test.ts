@@ -64,7 +64,8 @@ describe('asking', () => {
 		client.fail('k1');
 		client.skip('k2', 'remote');
 		expect(loader.urlOf('k1')).toBeNull();
-		expect(loader.stateOf('k1')).toEqual({ status: 'none' });
+		expect(loader.stateOf('k1')).toEqual({ status: 'none', failed: true });
+		expect(loader.stateOf('k2')).toEqual({ status: 'none' });
 		loader.want(items(1, 2));
 		await settle();
 		expect(client.batches).toHaveLength(1);
@@ -75,7 +76,51 @@ describe('asking', () => {
 		vi.spyOn(client, 'requestEntries').mockRejectedValue(new Error('no plugin'));
 		loader.want(items(1));
 		await settle();
-		expect(loader.stateOf('k1')).toEqual({ status: 'none' });
+		expect(loader.stateOf('k1')).toEqual({ status: 'none', failed: true });
+	});
+});
+
+describe('retrying', () => {
+	it('asks again for a key that changed, because a changed file has a new key', async () => {
+		const { client, loader } = setup();
+		loader.want([{ key: '7:1000:10', id: 7 }]);
+		await settle();
+		client.fail('7:1000:10');
+		// The same file after its writer finished: another size, another modified time.
+		loader.want([{ key: '7:1400:20480', id: 7 }]);
+		await settle();
+		expect(client.batches.map((batch) => batch.keys)).toEqual([['7:1000:10'], ['7:1400:20480']]);
+	});
+
+	it('forgets failures on retryFailed, so the next look asks for them again, and keeps skips', async () => {
+		const { client, loader } = setup();
+		const listener = vi.fn();
+		loader.subscribe('k1', listener);
+		loader.want(items(1, 2, 3));
+		await settle();
+		client.fail('k1');
+		client.skip('k2', 'tooLarge');
+		client.ready('k3');
+		listener.mockClear();
+		loader.retryFailed();
+		expect(listener).toHaveBeenCalledTimes(1);
+		expect(loader.stateOf('k1')).toBeUndefined();
+		expect(loader.stateOf('k2')).toEqual({ status: 'none' });
+		expect(loader.urlOf('k3')).not.toBeNull();
+		loader.want(items(1, 2, 3));
+		await settle();
+		expect(client.batches.map((batch) => batch.keys)).toEqual([['k1', 'k2', 'k3'], ['k1']]);
+	});
+
+	it('does not ask for a failure again just because it is looked at again', async () => {
+		const { client, loader } = setup();
+		loader.want(items(1));
+		await settle();
+		client.fail('k1');
+		loader.want(items(1));
+		loader.want(items(1));
+		await settle();
+		expect(client.batches).toHaveLength(1);
 	});
 });
 

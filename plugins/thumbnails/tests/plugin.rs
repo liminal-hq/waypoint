@@ -9,6 +9,7 @@
 
 use std::fs;
 use std::path::Path;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
@@ -26,17 +27,24 @@ use tauri_plugin_thumbnails::{
 struct Fixture {
     tmp: tempfile::TempDir,
     app: App<MockRuntime>,
+    /// The time the plugin reads, in milliseconds; real time until a test sets it.
+    clock: Arc<AtomicI64>,
 }
 
 fn fixture() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let root = fs::canonicalize(tmp.path()).unwrap();
     fs::create_dir_all(root.join("files")).unwrap();
+    let clock = Arc::new(AtomicI64::new(cache::system_now_ms()));
     let env = Env {
         cache_root: root.join("cache/thumbnails"),
         data_dirs: vec![root.join("share")],
         path_dirs: vec![],
         uri_of: Arc::new(cache::file_uri),
+        now_ms: {
+            let clock = Arc::clone(&clock);
+            Arc::new(move || clock.load(Ordering::Relaxed))
+        },
     };
     let app = mock_builder()
         .plugin(tauri_plugin_thumbnails::init_with_env(
@@ -48,7 +56,7 @@ fn fixture() -> Fixture {
         ))
         .build(mock_context(noop_assets()))
         .expect("the plugin should initialise");
-    Fixture { tmp, app }
+    Fixture { tmp, app, clock }
 }
 
 fn png(w: u32, h: u32) -> Vec<u8> {
@@ -61,6 +69,11 @@ fn png(w: u32, h: u32) -> Vec<u8> {
 }
 
 fn request_one(fx: &Fixture, path: &Path) -> ThumbEvent {
+    request_at(fx, path, 1_000)
+}
+
+/// Asks for the thumbnail of the file as the page saw it, modified at `mtime_ms`.
+fn request_at(fx: &Fixture, path: &Path, mtime_ms: i64) -> ThumbEvent {
     let (tx, rx) = mpsc::channel();
     let tx = Mutex::new(tx);
     fx.app.thumbnails().request(
@@ -68,7 +81,7 @@ fn request_one(fx: &Fixture, path: &Path) -> ThumbEvent {
             key: "k".into(),
             path: path.to_string_lossy().into_owned(),
             size: ThumbSize::Large,
-            mtime_ms: 1_000,
+            mtime_ms,
         }],
         Arc::new(move |event| {
             let _ = tx.lock().unwrap().send(event);
@@ -186,6 +199,87 @@ fn a_requested_thumbnail_is_served_by_its_cache_key() {
         respond(fx.app.thumbnails(), &Method::POST, url_path(&url)).status(),
         StatusCode::METHOD_NOT_ALLOWED
     );
+}
+
+/// Sets the file's modified time to `secs` seconds and 0 ms past the epoch.
+fn set_mtime(path: &Path, secs: u64) {
+    let file = fs::File::options().write(true).open(path).unwrap();
+    file.set_modified(std::time::UNIX_EPOCH + Duration::from_secs(secs))
+        .unwrap();
+}
+
+fn fail_records(fx: &Fixture) -> usize {
+    let dir = fx.tmp.path().join("cache/thumbnails/fail");
+    fs::read_dir(&dir).map_or(0, |apps| {
+        apps.flatten()
+            .map(|app| fs::read_dir(app.path()).map_or(0, |files| files.count()))
+            .sum()
+    })
+}
+
+#[test]
+fn a_file_rewritten_within_the_second_it_failed_is_tried_again() {
+    let fx = fixture();
+    let path = fx.tmp.path().join("files/copy.png");
+    let whole = png(500, 400);
+    // A copy in progress: the first half of the picture, read in the middle of the write.
+    fs::write(&path, &whole[..whole.len() / 2]).unwrap();
+    set_mtime(&path, 1_700_000_000);
+    let mtime_ms = 1_700_000_000_000;
+    assert!(matches!(
+        request_at(&fx, &path, mtime_ms),
+        ThumbEvent::Failed { .. }
+    ));
+    assert_eq!(fail_records(&fx), 1, "a settled failure is remembered");
+    // The writer finishes within the same second; the watcher reports a new modified time and size.
+    fs::write(&path, &whole).unwrap();
+    set_mtime(&path, 1_700_000_000);
+    assert!(matches!(
+        request_at(&fx, &path, mtime_ms + 400),
+        ThumbEvent::Ready { .. }
+    ));
+    assert_eq!(fail_records(&fx), 0, "a success forgets the failure");
+}
+
+#[test]
+fn the_address_changes_with_the_modified_time_and_the_size() {
+    let fx = fixture();
+    let path = fx.tmp.path().join("files/a.png");
+    fs::write(&path, png(100, 100)).unwrap();
+    let ThumbEvent::Ready { url: first, .. } = request_at(&fx, &path, 1_700_000_000_100) else {
+        panic!("expected a thumbnail");
+    };
+    fs::write(&path, png(120, 90)).unwrap();
+    let ThumbEvent::Ready { url: second, .. } = request_at(&fx, &path, 1_700_000_000_900) else {
+        panic!("expected a thumbnail");
+    };
+    assert_eq!(url_path(&first), url_path(&second));
+    let token = |url: &str| url.split_once("?v=").unwrap().1.to_string();
+    assert!(token(&first).starts_with("1700000000100-"));
+    assert!(token(&second).starts_with("1700000000900-"));
+    assert_ne!(token(&first), token(&second));
+}
+
+#[test]
+fn a_failure_of_a_file_modified_a_moment_ago_is_not_remembered() {
+    let fx = fixture();
+    let path = fx.tmp.path().join("files/new.png");
+    let whole = png(300, 300);
+    fs::write(&path, &whole[..40]).unwrap();
+    let mtime_ms = 1_700_000_000_000;
+    fx.clock.store(mtime_ms + 500, Ordering::Relaxed);
+    assert!(matches!(
+        request_at(&fx, &path, mtime_ms),
+        ThumbEvent::Failed { .. }
+    ));
+    assert_eq!(fail_records(&fx), 0);
+    // Left alone for a while, the same broken file is a settled failure.
+    fx.clock.store(mtime_ms + 5_000, Ordering::Relaxed);
+    assert!(matches!(
+        request_at(&fx, &path, mtime_ms),
+        ThumbEvent::Failed { .. }
+    ));
+    assert_eq!(fail_records(&fx), 1);
 }
 
 #[test]

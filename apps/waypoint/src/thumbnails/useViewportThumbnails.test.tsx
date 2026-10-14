@@ -12,7 +12,7 @@ type Item = { key: string };
 
 function setup(settleMs: number) {
 	const want = vi.fn();
-	const loader = { want } as unknown as ThumbnailLoader<Item>;
+	const loader = { want, retryFailed: vi.fn() } as unknown as ThumbnailLoader<Item>;
 	const view = renderHook(
 		({ first, scrolling }: { first: number; scrolling?: boolean }) =>
 			useViewportThumbnails<Item>({
