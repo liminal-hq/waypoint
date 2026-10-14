@@ -7,6 +7,7 @@ pub mod assoc;
 pub mod backend;
 mod commands;
 pub mod directory;
+pub mod elevate_rules;
 mod error;
 pub mod mimeapps;
 pub mod models;
@@ -82,6 +83,7 @@ fn build<R: Runtime>(
             commands::set_default,
             commands::open_default_apps_settings,
             commands::refresh_type_icons,
+            commands::run_elevated,
         ])
         .register_uri_scheme_protocol(scheme::SCHEME, |ctx, request| {
             match ctx.app_handle().try_state::<MimeApps<R>>() {

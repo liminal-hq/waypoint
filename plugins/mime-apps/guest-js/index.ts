@@ -36,7 +36,8 @@ export type Feature =
 	| 'chooser'
 	| 'appIcons'
 	| 'typeIcons'
-	| 'folderIcons';
+	| 'folderIcons'
+	| 'runElevated';
 
 function cmd<T>(name: string, args?: Record<string, unknown>): Promise<T> {
 	return invoke<T>(`${PREFIX}${name}`, args);
@@ -87,6 +88,13 @@ export async function openWith(uris: string[], appId: string): Promise<void> {
 /** Opens each location in its default application. Rejects with `{ kind: 'noHandler', mime }` when a type has none; nothing is opened then. */
 export async function openDefault(uris: string[]): Promise<void> {
 	await cmd<void>('open_default', { uris });
+}
+
+/**
+ * Runs one local program, script, installer or shortcut (`.exe`, `.bat`, `.cmd`, `.msi` or `.lnk`) as an administrator, through the system's own consent prompt (Windows). The plugin checks in Rust that there is exactly one existing, regular, local file of those kinds. Rejects with `{ kind: 'cancelled' }` when the person declines the prompt (not a failure), `{ kind: 'unsupported' }` where the system has no such thing or the file is not of a runnable kind, and `{ kind: 'invalidUri' }` for a location that is not a local file. Check the `runElevated` feature first.
+ */
+export async function runElevated(uris: string[]): Promise<void> {
+	await cmd<void>('run_elevated', { uris });
 }
 
 /**

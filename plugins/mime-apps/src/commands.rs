@@ -78,6 +78,14 @@ pub(crate) async fn open_default_apps_settings<R: Runtime>(
 }
 
 #[command]
+pub(crate) async fn run_elevated<R: Runtime>(
+    app: AppHandle<R>,
+    uris: Vec<String>,
+) -> Result<(), MimeAppsError> {
+    app.mime_apps().run_elevated(&uris).await
+}
+
+#[command]
 pub(crate) fn refresh_type_icons<R: Runtime>(app: AppHandle<R>) {
     app.mime_apps().refresh_type_icons();
 }

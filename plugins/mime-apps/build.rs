@@ -13,6 +13,7 @@ const COMMANDS: &[&str] = &[
     "set_default",
     "open_default_apps_settings",
     "refresh_type_icons",
+    "run_elevated",
 ];
 
 fn main() {

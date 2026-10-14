@@ -39,6 +39,11 @@ pub trait Backend: Send + Sync + 'static {
     /// Opens the system's own page for choosing default applications. `Unsupported` where there is none.
     fn open_default_apps_settings(&self) -> Result<()>;
 
+    /// Runs the one already-validated local file as an administrator through the system's own consent prompt, so the plugin never sees credentials. `Cancelled` when the person declines the prompt; `Unsupported` where the system has no such thing. A message of `Failed` never holds the path.
+    fn run_elevated(&self, _target: &Target) -> Result<()> {
+        Err(crate::error::MimeAppsError::Unsupported)
+    }
+
     /// Whether an application with this id exists; the `appicon://` scheme serves nothing else.
     fn knows_app(&self, app_id: &str) -> bool;
 

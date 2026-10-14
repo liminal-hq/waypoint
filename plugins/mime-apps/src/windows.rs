@@ -28,11 +28,12 @@ use windows::Win32::UI::Shell::{
     AssocQueryStringW, FOLDERID_Desktop, FOLDERID_Documents, FOLDERID_Downloads, FOLDERID_Music,
     FOLDERID_Pictures, FOLDERID_Profile, FOLDERID_Public, FOLDERID_Templates, FOLDERID_Videos,
     IAssocHandler, SHAssocEnumHandlers, SHCreateDataObject, SHGetFileInfoW, SHGetImageList,
-    SHGetKnownFolderIDList, SHOpenWithDialog, SHParseDisplayName, ShellExecuteW,
+    SHGetKnownFolderIDList, SHOpenWithDialog, SHParseDisplayName, ShellExecuteExW, ShellExecuteW,
     ASSOCF_INIT_IGNOREUNKNOWN, ASSOCSTR, ASSOCSTR_CONTENTTYPE, ASSOCSTR_EXECUTABLE,
     ASSOCSTR_FRIENDLYAPPNAME, ASSOCSTR_FRIENDLYDOCNAME, ASSOC_FILTER, ASSOC_FILTER_NONE,
-    ASSOC_FILTER_RECOMMENDED, OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OPENASINFO, SHFILEINFOW,
-    SHGFI_OVERLAYINDEX, SHGFI_PIDL, SHGFI_SYSICONINDEX, SHGFI_USEFILEATTRIBUTES,
+    ASSOC_FILTER_RECOMMENDED, OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OPENASINFO, SEE_MASK_FLAG_NO_UI,
+    SEE_MASK_NOASYNC, SHELLEXECUTEINFOW, SHFILEINFOW, SHGFI_OVERLAYINDEX, SHGFI_PIDL,
+    SHGFI_SYSICONINDEX, SHGFI_USEFILEATTRIBUTES,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     DestroyIcon, GetIconInfo, HICON, ICONINFO, SW_SHOWNORMAL,
@@ -40,12 +41,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::assoc::{self, RawDefault, RawHandler};
 use crate::backend::{Backend, ParentWindow};
+use crate::elevate_rules;
 use crate::error::{MimeAppsError, Result};
 use crate::models::{
     FeatureStatus, Flavour, Handlers, PluginStatus, Reason, TypeInfo, DIRECTORY_TYPE,
     FEATURE_APP_ICONS, FEATURE_CHOOSER, FEATURE_FOLDER_ICONS, FEATURE_HANDLERS,
-    FEATURE_OPEN_DEFAULT, FEATURE_OPEN_WITH, FEATURE_SET_DEFAULT, FEATURE_TYPE_ICONS,
-    FEATURE_TYPE_INFO,
+    FEATURE_OPEN_DEFAULT, FEATURE_OPEN_WITH, FEATURE_RUN_ELEVATED, FEATURE_SET_DEFAULT,
+    FEATURE_TYPE_ICONS, FEATURE_TYPE_INFO,
 };
 use crate::shellicon::{self, ImageList};
 use crate::target::Target;
@@ -288,6 +290,33 @@ fn shell_open(what: &str) -> Result<()> {
     }
 }
 
+/// `ShellExecuteExW` with the `runas` verb: the shell asks for consent through the system's own prompt and starts the file as an administrator, so no credential passes through here. It blocks while the prompt is open. `SEE_MASK_FLAG_NO_UI` keeps the shell's own error boxes away (the failure is reported to the page instead) and does not touch the consent prompt; `SEE_MASK_NOASYNC` finishes the launch before the thread, and so the COM apartment the verb handler may use, ends. The error never holds the path.
+fn shell_run_as(file: &str, directory: &str) -> Result<()> {
+    let verb = HSTRING::from("runas");
+    let file = HSTRING::from(file);
+    let directory = HSTRING::from(directory);
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI,
+        lpVerb: PCWSTR(verb.as_ptr()),
+        lpFile: PCWSTR(file.as_ptr()),
+        lpDirectory: PCWSTR(directory.as_ptr()),
+        nShow: SW_SHOWNORMAL.0,
+        ..Default::default()
+    };
+    // SAFETY: `info` is fully initialised and every string it points to outlives the call.
+    unsafe { ShellExecuteExW(&mut info) }.map_err(|error| {
+        if error.code() == HRESULT::from_win32(ERROR_CANCELLED) {
+            MimeAppsError::Cancelled
+        } else {
+            MimeAppsError::failed(format!(
+                "the shell could not run it as an administrator (code {:#010x})",
+                error.code().0
+            ))
+        }
+    })
+}
+
 /// The known folder that has a folder kind's own icon in Explorer, or `None` for an ordinary folder.
 fn known_folder(kind: FolderKind) -> Option<&'static GUID> {
     Some(match kind {
@@ -511,6 +540,7 @@ impl Backend for Platform {
                 ),
                 FeatureStatus::available(FEATURE_TYPE_ICONS),
                 FeatureStatus::available(FEATURE_FOLDER_ICONS),
+                FeatureStatus::available(FEATURE_RUN_ELEVATED),
             ],
         )
     }
@@ -641,6 +671,21 @@ impl Backend for Platform {
 
     fn open_default_apps_settings(&self) -> Result<()> {
         on_sta(|| shell_open(SETTINGS_PAGE))
+    }
+
+    fn run_elevated(&self, target: &Target) -> Result<()> {
+        // The service has checked already; the rules run again so this method is safe whoever calls it.
+        let target = elevate_rules::check(std::slice::from_ref(target))?;
+        let path = target.path.as_deref().and_then(|path| path.to_str());
+        let launch = path
+            .and_then(elevate_rules::windows_launch_path)
+            .ok_or_else(|| MimeAppsError::InvalidUri {
+                uri: target.uri.clone(),
+            })?;
+        let directory = elevate_rules::windows_parent(&launch)
+            .unwrap_or_default()
+            .to_string();
+        on_sta(move || shell_run_as(&launch, &directory))
     }
 
     fn knows_app(&self, _app_id: &str) -> bool {
