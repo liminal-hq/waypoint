@@ -5,6 +5,7 @@
 
 import { isFinished } from '../ops/opsSelectors';
 import type { OpsHandle } from '../ops/opsStore';
+import { ownsKeys } from '../ops/useFileShortcuts';
 
 /**
  * Calls `onWrote` once for each job that finishes after this starts, whichever window began it and
@@ -33,14 +34,20 @@ export function startRefreshAfterJobs(handle: OpsHandle, onWrote: () => void): (
 }
 
 /**
- * Ctrl+R reads the folder again. (F5 copies to the other pane, which came first, so the refresh
- * has a key of its own.) Returns what stops it.
+ * F5 and Ctrl+R read the folder again, and keep the webview from reloading. (Copy and Move to the
+ * other pane are Ctrl+F5 and Ctrl+Shift+F5, which are not this one's.) In a text field F5 only
+ * keeps the webview from reloading: the field keeps what is typed in it. Returns what stops it.
  */
 export function startRefreshShortcut(target: Window, onRefresh: () => void): () => void {
 	const onKeyDown = (event: KeyboardEvent) => {
-		if (event.defaultPrevented || event.isComposing) return;
-		if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
-		if (event.key.toLowerCase() !== 'r') return;
+		if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey) return;
+		const modifier = event.ctrlKey || event.metaKey;
+		if (event.key === 'F5' && !modifier) {
+			event.preventDefault();
+			if (!ownsKeys(event.target)) onRefresh();
+			return;
+		}
+		if (!modifier || event.key.toLowerCase() !== 'r') return;
 		event.preventDefault();
 		onRefresh();
 	};

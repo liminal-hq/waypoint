@@ -398,7 +398,7 @@ function WorkspaceBody({
 		const state = id === null ? undefined : manager.stateFor(id);
 		return state?.status === 'ready' ? state.session : null;
 	}, [manager]);
-	// F5 and Shift+F5 copy and move to the pane beside the one that has the selection.
+	// Ctrl+F5 and Ctrl+Shift+F5 copy and move to the pane beside the one that has the selection.
 	const snapshotRef = useRef(snapshot);
 	snapshotRef.current = snapshot;
 	const otherPane = useCallback(

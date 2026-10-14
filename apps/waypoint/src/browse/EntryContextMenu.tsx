@@ -172,7 +172,7 @@ function clipboardItems(
 
 /**
  * Copy To… and Move To… (the destination dialog), and in a pair Copy to Other Pane and Move to
- * Other Pane, which F5 and Shift+F5 run. Without a pair F5 asks as Copy To… does, so every key has
+ * Other Pane, which Ctrl+F5 and Ctrl+Shift+F5 run. Without a pair Ctrl+F5 asks as Copy To… does, so every key has
  * an item and every item has a key or a menu path.
  */
 function transferItems(commands: Partial<Record<FileCommandId, CommandState>>): MenuItem[] {
@@ -207,7 +207,7 @@ function transferItems(commands: Partial<Record<FileCommandId, CommandState>>): 
 						type: 'action',
 						id: 'copyToOtherPane',
 						label: t('menu.copyToOtherPane'),
-						shortcut: 'F5',
+						shortcut: 'Ctrl+F5',
 						icon: <CopyToIcon />,
 						disabled: disabled('copyToOtherPane'),
 					} as const,
@@ -219,7 +219,7 @@ function transferItems(commands: Partial<Record<FileCommandId, CommandState>>): 
 						type: 'action',
 						id: 'moveToOtherPane',
 						label: t('menu.moveToOtherPane'),
-						shortcut: 'Shift+F5',
+						shortcut: 'Ctrl+Shift+F5',
 						icon: <MoveToIcon />,
 						disabled: disabled('moveToOtherPane'),
 					} as const,

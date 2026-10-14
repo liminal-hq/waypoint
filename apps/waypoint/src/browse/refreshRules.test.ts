@@ -50,7 +50,7 @@ describe('after a job', () => {
 	});
 });
 
-describe('on focus and Ctrl+R', () => {
+describe('on focus, F5 and Ctrl+R', () => {
 	it('calls back when the window is focused or becomes visible, and not after it is stopped', () => {
 		const onFocus = vi.fn();
 		const stop = startRefreshOnFocus(window, onFocus);
@@ -63,7 +63,7 @@ describe('on focus and Ctrl+R', () => {
 		expect(onFocus).toHaveBeenCalledTimes(2);
 	});
 
-	it('Ctrl+R refreshes and keeps the webview from reloading; other keys do not', () => {
+	it('F5 and Ctrl+R refresh and keep the webview from reloading; other keys, Shift+F5 and Ctrl+F5 do not', () => {
 		const onRefresh = vi.fn();
 		const stop = startRefreshShortcut(window, onRefresh);
 		const press = (init: KeyboardEventInit) => {
@@ -73,10 +73,28 @@ describe('on focus and Ctrl+R', () => {
 		};
 		expect(press({ key: 'r', ctrlKey: true }).defaultPrevented).toBe(true);
 		expect(onRefresh).toHaveBeenCalledTimes(1);
+		expect(press({ key: 'F5' }).defaultPrevented).toBe(true);
+		expect(onRefresh).toHaveBeenCalledTimes(2);
 		press({ key: 'r' });
 		press({ key: 'r', ctrlKey: true, shiftKey: true });
 		press({ key: 'x', ctrlKey: true });
-		expect(onRefresh).toHaveBeenCalledTimes(1);
+		press({ key: 'F5', shiftKey: true });
+		press({ key: 'F5', ctrlKey: true });
+		press({ key: 'F5', ctrlKey: true, shiftKey: true });
+		expect(onRefresh).toHaveBeenCalledTimes(2);
+		stop();
+	});
+
+	it('F5 in a text field keeps the webview from reloading but leaves the field alone', () => {
+		const onRefresh = vi.fn();
+		const stop = startRefreshShortcut(window, onRefresh);
+		const field = document.createElement('input');
+		document.body.append(field);
+		const event = new KeyboardEvent('keydown', { key: 'F5', cancelable: true, bubbles: true });
+		field.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(true);
+		expect(onRefresh).not.toHaveBeenCalled();
+		field.remove();
 		stop();
 	});
 });

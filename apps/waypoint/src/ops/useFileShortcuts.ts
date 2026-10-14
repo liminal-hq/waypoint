@@ -1,4 +1,4 @@
-// The window keys for the file commands: F7, Shift+F7, F2, Delete, Shift+Delete, Ctrl+Shift+D, Ctrl+X, Ctrl+C, Ctrl+V, F5, Shift+F5, Ctrl+Z and Ctrl+Shift+Z
+// The window keys for the file commands: F7, Shift+F7, F2, Delete, Shift+Delete, Ctrl+Shift+D, Ctrl+X, Ctrl+C, Ctrl+V, Ctrl+F5, Ctrl+Shift+F5, Ctrl+Z and Ctrl+Shift+Z
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -34,8 +34,8 @@ type KeyEventLike = Pick<
  * F7 and Shift+F7 make a folder and a file, F2 renames the focused entry (Ctrl+F2 is batch
  * rename, which is not this hook's), Delete moves the selection to the Trash and Shift+Delete
  * deletes it permanently (after a confirmation), Ctrl+Shift+D duplicates, Ctrl+X, Ctrl+C and
- * Ctrl+V cut, copy and paste, F5 and Shift+F5 copy and move to the other pane (or ask where to,
- * without a pair), and Ctrl+Z and Ctrl+Shift+Z undo and redo. Returns whether the key was one of
+ * Ctrl+V cut, copy and paste, Ctrl+F5 and Ctrl+Shift+F5 copy and move to the other pane (or ask
+ * where to, without a pair; plain F5 is Refresh, which is not this hook's), and Ctrl+Z and Ctrl+Shift+Z undo and redo. Returns whether the key was one of
  * these.
  */
 export function handleFileKey(event: KeyEventLike, handlers: FileKeyHandlers): boolean {
@@ -55,13 +55,13 @@ export function handleFileKey(event: KeyEventLike, handlers: FileKeyHandlers): b
 			void (event.shiftKey ? handlers.deletePermanently() : handlers.moveToTrash());
 			return true;
 		}
+		return false;
+	}
+	if (modifier && !event.altKey) {
 		if (event.key === 'F5') {
 			void (event.shiftKey ? handlers.moveToOtherPane() : handlers.copyToOtherPane());
 			return true;
 		}
-		return false;
-	}
-	if (modifier && !event.altKey) {
 		if (key === 'd' && event.shiftKey) {
 			void handlers.duplicate();
 			return true;
@@ -159,7 +159,7 @@ export function useFileShortcuts(
 			const onSelection =
 				event.key === 'F2' ||
 				event.key === 'Delete' ||
-				event.key === 'F5' ||
+				(event.key === 'F5' && (event.ctrlKey || event.metaKey)) ||
 				clipboardKey ||
 				(event.key.toLowerCase() === 'd' && event.shiftKey);
 			if (onSelection && !inFileArea(event.target)) return;
@@ -184,7 +184,7 @@ export function useFileShortcuts(
 				}
 				const writes =
 					event.key === 'F7' ||
-					event.key === 'F5' ||
+					(event.key === 'F5' && (event.ctrlKey || event.metaKey)) ||
 					clipboardKey ||
 					(event.key === 'F2' && plain) ||
 					(event.key.toLowerCase() === 'd' && event.shiftKey);

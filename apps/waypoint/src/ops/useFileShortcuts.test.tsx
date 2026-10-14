@@ -58,8 +58,8 @@ describe('handleFileKey', () => {
 		['c', { ctrlKey: true }, 'copy'],
 		['v', { ctrlKey: true }, 'paste'],
 		['V', { metaKey: true }, 'paste'],
-		['F5', {}, 'copyToOtherPane'],
-		['F5', { shiftKey: true }, 'moveToOtherPane'],
+		['F5', { ctrlKey: true }, 'copyToOtherPane'],
+		['F5', { ctrlKey: true, shiftKey: true }, 'moveToOtherPane'],
 		['z', { ctrlKey: true }, 'undo'],
 		['Z', { ctrlKey: true, shiftKey: true }, 'redo'],
 	];
@@ -85,7 +85,8 @@ describe('handleFileKey', () => {
 			key('C', { ctrlKey: true, shiftKey: true }),
 			key('v', { ctrlKey: true, altKey: true }),
 			key('c'),
-			key('F5', { ctrlKey: true }),
+			key('F5'),
+			key('F5', { shiftKey: true }),
 		]) {
 			expect(handleFileKey(event, handlers), event.key).toBe(false);
 		}
@@ -167,7 +168,7 @@ describe('useFileShortcuts', () => {
 		fireEvent.keyDown(field, { key: 'F7' });
 		fireEvent.keyDown(field, { key: 'c', ctrlKey: true });
 		fireEvent.keyDown(field, { key: 'v', ctrlKey: true });
-		fireEvent.keyDown(field, { key: 'F5' });
+		fireEvent.keyDown(field, { key: 'F5', ctrlKey: true });
 		expect(Object.values(spy).every((fn) => fn.mock.calls.length === 0)).toBe(true);
 	});
 
@@ -180,7 +181,7 @@ describe('useFileShortcuts', () => {
 		fireEvent.keyDown(side, { key: 'D', ctrlKey: true, shiftKey: true });
 		fireEvent.keyDown(side, { key: 'c', ctrlKey: true });
 		fireEvent.keyDown(side, { key: 'v', ctrlKey: true });
-		fireEvent.keyDown(side, { key: 'F5' });
+		fireEvent.keyDown(side, { key: 'F5', ctrlKey: true });
 		expect(spy.copy).not.toHaveBeenCalled();
 		expect(spy.paste).not.toHaveBeenCalled();
 		expect(spy.copyToOtherPane).not.toHaveBeenCalled();
@@ -210,7 +211,7 @@ describe('useFileShortcuts', () => {
 		fireEvent.keyDown(pane, { key: 'c', ctrlKey: true });
 		fireEvent.keyDown(pane, { key: 'x', ctrlKey: true });
 		fireEvent.keyDown(pane, { key: 'v', ctrlKey: true });
-		fireEvent.keyDown(pane, { key: 'F5' });
+		fireEvent.keyDown(pane, { key: 'F5', ctrlKey: true });
 		for (const id of [
 			'newFolder',
 			'newFile',
@@ -229,15 +230,15 @@ describe('useFileShortcuts', () => {
 		expect(spy.undo).toHaveBeenCalled();
 	});
 
-	it('copies, cuts and pastes with the clipboard keys, and F5 and Shift+F5 go to the other pane, from the file area', () => {
+	it('copies, cuts and pastes with the clipboard keys, and Ctrl+F5 and Ctrl+Shift+F5 go to the other pane, from the file area', () => {
 		const spy = commands();
 		const { getByText } = mount(spy);
 		const row = getByText('row');
 		expect(fireEvent.keyDown(row, { key: 'c', ctrlKey: true })).toBe(false);
 		fireEvent.keyDown(row, { key: 'x', ctrlKey: true });
 		fireEvent.keyDown(row, { key: 'v', ctrlKey: true });
-		fireEvent.keyDown(row, { key: 'F5' });
-		fireEvent.keyDown(row, { key: 'F5', shiftKey: true });
+		fireEvent.keyDown(row, { key: 'F5', ctrlKey: true });
+		fireEvent.keyDown(row, { key: 'F5', ctrlKey: true, shiftKey: true });
 		expect(spy.copy).toHaveBeenCalledTimes(1);
 		expect(spy.cut).toHaveBeenCalledTimes(1);
 		expect(spy.paste).toHaveBeenCalledTimes(1);

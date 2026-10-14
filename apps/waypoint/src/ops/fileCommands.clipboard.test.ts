@@ -1,4 +1,4 @@
-// Verifies Cut, Copy, Paste, Copy To…, Move To… and F5 / Shift+F5: where they are offered, the jobs they make and what they refuse
+// Verifies Cut, Copy, Paste, Copy To…, Move To… and Ctrl+F5 / Ctrl+Shift+F5: where they are offered, the jobs they make and what they refuse
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -437,8 +437,8 @@ describe('Copy To… and Move To…', () => {
 	});
 });
 
-describe('F5 and Shift+F5 in a pair', () => {
-	it('F5 copies the selection to the other pane’s folder without asking', async () => {
+describe('Ctrl+F5 and Ctrl+Shift+F5 in a pair', () => {
+	it('Ctrl+F5 copies the selection to the other pane’s folder without asking', async () => {
 		const h = await clipboardHarness({ paired: true });
 		await selectIn(h.session, 1, 2);
 		const done = h.commands.copyToOtherPane();
@@ -452,7 +452,7 @@ describe('F5 and Shift+F5 in a pair', () => {
 		});
 	});
 
-	it('Shift+F5 moves it', async () => {
+	it('Ctrl+Shift+F5 moves it', async () => {
 		const h = await clipboardHarness({ paired: true });
 		await selectIn(h.session, 0);
 		const done = h.commands.moveToOtherPane();

@@ -57,7 +57,7 @@ export function attachHost(store: DestinationStore = destinationStore): () => vo
 /**
  * Opens the destination dialog and resolves to the folder the person chose, or `null` when they
  * cancelled (Esc, Cancel, a click outside) or the window has no dialog to ask in. Asking again
- * while one is open answers the first with `null`. Copy To…, Move To…, F5 without a pair, the
+ * while one is open answers the first with `null`. Copy To…, Move To…, Ctrl+F5 without a pair, the
  * conflict dialog's "Choose another location…" and a drop that needs a destination all use it.
  */
 export function pickDestination(

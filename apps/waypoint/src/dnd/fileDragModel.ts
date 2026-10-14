@@ -545,7 +545,7 @@ export const OUTBOUND_PATHS: Record<'copy' | 'move', NonPointerPath> = {
 /**
  * How each kind of target is reached without a pointer: the destination dialog (`pickDestination`)
  * offers the places, the open tabs and the recent folders, Paste Into Folder is a folder's menu
- * item, Paste and F5 act on the pane, and Delete moves to the Trash.
+ * item, Paste and Ctrl+F5 act on the pane, and Delete moves to the Trash.
  */
 export const TARGET_PATHS: Record<DropKind, string> = {
 	folder: 'pasteInto',
