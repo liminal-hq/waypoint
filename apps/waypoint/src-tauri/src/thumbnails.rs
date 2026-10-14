@@ -136,9 +136,15 @@ pub struct Wanted {
     pub path: Result<PathBuf, String>,
 }
 
-/// The plugin's key for a file at a size and time: another file, size or time is another job.
-fn plugin_key(path: &Path, size: ThumbSize, mtime_ms: i64) -> String {
-    format!("{}|{}|{}", path.display(), size.dir_name(), mtime_ms)
+/// The plugin's key for a file at a thumbnail size, modified time and length: another file, size, time or length is another job.
+fn plugin_key(path: &Path, size: ThumbSize, mtime_ms: i64, len: u64) -> String {
+    format!(
+        "{}|{}|{}|{}",
+        path.display(),
+        size.dir_name(),
+        mtime_ms,
+        len
+    )
 }
 
 /// The file's modified time in milliseconds since the Unix epoch; 0 where the system does not say.
@@ -178,7 +184,7 @@ impl ThumbnailBridge {
                 }),
                 Ok((path, metadata)) => {
                     let mtime_ms = modified_ms(&metadata);
-                    let key = plugin_key(&path, size, mtime_ms);
+                    let key = plugin_key(&path, size, mtime_ms, metadata.len());
                     let slot = pages.entry(key.clone()).or_default();
                     if slot.is_empty() {
                         requests.push(ThumbRequest {

@@ -245,6 +245,7 @@ function ListingBody({
 		last: inView?.endIndex ?? last,
 		count: shown,
 		version,
+		refreshes: model.refreshes,
 		itemAt: (position) => {
 			const entry = model.entryAt(position);
 			return entry && wantsThumbnail(entry) ? { key: entryThumbKey(entry), id: entry.id } : null;

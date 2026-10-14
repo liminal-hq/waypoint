@@ -47,7 +47,14 @@ describe('entryThumbKey', () => {
 		const before = makeEntry(7, 'a.jpg', { modifiedMs: 1 });
 		const after = makeEntry(7, 'a.jpg', { modifiedMs: 2 });
 		expect(entryThumbKey(before)).not.toBe(entryThumbKey(after));
-		expect(entryThumbKey(makeEntry(7, 'a.jpg', { modifiedMs: null }))).toBe('7:0');
+		expect(entryThumbKey(makeEntry(7, 'a.jpg', { modifiedMs: null, size: null }))).toBe('7:0:0');
+	});
+
+	it('changes with the size, so a file rewritten within the same time is asked for again', () => {
+		const before = makeEntry(7, 'a.jpg', { modifiedMs: 5, size: 10 });
+		const after = makeEntry(7, 'a.jpg', { modifiedMs: 5, size: 20 });
+		expect(entryThumbKey(before)).toBe('7:5:10');
+		expect(entryThumbKey(before)).not.toBe(entryThumbKey(after));
 	});
 });
 

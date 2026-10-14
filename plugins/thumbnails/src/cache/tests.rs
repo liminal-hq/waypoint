@@ -140,13 +140,15 @@ fn an_entry_is_fresh_until_the_mtime_or_uri_differs() {
     let store = store(tmp.path());
     let uri = "file:///data/a.png";
     let (key, _) = (CacheKey::new(ThumbSize::Normal, uri), ());
-    assert_eq!(store.lookup(&key, uri, 100), Lookup::Miss);
+    assert_eq!(store.lookup(&key, uri, 100, 42), Lookup::Miss);
     let png = encode_png(1, 1, png::ColorType::Rgba, &[0; 4], &meta(uri, 100)).unwrap();
     store.store(&key, &png).unwrap();
-    assert_eq!(store.lookup(&key, uri, 100), Lookup::Fresh);
-    assert_eq!(store.lookup(&key, uri, 101), Lookup::Stale);
+    assert_eq!(store.lookup(&key, uri, 100, 42), Lookup::Fresh);
+    assert_eq!(store.lookup(&key, uri, 101, 42), Lookup::Stale);
+    // Rewritten within the same second, but not the same length.
+    assert_eq!(store.lookup(&key, uri, 100, 43), Lookup::Stale);
     assert_eq!(
-        store.lookup(&key, "file:///data/other.png", 100),
+        store.lookup(&key, "file:///data/other.png", 100, 42),
         Lookup::Stale
     );
     assert_eq!(store.read(&key), Some(png));
@@ -170,10 +172,31 @@ fn a_failure_is_remembered_for_that_version_of_the_file_only() {
         .path()
         .join(format!("fail/test-app-1.2.3/{}.png", key.md5))
         .is_file());
-    assert_eq!(store.lookup(&key, uri, 7), Lookup::Failed);
-    assert_eq!(store.lookup(&key, uri, 8), Lookup::Miss);
+    assert_eq!(store.lookup(&key, uri, 7, 42), Lookup::Failed);
+    assert_eq!(store.lookup(&key, uri, 8, 42), Lookup::Miss);
+    // The same second with another size is another version of the file.
+    assert_eq!(store.lookup(&key, uri, 7, 43), Lookup::Miss);
     store.clear_failure(&key);
-    assert_eq!(store.lookup(&key, uri, 7), Lookup::Miss);
+    assert_eq!(store.lookup(&key, uri, 7, 42), Lookup::Miss);
+}
+
+#[test]
+fn a_record_without_a_size_is_trusted_for_nothing() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = store(tmp.path());
+    let uri = "file:///data/foreign.png";
+    let key = CacheKey::new(ThumbSize::Normal, uri);
+    let sizeless = Meta {
+        file_size: None,
+        ..meta(uri, 5)
+    };
+    // A thumbnail from another application that left out the optional `Thumb::Size` is made again; an old failure with no size is not believed.
+    let png = encode_png(1, 1, png::ColorType::Rgba, &[0; 4], &sizeless).unwrap();
+    store.store(&key, &png).unwrap();
+    assert_eq!(store.lookup(&key, uri, 5, 42), Lookup::Stale);
+    fs::remove_file(tmp.path().join(format!("normal/{}.png", key.md5))).unwrap();
+    store.store_failure(&key, &sizeless).unwrap();
+    assert_eq!(store.lookup(&key, uri, 5, 42), Lookup::Miss);
 }
 
 #[cfg(unix)]

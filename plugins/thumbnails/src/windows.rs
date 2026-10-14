@@ -28,14 +28,14 @@ use windows::Win32::UI::Shell::{
 };
 
 use crate::builtin::Rendered;
-use crate::cache::{file_uri, Meta, Store, UriFn};
+use crate::cache::{file_uri, system_now_ms, Meta, NowFn, Store, UriFn};
 use crate::engine::{Limits, Outcome, Processor};
 use crate::memcache::MemCache;
 use crate::models::{
     Config, FeatureStatus, Flavour, PluginStatus, ReasonKind, SkipWhy, ThumbRequest,
     FEATURE_BUILTIN, FEATURE_CACHE, FEATURE_EXTERNAL, FEATURE_SHELL,
 };
-use crate::pipeline::{self, Start};
+use crate::pipeline::{self, FileState, Start};
 use crate::winmap::{self, ShellFailure, ShellMode};
 
 /// Everything about the system the plugin reads, injected so a test can use a temporary directory.
@@ -45,6 +45,8 @@ pub struct Env {
     pub cache_root: PathBuf,
     /// Names a file in the cache.
     pub uri_of: UriFn,
+    /// The current time in milliseconds, which decides whether a file was changed too recently for a failure to be remembered.
+    pub now_ms: NowFn,
 }
 
 impl Env {
@@ -57,6 +59,7 @@ impl Env {
         Env {
             cache_root: base.join("thumbnails"),
             uri_of: Arc::new(file_uri),
+            now_ms: Arc::new(system_now_ms),
         }
     }
 }
@@ -69,12 +72,15 @@ pub struct Platform {
 
 impl Platform {
     pub fn new(env: Env, config: &Config, mem: Arc<MemCache>, _limits: Arc<Limits>) -> Self {
-        let store = Arc::new(Store::new(
-            env.cache_root.clone(),
-            &config.app_name,
-            &config.app_version,
-            env.uri_of,
-        ));
+        let store = Arc::new(
+            Store::new(
+                env.cache_root.clone(),
+                &config.app_name,
+                &config.app_version,
+                env.uri_of,
+            )
+            .with_clock(env.now_ms),
+        );
         let cache = match fs::create_dir_all(&env.cache_root) {
             Ok(()) => FeatureStatus::available(FEATURE_CACHE),
             Err(error) => FeatureStatus::unavailable(
@@ -156,13 +162,6 @@ impl Processor for ShellProcessor {
                 why: SkipWhy::Remote,
             };
         }
-        let (key, uri, secs) = match pipeline::begin(&self.store, &self.mem, request) {
-            Start::Done(outcome) => return outcome,
-            Start::Make { key, uri, secs } => (key, uri, secs),
-        };
-        if cancel.load(Ordering::Relaxed) {
-            return Outcome::Cancelled;
-        }
         let metadata = match fs::metadata(&request.path) {
             Ok(metadata) if metadata.is_file() => metadata,
             Ok(_) => {
@@ -176,17 +175,33 @@ impl Processor for ShellProcessor {
                 }
             }
         };
+        let before = FileState::of(&metadata);
+        let (key, uri, secs) = match pipeline::begin(&self.store, &self.mem, request, before.len) {
+            Start::Done(outcome) => return outcome,
+            Start::Make { key, uri, secs } => (key, uri, secs),
+        };
+        if cancel.load(Ordering::Relaxed) {
+            return Outcome::Cancelled;
+        }
         let mode = winmap::shell_mode(metadata.file_attributes());
         let meta = Meta {
             uri,
             mtime_secs: secs,
-            file_size: Some(metadata.len()),
+            file_size: Some(before.len),
         };
         match shell_thumbnail(&request.path, request.size.pixels(), mode) {
-            Ok(rendered) => pipeline::finish(&self.store, &self.mem, &key, &meta, &rendered),
+            Ok(rendered) => pipeline::finish_if_unchanged(
+                &self.store,
+                &self.mem,
+                &key,
+                &meta,
+                request,
+                &before,
+                &rendered,
+            ),
             Err((failure, message)) => match winmap::skip_for(mode, failure) {
                 Some(why) => Outcome::Skipped { why },
-                None => pipeline::fail(&self.store, &key, &meta, message),
+                None => pipeline::fail(&self.store, &key, &meta, request, &before, message),
             },
         }
     }

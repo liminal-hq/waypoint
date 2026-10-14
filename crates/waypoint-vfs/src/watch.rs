@@ -756,6 +756,37 @@ mod tests {
     }
 
     #[test]
+    fn a_file_still_being_written_is_reported_with_its_size_and_time_at_the_flush() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.bin");
+        let now = Instant::now();
+        let mut c = Coalescer::new(dir.path().to_path_buf(), Location::new("/d", "file:///d"));
+        std::fs::write(&path, b"abc").unwrap();
+        c.push(Raw::Created(path.clone()), now);
+        // The writer carries on before the batch is flushed, and sets a later modified time.
+        std::fs::write(&path, vec![0u8; 4096]).unwrap();
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(5);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
+        c.push(Raw::Modified(path.clone()), now);
+        let probe = LocalProbe { folder: dir.path() };
+        let reported = changes(c.flush(&probe));
+        let [Change::Upsert(entry)] = reported.as_slice() else {
+            panic!("expected one upsert, got {reported:?}");
+        };
+        assert_eq!(entry.size, Some(4096));
+        let expected = later
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        assert_eq!(entry.modified_ms, Some(expected));
+    }
+
+    #[test]
     fn created_then_deleted_in_one_window_reports_a_removal_of_nothing() {
         let now = Instant::now();
         let mut c = coalescer();

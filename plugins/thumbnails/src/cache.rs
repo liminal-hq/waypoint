@@ -21,6 +21,16 @@ pub const KEY_SIZE: &str = "Thumb::Size";
 /// Turns a path into the URI that names it in the cache. Injected, so tests never depend on the real file system layout.
 pub type UriFn = Arc<dyn Fn(&Path) -> String + Send + Sync>;
 
+/// The current time in milliseconds since the Unix epoch. Injected, so a test decides whether a file was changed "just now".
+pub type NowFn = Arc<dyn Fn() -> i64 + Send + Sync>;
+
+/// The system clock as a [`NowFn`] reads it.
+pub fn system_now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_millis().try_into().unwrap_or(i64::MAX))
+}
+
 /// The characters GLib's `g_filename_to_uri` leaves unescaped in a path, so the keys match the ones other file managers write.
 const PATH_SAFE: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'-')
@@ -137,6 +147,7 @@ pub struct Store {
     root: PathBuf,
     fail_dir: PathBuf,
     uri_of: UriFn,
+    now_ms: NowFn,
     counter: AtomicU64,
 }
 
@@ -148,8 +159,20 @@ impl Store {
             root,
             fail_dir,
             uri_of,
+            now_ms: Arc::new(system_now_ms),
             counter: AtomicU64::new(0),
         }
+    }
+
+    /// The same cache reading the time from `now_ms` instead of the system clock.
+    pub fn with_clock(mut self, now_ms: NowFn) -> Self {
+        self.now_ms = now_ms;
+        self
+    }
+
+    /// The current time in milliseconds since the Unix epoch.
+    pub fn now_ms(&self) -> i64 {
+        (self.now_ms)()
     }
 
     pub fn root(&self) -> &Path {
@@ -175,15 +198,20 @@ impl Store {
         self.fail_dir.join(format!("{}.png", key.md5))
     }
 
-    /// Checks the cache for a thumbnail of the file at `uri` modified at `mtime_secs`. Reads only the PNG header of the entry, so a hit is cheap.
-    pub fn lookup(&self, key: &CacheKey, uri: &str, mtime_secs: i64) -> Lookup {
+    /// Checks the cache for a thumbnail of the file at `uri`, modified at `mtime_secs` and `size` bytes long. Reads only the PNG header of the entry, so a hit is cheap.
+    ///
+    /// A record answers only for the version of the file it was made from: the same URI, whole second and size. A file rewritten within the same second is told apart by its size. A record with no size (a thumbnail another application wrote without the optional `Thumb::Size`) is trusted for nothing: a thumbnail is `Stale`, so it is made again with a size, and a failure is a `Miss`.
+    pub fn lookup(&self, key: &CacheKey, uri: &str, mtime_secs: i64, size: u64) -> Lookup {
+        let matches = |meta: &Meta| {
+            meta.uri == uri && meta.mtime_secs == mtime_secs && meta.file_size == Some(size)
+        };
         match read_meta(&self.entry_path(key)) {
-            Some(meta) if meta.uri == uri && meta.mtime_secs == mtime_secs => return Lookup::Fresh,
+            Some(meta) if matches(&meta) => return Lookup::Fresh,
             Some(_) => return Lookup::Stale,
             None => {}
         }
         match read_meta(&self.fail_path(key)) {
-            Some(meta) if meta.uri == uri && meta.mtime_secs == mtime_secs => Lookup::Failed,
+            Some(meta) if matches(&meta) => Lookup::Failed,
             _ => Lookup::Miss,
         }
     }

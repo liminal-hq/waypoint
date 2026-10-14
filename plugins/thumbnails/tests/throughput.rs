@@ -103,6 +103,7 @@ fn bench(workers: usize) -> (Bench, Engine) {
         data_dirs: vec![],
         path_dirs: vec![],
         uri_of: Arc::new(cache::file_uri),
+        now_ms: Arc::new(cache::system_now_ms),
     };
     let config = Config::default();
     let platform = Platform::new(

@@ -8,8 +8,13 @@ import type { ThumbEvent, ThumbSize, Ticket } from './thumbnailsClient';
 /** Pictures kept at most; the oldest finished ones go first. */
 const MAX_KEPT = 4000;
 
+/**
+ * `none` is a file with no picture. `failed` says a thumbnail was tried and could not be made (which
+ * may only mean the file was half written), as opposed to one the plugin chose not to make (too
+ * large, remote, no generator), which no later look changes.
+ */
 export type ThumbState =
-	{ status: 'pending' } | { status: 'ready'; url: string } | { status: 'none' };
+	{ status: 'pending' } | { status: 'ready'; url: string } | { status: 'none'; failed?: boolean };
 
 /** What a loader needs from a client: one function per kind of source, so it works for entries and locations alike. */
 export interface LoaderTransport<Item extends { key: string }> {
@@ -34,7 +39,9 @@ interface Batch {
  * the loader asks the client only for what it has not asked for, moves what is on screen to the
  * front of the queue, and withdraws a batch when nothing it holds is wanted any more. A result
  * arrives under the key it was asked for and is kept, so scrolling back shows it at once; a
- * failure or a skip is kept too, so a file with no thumbnail is not asked about again.
+ * failure or a skip is kept too, so a file with no thumbnail is not asked about again. The page's
+ * key holds the file's modified time and size, so a file that changed is a new key and is asked
+ * for again; a failure is also forgotten by `retryFailed` (a refresh), a skip never.
  */
 export class ThumbnailLoader<Item extends { key: string }> {
 	private readonly states = new Map<string, ThumbState>();
@@ -96,6 +103,20 @@ export class ThumbnailLoader<Item extends { key: string }> {
 		if (fresh.length > 0) this.send(fresh);
 	}
 
+	/**
+	 * Forgets every failure (not a skip) so the next `want` asks for those files again. A file that
+	 * could not be read a moment ago may be complete now; the plugin answers at once from its own
+	 * record when the file has not changed, so asking again costs nothing.
+	 */
+	retryFailed(): void {
+		if (this.disposed) return;
+		for (const [key, state] of [...this.states]) {
+			if (state.status !== 'none' || !state.failed) continue;
+			this.states.delete(key);
+			this.notify(key);
+		}
+	}
+
 	/** Withdraws everything and stops listening: the view is gone. */
 	dispose(): void {
 		this.disposed = true;
@@ -123,7 +144,7 @@ export class ThumbnailLoader<Item extends { key: string }> {
 				},
 				() => {
 					// The request itself failed: nothing will arrive, so the icons stay.
-					for (const key of batch.pending) this.settle(key, { status: 'none' });
+					for (const key of batch.pending) this.settle(key, { status: 'none', failed: true });
 					batch.pending.clear();
 					this.batches.delete(batch);
 				},
@@ -134,7 +155,11 @@ export class ThumbnailLoader<Item extends { key: string }> {
 		if (batch.withdrawn || this.disposed || !batch.pending.delete(event.key)) return;
 		this.settle(
 			event.key,
-			event.kind === 'ready' ? { status: 'ready', url: event.url } : { status: 'none' },
+			event.kind === 'ready'
+				? { status: 'ready', url: event.url }
+				: event.kind === 'failed'
+					? { status: 'none', failed: true }
+					: { status: 'none' },
 		);
 		if (batch.pending.size === 0) this.batches.delete(batch);
 		this.trim();

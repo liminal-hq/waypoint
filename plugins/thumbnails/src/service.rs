@@ -89,7 +89,8 @@ impl Thumbnails {
 
     /// A thumbnail already made from bytes for `uri` as it was at `mtime_ms`, answered under `key`;
     /// `None` when there is none, or it was made from another version. A caller asks before it
-    /// reads anything, so a file whose thumbnail is known is not read again.
+    /// reads anything, so a file whose thumbnail is known is not read again. A remote file's version is
+    /// its whole second and nothing finer, so its address says the same (`?v={seconds}000-0`).
     pub fn cached_from_bytes(
         &self,
         key: &str,
@@ -106,7 +107,7 @@ impl Thumbnails {
         }
         Some(ThumbEvent::Ready {
             key: key.to_owned(),
-            url: url_for(&cache_key, meta.mtime_secs),
+            url: url_for(&cache_key, meta.mtime_secs * 1000, 0),
         })
     }
 
@@ -160,7 +161,7 @@ impl Thumbnails {
         ) {
             Ok(png) => {
                 let cache_key = CacheKey::new(size, uri);
-                let url = url_for(&cache_key, meta.mtime_secs);
+                let url = url_for(&cache_key, meta.mtime_secs * 1000, 0);
                 self.bytes_mem.insert(cache_key, Arc::new(png));
                 ThumbEvent::Ready { key, url }
             }
