@@ -25,7 +25,7 @@ fn main() {
 }
 ```
 
-Grant the windows that use it `mime-apps:default` in a capability file, or the individual `mime-apps:allow-get-status`, `mime-apps:allow-type-info`, `mime-apps:allow-handlers`, `mime-apps:allow-open-with`, `mime-apps:allow-open-default`, `mime-apps:allow-choose`, `mime-apps:allow-set-default` `mime-apps:allow-open-default-apps-settings` and `mime-apps:allow-refresh-type-icons`. The `appicon://` scheme needs `appicon:` (and `http://appicon.localhost` on Windows) in the `img-src` of the page's content security policy.
+Grant the windows that use it `mime-apps:default` in a capability file, or the individual `mime-apps:allow-get-status`, `mime-apps:allow-type-info`, `mime-apps:allow-handlers`, `mime-apps:allow-open-with`, `mime-apps:allow-open-default`, `mime-apps:allow-choose`, `mime-apps:allow-set-default` `mime-apps:allow-open-default-apps-settings` and `mime-apps:allow-refresh-type-icons` and `mime-apps:allow-run-elevated`. The `appicon://` scheme needs `appicon:` (and `http://appicon.localhost` on Windows) in the `img-src` of the page's content security policy.
 
 ### JavaScript
 
@@ -91,20 +91,21 @@ app.mime_apps().open_default(&["/home/me/cat.png".into()]).await?;
 
 ## API
 
-| Function                                                      | What it does                                                                                                                                                                                                                                                |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getStatus()`                                                 | `{ available, reason, message, flavour, features, associationFiles }`; see below.                                                                                                                                                                           |
-| `typeInfo(uri, sniff?)`                                       | `{ mime, description, icon }` of a path or URI. By name; with `sniff` the start of a local file is read too. A trailing slash or a local directory is `inode/directory`.                                                                                    |
-| `handlers(uris)`                                              | `{ mime, mixed, default, recommended, others }`. The default is first and not repeated; hidden applications (`NoDisplay`) are left out and duplicates removed. For several types only the applications that open all of them are listed and `mixed` is set. |
-| `openWith(uris, appId)`                                       | Opens the locations in that application, in one start.                                                                                                                                                                                                      |
-| `openDefault(uris)`                                           | Opens each location in its default application, one start per application. Nothing starts when one location has no handler (`noHandler`).                                                                                                                   |
-| `choose(uris, parentLabel?)`                                  | The system's chooser, as a child of the window with that label: the Open With dialog on Windows, the portal's chooser in a Flatpak. `unsupported` where there is none: draw a list from `handlers`.                                                         |
-| `setDefault(mime, appId)`                                     | Makes an application the default for a type (writes the user's `mimeapps.list` through gio).                                                                                                                                                                |
-| `openDefaultAppsSettings()`                                   | Opens Windows Settings at Default apps. `unsupported` elsewhere.                                                                                                                                                                                            |
-| `appIconUrl(appId, size?)`                                    | The `appicon://` address of an application's icon, a PNG of 16 to 256 pixels.                                                                                                                                                                               |
-| `typeIconUrl(target, options?)`                               | The `typeicon://` address of the system's icon for `{ mime }`, `{ extension }` or `{ folder }`, at `size`, `scale`, `theme` and `revision`.                                                                                                                 |
-| `refreshTypeIcons()`                                          | Forgets the file and folder icons made so far: call it when the system's icon theme changed.                                                                                                                                                                |
-| `hasFeature(status, name)`, `featureReason`, `featureMessage` | Read the status.                                                                                                                                                                                                                                            |
+| Function                                                      | What it does                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getStatus()`                                                 | `{ available, reason, message, flavour, features, associationFiles }`; see below.                                                                                                                                                                                                                                                                                                  |
+| `typeInfo(uri, sniff?)`                                       | `{ mime, description, icon }` of a path or URI. By name; with `sniff` the start of a local file is read too. A trailing slash or a local directory is `inode/directory`.                                                                                                                                                                                                           |
+| `handlers(uris)`                                              | `{ mime, mixed, default, recommended, others }`. The default is first and not repeated; hidden applications (`NoDisplay`) are left out and duplicates removed. For several types only the applications that open all of them are listed and `mixed` is set.                                                                                                                        |
+| `openWith(uris, appId)`                                       | Opens the locations in that application, in one start.                                                                                                                                                                                                                                                                                                                             |
+| `openDefault(uris)`                                           | Opens each location in its default application, one start per application. Nothing starts when one location has no handler (`noHandler`).                                                                                                                                                                                                                                          |
+| `choose(uris, parentLabel?)`                                  | The system's chooser, as a child of the window with that label: the Open With dialog on Windows, the portal's chooser in a Flatpak. `unsupported` where there is none: draw a list from `handlers`.                                                                                                                                                                                |
+| `setDefault(mime, appId)`                                     | Makes an application the default for a type (writes the user's `mimeapps.list` through gio).                                                                                                                                                                                                                                                                                       |
+| `openDefaultAppsSettings()`                                   | Opens Windows Settings at Default apps. `unsupported` elsewhere.                                                                                                                                                                                                                                                                                                                   |
+| `runElevated(uris)`                                           | Runs one local `.exe`, `.bat`, `.cmd`, `.msi` or `.lnk` as an administrator through the system's own consent prompt (Windows). Rust checks first that there is exactly one existing, regular, local file of those kinds (no link, folder, remote, Trash or administrator location). `cancelled` when the prompt is declined, `unsupported` elsewhere and for another kind of file. |
+| `appIconUrl(appId, size?)`                                    | The `appicon://` address of an application's icon, a PNG of 16 to 256 pixels.                                                                                                                                                                                                                                                                                                      |
+| `typeIconUrl(target, options?)`                               | The `typeicon://` address of the system's icon for `{ mime }`, `{ extension }` or `{ folder }`, at `size`, `scale`, `theme` and `revision`.                                                                                                                                                                                                                                        |
+| `refreshTypeIcons()`                                          | Forgets the file and folder icons made so far: call it when the system's icon theme changed.                                                                                                                                                                                                                                                                                       |
+| `hasFeature(status, name)`, `featureReason`, `featureMessage` | Read the status.                                                                                                                                                                                                                                                                                                                                                                   |
 
 A location is a path (`/home/me/a.txt`, `C:\Users\me\a.txt`) or a URI (`file:///…`, `smb://…`, `sftp://…`); a relative path is rejected. An `App` is `{ id, name, icon, execHint }`: `id` is the desktop-file id on Linux (`org.gnome.eog.desktop`; `.desktop` may be left off when passing it back) and the shell's handler name on Windows, and is otherwise opaque. `icon` is an icon-theme name for a tooltip or a fallback; the picture comes from `appIconUrl`. `execHint` is the command line, for a tooltip, and is never run by the plugin.
 
@@ -126,17 +127,18 @@ A few kinds of file carry their own icon (programs, shortcuts, icons, cursors an
 
 `getStatus()` returns `{ available, reason, message, flavour, features, associationFiles }`, where each feature is `{ name, available, reason, message }`. Decide behaviour from the features, never from the platform.
 
-| Feature       | Meaning                                                                   |
-| ------------- | ------------------------------------------------------------------------- |
-| `typeInfo`    | The type of a location can be read.                                       |
-| `handlers`    | The applications for a type can be listed.                                |
-| `openWith`    | A location can be opened in an application chosen by id.                  |
-| `openDefault` | A location can be opened in its default application.                      |
-| `setDefault`  | The default application for a type can be changed.                        |
-| `chooser`     | The system has a chooser to call (otherwise draw a list from `handlers`). |
-| `appIcons`    | `appicon://` serves icons.                                                |
-| `typeIcons`   | `typeicon://` serves the system's icon for a type of file.                |
-| `folderIcons` | `typeicon://` serves the system's icon for folders, standard ones too.    |
+| Feature       | Meaning                                                                              |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `typeInfo`    | The type of a location can be read.                                                  |
+| `handlers`    | The applications for a type can be listed.                                           |
+| `openWith`    | A location can be opened in an application chosen by id.                             |
+| `openDefault` | A location can be opened in its default application.                                 |
+| `setDefault`  | The default application for a type can be changed.                                   |
+| `chooser`     | The system has a chooser to call (otherwise draw a list from `handlers`).            |
+| `appIcons`    | `appicon://` serves icons.                                                           |
+| `typeIcons`   | `typeicon://` serves the system's icon for a type of file.                           |
+| `folderIcons` | `typeicon://` serves the system's icon for folders, standard ones too.               |
+| `runElevated` | One program, script, installer or shortcut can be run as an administrator (Windows). |
 
 `flavour` is `gio`, `portal`, `windows` or `unsupported`. `associationFiles` lists the `mimeapps.list` files that exist, from the one that wins to the one that loses (Linux; empty elsewhere), which says where a default comes from. A `reason` is a code to branch on and `message` a sentence for people:
 
@@ -169,6 +171,7 @@ A few kinds of file carry their own icon (programs, shortcuts, icons, cursors an
 - Handlers belong to an extension. `SHAssocEnumHandlers` lists them (the recommended ones with `ASSOC_FILTER_RECOMMENDED`), `AssocQueryStringW` reads the default and the registered content type, and `IAssocHandler::Invoke` opens files in a chosen handler. The type reported is the extension's content type, or the extension itself (`.png`) when it has none.
 - `choose` is `SHOpenWithDialog`, as a child of the window whose label is passed, for one local file; for several files it is `unsupported` and the front end draws a list.
 - `openDefault` is the shell's `open` verb.
+- `runElevated` is `ShellExecuteExW` with the `runas` verb, on a single-threaded-apartment thread, for a file with the extension `exe`, `bat`, `cmd`, `msi` or `lnk` (in any case). The shell shows the system's own UAC prompt, so the plugin never sees credentials, and it does not use any elevation helper. The path must be a plain local drive path (no share, device or extended path, `..` segment or alternate data stream) to an existing regular file, checked in Rust before the shell is called and again in the backend; the program starts in its own folder. Declining the prompt is `cancelled`; any other failure is a `failed` error whose message never holds the path. It works whenever Windows offers it, from an installed or a portable build alike.
 - Windows does not let an application change the default silently: `setDefault` is unavailable (`managed-by-system`) and `openDefaultAppsSettings()` opens `ms-settings:defaultapps`.
 - Every shell call runs on a thread of its own with COM initialised as a single-threaded apartment.
 - Application icons are not served yet (`appIcons` is `not-implemented`).
@@ -177,7 +180,7 @@ A few kinds of file carry their own icon (programs, shortcuts, icons, cursors an
 
 ### Other systems
 
-Every feature is reported unavailable with `unsupported-platform`.
+Every feature is reported unavailable with `unsupported-platform`. On Linux `runElevated` is also `unsupported-platform`: there is no equivalent of the `runas` verb that asks through a prompt of the system's own.
 
 ## Testing
 

@@ -50,6 +50,12 @@ var __TAURI_PLUGIN_MIME_APPS__ = (function (exports, core) {
         await cmd('open_default', { uris });
     }
     /**
+     * Runs one local program, script, installer or shortcut (`.exe`, `.bat`, `.cmd`, `.msi` or `.lnk`) as an administrator, through the system's own consent prompt (Windows). The plugin checks in Rust that there is exactly one existing, regular, local file of those kinds. Rejects with `{ kind: 'cancelled' }` when the person declines the prompt (not a failure), `{ kind: 'unsupported' }` where the system has no such thing or the file is not of a runnable kind, and `{ kind: 'invalidUri' }` for a location that is not a local file. Check the `runElevated` feature first.
+     */
+    async function runElevated(uris) {
+        await cmd('run_elevated', { uris });
+    }
+    /**
      * Asks the system to let the person choose an application (on Windows the Open With dialog, as a child of the window
      * labelled `parentLabel`; in a Flatpak sandbox the portal's chooser). Rejects with `{ kind: 'cancelled' }` when it is
      * dismissed and `{ kind: 'unsupported' }` when the system has no chooser: draw a list from `handlers` then.
@@ -117,6 +123,7 @@ var __TAURI_PLUGIN_MIME_APPS__ = (function (exports, core) {
     exports.openDefaultAppsSettings = openDefaultAppsSettings;
     exports.openWith = openWith;
     exports.refreshTypeIcons = refreshTypeIcons;
+    exports.runElevated = runElevated;
     exports.setDefault = setDefault;
     exports.typeIconUrl = typeIconUrl;
     exports.typeInfo = typeInfo;
