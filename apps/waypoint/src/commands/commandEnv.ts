@@ -46,6 +46,10 @@ export interface CommandFacts {
 	 * item), which it cannot act on.
 	 */
 	elevateSelection: 'none' | 'folder' | 'other';
+	/** Run as Administrator can work here: the mime-apps plugin has the feature and the platform is Windows. */
+	runElevated: boolean;
+	/** The active pane's selection is exactly one regular file of a kind Run as Administrator starts (`.exe`, `.bat`, `.cmd`, `.msi` or `.lnk`). */
+	runnableFile: boolean;
 	/** The mime-apps plugin can list applications or has a chooser of its own, so Open With… can work here. */
 	openWith: boolean;
 	/** The places the sidebar offers, which "Go to" commands open. */
@@ -108,6 +112,11 @@ export interface CommandActions {
 	 * when given, else the one selected folder, else the active pane's folder.
 	 */
 	openAsAdministrator(location?: Location): void;
+	/**
+	 * Runs a local program, script, installer or shortcut as an administrator through the system's
+	 * own prompt: the file at `location` when given, else the one selected file.
+	 */
+	runAsAdministrator(location?: Location): void;
 	/** Takes the active tab out of Administrator Mode, to the ordinary form of the same folder. */
 	leaveAdministrator(): void;
 	/** The Trash view's Restore and Delete Permanently, on the selection (the latter asks first). */
@@ -190,6 +199,8 @@ export function emptyFacts(): CommandFacts {
 		elevation: false,
 		elevated: false,
 		elevateSelection: 'none',
+		runElevated: false,
+		runnableFile: false,
 		openWith: false,
 		places: [],
 		batchRename: false,
@@ -229,6 +240,7 @@ export function idleActions(): CommandActions {
 		batchRename: nothing,
 		openWith: nothing,
 		openAsAdministrator: nothing,
+		runAsAdministrator: nothing,
 		leaveAdministrator: nothing,
 		restoreFromTrash: nothing,
 		deleteFromTrash: nothing,

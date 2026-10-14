@@ -7851,6 +7851,10 @@
     "message": "Open as Administrator",
     "description": "Area: cmd. A command that shows a folder as an administrator after the system asks for approval (UAC on Windows, polkit on Linux). The words “Administrator” and “Administrator Mode” are the same everywhere they appear."
   },
+  "cmd.runAsAdministrator": {
+    "message": "Run as Administrator",
+    "description": "Area: cmd. A command that starts the selected program, script, installer or shortcut with administrator rights after the system asks for approval (UAC on Windows). “Administrator” is the same word as in “Open as Administrator”."
+  },
   "cmd.leaveAdministrator": {
     "message": "Leave Administrator Mode",
     "description": "Area: cmd."
@@ -7990,6 +7994,10 @@
   "openWith.failed.app": {
     "message": "Could not open the item with {app}.",
     "description": "Area: openWith. Placeholders, kept exactly as written: {app} is the name of an application."
+  },
+  "runAsAdministrator.failed": {
+    "message": "Could not run it as an administrator.",
+    "description": "Area: runAsAdministrator. A short notice shown when the system refused to start the selected program as an administrator. Not shown when the person declines the system's approval prompt."
   },
   "openWith.failed.list": {
     "message": "Could not find the applications for this item.",

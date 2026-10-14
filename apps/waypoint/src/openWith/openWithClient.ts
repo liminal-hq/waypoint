@@ -22,6 +22,8 @@ export interface OpenWithClient {
 	openDefault(uris: string[]): Promise<void>;
 	/** The system's own chooser, as a child of this window; rejects with `{ kind: 'cancelled' }` when dismissed. */
 	choose(uris: string[]): Promise<void>;
+	/** Runs the one local program, script, installer or shortcut as an administrator, through the system's own prompt; rejects with `{ kind: 'cancelled' }` when the prompt is declined. */
+	runElevated(uris: string[]): Promise<void>;
 	/** The address of an application's icon, for an `<img src>`. */
 	iconUrl(appId: string, size?: number): string;
 }

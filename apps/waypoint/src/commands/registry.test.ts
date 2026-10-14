@@ -288,6 +288,34 @@ describe('availability', () => {
 		expect(actions.openWith).toHaveBeenCalledTimes(1);
 	});
 
+	it('offers Run as Administrator only on Windows, for one runnable local file, with no key bound', () => {
+		expect(commandDef('runAsAdministrator').shortcut).toBeUndefined();
+		const on = { runElevated: true, runnableFile: true };
+		expect(read(states(factsFor({ selected: 1 }, on)).runAsAdministrator)).toBe('enabled');
+		// Not Windows, or the plugin cannot do it; or the selection is not one runnable file.
+		expect(
+			read(states(factsFor({ selected: 1 }, { ...on, runElevated: false })).runAsAdministrator),
+		).toBe('hidden');
+		expect(
+			read(states(factsFor({ selected: 1 }, { ...on, runnableFile: false })).runAsAdministrator),
+		).toBe('hidden');
+		expect(read(states(factsFor({ selected: 0 })).runAsAdministrator)).toBe('hidden');
+		// Not in the Trash, a folder that is not local, or with no listing; it does not need the Administrator access switch.
+		expect(
+			read(states(factsFor({ trash: true, readOnly: true, selected: 1 }, on)).runAsAdministrator),
+		).toBe('hidden');
+		expect(
+			read(states(factsFor({ selected: 1 }, { ...on, local: false })).runAsAdministrator),
+		).toBe('hidden');
+		expect(read(states(factsFor({ listing: false }, on)).runAsAdministrator)).toBe('hidden');
+		expect(
+			read(states(factsFor({ selected: 1 }, { ...on, elevation: false })).runAsAdministrator),
+		).toBe('enabled');
+		const actions = { ...idleActions(), runAsAdministrator: vi.fn() };
+		expect(runCommand('runAsAdministrator', actions, factsFor({ selected: 1 }, on))).toBe(true);
+		expect(actions.runAsAdministrator).toHaveBeenCalledWith();
+	});
+
 	it('offers Open as Administrator only where it is on, in an ordinary local folder, with no key bound', () => {
 		expect(commandDef('openAsAdministrator').shortcut).toBeUndefined();
 		expect(commandDef('leaveAdministrator').shortcut).toBeUndefined();

@@ -30,6 +30,10 @@ import { useRepository } from '../git/GitContext';
 import { openWithChooserStore } from '../openWith/openWithChooserStore';
 import { openWithAbilities, useOpenWithService } from '../openWith/OpenWithContext';
 import { openWithCommandAvailable, runOpenWithCommand } from '../openWith/openWithCommand';
+import {
+	runAsAdministratorOffered,
+	runRunAsAdministratorCommand,
+} from '../openWith/runAsAdministrator';
 import { useElevationCommands } from '../elevation/useElevationCommands';
 import { useCommandBridge } from './commandBridge';
 import { startCommandFeed, type CommandFeed } from './commandFeed';
@@ -159,6 +163,15 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 		bridge.patchFacts({ openWith: openWithPossible });
 	}, [bridge, openWithPossible]);
 
+	// Run as Administrator is the system's own prompt, which only Windows has; the plugin says so too.
+	const runElevatedPossible = runAsAdministratorOffered(
+		openWithStatus,
+		document.documentElement.dataset.platform,
+	);
+	useEffect(() => {
+		bridge.patchFacts({ runElevated: runElevatedPossible });
+	}, [bridge, runElevatedPossible]);
+
 	useEffect(() => {
 		const activeId = () => latest.current.snapshot?.active ?? null;
 		const activeTab = () => latest.current.snapshot?.tabs.find((tab) => tab.id === activeId());
@@ -199,6 +212,15 @@ export function useWorkspaceCommands(sources: WorkspaceCommandSources): void {
 					vfs: files,
 					chooser: openWithChooserStore,
 				});
+			},
+			runAsAdministrator: (location) => {
+				const { openWith: service, vfs: files } = latest.current;
+				if (!service) return;
+				void runRunAsAdministratorCommand(
+					latest.current.activeSession(),
+					{ client: service.client, vfs: files },
+					location,
+				);
 			},
 			selectAll: () => latest.current.activeSession()?.store.getState().selectAll(),
 			invertSelection: () => latest.current.activeSession()?.store.getState().invertSelection(),

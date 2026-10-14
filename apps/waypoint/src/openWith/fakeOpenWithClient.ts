@@ -31,6 +31,8 @@ export interface FakeOpenWithOptions {
 	chooseError?: MimeAppsError;
 	/** Rejects every start (`openWith`, `openDefault`) with this. */
 	openError?: MimeAppsError;
+	/** Rejects `runElevated` with this (`{ kind: 'cancelled' }` for a declined prompt). */
+	runElevatedError?: MimeAppsError;
 }
 
 /** A tiny application for a test. */
@@ -40,7 +42,12 @@ export function fakeApp(id: string, name = id): App {
 
 export interface FakeOpenWithClient extends OpenWithClient {
 	/** Every call that changes something, in order. */
-	calls: Array<['openWith', string[], string] | ['openDefault', string[]] | ['choose', string[]]>;
+	calls: Array<
+		| ['openWith', string[], string]
+		| ['openDefault', string[]]
+		| ['choose', string[]]
+		| ['runElevated', string[]]
+	>;
 	/** The locations `handlers` was asked about, in order. */
 	asked: string[][];
 }
@@ -56,6 +63,7 @@ export function createFakeOpenWithClient(options: FakeOpenWithOptions = {}): Fak
 		'setDefault',
 		'chooser',
 		'appIcons',
+		'runElevated',
 	].map((name) => ({
 		name,
 		available: available.has(name),
@@ -98,6 +106,10 @@ export function createFakeOpenWithClient(options: FakeOpenWithOptions = {}): Fak
 		choose: async (uris) => {
 			if (options.chooseError) throw options.chooseError;
 			calls.push(['choose', uris]);
+		},
+		runElevated: async (uris) => {
+			if (options.runElevatedError) throw options.runElevatedError;
+			calls.push(['runElevated', uris]);
 		},
 		iconUrl: (appId, size = 32) => `appicon://localhost/${encodeURIComponent(appId)}?size=${size}`,
 	};

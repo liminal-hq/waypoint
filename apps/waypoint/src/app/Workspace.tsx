@@ -83,6 +83,7 @@ import { useWindowShortcuts } from '../tabs/windowActions';
 import { CloseGuardHost } from '../tabs/CloseGuardHost';
 import { FileDragProvider } from '../dnd/FileDragContext';
 import { OpenWithHost } from '../openWith/OpenWithHost';
+import { isRunnableEntry } from '../openWith/runAsAdministrator';
 import { QuickLookHost } from '../quicklook/QuickLookHost';
 import { InspectorProvider } from '../inspector/InspectorContext';
 import { usePropertiesWindowClient } from '../inspector/PropertiesWindowContext';
@@ -320,6 +321,7 @@ function WorkspaceBody({
 	const bridge = useCommandBridge();
 	// Whether Administrator access is on and works here, for the menus that offer Open as Administrator.
 	const elevationOffered = useStore(bridge.store, (env) => env.facts.elevation);
+	const runElevatedOffered = useStore(bridge.store, (env) => env.facts.runElevated);
 	const folderViewStore = folderViewsHandle?.store ?? IDLE_FOLDER_VIEWS;
 	const remembered = useStore(folderViewStore, (state) =>
 		remembering ? state.folders : NO_FOLDERS,
@@ -471,6 +473,16 @@ function WorkspaceBody({
 		if (command === 'propertiesWindow') return openProperties(from, entry);
 		const { actions } = bridge.store.getState();
 		if (command === 'leaveAdministrator') return actions.leaveAdministrator();
+		if (command === 'runAsAdministrator') {
+			// On the file that was right-clicked.
+			if (entry && from) {
+				client.entryLocation(from.model.handle, entry.id).then(
+					(file) => actions.runAsAdministrator(file),
+					(error: unknown) => console.warn('could not find the file to run', error),
+				);
+			}
+			return;
+		}
 		if (command === 'openAsAdministrator') {
 			// On the folder that was right-clicked, or on the folder the empty space belongs to.
 			if (entry && from) {
@@ -697,6 +709,16 @@ function WorkspaceBody({
 												}
 												propertiesWindow={propertiesWindowAvailable}
 												elevation={elevationMenuFor(elevationOffered, menu.session?.model.location)}
+												runAsAdministrator={
+													runElevatedOffered &&
+													menu.session != null &&
+													isRunnableEntry(menu.entry) &&
+													menu.session.model.location.uri.startsWith('file:') &&
+													selectedCount(
+														menu.session.store.getState().selection,
+														menu.session.model.count,
+													) <= 1
+												}
 												onCommand={runCommand}
 											/>
 										)}

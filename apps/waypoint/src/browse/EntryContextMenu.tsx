@@ -61,6 +61,8 @@ interface EntryContextMenuProps {
 	propertiesWindow?: boolean | undefined;
 	/** What Administrator Mode adds to or takes out of the menu for the listing the entry is in. */
 	elevation?: ElevationMenu | undefined;
+	/** Run as Administrator is offered for this entry: it is a program, script, installer or shortcut, the only item selected, and the system can do it. */
+	runAsAdministrator?: boolean | undefined;
 }
 
 /** The commands the entry menu can run. */
@@ -83,7 +85,8 @@ export type EntryCommand =
 	| 'moveToOtherPane'
 	| 'properties'
 	| 'propertiesWindow'
-	| 'openAsAdministrator';
+	| 'openAsAdministrator'
+	| 'runAsAdministrator';
 
 const ENTRY_COMMANDS: EntryCommand[] = [
 	'rename',
@@ -105,6 +108,7 @@ const ENTRY_COMMANDS: EntryCommand[] = [
 	'properties',
 	'propertiesWindow',
 	'openAsAdministrator',
+	'runAsAdministrator',
 ];
 
 /**
@@ -368,6 +372,7 @@ export function entryMenuItems(
 	openWith: SubmenuMenuItem | null = null,
 	propertiesWindow = false,
 	elevation: ElevationMenu = { offer: false, elevated: false },
+	runAsAdministrator = false,
 ): MenuItem[] {
 	return [
 		// A file of an elevated folder cannot be handed to another program, and Waypoint does not
@@ -417,6 +422,16 @@ export function entryMenuItems(
 				]
 			: []),
 		...(openWith ? [openWith] : []),
+		...(runAsAdministrator && !isFolder(entry) && !elevation.elevated
+			? [
+					{
+						type: 'action',
+						id: 'runAsAdministrator',
+						label: t('cmd.runAsAdministrator'),
+						icon: <ShieldIcon />,
+					} as const,
+				]
+			: []),
 		{ type: 'separator' },
 		...(commands ? clipboardItems(entry, commands) : []),
 		...(isFolder(entry)
@@ -475,6 +490,7 @@ export function EntryContextMenu({
 	session,
 	propertiesWindow = false,
 	elevation,
+	runAsAdministrator = false,
 }: EntryContextMenuProps) {
 	const shelf = useShelfActions();
 	const openWith = useOpenWithMenu({ session, entry, handle });
@@ -485,6 +501,7 @@ export function EntryContextMenu({
 		openWith.item,
 		propertiesWindow,
 		elevation,
+		runAsAdministrator,
 	);
 	return (
 		<HostedContextMenu

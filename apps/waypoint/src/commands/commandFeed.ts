@@ -7,6 +7,7 @@ import type { JournalEntrySummary } from '@liminal-hq/waypoint-protocol/generate
 import { batchRenameSelection } from '../ops/batchRename/batchRenameSelection';
 import { selectedCount } from '../browse/selection';
 import { isFolder } from '../nav/useOpenEntry';
+import { runnableFileSelected } from '../openWith/runAsAdministrator';
 import type { ListingSession } from '../browse/useListingSession';
 import type { ViewStore } from '../browse/viewStore';
 import type { ClipboardService } from '../ops/clipboardService';
@@ -99,6 +100,7 @@ export function startCommandFeed(bridge: CommandBridge, sources: CommandFeedSour
 		const chosen = session && selection ? selectedCount(selection, session.model.count) : 0;
 		bridge.patchFacts({
 			elevateSelection: elevateSelectionOf(session, chosen),
+			runnableFile: runnableFileSelected(session, chosen),
 			file: files ? files.states(session) : emptyFacts().file,
 			selected: session && selection ? selectedCount(selection, session.model.count) : 0,
 			listing: session !== null,

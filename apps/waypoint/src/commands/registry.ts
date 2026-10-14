@@ -88,6 +88,7 @@ export type CommandId =
 	| 'batchRename'
 	| 'openWith'
 	| 'openAsAdministrator'
+	| 'runAsAdministrator'
 	| 'leaveAdministrator'
 	// The Trash
 	| 'restoreFromTrash'
@@ -391,6 +392,21 @@ export const COMMANDS: readonly CommandDef[] = [
 					? blocked('cmd.reason.elevateFolder')
 					: SHOWN,
 		run: (a) => a.openAsAdministrator(),
+	},
+	{
+		id: 'runAsAdministrator',
+		label: 'cmd.runAsAdministrator',
+		icon: ShieldIcon,
+		group: 'file',
+		// No shortcut, for the same reason as Open as Administrator: it asks the system for
+		// administrator rights, so it is chosen on purpose, never by a key pressed by habit.
+		// Offered only where Windows can do it, for one selected program, script, installer or
+		// shortcut in an ordinary local folder; it is not behind the Administrator access setting,
+		// as the system's own prompt does the elevating. Anywhere else it cannot apply, so it is
+		// hidden rather than blocked.
+		when: (f) =>
+			!f.runElevated || !f.listing || !f.local || f.trash || !f.runnableFile ? HIDDEN : SHOWN,
+		run: (a) => a.runAsAdministrator(),
 	},
 	{
 		id: 'leaveAdministrator',

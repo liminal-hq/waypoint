@@ -4372,6 +4372,8 @@ const messages: Catalogue = {
 	'cmd.openWith': 'Ouvrir avec…',
 	// source: 5f4bdc7f
 	'cmd.openAsAdministrator': 'Ouvrir en tant qu’administrateur',
+	// source: e33b0105
+	'cmd.runAsAdministrator': 'Exécuter en tant qu’administrateur',
 	// source: a07bb111
 	'cmd.leaveAdministrator': 'Quitter le mode administrateur',
 	// source: d1ec69e6
@@ -4446,6 +4448,8 @@ const messages: Catalogue = {
 	'openWith.failed': 'Impossible d’ouvrir l’élément.',
 	// source: 4ba29408
 	'openWith.failed.app': 'Impossible d’ouvrir l’élément avec {app}.',
+	// source: a831fcf6
+	'runAsAdministrator.failed': 'Impossible de l’exécuter en tant qu’administrateur.',
 	// source: c99bc47e
 	'openWith.failed.list': 'Impossible de trouver les applications pour cet élément.',
 	// source: ed1d4b77

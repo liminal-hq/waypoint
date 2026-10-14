@@ -96,6 +96,21 @@ describe('the menus', () => {
 		expect(idsOf(submenu(build(writable), MENU_IDS.file).items)).not.toContain('openWith');
 	});
 
+	it('File: Run as Administrator follows Open as Administrator, only for one runnable file', () => {
+		const on = { runElevated: true, runnableFile: true };
+		const file = submenu(build(factsFor({ selected: 1 }, on)), MENU_IDS.file);
+		expect(idsOf(file.items).slice(2, 6)).toEqual([
+			'newFolder',
+			'newFile',
+			'runAsAdministrator',
+			'rename',
+		]);
+		expect(rowOf(file.items, 'runAsAdministrator').label).toBe(t('cmd.runAsAdministrator'));
+		expect(rowOf(file.items, 'runAsAdministrator')).not.toHaveProperty('shortcut');
+		const other = submenu(build(factsFor({ selected: 1 }, { runElevated: true })), MENU_IDS.file);
+		expect(idsOf(other.items)).not.toContain('runAsAdministrator');
+	});
+
 	it('File: Open as Administrator follows Open With…, and Leave Administrator Mode takes its place in an elevated tab', () => {
 		const on = { elevation: true };
 		const ordinary = submenu(build(factsFor({ selected: 0 }, on)), MENU_IDS.file);
