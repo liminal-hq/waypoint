@@ -142,7 +142,7 @@ Design for **Flatpak too** (the permissions it asks for are D200 and A150). Port
 ### Paths and keys
 
 - **Paths:** show native Windows paths (`C:\Users\scott\…`) and drive letters in the sidebar. Internally use a common path type; long paths use the `\\?\` prefix; file names are case-insensitive and some names are reserved.
-- **Keys:** follow the platform's conventions. On Windows: F2 rename, Del to Recycle Bin, Shift+Del permanent, F5 refresh, Alt+Left/Right/Up, Alt+D or Ctrl+L for the address bar, Alt+Enter Properties. Keymap presets: Waypoint, Nemo, Dolphin, Explorer.
+- **Keys:** follow the platform's conventions. On Windows: F2 rename, Del to Recycle Bin, Shift+Del permanent, F5 refresh, Alt+Left/Right/Up, Alt+D or Ctrl+L for the address bar, Alt+Enter Properties. Waypoint's own defaults agree on F5: it refreshes (Ctrl+R too), and Copy and Move to the other pane are Ctrl+F5 and Ctrl+Shift+F5. Keymap presets: Waypoint, Nemo, Dolphin, Explorer.
 - Open as Administrator uses UAC instead of polkit: the helper is started with the `runas` verb and spoken to over a named pipe, from the installed copy only (the portable zip reports it unavailable), and Run as Administrator for one program is the shell's own `runas` (D218).
 - Not carried over: xattr tags (Windows keeps tags and comments in Waypoint's own database, not in NTFS alternate data streams, D214), udisks2, GVFS, polkit (uses UAC), snapshots (Volume Shadow Copy is a later idea).
 

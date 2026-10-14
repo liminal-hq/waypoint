@@ -316,12 +316,12 @@ export interface FileCommands extends ArchiveCommandsApi {
 	/** Move To…: asks for a folder, then moves the selection there. */
 	moveTo(session?: ListingSession | null): Promise<void>;
 	/**
-	 * F5: copies the selection to the other pane's folder. Without a pair, or when the other
+	 * Ctrl+F5: copies the selection to the other pane's folder. Without a pair, or when the other
 	 * pane cannot be written to, it asks for a folder as Copy To… does; with nothing selected it
 	 * says so.
 	 */
 	copyToOtherPane(session?: ListingSession | null): Promise<void>;
-	/** Shift+F5: the same, moving. */
+	/** Ctrl+Shift+F5: the same, moving. */
 	moveToOtherPane(session?: ListingSession | null): Promise<void>;
 	/**
 	 * Link To…: asks for a folder, then makes links to the selection there (the drop's Link Here,
@@ -734,7 +734,7 @@ export function createFileCommands(deps: FileCommandDeps): FileCommands {
 		if (destination) await transfer(kind, found, destination);
 	};
 
-	/** F5 and Shift+F5: the other pane's folder when there is one that can be written to, otherwise the dialog. */
+	/** Ctrl+F5 and Ctrl+Shift+F5: the other pane's folder when there is one that can be written to, otherwise the dialog. */
 	const transferToOtherPane = async (kind: 'copy' | 'move', session?: ListingSession | null) => {
 		const found = kind === 'move' ? withSelection(session) : withReadableSelection(session);
 		if (!found) return;

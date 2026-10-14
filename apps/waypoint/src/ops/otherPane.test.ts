@@ -1,4 +1,4 @@
-// Verifies which pane F5 copies to: the next pane of the pair, and none when the pane is not paired or the other has no listing
+// Verifies which pane Ctrl+F5 copies to: the next pane of the pair, and none when the pane is not paired or the other has no listing
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

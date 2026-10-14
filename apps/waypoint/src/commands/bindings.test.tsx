@@ -304,6 +304,21 @@ describe('the shortcuts the registry shows', () => {
 		expect(missing).toEqual([]);
 	});
 
+	it('refreshes on Ctrl+R as well as F5, and nothing else shows Ctrl+R or Shift+F5', () => {
+		const refresh = vi.fn();
+		const stop = startRefreshShortcut(window, refresh);
+		dispatchOnWindow('Ctrl+R');
+		dispatchOnWindow('F5');
+		stop();
+		expect(refresh).toHaveBeenCalledTimes(2);
+		expect(COMMANDS.find((command) => command.id === 'refresh')?.shortcut).toBe('F5');
+		const shown = COMMANDS.map((command) => command.shortcut);
+		expect(shown).not.toContain('Ctrl+R');
+		expect(shown).not.toContain('Shift+F5');
+		expect(fileKeyCalls('Shift+F5')).toEqual([]);
+		expect(fileKeyCalls('F5')).toEqual([]);
+	});
+
 	for (const command of COMMANDS.filter((candidate) => candidate.shortcut)) {
 		it(`${command.id} (${command.shortcut}) is the key the hooks bind`, async () => {
 			await probes[command.id]!(command.shortcut!);

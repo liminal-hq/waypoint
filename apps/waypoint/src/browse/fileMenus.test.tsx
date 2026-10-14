@@ -210,10 +210,13 @@ describe('the entry menu', () => {
 		const pair = commandStates({ ...base, paired: true, otherPaneWritable: true });
 		const items = entryMenuItems(file, pair).filter((item) => item.type === 'action');
 		const byId = Object.fromEntries(items.map((item) => [item.id, item]));
-		expect(byId.copyToOtherPane).toMatchObject({ label: 'Copy to Other Pane', shortcut: 'F5' });
+		expect(byId.copyToOtherPane).toMatchObject({
+			label: 'Copy to Other Pane',
+			shortcut: 'Ctrl+F5',
+		});
 		expect(byId.moveToOtherPane).toMatchObject({
 			label: 'Move to Other Pane',
-			shortcut: 'Shift+F5',
+			shortcut: 'Ctrl+Shift+F5',
 		});
 		expect(shape(entryMenuItems(file, pair))).toContain('copyToOtherPane');
 		expect(shape(entryMenuItems(file, writable))).not.toContain('copyToOtherPane');
@@ -540,8 +543,8 @@ describe('a key for every menu item', () => {
 		'Ctrl+X': { key: 'x', ctrlKey: true },
 		'Ctrl+C': { key: 'c', ctrlKey: true },
 		'Ctrl+V': { key: 'v', ctrlKey: true },
-		F5: { key: 'F5' },
-		'Shift+F5': { key: 'F5', shiftKey: true },
+		'Ctrl+F5': { key: 'F5', ctrlKey: true },
+		'Ctrl+Shift+F5': { key: 'F5', ctrlKey: true, shiftKey: true },
 	};
 	const WRITE_IDS = new Set([
 		'rename',
@@ -558,7 +561,7 @@ describe('a key for every menu item', () => {
 		'copyToOtherPane',
 		'moveToOtherPane',
 	]);
-	// Items whose command has no key of its own: they run from the menu (the dialog), and F5 asks
+	// Items whose command has no key of its own: they run from the menu (the dialog), and Ctrl+F5 asks
 	// the same question when there is no pair.
 	const MENU_ONLY = new Set(['copyTo', 'moveTo', 'pasteInto']);
 

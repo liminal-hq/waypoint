@@ -1,4 +1,4 @@
-// Verifies the clipboard and pane operations in the whole browsing area: the keys and menus, the dimmed rows, a pair's F5 and the destination dialog
+// Verifies the clipboard and pane operations in the whole browsing area: the keys and menus, the dimmed rows, a pair's Ctrl+F5 and the destination dialog
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -232,18 +232,34 @@ describe('Copy To… and Move To…', () => {
 	});
 });
 
-describe('F5 and Shift+F5', () => {
+describe('Ctrl+F5 and Ctrl+Shift+F5', () => {
+	it('leave plain F5 and Shift+F5 to Refresh and Ctrl+R, in a pair too: F5 reads the folders again and copies nothing', async () => {
+		const { ops, vfs } = await mountWorkspace({ paired: true });
+		await choose('notes.txt', 0);
+		const before = vfs.refreshed.length;
+		await act(async () => keyOn('notes.txt', 'F5', {}, 0));
+		await waitFor(() => expect(vfs.refreshed.length).toBeGreaterThan(before));
+		const afterF5 = vfs.refreshed.length;
+		await act(async () => keyOn('notes.txt', 'r', { ctrlKey: true }, 0));
+		await waitFor(() => expect(vfs.refreshed.length).toBeGreaterThan(afterF5));
+		const afterCtrlR = vfs.refreshed.length;
+		await act(async () => keyOn('notes.txt', 'F5', { shiftKey: true }, 0));
+		expect(vfs.refreshed.length).toBe(afterCtrlR);
+		expect(submits(ops)).toHaveLength(0);
+		expect(screen.queryByRole('dialog')).toBeNull();
+	});
+
 	it('copy and move to the other pane of a pair without asking', async () => {
 		const { ops } = await mountWorkspace({ paired: true });
 		await waitFor(() => expect(row('notes.txt', 0)).toBeDefined());
 		await choose('notes.txt', 0);
-		await act(async () => keyOn('notes.txt', 'F5', {}, 0));
+		await act(async () => keyOn('notes.txt', 'F5', { ctrlKey: true }, 0));
 		await waitFor(() => expect(submits(ops)).toHaveLength(1));
 		expect(lastSubmit(ops)).toMatchObject({
 			kind: { kind: 'copy' },
 			destination: { uri: 'file:///home/test/docs' },
 		});
-		await act(async () => keyOn('notes.txt', 'F5', { shiftKey: true }, 0));
+		await act(async () => keyOn('notes.txt', 'F5', { ctrlKey: true, shiftKey: true }, 0));
 		await waitFor(() => expect(submits(ops)).toHaveLength(2));
 		expect(lastSubmit(ops)).toMatchObject({
 			kind: { kind: 'move' },
@@ -259,9 +275,9 @@ describe('F5 and Shift+F5', () => {
 		await choose('notes.txt', 0);
 		fireEvent.contextMenu(row('notes.txt', 0));
 		const copy = await screen.findByRole('menuitem', { name: /Copy to Other Pane/ });
-		expect(copy).toHaveTextContent('F5');
+		expect(copy).toHaveTextContent('Ctrl+F5');
 		expect(screen.getByRole('menuitem', { name: /Move to Other Pane/ })).toHaveTextContent(
-			'Shift+F5',
+			'Ctrl+Shift+F5',
 		);
 		await user.click(copy);
 		await waitFor(() => expect(submits(ops)).toHaveLength(1));
@@ -270,11 +286,11 @@ describe('F5 and Shift+F5', () => {
 	it('open Copy To… without a pair, and do nothing but say so with nothing selected', async () => {
 		const { ops } = await mountWorkspace();
 		await waitFor(() => expect(options()).not.toHaveLength(0));
-		await act(async () => keyOn('x', 'F5'));
+		await act(async () => keyOn('x', 'F5', { ctrlKey: true }));
 		await waitFor(() => expect(screen.getByText('Nothing is selected.')).toBeInTheDocument());
 		expect(screen.queryByRole('dialog')).toBeNull();
 		await choose('notes.txt');
-		await act(async () => keyOn('notes.txt', 'F5'));
+		await act(async () => keyOn('notes.txt', 'F5', { ctrlKey: true }));
 		await screen.findByRole('dialog', { name: 'Copy 1 item to…' });
 		expect(submits(ops)).toHaveLength(0);
 	});

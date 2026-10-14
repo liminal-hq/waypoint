@@ -39,7 +39,8 @@
 | F2                        | Rename · Ctrl+F2 batch rename                                                                            |
 | F3                        | Toggle split                                                                                             |
 | F4                        | Terminal drawer                                                                                          |
-| F5 / Shift+F5             | Copy / move to the other pane (Copy To… / Move To… when there is no pair or the other pane is read-only) |
+| F5 / Ctrl+R               | Refresh                                                                                                  |
+| Ctrl+F5 / Ctrl+Shift+F5   | Copy / move to the other pane (Copy To… / Move To… when there is no pair or the other pane is read-only) |
 | F6                        | Switch the active pane                                                                                   |
 | F9                        | Sidebar · F11 inspector (shows and hides it; reopens on the tab last used; the same in a text field)     |
 | Space                     | Quick Look (Space or Esc closes; Left/Right, or Up/Down in the grid, step through the items)             |
@@ -112,7 +113,7 @@ Leaving a sprung target returns you to where you started unless you dropped. Esc
 - **Built: the Shelf window.** Undock is the button on the dock's header, View ▸ Undock Shelf and the palette's Undock Shelf; Dock is the button on the Shelf window's header, View ▸ Dock Shelf, the palette's Dock Shelf, or closing the window. With the Shelf undocked, the Main windows keep no dock, and Ctrl+B and the status bar button raise the Shelf window, or hide it when it is on screen and focused (Ctrl+B inside the Shelf window hides it). Focus Shelf raises it. Everything in the dock works in the window: the same keys (Left, Right, Up, Down, Home, End, Enter, Space, Ctrl+A, Esc, Delete, Ctrl+C, the Menu key), the item menu, drops (from other applications too) and drags out; the window is resized at its edges instead of by a divider. Its title bar has Always on Top where the system can do it. Position, size and Always on Top are remembered and come back with the session. Dragging the dock's header out of the window to undock it, and dropping the Shelf window on a Main window to dock it, are later. While files from another window are held over the Shelf window, the whole window is the drop target: an accent edge round it and a “Drop to add to the Shelf” hint, which go when they leave or are dropped.
 - You can drag the whole Shelf or a subset out of it. The per-item menu has Remove, Reveal, Copy path, and "Send to…".
 - You can drop items onto it from other apps.
-- Every drag has a path without a pointer: copy, cut and paste, Copy To… and Move To…, F5 and Shift+F5 for the other pane, and Add to Shelf in the menu.
+- Every drag has a path without a pointer: copy, cut and paste, Copy To… and Move To…, Ctrl+F5 and Ctrl+Shift+F5 for the other pane, and Add to Shelf in the menu.
 
 ### 3.5 Tabs
 

@@ -614,7 +614,7 @@ export const COMMANDS: readonly CommandDef[] = [
 	{
 		id: 'copyToOtherPane',
 		label: 'menu.copyToOtherPane',
-		shortcut: 'F5',
+		shortcut: 'Ctrl+F5',
 		icon: CopyToIcon,
 		group: 'edit',
 		when: fileCommand('copyToOtherPane', needsOtherPane),
@@ -623,7 +623,7 @@ export const COMMANDS: readonly CommandDef[] = [
 	{
 		id: 'moveToOtherPane',
 		label: 'menu.moveToOtherPane',
-		shortcut: 'Shift+F5',
+		shortcut: 'Ctrl+Shift+F5',
 		icon: MoveToIcon,
 		group: 'edit',
 		when: fileCommand('moveToOtherPane', needsOtherPane),
@@ -672,7 +672,8 @@ export const COMMANDS: readonly CommandDef[] = [
 	{
 		id: 'refresh',
 		label: 'cmd.refresh',
-		shortcut: 'Ctrl+R',
+		// Ctrl+R refreshes too (`startRefreshShortcut`); the one key shown is the platform's F5.
+		shortcut: 'F5',
 		icon: RestoreIcon,
 		group: 'view',
 		when: () => SHOWN,

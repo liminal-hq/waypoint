@@ -1,4 +1,4 @@
-// Finds the pane that F5 and Shift+F5 copy and move to: the next pane of the pair the pane is half of
+// Finds the pane that Ctrl+F5 and Ctrl+Shift+F5 copy and move to: the next pane of the pair the pane is half of
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
