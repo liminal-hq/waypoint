@@ -302,10 +302,13 @@ impl Vfs {
                 .ok_or_else(|| VfsError::Unsupported {
                     what: "the Trash cannot be read here".to_owned(),
                 }),
-            // Server, archive, Git and elevated providers are the ones the app registered (A85, A154).
-            VfsPath::Remote(_) | VfsPath::Archive(_) | VfsPath::Git(_) | VfsPath::Elevated(_) => {
-                self.remote.for_path(path)
-            }
+            // Server, archive, Git, elevated and search providers are the ones the app registered
+            // (A85, A154); a search is unsupported until one is.
+            VfsPath::Remote(_)
+            | VfsPath::Archive(_)
+            | VfsPath::Git(_)
+            | VfsPath::Elevated(_)
+            | VfsPath::Search(_) => self.remote.for_path(path),
         }
     }
 }

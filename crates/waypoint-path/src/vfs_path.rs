@@ -1,5 +1,5 @@
 // The scheme-shaped path: a location in any provider, local, in the Trash, on a server, inside an
-// archive, in a Git revision or seen through the elevated helper.
+// archive, in a Git revision, seen through the elevated helper or a search.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -12,6 +12,7 @@ use crate::archive_path::{ArchivePath, ARCHIVE_SCHEME};
 use crate::elevated_path::{ElevatedPath, ELEVATED_SCHEME};
 use crate::git_path::{GitPath, GIT_SCHEME};
 use crate::remote_path::{ConnectionKey, RemotePath, RemoteScheme};
+use crate::search_path::{SearchPath, SEARCH_SCHEME};
 use crate::trash_path::{TrashPath, TRASH_SCHEME};
 use crate::{FilePath, PathError};
 
@@ -29,6 +30,8 @@ pub enum VfsPath {
     Git(GitPath),
     /// A local path read and changed as the administrator, through the elevated helper.
     Elevated(ElevatedPath),
+    /// A search, or a smart folder: its results are the listing.
+    Search(SearchPath),
 }
 
 /// The scheme of `text` when it is written `scheme://…`. A Windows drive letter (`C:\a`) is a
@@ -53,6 +56,7 @@ impl VfsPath {
             VfsPath::Archive(_) => ARCHIVE_SCHEME,
             VfsPath::Git(_) => GIT_SCHEME,
             VfsPath::Elevated(_) => ELEVATED_SCHEME,
+            VfsPath::Search(_) => SEARCH_SCHEME,
         }
     }
 
@@ -69,6 +73,9 @@ impl VfsPath {
         }
         if ElevatedPath::is_elevated_uri(uri) {
             return ElevatedPath::from_uri(uri).map(VfsPath::Elevated);
+        }
+        if SearchPath::is_search_uri(uri) {
+            return SearchPath::from_uri(uri).map(VfsPath::Search);
         }
         if hierarchical_scheme(uri).is_some_and(|scheme| RemoteScheme::from_name(scheme).is_some())
         {
@@ -100,7 +107,7 @@ impl VfsPath {
         if GitPath::is_git_uri(text) {
             return GitPath::parse(text, true).map(|path| (VfsPath::Git(path), false));
         }
-        if ElevatedPath::is_elevated_uri(text) {
+        if ElevatedPath::is_elevated_uri(text) || SearchPath::is_search_uri(text) {
             return Self::from_uri(text).map(|path| (path, false));
         }
         match hierarchical_scheme(text) {
@@ -126,6 +133,7 @@ impl VfsPath {
             VfsPath::Archive(path) => path.join(child).map(VfsPath::Archive),
             VfsPath::Git(path) => path.join(child).map(VfsPath::Git),
             VfsPath::Elevated(path) => path.join(child).map(VfsPath::Elevated),
+            VfsPath::Search(_) => Err(PathError::Invalid("a search has no children")),
         }
     }
 
@@ -145,6 +153,7 @@ impl VfsPath {
                 None => Some(VfsPath::File(path.repo().clone())),
             },
             VfsPath::Elevated(path) => path.parent().map(VfsPath::Elevated),
+            VfsPath::Search(_) => None,
         }
     }
 
@@ -158,6 +167,7 @@ impl VfsPath {
             VfsPath::Archive(path) => path.file_name(),
             VfsPath::Git(path) => path.file_name(),
             VfsPath::Elevated(path) => path.file_name(),
+            VfsPath::Search(_) => None,
         }
     }
 
@@ -173,6 +183,7 @@ impl VfsPath {
             VfsPath::Archive(path) => path.root_label(),
             VfsPath::Git(path) => path.root_label(),
             VfsPath::Elevated(path) => path.display(),
+            VfsPath::Search(path) => path.label(),
         }
     }
 
@@ -183,7 +194,7 @@ impl VfsPath {
             VfsPath::Remote(path) => Some(path.connection_key()),
             VfsPath::Archive(path) => path.connection_key(),
             VfsPath::Elevated(_) => Some(ConnectionKey::elevated()),
-            VfsPath::File(_) | VfsPath::Trash(_) | VfsPath::Git(_) => None,
+            VfsPath::File(_) | VfsPath::Trash(_) | VfsPath::Git(_) | VfsPath::Search(_) => None,
         }
     }
 
@@ -195,6 +206,7 @@ impl VfsPath {
             VfsPath::Archive(path) => path.display(),
             VfsPath::Git(path) => path.display(),
             VfsPath::Elevated(path) => path.display(),
+            VfsPath::Search(path) => path.display(),
         }
     }
 
@@ -206,6 +218,7 @@ impl VfsPath {
             VfsPath::Archive(path) => path.to_uri(),
             VfsPath::Git(path) => path.to_uri(),
             VfsPath::Elevated(path) => path.to_uri(),
+            VfsPath::Search(path) => path.to_uri(),
         }
     }
 
@@ -340,6 +353,27 @@ mod tests {
         // Only an ordinary local path can be elevated.
         assert_eq!(VfsPath::parse_input("trash:/").unwrap().elevated(), None);
         assert_eq!(VfsPath::from_uri("sftp://h/a").unwrap().elevated(), None);
+    }
+
+    #[test]
+    fn a_search_is_a_location_with_no_parent_and_no_children() {
+        let path = VfsPath::parse_input("search:?in=home&q=a%20b").unwrap();
+        assert!(matches!(path, VfsPath::Search(_)));
+        assert_eq!(path.scheme(), "search");
+        assert_eq!(path.to_uri(), "search:?in=home&q=a%20b");
+        assert_eq!(path.display(), "Search");
+        assert_eq!(path.label(), "Search");
+        assert_eq!(path.file_name(), None);
+        assert_eq!(path.parent(), None);
+        assert!(path.join("x").is_err());
+        assert_eq!(path.connection_key(), None);
+        assert_eq!(path.elevated(), None);
+        assert_eq!(path.unelevated(), path);
+        let saved = VfsPath::from_uri("search:/saved/abc").unwrap();
+        assert_eq!(saved.to_uri(), "search:/saved/abc");
+        assert_eq!(saved.parent(), None);
+        assert!(VfsPath::from_uri("search:/nope").is_err());
+        assert!(VfsPath::parse_input("search:?q").is_err());
     }
 
     #[test]
