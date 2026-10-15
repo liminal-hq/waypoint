@@ -126,7 +126,7 @@ Overlays: command palette, Quick Look, ops queue popover, conflict resolver, con
 - **New Terminal Tab** creates a real tab that joins the current tab as a pair, beside it. It stays in the folder where it started; `cd` inside it does not move the other pane.
 - The tab shows a terminal icon and a title that follows the shell (the folder, or the running command while one is busy). Double-click to rename. Long titles truncate in the tab, and the full title shows in the tooltip and the pair header.
 - Dropping files inserts their quoted paths; Alt-drop changes directory.
-- **As decided for milestone 7 (D216; the renderer and its budgets wait for spike #316):** a terminal tab is pinned, coloured, grouped, torn off and restored like any tab; after a restart it starts a new shell in its folder, without its old scrollback. On a server folder it opens a shell over the same SSH connection.
+- **As decided for milestone 7 (D216, D220; the terminal is `xterm.js` on WebGL with a DOM fallback and a 10,000-line scrollback, and screen reader mode is a setting, Auto, Off or On):** a terminal tab is pinned, coloured, grouped, torn off and restored like any tab; after a restart it starts a new shell in its folder, without its old scrollback. On a server folder it opens a shell over the same SSH connection. The terminal is not an Experimental feature, and in a Flatpak it is unavailable, with the reason in the Services panel.
 
 #### Startup
 
